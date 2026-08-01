@@ -22,6 +22,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { RequestContextMiddleware } from './observability/request-context.middleware';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PrivacyModule } from './privacy/privacy.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
@@ -58,6 +59,7 @@ import { WalletModule } from './wallet/wallet.module';
     IntelligenceModule,
     SocialModule,
     AccountModule,
+    PrivacyModule,
     ReportsModule,
     FeatureFlagsModule,
     EntitlementsModule,
