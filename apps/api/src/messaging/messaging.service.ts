@@ -160,11 +160,14 @@ export class MessagingService {
     ]);
 
     const hasMore = messages.length > safeLimit;
-    const page = hasMore ? messages.slice(0, safeLimit) : messages;
+    const pageDescending = hasMore ? messages.slice(0, safeLimit) : messages;
+    const nextCursor = hasMore
+      ? pageDescending[pageDescending.length - 1]?.id ?? null
+      : null;
 
     return {
-      items: page.reverse(),
-      nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null,
+      items: [...pageDescending].reverse(),
+      nextCursor,
       readStates: members
     };
   }
