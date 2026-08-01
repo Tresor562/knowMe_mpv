@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api';
 import { useAccessControl } from '../../lib/use-access-control';
 import { useSession } from '../../lib/use-session';
 import { AccessControlPanel } from './AccessControlPanel';
+import { BillingPanel } from './BillingPanel';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { RewardsPanel } from './RewardsPanel';
@@ -36,6 +37,7 @@ const P = {
   entitlements: 'entitlements.manage',
   wallet: 'wallet.manage',
   rewards: 'rewards.manage',
+  billing: 'billing.manage',
   flags: 'feature_flags.manage',
   rbac: 'rbac.manage'
 } as const;
@@ -263,6 +265,7 @@ export default function AdminPage() {
       {can(P.entitlements) && <EntitlementsPanel />}
       {can(P.wallet) && <WalletPanel />}
       {can(P.rewards) && <RewardsPanel />}
+      {can(P.billing) && <BillingPanel />}
       {can(P.flags) && <FeatureFlagsPanel />}
     </main>
   );
