@@ -16,9 +16,19 @@ export function toStaffBadge(staffAccount: StaffProfileRecord) {
   if (!staffAccount || staffAccount.status !== 'ACTIVE') return null;
 
   return {
-    isTeamMember: true,
+    isTeamMember: true as const,
     label: staffAccount.badgeLabel,
     shield: staffAccount.shieldStyle,
     role: staffAccount.staffRole
+  };
+}
+
+export function withStaffBadge<T extends { staffAccount: StaffProfileRecord }>(
+  user: T
+) {
+  const { staffAccount, ...profile } = user;
+  return {
+    ...profile,
+    staff: toStaffBadge(staffAccount)
   };
 }
