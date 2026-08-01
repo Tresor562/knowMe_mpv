@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -16,6 +16,68 @@ export class AdminService {
     }));
   }
 
+  listReports(status = 'OPEN') {
+    return this.prisma.report.findMany({
+      where: status === 'ALL' ? undefined : { status },
+      include: {
+        reporter: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+  }
+
+  async resolveReport(actorId: string, reportId: string, status: string) {
+    if (!['RESOLVED', 'DISMISSED'].includes(status)) {
+      throw new BadRequestException('Statut de résolution invalide.');
+    }
+
+    const report = await this.prisma.report.findUnique({
+      where: { id: reportId }
+    });
+
+    if (!report) {
+      throw new NotFoundException('Signalement introuvable.');
+    }
+
+    const updated = await this.prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status,
+        resolvedAt: new Date()
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: status === 'RESOLVED' ? 'REPORT_RESOLVE' : 'REPORT_DISMISS',
+        entity: 'Report',
+        entityId: reportId,
+        metadata: {
+          targetType: report.targetType,
+          targetId: report.targetId
+        }
+      }
+    });
+
+    return updated;
+  }
+
+  listAuditLogs() {
+    return this.prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+  }
+
   async suspendUser(actorId: string, userId: string, suspended: boolean) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Utilisateur introuvable.');
@@ -25,6 +87,13 @@ export class AdminService {
       data: { isSuspended: suspended },
       select: { id: true, username: true, isSuspended: true }
     });
+
+    if (suspended) {
+      await this.prisma.authSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() }
+      });
+    }
 
     await this.prisma.auditLog.create({
       data: {

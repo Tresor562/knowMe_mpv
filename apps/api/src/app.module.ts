@@ -18,6 +18,7 @@ import { MediaModule } from './media/media.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { SocialModule } from './social/social.module';
 import { AccountModule } from './account/account.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { AccountModule } from './account/account.module';
     MediaModule,
     IntelligenceModule,
     SocialModule,
-    AccountModule
+    AccountModule,
+    ReportsModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
