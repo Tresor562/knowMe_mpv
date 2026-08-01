@@ -25,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
+import { SecurityModule } from './security/security.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
 import { UsersModule } from './users/users.module';
@@ -41,17 +42,18 @@ import { WalletModule } from './wallet/wallet.module';
     }),
     PrismaModule,
     ObservabilityModule,
+    NotificationsModule,
+    SecurityModule,
+    AuthModule,
     AccessControlModule,
     WalletModule,
     RewardsModule,
     BillingModule,
     VerificationModule,
-    AuthModule,
     UsersModule,
     ChallengesModule,
     MessagingModule,
     PostsModule,
-    NotificationsModule,
     AdminModule,
     RealtimeModule,
     MediaModule,
