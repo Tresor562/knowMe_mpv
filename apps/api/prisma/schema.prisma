@@ -35,19 +35,20 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  sentFriendships     Friendship[] @relation("FriendshipRequester")
-  receivedFriendships Friendship[] @relation("FriendshipAddressee")
-  challengesCreated   Challenge[]  @relation("ChallengeCreator")
-  challengeEntries    ChallengeParticipant[]
-  sentMessages        Message[]
-  memberships         ConversationMember[]
-  posts               Post[]
-  postLikes           PostLike[]
-  postComments        PostComment[]
-  notifications       Notification[]
-  reports             Report[]
-  interests           UserInterest[]
-  authSessions        AuthSession[]
+  sentFriendships      Friendship[]        @relation("FriendshipRequester")
+  receivedFriendships  Friendship[]        @relation("FriendshipAddressee")
+  challengesCreated    Challenge[]         @relation("ChallengeCreator")
+  challengeEntries     ChallengeParticipant[]
+  sentMessages         Message[]
+  memberships          ConversationMember[]
+  posts                Post[]
+  postLikes            PostLike[]
+  postComments         PostComment[]
+  notifications        Notification[]
+  reports              Report[]
+  interests            UserInterest[]
+  authSessions         AuthSession[]
+  featureFlagOverrides FeatureFlagOverride[]
 }
 
 model Friendship {
@@ -239,6 +240,58 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  description    String?
+  enabled        Boolean  @default(false)
+  exposeToClient Boolean  @default(false)
+  riskLevel      String   @default("NORMAL")
+  owner          String?
+  reviewAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  rules     FeatureFlagRule[]
+  overrides FeatureFlagOverride[]
+
+  @@index([enabled, exposeToClient])
+}
+
+model FeatureFlagRule {
+  id                String   @id @default(cuid())
+  flagId            String
+  enabled           Boolean
+  platform          String?
+  country           String?
+  minVersion        String?
+  rolloutPercentage Int?
+  audience          String?
+  priority          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@index([flagId, priority])
+}
+
+model FeatureFlagOverride {
+  id        String    @id @default(cuid())
+  flagId    String
+  userId    String
+  enabled   Boolean
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([flagId, userId])
+  @@index([userId, expiresAt])
 }
 
 model Interest {
