@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { staffAccountSelect, withStaffBadge } from '../staff/staff-profile';
 
 @Injectable()
 export class SocialService {
@@ -21,7 +22,7 @@ export class SocialService {
       return [];
     }
 
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         id: { not: currentUserId },
         isSuspended: false,
@@ -37,10 +38,13 @@ export class SocialService {
         displayName: true,
         avatarUrl: true,
         bio: true,
-        knowCoins: true
+        knowCoins: true,
+        staffAccount: { select: staffAccountSelect }
       },
       take: 20
     });
+
+    return users.map(withStaffBadge);
   }
 
   async sendRequest(requesterId: string, addresseeId: string) {
@@ -116,7 +120,7 @@ export class SocialService {
   }
 
   async incoming(userId: string) {
-    return this.prisma.friendship.findMany({
+    const friendships = await this.prisma.friendship.findMany({
       where: {
         addresseeId: userId,
         status: 'PENDING'
@@ -128,12 +132,18 @@ export class SocialService {
             username: true,
             displayName: true,
             avatarUrl: true,
-            bio: true
+            bio: true,
+            staffAccount: { select: staffAccountSelect }
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    return friendships.map(({ requester, ...friendship }) => ({
+      ...friendship,
+      requester: withStaffBadge(requester)
+    }));
   }
 
   async respond(userId: string, friendshipId: string, accept: boolean) {
@@ -193,7 +203,8 @@ export class SocialService {
             username: true,
             displayName: true,
             avatarUrl: true,
-            bio: true
+            bio: true,
+            staffAccount: { select: staffAccountSelect }
           }
         },
         addressee: {
@@ -202,7 +213,8 @@ export class SocialService {
             username: true,
             displayName: true,
             avatarUrl: true,
-            bio: true
+            bio: true,
+            staffAccount: { select: staffAccountSelect }
           }
         }
       },
@@ -211,10 +223,11 @@ export class SocialService {
 
     return friendships.map((friendship) => ({
       friendshipId: friendship.id,
-      user:
+      user: withStaffBadge(
         friendship.requesterId === userId
           ? friendship.addressee
           : friendship.requester
+      )
     }));
   }
 
