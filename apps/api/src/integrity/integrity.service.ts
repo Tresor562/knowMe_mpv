@@ -144,6 +144,7 @@ export class IntegrityService {
               sessionId,
               deviceId: dto.deviceId,
               platform: dto.platform,
+              action: dto.action,
               provider: verdict.provider,
               appIdentifier: dto.appIdentifier,
               keyIdentifier: dto.keyIdentifier?.trim() || null,
@@ -167,7 +168,7 @@ export class IntegrityService {
         metadata: {
           platform: attestation.platform,
           provider: attestation.provider,
-          action: dto.action,
+          action: attestation.action,
           deviceId: attestation.deviceId,
           verdict: attestation.verdict
         }
@@ -177,7 +178,7 @@ export class IntegrityService {
         id: attestation.id,
         deviceId: attestation.deviceId,
         platform: attestation.platform,
-        action: dto.action,
+        action: attestation.action,
         verdict: attestation.verdict,
         expiresAt: attestation.expiresAt
       };
@@ -204,6 +205,7 @@ export class IntegrityService {
         id: true,
         deviceId: true,
         platform: true,
+        action: true,
         provider: true,
         appIdentifier: true,
         verdict: true,
@@ -220,7 +222,8 @@ export class IntegrityService {
     userId: string,
     sessionId: string,
     attestationId: string,
-    platform: string
+    platform: string,
+    action: string
   ) {
     const attestation = await this.prisma.deviceAttestation.findUnique({
       where: { id: attestationId }
@@ -230,11 +233,12 @@ export class IntegrityService {
       attestation.userId !== userId ||
       attestation.sessionId !== sessionId ||
       attestation.platform !== platform ||
+      attestation.action !== action ||
       attestation.verdict !== 'MEETS_DEVICE_INTEGRITY' ||
       attestation.revokedAt ||
       attestation.expiresAt <= new Date()
     ) {
-      throw new ForbiddenException('Attestation active requise pour cet achat.');
+      throw new ForbiddenException('Attestation active requise pour cette action.');
     }
     return attestation;
   }
