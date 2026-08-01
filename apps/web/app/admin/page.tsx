@@ -7,6 +7,7 @@ import { useSession } from '../../lib/use-session';
 import { AccessControlPanel } from './AccessControlPanel';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
+import { RewardsPanel } from './RewardsPanel';
 import { StaffAccountsPanel } from './StaffAccountsPanel';
 import { WalletPanel } from './WalletPanel';
 
@@ -34,6 +35,7 @@ const P = {
   staff: 'staff.manage',
   entitlements: 'entitlements.manage',
   wallet: 'wallet.manage',
+  rewards: 'rewards.manage',
   flags: 'feature_flags.manage',
   rbac: 'rbac.manage'
 } as const;
@@ -260,6 +262,7 @@ export default function AdminPage() {
       {can(P.staff) && <StaffAccountsPanel />}
       {can(P.entitlements) && <EntitlementsPanel />}
       {can(P.wallet) && <WalletPanel />}
+      {can(P.rewards) && <RewardsPanel />}
       {can(P.flags) && <FeatureFlagsPanel />}
     </main>
   );
