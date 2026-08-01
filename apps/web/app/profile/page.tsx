@@ -73,7 +73,28 @@ export default function ProfilePage() {
           <div style={{flex:1}}>
             <small style={{color:'var(--mint)'}}>PROFIL KNOWME</small>
             <h1 style={{margin:'5px 0'}}>{user.displayName}</h1>
+            {user.staff && (
+              <div
+                aria-label={`${user.staff.label}, ${user.staff.role}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  border: '1px solid #f4c95d',
+                  color: '#f4c95d',
+                  background: 'rgba(244,201,93,.08)',
+                  borderRadius: 999,
+                  padding: '7px 12px',
+                  fontWeight: 800,
+                  marginBottom: 8
+                }}
+              >
+                <span aria-hidden="true">🛡️</span>
+                {user.staff.label} · {user.staff.role}
+              </div>
+            )}
             <p style={{color:'var(--muted)'}}>@{user.username} · {user.knowCoins ?? 0} KnowCoins</p>
+            <p style={{color:'var(--muted)',fontSize:13}}>ID compte : {user.accountId ?? user.id}</p>
             {user.bio && <p>{user.bio}</p>}
           </div>
           <button className="btn" onClick={() => setEditing((value) => !value)}>

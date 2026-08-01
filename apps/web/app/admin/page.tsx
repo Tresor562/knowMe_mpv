@@ -5,6 +5,7 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
+import { StaffAccountsPanel } from './StaffAccountsPanel';
 
 type Dashboard = {
   users: number;
@@ -112,6 +113,7 @@ export default function AdminPage() {
         <h1>Modération et déploiement</h1>
         <p style={{ color: 'var(--muted)' }}>
           Connecté en tant que {user.displayName}
+          {user.staff ? ` · ${user.staff.label}` : ''}
         </p>
       </header>
 
@@ -196,6 +198,7 @@ export default function AdminPage() {
         </div>
       </section>
 
+      <StaffAccountsPanel />
       <EntitlementsPanel />
       <FeatureFlagsPanel />
     </main>

@@ -14,12 +14,20 @@ import { apiFetch } from './api';
 
 export type MobileUser = {
   id: string;
+  accountId?: string;
   email: string;
   username: string;
   displayName: string;
   bio?: string | null;
   avatarUrl?: string | null;
   knowCoins?: number;
+  role?: string;
+  staff?: {
+    isTeamMember: true;
+    label: string;
+    shield: string;
+    role: string;
+  } | null;
 };
 
 type AccountExport = {
@@ -144,8 +152,15 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted 
         <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
       )}
       <Text style={styles.heading}>{user.displayName}</Text>
+      {user.staff ? (
+        <View style={styles.staffBadge} accessibilityLabel={`${user.staff.label}, ${user.staff.role}`}>
+          <Text style={styles.staffShield}>🛡️</Text>
+          <Text style={styles.staffBadgeText}>{user.staff.label} · {user.staff.role}</Text>
+        </View>
+      ) : null}
       <Text style={styles.handle}>@{user.username}</Text>
       <Text style={styles.muted}>{user.email}</Text>
+      <Text style={styles.accountId}>ID compte : {user.accountId ?? user.id}</Text>
 
       <View style={styles.statsRow}>
         <View style={styles.stat}><Text style={styles.statValue}>{user.knowCoins ?? 0}</Text><Text style={styles.muted}>KnowCoins</Text></View>
@@ -198,6 +213,10 @@ const styles = StyleSheet.create({
   heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900' },
   handle: { color: '#45e6bd', fontWeight: '800' },
   muted: { color: '#91a79e' },
+  accountId: { color: '#789187', fontSize: 12 },
+  staffBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
+  staffShield: { fontSize: 15 },
+  staffBadgeText: { color: '#f4c95d', fontWeight: '900', fontSize: 13 },
   statsRow: { flexDirection: 'row', gap: 12 },
   stat: { flex: 1, backgroundColor: '#10231d', borderRadius: 18, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 22, fontWeight: '900', marginBottom: 4 },

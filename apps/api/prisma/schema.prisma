@@ -50,6 +50,7 @@ model User {
   authSessions         AuthSession[]
   featureFlagOverrides FeatureFlagOverride[]
   entitlementGrants    EntitlementGrant[]
+  staffAccount         StaffAccount?
 }
 
 model Friendship {
@@ -250,6 +251,30 @@ model AuditLog {
   @@index([correlationId])
   @@index([actorId, createdAt])
   @@index([targetAccountId, createdAt])
+}
+
+model StaffAccount {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  staffRole         String
+  status            String    @default("ACTIVE")
+  badgeLabel        String    @default("Équipe KnowMe")
+  shieldStyle       String    @default("GOLD")
+  grantsAdminAccess Boolean   @default(true)
+  previousUserRole  String    @default("USER")
+  reason            String
+  activatedById     String
+  activatedAt       DateTime  @default(now())
+  suspendedAt       DateTime?
+  revokedAt         DateTime?
+  revokedById       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, staffRole])
+  @@index([activatedAt])
 }
 
 model FeatureFlag {

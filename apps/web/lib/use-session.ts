@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, clearSession, getAccessToken } from './api';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './realtime';
 
+export type StaffBadge = {
+  isTeamMember: true;
+  label: string;
+  shield: string;
+  role: string;
+};
+
 export type SessionUser = {
   id: string;
   accountId?: string;
@@ -14,6 +21,7 @@ export type SessionUser = {
   bio?: string | null;
   knowCoins?: number;
   role?: string;
+  staff?: StaffBadge | null;
 };
 
 export function useSession(options: { required?: boolean } = {}) {
