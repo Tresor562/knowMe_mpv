@@ -10,6 +10,8 @@ import {
   MinLength
 } from 'class-validator';
 
+const SECOND_FACTOR_PATTERN = /^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4}(?:-[A-Z0-9]{4})?)$/;
+
 export class PasswordProofDto {
   @IsString()
   @MinLength(8)
@@ -20,14 +22,14 @@ export class PasswordProofDto {
 export class ConfirmTwoFactorDto {
   @Transform(({ value }) => String(value ?? '').trim().toUpperCase())
   @IsString()
-  @Matches(/^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$/)
+  @Matches(SECOND_FACTOR_PATTERN)
   code!: string;
 }
 
 export class DisableTwoFactorDto extends PasswordProofDto {
   @Transform(({ value }) => String(value ?? '').trim().toUpperCase())
   @IsString()
-  @Matches(/^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$/)
+  @Matches(SECOND_FACTOR_PATTERN)
   code!: string;
 }
 
@@ -40,7 +42,7 @@ export class VerifyLoginTwoFactorDto {
 
   @Transform(({ value }) => String(value ?? '').trim().toUpperCase())
   @IsString()
-  @Matches(/^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$/)
+  @Matches(SECOND_FACTOR_PATTERN)
   code!: string;
 
   @IsOptional()
@@ -61,7 +63,7 @@ export class ReauthenticateDto extends PasswordProofDto {
   @IsOptional()
   @Transform(({ value }) => String(value ?? '').trim().toUpperCase())
   @IsString()
-  @Matches(/^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$/)
+  @Matches(SECOND_FACTOR_PATTERN)
   code?: string;
 }
 
