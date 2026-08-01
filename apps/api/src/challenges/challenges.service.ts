@@ -156,6 +156,9 @@ export class ChallengesService {
 
     return {
       ...challenge,
+      title: versionSnapshot?.title ?? challenge.title,
+      description: versionSnapshot?.description ?? challenge.description,
+      visibility: versionSnapshot?.visibility ?? challenge.visibility,
       questions,
       viewerVersion,
       versionSnapshot: versionSnapshot ?? null,
