@@ -3,6 +3,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { MediaService } from '../media/media.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
@@ -14,7 +15,8 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly security: SecurityService,
-    private readonly privacy: PrivacyService
+    private readonly privacy: PrivacyService,
+    private readonly media: MediaService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -39,33 +41,20 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const [user, security, privacy] = await Promise.all([
+    const [user, security, privacy, media] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         include: {
-          interests: {
-            include: { interest: true }
-          },
-          posts: {
-            include: {
-              comments: true,
-              likes: true
-            }
-          },
+          interests: { include: { interest: true } },
+          posts: { include: { comments: true, likes: true } },
           challengeEntries: {
             include: {
               answers: true,
-              challenge: {
-                include: { questions: true }
-              }
+              challenge: { include: { questions: true } }
             }
           },
           sentMessages: true,
-          memberships: {
-            include: {
-              conversation: true
-            }
-          },
+          memberships: { include: { conversation: true } },
           sentFriendships: true,
           receivedFriendships: true,
           notifications: true,
@@ -83,39 +72,30 @@ export class AccountService {
         }
       }),
       this.security.exportForAccount(userId),
-      this.privacy.exportForAccount(userId)
+      this.privacy.exportForAccount(userId),
+      this.media.listMine(userId)
     ]);
 
-    if (!user) {
-      throw new UnauthorizedException('Compte introuvable.');
-    }
-
-    const {
-      passwordHash,
-      ...safeUser
-    } = user;
+    if (!user) throw new UnauthorizedException('Compte introuvable.');
+    const { passwordHash, ...safeUser } = user;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 3,
+      formatVersion: 4,
       account: safeUser,
       security,
-      privacy
+      privacy,
+      media
     };
   }
 
   async deleteAccount(userId: string, dto: DeleteAccountDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (
-      !user ||
-      !(await argon2.verify(user.passwordHash, dto.password))
-    ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
       throw new UnauthorizedException('Mot de passe incorrect.');
     }
 
+    await this.media.cleanupAccount(userId);
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({
         data: {
@@ -129,7 +109,6 @@ export class AccountService {
           }
         }
       });
-
       await tx.privacyConsentEvent.deleteMany({ where: { userId } });
       await tx.privacyPreference.deleteMany({ where: { userId } });
       await tx.dataSubjectRequest.deleteMany({ where: { userId } });
@@ -142,8 +121,6 @@ export class AccountService {
       await tx.user.delete({ where: { id: userId } });
     });
 
-    return {
-      deleted: true
-    };
+    return { deleted: true };
   }
 }
