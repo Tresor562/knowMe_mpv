@@ -44,6 +44,7 @@ type VerificationState = {
     expiresAt?: string | null;
   } | null;
   identityStatus: string;
+  canCreateNew: boolean;
 };
 
 type ButtonProps = {
@@ -100,6 +101,7 @@ export function VerificationExperience() {
   const [category, setCategory] = useState('PERSON');
   const [reason, setReason] = useState('');
   const [documentKind, setDocumentKind] = useState('IDENTITY_FRONT');
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -113,7 +115,7 @@ export function VerificationExperience() {
   useEffect(() => { void load(); }, [load]);
 
   async function createRequest() {
-    if (countryCode.trim().length !== 2 || busy) return;
+    if (countryCode.trim().length !== 2 || !consentAccepted || busy) return;
     setBusy(true);
     try {
       await apiFetch('/verification/requests', {
@@ -124,9 +126,11 @@ export function VerificationExperience() {
           publicCategory: category,
           publicReason: reason.trim() || undefined,
           termsVersion: '2026-08-identity-v1',
-          termsAccepted: true
+          termsAccepted: consentAccepted
         })
       });
+      setConsentAccepted(false);
+      setReason('');
       await load();
       Alert.alert('Demande créée', 'Ajoute les documents requis avant de l’envoyer.');
     } catch (cause) {
@@ -220,6 +224,7 @@ export function VerificationExperience() {
     try {
       await apiFetch(`/verification/requests/${request.id}/cancel`, { method: 'POST' });
       await load();
+      Alert.alert('Demande annulée', 'Tu peux créer une nouvelle demande lorsque tu es prêt.');
     } catch (cause) {
       Alert.alert('Annulation impossible', cause instanceof Error ? cause.message : 'Réessaie.');
     } finally {
@@ -230,6 +235,7 @@ export function VerificationExperience() {
   const request = state?.request;
   const canEdit = request && ['DRAFT', 'NEEDS_INFO'].includes(request.status);
   const canCancel = request && ['DRAFT', 'SUBMITTED', 'NEEDS_INFO'].includes(request.status);
+  const showCreateForm = state?.canCreateNew ?? !request;
 
   return (
     <View style={styles.card}>
@@ -242,9 +248,10 @@ export function VerificationExperience() {
         </View>
       ) : null}
 
-      {!request ? (
+      {showCreateForm ? (
         <View style={styles.section}>
-          <Text style={styles.label}>Type</Text>
+          <Text style={styles.label}>{request ? 'Nouvelle demande' : 'Type'}</Text>
+          {request ? <Text style={styles.helper}>La dernière demande est terminée et reste affichée plus bas.</Text> : null}
           <ChoiceRow values={TYPES} selected={subjectType} onSelect={setSubjectType} />
           <Text style={styles.label}>Catégorie publique</Text>
           <ChoiceRow values={CATEGORIES} selected={category} onSelect={setCategory} />
@@ -266,11 +273,24 @@ export function VerificationExperience() {
             placeholderTextColor="#789187"
             style={[styles.input, styles.multiline]}
           />
-          <Button title={busy ? 'Création…' : 'Créer ma demande'} disabled={busy || countryCode.trim().length !== 2} onPress={() => void createRequest()} />
+          <Pressable
+            onPress={() => setConsentAccepted((current) => !current)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: consentAccepted }}
+            style={styles.consentRow}
+          >
+            <View style={[styles.checkbox, consentAccepted && styles.checkboxActive]}>
+              <Text style={styles.checkboxText}>{consentAccepted ? '✓' : ''}</Text>
+            </View>
+            <Text style={styles.consentText}>J’accepte que mes documents soient consultés uniquement par les examinateurs autorisés pour traiter cette demande.</Text>
+          </Pressable>
+          <Button title={busy ? 'Création…' : 'Créer ma demande'} disabled={busy || !consentAccepted || countryCode.trim().length !== 2} onPress={() => void createRequest()} />
         </View>
-      ) : (
+      ) : null}
+
+      {request ? (
         <View style={styles.section}>
-          <Text style={styles.status}>{request.status}</Text>
+          <Text style={styles.status}>Dernière demande · {request.status}</Text>
           <Text style={styles.description}>{request.subjectType} · {request.publicCategory} · {request.countryCode}</Text>
 
           {canEdit ? <>
@@ -302,7 +322,7 @@ export function VerificationExperience() {
           {canEdit ? <Button title="Envoyer pour examen" disabled={busy} onPress={confirmSubmit} /> : null}
           {canCancel ? <Button title="Annuler la demande" disabled={busy} secondary onPress={() => void cancel()} /> : null}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -334,5 +354,10 @@ const styles = StyleSheet.create({
   documentTitle: { color: '#f4fff9', fontWeight: '800' },
   helper: { color: '#789187', fontSize: 12 },
   remove: { color: '#ff9d66', fontWeight: '800' },
-  decision: { borderLeftWidth: 2, borderLeftColor: '#45e6bd', paddingLeft: 10, gap: 4 }
+  decision: { borderLeftWidth: 2, borderLeftColor: '#45e6bd', paddingLeft: 10, gap: 4 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1, borderColor: '#45e6bd', alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  checkboxActive: { backgroundColor: '#45e6bd' },
+  checkboxText: { color: '#052017', fontWeight: '900' },
+  consentText: { flex: 1, color: '#b6c8c0', fontSize: 13, lineHeight: 19 }
 });
