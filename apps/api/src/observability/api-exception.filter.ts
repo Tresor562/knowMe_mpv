@@ -5,7 +5,6 @@ import {
   HttpException,
   HttpStatus
 } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { RequestContextService } from './request-context.service';
 
 const STATUS_CODES: Record<number, string> = {
@@ -30,14 +29,27 @@ type ErrorShape = {
   error?: unknown;
 };
 
+type ErrorRequest = {
+  requestId?: string;
+  method: string;
+  originalUrl?: string;
+  url: string;
+};
+
+type ErrorResponse = {
+  setHeader(name: string, value: string): void;
+  status(code: number): ErrorResponse;
+  json(body: unknown): void;
+};
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   constructor(private readonly context: RequestContextService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const http = host.switchToHttp();
-    const request = http.getRequest<Request & { requestId?: string }>();
-    const response = http.getResponse<Response>();
+    const request = http.getRequest<ErrorRequest>();
+    const response = http.getResponse<ErrorResponse>();
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
