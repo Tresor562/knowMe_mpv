@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
@@ -9,7 +10,9 @@ type Sender = { id:string; displayName:string; username:string; avatarUrl?:strin
 type Message = { id:string; content:string; createdAt:string; senderId:string; sender:Sender };
 type History = { items:Message[]; nextCursor?:string|null };
 
-export default function ConversationPage({params}:{params:{id:string}}) {
+export default function ConversationPage() {
+  const params = useParams<{id:string}>();
+  const conversationId = params.id;
   const { user, loading:sessionLoading } = useSession({required:true});
   const [items,setItems] = useState<Message[]>([]);
   const [nextCursor,setNextCursor] = useState<string|null>(null);
@@ -20,29 +23,30 @@ export default function ConversationPage({params}:{params:{id:string}}) {
     try {
       const query = new URLSearchParams({limit:'30'});
       if (cursor) query.set('cursor',cursor);
-      const history = await apiFetch<History>(`/conversations/${params.id}/messages?${query}`);
+      const history = await apiFetch<History>(`/conversations/${conversationId}/messages?${query}`);
       setItems(current => cursor ? [...history.items,...current] : history.items);
       setNextCursor(history.nextCursor ?? null);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
     }
-  },[params.id]);
+  },[conversationId]);
 
   useEffect(() => { if (!sessionLoading) load(); },[load,sessionLoading]);
 
   async function send(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const content = String(form.get('content') ?? '').trim();
     if (!content) return;
     setSending(true);
     try {
-      const created = await apiFetch<Message>(`/conversations/${params.id}/messages`,{
+      const created = await apiFetch<Message>(`/conversations/${conversationId}/messages`,{
         method:'POST',
         body:JSON.stringify({content})
       });
       setItems(current => [...current,created]);
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Envoi impossible.');
     } finally {
