@@ -5,7 +5,19 @@ const ACCESS_KEY = 'knowme_access_token';
 const REFRESH_KEY = 'knowme_refresh_token';
 
 export type SessionTokens = { accessToken: string; refreshToken?: string };
-export type ApiError = Error & { status?: number };
+export type ApiError = Error & {
+  status?: number;
+  code?: string;
+  requestId?: string;
+  details?: unknown;
+};
+
+type ApiErrorPayload = {
+  code?: string;
+  message?: string | string[];
+  details?: unknown;
+  requestId?: string;
+};
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -75,14 +87,20 @@ export async function apiFetch<T>(
     if (renewedToken) return apiFetch<T>(path, init, false);
   }
 
-  const data = await response.json().catch(() => null);
+  const data = await response.json().catch(() => null) as ApiErrorPayload | null;
   if (!response.ok) {
-    const error = new Error(
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
-        : data?.message ?? 'Une erreur est survenue.'
-    ) as ApiError;
+    const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
+    const baseMessage = Array.isArray(data?.message)
+      ? data.message.join(', ')
+      : data?.message ?? 'Une erreur est survenue.';
+    const message = requestId
+      ? `${baseMessage} (référence support : ${requestId})`
+      : baseMessage;
+    const error = new Error(message) as ApiError;
     error.status = response.status;
+    error.code = data?.code;
+    error.requestId = requestId;
+    error.details = data?.details;
     throw error;
   }
 

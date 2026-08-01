@@ -232,15 +232,24 @@ model Report {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  actorId   String?
-  action    String
-  entity    String
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  actorId         String?
+  action          String
+  entity          String
+  entityId        String?
+  targetAccountId String?
+  requestId       String?
+  correlationId   String?
+  ipAddress       String?
+  userAgent       String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
 
   @@index([createdAt])
+  @@index([requestId])
+  @@index([correlationId])
+  @@index([actorId, createdAt])
+  @@index([targetAccountId, createdAt])
 }
 
 model FeatureFlag {

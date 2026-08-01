@@ -2,11 +2,23 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-export type ApiError = Error & { status?: number };
+export type ApiError = Error & {
+  status?: number;
+  code?: string;
+  requestId?: string;
+  details?: unknown;
+};
 
 type RefreshResponse = {
   accessToken: string;
   refreshToken?: string;
+};
+
+type ApiErrorPayload = {
+  code?: string;
+  message?: string | string[];
+  details?: unknown;
+  requestId?: string;
 };
 
 let refreshRequest: Promise<boolean> | null = null;
@@ -89,15 +101,21 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
     }
   }
 
-  const data = await response.json().catch(() => null);
+  const data = await response.json().catch(() => null) as ApiErrorPayload | null;
 
   if (!response.ok) {
-    const error = new Error(
-      Array.isArray(data?.message)
-        ? data.message.join(', ')
-        : data?.message ?? 'Une erreur est survenue.'
-    ) as ApiError;
+    const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
+    const baseMessage = Array.isArray(data?.message)
+      ? data.message.join(', ')
+      : data?.message ?? 'Une erreur est survenue.';
+    const message = requestId
+      ? `${baseMessage} (référence support : ${requestId})`
+      : baseMessage;
+    const error = new Error(message) as ApiError;
     error.status = response.status;
+    error.code = data?.code;
+    error.requestId = requestId;
+    error.details = data?.details;
     throw error;
   }
 

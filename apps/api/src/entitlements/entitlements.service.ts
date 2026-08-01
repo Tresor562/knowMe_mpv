@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   GrantEntitlementDto,
@@ -13,7 +14,10 @@ import {
 
 @Injectable()
 export class EntitlementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService
+  ) {}
 
   async listForUser(userId: string) {
     const now = new Date();
@@ -119,13 +123,20 @@ export class EntitlementsService {
       }
     });
 
-    await this.audit(actorId, 'ENTITLEMENT_GRANT', grant.id, {
-      accountId: dto.userId,
-      key,
-      source: dto.source,
-      startsAt: startsAt.toISOString(),
-      expiresAt: expiresAt?.toISOString() ?? null,
-      externalReference: grant.externalReference
+    await this.audit.record({
+      actorId,
+      action: 'ENTITLEMENT_GRANT',
+      entity: 'EntitlementGrant',
+      entityId: grant.id,
+      targetAccountId: dto.userId,
+      metadata: {
+        accountId: dto.userId,
+        key,
+        source: dto.source,
+        startsAt: startsAt.toISOString(),
+        expiresAt: expiresAt?.toISOString() ?? null,
+        externalReference: grant.externalReference
+      }
     });
 
     return grant;
@@ -152,11 +163,18 @@ export class EntitlementsService {
       }
     });
 
-    await this.audit(actorId, 'ENTITLEMENT_REVOKE', grant.id, {
-      accountId: grant.userId,
-      key: grant.key,
-      source: grant.source,
-      reason: dto.reason?.trim() || null
+    await this.audit.record({
+      actorId,
+      action: 'ENTITLEMENT_REVOKE',
+      entity: 'EntitlementGrant',
+      entityId: grant.id,
+      targetAccountId: grant.userId,
+      metadata: {
+        accountId: grant.userId,
+        key: grant.key,
+        source: grant.source,
+        reason: dto.reason?.trim() || null
+      }
     });
 
     return revoked;
@@ -173,22 +191,5 @@ export class EntitlementsService {
 
   private normalizeKey(key: string) {
     return key.trim().toLowerCase();
-  }
-
-  private audit(
-    actorId: string,
-    action: string,
-    entityId: string,
-    metadata: Prisma.InputJsonObject
-  ) {
-    return this.prisma.auditLog.create({
-      data: {
-        actorId,
-        action,
-        entity: 'EntitlementGrant',
-        entityId,
-        metadata
-      }
-    });
   }
 }

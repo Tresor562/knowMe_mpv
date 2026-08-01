@@ -34,8 +34,11 @@ export class AdminController {
   }
 
   @Get('audit-logs')
-  auditLogs() {
-    return this.admin.listAuditLogs();
+  auditLogs(
+    @Query('requestId') requestId?: string,
+    @Query('correlationId') correlationId?: string
+  ) {
+    return this.admin.listAuditLogs(requestId?.trim(), correlationId?.trim());
   }
 
   @Patch('users/:id/suspension')
