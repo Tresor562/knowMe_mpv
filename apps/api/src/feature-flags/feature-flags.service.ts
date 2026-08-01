@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  Optional
 } from '@nestjs/common';
 import { FeatureFlag, FeatureFlagRule } from '@prisma/client';
+import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateFeatureFlagDto,
@@ -33,7 +35,10 @@ export class FeatureFlagsService {
   private readonly cache = new Map<string, CachedFlag>();
   private readonly cacheTtlMs = 15_000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly auditService?: AuditService
+  ) {}
 
   async listAdmin() {
     return this.prisma.featureFlag.findMany({
@@ -250,7 +255,7 @@ export class FeatureFlagsService {
       userId,
       enabled: dto.enabled,
       expiresAt: expiresAt?.toISOString() ?? null
-    });
+    }, userId);
     return override;
   }
 
@@ -266,7 +271,7 @@ export class FeatureFlagsService {
       flagId: flag.id,
       key: flag.key,
       userId
-    });
+    }, userId);
     return { deleted: true };
   }
 
@@ -388,15 +393,29 @@ export class FeatureFlagsService {
     actorId: string,
     action: string,
     entityId: string,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
+    targetAccountId?: string
   ) {
+    const safeMetadata = JSON.parse(JSON.stringify(metadata));
+    if (this.auditService) {
+      return this.auditService.record({
+        actorId,
+        action,
+        entity: 'FeatureFlag',
+        entityId,
+        targetAccountId,
+        metadata: safeMetadata
+      });
+    }
+
     return this.prisma.auditLog.create({
       data: {
         actorId,
         action,
         entity: 'FeatureFlag',
         entityId,
-        metadata: JSON.parse(JSON.stringify(metadata))
+        targetAccountId,
+        metadata: safeMetadata
       }
     });
   }
