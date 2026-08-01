@@ -26,6 +26,7 @@ import {
   ReviewVerificationDto,
   UploadVerificationDocumentDto
 } from './dto/verification.dto';
+import { VerificationEligibilityGuard } from './verification-eligibility.guard';
 import { VerificationService } from './verification.service';
 
 const ACTIVE_REQUEST_STATUSES = new Set([
@@ -55,6 +56,7 @@ export class VerificationController {
     };
   }
 
+  @UseGuards(VerificationEligibilityGuard)
   @Post('requests')
   create(
     @Req() req: { user: { userId: string } },
