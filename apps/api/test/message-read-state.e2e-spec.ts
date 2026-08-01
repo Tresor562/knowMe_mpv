@@ -34,7 +34,7 @@ describe('KnowMe message read state (e2e)', () => {
       .expect(201);
   }
 
-  it('tracks unread messages, read states and message notifications', async () => {
+  it('tracks unread messages, read states, notifications and stable pagination', async () => {
     const alice = await register('alice');
     const bob = await register('bob');
     const outsider = await register('outsider');
@@ -124,5 +124,34 @@ describe('KnowMe message read state (e2e)', () => {
       (notification: { type: string }) => notification.type === 'MESSAGE'
     );
     expect(messageNotifications).toHaveLength(2);
+
+    const bulkContents = Array.from({ length: 35 }, (_, index) => `Historique ${String(index + 1).padStart(2, '0')}`);
+    await prisma.message.createMany({
+      data: bulkContents.map((content) => ({
+        conversationId: conversation.body.id as string,
+        senderId: alice.body.user.id as string,
+        content
+      }))
+    });
+
+    const firstPage = await request(app.getHttpServer())
+      .get(`/conversations/${conversation.body.id}/messages?limit=30`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+
+    expect(firstPage.body.items).toHaveLength(30);
+    expect(firstPage.body.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await request(app.getHttpServer())
+      .get(`/conversations/${conversation.body.id}/messages?limit=30&cursor=${firstPage.body.nextCursor}`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+
+    expect(secondPage.body.items).toHaveLength(8);
+    expect(secondPage.body.nextCursor).toBeNull();
+
+    const combined = [...firstPage.body.items, ...secondPage.body.items] as Array<{ id: string; content: string }>;
+    expect(new Set(combined.map((item) => item.id)).size).toBe(38);
+    expect(combined.filter((item) => item.content.startsWith('Historique '))).toHaveLength(35);
   });
 });
