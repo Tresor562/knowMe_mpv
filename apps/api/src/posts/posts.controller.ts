@@ -1,0 +1,37 @@
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateCommentDto } from './dto/create-comment.dto';
+import { CreatePostDto } from './dto/create-post.dto';
+import { PostsService } from './posts.service';
+
+@Controller('posts')
+export class PostsController {
+  constructor(private readonly posts: PostsService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  create(@Req() req: { user: { userId: string } }, @Body() dto: CreatePostDto) {
+    return this.posts.create(req.user.userId, dto);
+  }
+
+  @Get('feed')
+  feed(@Query('cursor') cursor?: string) {
+    return this.posts.feed(cursor);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/like')
+  like(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.posts.toggleLike(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/comments')
+  comment(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: CreateCommentDto
+  ) {
+    return this.posts.comment(req.user.userId, id, dto);
+  }
+}

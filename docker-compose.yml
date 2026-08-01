@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: knowme
+      POSTGRES_PASSWORD: knowme
+      POSTGRES_DB: knowme
+    ports:
+      - "5432:5432"
+    volumes:
+      - knowme_pgdata:/var/lib/postgresql/data
+
+volumes:
+  knowme_pgdata:
