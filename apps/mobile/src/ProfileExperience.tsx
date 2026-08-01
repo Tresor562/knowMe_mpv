@@ -4,13 +4,13 @@ import {
   Image,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { SecurityExperience } from './SecurityExperience';
 
 export type MobileUser = {
   id: string;
@@ -43,10 +43,10 @@ export type MobileUser = {
   } | null;
 };
 
-type AccountExport = {
-  exportedAt: string;
-  formatVersion: number;
-  account: unknown;
+type ReauthResult = {
+  proofToken: string;
+  assurance: string;
+  expiresAt: string;
 };
 
 function message(cause: unknown, fallback: string) {
@@ -91,8 +91,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [bio, setBio] = useState(user.bio ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
   const [password, setPassword] = useState('');
+  const [deleteCode, setDeleteCode] = useState('');
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -122,27 +122,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
     }
   }
 
-  async function exportAccount() {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      const data = await apiFetch<AccountExport>('/account/export');
-      await Share.share({
-        title: `Export KnowMe ${new Date(data.exportedAt).toLocaleDateString('fr-FR')}`,
-        message: JSON.stringify(data, null, 2)
-      });
-    } catch (cause) {
-      Alert.alert('Export impossible', message(cause, 'Réessaie.'));
-    } finally {
-      setExporting(false);
-    }
-  }
-
   function confirmDelete() {
     if (password.length < 8 || deleting) return;
     Alert.alert(
       'Supprimer définitivement le compte ?',
-      'Toutes tes données KnowMe seront supprimées. Cette action ne peut pas être annulée.',
+      'KnowMe exigera une réauthentification serveur, puis supprimera toutes les données. Cette action ne peut pas être annulée.',
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Supprimer', style: 'destructive', onPress: () => void deleteAccount() }
@@ -153,14 +137,23 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   async function deleteAccount() {
     setDeleting(true);
     try {
+      const proof = await apiFetch<ReauthResult>('/security/reauthenticate', {
+        method: 'POST',
+        body: JSON.stringify({
+          password,
+          code: deleteCode.trim() || undefined
+        })
+      });
       await apiFetch('/account', {
         method: 'DELETE',
+        headers: { 'x-reauth-token': proof.proofToken },
         body: JSON.stringify({ password })
       });
       setPassword('');
+      setDeleteCode('');
       await onAccountDeleted();
     } catch (cause) {
-      Alert.alert('Suppression impossible', message(cause, 'Vérifie ton mot de passe.'));
+      Alert.alert('Suppression impossible', message(cause, 'Vérifie le mot de passe et le code 2FA.'));
     } finally {
       setDeleting(false);
     }
@@ -210,6 +203,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         <Button title="Gérer ma vérification" secondary onPress={onOpenVerification} />
       </View>
 
+      <SecurityExperience onSessionClosed={onAccountDeleted} />
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Modifier mon profil</Text>
         <TextInput value={displayName} onChangeText={setDisplayName} maxLength={60} placeholder="Nom affiché" placeholderTextColor="#789187" style={styles.input} />
@@ -220,25 +215,27 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Mes données</Text>
-        <Text style={styles.description}>Génère un export JSON complet puis partage-le avec l’application de ton choix.</Text>
-        <Button title={exporting ? 'Préparation…' : 'Exporter mes données'} disabled={exporting} onPress={() => void exportAccount()} />
-      </View>
-
-      <View style={styles.card}>
         <Text style={styles.cardTitle}>Session</Text>
-        <Text style={styles.description}>Déconnecte cet appareil sans supprimer ton compte.</Text>
+        <Text style={styles.description}>Déconnecte cet appareil sans supprimer ton compte. L’autorisation d’appareil de confiance reste révocable séparément.</Text>
         <Button title="Se déconnecter" onPress={() => void onLogout()} />
       </View>
 
       <View style={[styles.card, styles.dangerZone]}>
         <Text style={styles.dangerHeading}>Zone dangereuse</Text>
-        <Text style={styles.description}>Saisis ton mot de passe pour confirmer la suppression définitive du compte.</Text>
+        <Text style={styles.description}>La suppression exige toujours le mot de passe, une preuve serveur récente et le second facteur lorsqu’il est actif.</Text>
         <TextInput
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           placeholder="Mot de passe actuel"
+          placeholderTextColor="#789187"
+          style={styles.input}
+        />
+        <TextInput
+          value={deleteCode}
+          onChangeText={setDeleteCode}
+          autoCapitalize="characters"
+          placeholder="Code 2FA ou récupération, si activé"
           placeholderTextColor="#789187"
           style={styles.input}
         />

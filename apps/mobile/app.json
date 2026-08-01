@@ -7,6 +7,15 @@
     "userInterfaceStyle": "dark",
     "scheme": "knowme",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Autoriser KnowMe à protéger les secrets de connexion avec Face ID."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.knowme.app"
@@ -19,11 +28,6 @@
     },
     "web": {
       "bundler": "metro"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      }
     }
   }
 }

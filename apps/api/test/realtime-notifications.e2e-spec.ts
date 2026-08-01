@@ -4,6 +4,17 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+type NotificationRecord = {
+  id: string;
+  type: string;
+  readAt: string | null;
+  data?: Record<string, unknown>;
+};
+
+function businessNotifications(items: NotificationRecord[]) {
+  return items.filter((item) => !item.type.startsWith('SECURITY_'));
+}
+
 describe('KnowMe structured notifications (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -50,7 +61,11 @@ describe('KnowMe structured notifications (e2e)', () => {
       .set('Authorization', `Bearer ${bob.body.accessToken}`)
       .expect(200);
 
-    expect(bobNotifications.body[0]).toMatchObject({
+    const friendRequestNotification = businessNotifications(
+      bobNotifications.body as NotificationRecord[]
+    ).find((item) => item.type === 'FRIEND_REQUEST');
+
+    expect(friendRequestNotification).toMatchObject({
       type: 'FRIEND_REQUEST',
       data: {
         route: '/friends',
@@ -113,8 +128,15 @@ describe('KnowMe structured notifications (e2e)', () => {
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200);
 
-    expect(aliceNotifications.body).toHaveLength(5);
-    expect(aliceNotifications.body).toEqual(
+    const aliceItems = aliceNotifications.body as NotificationRecord[];
+    const aliceBusinessItems = businessNotifications(aliceItems);
+    const aliceSecurityItems = aliceItems.filter((item) =>
+      item.type.startsWith('SECURITY_')
+    );
+
+    expect(aliceBusinessItems).toHaveLength(5);
+    expect(aliceSecurityItems).toEqual([]);
+    expect(aliceBusinessItems).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           type: 'FRIEND_ACCEPTED',
@@ -153,9 +175,10 @@ describe('KnowMe structured notifications (e2e)', () => {
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200, { count: 5 });
 
-    const first = aliceNotifications.body[0] as { id: string };
+    const firstBusiness = aliceBusinessItems[0];
+    expect(firstBusiness).toBeDefined();
     const read = await request(app.getHttpServer())
-      .patch(`/notifications/${first.id}/read`)
+      .patch(`/notifications/${firstBusiness!.id}/read`)
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200);
 
@@ -179,9 +202,14 @@ describe('KnowMe structured notifications (e2e)', () => {
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200, { count: 0 });
 
-    await request(app.getHttpServer())
+    const charlieNotifications = await request(app.getHttpServer())
       .get('/notifications')
       .set('Authorization', `Bearer ${charlie.body.accessToken}`)
-      .expect(200, []);
+      .expect(200);
+
+    expect(
+      businessNotifications(charlieNotifications.body as NotificationRecord[])
+    ).toEqual([]);
+    expect(charlieNotifications.body).toEqual([]);
   });
 });

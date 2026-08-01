@@ -11,6 +11,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { VerifyLoginTwoFactorDto } from '../security/dto/security.dto';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
@@ -41,6 +42,16 @@ export class AuthController {
     return this.auth.login(dto, { userAgent, ipAddress });
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('login/2fa')
+  verifyTwoFactor(
+    @Body() dto: VerifyLoginTwoFactorDto,
+    @Headers('user-agent') userAgent?: string,
+    @Ip() ipAddress?: string
+  ) {
+    return this.auth.completeTwoFactorLogin(dto, { userAgent, ipAddress });
+  }
+
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('refresh')
   refresh(
@@ -65,9 +76,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('sessions')
   sessions(
-    @Req() req: { user: { userId: string } }
+    @Req() req: { user: { userId: string; sessionId?: string } }
   ) {
-    return this.auth.listSessions(req.user.userId);
+    return this.auth.listSessions(req.user.userId, req.user.sessionId);
   }
 
   @UseGuards(JwtAuthGuard)

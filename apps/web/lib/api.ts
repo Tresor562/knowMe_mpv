@@ -1,6 +1,7 @@
 'use client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const TRUSTED_DEVICE_KEY = 'knowme_trusted_device_token';
 
 export type ApiError = Error & {
   status?: number;
@@ -33,6 +34,20 @@ export function getRefreshToken() {
   return typeof window === 'undefined'
     ? null
     : window.localStorage.getItem('knowme_refresh_token');
+}
+
+export function getTrustedDeviceToken() {
+  return typeof window === 'undefined'
+    ? null
+    : window.localStorage.getItem(TRUSTED_DEVICE_KEY);
+}
+
+export function saveTrustedDeviceToken(token: string) {
+  window.localStorage.setItem(TRUSTED_DEVICE_KEY, token);
+}
+
+export function clearTrustedDeviceToken() {
+  window.localStorage.removeItem(TRUSTED_DEVICE_KEY);
 }
 
 export function saveSession(accessToken: string, refreshToken?: string) {

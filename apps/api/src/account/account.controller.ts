@@ -8,6 +8,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SensitiveActionGuard } from '../security/sensitive-action.guard';
 import { AccountService } from './account.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -28,6 +29,7 @@ export class AccountController {
     );
   }
 
+  @UseGuards(SensitiveActionGuard)
   @Get('export')
   exportData(
     @Req() req: { user: { userId: string } }
@@ -37,6 +39,7 @@ export class AccountController {
     );
   }
 
+  @UseGuards(SensitiveActionGuard)
   @Delete()
   deleteAccount(
     @Req() req: { user: { userId: string } },

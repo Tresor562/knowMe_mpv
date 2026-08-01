@@ -1,0 +1,90 @@
+model AccountSecurity {
+  userId                  String    @id
+  twoFactorEnabled        Boolean   @default(false)
+  totpCiphertext          String?
+  totpIv                  String?
+  totpTag                 String?
+  totpConfirmedAt         DateTime?
+  lastTotpStep            Int?
+  failedTwoFactorAttempts Int       @default(0)
+  lockedUntil             DateTime?
+  passwordChangedAt       DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([twoFactorEnabled, lockedUntil])
+}
+
+model SecurityRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, usedAt])
+}
+
+model SecurityChallenge {
+  id            String    @id @default(cuid())
+  userId        String
+  purpose       String
+  tokenHash     String    @unique
+  attemptCount  Int       @default(0)
+  maxAttempts   Int       @default(5)
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  ipHash        String?
+  userAgentHash String?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, purpose, expiresAt, consumedAt])
+}
+
+model TrustedDevice {
+  id                 String    @id @default(cuid())
+  userId             String
+  deviceTokenHash    String    @unique
+  label              String
+  platform           String?
+  createdBySessionId String?
+  firstSeenAt        DateTime  @default(now())
+  lastSeenAt         DateTime  @default(now())
+  trustedUntil       DateTime
+  revokedAt          DateTime?
+  revokedBySessionId String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId, trustedUntil, revokedAt])
+}
+
+model ReauthenticationProof {
+  id         String    @id @default(cuid())
+  userId     String
+  sessionId  String
+  tokenHash  String    @unique
+  assurance  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, sessionId, expiresAt, consumedAt])
+}
+
+model SecurityEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  severity   String   @default("INFO")
+  sessionId  String?
+  deviceId   String?
+  ipHash     String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt, id])
+  @@index([type, severity, createdAt])
+}

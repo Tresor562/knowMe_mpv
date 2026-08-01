@@ -4,12 +4,16 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { SecurityService } from '../security/security.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly security: SecurityService
+  ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
     return this.prisma.user.update({
@@ -33,48 +37,51 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        interests: {
-          include: { interest: true }
-        },
-        posts: {
-          include: {
-            comments: true,
-            likes: true
-          }
-        },
-        challengeEntries: {
-          include: {
-            answers: true,
-            challenge: {
-              include: { questions: true }
+    const [user, security] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          interests: {
+            include: { interest: true }
+          },
+          posts: {
+            include: {
+              comments: true,
+              likes: true
+            }
+          },
+          challengeEntries: {
+            include: {
+              answers: true,
+              challenge: {
+                include: { questions: true }
+              }
+            }
+          },
+          sentMessages: true,
+          memberships: {
+            include: {
+              conversation: true
+            }
+          },
+          sentFriendships: true,
+          receivedFriendships: true,
+          notifications: true,
+          authSessions: {
+            select: {
+              id: true,
+              userAgent: true,
+              ipAddress: true,
+              createdAt: true,
+              updatedAt: true,
+              expiresAt: true,
+              revokedAt: true
             }
           }
-        },
-        sentMessages: true,
-        memberships: {
-          include: {
-            conversation: true
-          }
-        },
-        sentFriendships: true,
-        receivedFriendships: true,
-        notifications: true,
-        authSessions: {
-          select: {
-            id: true,
-            userAgent: true,
-            ipAddress: true,
-            createdAt: true,
-            updatedAt: true,
-            expiresAt: true,
-            revokedAt: true
-          }
         }
-      }
-    });
+      }),
+      this.security.exportForAccount(userId)
+    ]);
 
     if (!user) {
       throw new UnauthorizedException('Compte introuvable.');
@@ -87,8 +94,9 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 1,
-      account: safeUser
+      formatVersion: 2,
+      account: safeUser,
+      security
     };
   }
 
@@ -118,9 +126,13 @@ export class AccountService {
         }
       });
 
-      await tx.user.delete({
-        where: { id: userId }
-      });
+      await tx.securityRecoveryCode.deleteMany({ where: { userId } });
+      await tx.securityChallenge.deleteMany({ where: { userId } });
+      await tx.trustedDevice.deleteMany({ where: { userId } });
+      await tx.reauthenticationProof.deleteMany({ where: { userId } });
+      await tx.securityEvent.deleteMany({ where: { userId } });
+      await tx.accountSecurity.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
     });
 
     return {

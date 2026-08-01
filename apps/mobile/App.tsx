@@ -17,8 +17,10 @@ import {
 import {
   apiFetch,
   clearSession,
+  getTrustedDeviceToken,
   hasSession,
   saveSession,
+  saveTrustedDeviceToken,
   SessionTokens
 } from './src/api';
 import { ChallengeExperience } from './src/ChallengeExperience';
@@ -38,6 +40,13 @@ type Screen =
 type ChallengeSummary = { id: string; status: string };
 type NotificationCount = { count: number };
 type MessageCount = { unread: number };
+type TwoFactorChallenge = {
+  requiresTwoFactor: true;
+  challengeToken: string;
+  expiresAt: string;
+  expiresIn: number;
+};
+type LoginResult = SessionTokens | TwoFactorChallenge;
 
 function Field(props: React.ComponentProps<typeof TextInput>) {
   return (
@@ -72,6 +81,10 @@ function PrimaryButton({
   );
 }
 
+function isTwoFactorChallenge(value: LoginResult): value is TwoFactorChallenge {
+  return 'requiresTwoFactor' in value && value.requiresTwoFactor;
+}
+
 function AuthScreen({
   onAuthenticated
 }: {
@@ -83,20 +96,36 @@ function AuthScreen({
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
+  const [securityCode, setSecurityCode] = useState('');
+  const [trustDevice, setTrustDevice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  function resetChallenge() {
+    setChallengeToken('');
+    setSecurityCode('');
+    setTrustDevice(false);
+  }
 
   async function submit() {
     setBusy(true);
     setError('');
     try {
-      const tokens = await apiFetch<SessionTokens>(
+      const trustedDeviceToken = mode === 'login'
+        ? await getTrustedDeviceToken()
+        : null;
+      const result = await apiFetch<LoginResult>(
         mode === 'login' ? '/auth/login' : '/auth/register',
         {
           method: 'POST',
           body: JSON.stringify(
             mode === 'login'
-              ? { identifier: identifier.trim(), password }
+              ? {
+                  identifier: identifier.trim(),
+                  password,
+                  deviceToken: trustedDeviceToken ?? undefined
+                }
               : {
                   displayName: displayName.trim(),
                   username: username.trim(),
@@ -106,12 +135,47 @@ function AuthScreen({
           )
         }
       );
-      await saveSession(tokens);
+
+      if (isTwoFactorChallenge(result)) {
+        setChallengeToken(result.challengeToken);
+        setError('Entre le code de ton application d’authentification ou un code de récupération.');
+        return;
+      }
+
+      await saveSession(result);
       await onAuthenticated();
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Authentification impossible.'
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifySecondFactor() {
+    if (!challengeToken) return;
+    setBusy(true);
+    setError('');
+    try {
+      const tokens = await apiFetch<SessionTokens>('/auth/login/2fa', {
+        method: 'POST',
+        body: JSON.stringify({
+          challengeToken,
+          code: securityCode.trim().toUpperCase(),
+          trustDevice,
+          deviceLabel: `${Platform.OS === 'ios' ? 'iPhone/iPad' : 'Android'} KnowMe`,
+          platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID'
+        })
+      });
+      await saveSession(tokens);
+      if (tokens.trustedDeviceToken) {
+        await saveTrustedDeviceToken(tokens.trustedDeviceToken);
+      }
+      resetChallenge();
+      await onAuthenticated();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Code de sécurité invalide.');
     } finally {
       setBusy(false);
     }
@@ -139,80 +203,89 @@ function AuthScreen({
         </View>
         <Text style={styles.logo}>KnowMe</Text>
         <Text style={styles.subtitle}>Mieux se connaître, vraiment.</Text>
-        <View style={styles.card}>
-          <View style={styles.segmented}>
-            {(['login', 'register'] as const).map((value) => (
-              <Pressable
-                key={value}
-                onPress={() => {
-                  setMode(value);
-                  setError('');
-                }}
-                style={[
-                  styles.segment,
-                  mode === value && styles.segmentActive
-                ]}
-              >
-                <Text
+
+        {!challengeToken ? (
+          <View style={styles.card}>
+            <View style={styles.segmented}>
+              {(['login', 'register'] as const).map((value) => (
+                <Pressable
+                  key={value}
+                  onPress={() => {
+                    setMode(value);
+                    setError('');
+                    resetChallenge();
+                  }}
                   style={[
-                    styles.segmentText,
-                    mode === value && styles.segmentTextActive
+                    styles.segment,
+                    mode === value && styles.segmentActive
                   ]}
                 >
-                  {value === 'login' ? 'Connexion' : 'Inscription'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {mode === 'register' && (
-            <>
-              <Field
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Nom affiché"
-              />
-              <Field
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                placeholder="Pseudo"
-              />
-              <Field
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="Email"
-              />
-            </>
-          )}
-          {mode === 'login' && (
-            <Field
-              value={identifier}
-              onChangeText={setIdentifier}
-              autoCapitalize="none"
-              placeholder="Email ou pseudo"
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      mode === value && styles.segmentTextActive
+                    ]}
+                  >
+                    {value === 'login' ? 'Connexion' : 'Inscription'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {mode === 'register' && (
+              <>
+                <Field value={displayName} onChangeText={setDisplayName} placeholder="Nom affiché" />
+                <Field value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="Pseudo" />
+                <Field value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="Email" />
+              </>
+            )}
+            {mode === 'login' && (
+              <Field value={identifier} onChangeText={setIdentifier} autoCapitalize="none" placeholder="Email ou pseudo" />
+            )}
+            <Field value={password} onChangeText={setPassword} secureTextEntry placeholder="Mot de passe" />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              disabled={!valid || busy}
+              onPress={() => void submit()}
+              title={busy ? 'Vérification…' : mode === 'login' ? 'Entrer dans KnowMe' : 'Créer mon profil'}
             />
-          )}
-          <Field
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Mot de passe"
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            disabled={!valid || busy}
-            onPress={() => void submit()}
-            title={
-              busy
-                ? 'Chargement…'
-                : mode === 'login'
-                  ? 'Entrer dans KnowMe'
-                  : 'Créer mon profil'
-            }
-          />
-        </View>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Deuxième preuve</Text>
+            <Text style={styles.cardText}>
+              Le mot de passe est correct, mais aucune session n’est encore ouverte.
+            </Text>
+            <Field
+              value={securityCode}
+              onChangeText={setSecurityCode}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="123456 ou XXXX-XXXX"
+            />
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: trustDevice }}
+              onPress={() => setTrustDevice((current) => !current)}
+              style={styles.checkboxRow}
+            >
+              <View style={[styles.checkbox, trustDevice && styles.checkboxActive]}>
+                <Text style={styles.checkboxText}>{trustDevice ? '✓' : ''}</Text>
+              </View>
+              <Text style={styles.checkboxLabel}>
+                Faire confiance à cet appareil pendant 30 jours. Cette autorisation reste révocable.
+              </Text>
+            </Pressable>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              disabled={busy || securityCode.trim().length < 6}
+              onPress={() => void verifySecondFactor()}
+              title={busy ? 'Validation…' : 'Valider et ouvrir la session'}
+            />
+            <Pressable disabled={busy} onPress={resetChallenge} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Recommencer la connexion</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -401,9 +474,7 @@ export default function App() {
         )}
         {screen === 'feed' && <FeedExperience userId={user.id} />}
         {screen === 'social' && <SocialHub userId={user.id} />}
-        {screen === 'challenges' && (
-          <ChallengeExperience userId={user.id} />
-        )}
+        {screen === 'challenges' && <ChallengeExperience userId={user.id} />}
         {screen === 'profile' && (
           <ProfileExperience
             user={user}
@@ -423,17 +494,11 @@ export default function App() {
       </View>
       <View style={styles.tabBar}>
         {tabs.map(([value, icon, label]) => (
-          <Pressable
-            key={value}
-            onPress={() => setScreen(value)}
-            style={styles.tab}
-          >
+          <Pressable key={value} onPress={() => setScreen(value)} style={styles.tab}>
             <Text
               style={[
                 styles.tabIcon,
-                (screen === value ||
-                  (value === 'profile' && screen === 'verification')) &&
-                  styles.tabActive
+                (screen === value || (value === 'profile' && screen === 'verification')) && styles.tabActive
               ]}
             >
               {icon}
@@ -441,9 +506,7 @@ export default function App() {
             <Text
               style={[
                 styles.tabLabel,
-                (screen === value ||
-                  (value === 'profile' && screen === 'verification')) &&
-                  styles.tabActive
+                (screen === value || (value === 'profile' && screen === 'verification')) && styles.tabActive
               ]}
             >
               {label}
@@ -457,107 +520,43 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#071410' },
-  loadingRoot: {
-    flex: 1,
-    backgroundColor: '#071410',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
+  loadingRoot: { flex: 1, backgroundColor: '#071410', alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },
   authRoot: { flex: 1, backgroundColor: '#071410' },
   authContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  brandMark: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: '#45e6bd',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14
-  },
+  brandMark: { width: 64, height: 64, borderRadius: 22, backgroundColor: '#45e6bd', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   brandMarkText: { color: '#052017', fontSize: 34, fontWeight: '900' },
   logo: { color: '#f4fff9', fontSize: 46, fontWeight: '900' },
-  subtitle: {
-    color: '#a7b9b1',
-    fontSize: 18,
-    marginTop: 4,
-    marginBottom: 24
-  },
+  subtitle: { color: '#a7b9b1', fontSize: 18, marginTop: 4, marginBottom: 24 },
   screenContent: { padding: 20, paddingBottom: 36, gap: 14 },
-  eyebrow: {
-    color: '#45e6bd',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.5
-  },
-  heading: {
-    color: '#f4fff9',
-    fontSize: 30,
-    fontWeight: '900',
-    marginTop: 4
-  },
+  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900', marginTop: 4 },
   muted: { color: '#91a79e' },
-  card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 18,
-    gap: 12
-  },
+  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
   cardTitle: { color: '#f4fff9', fontSize: 19, fontWeight: '800' },
   cardText: { color: '#b6c8c0', fontSize: 15, lineHeight: 22 },
-  input: {
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
-    borderWidth: 1,
-    borderRadius: 16,
-    color: '#f4fff9',
-    fontSize: 16,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    minHeight: 50,
-    textAlignVertical: 'top'
-  },
-  primaryButton: {
-    backgroundColor: '#45e6bd',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    alignItems: 'center'
-  },
+  input: { backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 16, color: '#f4fff9', fontSize: 16, paddingHorizontal: 15, paddingVertical: 13, minHeight: 50, textAlignVertical: 'top' },
+  primaryButton: { backgroundColor: '#45e6bd', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center' },
   primaryButtonText: { color: '#052017', fontWeight: '900', fontSize: 15 },
+  secondaryButton: { borderColor: '#45e6bd', borderWidth: 1, borderRadius: 16, paddingVertical: 13, alignItems: 'center' },
+  secondaryButtonText: { color: '#45e6bd', fontWeight: '800' },
   buttonMuted: { opacity: 0.45 },
   error: { color: '#ff9d66', lineHeight: 20 },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: '#091914',
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 4
-  },
+  segmented: { flexDirection: 'row', backgroundColor: '#091914', borderRadius: 14, padding: 4, marginBottom: 4 },
   segment: { flex: 1, padding: 10, borderRadius: 11, alignItems: 'center' },
   segmentActive: { backgroundColor: '#1b3b31' },
   segmentText: { color: '#789187', fontWeight: '700' },
   segmentTextActive: { color: '#f4fff9' },
+  checkboxRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  checkbox: { width: 24, height: 24, borderRadius: 7, borderColor: '#45e6bd', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  checkboxActive: { backgroundColor: '#45e6bd' },
+  checkboxText: { color: '#052017', fontWeight: '900' },
+  checkboxLabel: { flex: 1, color: '#b6c8c0', lineHeight: 20 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: {
-    width: '48%',
-    minHeight: 86,
-    backgroundColor: '#10231d',
-    borderRadius: 20,
-    padding: 14
-  },
+  statCard: { width: '48%', minHeight: 86, backgroundColor: '#10231d', borderRadius: 20, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 25, fontWeight: '900' },
   statLabel: { color: '#91a79e', fontSize: 12, marginTop: 4 },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#0b1d17',
-    borderTopColor: '#1c3a31',
-    borderTopWidth: 1,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 8
-  },
+  tabBar: { flexDirection: 'row', backgroundColor: '#0b1d17', borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 18 : 8 },
   tab: { flex: 1, alignItems: 'center', gap: 2 },
   tabIcon: { color: '#789187', fontSize: 20 },
   tabLabel: { color: '#789187', fontSize: 10, fontWeight: '700' },
