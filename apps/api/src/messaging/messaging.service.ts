@@ -31,7 +31,10 @@ export class MessagingService {
           include: {
             user: {
               select: {
-                id: true, username: true, displayName: true, avatarUrl: true
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
               }
             }
           }
@@ -42,21 +45,53 @@ export class MessagingService {
     });
   }
 
-  async send(userId: string, conversationId: string, content: string) {
-    const member = await this.prisma.conversationMember.findUnique({
-      where: { conversationId_userId: { conversationId, userId } }
+  async history(
+    userId: string,
+    conversationId: string,
+    cursor?: string,
+    limit = 30
+  ) {
+    await this.assertMember(userId, conversationId);
+
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId },
+      take: safeLimit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
+        }
+      }
     });
 
-    if (!member) {
-      throw new ForbiddenException('Accès interdit à cette conversation.');
-    }
+    const hasMore = messages.length > safeLimit;
+    const items = hasMore ? messages.slice(0, safeLimit) : messages;
+
+    return {
+      items: items.reverse(),
+      nextCursor: hasMore ? items[items.length - 1]?.id ?? null : null
+    };
+  }
+
+  async send(userId: string, conversationId: string, content: string) {
+    await this.assertMember(userId, conversationId);
 
     const message = await this.prisma.message.create({
       data: { conversationId, senderId: userId, content },
       include: {
         sender: {
           select: {
-            id: true, username: true, displayName: true, avatarUrl: true
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
           }
         }
       }
@@ -69,5 +104,15 @@ export class MessagingService {
 
     this.realtime.emitMessageCreated(conversationId, message);
     return message;
+  }
+
+  private async assertMember(userId: string, conversationId: string) {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } }
+    });
+
+    if (!member) {
+      throw new ForbiddenException('Accès interdit à cette conversation.');
+    }
   }
 }
