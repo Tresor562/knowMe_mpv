@@ -4,11 +4,15 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class SocialService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService
+  ) {}
 
   async searchUsers(currentUserId: string, query: string) {
     const normalized = query.trim();
@@ -46,11 +50,18 @@ export class SocialService {
       );
     }
 
-    const addressee = await this.prisma.user.findUnique({
-      where: { id: addresseeId }
-    });
+    const [requester, addressee] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: requesterId },
+        select: { displayName: true }
+      }),
+      this.prisma.user.findUnique({
+        where: { id: addresseeId },
+        select: { id: true }
+      })
+    ]);
 
-    if (!addressee) {
+    if (!requester || !addressee) {
       throw new NotFoundException('Utilisateur introuvable.');
     }
 
@@ -71,31 +82,33 @@ export class SocialService {
       throw new ConflictException('Une demande est déjà en attente.');
     }
 
-    if (existing) {
-      return this.prisma.friendship.update({
-        where: { id: existing.id },
-        data: {
-          requesterId,
-          addresseeId,
-          status: 'PENDING'
-        }
-      });
-    }
+    const friendship = existing
+      ? await this.prisma.friendship.update({
+          where: { id: existing.id },
+          data: {
+            requesterId,
+            addresseeId,
+            status: 'PENDING'
+          }
+        })
+      : await this.prisma.friendship.create({
+          data: {
+            requesterId,
+            addresseeId,
+            status: 'PENDING'
+          }
+        });
 
-    const friendship = await this.prisma.friendship.create({
+    await this.notifications.create({
+      userId: addresseeId,
+      type: 'FRIEND_REQUEST',
+      title: 'Nouvelle demande d’ami',
+      body: `${requester.displayName} souhaite mieux te connaître.`,
       data: {
-        requesterId,
-        addresseeId,
-        status: 'PENDING'
-      }
-    });
-
-    await this.prisma.notification.create({
-      data: {
-        userId: addresseeId,
-        type: 'FRIEND_REQUEST',
-        title: 'Nouvelle demande d’ami',
-        body: 'Quelqu’un souhaite mieux te connaître.'
+        route: '/friends',
+        entityType: 'FRIENDSHIP',
+        entityId: friendship.id,
+        actorId: requesterId
       }
     });
 
@@ -125,7 +138,10 @@ export class SocialService {
 
   async respond(userId: string, friendshipId: string, accept: boolean) {
     const friendship = await this.prisma.friendship.findUnique({
-      where: { id: friendshipId }
+      where: { id: friendshipId },
+      include: {
+        addressee: { select: { displayName: true } }
+      }
     });
 
     if (!friendship || friendship.addresseeId !== userId) {
@@ -144,12 +160,16 @@ export class SocialService {
     });
 
     if (accept) {
-      await this.prisma.notification.create({
+      await this.notifications.create({
+        userId: friendship.requesterId,
+        type: 'FRIEND_ACCEPTED',
+        title: 'Demande acceptée',
+        body: `${friendship.addressee.displayName} a accepté ta demande.`,
         data: {
-          userId: friendship.requesterId,
-          type: 'FRIEND_ACCEPTED',
-          title: 'Demande acceptée',
-          body: 'Vous pouvez maintenant relever des défis ensemble.'
+          route: '/friends',
+          entityType: 'FRIENDSHIP',
+          entityId: friendship.id,
+          actorId: userId
         }
       });
     }
