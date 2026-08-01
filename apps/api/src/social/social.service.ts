@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { staffAccountSelect, withStaffBadge } from '../staff/staff-profile';
+import { staffAccountSelect } from '../staff/staff-profile';
+import {
+  premiumEntitlementSelect,
+  verificationRequestSelect,
+  withAccountBadges
+} from '../verification/verification-profile';
 
 @Injectable()
 export class SocialService {
@@ -22,6 +27,7 @@ export class SocialService {
       return [];
     }
 
+    const now = new Date();
     const users = await this.prisma.user.findMany({
       where: {
         id: { not: currentUserId },
@@ -39,12 +45,14 @@ export class SocialService {
         avatarUrl: true,
         bio: true,
         knowCoins: true,
-        staffAccount: { select: staffAccountSelect }
+        staffAccount: { select: staffAccountSelect },
+        verificationRequests: verificationRequestSelect,
+        entitlementGrants: premiumEntitlementSelect(now)
       },
       take: 20
     });
 
-    return users.map(withStaffBadge);
+    return users.map((user) => withAccountBadges(user, now));
   }
 
   async sendRequest(requesterId: string, addresseeId: string) {
@@ -120,6 +128,7 @@ export class SocialService {
   }
 
   async incoming(userId: string) {
+    const now = new Date();
     const friendships = await this.prisma.friendship.findMany({
       where: {
         addresseeId: userId,
@@ -133,7 +142,9 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
-            staffAccount: { select: staffAccountSelect }
+            staffAccount: { select: staffAccountSelect },
+            verificationRequests: verificationRequestSelect,
+            entitlementGrants: premiumEntitlementSelect(now)
           }
         }
       },
@@ -142,7 +153,7 @@ export class SocialService {
 
     return friendships.map(({ requester, ...friendship }) => ({
       ...friendship,
-      requester: withStaffBadge(requester)
+      requester: withAccountBadges(requester, now)
     }));
   }
 
@@ -188,13 +199,11 @@ export class SocialService {
   }
 
   async listFriends(userId: string) {
+    const now = new Date();
     const friendships = await this.prisma.friendship.findMany({
       where: {
         status: 'ACCEPTED',
-        OR: [
-          { requesterId: userId },
-          { addresseeId: userId }
-        ]
+        OR: [{ requesterId: userId }, { addresseeId: userId }]
       },
       include: {
         requester: {
@@ -204,7 +213,9 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
-            staffAccount: { select: staffAccountSelect }
+            staffAccount: { select: staffAccountSelect },
+            verificationRequests: verificationRequestSelect,
+            entitlementGrants: premiumEntitlementSelect(now)
           }
         },
         addressee: {
@@ -214,7 +225,9 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
-            staffAccount: { select: staffAccountSelect }
+            staffAccount: { select: staffAccountSelect },
+            verificationRequests: verificationRequestSelect,
+            entitlementGrants: premiumEntitlementSelect(now)
           }
         }
       },
@@ -223,10 +236,11 @@ export class SocialService {
 
     return friendships.map((friendship) => ({
       friendshipId: friendship.id,
-      user: withStaffBadge(
+      user: withAccountBadges(
         friendship.requesterId === userId
           ? friendship.addressee
-          : friendship.requester
+          : friendship.requester,
+        now
       )
     }));
   }
