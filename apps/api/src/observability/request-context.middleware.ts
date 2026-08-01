@@ -1,16 +1,26 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { NextFunction, Request, Response } from 'express';
 import { RequestContextService } from './request-context.service';
 
 const SAFE_TRACE_ID = /^[A-Za-z0-9._:-]{8,128}$/;
 
-type TracedRequest = Request & {
+type HeaderValue = string | string[] | undefined;
+
+type TracedRequest = {
+  headers: Record<string, HeaderValue>;
+  ip?: string;
+  socket: { remoteAddress?: string };
   requestId?: string;
   correlationId?: string;
 };
 
-function firstHeader(value: string | string[] | undefined) {
+type TraceResponse = {
+  setHeader(name: string, value: string): void;
+};
+
+type Next = () => void;
+
+function firstHeader(value: HeaderValue) {
   return Array.isArray(value) ? value[0] : value;
 }
 
@@ -23,7 +33,7 @@ function trustedHeader(value: string | undefined, trusted: boolean) {
 export class RequestContextMiddleware implements NestMiddleware {
   constructor(private readonly context: RequestContextService) {}
 
-  use(req: TracedRequest, res: Response, next: NextFunction) {
+  use(req: TracedRequest, res: TraceResponse, next: Next) {
     const trustIncoming = process.env.TRUST_REQUEST_ID_HEADER === 'true';
     const suppliedRequestId = trustedHeader(
       firstHeader(req.headers['x-request-id']),
