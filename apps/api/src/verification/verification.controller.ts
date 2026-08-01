@@ -28,14 +28,26 @@ import {
 } from './dto/verification.dto';
 import { VerificationService } from './verification.service';
 
+const ACTIVE_REQUEST_STATUSES = new Set([
+  'DRAFT',
+  'SUBMITTED',
+  'IN_REVIEW',
+  'NEEDS_INFO'
+]);
+
 @UseGuards(JwtAuthGuard)
 @Controller('verification')
 export class VerificationController {
   constructor(private readonly verification: VerificationService) {}
 
   @Get('me')
-  me(@Req() req: { user: { userId: string } }) {
-    return this.verification.me(req.user.userId);
+  async me(@Req() req: { user: { userId: string } }) {
+    const state = await this.verification.me(req.user.userId);
+    return {
+      ...state,
+      canCreateNew:
+        !state.request || !ACTIVE_REQUEST_STATUSES.has(state.request.status)
+    };
   }
 
   @Post('requests')
