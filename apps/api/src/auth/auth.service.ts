@@ -7,6 +7,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  StaffProfileRecord,
+  staffAccountSelect,
+  toStaffBadge
+} from '../staff/staff-profile';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +19,16 @@ import { RegisterDto } from './dto/register.dto';
 type SessionContext = {
   userAgent?: string;
   ipAddress?: string;
+};
+
+type SessionUser = {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: string;
+  staffAccount: StaffProfileRecord;
 };
 
 @Injectable()
@@ -52,7 +67,8 @@ export class AuthService {
         username: true,
         displayName: true,
         avatarUrl: true,
-        role: true
+        role: true,
+        staffAccount: { select: staffAccountSelect }
       }
     });
 
@@ -65,6 +81,9 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { username: identifier }]
+      },
+      include: {
+        staffAccount: { select: staffAccountSelect }
       }
     });
 
@@ -83,7 +102,8 @@ export class AuthService {
         username: user.username,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
-        role: user.role
+        role: user.role,
+        staffAccount: user.staffAccount
       },
       context
     );
@@ -98,7 +118,13 @@ export class AuthService {
 
     const session = await this.prisma.authSession.findUnique({
       where: { id: sessionId },
-      include: { user: true }
+      include: {
+        user: {
+          include: {
+            staffAccount: { select: staffAccountSelect }
+          }
+        }
+      }
     });
 
     if (
@@ -128,7 +154,8 @@ export class AuthService {
         username: session.user.username,
         displayName: session.user.displayName,
         avatarUrl: session.user.avatarUrl,
-        role: session.user.role
+        role: session.user.role,
+        staffAccount: session.user.staffAccount
       },
       context
     );
@@ -189,17 +216,7 @@ export class AuthService {
     return { revoked: true };
   }
 
-  private async createSession(
-    user: {
-      id: string;
-      email: string;
-      username: string;
-      displayName: string;
-      avatarUrl: string | null;
-      role: string;
-    },
-    context: SessionContext
-  ) {
+  private async createSession(user: SessionUser, context: SessionContext) {
     const secret = randomBytes(48).toString('base64url');
     const refreshTokenHash = await argon2.hash(secret);
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -221,10 +238,13 @@ export class AuthService {
       sid: session.id
     });
 
+    const { staffAccount, ...publicUser } = user;
+
     return {
       user: {
-        ...user,
-        accountId: user.id
+        ...publicUser,
+        accountId: user.id,
+        staff: toStaffBadge(staffAccount)
       },
       accessToken,
       refreshToken: `${session.id}.${secret}`,
