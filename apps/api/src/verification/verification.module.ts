@@ -5,13 +5,18 @@ import {
   AdminVerificationController,
   VerificationController
 } from './verification.controller';
+import { VerificationEligibilityGuard } from './verification-eligibility.guard';
 import { VerificationPrivacyService } from './verification-privacy.service';
 import { VerificationService } from './verification.service';
 
 @Module({
   imports: [AccessControlModule, NotificationsModule],
   controllers: [VerificationController, AdminVerificationController],
-  providers: [VerificationService, VerificationPrivacyService],
+  providers: [
+    VerificationService,
+    VerificationPrivacyService,
+    VerificationEligibilityGuard
+  ],
   exports: [VerificationService, VerificationPrivacyService]
 })
 export class VerificationModule {}
