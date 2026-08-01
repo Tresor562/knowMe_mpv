@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService
+  ) {}
 
   dashboard() {
     return this.prisma.$transaction([
@@ -55,24 +59,26 @@ export class AdminService {
       }
     });
 
-    await this.prisma.auditLog.create({
-      data: {
-        actorId,
-        action: status === 'RESOLVED' ? 'REPORT_RESOLVE' : 'REPORT_DISMISS',
-        entity: 'Report',
-        entityId: reportId,
-        metadata: {
-          targetType: report.targetType,
-          targetId: report.targetId
-        }
+    await this.audit.record({
+      actorId,
+      action: status === 'RESOLVED' ? 'REPORT_RESOLVE' : 'REPORT_DISMISS',
+      entity: 'Report',
+      entityId: reportId,
+      metadata: {
+        targetType: report.targetType,
+        targetId: report.targetId
       }
     });
 
     return updated;
   }
 
-  listAuditLogs() {
+  listAuditLogs(requestId?: string, correlationId?: string) {
     return this.prisma.auditLog.findMany({
+      where: {
+        ...(requestId ? { requestId } : {}),
+        ...(correlationId ? { correlationId } : {})
+      },
       orderBy: { createdAt: 'desc' },
       take: 100
     });
@@ -95,13 +101,12 @@ export class AdminService {
       });
     }
 
-    await this.prisma.auditLog.create({
-      data: {
-        actorId,
-        action: suspended ? 'USER_SUSPEND' : 'USER_RESTORE',
-        entity: 'User',
-        entityId: userId
-      }
+    await this.audit.record({
+      actorId,
+      action: suspended ? 'USER_SUSPEND' : 'USER_RESTORE',
+      entity: 'User',
+      entityId: userId,
+      targetAccountId: userId
     });
 
     return updated;
