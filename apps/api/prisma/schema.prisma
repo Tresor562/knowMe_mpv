@@ -49,6 +49,7 @@ model User {
   interests            UserInterest[]
   authSessions         AuthSession[]
   featureFlagOverrides FeatureFlagOverride[]
+  entitlementGrants    EntitlementGrant[]
 }
 
 model Friendship {
@@ -292,6 +293,27 @@ model FeatureFlagOverride {
 
   @@unique([flagId, userId])
   @@index([userId, expiresAt])
+}
+
+model EntitlementGrant {
+  id                String    @id @default(cuid())
+  userId            String
+  key               String
+  source            String
+  externalReference String?
+  startsAt          DateTime  @default(now())
+  expiresAt         DateTime?
+  revokedAt         DateTime?
+  revokedById       String?
+  reason            String?
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, key, startsAt, expiresAt, revokedAt])
+  @@index([source, externalReference])
 }
 
 model Interest {
