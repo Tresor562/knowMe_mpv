@@ -7,6 +7,7 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { staffAccountSelect, withStaffBadge } from '../staff/staff-profile';
+import { loadVerifiedBadges } from '../verification/verification-profile';
 
 @Injectable()
 export class SocialService {
@@ -43,8 +44,15 @@ export class SocialService {
       },
       take: 20
     });
+    const badges = await loadVerifiedBadges(
+      this.prisma,
+      users.map((user) => user.id)
+    );
 
-    return users.map(withStaffBadge);
+    return users.map((user) => ({
+      ...withStaffBadge(user),
+      verified: badges.get(user.id) ?? null
+    }));
   }
 
   async sendRequest(requesterId: string, addresseeId: string) {
@@ -139,10 +147,17 @@ export class SocialService {
       },
       orderBy: { createdAt: 'desc' }
     });
+    const badges = await loadVerifiedBadges(
+      this.prisma,
+      friendships.map((friendship) => friendship.requester.id)
+    );
 
     return friendships.map(({ requester, ...friendship }) => ({
       ...friendship,
-      requester: withStaffBadge(requester)
+      requester: {
+        ...withStaffBadge(requester),
+        verified: badges.get(requester.id) ?? null
+      }
     }));
   }
 
@@ -220,15 +235,28 @@ export class SocialService {
       },
       orderBy: { updatedAt: 'desc' }
     });
+    const friendUsers = friendships.map((friendship) =>
+      friendship.requesterId === userId
+        ? friendship.addressee
+        : friendship.requester
+    );
+    const badges = await loadVerifiedBadges(
+      this.prisma,
+      friendUsers.map((friend) => friend.id)
+    );
 
-    return friendships.map((friendship) => ({
-      friendshipId: friendship.id,
-      user: withStaffBadge(
-        friendship.requesterId === userId
-          ? friendship.addressee
-          : friendship.requester
-      )
-    }));
+    return friendships.map((friendship) => {
+      const friend = friendship.requesterId === userId
+        ? friendship.addressee
+        : friendship.requester;
+      return {
+        friendshipId: friendship.id,
+        user: {
+          ...withStaffBadge(friend),
+          verified: badges.get(friend.id) ?? null
+        }
+      };
+    });
   }
 
   async removeFriend(userId: string, friendshipId: string) {
