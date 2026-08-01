@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
+import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 
 type Dashboard = {
@@ -77,7 +78,11 @@ export default function AdminPage() {
   }
 
   if (sessionLoading || loading) {
-    return <main className="shell"><p>Chargement de la modération…</p></main>;
+    return (
+      <main className="shell">
+        <p>Chargement de la modération…</p>
+      </main>
+    );
   }
 
   if (user?.role !== 'ADMIN') {
@@ -110,7 +115,11 @@ export default function AdminPage() {
         </p>
       </header>
 
-      {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
+      {message && (
+        <p role="alert" style={{ color: 'var(--orange)' }}>
+          {message}
+        </p>
+      )}
 
       <section
         className="grid"
@@ -135,7 +144,9 @@ export default function AdminPage() {
           }}
         >
           <h2>File des signalements</h2>
-          <button className="btn" onClick={() => void load()}>Actualiser</button>
+          <button className="btn" onClick={() => void load()}>
+            Actualiser
+          </button>
         </div>
 
         <div className="grid">
@@ -185,6 +196,7 @@ export default function AdminPage() {
         </div>
       </section>
 
+      <EntitlementsPanel />
       <FeatureFlagsPanel />
     </main>
   );
