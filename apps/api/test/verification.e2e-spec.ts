@@ -188,7 +188,7 @@ describe('KnowMe identity verification (e2e)', () => {
     );
 
     const search = await request(app.getHttpServer())
-      .get('/friends/search?q=Verify%20applicant')
+      .get('/social/search?q=Verify%20applicant')
       .set('Authorization', `Bearer ${observerToken}`)
       .expect(200);
     expect(search.body[0].verified).toEqual(
@@ -200,8 +200,21 @@ describe('KnowMe identity verification (e2e)', () => {
       .set('Authorization', `Bearer ${applicantToken}`)
       .expect(200);
     expect(myState.body.badge.verified).toBe(true);
+    expect(myState.body.canCreateNew).toBe(false);
     expect(myState.body.request.decisions[0].internalNote).toBeUndefined();
     expect(myState.body.request.decisions[0].reviewerId).toBeUndefined();
+
+    await request(app.getHttpServer())
+      .post('/verification/requests')
+      .set('Authorization', `Bearer ${applicantToken}`)
+      .send({
+        subjectType: 'PERSON',
+        countryCode: 'BJ',
+        publicCategory: 'PERSON',
+        termsVersion: '2026-08-identity-v1',
+        termsAccepted: true
+      })
+      .expect(409);
 
     const observerState = await request(app.getHttpServer())
       .get('/verification/me')
@@ -209,6 +222,16 @@ describe('KnowMe identity verification (e2e)', () => {
       .expect(200);
     expect(observerState.body.request).toBeNull();
     expect(observerState.body.badge).toBeNull();
+    expect(observerState.body.canCreateNew).toBe(true);
+
+    const exportData = await request(app.getHttpServer())
+      .get('/account/export')
+      .set('Authorization', `Bearer ${applicantToken}`)
+      .expect(200);
+    const serializedExport = JSON.stringify(exportData.body);
+    expect(serializedExport).not.toContain('storageKey');
+    expect(serializedExport).not.toContain('internalNote');
+    expect(serializedExport).not.toContain('identity-front.jpg');
 
     await request(app.getHttpServer())
       .patch(`/admin/verifications/${requestId}/decision`)
@@ -226,11 +249,19 @@ describe('KnowMe identity verification (e2e)', () => {
       .expect(200);
     expect(afterRevocation.body.verified).toBeNull();
 
+    const stateAfterRevocation = await request(app.getHttpServer())
+      .get('/verification/me')
+      .set('Authorization', `Bearer ${applicantToken}`)
+      .expect(200);
+    expect(stateAfterRevocation.body.canCreateNew).toBe(true);
+
     const entitlement = await request(app.getHttpServer())
       .get('/entitlements/me')
       .set('Authorization', `Bearer ${applicantToken}`)
       .expect(200);
-    expect(entitlement.body.entitlements).toContain('premium.core');
+    expect(
+      entitlement.body.entitlements.map((item: { key: string }) => item.key)
+    ).toContain('premium.core');
 
     const [identity, decisions, auditLogs] = await Promise.all([
       prisma.verifiedIdentity.findUnique({ where: { userId: applicantId } }),
@@ -246,5 +277,20 @@ describe('KnowMe identity verification (e2e)', () => {
     expect(auditLogs.length).toBeGreaterThanOrEqual(6);
     expect(JSON.stringify(auditLogs)).not.toContain('identity-front.jpg');
     expect(JSON.stringify(auditLogs)).not.toContain('private-id-front');
+
+    await request(app.getHttpServer())
+      .delete('/account')
+      .set('Authorization', `Bearer ${applicantToken}`)
+      .send({ password: 'KnowMeTest123!' })
+      .expect(200);
+
+    const [remainingRequests, remainingDocuments, remainingIdentity] = await Promise.all([
+      prisma.verificationRequest.count({ where: { userId: applicantId } }),
+      prisma.verificationDocument.count({ where: { requestId } }),
+      prisma.verifiedIdentity.findUnique({ where: { userId: applicantId } })
+    ]);
+    expect(remainingRequests).toBe(0);
+    expect(remainingDocuments).toBe(0);
+    expect(remainingIdentity).toBeNull();
   });
 });
