@@ -76,6 +76,22 @@ async function refreshSession() {
   return refreshRequest;
 }
 
+function toApiError(response: Response, data: ApiErrorPayload | null) {
+  const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
+  const baseMessage = Array.isArray(data?.message)
+    ? data.message.join(', ')
+    : data?.message ?? 'Une erreur est survenue.';
+  const message = requestId
+    ? `${baseMessage} (référence support : ${requestId})`
+    : baseMessage;
+  const error = new Error(message) as ApiError;
+  error.status = response.status;
+  error.code = data?.code;
+  error.requestId = requestId;
+  error.details = data?.details;
+  return error;
+}
+
 async function request(path: string, init: RequestInit, retryAfterRefresh: boolean) {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
@@ -104,24 +120,44 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
   const data = await response.json().catch(() => null) as ApiErrorPayload | null;
 
   if (!response.ok) {
-    const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
-    const baseMessage = Array.isArray(data?.message)
-      ? data.message.join(', ')
-      : data?.message ?? 'Une erreur est survenue.';
-    const message = requestId
-      ? `${baseMessage} (référence support : ${requestId})`
-      : baseMessage;
-    const error = new Error(message) as ApiError;
-    error.status = response.status;
-    error.code = data?.code;
-    error.requestId = requestId;
-    error.details = data?.details;
-    throw error;
+    throw toApiError(response, data);
   }
 
   return data;
 }
 
+async function downloadRequest(path: string, retryAfterRefresh: boolean) {
+  const headers = new Headers();
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, {
+    headers,
+    cache: 'no-store'
+  });
+
+  if (response.status === 401 && retryAfterRefresh) {
+    const refreshed = await refreshSession();
+    if (refreshed) return downloadRequest(path, false);
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as ApiErrorPayload | null;
+    throw toApiError(response, data);
+  }
+
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  return {
+    blob: await response.blob(),
+    fileName: match?.[1] ?? 'document-prive'
+  };
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return request(path, init, true) as Promise<T>;
+}
+
+export function apiDownload(path: string) {
+  return downloadRequest(path, true);
 }
