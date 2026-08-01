@@ -135,13 +135,13 @@ export function VerificationPanel() {
     }
   }
 
-  async function downloadDocument(document: DocumentSummary) {
+  async function downloadDocument(privateDocument: DocumentSummary) {
     if (!selected) return;
     setBusy(true);
     try {
-      const result = await apiDownload(`/admin/verifications/${selected.id}/documents/${document.id}`);
+      const result = await apiDownload(`/admin/verifications/${selected.id}/documents/${privateDocument.id}`);
       const url = URL.createObjectURL(result.blob);
-      const anchor = document.createElement('a');
+      const anchor = window.document.createElement('a');
       anchor.href = url;
       anchor.download = result.fileName;
       anchor.click();
