@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000';
 const ACCESS_KEY = 'knowme_access_token';
 const REFRESH_KEY = 'knowme_refresh_token';
 
@@ -8,6 +8,10 @@ export type SessionTokens = { accessToken: string; refreshToken?: string };
 export type ApiError = Error & { status?: number };
 
 let refreshPromise: Promise<string | null> | null = null;
+
+export async function getAccessToken() {
+  return AsyncStorage.getItem(ACCESS_KEY);
+}
 
 export async function saveSession(tokens: SessionTokens) {
   const pairs: [string, string][] = [[ACCESS_KEY, tokens.accessToken]];
@@ -20,7 +24,7 @@ export async function clearSession() {
 }
 
 export async function hasSession() {
-  return Boolean(await AsyncStorage.getItem(ACCESS_KEY));
+  return Boolean(await getAccessToken());
 }
 
 async function refreshAccessToken() {
@@ -56,7 +60,7 @@ export async function apiFetch<T>(
   init: RequestInit = {},
   allowRefresh = true
 ): Promise<T> {
-  const accessToken = await AsyncStorage.getItem(ACCESS_KEY);
+  const accessToken = await getAccessToken();
   const headers = new Headers(init.headers);
 
   if (init.body && !headers.has('Content-Type')) {

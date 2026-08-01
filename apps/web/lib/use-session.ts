@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, clearSession, getAccessToken } from './api';
+import { disconnectRealtimeSocket, getRealtimeSocket } from './realtime';
 
 export type SessionUser = {
   id: string;
@@ -21,6 +22,7 @@ export function useSession(options: { required?: boolean } = {}) {
 
   const refresh = useCallback(async () => {
     if (!getAccessToken()) {
+      disconnectRealtimeSocket();
       setUser(null);
       setLoading(false);
       if (options.required && typeof window !== 'undefined') {
@@ -33,7 +35,9 @@ export function useSession(options: { required?: boolean } = {}) {
       const profile = await apiFetch<SessionUser>('/users/me');
       setUser(profile);
       setError('');
+      getRealtimeSocket();
     } catch (cause) {
+      disconnectRealtimeSocket();
       clearSession();
       setUser(null);
       setError(cause instanceof Error ? cause.message : 'Session invalide.');
@@ -46,7 +50,7 @@ export function useSession(options: { required?: boolean } = {}) {
   }, [options.required]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const logout = useCallback(async () => {
@@ -55,6 +59,7 @@ export function useSession(options: { required?: boolean } = {}) {
     } catch {
       // La session locale doit toujours être supprimée.
     }
+    disconnectRealtimeSocket();
     clearSession();
     window.location.replace('/login');
   }, []);

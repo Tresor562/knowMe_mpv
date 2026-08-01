@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
 
 type Member = {
@@ -12,6 +13,7 @@ type Member = {
 };
 type Message = {
   id:string;
+  conversationId:string;
   content:string;
   createdAt:string;
   senderId:string;
@@ -27,12 +29,18 @@ type Conversation = {
   lastReadAt?:string|null;
 };
 type Friend = { user:{ id:string; displayName:string; username:string } };
+type ReadEvent = { conversationId:string; userId:string; lastReadAt:string };
+type PresenceEvent = { userId:string; online:boolean };
+type PresenceSnapshot = { onlineUserIds:string[] };
 
 export default function MessagesPage() {
   const { user, loading: sessionLoading } = useSession({ required:true });
+  const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
   const [friends,setFriends] = useState<Friend[]>([]);
+  const [onlineUserIds,setOnlineUserIds] = useState<Set<string>>(new Set());
   const [message,setMessage] = useState('');
+  const [live,setLive] = useState(false);
   const [creating,setCreating] = useState(false);
   const [refreshing,setRefreshing] = useState(false);
 
@@ -53,7 +61,63 @@ export default function MessagesPage() {
     }
   },[]);
 
-  useEffect(() => { if (!sessionLoading) void load(); },[load,sessionLoading]);
+  useEffect(()=>{if(!sessionLoading)void load();},[load,sessionLoading]);
+
+  useEffect(()=>{
+    if(sessionLoading||!user)return;
+
+    const connected=()=>setLive(true);
+    const disconnected=()=>setLive(false);
+    const incoming=(created:Message)=>{
+      setConversations(current=>{
+        const index=current.findIndex(conversation=>conversation.id===created.conversationId);
+        if(index<0){void load();return current;}
+        const conversation=current[index];
+        const alreadyKnown=conversation.messages[0]?.id===created.id;
+        const updated:Conversation={
+          ...conversation,
+          messages:[created],
+          unreadCount:created.senderId===user.id||alreadyKnown?conversation.unreadCount:conversation.unreadCount+1
+        };
+        return [updated,...current.filter(item=>item.id!==updated.id)];
+      });
+    };
+    const read=(event:ReadEvent)=>{
+      if(event.userId!==user.id)return;
+      setConversations(current=>current.map(conversation=>conversation.id===event.conversationId?{...conversation,unreadCount:0,lastReadAt:event.lastReadAt}:conversation));
+    };
+    const presence=(event:PresenceEvent)=>{
+      setOnlineUserIds(current=>{
+        const next=new Set(current);
+        event.online?next.add(event.userId):next.delete(event.userId);
+        return next;
+      });
+    };
+    const snapshot=(event:PresenceSnapshot)=>setOnlineUserIds(new Set(event.onlineUserIds));
+
+    socket.on('connect',connected);
+    socket.on('disconnect',disconnected);
+    socket.on('message:created',incoming);
+    socket.on('conversation:read',read);
+    socket.on('presence:update',presence);
+    socket.on('presence:snapshot',snapshot);
+    if(socket.connected)connected();else socket.connect();
+
+    return()=>{
+      socket.off('connect',connected);
+      socket.off('disconnect',disconnected);
+      socket.off('message:created',incoming);
+      socket.off('conversation:read',read);
+      socket.off('presence:update',presence);
+      socket.off('presence:snapshot',snapshot);
+    };
+  },[load,sessionLoading,socket,user]);
+
+  useEffect(()=>{
+    if(!socket.connected||!user)return;
+    const peerIds=[...new Set(conversations.flatMap(conversation=>conversation.members.map(member=>member.user.id)).filter(id=>id!==user.id))];
+    if(peerIds.length)socket.emit('presence:query',{userIds:peerIds});
+  },[conversations,socket,user]);
 
   async function createConversation(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +147,7 @@ export default function MessagesPage() {
     <main className="shell" style={{maxWidth:900,margin:'0 auto'}}>
       <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}>
         <div>
-          <small style={{color:'var(--mint)'}}>CONVERSATIONS</small>
+          <small style={{color:'var(--mint)'}}>CONVERSATIONS · {live?'EN DIRECT':'HORS LIGNE'}</small>
           <h1>Messages</h1>
           <p style={{color:'var(--muted)'}}>{totalUnread} message(s) non lu(s)</p>
         </div>
@@ -107,16 +171,21 @@ export default function MessagesPage() {
           const name = conversation.title || otherMembers.map(member => member.user.displayName).join(', ') || 'Conversation';
           const last = conversation.messages[0];
           const unread = conversation.unreadCount > 0;
+          const online=otherMembers.some(member=>onlineUserIds.has(member.user.id));
           return (
             <Link
               href={`/messages/${conversation.id}`}
               key={conversation.id}
               style={{display:'grid',gridTemplateColumns:'52px minmax(0,1fr) auto',gap:14,padding:18,borderBottom:'1px solid rgba(255,255,255,.06)',alignItems:'center',background:unread?'rgba(69,230,189,.055)':'transparent'}}
             >
-              <div style={{width:52,height:52,borderRadius:'50%',background:unread?'var(--mint)':'var(--surface-2)',color:unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>{name[0]?.toUpperCase()}</div>
+              <div style={{position:'relative',width:52,height:52,borderRadius:'50%',background:unread?'var(--mint)':'var(--surface-2)',color:unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>
+                {name[0]?.toUpperCase()}
+                <span aria-label={online?'En ligne':'Hors ligne'} style={{position:'absolute',right:0,bottom:1,width:13,height:13,borderRadius:'50%',background:online?'#45e6bd':'#607a70',border:'2px solid var(--surface)'}} />
+              </div>
               <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <strong>{name}</strong>
+                  {online&&<small style={{color:'var(--mint)'}}>en ligne</small>}
                   {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
                 </div>
                 <div style={{color:unread?'var(--text)':'var(--muted)',fontWeight:unread?700:400,marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
