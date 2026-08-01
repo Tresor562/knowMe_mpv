@@ -10,6 +10,7 @@ import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { RewardsPanel } from './RewardsPanel';
 import { StaffAccountsPanel } from './StaffAccountsPanel';
+import { VerificationPanel } from './VerificationPanel';
 import { WalletPanel } from './WalletPanel';
 
 type Dashboard = {
@@ -38,6 +39,7 @@ const P = {
   wallet: 'wallet.manage',
   rewards: 'rewards.manage',
   billing: 'billing.manage',
+  verification: 'verification.manage',
   flags: 'feature_flags.manage',
   rbac: 'rbac.manage'
 } as const;
@@ -266,6 +268,7 @@ export default function AdminPage() {
       {can(P.wallet) && <WalletPanel />}
       {can(P.rewards) && <RewardsPanel />}
       {can(P.billing) && <BillingPanel />}
+      {can(P.verification) && <VerificationPanel />}
       {can(P.flags) && <FeatureFlagsPanel />}
     </main>
   );
