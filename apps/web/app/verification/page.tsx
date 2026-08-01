@@ -43,6 +43,7 @@ type VerificationState = {
     expiresAt?: string | null;
   } | null;
   identityStatus: string;
+  canCreateNew: boolean;
 };
 
 const DOCUMENT_LABELS: Record<string, string> = {
@@ -96,6 +97,7 @@ export default function VerificationPage() {
   const request = state?.request ?? null;
   const canEdit = request && ['DRAFT', 'NEEDS_INFO'].includes(request.status);
   const canCancel = request && ['DRAFT', 'SUBMITTED', 'NEEDS_INFO'].includes(request.status);
+  const showCreateForm = state?.canCreateNew ?? !request;
   const requiredKinds = useMemo(
     () => subjectType === 'ORGANIZATION'
       ? ['REGISTRATION', 'AUTHORIZATION']
@@ -118,6 +120,8 @@ export default function VerificationPage() {
           termsAccepted
         })
       });
+      setTermsAccepted(false);
+      setPublicReason('');
       setMessage('Demande créée. Ajoute maintenant les documents requis.');
       await load();
     } catch (cause) {
@@ -184,7 +188,7 @@ export default function VerificationPage() {
     setBusy(true);
     try {
       await apiFetch(`/verification/requests/${request.id}/cancel`, { method: 'POST' });
-      setMessage('Demande annulée.');
+      setMessage('Demande annulée. Tu peux en créer une nouvelle lorsque tu es prêt.');
       await load();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Annulation impossible.');
@@ -221,9 +225,10 @@ export default function VerificationPage() {
         </article>
       )}
 
-      {!request && (
+      {showCreateForm && (
         <form className="card grid" onSubmit={createRequest} style={{ padding: 24, marginTop: 24 }}>
-          <h2>Créer une demande</h2>
+          <h2>{request ? 'Créer une nouvelle demande' : 'Créer une demande'}</h2>
+          {request && <p style={{ color: 'var(--muted)' }}>La demande précédente est terminée. Son historique reste visible ci-dessous.</p>}
           <label className="grid" style={{ gap: 8 }}>
             <span>Type de demande</span>
             <select className="input" value={subjectType} onChange={(event) => setSubjectType(event.target.value)}>
@@ -261,7 +266,8 @@ export default function VerificationPage() {
         <section className="grid" style={{ marginTop: 24 }}>
           <article className="card" style={{ padding: 24 }}>
             <small style={{ color: 'var(--orange)' }}>{STATUS_LABELS[request.status] ?? request.status}</small>
-            <h2>Demande {request.id}</h2>
+            <h2>Dernière demande</h2>
+            <p style={{ color: 'var(--muted)', fontSize: 13 }}>Référence : {request.id}</p>
             <p>{request.subjectType} · {request.publicCategory} · {request.countryCode}</p>
             {request.publicReason && <p>{request.publicReason}</p>}
             <p style={{ color: 'var(--muted)' }}>Créée le {new Date(request.createdAt).toLocaleString('fr-FR')}</p>
