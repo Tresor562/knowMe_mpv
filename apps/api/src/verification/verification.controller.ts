@@ -34,6 +34,7 @@ const ACTIVE_REQUEST_STATUSES = new Set([
   'IN_REVIEW',
   'NEEDS_INFO'
 ]);
+const BLOCKING_IDENTITY_STATUSES = new Set(['ACTIVE', 'SUSPENDED']);
 
 @UseGuards(JwtAuthGuard)
 @Controller('verification')
@@ -43,10 +44,14 @@ export class VerificationController {
   @Get('me')
   async me(@Req() req: { user: { userId: string } }) {
     const state = await this.verification.me(req.user.userId);
+    const hasActiveRequest = Boolean(
+      state.request && ACTIVE_REQUEST_STATUSES.has(state.request.status)
+    );
     return {
       ...state,
       canCreateNew:
-        !state.request || !ACTIVE_REQUEST_STATUSES.has(state.request.status)
+        !hasActiveRequest &&
+        !BLOCKING_IDENTITY_STATUSES.has(state.identityStatus)
     };
   }
 
