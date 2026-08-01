@@ -18,6 +18,7 @@ import { apiFetch, clearSession, hasSession, saveSession, SessionTokens } from '
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
+import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
 import { SocialHub } from './src/SocialHub';
 
 type Screen = 'home' | 'feed' | 'social' | 'challenges' | 'profile';
@@ -158,11 +159,15 @@ export default function App() {
   const loadSession = useCallback(async () => {
     try {
       if (!(await hasSession())) {
+        disconnectRealtimeSocket();
         setUser(null);
         return;
       }
-      setUser(await apiFetch<MobileUser>('/users/me'));
+      const currentUser = await apiFetch<MobileUser>('/users/me');
+      setUser(currentUser);
+      void getRealtimeSocket();
     } catch {
+      disconnectRealtimeSocket();
       await clearSession();
       setUser(null);
     } finally {
@@ -173,6 +178,7 @@ export default function App() {
   useEffect(() => { void loadSession(); }, [loadSession]);
 
   async function resetLocalSession() {
+    disconnectRealtimeSocket();
     await clearSession();
     setUser(null);
     setScreen('home');
