@@ -6,6 +6,7 @@ import { disconnectRealtimeSocket, getRealtimeSocket } from './realtime';
 
 export type SessionUser = {
   id: string;
+  accountId?: string;
   email: string;
   username: string;
   displayName: string;
