@@ -1,0 +1,79 @@
+model VerificationRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  subjectType    String    @default("PERSON")
+  status         String    @default("DRAFT")
+  countryCode    String
+  publicCategory String    @default("PERSON")
+  publicReason   String?
+  termsVersion   String
+  submittedAt    DateTime?
+  reviewStartedAt DateTime?
+  resolvedAt     DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  documents VerificationDocument[]
+  decisions VerificationDecision[]
+  identity  VerifiedIdentity?
+
+  @@index([userId, status, createdAt])
+  @@index([status, submittedAt, createdAt])
+}
+
+model VerificationDocument {
+  id               String    @id @default(cuid())
+  requestId        String
+  kind             String
+  storageKey       String    @unique
+  sha256           String
+  mimeType         String
+  sizeBytes        Int
+  originalNameHash String?
+  uploadedAt       DateTime  @default(now())
+  deletedAt        DateTime?
+
+  request VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, sha256])
+  @@index([requestId, kind, deletedAt])
+}
+
+model VerificationDecision {
+  id           String   @id @default(cuid())
+  requestId    String
+  reviewerId   String
+  action       String
+  reasonCode   String
+  userMessage  String?
+  internalNote String?
+  createdAt    DateTime @default(now())
+
+  request VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@index([reviewerId, createdAt])
+}
+
+model VerifiedIdentity {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  requestId        String    @unique
+  status           String    @default("ACTIVE")
+  badgeLabel       String    @default("Compte certifié")
+  category         String    @default("PERSON")
+  verifiedAt       DateTime  @default(now())
+  expiresAt        DateTime?
+  suspendedAt      DateTime?
+  revokedAt        DateTime?
+  revocationReason String?
+  reviewedById     String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  request VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@index([status, expiresAt])
+  @@index([reviewedById, verifiedAt])
+}
