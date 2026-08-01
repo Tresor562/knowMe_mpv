@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "KnowMe",
+    "slug": "knowme",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "knowme",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.knowme.app"
+    },
+    "android": {
+      "package": "com.knowme.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#071410"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
