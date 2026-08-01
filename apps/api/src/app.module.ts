@@ -8,6 +8,7 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
@@ -41,6 +42,7 @@ import { WalletModule } from './wallet/wallet.module';
     AccessControlModule,
     WalletModule,
     RewardsModule,
+    BillingModule,
     AuthModule,
     UsersModule,
     ChallengesModule,

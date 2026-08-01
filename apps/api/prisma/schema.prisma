@@ -35,27 +35,29 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  sentFriendships         Friendship[]        @relation("FriendshipRequester")
-  receivedFriendships     Friendship[]        @relation("FriendshipAddressee")
-  challengesCreated       Challenge[]         @relation("ChallengeCreator")
-  challengeVersionsCreated ChallengeVersion[] @relation("ChallengeVersionCreator")
-  challengeEntries        ChallengeParticipant[]
-  sentMessages            Message[]
-  memberships             ConversationMember[]
-  posts                   Post[]
-  postLikes               PostLike[]
-  postComments            PostComment[]
-  notifications           Notification[]
-  reports                 Report[]
-  interests               UserInterest[]
-  authSessions            AuthSession[]
-  featureFlagOverrides    FeatureFlagOverride[]
-  entitlementGrants       EntitlementGrant[]
-  staffAccount            StaffAccount?
-  accessRoleGrants        UserRoleGrant[]
-  knowCoinWallet          KnowCoinWallet?
-  knowCoinLedger          KnowCoinLedgerEntry[]
-  rewardEvents            RewardEvent[]
+  sentFriendships          Friendship[]        @relation("FriendshipRequester")
+  receivedFriendships      Friendship[]        @relation("FriendshipAddressee")
+  challengesCreated        Challenge[]         @relation("ChallengeCreator")
+  challengeVersionsCreated ChallengeVersion[]  @relation("ChallengeVersionCreator")
+  challengeEntries         ChallengeParticipant[]
+  sentMessages             Message[]
+  memberships              ConversationMember[]
+  posts                    Post[]
+  postLikes                PostLike[]
+  postComments             PostComment[]
+  notifications            Notification[]
+  reports                  Report[]
+  interests                UserInterest[]
+  authSessions             AuthSession[]
+  featureFlagOverrides     FeatureFlagOverride[]
+  entitlementGrants        EntitlementGrant[]
+  staffAccount             StaffAccount?
+  accessRoleGrants         UserRoleGrant[]
+  knowCoinWallet           KnowCoinWallet?
+  knowCoinLedger           KnowCoinLedgerEntry[]
+  rewardEvents             RewardEvent[]
+  billingSubscriptions     BillingSubscription[]
+  billingEvents            BillingEvent[]
 }
 
 model Friendship {
@@ -444,6 +446,112 @@ model RewardEvent {
   @@index([userId, status, createdAt])
   @@index([eventType, entityType, entityId])
   @@index([policyId, createdAt])
+}
+
+model BillingPlan {
+  id                       String   @id @default(cuid())
+  key                      String   @unique
+  name                     String
+  description              String?
+  active                   Boolean  @default(false)
+  highlighted              Boolean  @default(false)
+  requiresVerification     Boolean  @default(false)
+  requiresManualReview     Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  prices        BillingPrice[]
+  entitlements BillingPlanEntitlement[]
+  subscriptions BillingSubscription[]
+
+  @@index([active, highlighted])
+}
+
+model BillingPrice {
+  id              String   @id @default(cuid())
+  planId          String
+  provider        String
+  externalPriceId String?
+  platform        String   @default("ALL")
+  countryCode     String?
+  currency        String
+  unitAmount      Int
+  interval        String   @default("MONTH")
+  intervalCount   Int      @default(1)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan          BillingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions BillingSubscription[]
+
+  @@unique([provider, externalPriceId])
+  @@index([planId, active, platform, countryCode, currency])
+}
+
+model BillingPlanEntitlement {
+  planId    String
+  key       String
+  createdAt DateTime @default(now())
+
+  plan BillingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([planId, key])
+  @@index([key])
+}
+
+model BillingSubscription {
+  id                     String    @id @default(cuid())
+  userId                 String
+  planId                 String
+  priceId                String?
+  provider               String
+  externalSubscriptionId String
+  status                 String
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean   @default(false)
+  cancelledAt            DateTime?
+  endedAt                DateTime?
+  latestEventTime        DateTime
+  latestExternalEventId  String?
+  metadata               Json?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan   BillingPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  price  BillingPrice? @relation(fields: [priceId], references: [id], onDelete: SetNull)
+  events BillingEvent[]
+
+  @@unique([provider, externalSubscriptionId])
+  @@index([userId, status, currentPeriodEnd])
+  @@index([planId, status])
+}
+
+model BillingEvent {
+  id              String    @id @default(cuid())
+  provider        String
+  externalEventId String
+  type            String
+  occurredAt      DateTime
+  receivedAt      DateTime  @default(now())
+  payloadHash     String
+  signatureVersion String   @default("hmac-sha256-v1")
+  status          String
+  reason          String?
+  userId          String?
+  subscriptionId  String?
+  payload         Json
+  processedAt     DateTime?
+
+  user         User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscription BillingSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalEventId])
+  @@index([provider, status, receivedAt])
+  @@index([subscriptionId, occurredAt])
+  @@index([userId, occurredAt])
 }
 
 model FeatureFlag {
