@@ -11,43 +11,17 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 
 type UserSummary = {
   id: string;
   username: string;
   displayName: string;
   bio?: string | null;
-  avatarUrl?: string | null;
 };
 
 type Friend = { friendshipId: string; user: UserSummary };
 type FriendRequest = { id: string; requester: UserSummary };
-type ConversationMember = {
-  userId: string;
-  lastReadAt: string;
-  user: UserSummary;
-};
-type ConversationMessage = {
-  id: string;
-  content: string;
-  createdAt: string;
-  senderId: string;
-  sender?: UserSummary;
-};
-type Conversation = {
-  id: string;
-  title?: string | null;
-  members: ConversationMember[];
-  messages: ConversationMessage[];
-  unreadCount: number;
-  lastReadAt?: string | null;
-};
-type MessageHistory = {
-  items: ConversationMessage[];
-  nextCursor?: string | null;
-  readStates: ConversationMember[];
-};
-type MarkRead = { userId: string; lastReadAt: string; unread: number };
 type Notification = {
   id: string;
   type: string;
@@ -56,7 +30,6 @@ type Notification = {
   readAt?: string | null;
   createdAt: string;
 };
-
 type Section = 'friends' | 'messages' | 'notifications';
 
 function errorMessage(cause: unknown, fallback: string) {
@@ -74,22 +47,59 @@ export function SocialHub({ userId }: { userId: string }) {
         <Text style={styles.heading}>Mon cercle</Text>
         <View style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
-            <Pressable key={value} onPress={() => setSection(value)} style={[styles.segment, section === value && styles.segmentActive]}>
-              <Text style={[styles.segmentText, section === value && styles.segmentTextActive]}>
-                {value === 'friends' ? 'Amis' : value === 'messages' ? 'Messages' : 'Alertes'}
+            <Pressable
+              key={value}
+              onPress={() => {
+                setRefreshing(false);
+                setSection(value);
+              }}
+              style={[styles.segment, section === value && styles.segmentActive]}
+            >
+              <Text style={[
+                styles.segmentText,
+                section === value && styles.segmentTextActive
+              ]}>
+                {value === 'friends'
+                  ? 'Amis'
+                  : value === 'messages'
+                    ? 'Messages'
+                    : 'Alertes'}
               </Text>
             </Pressable>
           ))}
         </View>
       </View>
-      {section === 'friends' && <FriendsPanel refreshing={refreshing} setRefreshing={setRefreshing} />}
-      {section === 'messages' && <MessagesPanel userId={userId} refreshing={refreshing} setRefreshing={setRefreshing} />}
-      {section === 'notifications' && <NotificationsPanel refreshing={refreshing} setRefreshing={setRefreshing} />}
+
+      {section === 'friends' && (
+        <FriendsPanel
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
+      )}
+      {section === 'messages' && (
+        <RealtimeMessagesPanel
+          userId={userId}
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
+      )}
+      {section === 'notifications' && (
+        <NotificationsPanel
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
+      )}
     </View>
   );
 }
 
-function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setRefreshing: (value: boolean) => void }) {
+function FriendsPanel({
+  refreshing,
+  setRefreshing
+}: {
+  refreshing: boolean;
+  setRefreshing: (value: boolean) => void;
+}) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [results, setResults] = useState<UserSummary[]>([]);
@@ -111,12 +121,16 @@ function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setR
     }
   }, [setRefreshing]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function search() {
     if (query.trim().length < 2) return;
     try {
-      setResults(await apiFetch<UserSummary[]>(`/social/search?q=${encodeURIComponent(query.trim())}`));
+      setResults(await apiFetch<UserSummary[]>(
+        `/social/search?q=${encodeURIComponent(query.trim())}`
+      ));
     } catch (cause) {
       Alert.alert('Recherche impossible', errorMessage(cause, 'Réessaie.'));
     }
@@ -125,7 +139,10 @@ function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setR
   async function addFriend(addresseeId: string) {
     setBusyId(addresseeId);
     try {
-      await apiFetch('/social/friend-requests', { method: 'POST', body: JSON.stringify({ addresseeId }) });
+      await apiFetch('/social/friend-requests', {
+        method: 'POST',
+        body: JSON.stringify({ addresseeId })
+      });
       Alert.alert('Demande envoyée', 'La personne recevra une notification.');
     } catch (cause) {
       Alert.alert('Envoi impossible', errorMessage(cause, 'Réessaie.'));
@@ -137,7 +154,9 @@ function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setR
   async function respond(requestId: string, action: 'accept' | 'decline') {
     setBusyId(requestId);
     try {
-      await apiFetch(`/social/friend-requests/${requestId}/${action}`, { method: 'PATCH' });
+      await apiFetch(`/social/friend-requests/${requestId}/${action}`, {
+        method: 'PATCH'
+      });
       await load();
     } catch (cause) {
       Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
@@ -160,23 +179,53 @@ function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setR
 
   return (
     <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load();
+          }}
+        />
+      }
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Trouver une personne</Text>
-        <TextInput value={query} onChangeText={setQuery} placeholder="Nom ou pseudo" placeholderTextColor="#789187" style={styles.input} autoCapitalize="none" />
-        <ActionButton title="Rechercher" disabled={query.trim().length < 2} onPress={() => void search()} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Nom ou pseudo"
+          placeholderTextColor="#789187"
+          style={styles.input}
+          autoCapitalize="none"
+        />
+        <ActionButton
+          title="Rechercher"
+          disabled={query.trim().length < 2}
+          onPress={() => void search()}
+        />
       </View>
 
-      {requests.length > 0 && <Text style={styles.sectionTitle}>Demandes reçues</Text>}
+      {requests.length > 0 && (
+        <Text style={styles.sectionTitle}>Demandes reçues</Text>
+      )}
       {requests.map(({ id, requester }) => (
         <View key={id} style={styles.card}>
           <Identity user={requester} />
           <View style={styles.row}>
-            <ActionButton title="Accepter" disabled={busyId === id} onPress={() => void respond(id, 'accept')} compact />
-            <SecondaryButton title="Refuser" disabled={busyId === id} onPress={() => void respond(id, 'decline')} />
+            <ActionButton
+              title="Accepter"
+              disabled={busyId === id}
+              onPress={() => void respond(id, 'accept')}
+              compact
+            />
+            <SecondaryButton
+              title="Refuser"
+              disabled={busyId === id}
+              onPress={() => void respond(id, 'decline')}
+            />
           </View>
         </View>
       ))}
@@ -185,225 +234,66 @@ function FriendsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setR
       {friends.map(({ friendshipId, user }) => (
         <View key={friendshipId} style={styles.card}>
           <Identity user={user} />
-          <SecondaryButton title="Retirer" disabled={busyId === friendshipId} onPress={() => void remove(friendshipId)} />
+          <SecondaryButton
+            title="Retirer"
+            disabled={busyId === friendshipId}
+            onPress={() => void remove(friendshipId)}
+          />
         </View>
       ))}
       {!friends.length && <Empty text="Aucun ami pour le moment." />}
 
-      {results.length > 0 && <Text style={styles.sectionTitle}>Résultats</Text>}
+      {results.length > 0 && (
+        <Text style={styles.sectionTitle}>Résultats</Text>
+      )}
       {results.map((user) => (
         <View key={user.id} style={styles.card}>
           <Identity user={user} />
-          <ActionButton title={busyId === user.id ? 'Envoi…' : 'Ajouter'} disabled={busyId === user.id} onPress={() => void addFriend(user.id)} />
+          <ActionButton
+            title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
+            disabled={busyId === user.id}
+            onPress={() => void addFriend(user.id)}
+          />
         </View>
       ))}
     </ScrollView>
   );
 }
 
-function MessagesPanel({ userId, refreshing, setRefreshing }: { userId: string; refreshing: boolean; setRefreshing: (value: boolean) => void }) {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
-  const [active, setActive] = useState<Conversation | null>(null);
-  const [history, setHistory] = useState<ConversationMessage[]>([]);
-  const [readStates, setReadStates] = useState<ConversationMember[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [conversationData, friendData] = await Promise.all([
-        apiFetch<Conversation[]>('/conversations'),
-        apiFetch<Friend[]>('/social/friends')
-      ]);
-      setConversations(conversationData);
-      setFriends(friendData);
-    } catch (cause) {
-      Alert.alert('Messages indisponibles', errorMessage(cause, 'Réessaie.'));
-    } finally {
-      setRefreshing(false);
-    }
-  }, [setRefreshing]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  async function openConversation(conversation: Conversation) {
-    try {
-      const data = await apiFetch<MessageHistory>(`/conversations/${conversation.id}/messages?limit=50`);
-      const marked = await apiFetch<MarkRead>(`/conversations/${conversation.id}/read`, { method: 'PATCH' });
-      setHistory(data.items);
-      setReadStates(data.readStates.map((state) => state.userId === marked.userId ? { ...state, lastReadAt: marked.lastReadAt } : state));
-      setNextCursor(data.nextCursor ?? null);
-      setActive({ ...conversation, unreadCount: 0, lastReadAt: marked.lastReadAt });
-      setConversations((current) => current.map((item) => item.id === conversation.id ? { ...item, unreadCount: 0, lastReadAt: marked.lastReadAt } : item));
-    } catch (cause) {
-      Alert.alert('Conversation inaccessible', errorMessage(cause, 'Réessaie.'));
-    }
-  }
-
-  async function loadOlder() {
-    if (!active || !nextCursor || loadingOlder) return;
-    setLoadingOlder(true);
-    try {
-      const data = await apiFetch<MessageHistory>(`/conversations/${active.id}/messages?limit=50&cursor=${encodeURIComponent(nextCursor)}`);
-      setHistory((current) => {
-        const known = new Set(current.map((item) => item.id));
-        return [...data.items.filter((item) => !known.has(item.id)), ...current];
-      });
-      setReadStates(data.readStates);
-      setNextCursor(data.nextCursor ?? null);
-    } catch (cause) {
-      Alert.alert('Chargement impossible', errorMessage(cause, 'Réessaie.'));
-    } finally {
-      setLoadingOlder(false);
-    }
-  }
-
-  async function createConversation() {
-    if (!selectedFriend) return;
-    try {
-      const conversation = await apiFetch<Conversation>('/conversations', {
-        method: 'POST',
-        body: JSON.stringify({ memberIds: [selectedFriend] })
-      });
-      setSelectedFriend(null);
-      await load();
-      await openConversation({ ...conversation, messages: conversation.messages ?? [], unreadCount: 0 });
-    } catch (cause) {
-      Alert.alert('Création impossible', errorMessage(cause, 'Réessaie.'));
-    }
-  }
-
-  async function send() {
-    if (!active || !draft.trim() || sending) return;
-    setSending(true);
-    try {
-      const created = await apiFetch<ConversationMessage>(`/conversations/${active.id}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ content: draft.trim() })
-      });
-      setHistory((current) => [...current, created]);
-      setReadStates((current) => current.map((state) => state.userId === userId ? { ...state, lastReadAt: created.createdAt } : state));
-      setDraft('');
-      await load();
-    } catch (cause) {
-      Alert.alert('Envoi impossible', errorMessage(cause, 'Réessaie.'));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  function closeConversation() {
-    setActive(null);
-    setHistory([]);
-    setReadStates([]);
-    setNextCursor(null);
-    void load();
-  }
-
-  if (active) {
-    const name = active.title || active.members.filter((member) => member.user.id !== userId).map((member) => member.user.displayName).join(', ') || 'Conversation';
-    return (
-      <View style={styles.conversationRoot}>
-        <View style={styles.conversationHeader}>
-          <SecondaryButton title="Retour" onPress={closeConversation} />
-          <Text style={[styles.cardTitle, styles.flex]} numberOfLines={1}>{name}</Text>
-          <SecondaryButton title="Actualiser" onPress={() => void openConversation(active)} />
-        </View>
-        <FlatList
-          data={history}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messages}
-          ListHeaderComponent={nextCursor ? <SecondaryButton title={loadingOlder ? 'Chargement…' : 'Messages précédents'} disabled={loadingOlder} onPress={() => void loadOlder()} /> : null}
-          renderItem={({ item }) => {
-            const mine = item.senderId === userId;
-            const readers = mine
-              ? readStates.filter((state) => state.userId !== userId && new Date(state.lastReadAt).getTime() >= new Date(item.createdAt).getTime())
-              : [];
-            return (
-              <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
-                {!mine && item.sender && <Text style={styles.senderName}>{item.sender.displayName}</Text>}
-                <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>{item.content}</Text>
-                <Text style={styles.bubbleDate}>{new Date(item.createdAt).toLocaleString('fr-FR')}</Text>
-                {mine && readers.length > 0 && <Text style={styles.receipt}>Lu par {readers.map((state) => state.user.displayName).join(', ')}</Text>}
-              </View>
-            );
-          }}
-          ListEmptyComponent={<Empty text="Commence la conversation." />}
-        />
-        <View style={styles.composer}>
-          <TextInput value={draft} onChangeText={setDraft} maxLength={2000} placeholder="Écris un message…" placeholderTextColor="#789187" style={[styles.input, styles.composerInput]} />
-          <ActionButton title={sending ? '…' : 'Envoyer'} disabled={sending || !draft.trim()} onPress={() => void send()} compact />
-        </View>
-      </View>
-    );
-  }
-
-  const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
-
-  return (
-    <ScrollView
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
-      contentContainerStyle={styles.content}
-    >
-      {friends.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Nouvelle discussion</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendChoices}>
-            {friends.map(({ user }) => (
-              <Pressable key={user.id} onPress={() => setSelectedFriend(user.id)} style={[styles.friendChoice, selectedFriend === user.id && styles.friendChoiceActive]}>
-                <Text style={styles.avatarText}>{user.displayName.charAt(0).toUpperCase()}</Text>
-                <Text style={styles.choiceLabel} numberOfLines={1}>{user.displayName}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <ActionButton title="Créer la conversation" disabled={!selectedFriend} onPress={() => void createConversation()} />
-        </View>
-      )}
-      <Text style={styles.sectionTitle}>Conversations · {totalUnread} non lu(s)</Text>
-      {conversations.map((conversation) => {
-        const others = conversation.members.filter((member) => member.user.id !== userId);
-        const name = conversation.title || others.map((member) => member.user.displayName).join(', ') || 'Conversation';
-        const last = conversation.messages[0];
-        const unread = conversation.unreadCount > 0;
-        return (
-          <Pressable key={conversation.id} onPress={() => void openConversation(conversation)} style={[styles.card, unread && styles.unreadConversation]}>
-            <View style={styles.conversationTitleRow}>
-              <Text style={[styles.cardTitle, styles.flex]}>{name}</Text>
-              {unread && <View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>{conversation.unreadCount}</Text></View>}
-            </View>
-            <Text style={[styles.muted, unread && styles.unreadPreview]} numberOfLines={2}>{last ? `${last.senderId === userId ? 'Toi : ' : ''}${last.content}` : 'Aucun message pour le moment.'}</Text>
-            {last && <Text style={styles.date}>{new Date(last.createdAt).toLocaleString('fr-FR')}</Text>}
-          </Pressable>
-        );
-      })}
-      {!conversations.length && <Empty text="Aucune conversation." />}
-    </ScrollView>
-  );
-}
-
-function NotificationsPanel({ refreshing, setRefreshing }: { refreshing: boolean; setRefreshing: (value: boolean) => void }) {
+function NotificationsPanel({
+  refreshing,
+  setRefreshing
+}: {
+  refreshing: boolean;
+  setRefreshing: (value: boolean) => void;
+}) {
   const [items, setItems] = useState<Notification[]>([]);
 
   const load = useCallback(async () => {
     try {
       setItems(await apiFetch<Notification[]>('/notifications'));
     } catch (cause) {
-      Alert.alert('Notifications indisponibles', errorMessage(cause, 'Réessaie.'));
+      Alert.alert(
+        'Notifications indisponibles',
+        errorMessage(cause, 'Réessaie.')
+      );
     } finally {
       setRefreshing(false);
     }
   }, [setRefreshing]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   async function markRead(id: string) {
     try {
       await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
-      setItems((current) => current.map((item) => item.id === id ? { ...item, readAt: new Date().toISOString() } : item));
+      setItems((current) => current.map((item) =>
+        item.id === id
+          ? { ...item, readAt: new Date().toISOString() }
+          : item
+      ));
     } catch (cause) {
       Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
     }
@@ -413,7 +303,10 @@ function NotificationsPanel({ refreshing, setRefreshing }: { refreshing: boolean
     try {
       await apiFetch('/notifications/read-all', { method: 'PATCH' });
       const now = new Date().toISOString();
-      setItems((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? now })));
+      setItems((current) => current.map((item) => ({
+        ...item,
+        readAt: item.readAt ?? now
+      })));
     } catch (cause) {
       Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
     }
@@ -425,15 +318,37 @@ function NotificationsPanel({ refreshing, setRefreshing }: { refreshing: boolean
     <FlatList
       data={items}
       keyExtractor={(item) => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load();
+          }}
+        />
+      }
       contentContainerStyle={styles.content}
-      ListHeaderComponent={unread > 0 ? <ActionButton title={`Tout lire (${unread})`} onPress={() => void markAllRead()} /> : null}
+      ListHeaderComponent={
+        unread > 0
+          ? <ActionButton
+              title={`Tout lire (${unread})`}
+              onPress={() => void markAllRead()}
+            />
+          : null
+      }
       ListEmptyComponent={<Empty text="Aucune notification." />}
       renderItem={({ item }) => (
-        <Pressable onPress={() => !item.readAt && void markRead(item.id)} style={[styles.card, !item.readAt && styles.unreadCard]}>
-          <Text style={styles.cardTitle}>{notificationIcon(item.type)} {item.title}</Text>
+        <Pressable
+          onPress={() => !item.readAt && void markRead(item.id)}
+          style={[styles.card, !item.readAt && styles.unreadCard]}
+        >
+          <Text style={styles.cardTitle}>
+            {notificationIcon(item.type)} {item.title}
+          </Text>
           <Text style={styles.muted}>{item.body}</Text>
-          <Text style={styles.date}>{new Date(item.createdAt).toLocaleString('fr-FR')}</Text>
+          <Text style={styles.date}>
+            {new Date(item.createdAt).toLocaleString('fr-FR')}
+          </Text>
         </Pressable>
       )}
     />
@@ -443,84 +358,180 @@ function NotificationsPanel({ refreshing, setRefreshing }: { refreshing: boolean
 function Identity({ user }: { user: UserSummary }) {
   return (
     <View style={styles.identity}>
-      <View style={styles.avatar}><Text style={styles.avatarText}>{user.displayName.charAt(0).toUpperCase()}</Text></View>
+      <View style={styles.avatar}>
+        <Text style={styles.avatarText}>
+          {user.displayName.charAt(0).toUpperCase()}
+        </Text>
+      </View>
       <View style={styles.identityText}>
         <Text style={styles.cardTitle}>{user.displayName}</Text>
         <Text style={styles.muted}>@{user.username}</Text>
-        {user.bio ? <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text> : null}
+        {user.bio ? (
+          <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text>
+        ) : null}
       </View>
     </View>
   );
 }
 
-function ActionButton({ title, onPress, disabled = false, compact = false }: { title: string; onPress: () => void; disabled?: boolean; compact?: boolean }) {
-  return <Pressable onPress={onPress} disabled={disabled} style={[styles.actionButton, compact && styles.compactButton, disabled && styles.disabled]}><Text style={styles.actionText}>{title}</Text></Pressable>;
+function ActionButton({
+  title,
+  onPress,
+  disabled = false,
+  compact = false
+}: {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.actionButton,
+        compact && styles.compactButton,
+        disabled && styles.disabled
+      ]}
+    >
+      <Text style={styles.actionText}>{title}</Text>
+    </Pressable>
+  );
 }
 
-function SecondaryButton({ title, onPress, disabled = false }: { title: string; onPress: () => void; disabled?: boolean }) {
-  return <Pressable onPress={onPress} disabled={disabled} style={[styles.secondaryButton, disabled && styles.disabled]}><Text style={styles.secondaryText}>{title}</Text></Pressable>;
+function SecondaryButton({
+  title,
+  onPress,
+  disabled = false
+}: {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.secondaryButton, disabled && styles.disabled]}
+    >
+      <Text style={styles.secondaryText}>{title}</Text>
+    </Pressable>
+  );
 }
 
 function Empty({ text }: { text: string }) {
-  return <View style={styles.empty}><Text style={styles.muted}>{text}</Text></View>;
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.muted}>{text}</Text>
+    </View>
+  );
 }
 
 function notificationIcon(type: string) {
-  return ({ FRIEND_REQUEST: '👥', FRIEND_ACCEPTED: '🤝', MESSAGE: '💬', POST_LIKE: '♥', POST_LIKED: '♥', POST_COMMENT: '💬', POST_COMMENTED: '💬', CHALLENGE_JOIN: '🎯', CHALLENGE_JOINED: '🎯' } as Record<string, string>)[type] ?? '🔔';
+  return ({
+    FRIEND_REQUEST: '👥',
+    FRIEND_ACCEPTED: '🤝',
+    MESSAGE: '💬',
+    POST_LIKE: '♥',
+    POST_LIKED: '♥',
+    POST_COMMENT: '💬',
+    POST_COMMENTED: '💬',
+    CHALLENGE_JOIN: '🎯',
+    CHALLENGE_JOINED: '🎯'
+  } as Record<string, string>)[type] ?? '🔔';
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#071410' },
   header: { paddingHorizontal: 20, paddingTop: 18, gap: 8 },
-  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  eyebrow: {
+    color: '#45e6bd',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5
+  },
   heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900' },
-  segmented: { flexDirection: 'row', backgroundColor: '#0b1d17', borderRadius: 14, padding: 4 },
-  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 11 },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: '#0b1d17',
+    borderRadius: 14,
+    padding: 4
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 11
+  },
   segmentActive: { backgroundColor: '#1b3b31' },
   segmentText: { color: '#789187', fontWeight: '700', fontSize: 12 },
   segmentTextActive: { color: '#f4fff9' },
   content: { padding: 20, paddingBottom: 40, gap: 12 },
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 22, padding: 16, gap: 10 },
+  card: {
+    backgroundColor: '#10231d',
+    borderColor: '#1c3a31',
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 16,
+    gap: 10
+  },
   unreadCard: { borderColor: '#45e6bd', backgroundColor: '#123027' },
-  unreadConversation: { borderColor: '#45e6bd', backgroundColor: '#123027' },
   cardTitle: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
-  sectionTitle: { color: '#f4fff9', fontSize: 20, fontWeight: '900', marginTop: 8 },
+  sectionTitle: {
+    color: '#f4fff9',
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 8
+  },
   muted: { color: '#91a79e', lineHeight: 20 },
-  unreadPreview: { color: '#e7f7f0', fontWeight: '700' },
   bio: { color: '#b6c8c0', marginTop: 4 },
   date: { color: '#789187', fontSize: 11 },
-  input: { backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 15, color: '#f4fff9', paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 },
-  actionButton: { backgroundColor: '#45e6bd', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  input: {
+    backgroundColor: '#091914',
+    borderColor: '#25473b',
+    borderWidth: 1,
+    borderRadius: 15,
+    color: '#f4fff9',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 48
+  },
+  actionButton: {
+    backgroundColor: '#45e6bd',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    alignItems: 'center'
+  },
   compactButton: { flex: 1 },
   actionText: { color: '#052017', fontWeight: '900' },
-  secondaryButton: { borderColor: '#315449', borderWidth: 1, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, alignItems: 'center' },
+  secondaryButton: {
+    borderColor: '#315449',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: 'center'
+  },
   secondaryText: { color: '#d9ebe4', fontWeight: '800' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
-  flex: { flex: 1 },
   identity: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   identityText: { flex: 1 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1b3b31', alignItems: 'center', justifyContent: 'center' },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1b3b31',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   avatarText: { color: '#45e6bd', fontSize: 18, fontWeight: '900' },
-  empty: { backgroundColor: '#10231d', borderRadius: 20, padding: 20, alignItems: 'center' },
-  friendChoices: { gap: 10 },
-  friendChoice: { width: 84, borderColor: '#25473b', borderWidth: 1, borderRadius: 18, padding: 10, alignItems: 'center', gap: 6 },
-  friendChoiceActive: { borderColor: '#45e6bd', backgroundColor: '#123027' },
-  choiceLabel: { color: '#d9ebe4', fontSize: 11, maxWidth: 70 },
-  conversationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  unreadBadge: { minWidth: 26, height: 26, borderRadius: 13, backgroundColor: '#ff9d66', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
-  unreadBadgeText: { color: '#281006', fontWeight: '900', fontSize: 12 },
-  conversationRoot: { flex: 1, paddingTop: 12 },
-  conversationHeader: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  messages: { padding: 16, gap: 10, flexGrow: 1, justifyContent: 'flex-end' },
-  bubble: { maxWidth: '82%', padding: 12, borderRadius: 18, gap: 5 },
-  bubbleMine: { backgroundColor: '#45e6bd', alignSelf: 'flex-end' },
-  bubbleOther: { backgroundColor: '#10231d', alignSelf: 'flex-start' },
-  bubbleText: { color: '#f4fff9' },
-  bubbleMineText: { color: '#052017', fontWeight: '600' },
-  senderName: { color: '#45e6bd', fontWeight: '800', fontSize: 11 },
-  bubbleDate: { color: '#607a70', fontSize: 9 },
-  receipt: { color: '#315d50', fontSize: 9, fontWeight: '700' },
-  composer: { flexDirection: 'row', gap: 8, padding: 12, borderTopColor: '#1c3a31', borderTopWidth: 1 },
-  composerInput: { flex: 1 }
+  empty: {
+    backgroundColor: '#10231d',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center'
+  }
 });
