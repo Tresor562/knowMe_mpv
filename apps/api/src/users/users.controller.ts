@@ -8,13 +8,27 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@Req() req: { user: { userId: string } }) {
-    return this.prisma.user.findUnique({
+  async getMe(@Req() req: { user: { userId: string } }) {
+    const user = await this.prisma.user.findUnique({
       where: { id: req.user.userId },
       select: {
-        id: true, email: true, username: true, displayName: true,
-        bio: true, avatarUrl: true, knowCoins: true, createdAt: true
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        bio: true,
+        avatarUrl: true,
+        knowCoins: true,
+        role: true,
+        createdAt: true
       }
     });
+
+    return user
+      ? {
+          ...user,
+          accountId: user.id
+        }
+      : null;
   }
 }
