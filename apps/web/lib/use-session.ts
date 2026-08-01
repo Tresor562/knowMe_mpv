@@ -11,6 +11,21 @@ export type StaffBadge = {
   role: string;
 };
 
+export type VerificationBadge = {
+  isVerified: true;
+  label: string;
+  level: string;
+  verifiedAt: string;
+  expiresAt: string;
+  verificationId: string;
+};
+
+export type PremiumBadge = {
+  isPremium: true;
+  label: string;
+  expiresAt?: string | null;
+};
+
 export type SessionUser = {
   id: string;
   accountId?: string;
@@ -22,6 +37,8 @@ export type SessionUser = {
   knowCoins?: number;
   role?: string;
   staff?: StaffBadge | null;
+  verification?: VerificationBadge | null;
+  premium?: PremiumBadge | null;
 };
 
 export function useSession(options: { required?: boolean } = {}) {

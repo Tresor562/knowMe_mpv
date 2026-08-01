@@ -27,6 +27,7 @@ import { RewardsModule } from './rewards/rewards.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
 import { UsersModule } from './users/users.module';
+import { VerificationModule } from './verification/verification.module';
 import { WalletModule } from './wallet/wallet.module';
 
 @Module({
@@ -43,6 +44,7 @@ import { WalletModule } from './wallet/wallet.module';
     WalletModule,
     RewardsModule,
     BillingModule,
+    VerificationModule,
     AuthModule,
     UsersModule,
     ChallengesModule,
