@@ -1,25 +1,28 @@
 import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { PERMISSIONS } from '../access-control/access-control.catalog';
+import { RequirePermissions } from '../access-control/permissions.decorator';
+import { PermissionsGuard } from '../access-control/permissions.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/roles.decorator';
-import { RolesGuard } from '../common/roles.guard';
 import { AdminService } from './admin.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('admin')
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
+  @RequirePermissions(PERMISSIONS.DASHBOARD_READ)
   @Get('dashboard')
   dashboard() {
     return this.admin.dashboard();
   }
 
+  @RequirePermissions(PERMISSIONS.REPORTS_READ)
   @Get('reports')
   reports(@Query('status') status = 'OPEN') {
     return this.admin.listReports(status.toUpperCase());
   }
 
+  @RequirePermissions(PERMISSIONS.REPORTS_RESOLVE)
   @Patch('reports/:id')
   resolveReport(
     @Req() req: { user: { userId: string } },
@@ -33,6 +36,7 @@ export class AdminController {
     );
   }
 
+  @RequirePermissions(PERMISSIONS.AUDIT_READ)
   @Get('audit-logs')
   auditLogs(
     @Query('requestId') requestId?: string,
@@ -41,6 +45,7 @@ export class AdminController {
     return this.admin.listAuditLogs(requestId?.trim(), correlationId?.trim());
   }
 
+  @RequirePermissions(PERMISSIONS.USER_SUSPENSION_MANAGE)
   @Patch('users/:id/suspension')
   suspend(
     @Req() req: { user: { userId: string } },
