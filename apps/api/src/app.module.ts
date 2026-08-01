@@ -4,6 +4,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
+import { AccessControlModule } from './access-control/access-control.module';
 import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module';
     }),
     PrismaModule,
     ObservabilityModule,
+    AccessControlModule,
     AuthModule,
     UsersModule,
     ChallengesModule,

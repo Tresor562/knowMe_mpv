@@ -12,9 +12,10 @@ import {
   Req,
   UseGuards
 } from '@nestjs/common';
+import { PERMISSIONS } from '../access-control/access-control.catalog';
+import { RequirePermissions } from '../access-control/permissions.decorator';
+import { PermissionsGuard } from '../access-control/permissions.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/roles.decorator';
-import { RolesGuard } from '../common/roles.guard';
 import {
   CreateFeatureFlagDto,
   CreateFeatureFlagRuleDto,
@@ -56,8 +57,8 @@ export class FeatureFlagsController {
   }
 }
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.FEATURE_FLAGS_MANAGE)
 @Controller('admin/feature-flags')
 export class AdminFeatureFlagsController {
   constructor(private readonly flags: FeatureFlagsService) {}
