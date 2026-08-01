@@ -22,6 +22,7 @@ import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
+import { RewardsModule } from './rewards/rewards.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
 import { UsersModule } from './users/users.module';
@@ -38,6 +39,8 @@ import { WalletModule } from './wallet/wallet.module';
     PrismaModule,
     ObservabilityModule,
     AccessControlModule,
+    WalletModule,
+    RewardsModule,
     AuthModule,
     UsersModule,
     ChallengesModule,
@@ -53,8 +56,7 @@ import { WalletModule } from './wallet/wallet.module';
     ReportsModule,
     FeatureFlagsModule,
     EntitlementsModule,
-    StaffModule,
-    WalletModule
+    StaffModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
