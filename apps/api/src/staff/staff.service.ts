@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { AccessControlService } from '../access-control/access-control.service';
+import { STAFF_ROLE_TO_ACCESS_ROLE } from '../access-control/access-control.catalog';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -15,7 +17,8 @@ import {
 export class StaffService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly access: AccessControlService
   ) {}
 
   list() {
@@ -38,6 +41,7 @@ export class StaffService {
   }
 
   async activate(actorId: string, dto: ActivateStaffAccountDto) {
+    await this.access.ensureCatalog();
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
       select: {
@@ -53,6 +57,14 @@ export class StaffService {
     }
 
     const grantsAdminAccess = dto.grantsAdminAccess ?? true;
+    const accessRoleKey = STAFF_ROLE_TO_ACCESS_ROLE[dto.staffRole];
+    const accessRole = grantsAdminAccess
+      ? await this.prisma.accessRole.findUnique({ where: { key: accessRoleKey } })
+      : null;
+    if (grantsAdminAccess && !accessRole) {
+      throw new BadRequestException('Rôle d’accès staff introuvable.');
+    }
+
     const now = new Date();
     const previousUserRole = user.role;
 
@@ -80,20 +92,30 @@ export class StaffService {
           suspendedAt: null,
           revokedAt: null,
           revokedById: null
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true,
-              role: true
-            }
-          }
         }
       });
+
+      await tx.userRoleGrant.updateMany({
+        where: {
+          userId: dto.userId,
+          source: 'STAFF',
+          revokedAt: null
+        },
+        data: { revokedAt: now, revokedById: actorId }
+      });
+
+      if (accessRole) {
+        await tx.userRoleGrant.create({
+          data: {
+            userId: dto.userId,
+            roleId: accessRole.id,
+            source: 'STAFF',
+            externalReference: record.id,
+            reason: dto.reason.trim(),
+            grantedById: actorId
+          }
+        });
+      }
 
       if (grantsAdminAccess && user.role !== 'ADMIN') {
         await tx.user.update({
@@ -113,6 +135,7 @@ export class StaffService {
       targetAccountId: dto.userId,
       metadata: {
         staffRole: dto.staffRole,
+        accessRoleKey: accessRole?.key ?? null,
         grantsAdminAccess,
         reason: dto.reason.trim()
       }
@@ -126,6 +149,7 @@ export class StaffService {
     staffId: string,
     dto: UpdateStaffAccountStatusDto
   ) {
+    await this.access.ensureCatalog();
     const current = await this.prisma.staffAccount.findUnique({
       where: { id: staffId },
       include: { user: { select: { id: true, role: true } } }
@@ -140,6 +164,15 @@ export class StaffService {
 
     if (current.status === dto.status) {
       throw new ConflictException(`Ce compte est déjà au statut ${dto.status}.`);
+    }
+
+    const accessRoleKey = STAFF_ROLE_TO_ACCESS_ROLE[current.staffRole];
+    const accessRole =
+      dto.status === 'ACTIVE' && current.grantsAdminAccess
+        ? await this.prisma.accessRole.findUnique({ where: { key: accessRoleKey } })
+        : null;
+    if (dto.status === 'ACTIVE' && current.grantsAdminAccess && !accessRole) {
+      throw new BadRequestException('Rôle d’accès staff introuvable.');
     }
 
     const now = new Date();
@@ -164,6 +197,28 @@ export class StaffService {
             : {})
         }
       });
+
+      await tx.userRoleGrant.updateMany({
+        where: {
+          userId: current.userId,
+          source: 'STAFF',
+          revokedAt: null
+        },
+        data: { revokedAt: now, revokedById: actorId }
+      });
+
+      if (dto.status === 'ACTIVE' && accessRole) {
+        await tx.userRoleGrant.create({
+          data: {
+            userId: current.userId,
+            roleId: accessRole.id,
+            source: 'STAFF',
+            externalReference: staff.id,
+            reason: dto.reason.trim(),
+            grantedById: actorId
+          }
+        });
+      }
 
       const desiredRole =
         dto.status === 'ACTIVE' && current.grantsAdminAccess
@@ -197,6 +252,7 @@ export class StaffService {
         previousStatus: current.status,
         status: dto.status,
         staffRole: current.staffRole,
+        accessRoleKey: accessRole?.key ?? null,
         reason: dto.reason.trim()
       }
     });
