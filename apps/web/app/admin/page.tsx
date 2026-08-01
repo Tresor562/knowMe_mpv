@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { useAccessControl } from '../../lib/use-access-control';
 import { useSession } from '../../lib/use-session';
+import { AccessControlPanel } from './AccessControlPanel';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { StaffAccountsPanel } from './StaffAccountsPanel';
@@ -24,35 +26,67 @@ type Report = {
   reporter: { username: string; displayName: string };
 };
 
+const P = {
+  dashboard: 'admin.dashboard.read',
+  reportsRead: 'moderation.reports.read',
+  reportsResolve: 'moderation.reports.resolve',
+  staff: 'staff.manage',
+  entitlements: 'entitlements.manage',
+  flags: 'feature_flags.manage',
+  rbac: 'rbac.manage'
+} as const;
+
 export default function AdminPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
+  const { access, loading: accessLoading, error: accessError, reload: reloadAccess } =
+    useAccessControl(!sessionLoading && Boolean(user));
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const permissions = useMemo(
+    () => new Set(access?.permissions ?? []),
+    [access?.permissions]
+  );
+  const can = useCallback(
+    (permission: string) => permissions.has(permission),
+    [permissions]
+  );
+
   const load = useCallback(async () => {
+    if (!access) return;
+    setLoading(true);
     try {
       const [stats, queue] = await Promise.all([
-        apiFetch<Dashboard>('/admin/dashboard'),
-        apiFetch<Report[]>('/admin/reports?status=OPEN')
+        can(P.dashboard)
+          ? apiFetch<Dashboard>('/admin/dashboard')
+          : Promise.resolve(null),
+        can(P.reportsRead)
+          ? apiFetch<Report[]>('/admin/reports?status=OPEN')
+          : Promise.resolve([])
       ]);
       setDashboard(stats);
       setReports(queue);
       setMessage('');
     } catch (cause) {
       setMessage(
-        cause instanceof Error ? cause.message : 'Accès administrateur requis.'
+        cause instanceof Error ? cause.message : 'Accès administratif impossible.'
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [access, can]);
 
   useEffect(() => {
-    if (!sessionLoading && user?.role === 'ADMIN') void load();
-    else if (!sessionLoading) setLoading(false);
-  }, [load, sessionLoading, user?.role]);
+    if (access) void load();
+    else if (!sessionLoading && !accessLoading) setLoading(false);
+  }, [access, accessLoading, load, sessionLoading]);
+
+  async function refreshAll() {
+    await reloadAccess();
+    await load();
+  }
 
   async function resolve(id: string, status: 'RESOLVED' | 'DISMISSED') {
     try {
@@ -78,20 +112,21 @@ export default function AdminPage() {
     }
   }
 
-  if (sessionLoading || loading) {
+  if (sessionLoading || accessLoading || loading) {
     return (
       <main className="shell">
-        <p>Chargement de la modération…</p>
+        <p>Chargement des autorisations…</p>
       </main>
     );
   }
 
-  if (user?.role !== 'ADMIN') {
+  if (!access?.isAdministrative) {
     return (
       <main className="shell">
         <article className="card" style={{ padding: 24 }}>
           <h1>Accès refusé</h1>
-          <p>Cette zone est réservée aux administrateurs KnowMe.</p>
+          <p>Ton compte ne possède aucune permission administrative active.</p>
+          {accessError && <p role="alert">{accessError}</p>}
         </article>
       </main>
     );
@@ -110,11 +145,26 @@ export default function AdminPage() {
     <main className="shell" style={{ maxWidth: 1100, margin: '0 auto' }}>
       <header>
         <small style={{ color: 'var(--orange)' }}>ADMINISTRATION</small>
-        <h1>Modération et déploiement</h1>
+        <h1>Centre de contrôle</h1>
         <p style={{ color: 'var(--muted)' }}>
-          Connecté en tant que {user.displayName}
-          {user.staff ? ` · ${user.staff.label}` : ''}
+          Connecté en tant que {user?.displayName}
+          {user?.staff ? ` · ${user.staff.label}` : ''}
         </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {access.roles.map((role) => (
+            <span
+              key={role.grantId}
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: 999,
+                padding: '6px 10px',
+                color: 'var(--muted)'
+              }}
+            >
+              {role.name}
+            </span>
+          ))}
+        </div>
       </header>
 
       {message && (
@@ -123,84 +173,91 @@ export default function AdminPage() {
         </p>
       )}
 
-      <section
-        className="grid"
-        style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}
-      >
-        {stats.map(([label, value]) => (
-          <article className="card" key={label} style={{ padding: 22 }}>
-            <div style={{ color: 'var(--muted)' }}>{label}</div>
-            <strong style={{ fontSize: 32 }}>{value}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section style={{ marginTop: 28 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 16,
-            flexWrap: 'wrap'
-          }}
+      {can(P.dashboard) && (
+        <section
+          className="grid"
+          style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}
         >
-          <h2>File des signalements</h2>
-          <button className="btn" onClick={() => void load()}>
-            Actualiser
-          </button>
-        </div>
-
-        <div className="grid">
-          {reports.map((report) => (
-            <article className="card" key={report.id} style={{ padding: 22 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'wrap'
-                }}
-              >
-                <div>
-                  <strong>{report.targetType}</strong>
-                  <div style={{ color: 'var(--muted)' }}>
-                    Cible : {report.targetId}
-                  </div>
-                </div>
-                <small>{new Date(report.createdAt).toLocaleString('fr-FR')}</small>
-              </div>
-              <p>{report.reason}</p>
-              <p style={{ color: 'var(--muted)' }}>
-                Signalé par {report.reporter.displayName} (@{report.reporter.username})
-              </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => void resolve(report.id, 'RESOLVED')}
-                >
-                  Résoudre
-                </button>
-                <button
-                  className="btn"
-                  onClick={() => void resolve(report.id, 'DISMISSED')}
-                >
-                  Rejeter
-                </button>
-              </div>
+          {stats.map(([label, value]) => (
+            <article className="card" key={label} style={{ padding: 22 }}>
+              <div style={{ color: 'var(--muted)' }}>{label}</div>
+              <strong style={{ fontSize: 32 }}>{value}</strong>
             </article>
           ))}
-          {!reports.length && (
-            <article className="card" style={{ padding: 22, color: 'var(--muted)' }}>
-              Aucun signalement ouvert.
-            </article>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
-      <StaffAccountsPanel />
-      <EntitlementsPanel />
-      <FeatureFlagsPanel />
+      {can(P.reportsRead) && (
+        <section style={{ marginTop: 28 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 16,
+              flexWrap: 'wrap'
+            }}
+          >
+            <h2>File des signalements</h2>
+            <button className="btn" onClick={() => void refreshAll()}>
+              Actualiser
+            </button>
+          </div>
+
+          <div className="grid">
+            {reports.map((report) => (
+              <article className="card" key={report.id} style={{ padding: 22 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div>
+                    <strong>{report.targetType}</strong>
+                    <div style={{ color: 'var(--muted)' }}>
+                      Cible : {report.targetId}
+                    </div>
+                  </div>
+                  <small>{new Date(report.createdAt).toLocaleString('fr-FR')}</small>
+                </div>
+                <p>{report.reason}</p>
+                <p style={{ color: 'var(--muted)' }}>
+                  Signalé par {report.reporter.displayName} (@{report.reporter.username})
+                </p>
+                {can(P.reportsResolve) && (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => void resolve(report.id, 'RESOLVED')}
+                    >
+                      Résoudre
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => void resolve(report.id, 'DISMISSED')}
+                    >
+                      Rejeter
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+            {!reports.length && (
+              <article className="card" style={{ padding: 22, color: 'var(--muted)' }}>
+                Aucun signalement ouvert.
+              </article>
+            )}
+          </div>
+        </section>
+      )}
+
+      {can(P.rbac) && <AccessControlPanel />}
+      {can(P.staff) && <StaffAccountsPanel />}
+      {can(P.entitlements) && <EntitlementsPanel />}
+      {can(P.flags) && <FeatureFlagsPanel />}
     </main>
   );
 }
