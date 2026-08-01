@@ -87,7 +87,7 @@ describe('KnowMe KnowCoins wallet (e2e)', () => {
     const credit = await request(app.getHttpServer())
       .post('/admin/wallet/adjustments')
       .set('Authorization', `Bearer ${adminToken}`)
-      .set('x-request-id', 'wallet-credit-request-20260801')
+      .set('x-request-id', 'forged-wallet-credit-request')
       .send({
         userId: memberId,
         amount: 100,
@@ -98,6 +98,9 @@ describe('KnowMe KnowCoins wallet (e2e)', () => {
       })
       .expect(201);
 
+    const creditRequestId = credit.headers['x-request-id'] as string;
+    expect(creditRequestId).toBeTruthy();
+    expect(creditRequestId).not.toBe('forged-wallet-credit-request');
     expect(credit.body).toEqual({
       entry: expect.objectContaining({
         userId: memberId,
@@ -137,7 +140,6 @@ describe('KnowMe KnowCoins wallet (e2e)', () => {
     const debit = await request(app.getHttpServer())
       .post('/admin/wallet/adjustments')
       .set('Authorization', `Bearer ${adminToken}`)
-      .set('x-request-id', 'wallet-debit-request-20260801')
       .send({
         userId: memberId,
         amount: -40,
@@ -212,7 +214,7 @@ describe('KnowMe KnowCoins wallet (e2e)', () => {
     expect(auditCount).toBe(2);
 
     const audit = await request(app.getHttpServer())
-      .get('/admin/audit-logs?requestId=wallet-credit-request-20260801')
+      .get(`/admin/audit-logs?requestId=${encodeURIComponent(creditRequestId)}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
@@ -220,7 +222,7 @@ describe('KnowMe KnowCoins wallet (e2e)', () => {
       expect.objectContaining({
         action: 'KNOWCOIN_ADMIN_ADJUSTMENT',
         targetAccountId: memberId,
-        requestId: 'wallet-credit-request-20260801'
+        requestId: creditRequestId
       })
     ]);
   });
