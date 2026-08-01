@@ -29,10 +29,7 @@ export class AuthService {
 
     const existing = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          { username }
-        ]
+        OR: [{ email }, { username }]
       }
     });
 
@@ -67,10 +64,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email: identifier },
-          { username: identifier }
-        ]
+        OR: [{ email: identifier }, { username: identifier }]
       }
     });
 
@@ -116,10 +110,7 @@ export class AuthService {
       throw new UnauthorizedException('Session expirée ou révoquée.');
     }
 
-    const valid = await argon2.verify(
-      session.refreshTokenHash,
-      secret
-    );
+    const valid = await argon2.verify(session.refreshTokenHash, secret);
 
     if (!valid) {
       throw new UnauthorizedException('Jeton de renouvellement invalide.');
@@ -211,9 +202,7 @@ export class AuthService {
   ) {
     const secret = randomBytes(48).toString('base64url');
     const refreshTokenHash = await argon2.hash(secret);
-    const expiresAt = new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000
-    );
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const session = await this.prisma.authSession.create({
       data: {
@@ -233,7 +222,10 @@ export class AuthService {
     });
 
     return {
-      user,
+      user: {
+        ...user,
+        accountId: user.id
+      },
       accessToken,
       refreshToken: `${session.id}.${secret}`,
       expiresIn: 60 * 60 * 24 * 7
