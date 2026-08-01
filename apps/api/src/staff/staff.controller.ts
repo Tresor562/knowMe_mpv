@@ -8,17 +8,18 @@ import {
   Req,
   UseGuards
 } from '@nestjs/common';
+import { PERMISSIONS } from '../access-control/access-control.catalog';
+import { RequirePermissions } from '../access-control/permissions.decorator';
+import { PermissionsGuard } from '../access-control/permissions.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/roles.decorator';
-import { RolesGuard } from '../common/roles.guard';
 import {
   ActivateStaffAccountDto,
   UpdateStaffAccountStatusDto
 } from './dto/staff-account.dto';
 import { StaffService } from './staff.service';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.STAFF_MANAGE)
 @Controller('admin/staff-accounts')
 export class StaffController {
   constructor(private readonly staff: StaffService) {}
