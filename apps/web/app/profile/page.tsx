@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -73,33 +74,56 @@ export default function ProfilePage() {
           <div style={{flex:1}}>
             <small style={{color:'var(--mint)'}}>PROFIL KNOWME</small>
             <h1 style={{margin:'5px 0'}}>{user.displayName}</h1>
-            {user.staff && (
-              <div
-                aria-label={`${user.staff.label}, ${user.staff.role}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  border: '1px solid #f4c95d',
-                  color: '#f4c95d',
-                  background: 'rgba(244,201,93,.08)',
-                  borderRadius: 999,
-                  padding: '7px 12px',
-                  fontWeight: 800,
-                  marginBottom: 8
-                }}
-              >
-                <span aria-hidden="true">🛡️</span>
-                {user.staff.label} · {user.staff.role}
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              {user.staff && (
+                <div
+                  aria-label={`${user.staff.label}, ${user.staff.role}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    border: '1px solid #f4c95d',
+                    color: '#f4c95d',
+                    background: 'rgba(244,201,93,.08)',
+                    borderRadius: 999,
+                    padding: '7px 12px',
+                    fontWeight: 800
+                  }}
+                >
+                  <span aria-hidden="true">🛡️</span>
+                  {user.staff.label} · {user.staff.role}
+                </div>
+              )}
+              {user.verified && (
+                <div
+                  aria-label={`${user.verified.label}, compte certifié`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    border: '1px solid #6cb8ff',
+                    color: '#9fd0ff',
+                    background: 'rgba(108,184,255,.09)',
+                    borderRadius: 999,
+                    padding: '7px 12px',
+                    fontWeight: 800
+                  }}
+                >
+                  <span aria-hidden="true">✓</span>
+                  {user.verified.label} · {user.verified.category}
+                </div>
+              )}
+            </div>
             <p style={{color:'var(--muted)'}}>@{user.username} · {user.knowCoins ?? 0} KnowCoins</p>
             <p style={{color:'var(--muted)',fontSize:13}}>ID compte : {user.accountId ?? user.id}</p>
             {user.bio && <p>{user.bio}</p>}
           </div>
-          <button className="btn" onClick={() => setEditing((value) => !value)}>
-            {editing ? 'Annuler' : 'Modifier'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn" href="/verification">Certification</Link>
+            <button className="btn" onClick={() => setEditing((value) => !value)}>
+              {editing ? 'Annuler' : 'Modifier'}
+            </button>
+          </div>
         </div>
 
         {message && <p role="status" style={{color:'var(--mint)'}}>{message}</p>}
@@ -115,7 +139,7 @@ export default function ProfilePage() {
         <div className="grid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',marginTop:26}}>
           <article className="card" style={{padding:18}}><strong style={{fontSize:28}}>{interests.length}</strong><div style={{color:'var(--muted)'}}>Centres d’intérêt</div></article>
           <article className="card" style={{padding:18}}><strong style={{fontSize:28}}>{user.knowCoins ?? 0}</strong><div style={{color:'var(--muted)'}}>KnowCoins</div></article>
-          <article className="card" style={{padding:18}}><strong style={{fontSize:28}}>Actif</strong><div style={{color:'var(--muted)'}}>Statut du compte</div></article>
+          <article className="card" style={{padding:18}}><strong style={{fontSize:28}}>{user.verified ? 'Certifié' : 'Actif'}</strong><div style={{color:'var(--muted)'}}>Statut du compte</div></article>
         </div>
 
         <h2>Centres d’intérêt</h2>
