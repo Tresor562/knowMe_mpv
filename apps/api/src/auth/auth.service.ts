@@ -293,9 +293,11 @@ export class AuthService {
       amr: assurance
     });
 
-    await this.security
-      .recordSessionCreated(user.id, session.id, context, assurance)
-      .catch(() => undefined);
+    if (assurance !== 'REGISTRATION' && assurance !== 'REFRESH') {
+      await this.security
+        .recordSessionCreated(user.id, session.id, context, assurance)
+        .catch(() => undefined);
+    }
 
     const { staffAccount, ...publicUser } = user;
 
