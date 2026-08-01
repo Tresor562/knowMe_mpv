@@ -63,7 +63,9 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-function normalizeConversation(conversation: Partial<Conversation> & Pick<Conversation, 'id' | 'members'>): Conversation {
+function normalizeConversation(
+  conversation: Partial<Conversation> & Pick<Conversation, 'id' | 'members'>
+): Conversation {
   return {
     id: conversation.id,
     title: conversation.title,
@@ -72,6 +74,16 @@ function normalizeConversation(conversation: Partial<Conversation> & Pick<Conver
     unreadCount: conversation.unreadCount ?? 0,
     lastReadAt: conversation.lastReadAt ?? null
   };
+}
+
+function mergeMessages(
+  current: ConversationMessage[],
+  incoming: ConversationMessage[],
+  prepend = false
+) {
+  const known = new Set(current.map((item) => item.id));
+  const fresh = incoming.filter((item) => !known.has(item.id));
+  return prepend ? [...fresh, ...current] : [...current, ...fresh];
 }
 
 export function RealtimeMessagesPanel({
@@ -106,16 +118,6 @@ export function RealtimeMessagesPanel({
     activeRef.current = active;
   }, [active]);
 
-  const mergeMessages = useCallback((
-    current: ConversationMessage[],
-    incoming: ConversationMessage[],
-    prepend = false
-  ) => {
-    const known = new Set(current.map((item) => item.id));
-    const fresh = incoming.filter((item) => !known.has(item.id));
-    return prepend ? [...fresh, ...current] : [...current, ...fresh];
-  }, []);
-
   const load = useCallback(async () => {
     try {
       const [conversationData, friendData] = await Promise.all([
@@ -136,9 +138,10 @@ export function RealtimeMessagesPanel({
   }, [load]);
 
   const markRead = useCallback(async (conversationId: string) => {
-    const marked = await apiFetch<MarkRead>(`/conversations/${conversationId}/read`, {
-      method: 'PATCH'
-    });
+    const marked = await apiFetch<MarkRead>(
+      `/conversations/${conversationId}/read`,
+      { method: 'PATCH' }
+    );
 
     setReadStates((current) => current.map((state) =>
       state.userId === marked.userId
@@ -159,22 +162,26 @@ export function RealtimeMessagesPanel({
 
     const onConnect = () => {
       setLive(true);
-      const activeConversation = activeRef.current;
-      if (activeConversation) {
-        socket?.emit('conversation:join', { conversationId: activeConversation.id });
+      const opened = activeRef.current;
+      if (opened) {
+        socket?.emit('conversation:join', { conversationId: opened.id });
       }
     };
     const onDisconnect = () => setLive(false);
     const onConnectError = () => setLive(false);
     const onMessage = (created: ConversationMessage) => {
       setConversations((current) => {
-        const index = current.findIndex((conversation) => conversation.id === created.conversationId);
+        const index = current.findIndex(
+          (conversation) => conversation.id === created.conversationId
+        );
         if (index < 0) {
           void load();
           return current;
         }
 
         const conversation = current[index];
+        if (!conversation) return current;
+
         const alreadyKnown = conversation.messages[0]?.id === created.id;
         const isOpen = activeRef.current?.id === created.conversationId;
         const updated: Conversation = {
@@ -185,7 +192,10 @@ export function RealtimeMessagesPanel({
               ? conversation.unreadCount
               : conversation.unreadCount + 1
         };
-        return [updated, ...current.filter((item) => item.id !== updated.id)];
+        return [
+          updated,
+          ...current.filter((item) => item.id !== updated.id)
+        ];
       });
 
       if (activeRef.current?.id === created.conversationId) {
@@ -211,7 +221,12 @@ export function RealtimeMessagesPanel({
       }
     };
     const onTyping = (event: TypingEvent) => {
-      if (event.userId === userId || activeRef.current?.id !== event.conversationId) return;
+      if (
+        event.userId === userId ||
+        activeRef.current?.id !== event.conversationId
+      ) {
+        return;
+      }
       setTypingUsers((current) => {
         const next = { ...current };
         if (event.typing) next[event.userId] = event.username ?? 'Quelqu’un';
@@ -230,7 +245,10 @@ export function RealtimeMessagesPanel({
     const onPresenceSnapshot = (event: PresenceSnapshot) => {
       setOnlineUserIds(new Set(event.onlineUserIds));
     };
-    const onConversationError = (event: { conversationId: string; message: string }) => {
+    const onConversationError = (event: {
+      conversationId: string;
+      message: string;
+    }) => {
       if (activeRef.current?.id === event.conversationId) {
         Alert.alert('Accès refusé', event.message);
       }
@@ -255,10 +273,10 @@ export function RealtimeMessagesPanel({
     return () => {
       mounted = false;
       if (typingTimer.current) clearTimeout(typingTimer.current);
-      const activeConversation = activeRef.current;
-      if (activeConversation && socket) {
-        socket.emit('typing:stop', { conversationId: activeConversation.id });
-        socket.emit('conversation:leave', { conversationId: activeConversation.id });
+      const opened = activeRef.current;
+      if (opened && socket) {
+        socket.emit('typing:stop', { conversationId: opened.id });
+        socket.emit('conversation:leave', { conversationId: opened.id });
       }
       socket?.off('connect', onConnect);
       socket?.off('disconnect', onDisconnect);
@@ -270,20 +288,22 @@ export function RealtimeMessagesPanel({
       socket?.off('presence:snapshot', onPresenceSnapshot);
       socket?.off('conversation:error', onConversationError);
     };
-  }, [load, markRead, mergeMessages, userId]);
+  }, [load, markRead, userId]);
 
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket?.connected) return;
     const peerIds = [...new Set(
-      conversations.flatMap((conversation) =>
-        conversation.members.map((member) => member.user.id)
-      ).filter((id) => id !== userId)
+      conversations
+        .flatMap((conversation) =>
+          conversation.members.map((member) => member.user.id)
+        )
+        .filter((id) => id !== userId)
     )];
     if (peerIds.length) {
       socket.emit('presence:query', { userIds: peerIds });
     }
-  }, [conversations, userId]);
+  }, [conversations, live, userId]);
 
   async function openConversation(conversation: Conversation) {
     try {
@@ -422,11 +442,15 @@ export function RealtimeMessagesPanel({
   }
 
   if (active) {
-    const others = active.members.filter((member) => member.user.id !== userId);
+    const others = active.members.filter(
+      (member) => member.user.id !== userId
+    );
     const name = active.title || others
       .map((member) => member.user.displayName)
       .join(', ') || 'Conversation';
-    const online = others.some((member) => onlineUserIds.has(member.user.id));
+    const online = others.some((member) =>
+      onlineUserIds.has(member.user.id)
+    );
     const typingNames = Object.values(typingUsers);
 
     return (
@@ -436,24 +460,30 @@ export function RealtimeMessagesPanel({
           <View style={styles.flex}>
             <Text style={styles.cardTitle} numberOfLines={1}>{name}</Text>
             <Text style={online ? styles.online : styles.muted}>
-              {live ? (online ? '● En ligne' : '○ Hors ligne') : 'Temps réel déconnecté'}
+              {live
+                ? online
+                  ? '● En ligne'
+                  : '○ Hors ligne'
+                : 'Temps réel déconnecté'}
             </Text>
           </View>
-          <SecondaryButton title="Actualiser" onPress={() => void openConversation(active)} />
+          <SecondaryButton
+            title="Actualiser"
+            onPress={() => void openConversation(active)}
+          />
         </View>
+
         <FlatList
           data={history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
-          ListHeaderComponent={
-            nextCursor
-              ? <SecondaryButton
-                  title={loadingOlder ? 'Chargement…' : 'Messages précédents'}
-                  disabled={loadingOlder}
-                  onPress={() => void loadOlder()}
-                />
-              : null
-          }
+          ListHeaderComponent={nextCursor ? (
+            <SecondaryButton
+              title={loadingOlder ? 'Chargement…' : 'Messages précédents'}
+              disabled={loadingOlder}
+              onPress={() => void loadOlder()}
+            />
+          ) : null}
           renderItem={({ item }) => {
             const mine = item.senderId === userId;
             const readers = mine
@@ -463,37 +493,44 @@ export function RealtimeMessagesPanel({
                     new Date(item.createdAt).getTime()
                 )
               : [];
+
             return (
               <View style={[
                 styles.bubble,
                 mine ? styles.bubbleMine : styles.bubbleOther
               ]}>
-                {!mine && item.sender && (
-                  <Text style={styles.senderName}>{item.sender.displayName}</Text>
-                )}
-                <Text style={mine ? styles.bubbleMineText : styles.bubbleText}>
+                {!mine && item.sender ? (
+                  <Text style={styles.senderName}>
+                    {item.sender.displayName}
+                  </Text>
+                ) : null}
+                <Text style={
+                  mine ? styles.bubbleMineText : styles.bubbleText
+                }>
                   {item.content}
                 </Text>
                 <Text style={styles.bubbleDate}>
                   {new Date(item.createdAt).toLocaleString('fr-FR')}
                 </Text>
-                {mine && readers.length > 0 && (
+                {mine && readers.length > 0 ? (
                   <Text style={styles.receipt}>
-                    Lu par {readers.map((state) => state.user.displayName).join(', ')}
+                    Lu par {readers
+                      .map((state) => state.user.displayName)
+                      .join(', ')}
                   </Text>
-                )}
+                ) : null}
               </View>
             );
           }}
           ListEmptyComponent={<Empty text="Commence la conversation." />}
-          ListFooterComponent={
-            typingNames.length
-              ? <Text style={styles.typing}>
-                  {typingNames.join(', ')} {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
-                </Text>
-              : null
-          }
+          ListFooterComponent={typingNames.length ? (
+            <Text style={styles.typing}>
+              {typingNames.join(', ')}{' '}
+              {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
+            </Text>
+          ) : null}
         />
+
         <View style={styles.composer}>
           <TextInput
             value={draft}
@@ -536,7 +573,8 @@ export function RealtimeMessagesPanel({
       <Text style={styles.liveStatus}>
         {live ? '● Messages en direct' : '○ Reconnexion au temps réel…'}
       </Text>
-      {friends.length > 0 && (
+
+      {friends.length > 0 ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Nouvelle discussion</Text>
           <ScrollView
@@ -576,11 +614,12 @@ export function RealtimeMessagesPanel({
             onPress={() => void createConversation()}
           />
         </View>
-      )}
+      ) : null}
 
       <Text style={styles.sectionTitle}>
         Conversations · {totalUnread} non lu(s)
       </Text>
+
       {conversations.map((conversation) => {
         const others = conversation.members.filter(
           (member) => member.user.id !== userId
@@ -616,13 +655,13 @@ export function RealtimeMessagesPanel({
                   {online ? 'en ligne' : 'hors ligne'}
                 </Text>
               </View>
-              {unread && (
+              {unread ? (
                 <View style={styles.unreadBadge}>
                   <Text style={styles.unreadBadgeText}>
                     {conversation.unreadCount}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
             <Text
               style={[styles.muted, unread && styles.unreadPreview]}
@@ -632,15 +671,16 @@ export function RealtimeMessagesPanel({
                 ? `${last.senderId === userId ? 'Toi : ' : ''}${last.content}`
                 : 'Aucun message pour le moment.'}
             </Text>
-            {last && (
+            {last ? (
               <Text style={styles.date}>
                 {new Date(last.createdAt).toLocaleString('fr-FR')}
               </Text>
-            )}
+            ) : null}
           </Pressable>
         );
       })}
-      {!conversations.length && <Empty text="Aucune conversation." />}
+
+      {!conversations.length ? <Empty text="Aucune conversation." /> : null}
     </ScrollView>
   );
 }
@@ -775,7 +815,15 @@ const styles = StyleSheet.create({
     borderColor: '#45e6bd',
     backgroundColor: '#123027'
   },
-  friendAvatarWrap: { position: 'relative' },
+  friendAvatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1b3b31',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative'
+  },
   choiceLabel: { color: '#d9ebe4', fontSize: 11, maxWidth: 70 },
   conversationTitleRow: {
     flexDirection: 'row',
@@ -835,11 +883,7 @@ const styles = StyleSheet.create({
   senderName: { color: '#45e6bd', fontWeight: '800', fontSize: 11 },
   bubbleDate: { color: '#607a70', fontSize: 9 },
   receipt: { color: '#315d50', fontSize: 9, fontWeight: '700' },
-  typing: {
-    color: '#45e6bd',
-    fontStyle: 'italic',
-    paddingVertical: 8
-  },
+  typing: { color: '#45e6bd', fontStyle: 'italic', paddingVertical: 8 },
   composer: {
     flexDirection: 'row',
     gap: 8,
