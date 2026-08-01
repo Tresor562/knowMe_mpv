@@ -106,7 +106,8 @@ export class FeatureFlagsService {
     });
 
     const activeOverride =
-      override && (!override.expiresAt || override.expiresAt.getTime() > Date.now())
+      override &&
+      (!override.expiresAt || override.expiresAt.getTime() > Date.now())
         ? override.enabled
         : undefined;
 
@@ -161,7 +162,7 @@ export class FeatureFlagsService {
 
     await this.audit(actorId, 'FEATURE_FLAG_UPDATE', flag.id, {
       key: flag.key,
-      changes: dto
+      changes: this.compactObject(dto)
     });
     this.invalidate(flag.key);
     return updated;
@@ -307,7 +308,8 @@ export class FeatureFlagsService {
 
     if (
       rule.minVersion &&
-      (!context.version || this.compareVersions(context.version, rule.minVersion) < 0)
+      (!context.version ||
+        this.compareVersions(context.version, rule.minVersion) < 0)
     ) {
       return false;
     }
@@ -360,7 +362,10 @@ export class FeatureFlagsService {
         rules: { orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }] }
       }
     });
-    this.cache.set(key, { value, expiresAt: Date.now() + this.cacheTtlMs });
+    this.cache.set(key, {
+      value,
+      expiresAt: Date.now() + this.cacheTtlMs
+    });
     return value;
   }
 
@@ -371,6 +376,12 @@ export class FeatureFlagsService {
 
   private normalizeKey(key: string) {
     return key.trim().toLowerCase();
+  }
+
+  private compactObject(value: object) {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, entry]) => entry !== undefined)
+    );
   }
 
   private audit(
@@ -385,7 +396,7 @@ export class FeatureFlagsService {
         action,
         entity: 'FeatureFlag',
         entityId,
-        metadata
+        metadata: JSON.parse(JSON.stringify(metadata))
       }
     });
   }
