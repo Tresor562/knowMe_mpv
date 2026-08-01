@@ -58,6 +58,9 @@ model User {
   rewardEvents             RewardEvent[]
   billingSubscriptions     BillingSubscription[]
   billingEvents            BillingEvent[]
+  verificationRequests     IdentityVerificationRequest[]  @relation("VerificationApplicant")
+  verificationAssignments  IdentityVerificationRequest[]  @relation("VerificationAssignment")
+  verificationReviews      IdentityVerificationDecision[] @relation("VerificationReviewer")
 }
 
 model Friendship {
@@ -449,19 +452,19 @@ model RewardEvent {
 }
 
 model BillingPlan {
-  id                       String   @id @default(cuid())
-  key                      String   @unique
-  name                     String
-  description              String?
-  active                   Boolean  @default(false)
-  highlighted              Boolean  @default(false)
-  requiresVerification     Boolean  @default(false)
-  requiresManualReview     Boolean  @default(false)
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  key                  String   @unique
+  name                 String
+  description          String?
+  active               Boolean  @default(false)
+  highlighted          Boolean  @default(false)
+  requiresVerification Boolean  @default(false)
+  requiresManualReview Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   prices        BillingPrice[]
-  entitlements BillingPlanEntitlement[]
+  entitlements  BillingPlanEntitlement[]
   subscriptions BillingSubscription[]
 
   @@index([active, highlighted])
@@ -530,20 +533,20 @@ model BillingSubscription {
 }
 
 model BillingEvent {
-  id              String    @id @default(cuid())
-  provider        String
-  externalEventId String
-  type            String
-  occurredAt      DateTime
-  receivedAt      DateTime  @default(now())
-  payloadHash     String
-  signatureVersion String   @default("hmac-sha256-v1")
-  status          String
-  reason          String?
-  userId          String?
-  subscriptionId  String?
-  payload         Json
-  processedAt     DateTime?
+  id               String    @id @default(cuid())
+  provider         String
+  externalEventId  String
+  type             String
+  occurredAt       DateTime
+  receivedAt       DateTime  @default(now())
+  payloadHash      String
+  signatureVersion String    @default("hmac-sha256-v1")
+  status           String
+  reason           String?
+  userId           String?
+  subscriptionId   String?
+  payload          Json
+  processedAt      DateTime?
 
   user         User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   subscription BillingSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
@@ -552,6 +555,75 @@ model BillingEvent {
   @@index([provider, status, receivedAt])
   @@index([subscriptionId, occurredAt])
   @@index([userId, occurredAt])
+}
+
+model IdentityVerificationRequest {
+  id               String    @id @default(cuid())
+  userId           String
+  submissionNumber Int
+  status           String    @default("SUBMITTED")
+  level            String    @default("IDENTITY")
+  displayNameClaim String?
+  countryCode      String?
+  evidenceCount    Int       @default(0)
+  submittedAt      DateTime  @default(now())
+  reviewStartedAt  DateTime?
+  decidedAt        DateTime?
+  expiresAt        DateTime?
+  withdrawnAt      DateTime?
+  reviewerId       String?
+  decisionReason   String?
+  decisionVersion  Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  applicant User  @relation("VerificationApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer  User? @relation("VerificationAssignment", fields: [reviewerId], references: [id], onDelete: SetNull)
+  evidence  IdentityEvidenceReference[]
+  decisions IdentityVerificationDecision[]
+
+  @@unique([userId, submissionNumber])
+  @@index([userId, status, submittedAt])
+  @@index([status, submittedAt])
+  @@index([reviewerId, status])
+  @@index([expiresAt, status])
+}
+
+model IdentityEvidenceReference {
+  id              String   @id @default(cuid())
+  requestId       String
+  type            String
+  provider        String
+  opaqueReference String
+  digest          String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  request IdentityVerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, opaqueReference])
+  @@index([requestId, createdAt])
+  @@index([digest])
+}
+
+model IdentityVerificationDecision {
+  id             String    @id @default(cuid())
+  requestId      String
+  reviewerId     String?
+  action         String
+  previousStatus String
+  nextStatus     String
+  reason         String
+  expiresAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+
+  request  IdentityVerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewer User?                       @relation("VerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt])
+  @@index([reviewerId, createdAt])
+  @@index([nextStatus, createdAt])
 }
 
 model FeatureFlag {
