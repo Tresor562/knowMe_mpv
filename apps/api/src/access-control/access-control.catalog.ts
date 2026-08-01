@@ -8,6 +8,7 @@ export const PERMISSIONS = {
   ENTITLEMENTS_MANAGE: 'entitlements.manage',
   STAFF_MANAGE: 'staff.manage',
   WALLET_MANAGE: 'wallet.manage',
+  REWARDS_MANAGE: 'rewards.manage',
   RBAC_MANAGE: 'rbac.manage'
 } as const;
 
@@ -21,6 +22,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.ENTITLEMENTS_MANAGE, 'Accorder et révoquer les droits exclusifs.'],
   [PERMISSIONS.STAFF_MANAGE, 'Gérer les comptes officiels Équipe KnowMe.'],
   [PERMISSIONS.WALLET_MANAGE, 'Ajuster et auditer les portefeuilles KnowCoins.'],
+  [PERMISSIONS.REWARDS_MANAGE, 'Gérer les politiques et événements de récompense.'],
   [PERMISSIONS.RBAC_MANAGE, 'Attribuer et révoquer les rôles d’accès.']
 ] as const;
 
