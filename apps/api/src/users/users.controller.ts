@@ -22,15 +22,17 @@ export class UsersController {
         knowCoins: true,
         role: true,
         createdAt: true,
-        staffAccount: { select: staffAccountSelect }
+        staffAccount: { select: staffAccountSelect },
+        knowCoinWallet: { select: { balance: true } }
       }
     });
 
     if (!user) return null;
 
-    const { staffAccount, ...profile } = user;
+    const { staffAccount, knowCoinWallet, ...profile } = user;
     return {
       ...profile,
+      knowCoins: knowCoinWallet?.balance ?? user.knowCoins,
       accountId: user.id,
       staff: toStaffBadge(staffAccount)
     };

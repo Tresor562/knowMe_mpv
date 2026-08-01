@@ -8,6 +8,7 @@ import { AccessControlPanel } from './AccessControlPanel';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { StaffAccountsPanel } from './StaffAccountsPanel';
+import { WalletPanel } from './WalletPanel';
 
 type Dashboard = {
   users: number;
@@ -32,6 +33,7 @@ const P = {
   reportsResolve: 'moderation.reports.resolve',
   staff: 'staff.manage',
   entitlements: 'entitlements.manage',
+  wallet: 'wallet.manage',
   flags: 'feature_flags.manage',
   rbac: 'rbac.manage'
 } as const;
@@ -257,6 +259,7 @@ export default function AdminPage() {
       {can(P.rbac) && <AccessControlPanel />}
       {can(P.staff) && <StaffAccountsPanel />}
       {can(P.entitlements) && <EntitlementsPanel />}
+      {can(P.wallet) && <WalletPanel />}
       {can(P.flags) && <FeatureFlagsPanel />}
     </main>
   );
