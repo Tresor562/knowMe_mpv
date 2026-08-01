@@ -1,6 +1,7 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { staffAccountSelect, toStaffBadge } from '../staff/staff-profile';
 
 @Controller('users')
 export class UsersController {
@@ -20,15 +21,18 @@ export class UsersController {
         avatarUrl: true,
         knowCoins: true,
         role: true,
-        createdAt: true
+        createdAt: true,
+        staffAccount: { select: staffAccountSelect }
       }
     });
 
-    return user
-      ? {
-          ...user,
-          accountId: user.id
-        }
-      : null;
+    if (!user) return null;
+
+    const { staffAccount, ...profile } = user;
+    return {
+      ...profile,
+      accountId: user.id,
+      staff: toStaffBadge(staffAccount)
+    };
   }
 }
