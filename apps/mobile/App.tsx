@@ -17,21 +17,11 @@ import {
 import { apiFetch, clearSession, hasSession, saveSession, SessionTokens } from './src/api';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
+import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { SocialHub } from './src/SocialHub';
 
 type Screen = 'home' | 'feed' | 'social' | 'challenges' | 'profile';
-type User = {
-  id: string;
-  email: string;
-  username: string;
-  displayName: string;
-  bio?: string | null;
-  knowCoins?: number;
-};
-type ChallengeSummary = {
-  id: string;
-  status: string;
-};
+type ChallengeSummary = { id: string; status: string };
 type NotificationCount = { unread: number };
 
 function Field(props: React.ComponentProps<typeof TextInput>) {
@@ -109,7 +99,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => Promise<void> 
 }
 
 function HomeScreen({ user, openSocial, openFeed, openChallenges }: {
-  user: User;
+  user: MobileUser;
   openSocial: () => void;
   openFeed: () => void;
   openChallenges: () => void;
@@ -152,43 +142,9 @@ function HomeScreen({ user, openSocial, openFeed, openChallenges }: {
   );
 }
 
-function ProfileScreen({ user, onLogout, onUpdated }: { user: User; onLogout: () => Promise<void>; onUpdated: () => Promise<void> }) {
-  const [displayName, setDisplayName] = useState(user.displayName);
-  const [bio, setBio] = useState(user.bio ?? '');
-  const [busy, setBusy] = useState(false);
-
-  async function save() {
-    setBusy(true);
-    try {
-      await apiFetch('/account/profile', { method: 'PATCH', body: JSON.stringify({ displayName: displayName.trim(), bio: bio.trim() }) });
-      await onUpdated();
-      Alert.alert('Profil enregistré', 'Tes informations ont été mises à jour.');
-    } catch (cause) {
-      Alert.alert('Modification impossible', cause instanceof Error ? cause.message : 'Réessaie.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <ScrollView contentContainerStyle={styles.screenContent} keyboardShouldPersistTaps="handled">
-      <View style={styles.avatar}><Text style={styles.avatarText}>{user.displayName.charAt(0).toUpperCase()}</Text></View>
-      <Text style={styles.heading}>{user.displayName}</Text>
-      <Text style={styles.handle}>@{user.username}</Text>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Modifier mon profil</Text>
-        <Field value={displayName} onChangeText={setDisplayName} placeholder="Nom affiché" />
-        <Field multiline value={bio} onChangeText={setBio} placeholder="Biographie" />
-        <PrimaryButton disabled={busy || !displayName.trim()} onPress={() => void save()} title={busy ? 'Enregistrement…' : 'Enregistrer'} />
-      </View>
-      <Pressable style={styles.logoutButton} onPress={() => void onLogout()}><Text style={styles.logoutText}>Se déconnecter</Text></Pressable>
-    </ScrollView>
-  );
-}
-
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
 
   const loadSession = useCallback(async () => {
@@ -197,7 +153,7 @@ export default function App() {
         setUser(null);
         return;
       }
-      setUser(await apiFetch<User>('/users/me'));
+      setUser(await apiFetch<MobileUser>('/users/me'));
     } catch {
       await clearSession();
       setUser(null);
@@ -208,15 +164,19 @@ export default function App() {
 
   useEffect(() => { void loadSession(); }, [loadSession]);
 
+  async function resetLocalSession() {
+    await clearSession();
+    setUser(null);
+    setScreen('home');
+  }
+
   async function logout() {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
     } catch {
       // La suppression locale reste prioritaire lorsque le serveur est indisponible.
     }
-    await clearSession();
-    setUser(null);
-    setScreen('home');
+    await resetLocalSession();
   }
 
   if (loading) {
@@ -250,7 +210,14 @@ export default function App() {
         {screen === 'feed' && <FeedExperience userId={user.id} />}
         {screen === 'social' && <SocialHub userId={user.id} />}
         {screen === 'challenges' && <ChallengeExperience userId={user.id} />}
-        {screen === 'profile' && <ProfileScreen user={user} onLogout={logout} onUpdated={loadSession} />}
+        {screen === 'profile' && (
+          <ProfileExperience
+            user={user}
+            onUpdated={loadSession}
+            onLogout={logout}
+            onAccountDeleted={resetLocalSession}
+          />
+        )}
       </View>
       <View style={styles.tabBar}>
         {tabs.map(([value, icon, label]) => (
@@ -295,11 +262,6 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: '#10231d', borderRadius: 20, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 25, fontWeight: '900' },
   statLabel: { color: '#91a79e', fontSize: 12, marginTop: 4 },
-  handle: { color: '#91a79e', marginTop: 2 },
-  avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: '#45e6bd', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#052017', fontSize: 38, fontWeight: '900' },
-  logoutButton: { borderColor: '#ff9d66', borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center' },
-  logoutText: { color: '#ff9d66', fontWeight: '800' },
   tabBar: { flexDirection: 'row', backgroundColor: '#0b1d17', borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 18 : 8 },
   tab: { flex: 1, alignItems: 'center', gap: 2 },
   tabIcon: { color: '#789187', fontSize: 20 },
