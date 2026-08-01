@@ -54,6 +54,7 @@ model User {
   accessRoleGrants     UserRoleGrant[]
   knowCoinWallet       KnowCoinWallet?
   knowCoinLedger       KnowCoinLedgerEntry[]
+  rewardEvents         RewardEvent[]
 }
 
 model Friendship {
@@ -368,6 +369,54 @@ model KnowCoinLedgerEntry {
 
   @@index([userId, createdAt, id])
   @@index([source, referenceType, referenceId])
+}
+
+model RewardPolicy {
+  id                String    @id @default(cuid())
+  key               String
+  version           Int
+  eventType         String
+  enabled           Boolean   @default(true)
+  amount            Int
+  dailyLimitPerUser Int
+  maxPerEntity      Int       @default(1)
+  minQuestions      Int       @default(0)
+  startsAt          DateTime  @default(now())
+  endsAt            DateTime?
+  createdById       String?
+  reason            String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  events RewardEvent[]
+
+  @@unique([key, version])
+  @@index([eventType, enabled, startsAt, endsAt])
+}
+
+model RewardEvent {
+  id             String    @id @default(cuid())
+  userId         String
+  policyId       String
+  eventType      String
+  entityType     String
+  entityId       String
+  idempotencyKey String    @unique
+  status         String
+  amount         Int       @default(0)
+  reasonCode     String?
+  explanation    String?
+  ledgerEntryId  String?   @unique
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy RewardPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, createdAt])
+  @@index([eventType, entityType, entityId])
+  @@index([policyId, createdAt])
 }
 
 model FeatureFlag {
