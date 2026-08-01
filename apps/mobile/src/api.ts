@@ -1,10 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000';
 const ACCESS_KEY = 'knowme_access_token';
 const REFRESH_KEY = 'knowme_refresh_token';
+const TRUSTED_DEVICE_KEY = 'knowme_trusted_device_token';
 
-export type SessionTokens = { accessToken: string; refreshToken?: string };
+export type SessionTokens = {
+  accessToken: string;
+  refreshToken?: string;
+  trustedDeviceToken?: string;
+};
 export type ApiError = Error & {
   status?: number;
   code?: string;
@@ -21,18 +28,74 @@ type ApiErrorPayload = {
 
 let refreshPromise: Promise<string | null> | null = null;
 
-export async function getAccessToken() {
-  return AsyncStorage.getItem(ACCESS_KEY);
+async function secureGet(key: string) {
+  if (Platform.OS === 'web') return AsyncStorage.getItem(key);
+
+  try {
+    const value = await SecureStore.getItemAsync(key);
+    if (value) return value;
+
+    const legacy = await AsyncStorage.getItem(key);
+    if (legacy) {
+      await SecureStore.setItemAsync(key, legacy, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+      });
+      await AsyncStorage.removeItem(key);
+    }
+    return legacy;
+  } catch {
+    return AsyncStorage.getItem(key);
+  }
+}
+
+async function secureSet(key: string, value: string) {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.setItem(key, value);
+    return;
+  }
+
+  try {
+    await SecureStore.setItemAsync(key, value, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+    });
+    await AsyncStorage.removeItem(key);
+  } catch {
+    await AsyncStorage.setItem(key, value);
+  }
+}
+
+async function secureDelete(key: string) {
+  await AsyncStorage.removeItem(key);
+  if (Platform.OS === 'web') return;
+  await SecureStore.deleteItemAsync(key).catch(() => undefined);
+}
+
+export function getAccessToken() {
+  return secureGet(ACCESS_KEY);
+}
+
+export function getTrustedDeviceToken() {
+  return secureGet(TRUSTED_DEVICE_KEY);
+}
+
+export async function saveTrustedDeviceToken(token: string) {
+  await secureSet(TRUSTED_DEVICE_KEY, token);
+}
+
+export function clearTrustedDeviceToken() {
+  return secureDelete(TRUSTED_DEVICE_KEY);
 }
 
 export async function saveSession(tokens: SessionTokens) {
-  const pairs: [string, string][] = [[ACCESS_KEY, tokens.accessToken]];
-  if (tokens.refreshToken) pairs.push([REFRESH_KEY, tokens.refreshToken]);
-  await AsyncStorage.multiSet(pairs);
+  await secureSet(ACCESS_KEY, tokens.accessToken);
+  if (tokens.refreshToken) await secureSet(REFRESH_KEY, tokens.refreshToken);
+  if (tokens.trustedDeviceToken) {
+    await saveTrustedDeviceToken(tokens.trustedDeviceToken);
+  }
 }
 
 export async function clearSession() {
-  await AsyncStorage.multiRemove([ACCESS_KEY, REFRESH_KEY]);
+  await Promise.all([secureDelete(ACCESS_KEY), secureDelete(REFRESH_KEY)]);
 }
 
 export async function hasSession() {
@@ -43,7 +106,7 @@ async function refreshAccessToken() {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const refreshToken = await AsyncStorage.getItem(REFRESH_KEY);
+    const refreshToken = await secureGet(REFRESH_KEY);
     if (!refreshToken) return null;
 
     const response = await fetch(`${API_URL}/auth/refresh`, {
@@ -75,7 +138,7 @@ export async function apiFetch<T>(
   const accessToken = await getAccessToken();
   const headers = new Headers(init.headers);
 
-  if (init.body && !headers.has('Content-Type')) {
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
