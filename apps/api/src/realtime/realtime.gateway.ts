@@ -270,6 +270,21 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  emitNotificationCreated(userId: string, notification: unknown) {
+    this.server.to(`user:${userId}`).emit('notification:created', notification);
+  }
+
+  emitNotificationRead(userId: string, notificationId: string, readAt: Date) {
+    this.server.to(`user:${userId}`).emit('notification:read', {
+      notificationId,
+      readAt
+    });
+  }
+
+  emitNotificationsReadAll(userId: string, readAt: Date) {
+    this.server.to(`user:${userId}`).emit('notification:read-all', { readAt });
+  }
+
   private emitTyping(
     client: AuthSocket,
     conversationId: string | undefined,
