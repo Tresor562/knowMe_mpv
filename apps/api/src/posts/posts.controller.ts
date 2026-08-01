@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -10,7 +20,10 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Req() req: { user: { userId: string } }, @Body() dto: CreatePostDto) {
+  create(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: CreatePostDto
+  ) {
     return this.posts.create(req.user.userId, dto);
   }
 
@@ -19,9 +32,17 @@ export class PostsController {
     return this.posts.feed(cursor);
   }
 
+  @Get(':id')
+  getById(@Param('id') id: string) {
+    return this.posts.getById(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post(':id/like')
-  like(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+  like(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
     return this.posts.toggleLike(req.user.userId, id);
   }
 
@@ -33,5 +54,14 @@ export class PostsController {
     @Body() dto: CreateCommentDto
   ) {
     return this.posts.comment(req.user.userId, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  remove(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    return this.posts.remove(req.user.userId, id);
   }
 }
