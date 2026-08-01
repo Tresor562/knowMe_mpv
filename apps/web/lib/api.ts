@@ -4,10 +4,23 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export type ApiError = Error & { status?: number };
 
+type RefreshResponse = {
+  accessToken: string;
+  refreshToken?: string;
+};
+
+let refreshRequest: Promise<boolean> | null = null;
+
 export function getAccessToken() {
   return typeof window === 'undefined'
     ? null
     : window.localStorage.getItem('knowme_token');
+}
+
+export function getRefreshToken() {
+  return typeof window === 'undefined'
+    ? null
+    : window.localStorage.getItem('knowme_refresh_token');
 }
 
 export function saveSession(accessToken: string, refreshToken?: string) {
@@ -22,7 +35,36 @@ export function clearSession() {
   window.localStorage.removeItem('knowme_refresh_token');
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function refreshSession() {
+  if (refreshRequest) return refreshRequest;
+
+  refreshRequest = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      clearSession();
+      return false;
+    }
+
+    const data = await response.json() as RefreshResponse;
+    saveSession(data.accessToken, data.refreshToken);
+    return true;
+  })().finally(() => {
+    refreshRequest = null;
+  });
+
+  return refreshRequest;
+}
+
+async function request(path: string, init: RequestInit, retryAfterRefresh: boolean) {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
 
@@ -40,6 +82,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     cache: 'no-store'
   });
 
+  if (response.status === 401 && retryAfterRefresh && !path.startsWith('/auth/')) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return request(path, init, false);
+    }
+  }
+
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -52,5 +101,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     throw error;
   }
 
-  return data as T;
+  return data;
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return request(path, init, true) as Promise<T>;
 }
