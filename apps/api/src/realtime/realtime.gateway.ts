@@ -155,7 +155,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('call:offer')
-  forwardOffer(
+  async forwardOffer(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
     body: {
@@ -165,7 +165,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       media: 'audio' | 'video';
     }
   ) {
-    if (!client.data.userId || !body.targetUserId) return;
+    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
 
     this.server.to(`user:${body.targetUserId}`).emit('call:incoming', {
       callId: body.callId,
@@ -177,7 +177,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('call:answer')
-  forwardAnswer(
+  async forwardAnswer(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
     body: {
@@ -186,7 +186,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       answer: RTCSessionDescriptionInit;
     }
   ) {
-    if (!client.data.userId || !body.targetUserId) return;
+    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
 
     this.server.to(`user:${body.targetUserId}`).emit('call:answered', {
       callId: body.callId,
@@ -196,7 +196,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('call:ice-candidate')
-  forwardIceCandidate(
+  async forwardIceCandidate(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
     body: {
@@ -205,7 +205,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       candidate: RTCIceCandidateInit;
     }
   ) {
-    if (!client.data.userId || !body.targetUserId) return;
+    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
 
     this.server
       .to(`user:${body.targetUserId}`)
@@ -217,7 +217,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('call:end')
-  endCall(
+  async endCall(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody()
     body: {
@@ -226,7 +226,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       reason?: string;
     }
   ) {
-    if (!client.data.userId || !body.targetUserId) return;
+    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
 
     this.server.to(`user:${body.targetUserId}`).emit('call:ended', {
       callId: body.callId,
@@ -286,6 +286,27 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       username: client.data.username,
       typing
     });
+  }
+
+  private async canSignalPeer(
+    client: AuthSocket,
+    targetUserId: string | undefined,
+    callId: string | undefined
+  ) {
+    const userId = client.data.userId;
+    if (!userId || !targetUserId || !callId || targetUserId === userId) {
+      return false;
+    }
+
+    const allowed = await this.allowedPresenceUserIds(userId);
+    if (allowed.has(targetUserId)) return true;
+
+    client.emit('call:error', {
+      callId,
+      targetUserId,
+      message: 'Tu ne peux appeler que les membres de tes conversations.'
+    });
+    return false;
   }
 
   private async emitPresenceToPeers(userId: string, online: boolean) {
