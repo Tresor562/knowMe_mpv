@@ -389,7 +389,7 @@ describe('KnowMe authoritative identity verification (e2e)', () => {
       })
     ]);
     expect(requestsCount).toBe(3);
-    expect(decisionsCount).toBe(9);
+    expect(decisionsCount).toBe(10);
     expect(audits).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ action: 'IDENTITY_VERIFICATION_SUBMIT' }),
