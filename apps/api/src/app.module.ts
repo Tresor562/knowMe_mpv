@@ -8,6 +8,7 @@ import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
@@ -43,7 +44,8 @@ import { UsersModule } from './users/users.module';
     SocialModule,
     AccountModule,
     ReportsModule,
-    FeatureFlagsModule
+    FeatureFlagsModule,
+    EntitlementsModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
