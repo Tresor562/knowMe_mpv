@@ -4,13 +4,17 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { SubmitAnswersDto } from './dto/submit-answers.dto';
 
 @Injectable()
 export class ChallengesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService
+  ) {}
 
   create(userId: string, dto: CreateChallengeDto) {
     return this.prisma.challenge.create({
@@ -30,13 +34,20 @@ export class ChallengesService {
 
   list(userId: string) {
     return this.prisma.challenge.findMany({
-      where: { OR: [{ creatorId: userId }, { participants: { some: { userId } } }] },
+      where: {
+        OR: [{ creatorId: userId }, { participants: { some: { userId } } }]
+      },
       include: {
         questions: true,
         participants: {
           include: {
             user: {
-              select: { id: true, username: true, displayName: true, avatarUrl: true }
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
             }
           }
         }
@@ -50,13 +61,23 @@ export class ChallengesService {
       where: { id: challengeId },
       include: {
         creator: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true }
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true
+          }
         },
         questions: { orderBy: { position: 'asc' } },
         participants: {
           include: {
             user: {
-              select: { id: true, username: true, displayName: true, avatarUrl: true }
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true
+              }
             },
             answers: true
           },
@@ -69,7 +90,9 @@ export class ChallengesService {
 
     const canView =
       challenge.creatorId === userId ||
-      challenge.participants.some((participant) => participant.userId === userId);
+      challenge.participants.some(
+        (participant) => participant.userId === userId
+      );
 
     if (!canView) throw new ForbiddenException('Accès interdit à ce défi.');
 
@@ -77,8 +100,22 @@ export class ChallengesService {
   }
 
   async join(userId: string, challengeId: string) {
-    const challenge = await this.prisma.challenge.findUnique({ where: { id: challengeId } });
-    if (!challenge) throw new NotFoundException('Défi introuvable.');
+    const [challenge, actor, existingParticipant] = await Promise.all([
+      this.prisma.challenge.findUnique({ where: { id: challengeId } }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { displayName: true }
+      }),
+      this.prisma.challengeParticipant.findUnique({
+        where: { challengeId_userId: { challengeId, userId } },
+        select: { id: true }
+      })
+    ]);
+
+    if (!challenge || !actor) {
+      throw new NotFoundException('Défi ou utilisateur introuvable.');
+    }
+
     if (challenge.status !== 'ACTIVE') {
       throw new BadRequestException('Ce défi n’accepte plus de participants.');
     }
@@ -89,13 +126,17 @@ export class ChallengesService {
       update: {}
     });
 
-    if (challenge.creatorId !== userId) {
-      await this.prisma.notification.create({
+    if (!existingParticipant && challenge.creatorId !== userId) {
+      await this.notifications.create({
+        userId: challenge.creatorId,
+        type: 'CHALLENGE_JOINED',
+        title: 'Nouveau participant',
+        body: `${actor.displayName} a rejoint ton défi.`,
         data: {
-          userId: challenge.creatorId,
-          type: 'CHALLENGE_JOINED',
-          title: 'Nouveau participant',
-          body: 'Quelqu’un a rejoint ton défi.'
+          route: `/challenges/${challengeId}`,
+          entityType: 'CHALLENGE',
+          entityId: challengeId,
+          actorId: userId
         }
       });
     }
@@ -103,13 +144,20 @@ export class ChallengesService {
     return participant;
   }
 
-  async submitAnswers(userId: string, challengeId: string, dto: SubmitAnswersDto) {
+  async submitAnswers(
+    userId: string,
+    challengeId: string,
+    dto: SubmitAnswersDto
+  ) {
     const participant = await this.prisma.challengeParticipant.findUnique({
       where: { challengeId_userId: { challengeId, userId } },
       include: { challenge: { include: { questions: true } } }
     });
 
-    if (!participant) throw new ForbiddenException('Rejoins le défi avant de répondre.');
+    if (!participant) {
+      throw new ForbiddenException('Rejoins le défi avant de répondre.');
+    }
+
     if (participant.challenge.status !== 'ACTIVE') {
       throw new BadRequestException('Ce défi est terminé.');
     }
@@ -145,7 +193,8 @@ export class ChallengesService {
       where: { participantId: participant.id }
     });
 
-    const completed = answerCount === participant.challenge.questions.length;
+    const completed =
+      answerCount === participant.challenge.questions.length;
 
     return this.prisma.challengeParticipant.update({
       where: { id: participant.id },
