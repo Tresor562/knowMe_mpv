@@ -51,6 +51,7 @@ model User {
   featureFlagOverrides FeatureFlagOverride[]
   entitlementGrants    EntitlementGrant[]
   staffAccount         StaffAccount?
+  accessRoleGrants     UserRoleGrant[]
 }
 
 model Friendship {
@@ -275,6 +276,64 @@ model StaffAccount {
 
   @@index([status, staffRole])
   @@index([activatedAt])
+}
+
+model AccessRole {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  grants      UserRoleGrant[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       AccessRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRoleGrant {
+  id                String    @id @default(cuid())
+  userId            String
+  roleId            String
+  source            String    @default("ADMIN")
+  externalReference String?
+  startsAt          DateTime  @default(now())
+  expiresAt         DateTime?
+  revokedAt         DateTime?
+  revokedById       String?
+  reason            String
+  grantedById       String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role AccessRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startsAt, expiresAt, revokedAt])
+  @@index([roleId, startsAt, expiresAt, revokedAt])
+  @@index([source, externalReference])
 }
 
 model FeatureFlag {
