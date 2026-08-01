@@ -22,6 +22,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { SocialModule } from './social/social.module';
+import { StaffModule } from './staff/staff.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -48,7 +49,8 @@ import { UsersModule } from './users/users.module';
     AccountModule,
     ReportsModule,
     FeatureFlagsModule,
-    EntitlementsModule
+    EntitlementsModule,
+    StaffModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
