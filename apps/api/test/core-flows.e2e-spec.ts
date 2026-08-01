@@ -95,4 +95,81 @@ describe('KnowMe core flows (e2e)', () => {
       ])
     );
   });
+
+  it('connects two users and exchanges a message', async () => {
+    const alice = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'alice@knowme.test',
+        username: 'alice_s2',
+        displayName: 'Alice',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const bob = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'bob@knowme.test',
+        username: 'bob_s2',
+        displayName: 'Bob',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const friendRequest = await request(app.getHttpServer())
+      .post('/social/friend-requests')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .send({ addresseeId: bob.body.user.id })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/social/friend-requests/${friendRequest.body.id}/accept`)
+      .set('Authorization', `Bearer ${bob.body.accessToken}`)
+      .expect(200);
+
+    const friends = await request(app.getHttpServer())
+      .get('/social/friends')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+
+    expect(friends.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user: expect.objectContaining({ id: bob.body.user.id })
+        })
+      ])
+    );
+
+    const conversation = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .send({
+        title: 'Alice et Bob',
+        memberIds: [bob.body.user.id]
+      })
+      .expect(201);
+
+    const message = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/messages`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .send({ content: 'Salut Bob, bienvenue sur KnowMe !' })
+      .expect(201);
+
+    expect(message.body).toMatchObject({
+      content: 'Salut Bob, bienvenue sur KnowMe !',
+      senderId: alice.body.user.id
+    });
+
+    const conversations = await request(app.getHttpServer())
+      .get('/conversations')
+      .set('Authorization', `Bearer ${bob.body.accessToken}`)
+      .expect(200);
+
+    expect(conversations.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: conversation.body.id })
+      ])
+    );
+  });
 });
