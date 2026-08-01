@@ -1,7 +1,10 @@
 import { FeatureFlagsService } from './feature-flags.service';
 
 describe('FeatureFlagsService', () => {
-  function setup(flag: Record<string, unknown>, override: unknown = null) {
+  function setup(
+    flag: Record<string, unknown> | null,
+    override: unknown = null
+  ) {
     const prisma = {
       featureFlag: {
         findUnique: jest.fn().mockResolvedValue(flag)
