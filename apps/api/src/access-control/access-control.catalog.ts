@@ -10,6 +10,7 @@ export const PERMISSIONS = {
   WALLET_MANAGE: 'wallet.manage',
   REWARDS_MANAGE: 'rewards.manage',
   BILLING_MANAGE: 'billing.manage',
+  PURCHASES_MANAGE: 'purchases.manage',
   VERIFICATION_MANAGE: 'verification.manage',
   RBAC_MANAGE: 'rbac.manage'
 } as const;
@@ -26,6 +27,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.WALLET_MANAGE, 'Ajuster et auditer les portefeuilles KnowCoins.'],
   [PERMISSIONS.REWARDS_MANAGE, 'Gérer les politiques et événements de récompense.'],
   [PERMISSIONS.BILLING_MANAGE, 'Gérer les plans, prix et abonnements vérifiés.'],
+  [PERMISSIONS.PURCHASES_MANAGE, 'Gérer les produits et examiner les achats vérifiés.'],
   [PERMISSIONS.VERIFICATION_MANAGE, 'Examiner et révoquer les identités vérifiées.'],
   [PERMISSIONS.RBAC_MANAGE, 'Attribuer et révoquer les rôles d’accès.']
 ] as const;
