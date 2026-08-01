@@ -25,6 +25,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
 import { UsersModule } from './users/users.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -52,7 +53,8 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     FeatureFlagsModule,
     EntitlementsModule,
-    StaffModule
+    StaffModule,
+    WalletModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
