@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RewardsService } from '../rewards/rewards.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { SubmitAnswersDto } from './dto/submit-answers.dto';
 
@@ -13,7 +14,8 @@ import { SubmitAnswersDto } from './dto/submit-answers.dto';
 export class ChallengesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly rewards: RewardsService
   ) {}
 
   create(userId: string, dto: CreateChallengeDto) {
@@ -57,34 +59,37 @@ export class ChallengesService {
   }
 
   async detail(userId: string, challengeId: string) {
-    const challenge = await this.prisma.challenge.findUnique({
-      where: { id: challengeId },
-      include: {
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
-        },
-        questions: { orderBy: { position: 'asc' } },
-        participants: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true
-              }
-            },
-            answers: true
+    const [challenge, rewardPolicy] = await Promise.all([
+      this.prisma.challenge.findUnique({
+        where: { id: challengeId },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true
+            }
           },
-          orderBy: { createdAt: 'asc' }
+          questions: { orderBy: { position: 'asc' } },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true
+                }
+              },
+              answers: true
+            },
+            orderBy: { createdAt: 'asc' }
+          }
         }
-      }
-    });
+      }),
+      this.rewards.preview('CHALLENGE_COMPLETION')
+    ]);
 
     if (!challenge) throw new NotFoundException('Défi introuvable.');
 
@@ -96,7 +101,10 @@ export class ChallengesService {
 
     if (!canView) throw new ForbiddenException('Accès interdit à ce défi.');
 
-    return challenge;
+    return {
+      ...challenge,
+      rewardPolicy
+    };
   }
 
   async join(userId: string, challengeId: string) {
@@ -192,15 +200,32 @@ export class ChallengesService {
     const answerCount = await this.prisma.challengeAnswer.count({
       where: { participantId: participant.id }
     });
+    const completed = answerCount === participant.challenge.questions.length;
+    let reward = null;
+    let completedAt = participant.completedAt;
 
-    const completed =
-      answerCount === participant.challenge.questions.length;
+    if (completed && !participant.completedAt) {
+      completedAt = new Date();
+      reward = await this.rewards.processChallengeCompletion({
+        participantId: participant.id,
+        userId,
+        creatorId: participant.challenge.creatorId,
+        challengeId,
+        questionCount: participant.challenge.questions.length,
+        completedAt
+      });
+    }
 
-    return this.prisma.challengeParticipant.update({
+    const updated = await this.prisma.challengeParticipant.update({
       where: { id: participant.id },
-      data: { completedAt: completed ? new Date() : null },
+      data: { completedAt: completed ? completedAt : null },
       include: { answers: true }
     });
+
+    return {
+      ...updated,
+      reward
+    };
   }
 
   async complete(userId: string, challengeId: string) {

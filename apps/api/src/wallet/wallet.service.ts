@@ -8,7 +8,7 @@ import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdjustKnowCoinsDto } from './dto/wallet.dto';
 
-type LedgerMutation = {
+export type LedgerMutation = {
   userId: string;
   amount: number;
   type: string;
@@ -114,6 +114,68 @@ export class WalletService {
     return this.mutate(input);
   }
 
+  async applyInTransaction(
+    tx: Prisma.TransactionClient,
+    input: LedgerMutation
+  ) {
+    this.validateMutation(input);
+
+    const duplicate = await tx.knowCoinLedgerEntry.findUnique({
+      where: { idempotencyKey: input.idempotencyKey }
+    });
+    if (duplicate) {
+      this.assertReplayMatches(duplicate.userId, duplicate.amount, input);
+      return { entry: duplicate, replayed: true };
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, knowCoins: true }
+    });
+    if (!user) throw new NotFoundException('Compte utilisateur introuvable.');
+
+    const wallet = await tx.knowCoinWallet.upsert({
+      where: { userId: input.userId },
+      create: { userId: input.userId, balance: user.knowCoins },
+      update: {}
+    });
+    const balanceAfter = wallet.balance + input.amount;
+    if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0) {
+      throw new BadRequestException('Solde KnowCoins insuffisant.');
+    }
+
+    await tx.knowCoinWallet.update({
+      where: { userId: input.userId },
+      data: {
+        balance: balanceAfter,
+        version: { increment: 1 }
+      }
+    });
+    await tx.user.update({
+      where: { id: input.userId },
+      data: { knowCoins: balanceAfter }
+    });
+
+    const entry = await tx.knowCoinLedgerEntry.create({
+      data: {
+        userId: input.userId,
+        amount: input.amount,
+        balanceBefore: wallet.balance,
+        balanceAfter,
+        type: input.type,
+        source: input.source,
+        idempotencyKey: input.idempotencyKey,
+        referenceType: input.referenceType?.trim() || null,
+        referenceId: input.referenceId?.trim() || null,
+        actorId: input.actorId ?? null,
+        reason: input.reason?.trim() || null,
+        metadata: input.metadata
+      }
+    });
+
+    return { entry, replayed: false };
+  }
+
   private async ensureWallet(userId: string) {
     const existing = await this.prisma.knowCoinWallet.findUnique({
       where: { userId }
@@ -134,89 +196,31 @@ export class WalletService {
   }
 
   private async mutate(input: LedgerMutation) {
-    if (!Number.isSafeInteger(input.amount) || input.amount === 0) {
-      throw new BadRequestException('Montant KnowCoins invalide.');
-    }
-    if (Math.abs(input.amount) > 1_000_000) {
-      throw new BadRequestException('Montant KnowCoins trop élevé.');
-    }
+    this.validateMutation(input);
 
     const replay = await this.prisma.knowCoinLedgerEntry.findUnique({
       where: { idempotencyKey: input.idempotencyKey }
     });
     if (replay) {
-      if (replay.userId !== input.userId || replay.amount !== input.amount) {
-        throw new BadRequestException(
-          'Cette clé d’idempotence appartient à une autre opération.'
-        );
-      }
+      this.assertReplayMatches(replay.userId, replay.amount, input);
       return { entry: replay, replayed: true };
     }
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const entry = await this.prisma.$transaction(
-          async (tx) => {
-            const duplicate = await tx.knowCoinLedgerEntry.findUnique({
-              where: { idempotencyKey: input.idempotencyKey }
-            });
-            if (duplicate) return duplicate;
-
-            const user = await tx.user.findUnique({
-              where: { id: input.userId },
-              select: { id: true, knowCoins: true }
-            });
-            if (!user) throw new NotFoundException('Compte utilisateur introuvable.');
-
-            const wallet = await tx.knowCoinWallet.upsert({
-              where: { userId: input.userId },
-              create: { userId: input.userId, balance: user.knowCoins },
-              update: {}
-            });
-            const balanceAfter = wallet.balance + input.amount;
-            if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0) {
-              throw new BadRequestException('Solde KnowCoins insuffisant.');
-            }
-
-            await tx.knowCoinWallet.update({
-              where: { userId: input.userId },
-              data: {
-                balance: balanceAfter,
-                version: { increment: 1 }
-              }
-            });
-            await tx.user.update({
-              where: { id: input.userId },
-              data: { knowCoins: balanceAfter }
-            });
-
-            return tx.knowCoinLedgerEntry.create({
-              data: {
-                userId: input.userId,
-                amount: input.amount,
-                balanceBefore: wallet.balance,
-                balanceAfter,
-                type: input.type,
-                source: input.source,
-                idempotencyKey: input.idempotencyKey,
-                referenceType: input.referenceType?.trim() || null,
-                referenceId: input.referenceId?.trim() || null,
-                actorId: input.actorId ?? null,
-                reason: input.reason?.trim() || null,
-                metadata: input.metadata
-              }
-            });
-          },
+        return await this.prisma.$transaction(
+          (tx) => this.applyInTransaction(tx, input),
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
         );
-
-        return { entry, replayed: false };
       } catch (error) {
         if (this.isUniqueConflict(error)) {
           const duplicate = await this.prisma.knowCoinLedgerEntry.findUnique({
             where: { idempotencyKey: input.idempotencyKey }
           });
-          if (duplicate) return { entry: duplicate, replayed: true };
+          if (duplicate) {
+            this.assertReplayMatches(duplicate.userId, duplicate.amount, input);
+            return { entry: duplicate, replayed: true };
+          }
         }
         if (this.isRetryableTransaction(error) && attempt < 2) continue;
         throw error;
@@ -224,6 +228,30 @@ export class WalletService {
     }
 
     throw new BadRequestException('Opération KnowCoins temporairement indisponible.');
+  }
+
+  private validateMutation(input: LedgerMutation) {
+    if (!Number.isSafeInteger(input.amount) || input.amount === 0) {
+      throw new BadRequestException('Montant KnowCoins invalide.');
+    }
+    if (Math.abs(input.amount) > 1_000_000) {
+      throw new BadRequestException('Montant KnowCoins trop élevé.');
+    }
+    if (!/^[A-Za-z0-9._:-]{8,160}$/.test(input.idempotencyKey)) {
+      throw new BadRequestException('Clé d’idempotence invalide.');
+    }
+  }
+
+  private assertReplayMatches(
+    storedUserId: string,
+    storedAmount: number,
+    input: LedgerMutation
+  ) {
+    if (storedUserId !== input.userId || storedAmount !== input.amount) {
+      throw new BadRequestException(
+        'Cette clé d’idempotence appartient à une autre opération.'
+      );
+    }
   }
 
   private isRetryableTransaction(error: unknown) {
