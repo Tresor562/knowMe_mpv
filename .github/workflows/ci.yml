@@ -8,6 +8,24 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://knowme:knowme@localhost:5432/knowme_test?schema=public
+      JWT_SECRET: ci-only-secret-that-is-long-enough-for-tests
+      PORT: 4000
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: knowme
+          POSTGRES_PASSWORD: knowme
+          POSTGRES_DB: knowme_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U knowme -d knowme_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -16,5 +34,7 @@ jobs:
           node-version: 22
       - run: pnpm install --frozen-lockfile=false
       - run: pnpm --filter @knowme/api prisma:generate
+      - run: pnpm --filter @knowme/api prisma:push
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm --filter @knowme/api test:e2e
