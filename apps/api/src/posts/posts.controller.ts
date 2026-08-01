@@ -20,10 +20,7 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Req() req: { user: { userId: string } },
-    @Body() dto: CreatePostDto
-  ) {
+  create(@Req() req: { user: { userId: string } }, @Body() dto: CreatePostDto) {
     return this.posts.create(req.user.userId, dto);
   }
 
@@ -37,12 +34,14 @@ export class PostsController {
     return this.posts.getById(id);
   }
 
+  @Get(':id/comments')
+  comments(@Param('id') id: string, @Query('cursor') cursor?: string) {
+    return this.posts.comments(id, cursor);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post(':id/like')
-  like(
-    @Req() req: { user: { userId: string } },
-    @Param('id') id: string
-  ) {
+  like(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.posts.toggleLike(req.user.userId, id);
   }
 
@@ -57,11 +56,18 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
-  remove(
+  @Delete(':postId/comments/:commentId')
+  removeComment(
     @Req() req: { user: { userId: string } },
-    @Param('id') id: string
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string
   ) {
+    return this.posts.removeComment(req.user.userId, postId, commentId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  remove(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.posts.remove(req.user.userId, id);
   }
 }
