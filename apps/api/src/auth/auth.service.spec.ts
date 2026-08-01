@@ -1,7 +1,8 @@
-import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
+import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
+import { SecurityService } from '../security/security.service';
+import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
   it('is defined', async () => {
@@ -9,7 +10,8 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: PrismaService, useValue: {} },
-        { provide: JwtService, useValue: {} }
+        { provide: JwtService, useValue: {} },
+        { provide: SecurityService, useValue: {} }
       ]
     }).compile();
 
