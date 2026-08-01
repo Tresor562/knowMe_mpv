@@ -4,6 +4,16 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+type NotificationRecord = {
+  id: string;
+  type: string;
+  readAt: string | null;
+};
+
+function businessNotifications(items: NotificationRecord[]) {
+  return items.filter((item) => !item.type.startsWith('SECURITY_'));
+}
+
 describe('KnowMe engagement flows (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -59,15 +69,22 @@ describe('KnowMe engagement flows (e2e)', () => {
       .set('Authorization', `Bearer ${bob.body.accessToken}`)
       .expect(200);
 
-    expect(unreadBefore.body.count).toBe(1);
-
     const notifications = await request(app.getHttpServer())
       .get('/notifications')
       .set('Authorization', `Bearer ${bob.body.accessToken}`)
       .expect(200);
 
+    const notificationItems = notifications.body as NotificationRecord[];
+    const unreadItems = notificationItems.filter((item) => !item.readAt);
+    const friendRequestNotification = businessNotifications(notificationItems).find(
+      (item) => item.type === 'FRIEND_REQUEST'
+    );
+
+    expect(unreadBefore.body.count).toBe(unreadItems.length);
+    expect(friendRequestNotification).toBeDefined();
+
     await request(app.getHttpServer())
-      .patch(`/notifications/${notifications.body[0].id}/read`)
+      .patch(`/notifications/${friendRequestNotification!.id}/read`)
       .set('Authorization', `Bearer ${bob.body.accessToken}`)
       .expect(200);
 
@@ -156,7 +173,24 @@ describe('KnowMe engagement flows (e2e)', () => {
       .set('Authorization', `Bearer ${author.body.accessToken}`)
       .expect(200);
 
-    expect(unread.body.count).toBe(2);
+    const authorNotifications = await request(app.getHttpServer())
+      .get('/notifications')
+      .set('Authorization', `Bearer ${author.body.accessToken}`)
+      .expect(200);
+
+    const authorItems = authorNotifications.body as NotificationRecord[];
+    const authorBusinessItems = businessNotifications(authorItems);
+
+    expect(unread.body.count).toBe(
+      authorItems.filter((item) => !item.readAt).length
+    );
+    expect(authorBusinessItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'POST_LIKED' }),
+        expect.objectContaining({ type: 'POST_COMMENTED' })
+      ])
+    );
+    expect(authorBusinessItems).toHaveLength(2);
 
     await request(app.getHttpServer())
       .delete(`/posts/${post.body.id}`)
