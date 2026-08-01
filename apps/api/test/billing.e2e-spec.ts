@@ -58,7 +58,10 @@ describe('KnowMe authoritative billing (e2e)', () => {
     return request(app.getHttpServer())
       .post('/billing/webhooks/test')
       .set('x-billing-timestamp', timestamp)
-      .set('x-billing-signature', signBillingPayload(WEBHOOK_SECRET, timestamp, body))
+      .set(
+        'x-billing-signature',
+        signBillingPayload(WEBHOOK_SECRET, timestamp, body)
+      )
       .send(body);
   }
 
@@ -100,19 +103,7 @@ describe('KnowMe authoritative billing (e2e)', () => {
     expect(initial.body.subscriptions).toEqual([]);
     expect(initial.body.entitlements).toEqual([]);
 
-    await request(app.getHttpServer())
-      .post('/billing/webhooks/test')
-      .send({ premium: true, accountId: memberId })
-      .expect(401);
-
-    await request(app.getHttpServer())
-      .get('/admin/billing/plans')
-      .set(auth(attackerToken))
-      .set('x-role', 'ADMIN')
-      .set('x-permissions', 'billing.manage')
-      .expect(403);
-
-    const base = Date.now() - 60 * 60 * 1000;
+    const base = Date.now() - 12 * 60 * 60 * 1000;
     const start = new Date(base);
     const end = new Date(base + 30 * 24 * 60 * 60 * 1000);
     const subscriptionId = 'sub_member_premium_001';
@@ -130,6 +121,22 @@ describe('KnowMe authoritative billing (e2e)', () => {
       cancelAtPeriodEnd: false,
       metadata: { environment: 'test' }
     };
+
+    await request(app.getHttpServer())
+      .post('/billing/webhooks/test')
+      .send({
+        ...activeEvent,
+        eventId: 'evt_unsigned_001',
+        externalSubscriptionId: 'sub_unsigned_001'
+      })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .get('/admin/billing/plans')
+      .set(auth(attackerToken))
+      .set('x-role', 'ADMIN')
+      .set('x-permissions', 'billing.manage')
+      .expect(403);
 
     const activated = await signedEvent(activeEvent).expect(201);
     expect(activated.body).toEqual(
@@ -222,7 +229,9 @@ describe('KnowMe authoritative billing (e2e)', () => {
       cancelAtPeriodEnd: false
     };
     const renewed = await signedEvent(renewalEvent).expect(201);
-    expect(renewed.body.subscription.currentPeriodEnd).toBe(renewedEnd.toISOString());
+    expect(renewed.body.subscription.currentPeriodEnd).toBe(
+      renewedEnd.toISOString()
+    );
 
     const renewedGrants = await prisma.entitlementGrant.findMany({
       where: {
@@ -233,8 +242,14 @@ describe('KnowMe authoritative billing (e2e)', () => {
       }
     });
     expect(renewedGrants).toHaveLength(9);
-    expect(renewedGrants.every((grant) => grant.expiresAt?.getTime() === renewedEnd.getTime())).toBe(true);
-    expect(renewedGrants.every((grant) => grant.startsAt <= new Date())).toBe(true);
+    expect(
+      renewedGrants.every(
+        (grant) => grant.expiresAt?.getTime() === renewedEnd.getTime()
+      )
+    ).toBe(true);
+    expect(renewedGrants.every((grant) => grant.startsAt <= new Date())).toBe(
+      true
+    );
 
     const expiredEvent: BillingProviderEventDto = {
       ...renewalEvent,
@@ -259,7 +274,9 @@ describe('KnowMe authoritative billing (e2e)', () => {
     expect(afterExpiry.body.entitlements).toEqual([]);
 
     const reactivationStart = new Date(base + 5 * 60 * 60 * 1000);
-    const reactivationEnd = new Date(reactivationStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const reactivationEnd = new Date(
+      reactivationStart.getTime() + 30 * 24 * 60 * 60 * 1000
+    );
     const reactivationEvent: BillingProviderEventDto = {
       ...activeEvent,
       eventId: 'evt_reactivated_001',
@@ -296,7 +313,9 @@ describe('KnowMe authoritative billing (e2e)', () => {
       .set(auth(adminToken))
       .expect(200);
     expect(adminPlans.body).toEqual(
-      expect.arrayContaining([expect.objectContaining({ key: 'premium_monthly' })])
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'premium_monthly' })
+      ])
     );
 
     const adminEvents = await request(app.getHttpServer())
@@ -306,30 +325,40 @@ describe('KnowMe authoritative billing (e2e)', () => {
     expect(adminEvents.body).toHaveLength(7);
     expect(adminEvents.body).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ externalEventId: 'evt_old_expired_001', status: 'IGNORED' }),
-        expect.objectContaining({ externalEventId: 'evt_refunded_001', status: 'PROCESSED' })
+        expect.objectContaining({
+          externalEventId: 'evt_old_expired_001',
+          status: 'IGNORED'
+        }),
+        expect.objectContaining({
+          externalEventId: 'evt_refunded_001',
+          status: 'PROCESSED'
+        })
       ])
     );
 
-    const [subscription, activeGrants, totalGrants, auditCount] = await Promise.all([
-      prisma.billingSubscription.findUnique({
-        where: {
-          provider_externalSubscriptionId: {
-            provider: 'TEST',
-            externalSubscriptionId: subscriptionId
+    const [subscription, activeGrants, totalGrants, auditCount] =
+      await Promise.all([
+        prisma.billingSubscription.findUnique({
+          where: {
+            provider_externalSubscriptionId: {
+              provider: 'TEST',
+              externalSubscriptionId: subscriptionId
+            }
           }
-        }
-      }),
-      prisma.entitlementGrant.count({
-        where: { userId: memberId, source: 'SUBSCRIPTION', revokedAt: null }
-      }),
-      prisma.entitlementGrant.count({
-        where: { userId: memberId, source: 'SUBSCRIPTION' }
-      }),
-      prisma.auditLog.count({
-        where: { targetAccountId: memberId, action: { startsWith: 'BILLING_EVENT_' } }
-      })
-    ]);
+        }),
+        prisma.entitlementGrant.count({
+          where: { userId: memberId, source: 'SUBSCRIPTION', revokedAt: null }
+        }),
+        prisma.entitlementGrant.count({
+          where: { userId: memberId, source: 'SUBSCRIPTION' }
+        }),
+        prisma.auditLog.count({
+          where: {
+            targetAccountId: memberId,
+            action: { startsWith: 'BILLING_EVENT_' }
+          }
+        })
+      ]);
 
     expect(subscription?.status).toBe('REFUNDED');
     expect(activeGrants).toBe(0);
