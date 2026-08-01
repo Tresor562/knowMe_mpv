@@ -52,6 +52,8 @@ model User {
   entitlementGrants    EntitlementGrant[]
   staffAccount         StaffAccount?
   accessRoleGrants     UserRoleGrant[]
+  knowCoinWallet       KnowCoinWallet?
+  knowCoinLedger       KnowCoinLedgerEntry[]
 }
 
 model Friendship {
@@ -334,6 +336,38 @@ model UserRoleGrant {
   @@index([userId, startsAt, expiresAt, revokedAt])
   @@index([roleId, startsAt, expiresAt, revokedAt])
   @@index([source, externalReference])
+}
+
+model KnowCoinWallet {
+  userId    String   @id
+  balance   Int      @default(0)
+  version   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model KnowCoinLedgerEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  amount         Int
+  balanceBefore  Int
+  balanceAfter   Int
+  type           String
+  source         String
+  idempotencyKey String   @unique
+  referenceType  String?
+  referenceId    String?
+  actorId        String?
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt, id])
+  @@index([source, referenceType, referenceId])
 }
 
 model FeatureFlag {
