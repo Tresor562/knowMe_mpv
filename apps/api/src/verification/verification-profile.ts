@@ -1,3 +1,8 @@
+import {
+  StaffProfileRecord,
+  toStaffBadge
+} from '../staff/staff-profile';
+
 export const verificationRequestSelect = {
   where: { status: 'APPROVED' },
   orderBy: { decidedAt: 'desc' as const },
@@ -71,5 +76,27 @@ export function toPremiumBadge(grants: PremiumProfileRecord) {
     isPremium: true as const,
     label: 'Premium',
     expiresAt: grant.expiresAt
+  };
+}
+
+export function withAccountBadges<
+  T extends {
+    staffAccount: StaffProfileRecord;
+    verificationRequests: VerificationProfileRecord;
+    entitlementGrants: PremiumProfileRecord;
+  }
+>(user: T, now = new Date()) {
+  const {
+    staffAccount,
+    verificationRequests,
+    entitlementGrants,
+    ...profile
+  } = user;
+
+  return {
+    ...profile,
+    staff: toStaffBadge(staffAccount),
+    verification: toVerificationBadge(verificationRequests, now),
+    premium: toPremiumBadge(entitlementGrants)
   };
 }
