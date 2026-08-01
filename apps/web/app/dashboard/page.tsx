@@ -6,22 +6,26 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
 type Challenge = { id: string; status: string };
-type UnreadCount = { count: number };
+type NotificationUnreadCount = { count: number };
+type MessageUnreadCount = { unread: number };
 
 export default function Dashboard() {
   const { user, loading, logout } = useSession({ required: true });
   const [challengeCount, setChallengeCount] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
 
     Promise.all([
       apiFetch<Challenge[]>('/challenges'),
-      apiFetch<UnreadCount>('/notifications/unread-count')
-    ]).then(([challenges, unread]) => {
+      apiFetch<NotificationUnreadCount>('/notifications/unread-count'),
+      apiFetch<MessageUnreadCount>('/conversations/unread-count')
+    ]).then(([challenges, notifications, messages]) => {
       setChallengeCount(challenges.filter((challenge) => challenge.status === 'ACTIVE').length);
-      setUnreadCount(unread.count);
+      setNotificationCount(notifications.count);
+      setMessageCount(messages.unread);
     }).catch(() => {
       // Le tableau de bord reste utilisable si un widget secondaire échoue.
     });
@@ -33,7 +37,8 @@ export default function Dashboard() {
 
   const cards = [
     ['🔥 Défis actifs', `${challengeCount} défi(s) à poursuivre ou à relever.`, '/challenges'],
-    ['🔔 Notifications', `${unreadCount} notification(s) non lue(s).`, '/notifications'],
+    ['💬 Messages', `${messageCount} message(s) non lu(s).`, '/messages'],
+    ['🔔 Notifications', `${notificationCount} notification(s) non lue(s).`, '/notifications'],
     ['👥 Connexions', 'Recherche des amis et agrandis ton cercle.', '/friends'],
     ['🪙 KnowCoins', `${user.knowCoins ?? 0} KnowCoins disponibles.`, '/profile']
   ];
@@ -52,7 +57,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <section className="grid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))'}}>
+      <section className="grid" style={{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}}>
         {cards.map(([title,text,href]) => (
           <Link href={href} key={title} className="card" style={{padding:22,display:'block'}}>
             <h2>{title}</h2>
@@ -64,11 +69,11 @@ export default function Dashboard() {
       <section className="card" style={{padding:24,marginTop:22}}>
         <small style={{color:'var(--orange)'}}>PROCHAINE ACTION</small>
         <h2>Découvre quelque chose de nouveau sur un proche</h2>
-        <p style={{color:'var(--muted)'}}>Lance un défi, partage une publication ou ouvre une conversation.</p>
+        <p style={{color:'var(--muted)'}}>Lance un défi, partage une publication ou réponds aux {messageCount} message(s) qui t’attendent.</p>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
           <Link href="/challenges" className="btn btn-primary">Voir les défis</Link>
           <Link href="/feed" className="btn">Ouvrir le fil</Link>
-          <Link href="/messages" className="btn">Mes messages</Link>
+          <Link href="/messages" className="btn">Mes messages{messageCount>0?` (${messageCount})`:''}</Link>
         </div>
       </section>
     </main>

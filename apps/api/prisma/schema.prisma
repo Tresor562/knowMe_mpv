@@ -136,11 +136,13 @@ model ConversationMember {
   conversationId String
   userId         String
   joinedAt       DateTime @default(now())
+  lastReadAt     DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+  @@index([userId, lastReadAt])
 }
 
 model Message {
@@ -165,9 +167,9 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  likes     PostLike[]
-  comments  PostComment[]
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes    PostLike[]
+  comments PostComment[]
 
   @@index([createdAt])
 }

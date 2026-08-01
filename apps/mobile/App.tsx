@@ -22,7 +22,8 @@ import { SocialHub } from './src/SocialHub';
 
 type Screen = 'home' | 'feed' | 'social' | 'challenges' | 'profile';
 type ChallengeSummary = { id: string; status: string };
-type NotificationCount = { unread: number };
+type NotificationCount = { count: number };
+type MessageCount = { unread: number };
 
 function Field(props: React.ComponentProps<typeof TextInput>) {
   return <TextInput placeholderTextColor="#789187" style={styles.input} {...props} />;
@@ -105,17 +106,20 @@ function HomeScreen({ user, openSocial, openFeed, openChallenges }: {
   openChallenges: () => void;
 }) {
   const [challenges, setChallenges] = useState<ChallengeSummary[]>([]);
-  const [unread, setUnread] = useState(0);
+  const [notificationUnread, setNotificationUnread] = useState(0);
+  const [messageUnread, setMessageUnread] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [items, count] = await Promise.all([
+      const [items, notifications, messages] = await Promise.all([
         apiFetch<ChallengeSummary[]>('/challenges'),
-        apiFetch<NotificationCount>('/notifications/unread-count')
+        apiFetch<NotificationCount>('/notifications/unread-count'),
+        apiFetch<MessageCount>('/conversations/unread-count')
       ]);
       setChallenges(items);
-      setUnread(count.unread);
+      setNotificationUnread(notifications.count);
+      setMessageUnread(messages.unread);
     } catch (cause) {
       Alert.alert('Actualisation impossible', cause instanceof Error ? cause.message : 'Réessaie.');
     } finally {
@@ -132,10 +136,14 @@ function HomeScreen({ user, openSocial, openFeed, openChallenges }: {
       <Text style={styles.muted}>Ton univers KnowMe est prêt.</Text>
       <View style={styles.statsGrid}>
         <Pressable onPress={openChallenges} style={styles.statCard}><Text style={styles.statValue}>{challenges.filter((item) => item.status === 'ACTIVE').length}</Text><Text style={styles.statLabel}>Défis actifs</Text></Pressable>
-        <Pressable onPress={openSocial} style={styles.statCard}><Text style={styles.statValue}>{unread}</Text><Text style={styles.statLabel}>Notifications</Text></Pressable>
+        <Pressable onPress={openSocial} style={styles.statCard}><Text style={styles.statValue}>{messageUnread}</Text><Text style={styles.statLabel}>Messages</Text></Pressable>
+        <Pressable onPress={openSocial} style={styles.statCard}><Text style={styles.statValue}>{notificationUnread}</Text><Text style={styles.statLabel}>Alertes</Text></Pressable>
         <View style={styles.statCard}><Text style={styles.statValue}>{user.knowCoins ?? 0}</Text><Text style={styles.statLabel}>KnowCoins</Text></View>
       </View>
-      <Pressable onPress={openSocial} style={styles.card}><Text style={styles.cardTitle}>Mon cercle</Text><Text style={styles.cardText}>Retrouve tes amis, tes messages et toutes tes notifications au même endroit.</Text></Pressable>
+      <Pressable onPress={openSocial} style={styles.card}>
+        <Text style={styles.cardTitle}>Mon cercle</Text>
+        <Text style={styles.cardText}>{messageUnread > 0 ? `${messageUnread} message(s) t’attendent. ` : ''}Retrouve tes amis, tes messages et toutes tes alertes au même endroit.</Text>
+      </Pressable>
       <Pressable onPress={openFeed} style={styles.card}><Text style={styles.cardTitle}>Discussions</Text><Text style={styles.cardText}>Explore le fil, ouvre une publication, réponds et gère tes commentaires.</Text></Pressable>
       <Pressable onPress={openChallenges} style={styles.card}><Text style={styles.cardTitle}>Défis en profondeur</Text><Text style={styles.cardText}>Réponds question par question, sauvegarde ta progression et suis les participants.</Text></Pressable>
     </ScrollView>
@@ -258,8 +266,8 @@ const styles = StyleSheet.create({
   segmentActive: { backgroundColor: '#1b3b31' },
   segmentText: { color: '#789187', fontWeight: '700' },
   segmentTextActive: { color: '#f4fff9' },
-  statsGrid: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, backgroundColor: '#10231d', borderRadius: 20, padding: 14 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statCard: { width: '48%', minHeight: 86, backgroundColor: '#10231d', borderRadius: 20, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 25, fontWeight: '900' },
   statLabel: { color: '#91a79e', fontSize: 12, marginTop: 4 },
   tabBar: { flexDirection: 'row', backgroundColor: '#0b1d17', borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 18 : 8 },
