@@ -27,7 +27,7 @@ describe('KnowMe authoritative identity verification (e2e)', () => {
       .post('/auth/register')
       .send({
         email: `${index}@verification.knowme.test`,
-        username: `verification_${index}`,
+        username: `verify_${index}`,
         displayName: `Verification ${index}`,
         password: 'KnowMeTest123!'
       })
