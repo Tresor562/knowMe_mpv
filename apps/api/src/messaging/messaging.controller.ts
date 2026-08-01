@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -32,6 +33,11 @@ export class MessagingController {
     return this.messaging.list(req.user.userId);
   }
 
+  @Get('unread-count')
+  unreadCount(@Req() req: { user: { userId: string } }) {
+    return this.messaging.unreadCount(req.user.userId);
+  }
+
   @Get(':id/messages')
   history(
     @Req() req: { user: { userId: string } },
@@ -40,6 +46,14 @@ export class MessagingController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number
   ) {
     return this.messaging.history(req.user.userId, id, cursor, limit);
+  }
+
+  @Patch(':id/read')
+  markRead(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    return this.messaging.markRead(req.user.userId, id);
   }
 
   @Post(':id/messages')
