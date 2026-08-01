@@ -205,6 +205,7 @@ model Notification {
   type      String
   title     String
   body      String
+  data      Json?
   readAt    DateTime?
   createdAt DateTime @default(now())
 
