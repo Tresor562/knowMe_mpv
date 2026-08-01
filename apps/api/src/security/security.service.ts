@@ -1,9 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
-  TooManyRequestsException,
   UnauthorizedException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -730,8 +731,9 @@ export class SecurityService {
 
   private assertNotLocked(lockedUntil: Date | null) {
     if (lockedUntil && lockedUntil > new Date()) {
-      throw new TooManyRequestsException(
-        'Le second facteur est temporairement verrouillé. Réessaie plus tard.'
+      throw new HttpException(
+        'Le second facteur est temporairement verrouillé. Réessaie plus tard.',
+        HttpStatus.TOO_MANY_REQUESTS
       );
     }
   }
