@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -31,21 +32,16 @@ export default function ChallengesPage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   async function createChallenge(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const questions = String(data.get('questions') ?? '')
-      .split('\n')
-      .map((question) => question.trim())
-      .filter(Boolean);
+    const questions = String(data.get('questions') ?? '').split('\n').map((question) => question.trim()).filter(Boolean);
 
     try {
-      await apiFetch('/challenges', {
+      const created = await apiFetch<Challenge>('/challenges', {
         method: 'POST',
         body: JSON.stringify({
           title: String(data.get('title') ?? '').trim(),
@@ -55,7 +51,7 @@ export default function ChallengesPage() {
       });
       form.reset();
       setShowCreator(false);
-      await load();
+      window.location.href = `/challenges/${created.id}`;
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Création impossible.');
     }
@@ -64,26 +60,19 @@ export default function ChallengesPage() {
   async function join(id: string) {
     try {
       await apiFetch(`/challenges/${id}/join`, { method: 'POST' });
-      await load();
+      window.location.href = `/challenges/${id}`;
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Participation impossible.');
     }
   }
 
-  if (sessionLoading || !user) {
-    return <main className="shell"><p>Chargement des défis...</p></main>;
-  }
+  if (sessionLoading || !user) return <main className="shell"><p>Chargement des défis...</p></main>;
 
   return (
     <main className="shell" style={{maxWidth:900,margin:'0 auto'}}>
       <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}>
-        <div>
-          <small style={{color:'var(--orange)'}}>LE CŒUR DE KNOWME</small>
-          <h1>Défis de {user.displayName}</h1>
-        </div>
-        <button className="btn btn-accent" onClick={() => setShowCreator((value) => !value)}>
-          {showCreator ? 'Fermer' : '+ Créer un défi'}
-        </button>
+        <div><small style={{color:'var(--orange)'}}>LE CŒUR DE KNOWME</small><h1>Défis de {user.displayName}</h1></div>
+        <button className="btn btn-accent" onClick={() => setShowCreator((value) => !value)}>{showCreator ? 'Fermer' : '+ Créer un défi'}</button>
       </header>
 
       {showCreator && (
@@ -92,7 +81,7 @@ export default function ChallengesPage() {
           <input className="input" name="title" placeholder="Titre du défi" minLength={3} required />
           <textarea className="input" name="description" placeholder="Description" rows={3} />
           <textarea className="input" name="questions" placeholder={'Une question par ligne\nQuel est mon plus grand rêve ?\nQuel sujet me passionne ?'} rows={7} required />
-          <button className="btn btn-primary">Créer et inviter mes proches</button>
+          <button className="btn btn-primary">Créer le défi</button>
         </form>
       )}
 
@@ -101,27 +90,23 @@ export default function ChallengesPage() {
 
       <section className="grid">
         {!loading && challenges.length === 0 && (
-          <article className="card" style={{padding:28,textAlign:'center'}}>
-            <div style={{fontSize:52}}>🧠</div>
-            <h2>Aucun défi pour le moment</h2>
-            <p style={{color:'var(--muted)'}}>Crée le premier défi pour commencer à mieux connaître tes proches.</p>
-          </article>
+          <article className="card" style={{padding:28,textAlign:'center'}}><div style={{fontSize:52}}>🧠</div><h2>Aucun défi pour le moment</h2><p style={{color:'var(--muted)'}}>Crée le premier défi pour commencer à mieux connaître tes proches.</p></article>
         )}
 
         {challenges.map((challenge) => (
           <article className="card" key={challenge.id} style={{padding:22,display:'grid',gridTemplateColumns:'64px 1fr auto',gap:18,alignItems:'center'}}>
             <div style={{fontSize:42}}>🎯</div>
             <div>
-              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                <h2 style={{margin:0}}>{challenge.title}</h2>
-                <small style={{color:challenge.status === 'ACTIVE' ? 'var(--mint)' : 'var(--muted)'}}>{challenge.status}</small>
-              </div>
+              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}><h2 style={{margin:0}}>{challenge.title}</h2><small style={{color:challenge.status === 'ACTIVE' ? 'var(--mint)' : 'var(--muted)'}}>{challenge.status}</small></div>
               {challenge.description && <p>{challenge.description}</p>}
               <p style={{color:'var(--muted)'}}>{challenge.participants.length} participant(s) · {challenge.questions.length} question(s)</p>
             </div>
-            {challenge.status === 'ACTIVE' && (
-              <button className="btn" onClick={() => join(challenge.id)}>Participer</button>
-            )}
+            <div style={{display:'grid',gap:8}}>
+              <Link className="btn" href={`/challenges/${challenge.id}`}>Ouvrir</Link>
+              {challenge.status === 'ACTIVE' && !challenge.participants.some((participant) => participant.userId === user.id) && (
+                <button className="btn btn-accent" onClick={() => join(challenge.id)}>Participer</button>
+              )}
+            </div>
           </article>
         ))}
       </section>
