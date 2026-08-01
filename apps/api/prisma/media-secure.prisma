@@ -1,0 +1,71 @@
+model MediaUploadSession {
+  id             String    @id @default(cuid())
+  ownerId        String
+  tokenHash      String    @unique
+  purpose        String
+  visibility     String    @default("PRIVATE")
+  conversationId String?
+  maxBytes       Int
+  allowedMime    Json
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([ownerId, expiresAt, consumedAt])
+}
+
+model MediaAsset {
+  id              String    @id @default(cuid())
+  ownerId         String
+  storageKey      String    @unique
+  originalName    String
+  declaredMime    String
+  detectedMime    String
+  size            Int
+  sha256          String
+  purpose         String
+  visibility      String    @default("PRIVATE")
+  conversationId  String?
+  status          String    @default("AVAILABLE")
+  scannerVerdict  String
+  scannerReference String?
+  width           Int?
+  height          Int?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  grants MediaAccessGrant[]
+
+  @@index([ownerId, status, createdAt])
+  @@index([conversationId, status, createdAt])
+  @@index([sha256])
+}
+
+model MediaAccessGrant {
+  id        String    @id @default(cuid())
+  assetId   String
+  granteeId String
+  grantedBy String
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, granteeId])
+  @@index([granteeId, expiresAt, revokedAt])
+}
+
+model MediaDownloadGrant {
+  id        String    @id @default(cuid())
+  assetId   String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([assetId, userId, expiresAt])
+}
