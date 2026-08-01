@@ -59,7 +59,8 @@ export class AuthService {
         email,
         username,
         displayName: dto.displayName,
-        passwordHash: await argon2.hash(dto.password)
+        passwordHash: await argon2.hash(dto.password),
+        knowCoinWallet: { create: { balance: 0 } }
       },
       select: {
         id: true,
