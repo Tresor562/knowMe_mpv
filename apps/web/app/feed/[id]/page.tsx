@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
@@ -13,16 +14,18 @@ type Post = {
   _count:{likes:number;comments:number};
 };
 
-export default function PostDetailPage({params}:{params:{id:string}}) {
+export default function PostDetailPage() {
+  const params = useParams<{id:string}>();
+  const postId = params.id;
   const {user,loading:sessionLoading} = useSession({required:true});
   const [post,setPost] = useState<Post|null>(null);
   const [message,setMessage] = useState('');
   const [sending,setSending] = useState(false);
 
   const load = useCallback(async () => {
-    try { setPost(await apiFetch<Post>(`/posts/${params.id}`)); }
+    try { setPost(await apiFetch<Post>(`/posts/${postId}`)); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Publication introuvable.'); }
-  },[params.id]);
+  },[postId]);
 
   useEffect(() => { if (!sessionLoading) load(); },[load,sessionLoading]);
 
@@ -33,7 +36,7 @@ export default function PostDetailPage({params}:{params:{id:string}}) {
     if (!content) return;
     setSending(true);
     try {
-      await apiFetch(`/posts/${params.id}/comments`,{method:'POST',body:JSON.stringify({content})});
+      await apiFetch(`/posts/${postId}/comments`,{method:'POST',body:JSON.stringify({content})});
       form.reset();
       await load();
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Commentaire impossible.'); }
@@ -41,13 +44,13 @@ export default function PostDetailPage({params}:{params:{id:string}}) {
   }
 
   async function like() {
-    try { await apiFetch(`/posts/${params.id}/like`,{method:'POST'}); await load(); }
+    try { await apiFetch(`/posts/${postId}/like`,{method:'POST'}); await load(); }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Action impossible.'); }
   }
 
   async function remove() {
     if (!window.confirm('Supprimer définitivement cette publication ?')) return;
-    try { await apiFetch(`/posts/${params.id}`,{method:'DELETE'}); window.location.href='/feed'; }
+    try { await apiFetch(`/posts/${postId}`,{method:'DELETE'}); window.location.href='/feed'; }
     catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Suppression impossible.'); }
   }
 
