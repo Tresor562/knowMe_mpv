@@ -28,6 +28,19 @@ export type MobileUser = {
     shield: string;
     role: string;
   } | null;
+  verification?: {
+    isVerified: true;
+    label: string;
+    level: string;
+    verifiedAt: string;
+    expiresAt: string;
+    verificationId: string;
+  } | null;
+  premium?: {
+    isPremium: true;
+    label: string;
+    expiresAt?: string | null;
+  } | null;
 };
 
 type AccountExport = {
@@ -40,28 +53,39 @@ function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-function Button({ title, onPress, disabled = false, danger = false }: {
+function Button({ title, onPress, disabled = false, danger = false, secondary = false }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   danger?: boolean;
+  secondary?: boolean;
 }) {
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, danger && styles.dangerButton, (pressed || disabled) && styles.buttonMuted]}
+      style={({ pressed }) => [
+        styles.button,
+        danger && styles.dangerButton,
+        secondary && styles.secondaryButton,
+        (pressed || disabled) && styles.buttonMuted
+      ]}
     >
-      <Text style={[styles.buttonText, danger && styles.dangerText]}>{title}</Text>
+      <Text style={[
+        styles.buttonText,
+        danger && styles.dangerText,
+        secondary && styles.secondaryButtonText
+      ]}>{title}</Text>
     </Pressable>
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
+  onOpenVerification: () => void;
 }) {
   const [displayName, setDisplayName] = useState(user.displayName);
   const [bio, setBio] = useState(user.bio ?? '');
@@ -152,19 +176,38 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted 
         <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
       )}
       <Text style={styles.heading}>{user.displayName}</Text>
-      {user.staff ? (
-        <View style={styles.staffBadge} accessibilityLabel={`${user.staff.label}, ${user.staff.role}`}>
-          <Text style={styles.staffShield}>🛡️</Text>
-          <Text style={styles.staffBadgeText}>{user.staff.label} · {user.staff.role}</Text>
-        </View>
-      ) : null}
+      <View style={styles.badges}>
+        {user.verification ? (
+          <View style={styles.verificationBadge} accessibilityLabel={user.verification.label}>
+            <Text style={styles.verificationBadgeText}>✓ {user.verification.label}</Text>
+          </View>
+        ) : null}
+        {user.premium ? (
+          <View style={styles.premiumBadge} accessibilityLabel={user.premium.label}>
+            <Text style={styles.premiumBadgeText}>◆ {user.premium.label}</Text>
+          </View>
+        ) : null}
+        {user.staff ? (
+          <View style={styles.staffBadge} accessibilityLabel={`${user.staff.label}, ${user.staff.role}`}>
+            <Text style={styles.staffBadgeText}>🛡️ {user.staff.label} · {user.staff.role}</Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={styles.handle}>@{user.username}</Text>
       <Text style={styles.muted}>{user.email}</Text>
       <Text style={styles.accountId}>ID compte : {user.accountId ?? user.id}</Text>
 
       <View style={styles.statsRow}>
         <View style={styles.stat}><Text style={styles.statValue}>{user.knowCoins ?? 0}</Text><Text style={styles.muted}>KnowCoins</Text></View>
-        <View style={styles.stat}><Text style={styles.statValue}>Alpha</Text><Text style={styles.muted}>Version</Text></View>
+        <View style={styles.stat}><Text style={styles.statValue}>{user.verification ? 'Vérifié' : 'Actif'}</Text><Text style={styles.muted}>Identité</Text></View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Identité et confiance</Text>
+        <Text style={styles.description}>
+          Consulte ton historique, soumets une référence de preuve ou retire une demande encore ouverte.
+        </Text>
+        <Button title="Gérer ma vérification" secondary onPress={onOpenVerification} />
       </View>
 
       <View style={styles.card}>
@@ -214,8 +257,12 @@ const styles = StyleSheet.create({
   handle: { color: '#45e6bd', fontWeight: '800' },
   muted: { color: '#91a79e' },
   accountId: { color: '#789187', fontSize: 12 },
-  staffBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
-  staffShield: { fontSize: 15 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  verificationBadge: { borderColor: '#65b7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(101,183,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
+  verificationBadgeText: { color: '#65b7ff', fontWeight: '900', fontSize: 13 },
+  premiumBadge: { borderColor: '#d8a7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(216,167,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
+  premiumBadgeText: { color: '#d8a7ff', fontWeight: '900', fontSize: 13 },
+  staffBadge: { borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
   staffBadgeText: { color: '#f4c95d', fontWeight: '900', fontSize: 13 },
   statsRow: { flexDirection: 'row', gap: 12 },
   stat: { flex: 1, backgroundColor: '#10231d', borderRadius: 18, padding: 14 },
@@ -228,6 +275,8 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 100 },
   button: { backgroundColor: '#45e6bd', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
   buttonText: { color: '#052017', fontWeight: '900' },
+  secondaryButton: { backgroundColor: 'transparent', borderColor: '#65b7ff', borderWidth: 1 },
+  secondaryButtonText: { color: '#65b7ff' },
   buttonMuted: { opacity: 0.45 },
   dangerZone: { borderColor: '#784a35' },
   dangerHeading: { color: '#ff9d66', fontSize: 19, fontWeight: '900' },
