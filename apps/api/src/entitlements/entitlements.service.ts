@@ -179,7 +179,7 @@ export class EntitlementsService {
     actorId: string,
     action: string,
     entityId: string,
-    metadata: Record<string, unknown>
+    metadata: Prisma.InputJsonObject
   ) {
     return this.prisma.auditLog.create({
       data: {
