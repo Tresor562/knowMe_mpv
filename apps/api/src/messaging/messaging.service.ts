@@ -187,6 +187,7 @@ export class MessagingService {
       select: { conversationId: true, userId: true, lastReadAt: true }
     });
 
+    await this.realtime.emitConversationRead(conversationId, membership);
     return { ...membership, unread: 0 };
   }
 
@@ -237,7 +238,14 @@ export class MessagingService {
       return created;
     });
 
-    this.realtime.emitMessageCreated(conversationId, message);
+    await Promise.all([
+      this.realtime.emitMessageCreated(conversationId, message),
+      this.realtime.emitConversationRead(conversationId, {
+        userId,
+        lastReadAt: message.createdAt
+      })
+    ]);
+
     return message;
   }
 
