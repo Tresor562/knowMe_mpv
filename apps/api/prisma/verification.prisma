@@ -1,18 +1,19 @@
 model VerificationRequest {
-  id             String    @id @default(cuid())
-  userId         String
-  subjectType    String    @default("PERSON")
-  status         String    @default("DRAFT")
-  countryCode    String
-  publicCategory String    @default("PERSON")
-  publicReason   String?
-  termsVersion   String
-  submittedAt    DateTime?
+  id              String    @id @default(cuid())
+  userId          String
+  activeKey       String?   @unique
+  subjectType     String    @default("PERSON")
+  status          String    @default("DRAFT")
+  countryCode     String
+  publicCategory  String    @default("PERSON")
+  publicReason    String?
+  termsVersion    String
+  submittedAt     DateTime?
   reviewStartedAt DateTime?
-  resolvedAt     DateTime?
-  cancelledAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  resolvedAt      DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   documents VerificationDocument[]
   decisions VerificationDecision[]
