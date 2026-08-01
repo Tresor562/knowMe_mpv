@@ -701,7 +701,6 @@ export class BillingService implements OnModuleInit {
         await tx.entitlementGrant.update({
           where: { id: current.id },
           data: {
-            startsAt: periodStart,
             expiresAt: periodEnd,
             reason: 'Droit synchronisé depuis un abonnement vérifié.'
           }
