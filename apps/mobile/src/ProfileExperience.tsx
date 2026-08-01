@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { VerificationExperience } from './VerificationExperience';
 
 export type MobileUser = {
   id: string;
@@ -27,6 +28,13 @@ export type MobileUser = {
     label: string;
     shield: string;
     role: string;
+  } | null;
+  verified?: {
+    verified: true;
+    label: string;
+    category: string;
+    verifiedAt: string;
+    expiresAt?: string | null;
   } | null;
 };
 
@@ -158,6 +166,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted 
           <Text style={styles.staffBadgeText}>{user.staff.label} · {user.staff.role}</Text>
         </View>
       ) : null}
+      {user.verified ? (
+        <View style={styles.verifiedBadge} accessibilityLabel={`${user.verified.label}, compte certifié`}>
+          <Text style={styles.verifiedBadgeText}>✓ {user.verified.label} · {user.verified.category}</Text>
+        </View>
+      ) : null}
       <Text style={styles.handle}>@{user.username}</Text>
       <Text style={styles.muted}>{user.email}</Text>
       <Text style={styles.accountId}>ID compte : {user.accountId ?? user.id}</Text>
@@ -166,6 +179,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted 
         <View style={styles.stat}><Text style={styles.statValue}>{user.knowCoins ?? 0}</Text><Text style={styles.muted}>KnowCoins</Text></View>
         <View style={styles.stat}><Text style={styles.statValue}>Alpha</Text><Text style={styles.muted}>Version</Text></View>
       </View>
+
+      <VerificationExperience />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Modifier mon profil</Text>
@@ -217,6 +232,8 @@ const styles = StyleSheet.create({
   staffBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
   staffShield: { fontSize: 15 },
   staffBadgeText: { color: '#f4c95d', fontWeight: '900', fontSize: 13 },
+  verifiedBadge: { alignSelf: 'flex-start', borderColor: '#6cb8ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(108,184,255,0.09)', paddingHorizontal: 12, paddingVertical: 8 },
+  verifiedBadgeText: { color: '#9fd0ff', fontWeight: '900', fontSize: 13 },
   statsRow: { flexDirection: 'row', gap: 12 },
   stat: { flex: 1, backgroundColor: '#10231d', borderRadius: 18, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 22, fontWeight: '900', marginBottom: 4 },
