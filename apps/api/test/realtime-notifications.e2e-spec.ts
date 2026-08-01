@@ -135,14 +135,7 @@ describe('KnowMe structured notifications (e2e)', () => {
     );
 
     expect(aliceBusinessItems).toHaveLength(5);
-    expect(aliceSecurityItems).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'SECURITY_SESSION_CREATED',
-          data: expect.objectContaining({ route: '/security' })
-        })
-      ])
-    );
+    expect(aliceSecurityItems).toEqual([]);
     expect(aliceBusinessItems).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -180,7 +173,7 @@ describe('KnowMe structured notifications (e2e)', () => {
     await request(app.getHttpServer())
       .get('/notifications/unread-count')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
-      .expect(200, { count: 6 });
+      .expect(200, { count: 5 });
 
     const firstBusiness = aliceBusinessItems[0];
     expect(firstBusiness).toBeDefined();
@@ -194,14 +187,14 @@ describe('KnowMe structured notifications (e2e)', () => {
     await request(app.getHttpServer())
       .get('/notifications/unread-count')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
-      .expect(200, { count: 5 });
+      .expect(200, { count: 4 });
 
     const allRead = await request(app.getHttpServer())
       .patch('/notifications/read-all')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200);
 
-    expect(allRead.body).toMatchObject({ count: 5 });
+    expect(allRead.body).toMatchObject({ count: 4 });
     expect(allRead.body.readAt).toEqual(expect.any(String));
 
     await request(app.getHttpServer())
@@ -217,10 +210,6 @@ describe('KnowMe structured notifications (e2e)', () => {
     expect(
       businessNotifications(charlieNotifications.body as NotificationRecord[])
     ).toEqual([]);
-    expect(charlieNotifications.body).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: 'SECURITY_SESSION_CREATED' })
-      ])
-    );
+    expect(charlieNotifications.body).toEqual([]);
   });
 });
