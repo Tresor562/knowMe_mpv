@@ -11,6 +11,7 @@ export const PERMISSIONS = {
   REWARDS_MANAGE: 'rewards.manage',
   BILLING_MANAGE: 'billing.manage',
   VERIFICATION_MANAGE: 'verification.manage',
+  PRIVACY_MANAGE: 'privacy.manage',
   RBAC_MANAGE: 'rbac.manage'
 } as const;
 
@@ -27,6 +28,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.REWARDS_MANAGE, 'Gérer les politiques et événements de récompense.'],
   [PERMISSIONS.BILLING_MANAGE, 'Gérer les plans, prix et abonnements vérifiés.'],
   [PERMISSIONS.VERIFICATION_MANAGE, 'Examiner et révoquer les identités vérifiées.'],
+  [PERMISSIONS.PRIVACY_MANAGE, 'Publier les politiques et exécuter les règles de conservation.'],
   [PERMISSIONS.RBAC_MANAGE, 'Attribuer et révoquer les rôles d’accès.']
 ] as const;
 
