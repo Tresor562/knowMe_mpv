@@ -15,6 +15,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
+import { IntegrityModule } from './integrity/integrity.module';
 import { MediaModule } from './media/media.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -22,6 +23,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { RequestContextMiddleware } from './observability/request-context.middleware';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PurchasesModule } from './purchases/purchases.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
@@ -56,6 +58,8 @@ import { WalletModule } from './wallet/wallet.module';
     RealtimeModule,
     MediaModule,
     IntelligenceModule,
+    IntegrityModule,
+    PurchasesModule,
     SocialModule,
     AccountModule,
     ReportsModule,
