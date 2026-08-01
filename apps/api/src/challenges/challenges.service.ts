@@ -255,84 +255,96 @@ export class ChallengesService {
     const nextVersion = challenge.currentVersion + 1;
     const creatorParticipation = challenge.participants[0];
 
-    await this.prisma.$transaction(
-      async (tx) => {
-        await tx.challengeVersion.upsert({
-          where: {
-            challengeId_version: {
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          await tx.challengeVersion.upsert({
+            where: {
+              challengeId_version: {
+                challengeId,
+                version: challenge.currentVersion
+              }
+            },
+            create: {
               challengeId,
-              version: challenge.currentVersion
-            }
-          },
-          create: {
-            challengeId,
-            version: challenge.currentVersion,
-            title: challenge.title,
-            description: challenge.description,
-            visibility: challenge.visibility,
-            questionCount: challenge.questions.length,
-            createdById: userId,
-            changeReason: 'Version historique importée automatiquement.'
-          },
-          update: {}
-        });
-
-        const updated = await tx.challenge.updateMany({
-          where: {
-            id: challengeId,
-            creatorId: userId,
-            status: 'ACTIVE',
-            currentVersion: dto.expectedVersion
-          },
-          data: {
-            title,
-            description,
-            visibility,
-            currentVersion: nextVersion
-          }
-        });
-
-        if (updated.count !== 1) {
-          throw new ConflictException(
-            'Une autre modification a été publiée simultanément. Recharge le défi.'
-          );
-        }
-
-        await tx.challengeVersion.create({
-          data: {
-            challengeId,
-            version: nextVersion,
-            title,
-            description,
-            visibility,
-            questionCount: questions.length,
-            createdById: userId,
-            changeReason: dto.changeReason.trim()
-          }
-        });
-
-        await tx.challengeQuestion.createMany({
-          data: questions.map((prompt, position) => ({
-            challengeId,
-            version: nextVersion,
-            prompt,
-            position
-          }))
-        });
-
-        if (
-          creatorParticipation &&
-          !creatorParticipation.completedAt &&
-          creatorParticipation._count.answers === 0
-        ) {
-          await tx.challengeParticipant.update({
-            where: { id: creatorParticipation.id },
-            data: { challengeVersion: nextVersion }
+              version: challenge.currentVersion,
+              title: challenge.title,
+              description: challenge.description,
+              visibility: challenge.visibility,
+              questionCount: challenge.questions.length,
+              createdById: userId,
+              changeReason: 'Version historique importée automatiquement.'
+            },
+            update: {}
           });
-        }
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    );
+
+          const updated = await tx.challenge.updateMany({
+            where: {
+              id: challengeId,
+              creatorId: userId,
+              status: 'ACTIVE',
+              currentVersion: dto.expectedVersion
+            },
+            data: {
+              title,
+              description,
+              visibility,
+              currentVersion: nextVersion
+            }
+          });
+
+          if (updated.count !== 1) {
+            throw new ConflictException(
+              'Une autre modification a été publiée simultanément. Recharge le défi.'
+            );
+          }
+
+          await tx.challengeVersion.create({
+            data: {
+              challengeId,
+              version: nextVersion,
+              title,
+              description,
+              visibility,
+              questionCount: questions.length,
+              createdById: userId,
+              changeReason: dto.changeReason.trim()
+            }
+          });
+
+          await tx.challengeQuestion.createMany({
+            data: questions.map((prompt, position) => ({
+              challengeId,
+              version: nextVersion,
+              prompt,
+              position
+            }))
+          });
+
+          if (
+            creatorParticipation &&
+            !creatorParticipation.completedAt &&
+            creatorParticipation._count.answers === 0
+          ) {
+            await tx.challengeParticipant.update({
+              where: { id: creatorParticipation.id },
+              data: { challengeVersion: nextVersion }
+            });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2002' || error.code === 'P2034')
+      ) {
+        throw new ConflictException(
+          'Une autre modification a été publiée simultanément. Recharge le défi.'
+        );
+      }
+      throw error;
+    }
 
     await this.audit.record({
       actorId: userId,
