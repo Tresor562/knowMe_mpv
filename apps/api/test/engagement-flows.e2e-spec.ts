@@ -82,7 +82,11 @@ describe('KnowMe engagement flows (e2e)', () => {
       .send({ memberIds: [bob.body.user.id] })
       .expect(201);
 
-    for (const content of ['Premier message', 'Deuxième message', 'Troisième message']) {
+    for (const content of [
+      'Premier message',
+      'Deuxième message',
+      'Troisième message'
+    ]) {
       await request(app.getHttpServer())
         .post(`/conversations/${conversation.body.id}/messages`)
         .set('Authorization', `Bearer ${alice.body.accessToken}`)
@@ -98,5 +102,74 @@ describe('KnowMe engagement flows (e2e)', () => {
     expect(history.body.items).toHaveLength(2);
     expect(history.body.nextCursor).toEqual(expect.any(String));
     expect(history.body.items[1].content).toBe('Troisième message');
+  });
+
+  it('engages with a post and notifies its author', async () => {
+    const author = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'author.s3@knowme.test',
+        username: 'author_s3',
+        displayName: 'Author Sprint 3',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const reader = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'reader.s3@knowme.test',
+        username: 'reader_s3',
+        displayName: 'Reader Sprint 3',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const post = await request(app.getHttpServer())
+      .post('/posts')
+      .set('Authorization', `Bearer ${author.body.accessToken}`)
+      .send({ content: 'Mon premier souvenir partagé sur KnowMe.' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/posts/${post.body.id}/like`)
+      .set('Authorization', `Bearer ${reader.body.accessToken}`)
+      .expect(201, { liked: true });
+
+    const comment = await request(app.getHttpServer())
+      .post(`/posts/${post.body.id}/comments`)
+      .set('Authorization', `Bearer ${reader.body.accessToken}`)
+      .send({ content: 'Très beau souvenir !' })
+      .expect(201);
+
+    expect(comment.body.content).toBe('Très beau souvenir !');
+
+    const detail = await request(app.getHttpServer())
+      .get(`/posts/${post.body.id}`)
+      .expect(200);
+
+    expect(detail.body._count).toMatchObject({ likes: 1, comments: 1 });
+    expect(detail.body.comments[0].author.id).toBe(reader.body.user.id);
+
+    const unread = await request(app.getHttpServer())
+      .get('/notifications/unread-count')
+      .set('Authorization', `Bearer ${author.body.accessToken}`)
+      .expect(200);
+
+    expect(unread.body.count).toBe(2);
+
+    await request(app.getHttpServer())
+      .delete(`/posts/${post.body.id}`)
+      .set('Authorization', `Bearer ${reader.body.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/posts/${post.body.id}`)
+      .set('Authorization', `Bearer ${author.body.accessToken}`)
+      .expect(200, { deleted: true });
+
+    await request(app.getHttpServer())
+      .get(`/posts/${post.body.id}`)
+      .expect(404);
   });
 });
