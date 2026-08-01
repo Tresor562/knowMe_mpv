@@ -35,26 +35,27 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  sentFriendships      Friendship[]        @relation("FriendshipRequester")
-  receivedFriendships  Friendship[]        @relation("FriendshipAddressee")
-  challengesCreated    Challenge[]         @relation("ChallengeCreator")
-  challengeEntries     ChallengeParticipant[]
-  sentMessages         Message[]
-  memberships          ConversationMember[]
-  posts                Post[]
-  postLikes            PostLike[]
-  postComments         PostComment[]
-  notifications        Notification[]
-  reports              Report[]
-  interests            UserInterest[]
-  authSessions         AuthSession[]
-  featureFlagOverrides FeatureFlagOverride[]
-  entitlementGrants    EntitlementGrant[]
-  staffAccount         StaffAccount?
-  accessRoleGrants     UserRoleGrant[]
-  knowCoinWallet       KnowCoinWallet?
-  knowCoinLedger       KnowCoinLedgerEntry[]
-  rewardEvents         RewardEvent[]
+  sentFriendships         Friendship[]        @relation("FriendshipRequester")
+  receivedFriendships     Friendship[]        @relation("FriendshipAddressee")
+  challengesCreated       Challenge[]         @relation("ChallengeCreator")
+  challengeVersionsCreated ChallengeVersion[] @relation("ChallengeVersionCreator")
+  challengeEntries        ChallengeParticipant[]
+  sentMessages            Message[]
+  memberships             ConversationMember[]
+  posts                   Post[]
+  postLikes               PostLike[]
+  postComments            PostComment[]
+  notifications           Notification[]
+  reports                 Report[]
+  interests               UserInterest[]
+  authSessions            AuthSession[]
+  featureFlagOverrides    FeatureFlagOverride[]
+  entitlementGrants       EntitlementGrant[]
+  staffAccount            StaffAccount?
+  accessRoleGrants        UserRoleGrant[]
+  knowCoinWallet          KnowCoinWallet?
+  knowCoinLedger          KnowCoinLedgerEntry[]
+  rewardEvents            RewardEvent[]
 }
 
 model Friendship {
@@ -73,22 +74,45 @@ model Friendship {
 }
 
 model Challenge {
-  id          String          @id @default(cuid())
-  title       String
-  description String?
-  status      ChallengeStatus @default(DRAFT)
-  creatorId   String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  title          String
+  description    String?
+  visibility     String          @default("PRIVATE")
+  currentVersion Int             @default(1)
+  status         ChallengeStatus @default(DRAFT)
+  creatorId      String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   creator      User                   @relation("ChallengeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  versions     ChallengeVersion[]
   questions    ChallengeQuestion[]
   participants ChallengeParticipant[]
+}
+
+model ChallengeVersion {
+  id            String   @id @default(cuid())
+  challengeId   String
+  version       Int
+  title         String
+  description   String?
+  visibility    String   @default("PRIVATE")
+  questionCount Int
+  createdById   String
+  changeReason  String?
+  createdAt     DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("ChallengeVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([challengeId, version])
+  @@index([challengeId, createdAt])
 }
 
 model ChallengeQuestion {
   id          String   @id @default(cuid())
   challengeId String
+  version     Int      @default(1)
   prompt      String
   position    Int
   createdAt   DateTime @default(now())
@@ -96,22 +120,25 @@ model ChallengeQuestion {
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   answers   ChallengeAnswer[]
 
-  @@unique([challengeId, position])
+  @@unique([challengeId, version, position])
+  @@index([challengeId, version])
 }
 
 model ChallengeParticipant {
-  id          String   @id @default(cuid())
-  challengeId String
-  userId      String
-  score       Int      @default(0)
-  completedAt DateTime?
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  challengeId      String
+  userId           String
+  challengeVersion Int      @default(1)
+  score             Int      @default(0)
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
 
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   answers   ChallengeAnswer[]
 
   @@unique([challengeId, userId])
+  @@index([challengeId, challengeVersion])
 }
 
 model ChallengeAnswer {
