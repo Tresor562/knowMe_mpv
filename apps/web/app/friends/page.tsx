@@ -1,10 +1,11 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { AccountBadges, AccountBadgeSet } from '../../components/AccountBadges';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
-type UserResult = {
+type UserResult = AccountBadgeSet & {
   id: string;
   username: string;
   displayName: string;
@@ -21,6 +22,22 @@ type Friend = {
   friendshipId: string;
   user: UserResult;
 };
+
+function ProfileSummary({ user }: { user: UserResult }) {
+  return (
+    <div>
+      <strong>{user.displayName}</strong>
+      <AccountBadges
+        compact
+        staff={user.staff}
+        verification={user.verification}
+        premium={user.premium}
+      />
+      <div style={{ color: 'var(--muted)' }}>@{user.username}</div>
+      {user.bio && <small>{user.bio}</small>}
+    </div>
+  );
+}
 
 export default function FriendsPage() {
   const { loading: sessionLoading } = useSession({ required: true });
@@ -44,7 +61,7 @@ export default function FriendsPage() {
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading) loadSocialData();
+    if (!sessionLoading) void loadSocialData();
   }, [loadSocialData, sessionLoading]);
 
   async function search(event: FormEvent<HTMLFormElement>) {
@@ -53,9 +70,13 @@ export default function FriendsPage() {
     const query = String(form.get('query') ?? '').trim();
 
     try {
-      const data = await apiFetch<UserResult[]>(`/social/search?q=${encodeURIComponent(query)}`);
+      const data = await apiFetch<UserResult[]>(
+        `/social/search?q=${encodeURIComponent(query)}`
+      );
       setResults(data);
-      setMessage(data.length ? `${data.length} profil(s) trouvé(s).` : 'Aucun profil trouvé.');
+      setMessage(
+        data.length ? `${data.length} profil(s) trouvé(s).` : 'Aucun profil trouvé.'
+      );
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Recherche impossible.');
     }
@@ -79,7 +100,9 @@ export default function FriendsPage() {
   async function respond(id: string, action: 'accept' | 'decline') {
     setBusyId(id);
     try {
-      await apiFetch(`/social/friend-requests/${id}/${action}`, { method: 'PATCH' });
+      await apiFetch(`/social/friend-requests/${id}/${action}`, {
+        method: 'PATCH'
+      });
       await loadSocialData();
       setMessage(action === 'accept' ? 'Demande acceptée.' : 'Demande refusée.');
     } catch (cause) {
@@ -105,29 +128,66 @@ export default function FriendsPage() {
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   return (
-    <main className="shell" style={{maxWidth:920,margin:'0 auto'}}>
+    <main className="shell" style={{ maxWidth: 920, margin: '0 auto' }}>
       <header>
-        <small style={{color:'var(--mint)'}}>CONNEXIONS</small>
+        <small style={{ color: 'var(--mint)' }}>CONNEXIONS</small>
         <h1>Amis et découvertes</h1>
+        <p style={{ color: 'var(--muted)' }}>
+          Les badges Vérifié, Premium et Équipe KnowMe sont fournis séparément par le serveur.
+        </p>
       </header>
 
-      <form className="card" onSubmit={search} style={{padding:18,display:'flex',gap:10,flexWrap:'wrap'}}>
-        <input className="input" name="query" placeholder="Nom, pseudo ou centre d’intérêt..." minLength={2} required style={{flex:1}} />
+      <form
+        className="card"
+        onSubmit={search}
+        style={{ padding: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}
+      >
+        <input
+          className="input"
+          name="query"
+          placeholder="Nom, pseudo ou centre d’intérêt..."
+          minLength={2}
+          required
+          style={{ flex: 1 }}
+        />
         <button className="btn btn-primary">Rechercher</button>
       </form>
 
-      {message && <p style={{color:'var(--muted)'}}>{message}</p>}
+      {message && <p style={{ color: 'var(--muted)' }}>{message}</p>}
 
       {requests.length > 0 && (
-        <section style={{marginTop:24}}>
+        <section style={{ marginTop: 24 }}>
           <h2>Demandes reçues</h2>
           <div className="grid">
-            {requests.map(({id, requester}) => (
-              <article className="card" key={id} style={{padding:18,display:'flex',gap:14,alignItems:'center',justifyContent:'space-between'}}>
-                <div><strong>{requester.displayName}</strong><div style={{color:'var(--muted)'}}>@{requester.username}</div></div>
-                <div style={{display:'flex',gap:8}}>
-                  <button className="btn btn-primary" disabled={busyId===id} onClick={() => respond(id,'accept')}>Accepter</button>
-                  <button className="btn" disabled={busyId===id} onClick={() => respond(id,'decline')}>Refuser</button>
+            {requests.map(({ id, requester }) => (
+              <article
+                className="card"
+                key={id}
+                style={{
+                  padding: 18,
+                  display: 'flex',
+                  gap: 14,
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <ProfileSummary user={requester} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn btn-primary"
+                    disabled={busyId === id}
+                    onClick={() => void respond(id, 'accept')}
+                  >
+                    Accepter
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={busyId === id}
+                    onClick={() => void respond(id, 'decline')}
+                  >
+                    Refuser
+                  </button>
                 </div>
               </article>
             ))}
@@ -135,28 +195,86 @@ export default function FriendsPage() {
         </section>
       )}
 
-      <section style={{marginTop:24}}>
+      <section style={{ marginTop: 24 }}>
         <h2>Mes amis ({friends.length})</h2>
         <div className="grid">
-          {friends.map(({friendshipId,user}) => (
-            <article className="card" key={friendshipId} style={{padding:18,display:'grid',gridTemplateColumns:'52px 1fr auto',gap:14,alignItems:'center'}}>
-              <div style={{width:52,height:52,borderRadius:'50%',background:'var(--surface-2)',display:'grid',placeItems:'center',fontWeight:900}}>{user.displayName[0]}</div>
-              <div><strong>{user.displayName}</strong><div style={{color:'var(--muted)'}}>@{user.username}</div>{user.bio && <small>{user.bio}</small>}</div>
-              <button className="btn" disabled={busyId===friendshipId} onClick={() => removeFriend(friendshipId)}>Retirer</button>
+          {friends.map(({ friendshipId, user }) => (
+            <article
+              className="card"
+              key={friendshipId}
+              style={{
+                padding: 18,
+                display: 'grid',
+                gridTemplateColumns: '52px 1fr auto',
+                gap: 14,
+                alignItems: 'center'
+              }}
+            >
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: 'var(--surface-2)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 900
+                }}
+              >
+                {user.displayName[0]}
+              </div>
+              <ProfileSummary user={user} />
+              <button
+                className="btn"
+                disabled={busyId === friendshipId}
+                onClick={() => void removeFriend(friendshipId)}
+              >
+                Retirer
+              </button>
             </article>
           ))}
-          {!friends.length && <p style={{color:'var(--muted)'}}>Aucun ami pour le moment.</p>}
+          {!friends.length && (
+            <p style={{ color: 'var(--muted)' }}>Aucun ami pour le moment.</p>
+          )}
         </div>
       </section>
 
-      <section style={{marginTop:24}}>
+      <section style={{ marginTop: 24 }}>
         <h2>Résultats</h2>
         <div className="grid">
           {results.map((user) => (
-            <article className="card" key={user.id} style={{padding:20,display:'grid',gridTemplateColumns:'56px 1fr auto',gap:16,alignItems:'center'}}>
-              <div style={{width:56,height:56,borderRadius:'50%',background:'var(--surface-2)',display:'grid',placeItems:'center',fontWeight:900}}>{user.displayName[0]}</div>
-              <div><strong>{user.displayName}</strong><div style={{color:'var(--muted)'}}>@{user.username}</div>{user.bio && <p>{user.bio}</p>}</div>
-              <button className="btn btn-accent" disabled={busyId===user.id} onClick={() => addFriend(user.id)}>{busyId===user.id ? 'Envoi…' : 'Ajouter'}</button>
+            <article
+              className="card"
+              key={user.id}
+              style={{
+                padding: 20,
+                display: 'grid',
+                gridTemplateColumns: '56px 1fr auto',
+                gap: 16,
+                alignItems: 'center'
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  background: 'var(--surface-2)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 900
+                }}
+              >
+                {user.displayName[0]}
+              </div>
+              <ProfileSummary user={user} />
+              <button
+                className="btn btn-accent"
+                disabled={busyId === user.id}
+                onClick={() => void addFriend(user.id)}
+              >
+                {busyId === user.id ? 'Envoi…' : 'Ajouter'}
+              </button>
             </article>
           ))}
         </div>
