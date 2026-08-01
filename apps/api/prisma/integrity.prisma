@@ -20,6 +20,7 @@ model DeviceAttestation {
   sessionId      String
   deviceId       String
   platform       String
+  action         String
   provider       String
   appIdentifier  String
   keyIdentifier  String?
@@ -32,7 +33,7 @@ model DeviceAttestation {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@index([userId, deviceId, platform, expiresAt, revokedAt])
+  @@index([userId, deviceId, platform, action, expiresAt, revokedAt])
   @@index([provider, appIdentifier, verdict])
 }
 
