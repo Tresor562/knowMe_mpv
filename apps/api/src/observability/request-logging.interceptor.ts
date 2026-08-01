@@ -1,15 +1,22 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpException,
   Injectable,
   NestInterceptor
 } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
 import { RequestContextService } from './request-context.service';
 
-type AuthenticatedRequest = Request & {
+type AuthenticatedRequest = {
   user?: { userId?: string };
+  method: string;
+  originalUrl?: string;
+  url: string;
+};
+
+type LoggingResponse = {
+  statusCode: number;
 };
 
 @Injectable()
@@ -21,24 +28,28 @@ export class RequestLoggingInterceptor implements NestInterceptor {
 
     const http = executionContext.switchToHttp();
     const request = http.getRequest<AuthenticatedRequest>();
-    const response = http.getResponse<Response>();
+    const response = http.getResponse<LoggingResponse>();
     const startedAt = Date.now();
 
     return next.handle().pipe(
       tap({
         next: () => this.log(request, response, startedAt, false),
-        error: () => this.log(request, response, startedAt, true)
+        error: (error: unknown) =>
+          this.log(request, response, startedAt, true, error)
       })
     );
   }
 
   private log(
     request: AuthenticatedRequest,
-    response: Response,
+    response: LoggingResponse,
     startedAt: number,
-    failed: boolean
+    failed: boolean,
+    error?: unknown
   ) {
     const store = this.context.get();
+    const statusCode =
+      error instanceof HttpException ? error.getStatus() : response.statusCode;
     const record = {
       level: failed ? 'warn' : 'info',
       event: 'http.request.completed',
@@ -47,7 +58,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
       accountId: request.user?.userId,
       method: request.method,
       path: (request.originalUrl || request.url).split('?')[0],
-      statusCode: response.statusCode,
+      statusCode,
       durationMs: Date.now() - startedAt
     };
 
