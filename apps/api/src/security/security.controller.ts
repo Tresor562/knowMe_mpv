@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -85,7 +86,7 @@ export class SecurityController {
     @Ip() ipAddress?: string
   ) {
     if (!req.user.sessionId) {
-      throw new Error('Session ID missing from authenticated request.');
+      throw new UnauthorizedException('Session authentifiée requise.');
     }
     return this.security.reauthenticate(
       req.user.userId,
