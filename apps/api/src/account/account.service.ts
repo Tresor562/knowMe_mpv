@@ -4,12 +4,16 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { VerificationPrivacyService } from '../verification/verification-privacy.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AccountService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly verificationPrivacy: VerificationPrivacyService
+  ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
     return this.prisma.user.update({
@@ -33,48 +37,51 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        interests: {
-          include: { interest: true }
-        },
-        posts: {
-          include: {
-            comments: true,
-            likes: true
-          }
-        },
-        challengeEntries: {
-          include: {
-            answers: true,
-            challenge: {
-              include: { questions: true }
+    const [user, verification] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          interests: {
+            include: { interest: true }
+          },
+          posts: {
+            include: {
+              comments: true,
+              likes: true
+            }
+          },
+          challengeEntries: {
+            include: {
+              answers: true,
+              challenge: {
+                include: { questions: true }
+              }
+            }
+          },
+          sentMessages: true,
+          memberships: {
+            include: {
+              conversation: true
+            }
+          },
+          sentFriendships: true,
+          receivedFriendships: true,
+          notifications: true,
+          authSessions: {
+            select: {
+              id: true,
+              userAgent: true,
+              ipAddress: true,
+              createdAt: true,
+              updatedAt: true,
+              expiresAt: true,
+              revokedAt: true
             }
           }
-        },
-        sentMessages: true,
-        memberships: {
-          include: {
-            conversation: true
-          }
-        },
-        sentFriendships: true,
-        receivedFriendships: true,
-        notifications: true,
-        authSessions: {
-          select: {
-            id: true,
-            userAgent: true,
-            ipAddress: true,
-            createdAt: true,
-            updatedAt: true,
-            expiresAt: true,
-            revokedAt: true
-          }
         }
-      }
-    });
+      }),
+      this.verificationPrivacy.exportForAccount(userId)
+    ]);
 
     if (!user) {
       throw new UnauthorizedException('Compte introuvable.');
@@ -87,8 +94,9 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 1,
-      account: safeUser
+      formatVersion: 2,
+      account: safeUser,
+      verification
     };
   }
 
@@ -104,6 +112,9 @@ export class AccountService {
       throw new UnauthorizedException('Mot de passe incorrect.');
     }
 
+    const privateStorageKeys =
+      await this.verificationPrivacy.storageKeysForAccount(userId);
+
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({
         data: {
@@ -113,15 +124,18 @@ export class AccountService {
           entityId: userId,
           metadata: {
             username: user.username,
-            requestedAt: new Date().toISOString()
+            requestedAt: new Date().toISOString(),
+            verificationDocumentsErased: privateStorageKeys.length
           }
         }
       });
 
-      await tx.user.delete({
-        where: { id: userId }
-      });
+      await tx.verifiedIdentity.deleteMany({ where: { userId } });
+      await tx.verificationRequest.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
     });
+
+    await this.verificationPrivacy.removePrivateFiles(privateStorageKeys);
 
     return {
       deleted: true
