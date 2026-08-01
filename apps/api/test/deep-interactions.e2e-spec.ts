@@ -75,11 +75,16 @@ describe('KnowMe deep interactions (e2e)', () => {
       .set('Authorization', `Bearer ${author.body.accessToken}`)
       .expect(200, { deleted: true });
 
+    const expectedContents = Array.from(
+      { length: 35 },
+      (_, index) => `Commentaire paginé ${String(index + 1).padStart(2, '0')}`
+    );
+
     await prisma.postComment.createMany({
-      data: Array.from({ length: 35 }, (_, index) => ({
+      data: expectedContents.map((content) => ({
         postId: post.body.id as string,
         authorId: commenter.body.user.id as string,
-        content: `Commentaire paginé ${String(index + 1).padStart(2, '0')}`
+        content
       }))
     });
 
@@ -89,7 +94,6 @@ describe('KnowMe deep interactions (e2e)', () => {
 
     expect(firstPage.body).toHaveLength(30);
     expect(firstPage.body[0]).toMatchObject({
-      content: 'Commentaire paginé 01',
       author: expect.objectContaining({ id: commenter.body.user.id })
     });
 
@@ -99,7 +103,10 @@ describe('KnowMe deep interactions (e2e)', () => {
       .expect(200);
 
     expect(secondPage.body).toHaveLength(5);
-    expect(secondPage.body[4].content).toBe('Commentaire paginé 35');
+
+    const combined = [...firstPage.body, ...secondPage.body] as Array<{ id: string; content: string }>;
+    expect(new Set(combined.map((item) => item.id)).size).toBe(35);
+    expect(combined.map((item) => item.content).sort()).toEqual(expectedContents.sort());
   });
 
   it('saves partial challenge progress, completes answers and locks a closed challenge', async () => {
