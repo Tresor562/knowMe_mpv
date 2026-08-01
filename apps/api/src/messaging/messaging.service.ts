@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -7,7 +8,8 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly realtime: RealtimeGateway
+    private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService
   ) {}
 
   createConversation(userId: string, dto: CreateConversationDto) {
@@ -72,7 +74,9 @@ export class MessagingService {
 
     return Promise.all(
       conversations.map(async (conversation) => {
-        const membership = conversation.members.find((member) => member.userId === userId);
+        const membership = conversation.members.find(
+          (member) => member.userId === userId
+        );
         const unreadCount = membership
           ? await this.prisma.message.count({
               where: {
@@ -194,7 +198,7 @@ export class MessagingService {
   async send(userId: string, conversationId: string, content: string) {
     await this.assertMember(userId, conversationId);
 
-    const message = await this.prisma.$transaction(async (tx) => {
+    const { message, recipients } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
         data: { conversationId, senderId: userId, content },
         include: {
@@ -209,7 +213,7 @@ export class MessagingService {
         }
       });
 
-      const recipients = await tx.conversationMember.findMany({
+      const conversationRecipients = await tx.conversationMember.findMany({
         where: { conversationId, userId: { not: userId } },
         select: { userId: true }
       });
@@ -222,23 +226,33 @@ export class MessagingService {
         tx.conversationMember.update({
           where: { conversationId_userId: { conversationId, userId } },
           data: { lastReadAt: created.createdAt }
-        }),
-        recipients.length
-          ? tx.notification.createMany({
-              data: recipients.map((recipient) => ({
-                userId: recipient.userId,
-                type: 'MESSAGE',
-                title: `Nouveau message de ${created.sender.displayName}`,
-                body: content.length > 120 ? `${content.slice(0, 117)}…` : content
-              }))
-            })
-          : Promise.resolve()
+        })
       ]);
 
-      return created;
+      return { message: created, recipients: conversationRecipients };
     });
 
+    const preview =
+      content.length > 120 ? `${content.slice(0, 117)}…` : content;
+
     await Promise.all([
+      recipients.length
+        ? this.notifications.createMany(
+            recipients.map((recipient) => ({
+              userId: recipient.userId,
+              type: 'MESSAGE',
+              title: `Nouveau message de ${message.sender.displayName}`,
+              body: preview,
+              data: {
+                route: `/messages/${conversationId}`,
+                entityType: 'CONVERSATION',
+                entityId: conversationId,
+                messageId: message.id,
+                actorId: userId
+              }
+            }))
+          )
+        : Promise.resolve([]),
       this.realtime.emitMessageCreated(conversationId, message),
       this.realtime.emitConversationRead(conversationId, {
         userId,
