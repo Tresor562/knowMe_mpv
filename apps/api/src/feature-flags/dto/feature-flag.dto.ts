@@ -13,6 +13,7 @@ import {
 
 const FLAG_KEY = /^[a-z0-9][a-z0-9._-]{1,99}$/;
 const RISK_LEVELS = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'] as const;
+type RiskLevel = (typeof RISK_LEVELS)[number];
 
 export class CreateFeatureFlagDto {
   @IsString()
@@ -33,8 +34,8 @@ export class CreateFeatureFlagDto {
   exposeToClient?: boolean;
 
   @IsOptional()
-  @IsIn(RISK_LEVELS)
-  riskLevel?: (typeof RISK_LEVELS)[number];
+  @IsIn([...RISK_LEVELS])
+  riskLevel?: RiskLevel;
 
   @IsOptional()
   @IsString()
@@ -61,8 +62,8 @@ export class UpdateFeatureFlagDto {
   exposeToClient?: boolean;
 
   @IsOptional()
-  @IsIn(RISK_LEVELS)
-  riskLevel?: (typeof RISK_LEVELS)[number];
+  @IsIn([...RISK_LEVELS])
+  riskLevel?: RiskLevel;
 
   @IsOptional()
   @IsString()
