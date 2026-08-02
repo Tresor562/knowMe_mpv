@@ -56,7 +56,8 @@ export class AccountService {
       questContributions,
       achievementPreference,
       achievementGrants,
-      leaderboardPreference
+      leaderboardPreference,
+      dailyChestClaims
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -122,7 +123,11 @@ export class AccountService {
         include: { definition: true },
         orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }]
       }),
-      this.prisma.leaderboardPreference.findUnique({ where: { userId } })
+      this.prisma.leaderboardPreference.findUnique({ where: { userId } }),
+      this.prisma.dailyChestClaim.findMany({
+        where: { userId },
+        orderBy: [{ claimDate: 'desc' }, { id: 'desc' }]
+      })
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -169,6 +174,9 @@ export class AccountService {
       },
       leaderboards: {
         weeklyXpPreference: leaderboardPreference
+      },
+      dailyChest: {
+        claims: dailyChestClaims
       }
     };
   }
@@ -199,6 +207,7 @@ export class AccountService {
           }
         }
       });
+      await tx.dailyChestClaim.deleteMany({ where: { userId } });
       await tx.leaderboardPreference.deleteMany({ where: { userId } });
       await tx.userAchievementPreference.deleteMany({ where: { userId } });
       await tx.achievementGrant.deleteMany({ where: { userId } });
