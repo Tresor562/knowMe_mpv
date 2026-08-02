@@ -511,7 +511,7 @@ export class ChallengesService {
     });
     const completed = questions.length > 0 && answerCount === questions.length;
     let reward = null;
-    let completedAt = participant.completedAt;
+    let completedAt: Date | null = participant.completedAt;
 
     if (completed && !participant.completedAt) {
       completedAt = new Date();
