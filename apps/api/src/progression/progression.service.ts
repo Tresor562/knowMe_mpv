@@ -25,6 +25,7 @@ type AwardInput = {
 const CHALLENGE_COMPLETION_XP = 50;
 const MINIMUM_CHALLENGE_QUESTIONS = 3;
 const LEVEL_BASE_XP = 100;
+const SERIALIZABLE_ATTEMPTS = 3;
 
 @Injectable()
 export class ProgressionService {
@@ -64,7 +65,10 @@ export class ProgressionService {
   }
 
   async summary(userId: string, cursor?: string, limit = 30) {
-    const safeLimit = Math.min(Math.max(Number.isFinite(limit) ? limit : 30, 1), 100);
+    const safeLimit = Math.min(
+      Math.max(Number.isFinite(limit) ? limit : 30, 1),
+      100
+    );
     const [profile, entries] = await Promise.all([
       this.rebuildProjection(userId),
       this.prisma.xpLedgerEntry.findMany({
@@ -78,7 +82,11 @@ export class ProgressionService {
     const items = hasMore ? entries.slice(0, safeLimit) : entries;
 
     return {
-      profile: this.publicProfile(profile.totalXp, profile.level, profile.updatedAt),
+      profile: this.publicProfile(
+        profile.totalXp,
+        profile.level,
+        profile.updatedAt
+      ),
       items,
       nextCursor: hasMore ? items[items.length - 1]?.id ?? null : null,
       rules: {
@@ -98,7 +106,11 @@ export class ProgressionService {
       })
     ]);
     return {
-      profile: this.publicProfile(profile.totalXp, profile.level, profile.updatedAt),
+      profile: this.publicProfile(
+        profile.totalXp,
+        profile.level,
+        profile.updatedAt
+      ),
       ledger
     };
   }
@@ -123,9 +135,10 @@ export class ProgressionService {
       nextLevelXp,
       xpIntoLevel,
       xpToNextLevel: nextLevelXp - safeTotalXp,
-      progressPercent: levelSpan > 0
-        ? Math.min(100, Math.floor((xpIntoLevel / levelSpan) * 100))
-        : 100
+      progressPercent:
+        levelSpan > 0
+          ? Math.min(100, Math.floor((xpIntoLevel / levelSpan) * 100))
+          : 100
     };
   }
 
@@ -135,7 +148,7 @@ export class ProgressionService {
     });
     if (existing) return this.replay(existing);
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < SERIALIZABLE_ATTEMPTS; attempt += 1) {
       try {
         return await this.prisma.$transaction(
           async (tx) => {
@@ -195,7 +208,13 @@ export class ProgressionService {
           });
           if (duplicate) return this.replay(duplicate);
         }
-        if (this.isRetryableTransaction(error) && attempt < 2) continue;
+        if (
+          this.isRetryableTransaction(error) &&
+          attempt < SERIALIZABLE_ATTEMPTS - 1
+        ) {
+          await this.transactionBackoff(attempt);
+          continue;
+        }
         throw error;
       }
     }
@@ -203,7 +222,11 @@ export class ProgressionService {
     throw new BadRequestException('Progression temporairement indisponible.');
   }
 
-  private async ignored(userId: string, reasonCode: string, explanation: string) {
+  private async ignored(
+    userId: string,
+    reasonCode: string,
+    explanation: string
+  ) {
     const projection = await this.rebuildProjection(userId);
     return {
       awarded: false,
@@ -276,10 +299,25 @@ export class ProgressionService {
   }
 
   private async rebuildProjection(userId: string) {
-    return this.prisma.$transaction(
-      (tx) => this.projectionFromTransaction(tx, userId),
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    );
+    for (let attempt = 0; attempt < SERIALIZABLE_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(
+          (tx) => this.projectionFromTransaction(tx, userId),
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
+      } catch (error) {
+        if (
+          this.isRetryableTransaction(error) &&
+          attempt < SERIALIZABLE_ATTEMPTS - 1
+        ) {
+          await this.transactionBackoff(attempt);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('Progression temporairement indisponible.');
   }
 
   private async projectionFromTransaction(
@@ -312,11 +350,23 @@ export class ProgressionService {
     return LEVEL_BASE_XP * (normalizedLevel - 1) ** 2;
   }
 
+  private transactionBackoff(attempt: number) {
+    return new Promise<void>((resolve) => {
+      setTimeout(resolve, 10 * (attempt + 1));
+    });
+  }
+
   private isRetryableTransaction(error: unknown) {
-    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2034'
+    );
   }
 
   private isUniqueConflict(error: unknown) {
-    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 }
