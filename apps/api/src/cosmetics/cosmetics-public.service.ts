@@ -72,11 +72,14 @@ export class CosmeticsPublicService {
     });
     if (!target) throw new NotFoundException('Profil introuvable.');
 
-    const preferences = await this.prisma.privacyPreference.upsert({
-      where: { userId: target.id },
-      create: { userId: target.id },
-      update: {}
+    const storedPreferences = await this.prisma.privacyPreference.findUnique({
+      where: { userId: target.id }
     });
+    const preferences = storedPreferences ?? {
+      profileVisibility: 'FRIENDS',
+      cosmeticVisibility: 'FOLLOW_PROFILE',
+      hiddenCosmeticSlots: [] as string[]
+    };
     const effectiveVisibility = this.resolveVisibility(
       preferences.profileVisibility as Visibility,
       preferences.cosmeticVisibility as CosmeticVisibility
