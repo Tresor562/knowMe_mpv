@@ -162,8 +162,36 @@ describe('KnowMe authoritative XP progression (e2e)', () => {
     ]);
     expect(concurrentResponses.map((response) => response.status)).toEqual([201, 201]);
     expect(
-      concurrentResponses.map((response) => response.body.progression.replayed).sort()
-    ).toEqual([false, true]);
+      concurrentResponses.every(
+        (response) =>
+          response.body.progression.awarded === true &&
+          response.body.progression.amount === 50
+      )
+    ).toBe(true);
+
+    const concurrentParticipant = await prisma.challengeParticipant.findUnique({
+      where: {
+        challengeId_userId: {
+          challengeId: concurrent.body.id,
+          userId: playerId
+        }
+      }
+    });
+    expect(concurrentParticipant).not.toBeNull();
+    const concurrentEntries = await prisma.xpLedgerEntry.findMany({
+      where: {
+        idempotencyKey: `xp:challenge-completion:${concurrentParticipant!.id}`
+      }
+    });
+    expect(concurrentEntries).toHaveLength(1);
+    expect(concurrentEntries[0]).toEqual(
+      expect.objectContaining({
+        userId: playerId,
+        amount: 50,
+        source: 'CHALLENGE_COMPLETION',
+        referenceId: concurrentParticipant!.id
+      })
+    );
 
     const short = await createChallenge(creatorToken, 'short', 2);
     await join(playerToken, short.body.id);
