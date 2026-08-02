@@ -16,8 +16,10 @@ model CosmeticItemDefinition {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  ownerships CosmeticOwnership[]
-  equippedBy CosmeticEquipment[]
+  ownerships      CosmeticOwnership[]
+  equippedBy      CosmeticEquipment[]
+  offers          CosmeticOfferDefinition[]
+  purchaseReceipts CosmeticPurchaseReceipt[]
 
   @@unique([key, version])
   @@index([active, slot, startsAt, endsAt])
@@ -57,4 +59,44 @@ model CosmeticEquipment {
   @@unique([userId, slot])
   @@index([userId, updatedAt])
   @@index([itemId])
+}
+
+model CosmeticOfferDefinition {
+  id             String    @id @default(cuid())
+  key            String
+  version        Int
+  itemId         String
+  priceKnowCoins Int
+  active         Boolean   @default(false)
+  startsAt       DateTime  @default(now())
+  endsAt         DateTime?
+  createdById    String
+  reason         String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  item     CosmeticItemDefinition @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  receipts CosmeticPurchaseReceipt[]
+
+  @@unique([key, version])
+  @@index([active, startsAt, endsAt])
+  @@index([itemId, active, version])
+}
+
+model CosmeticPurchaseReceipt {
+  id             String   @id @default(cuid())
+  userId         String
+  offerId        String
+  itemId         String
+  priceKnowCoins Int
+  idempotencyKey String   @unique
+  ledgerEntryId  String   @unique
+  purchasedAt    DateTime @default(now())
+
+  offer CosmeticOfferDefinition @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  item  CosmeticItemDefinition  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, itemId])
+  @@index([userId, purchasedAt])
+  @@index([offerId, purchasedAt])
 }
