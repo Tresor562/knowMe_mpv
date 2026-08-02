@@ -12,6 +12,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { DailyChestModule } from './daily-chest/daily-chest.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { HealthController } from './health.controller';
@@ -59,6 +60,7 @@ import { WalletModule } from './wallet/wallet.module';
     QuestsModule,
     AchievementsModule,
     LeaderboardsModule,
+    DailyChestModule,
     BillingModule,
     VerificationModule,
     AuthModule,
