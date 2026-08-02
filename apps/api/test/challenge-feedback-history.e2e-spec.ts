@@ -280,7 +280,7 @@ describe('KnowMe challenge feedback and history (e2e)', () => {
       .get('/account/export')
       .set(auth(playerToken))
       .expect(200);
-    expect(exported.body.formatVersion).toBe(5);
+    expect(exported.body.formatVersion).toBe(6);
     expect(exported.body.challengeHistory).toEqual([
       expect.objectContaining({ participantId, score: 67 })
     ]);
