@@ -1,0 +1,50 @@
+model ConceptKCharacterDefinition {
+  id           String   @id @default(cuid())
+  key          String
+  version      Int
+  displayName  String
+  description  String
+  originalWork Boolean  @default(true)
+  licenseKey   String   @default("KNOWME_ORIGINAL")
+  active       Boolean  @default(false)
+  createdById  String
+  reason       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assets ConceptKAssetManifest[]
+
+  @@unique([key, version])
+  @@index([key, active, version])
+}
+
+model ConceptKAssetManifest {
+  id                String    @id @default(cuid())
+  key               String
+  version           Int
+  eventKey          String
+  characterId       String
+  variant           String
+  platform          String    @default("ALL")
+  deviceClass       String    @default("ALL")
+  publicUrl         String
+  sha256            String
+  bytes             Int
+  mimeType          String
+  durationMs        Int
+  active            Boolean   @default(false)
+  rolloutPercentage Int       @default(0)
+  startsAt          DateTime  @default(now())
+  endsAt            DateTime?
+  createdById       String
+  reason            String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  character ConceptKCharacterDefinition @relation(fields: [characterId], references: [id], onDelete: Restrict)
+
+  @@unique([key, version])
+  @@index([eventKey, variant, active, startsAt, endsAt])
+  @@index([platform, deviceClass, active])
+  @@index([characterId, active, version])
+}
