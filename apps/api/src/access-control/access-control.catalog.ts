@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   BILLING_MANAGE: 'billing.manage',
   PURCHASES_MANAGE: 'purchases.manage',
   VERIFICATION_MANAGE: 'verification.manage',
+  PRIVACY_MANAGE: 'privacy.manage',
   RBAC_MANAGE: 'rbac.manage'
 } as const;
 
@@ -29,6 +30,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.BILLING_MANAGE, 'Gérer les plans, prix et abonnements vérifiés.'],
   [PERMISSIONS.PURCHASES_MANAGE, 'Gérer les produits et examiner les achats vérifiés.'],
   [PERMISSIONS.VERIFICATION_MANAGE, 'Examiner et révoquer les identités vérifiées.'],
+  [PERMISSIONS.PRIVACY_MANAGE, 'Publier les politiques et exécuter les règles de conservation.'],
   [PERMISSIONS.RBAC_MANAGE, 'Attribuer et révoquer les rôles d’accès.']
 ] as const;
 

@@ -1,0 +1,111 @@
+model PrivacyPolicyVersion {
+  id          String    @id @default(cuid())
+  key         String
+  version     Int
+  locale      String    @default("fr")
+  title       String
+  summary     String
+  contentHash String
+  required    Boolean   @default(false)
+  publishedAt DateTime  @default(now())
+  effectiveAt DateTime
+  retiredAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([key, version, locale])
+  @@index([key, locale, effectiveAt, retiredAt])
+}
+
+model PrivacyConsentEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  policyKey      String
+  policyVersion  Int
+  locale         String   @default("fr")
+  action         String
+  legalBasis     String
+  source         String
+  idempotencyKey String   @unique
+  evidenceHash   String
+  ipHash         String?
+  userAgentHash  String?
+  occurredAt     DateTime @default(now())
+  metadata       Json?
+
+  @@index([userId, policyKey, occurredAt, id])
+  @@index([policyKey, policyVersion, action])
+}
+
+model PrivacyPreference {
+  userId                     String   @id
+  profileVisibility          String   @default("FRIENDS")
+  discoverability            Boolean  @default(true)
+  personalizedRecommendations Boolean @default(true)
+  analytics                  Boolean  @default(false)
+  marketing                  Boolean  @default(false)
+  readReceipts               Boolean  @default(true)
+  activityStatus             Boolean  @default(true)
+  version                     Int      @default(1)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model DataSubjectRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  type           String
+  status         String    @default("PENDING")
+  idempotencyKey String    @unique
+  reason         String?
+  requestedAt    DateTime  @default(now())
+  dueAt          DateTime
+  processingAt   DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  resultMetadata Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, status, requestedAt])
+  @@index([status, dueAt])
+}
+
+model DataRetentionPolicy {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  resourceType   String
+  retentionDays  Int
+  gracePeriodDays Int     @default(0)
+  action         String   @default("DELETE")
+  enabled        Boolean  @default(true)
+  legalBasis     String
+  createdById    String?
+  reason         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  executions DataRetentionExecution[]
+
+  @@index([resourceType, enabled])
+}
+
+model DataRetentionExecution {
+  id              String    @id @default(cuid())
+  policyId        String
+  status          String    @default("RUNNING")
+  cutoffAt        DateTime
+  scannedCount    Int       @default(0)
+  deletedCount    Int       @default(0)
+  anonymizedCount Int       @default(0)
+  errorCount      Int       @default(0)
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  metadata        Json?
+
+  policy DataRetentionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@index([policyId, startedAt])
+  @@index([status, startedAt])
+}

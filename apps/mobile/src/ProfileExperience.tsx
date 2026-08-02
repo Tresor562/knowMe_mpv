@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
 
 export type MobileUser = {
@@ -126,7 +127,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
     if (password.length < 8 || deleting) return;
     Alert.alert(
       'Supprimer définitivement le compte ?',
-      'KnowMe exigera une réauthentification serveur, puis supprimera toutes les données. Cette action ne peut pas être annulée.',
+      'KnowMe exigera une réauthentification serveur, puis supprimera toutes les données, décisions de confidentialité et appareils. Cette action ne peut pas être annulée.',
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Supprimer', style: 'destructive', onPress: () => void deleteAccount() }
@@ -204,6 +205,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       </View>
 
       <SecurityExperience onSessionClosed={onAccountDeleted} />
+      <PrivacyExperience />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Modifier mon profil</Text>
