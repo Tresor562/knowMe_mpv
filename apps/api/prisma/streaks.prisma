@@ -1,0 +1,23 @@
+model UserActivityStreak {
+  userId           String   @id
+  currentDays      Int      @default(0)
+  longestDays      Int      @default(0)
+  lastActivityDate DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([longestDays, currentDays])
+}
+
+model StreakActivityDay {
+  id             String   @id @default(cuid())
+  userId         String
+  activityDate   DateTime
+  source         String
+  referenceId    String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, activityDate])
+  @@index([userId, activityDate])
+}

@@ -32,6 +32,7 @@ import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
+import { StreaksModule } from './streaks/streaks.module';
 import { UsersModule } from './users/users.module';
 import { VerificationModule } from './verification/verification.module';
 import { WalletModule } from './wallet/wallet.module';
@@ -51,6 +52,7 @@ import { WalletModule } from './wallet/wallet.module';
     WalletModule,
     RewardsModule,
     ProgressionModule,
+    StreaksModule,
     BillingModule,
     VerificationModule,
     AuthModule,

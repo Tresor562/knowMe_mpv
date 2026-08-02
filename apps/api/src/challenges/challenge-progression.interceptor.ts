@@ -8,12 +8,14 @@ import { Observable } from 'rxjs';
 import { mergeMap } from 'rxjs/operators';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProgressionService } from '../progression/progression.service';
+import { StreaksService } from '../streaks/streaks.service';
 
 @Injectable()
 export class ChallengeProgressionInterceptor implements NestInterceptor {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly progression: ProgressionService
+    private readonly progression: ProgressionService,
+    private readonly streaks: StreaksService
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -44,16 +46,20 @@ export class ChallengeProgressionInterceptor implements NestInterceptor {
             version: participant.challengeVersion
           }
         });
-        const progression = await this.progression.processChallengeCompletion({
+        const completion = {
           participantId: participant.id,
           userId: participant.userId,
           creatorId: participant.challenge.creatorId,
           challengeId: participant.challengeId,
           questionCount,
           completedAt: participant.completedAt!
-        });
+        };
+        const [progression, streak] = await Promise.all([
+          this.progression.processChallengeCompletion(completion),
+          this.streaks.processChallengeCompletion(completion)
+        ]);
 
-        return { ...response, progression };
+        return { ...response, progression, streak };
       })
     );
   }
