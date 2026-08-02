@@ -36,15 +36,41 @@ model ConceptKAssetManifest {
   rolloutPercentage Int       @default(0)
   startsAt          DateTime  @default(now())
   endsAt            DateTime?
+  quarantinedAt     DateTime?
+  quarantineReason  String?
+  quarantineSource  String?
+  restoredAt        DateTime?
+  restoredById      String?
   createdById       String
   reason            String
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   character ConceptKCharacterDefinition @relation(fields: [characterId], references: [id], onDelete: Restrict)
+  deliveries ConceptKAssetDeliveryEvent[]
 
   @@unique([key, version])
-  @@index([eventKey, variant, active, startsAt, endsAt])
-  @@index([platform, deviceClass, active])
+  @@index([eventKey, variant, active, quarantinedAt, startsAt, endsAt])
+  @@index([platform, deviceClass, active, quarantinedAt])
   @@index([characterId, active, version])
+}
+
+model ConceptKAssetDeliveryEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  assetId        String
+  sampleDate     DateTime
+  outcome        String
+  durationMs     Int
+  platform       String
+  deviceClass    String
+  observedSha256 String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  asset ConceptKAssetManifest @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId, sampleDate])
+  @@index([assetId, createdAt, outcome])
+  @@index([userId, createdAt])
 }
