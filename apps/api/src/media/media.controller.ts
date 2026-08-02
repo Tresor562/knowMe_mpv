@@ -1,64 +1,107 @@
 import {
-  BadRequestException,
+  Body,
   Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
   Post,
+  Query,
+  Req,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateUploadSessionDto, GrantMediaAccessDto } from './dto/media.dto';
 import { MediaService } from './media.service';
-
-const allowedMimeTypes = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'video/mp4'
-]);
 
 @UseGuards(JwtAuthGuard)
 @Controller('media')
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 
-  @Post('upload')
+  @Post('uploads')
+  createUploadSession(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: CreateUploadSessionDto
+  ) {
+    return this.media.createUploadSession(req.user.userId, dto);
+  }
+
+  @Post('uploads/:id/complete')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: 'uploads',
-        filename: (_request, file, callback) => {
-          const extension = extname(file.originalname)
-            .toLowerCase()
-            .replace(/[^.a-z0-9]/g, '')
-            .slice(0, 10);
-
-          callback(
-            null,
-            `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`
-          );
-        }
-      }),
-      limits: { fileSize: 15 * 1024 * 1024 },
-      fileFilter: (_request, file, callback) => {
-        callback(null, allowedMimeTypes.has(file.mimetype));
-      }
+      storage: memoryStorage(),
+      limits: { fileSize: 25 * 1024 * 1024, files: 1 }
     })
   )
-  upload(@UploadedFile() file?: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException(
-        'Fichier absent, trop volumineux ou type non autorisé.'
-      );
-    }
+  completeUpload(
+    @Req() req: { user: { userId: string } },
+    @Param('id') sessionId: string,
+    @Headers('x-upload-token') uploadToken: string | undefined,
+    @UploadedFile() file?: Express.Multer.File
+  ) {
+    return this.media.completeUpload(
+      req.user.userId,
+      sessionId,
+      uploadToken,
+      file
+    );
+  }
 
-    return {
-      fileName: file.filename,
-      mimeType: file.mimetype,
-      size: file.size,
-      url: this.media.toPublicUrl(file.filename)
-    };
+  @Get('mine')
+  listMine(@Req() req: { user: { userId: string } }) {
+    return this.media.listMine(req.user.userId);
+  }
+
+  @Post(':id/download-grant')
+  issueDownloadGrant(
+    @Req() req: { user: { userId: string } },
+    @Param('id') assetId: string
+  ) {
+    return this.media.issueDownloadGrant(req.user.userId, assetId);
+  }
+
+  @Get(':id/content')
+  async content(
+    @Req() req: { user: { userId: string } },
+    @Param('id') assetId: string,
+    @Query('token') token?: string
+  ) {
+    const content = await this.media.readContent(req.user.userId, assetId, token);
+    return new StreamableFile(content.buffer, {
+      type: content.mimeType,
+      disposition: `attachment; filename="${content.fileName.replace(/["\r\n]/g, '_')}"`
+    });
+  }
+
+  @Post(':id/grants')
+  grantAccess(
+    @Req() req: { user: { userId: string } },
+    @Param('id') assetId: string,
+    @Body() dto: GrantMediaAccessDto
+  ) {
+    return this.media.grantAccess(req.user.userId, assetId, dto);
+  }
+
+  @Delete(':id/grants/:granteeId')
+  revokeAccess(
+    @Req() req: { user: { userId: string } },
+    @Param('id') assetId: string,
+    @Param('granteeId') granteeId: string
+  ) {
+    return this.media.revokeAccess(req.user.userId, assetId, granteeId);
+  }
+
+  @Delete(':id')
+  deleteAsset(
+    @Req() req: { user: { userId: string } },
+    @Param('id') assetId: string
+  ) {
+    return this.media.deleteAsset(req.user.userId, assetId);
   }
 }
