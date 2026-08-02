@@ -1,0 +1,56 @@
+model CosmeticDefinition {
+  id          String   @id @default(cuid())
+  key         String
+  version     Int
+  type        String
+  slot        String
+  name        String
+  description String
+  assetUrl    String?
+  rarity      String   @default("STANDARD")
+  metadata    Json?
+  active      Boolean  @default(true)
+  createdById String
+  reason      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  grants CosmeticGrant[]
+
+  @@unique([key, version])
+  @@index([type, slot, active])
+}
+
+model CosmeticGrant {
+  id             String    @id @default(cuid())
+  userId         String
+  definitionId   String
+  source         String
+  reason         String
+  idempotencyKey String    @unique
+  metadata       Json?
+  grantedAt      DateTime  @default(now())
+  revokedAt      DateTime?
+  revokedById    String?
+  revokeReason   String?
+
+  definition CosmeticDefinition  @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  equipment  CosmeticEquipment?
+
+  @@unique([userId, definitionId])
+  @@index([userId, revokedAt, grantedAt])
+}
+
+model CosmeticEquipment {
+  id         String   @id @default(cuid())
+  userId     String
+  slot       String
+  grantId    String   @unique
+  equippedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  grant CosmeticGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slot])
+  @@index([userId, updatedAt])
+}
