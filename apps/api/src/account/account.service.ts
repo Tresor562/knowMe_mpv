@@ -154,7 +154,7 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 7,
+      formatVersion: 6,
       account: safeUser,
       security,
       privacy,
