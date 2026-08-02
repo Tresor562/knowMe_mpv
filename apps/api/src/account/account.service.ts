@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { ConceptKService } from '../concept-k/concept-k.service';
+import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { MediaService } from '../media/media.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,7 +19,8 @@ export class AccountService {
     private readonly security: SecurityService,
     private readonly privacy: PrivacyService,
     private readonly media: MediaService,
-    private readonly conceptK: ConceptKService
+    private readonly conceptK: ConceptKService,
+    private readonly cosmetics: CosmeticsService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -62,7 +64,8 @@ export class AccountService {
       dailyChestClaims,
       positiveChallenges,
       conceptK,
-      conceptKAssetDeliveries
+      conceptKAssetDeliveries,
+      cosmetics
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -142,7 +145,8 @@ export class AccountService {
       this.prisma.conceptKAssetDeliveryEvent.findMany({
         where: { userId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
-      })
+      }),
+      this.cosmetics.exportForAccount(userId)
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -199,7 +203,8 @@ export class AccountService {
       conceptK: {
         ...conceptK,
         assetDeliveries: conceptKAssetDeliveries
-      }
+      },
+      cosmetics
     };
   }
 
@@ -229,6 +234,7 @@ export class AccountService {
           }
         }
       });
+      await this.cosmetics.deleteForAccount(userId, tx);
       await tx.conceptKAssetDeliveryEvent.deleteMany({ where: { userId } });
       await this.conceptK.deleteForAccount(userId, tx);
       await tx.positiveChallenge.deleteMany({

@@ -1,0 +1,60 @@
+model CosmeticItemDefinition {
+  id          String    @id @default(cuid())
+  key         String
+  version     Int
+  name        String
+  description String?
+  slot        String
+  rarity      String    @default("COMMON")
+  assetUrl    String
+  previewUrl  String?
+  active      Boolean   @default(false)
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+  createdById String
+  reason      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ownerships CosmeticOwnership[]
+  equippedBy CosmeticEquipment[]
+
+  @@unique([key, version])
+  @@index([active, slot, startsAt, endsAt])
+  @@index([key, active, version])
+}
+
+model CosmeticOwnership {
+  id                String    @id @default(cuid())
+  userId            String
+  itemId            String
+  source            String
+  externalReference String?
+  grantedById       String?
+  reason            String
+  acquiredAt        DateTime  @default(now())
+  revokedAt         DateTime?
+  revokedById       String?
+
+  item CosmeticItemDefinition @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, itemId])
+  @@index([userId, revokedAt, acquiredAt])
+  @@index([itemId, revokedAt])
+  @@index([source, externalReference])
+}
+
+model CosmeticEquipment {
+  id         String   @id @default(cuid())
+  userId     String
+  slot       String
+  itemId     String
+  equippedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  item CosmeticItemDefinition @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, slot])
+  @@index([userId, updatedAt])
+  @@index([itemId])
+}

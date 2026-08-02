@@ -39,22 +39,32 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-020 | Badges et titres autoritaires | #54 | Fusionnée |
 | KMD-021 | Classement XP hebdomadaire limité et volontaire | #55 | Fusionnée |
 | KMD-022 | Coffre quotidien déterministe | #56 | Fusionnée |
+| KMD-023 | Positive Challenges autoritaires | #58 | Fusionnée |
+| KMD-024 | Fondation d’animation Concept K | #59 | Fusionnée |
+| KMD-025 | Catalogue d’assets originaux Concept K | #60 | Fusionnée |
+| KMD-026 | Santé, quarantaine et fallback des assets Concept K | #61 | Fusionnée |
+
+## Livraison en validation
+
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | CI requise avant fusion |
 
 ## Prochaine livraison réservée
 
-`KMD-023` est réservé aux Positive Challenges autoritaires.
+`KMD-028` est réservé à la boutique cosmétique KnowCoins et aux acquisitions idempotentes.
 
-Cette livraison conclut le premier périmètre de gamification saine de la Phase 7 après XP, niveaux, séries, quêtes, badges, titres, classement limité et coffre déterministe.
+Cette livraison ne pourra commencer qu’après fusion verte de KMD-027. Elle devra réutiliser les définitions, possessions et slots existants au lieu de créer un inventaire parallèle.
 
-Le périmètre initial devra proposer des défis positifs centrés sur la relation, la gratitude, l’encouragement ou l’entraide. Leur création, acceptation et complétion devront être consenties, traçables et calculées côté serveur. Les objectifs ne devront jamais exiger de données sensibles, provoquer de culpabilisation, pénaliser un refus, créer une obligation sociale artificielle ou récompenser le harcèlement répétitif.
+Le périmètre attendu comprend des offres versionnées, des prix KnowCoins explicites, des fenêtres de disponibilité, un débit via le registre comptable autoritaire, une possession créée dans la même transaction logique et un reçu d’achat rejouable sans double débit. Aucun achat ne pourra modifier l’XP, les classements, les récompenses, les limites, la visibilité sociale ou une probabilité de succès.
 
-Les éventuelles récompenses devront réutiliser les registres XP et KnowCoins déjà fusionnés, avec idempotence, plafonds anti-farming et règles visibles. Aucun achat ou abonnement ne pourra augmenter les chances, la valeur sociale ou la récompense d’un Positive Challenge.
+Les objets gratuits obtenus par quêtes, événements, succès ou administration devront rester techniquement équivalents aux objets acquis en boutique. La rareté et le prix seront descriptifs, jamais une mesure de valeur humaine ou d’importance du compte.
 
 ## Règles de mise à jour
 
 Après chaque fusion majeure :
 
-1. ajouter la livraison à ce tableau ;
+1. ajouter la livraison au tableau des livraisons fusionnées ;
 2. enregistrer la PR et le domaine exact ;
 3. réserver le prochain identifiant seulement après validation du périmètre ;
 4. ne jamais réutiliser un identifiant `KMD` ;
