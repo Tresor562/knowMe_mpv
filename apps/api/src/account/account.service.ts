@@ -53,7 +53,9 @@ export class AccountService {
       streakProfile,
       streakDays,
       questProgress,
-      questContributions
+      questContributions,
+      achievementPreference,
+      achievementGrants
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -112,6 +114,12 @@ export class AccountService {
       this.prisma.dailyQuestContribution.findMany({
         where: { userId },
         orderBy: [{ questDate: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.userAchievementPreference.findUnique({ where: { userId } }),
+      this.prisma.achievementGrant.findMany({
+        where: { userId },
+        include: { definition: true },
+        orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }]
       })
     ]);
 
@@ -152,6 +160,10 @@ export class AccountService {
       quests: {
         progress: questProgress,
         contributions: questContributions
+      },
+      achievements: {
+        preference: achievementPreference,
+        grants: achievementGrants
       }
     };
   }
@@ -182,6 +194,8 @@ export class AccountService {
           }
         }
       });
+      await tx.userAchievementPreference.deleteMany({ where: { userId } });
+      await tx.achievementGrant.deleteMany({ where: { userId } });
       await tx.dailyQuestContribution.deleteMany({ where: { userId } });
       await tx.dailyQuestProgress.deleteMany({ where: { userId } });
       await tx.streakActivityDay.deleteMany({ where: { userId } });
