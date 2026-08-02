@@ -5,6 +5,8 @@
 - [Master Product Specification V2](./KNOWME_MASTER_PRODUCT_SPECIFICATION_V2.md) — vision officielle, principes, domaines et roadmap globale.
 - [Foundation Blueprint](./architecture/FOUNDATION_BLUEPRINT.md) — frontières techniques et ordre de construction des fondations.
 - [Product Roadmap V2](./roadmap/PRODUCT_ROADMAP_V2.md) — phases, livrables et critères de sortie.
+- [Registre canonique des livraisons](./roadmap/DELIVERY_LEDGER.md) — identifiants `KMD`, PR fusionnées et prochaine livraison réservée.
+- [Implementation Backlog](./roadmap/IMPLEMENTATION_BACKLOG.md) — backlog historique ; ses anciens labels `KM-###` sont désormais interprétés comme des références `KMB-###`.
 
 ## Architecture Decision Records
 
@@ -18,8 +20,10 @@
 
 Toute nouvelle fonctionnalité majeure doit :
 
-1. être reliée à une phase de la roadmap ;
-2. respecter les ADR existants ;
-3. ajouter un ADR si elle introduit une décision architecturale durable ;
-4. décrire ses risques de sécurité, vie privée, performance et exploitation ;
-5. inclure des critères de validation avant développement.
+1. recevoir un identifiant canonique `KMD-###` non réutilisable ;
+2. être reliée à une phase de la roadmap ;
+3. respecter les ADR existants ;
+4. ajouter un ADR si elle introduit une décision architecturale durable ;
+5. décrire ses risques de sécurité, vie privée, performance et exploitation ;
+6. inclure des critères de validation avant développement ;
+7. être ajoutée au registre des livraisons après fusion.
