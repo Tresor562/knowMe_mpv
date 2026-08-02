@@ -33,14 +33,17 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-014 | Pipeline média privé et sécurisé | #46 | Fusionnée |
 | KMD-015 | Anti-spam persistant et modération traçable | #47 | Fusionnée |
 | KMD-016 | Feedback autoritaire et historique immuable des défis V2 | #49 | Fusionnée |
+| KMD-017 | Registre XP et niveaux autoritaires | #50 | Fusionnée |
+| KMD-018 | Séries d’activité saines | #51 | Fusionnée |
+| KMD-019 | Quêtes quotidiennes autoritaires | #52 | Fusionnée |
 
 ## Prochaine livraison réservée
 
-`KMD-017` est réservé au registre XP et aux niveaux autoritaires.
+`KMD-020` est réservé aux badges et titres autoritaires.
 
-Cette livraison appartient à la Phase 7 de la Product Roadmap V2. Elle dépend uniquement de systèmes déjà fusionnés : identité de compte, wallet ledger, récompenses idempotentes, défis versionnés, historique des résultats, audit et feature flags.
+Cette livraison poursuit la Phase 7 après XP, niveaux, séries et quêtes. Elle dépend des événements serveur immuables déjà fusionnés et doit rester distincte des badges de vérification, Premium et Équipe KnowMe.
 
-Son périmètre doit rester distinct des quêtes et des badges : barème XP versionné, écritures immuables, progression de niveau déterministe, historique explicable et interfaces de consultation.
+Le périmètre initial doit couvrir un catalogue versionné, des attributions immuables et idempotentes, la révocation auditée et le choix d’un titre affiché. Aucun achat ne peut accorder un badge de mérite, et aucun badge de gamification ne peut suggérer une identité vérifiée ou un rôle officiel.
 
 ## Règles de mise à jour
 
