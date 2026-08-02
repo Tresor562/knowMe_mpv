@@ -58,6 +58,8 @@ export class AccountService {
       questContributions,
       achievementPreference,
       achievementGrants,
+      cosmeticGrants,
+      cosmeticEquipment,
       leaderboardPreference,
       dailyChestClaims,
       positiveChallenges,
@@ -128,6 +130,16 @@ export class AccountService {
         include: { definition: true },
         orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }]
       }),
+      this.prisma.cosmeticGrant.findMany({
+        where: { userId },
+        include: { definition: true },
+        orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.cosmeticEquipment.findMany({
+        where: { userId },
+        include: { grant: { include: { definition: true } } },
+        orderBy: [{ slot: 'asc' }]
+      }),
       this.prisma.leaderboardPreference.findUnique({ where: { userId } }),
       this.prisma.dailyChestClaim.findMany({
         where: { userId },
@@ -150,7 +162,7 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 6,
+      formatVersion: 7,
       account: safeUser,
       security,
       privacy,
@@ -186,6 +198,10 @@ export class AccountService {
       achievements: {
         preference: achievementPreference,
         grants: achievementGrants
+      },
+      cosmetics: {
+        grants: cosmeticGrants,
+        equipment: cosmeticEquipment
       },
       leaderboards: {
         weeklyXpPreference: leaderboardPreference
@@ -229,6 +245,8 @@ export class AccountService {
           }
         }
       });
+      await tx.cosmeticEquipment.deleteMany({ where: { userId } });
+      await tx.cosmeticGrant.deleteMany({ where: { userId } });
       await tx.conceptKAssetDeliveryEvent.deleteMany({ where: { userId } });
       await this.conceptK.deleteForAccount(userId, tx);
       await tx.positiveChallenge.deleteMany({
