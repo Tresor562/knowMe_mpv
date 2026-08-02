@@ -41,7 +41,7 @@ describe('KnowMe Concept K delivery health (e2e)', () => {
   it('quarantines an unhealthy asset after distinct account samples and restores it with audit', async () => {
     const admin = await register('admin');
     const members = [];
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 4; index += 1) {
       members.push(await register(`member_${index + 1}`));
     }
     const adminToken = admin.body.accessToken as string;
@@ -84,10 +84,13 @@ describe('KnowMe Concept K delivery health (e2e)', () => {
       })
       .expect(201);
 
-    const receipts: Array<{ token: string; userId: string }> = members.map((member) => ({
-      token: member.body.accessToken as string,
-      userId: member.body.user.id as string
-    }));
+    const receipts: Array<{ token: string; userId: string }> = [
+      ...members.map((member) => ({
+        token: member.body.accessToken as string,
+        userId: member.body.user.id as string
+      })),
+      { token: adminToken, userId: adminId }
+    ];
 
     for (let index = 0; index < 4; index += 1) {
       const result = await request(app.getHttpServer())
