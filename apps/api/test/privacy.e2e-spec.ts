@@ -160,10 +160,11 @@ describe('KnowMe privacy, consent and retention (e2e)', () => {
       .get('/account/export')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
-    expect(exported.body.formatVersion).toBe(5);
+    expect(exported.body.formatVersion).toBe(6);
     expect(exported.body.media).toEqual([]);
     expect(exported.body.challengeHistory).toEqual([]);
     expect(exported.body.challengeReferences).toEqual([]);
+    expect(exported.body.progression).toEqual({ profile: null, ledger: [] });
     expect(exported.body.privacy.preferences.profileVisibility).toBe('PRIVATE');
     expect(exported.body.privacy.consentEvents[0].evidenceHash).toBeUndefined();
 
@@ -176,5 +177,7 @@ describe('KnowMe privacy, consent and retention (e2e)', () => {
     expect(await prisma.privacyConsentEvent.count({ where: { userId } })).toBe(0);
     expect(await prisma.privacyPreference.count({ where: { userId } })).toBe(0);
     expect(await prisma.dataSubjectRequest.count({ where: { userId } })).toBe(0);
+    expect(await prisma.xpLedgerEntry.count({ where: { userId } })).toBe(0);
+    expect(await prisma.userProgression.count({ where: { userId } })).toBe(0);
   });
 });
