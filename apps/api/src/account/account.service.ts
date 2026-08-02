@@ -61,7 +61,8 @@ export class AccountService {
       leaderboardPreference,
       dailyChestClaims,
       positiveChallenges,
-      conceptK
+      conceptK,
+      conceptKAssetDeliveries
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -137,7 +138,11 @@ export class AccountService {
         include: { events: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       }),
-      this.conceptK.exportForAccount(userId)
+      this.conceptK.exportForAccount(userId),
+      this.prisma.conceptKAssetDeliveryEvent.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+      })
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -191,7 +196,10 @@ export class AccountService {
       positiveChallenges: {
         items: positiveChallenges
       },
-      conceptK
+      conceptK: {
+        ...conceptK,
+        assetDeliveries: conceptKAssetDeliveries
+      }
     };
   }
 
@@ -221,6 +229,7 @@ export class AccountService {
           }
         }
       });
+      await tx.conceptKAssetDeliveryEvent.deleteMany({ where: { userId } });
       await this.conceptK.deleteForAccount(userId, tx);
       await tx.positiveChallenge.deleteMany({
         where: { OR: [{ creatorId: userId }, { recipientId: userId }] }
