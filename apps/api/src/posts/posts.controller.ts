@@ -10,17 +10,29 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModerationService } from '../moderation/moderation.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostsService } from './posts.service';
 
 @Controller('posts')
 export class PostsController {
-  constructor(private readonly posts: PostsService) {}
+  constructor(
+    private readonly posts: PostsService,
+    private readonly moderation: ModerationService
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Req() req: { user: { userId: string } }, @Body() dto: CreatePostDto) {
+  async create(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: CreatePostDto
+  ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'POST_CREATE',
+      content: dto.content
+    });
     return this.posts.create(req.user.userId, dto);
   }
 
@@ -47,11 +59,17 @@ export class PostsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/comments')
-  comment(
+  async comment(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: CreateCommentDto
   ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'COMMENT_CREATE',
+      content: dto.content,
+      targetId: id
+    });
     return this.posts.comment(req.user.userId, id, dto);
   }
 
