@@ -7,6 +7,7 @@ import { join } from 'path';
 import './compat/nest-too-many-requests';
 import { AccessControlModule } from './access-control/access-control.module';
 import { AccountModule } from './account/account.module';
+import { AchievementsModule } from './achievements/achievements.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
@@ -55,6 +56,7 @@ import { WalletModule } from './wallet/wallet.module';
     ProgressionModule,
     StreaksModule,
     QuestsModule,
+    AchievementsModule,
     BillingModule,
     VerificationModule,
     AuthModule,

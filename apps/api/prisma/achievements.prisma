@@ -1,0 +1,49 @@
+model AchievementDefinition {
+  id          String   @id @default(cuid())
+  key         String
+  version     Int
+  type        String
+  name        String
+  description String
+  icon        String?
+  criteria    Json
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  grants AchievementGrant[]
+
+  @@unique([key, version])
+  @@index([type, active])
+}
+
+model AchievementGrant {
+  id             String    @id @default(cuid())
+  userId         String
+  definitionId   String
+  source         String
+  reason         String
+  idempotencyKey String    @unique
+  referenceType  String?
+  referenceId    String?
+  metadata       Json?
+  grantedAt      DateTime  @default(now())
+  revokedAt      DateTime?
+  revokedById    String?
+  revokeReason   String?
+
+  definition AchievementDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, definitionId])
+  @@index([userId, revokedAt, grantedAt])
+  @@index([referenceType, referenceId])
+}
+
+model UserAchievementPreference {
+  userId               String   @id
+  selectedTitleGrantId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([selectedTitleGrantId])
+}
