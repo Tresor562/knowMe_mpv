@@ -51,7 +51,9 @@ export class AccountService {
       progressionProfile,
       xpLedger,
       streakProfile,
-      streakDays
+      streakDays,
+      questProgress,
+      questContributions
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -102,6 +104,14 @@ export class AccountService {
       this.prisma.streakActivityDay.findMany({
         where: { userId },
         orderBy: [{ activityDate: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.dailyQuestProgress.findMany({
+        where: { userId },
+        orderBy: [{ questDate: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.dailyQuestContribution.findMany({
+        where: { userId },
+        orderBy: [{ questDate: 'desc' }, { id: 'desc' }]
       })
     ]);
 
@@ -138,6 +148,10 @@ export class AccountService {
       streaks: {
         profile: streakProfile,
         days: streakDays
+      },
+      quests: {
+        progress: questProgress,
+        contributions: questContributions
       }
     };
   }
@@ -168,6 +182,8 @@ export class AccountService {
           }
         }
       });
+      await tx.dailyQuestContribution.deleteMany({ where: { userId } });
+      await tx.dailyQuestProgress.deleteMany({ where: { userId } });
       await tx.streakActivityDay.deleteMany({ where: { userId } });
       await tx.userActivityStreak.deleteMany({ where: { userId } });
       await tx.xpLedgerEntry.deleteMany({ where: { userId } });
