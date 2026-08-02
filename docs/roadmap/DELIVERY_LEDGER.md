@@ -43,22 +43,23 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-024 | Fondation d’animation Concept K | #59 | Fusionnée |
 | KMD-025 | Catalogue d’assets originaux Concept K | #60 | Fusionnée |
 | KMD-026 | Santé, quarantaine et fallback des assets Concept K | #61 | Fusionnée |
+| KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | Fusionnée |
 
 ## Livraison en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | CI requise avant fusion |
+| KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | CI requise avant fusion |
 
 ## Prochaine livraison réservée
 
-`KMD-028` est réservé à la boutique cosmétique KnowCoins et aux acquisitions idempotentes.
+`KMD-029` est réservé au rendu public contrôlé des équipements cosmétiques.
 
-Cette livraison ne pourra commencer qu’après fusion verte de KMD-027. Elle devra réutiliser les définitions, possessions et slots existants au lieu de créer un inventaire parallèle.
+Cette livraison ne pourra commencer qu’après fusion verte de KMD-028. Elle devra réutiliser `CosmeticEquipment` comme source autoritaire et ne devra jamais laisser le client déclarer lui-même un objet affiché.
 
-Le périmètre attendu comprend des offres versionnées, des prix KnowCoins explicites, des fenêtres de disponibilité, un débit via le registre comptable autoritaire, une possession créée dans la même transaction logique et un reçu d’achat rejouable sans double débit. Aucun achat ne pourra modifier l’XP, les classements, les récompenses, les limites, la visibilité sociale ou une probabilité de succès.
+Le périmètre attendu comprend un snapshot public limité des slots équipés, une résolution serveur des assets actifs, l’intégration au profil Web/Mobile, des préférences de confidentialité permettant de masquer tout ou partie de la personnalisation, un fallback sûr lorsqu’un asset est retiré ou indisponible, ainsi que l’export et la suppression déjà couverts par le cycle de vie du compte.
 
-Les objets gratuits obtenus par quêtes, événements, succès ou administration devront rester techniquement équivalents aux objets acquis en boutique. La rareté et le prix seront descriptifs, jamais une mesure de valeur humaine ou d’importance du compte.
+Le rendu cosmétique ne pourra modifier ni l’ordre des profils, ni la visibilité d’une publication, ni un score social, ni une permission. Les objets gratuits, administratifs, gagnés et achetés devront rester visuellement équivalents une fois équipés.
 
 ## Règles de mise à jour
 
