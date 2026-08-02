@@ -16,9 +16,9 @@ model CosmeticItemDefinition {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  ownerships      CosmeticOwnership[]
-  equippedBy      CosmeticEquipment[]
-  offers          CosmeticOfferDefinition[]
+  ownerships       CosmeticOwnership[]
+  equippedBy       CosmeticEquipment[]
+  offers           CosmeticOfferDefinition[]
   purchaseReceipts CosmeticPurchaseReceipt[]
 
   @@unique([key, version])
@@ -75,7 +75,7 @@ model CosmeticOfferDefinition {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  item     CosmeticItemDefinition @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item     CosmeticItemDefinition  @relation(fields: [itemId], references: [id], onDelete: Cascade)
   receipts CosmeticPurchaseReceipt[]
 
   @@unique([key, version])
@@ -93,8 +93,8 @@ model CosmeticPurchaseReceipt {
   ledgerEntryId  String   @unique
   purchasedAt    DateTime @default(now())
 
-  offer CosmeticOfferDefinition @relation(fields: [offerId], references: [id], onDelete: Restrict)
-  item  CosmeticItemDefinition  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  offer CosmeticOfferDefinition @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  item  CosmeticItemDefinition  @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemId])
   @@index([userId, purchasedAt])
