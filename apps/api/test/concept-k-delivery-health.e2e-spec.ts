@@ -40,9 +40,10 @@ describe('KnowMe Concept K delivery health (e2e)', () => {
 
   it('quarantines an unhealthy asset after distinct account samples and restores it with audit', async () => {
     const admin = await register('admin');
-    const members = await Promise.all(
-      Array.from({ length: 5 }, (_, index) => register(`member_${index + 1}`))
-    );
+    const members = [];
+    for (let index = 0; index < 5; index += 1) {
+      members.push(await register(`member_${index + 1}`));
+    }
     const adminToken = admin.body.accessToken as string;
     const adminId = admin.body.user.id as string;
     await prisma.user.update({ where: { id: adminId }, data: { role: 'ADMIN' } });
