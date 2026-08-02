@@ -44,22 +44,23 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-025 | Catalogue d’assets originaux Concept K | #60 | Fusionnée |
 | KMD-026 | Santé, quarantaine et fallback des assets Concept K | #61 | Fusionnée |
 | KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | Fusionnée |
+| KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | Fusionnée |
 
 ## Livraison en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | CI requise avant fusion |
+| KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | CI requise avant fusion |
 
 ## Prochaine livraison réservée
 
-`KMD-029` est réservé au rendu public contrôlé des équipements cosmétiques.
+`KMD-030` est réservé aux presets cosmétiques et thèmes de profil synchronisés.
 
-Cette livraison ne pourra commencer qu’après fusion verte de KMD-028. Elle devra réutiliser `CosmeticEquipment` comme source autoritaire et ne devra jamais laisser le client déclarer lui-même un objet affiché.
+Cette livraison ne pourra commencer qu’après fusion verte de KMD-029. Elle devra composer uniquement des objets déjà possédés et réutiliser les mêmes contrôles de disponibilité, de slot et de confidentialité.
 
-Le périmètre attendu comprend un snapshot public limité des slots équipés, une résolution serveur des assets actifs, l’intégration au profil Web/Mobile, des préférences de confidentialité permettant de masquer tout ou partie de la personnalisation, un fallback sûr lorsqu’un asset est retiré ou indisponible, ainsi que l’export et la suppression déjà couverts par le cycle de vie du compte.
+Le périmètre attendu comprend des presets nommés, une activation atomique de plusieurs slots, un preset par défaut, la validation serveur de chaque possession, le retrait automatique des éléments révoqués ou indisponibles, la prévisualisation avant activation et la synchronisation Web/Mobile. Un preset ne pourra contenir aucun effet de jeu, prix, statut social ou donnée cachée sur la provenance des objets.
 
-Le rendu cosmétique ne pourra modifier ni l’ordre des profils, ni la visibilité d’une publication, ni un score social, ni une permission. Les objets gratuits, administratifs, gagnés et achetés devront rester visuellement équivalents une fois équipés.
+L’activation d’un thème devra être idempotente et ne pourra jamais équiper un objet non possédé, contourner un slot masqué ou augmenter la visibilité du profil.
 
 ## Règles de mise à jour
 
