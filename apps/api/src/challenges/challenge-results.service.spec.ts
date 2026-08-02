@@ -51,7 +51,7 @@ describe('ChallengeResultsService', () => {
         prompt: 'Ville ?',
         answer: 'Cotonou',
         normalizedHash:
-          'e858bbf4fc00ecb3263799ef7c1d70a43b5f28c9c8bd1964a2ef4e714cf8618f'
+          'e91cfd3fd7f49c5211bddc83298401a66245d55d47475995d214d86f1f6fd959'
       },
       {
         questionId: 'q2',
@@ -59,7 +59,7 @@ describe('ChallengeResultsService', () => {
         prompt: 'Couleur ?',
         answer: 'Bleu',
         normalizedHash:
-          '145d1ad9f8f2dd30786f1ca6e78486a68f0a064152d0547e9cbdce45bf3f3f06'
+          '50ab0299c6f88a48cb8e5a3f9122f7cc8ce015641a4f18cdeece9a75361a6ff1'
       },
       {
         questionId: 'q3',
@@ -67,7 +67,7 @@ describe('ChallengeResultsService', () => {
         prompt: 'Plat ?',
         answer: 'Pizza',
         normalizedHash:
-          'f18d7cb05a8d65d1e9f6a34f460eebc7c52e0d4b31a1e50d6867ddde6e5f8eb2'
+          '9ed1515819dec61fd361d5fdabb57f41ecce1a5fe1fe263b98c0d6943b9b232e'
       }
     ];
     const { service, prisma } = createService();
