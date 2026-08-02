@@ -17,6 +17,7 @@ import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IntegrityModule } from './integrity/integrity.module';
+import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MediaModule } from './media/media.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
@@ -57,6 +58,7 @@ import { WalletModule } from './wallet/wallet.module';
     StreaksModule,
     QuestsModule,
     AchievementsModule,
+    LeaderboardsModule,
     BillingModule,
     VerificationModule,
     AuthModule,
