@@ -4,6 +4,11 @@ import {
   ConceptKAssetsController
 } from './concept-k-assets.controller';
 import { ConceptKAssetsService } from './concept-k-assets.service';
+import {
+  AdminConceptKDeliveryHealthController,
+  ConceptKDeliveryHealthController
+} from './concept-k-delivery-health.controller';
+import { ConceptKDeliveryHealthService } from './concept-k-delivery-health.service';
 import { ConceptKController } from './concept-k.controller';
 import { ConceptKService } from './concept-k.service';
 
@@ -11,9 +16,19 @@ import { ConceptKService } from './concept-k.service';
   controllers: [
     ConceptKController,
     ConceptKAssetsController,
-    AdminConceptKAssetsController
+    AdminConceptKAssetsController,
+    ConceptKDeliveryHealthController,
+    AdminConceptKDeliveryHealthController
   ],
-  providers: [ConceptKService, ConceptKAssetsService],
-  exports: [ConceptKService, ConceptKAssetsService]
+  providers: [
+    ConceptKService,
+    ConceptKAssetsService,
+    ConceptKDeliveryHealthService
+  ],
+  exports: [
+    ConceptKService,
+    ConceptKAssetsService,
+    ConceptKDeliveryHealthService
+  ]
 })
 export class ConceptKModule {}
