@@ -57,7 +57,8 @@ export class AccountService {
       achievementPreference,
       achievementGrants,
       leaderboardPreference,
-      dailyChestClaims
+      dailyChestClaims,
+      positiveChallenges
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -127,6 +128,11 @@ export class AccountService {
       this.prisma.dailyChestClaim.findMany({
         where: { userId },
         orderBy: [{ claimDate: 'desc' }, { id: 'desc' }]
+      }),
+      this.prisma.positiveChallenge.findMany({
+        where: { OR: [{ creatorId: userId }, { recipientId: userId }] },
+        include: { events: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       })
     ]);
 
@@ -177,6 +183,9 @@ export class AccountService {
       },
       dailyChest: {
         claims: dailyChestClaims
+      },
+      positiveChallenges: {
+        items: positiveChallenges
       }
     };
   }
@@ -206,6 +215,9 @@ export class AccountService {
             requestedAt: new Date().toISOString()
           }
         }
+      });
+      await tx.positiveChallenge.deleteMany({
+        where: { OR: [{ creatorId: userId }, { recipientId: userId }] }
       });
       await tx.dailyChestClaim.deleteMany({ where: { userId } });
       await tx.leaderboardPreference.deleteMany({ where: { userId } });
