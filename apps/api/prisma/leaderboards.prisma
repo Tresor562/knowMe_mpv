@@ -1,0 +1,11 @@
+model LeaderboardPreference {
+  userId          String    @id
+  weeklyXpEnabled Boolean   @default(false)
+  displayAlias    String?
+  optedInAt       DateTime?
+  optedOutAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([weeklyXpEnabled, optedInAt])
+}
