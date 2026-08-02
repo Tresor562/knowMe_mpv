@@ -36,14 +36,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-017 | Registre XP et niveaux autoritaires | #50 | Fusionnée |
 | KMD-018 | Séries d’activité saines | #51 | Fusionnée |
 | KMD-019 | Quêtes quotidiennes autoritaires | #52 | Fusionnée |
+| KMD-020 | Badges et titres autoritaires | #54 | Fusionnée |
+| KMD-021 | Classement XP hebdomadaire limité et volontaire | #55 | Fusionnée |
+| KMD-022 | Coffre quotidien déterministe | #56 | Fusionnée |
 
 ## Prochaine livraison réservée
 
-`KMD-020` est réservé aux badges et titres autoritaires.
+`KMD-023` est réservé aux Positive Challenges autoritaires.
 
-Cette livraison poursuit la Phase 7 après XP, niveaux, séries et quêtes. Elle dépend des événements serveur immuables déjà fusionnés et doit rester distincte des badges de vérification, Premium et Équipe KnowMe.
+Cette livraison conclut le premier périmètre de gamification saine de la Phase 7 après XP, niveaux, séries, quêtes, badges, titres, classement limité et coffre déterministe.
 
-Le périmètre initial doit couvrir un catalogue versionné, des attributions immuables et idempotentes, la révocation auditée et le choix d’un titre affiché. Aucun achat ne peut accorder un badge de mérite, et aucun badge de gamification ne peut suggérer une identité vérifiée ou un rôle officiel.
+Le périmètre initial devra proposer des défis positifs centrés sur la relation, la gratitude, l’encouragement ou l’entraide. Leur création, acceptation et complétion devront être consenties, traçables et calculées côté serveur. Les objectifs ne devront jamais exiger de données sensibles, provoquer de culpabilisation, pénaliser un refus, créer une obligation sociale artificielle ou récompenser le harcèlement répétitif.
+
+Les éventuelles récompenses devront réutiliser les registres XP et KnowCoins déjà fusionnés, avec idempotence, plafonds anti-farming et règles visibles. Aucun achat ou abonnement ne pourra augmenter les chances, la valeur sociale ou la récompense d’un Positive Challenge.
 
 ## Règles de mise à jour
 
