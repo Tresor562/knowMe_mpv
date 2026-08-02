@@ -8,7 +8,7 @@ describe('CosmeticsService', () => {
       expect.objectContaining({
         visualOnly: true,
         gameplayEffectsAllowed: false,
-        purchasesEnabled: false,
+        purchasesEnabled: true,
         paidPriorityAllowed: false,
         ownershipRequired: true,
         oneItemPerSlot: true,
