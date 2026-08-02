@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ProgressionModule } from '../progression/progression.module';
+import { StreaksModule } from '../streaks/streaks.module';
 import { ChallengeProgressionInterceptor } from './challenge-progression.interceptor';
 import { ChallengeResultsService } from './challenge-results.service';
 import { ChallengesController } from './challenges.controller';
 import { ChallengesService } from './challenges.service';
 
 @Module({
-  imports: [ProgressionModule],
+  imports: [ProgressionModule, StreaksModule],
   controllers: [ChallengesController],
   providers: [
     ChallengesService,
