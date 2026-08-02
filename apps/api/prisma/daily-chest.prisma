@@ -1,0 +1,15 @@
+model DailyChestClaim {
+  id              String   @id @default(cuid())
+  userId          String
+  claimDate       DateTime
+  questProgressId String
+  amount          Int
+  status          String   @default("CLAIMED")
+  idempotencyKey  String   @unique
+  ledgerEntryId   String   @unique
+  claimedAt       DateTime @default(now())
+
+  @@unique([userId, claimDate])
+  @@index([userId, claimedAt])
+  @@index([questProgressId])
+}
