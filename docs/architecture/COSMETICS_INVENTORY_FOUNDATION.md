@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Ce bloc introduit la fondation de personnalisation visuelle de KnowMe sans boutique, sans achat et sans effet de jeu.
+Ce bloc introduit la fondation de personnalisation visuelle de KnowMe. KMD-027 a été livré initialement sans boutique ni achat ; KMD-028 ajoute ensuite les acquisitions KnowCoins sans modifier la séparation fondamentale de l’inventaire.
 
 Les trois responsabilités suivantes sont séparées :
 
@@ -34,7 +34,9 @@ La publication d’un objet ne donne jamais automatiquement sa possession. La po
 - `CHAT_BUBBLE` ;
 - `PROFILE_BADGE`.
 
-## Sources d’attribution autorisées
+## Sources de possession
+
+KMD-027 autorise les attributions suivantes :
 
 - `ADMIN` ;
 - `ACHIEVEMENT` ;
@@ -42,7 +44,7 @@ La publication d’un objet ne donne jamais automatiquement sa possession. La po
 - `EVENT` ;
 - `MIGRATION`.
 
-`PURCHASE` n’existe volontairement pas dans ce bloc. Une future boutique devra réutiliser l’inventaire autoritaire, les registres KnowCoins et les protections d’achat déjà présentes, sans modifier la valeur sociale ou les performances d’un compte.
+KMD-028 ajoute `PURCHASE` uniquement à travers la boutique transactionnelle. Cette source ne peut pas être forgée par le client ou utilisée dans l’API d’attribution administrative. Elle réutilise exactement `CosmeticOwnership`, les registres KnowCoins et les protections d’achat existantes.
 
 ## Politique anti-pay-to-win
 
@@ -65,6 +67,8 @@ L’API publie explicitement les indicateurs `visualOnly`, `gameplayEffectsAllow
 - `GET /cosmetics/me` : possessions actives et équipement ;
 - `PUT /cosmetics/equipment/:slot` : équiper un objet possédé ou envoyer `itemId: null` pour libérer le slot.
 
+Les routes d’offres et d’achats sont documentées séparément dans `COSMETICS_KNOWCOINS_SHOP.md`.
+
 ### Administration protégée par `cosmetics.manage`
 
 - `POST /admin/cosmetics/items` : publier une version immuable ;
@@ -77,7 +81,7 @@ La suite KMD-027 couvre :
 
 - l’interdiction d’administration pour un membre ;
 - l’unicité clé/version ;
-- la politique visuelle sans achat ;
+- la politique visuelle ;
 - le refus d’équiper un objet non possédé ;
 - l’idempotence d’une attribution ;
 - l’isolation des inventaires entre comptes ;
@@ -87,3 +91,5 @@ La suite KMD-027 couvre :
 - l’audit ;
 - l’export ;
 - la suppression du compte.
+
+KMD-028 ajoute une suite indépendante pour les offres, débits, reçus et rejeux d’achat.
