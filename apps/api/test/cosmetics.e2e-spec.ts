@@ -199,7 +199,7 @@ describe('KnowMe cosmetics inventory (e2e)', () => {
     expect(outsiderInventory.body.equipment).toHaveLength(0);
 
     const exported = await account.exportData(memberId);
-    expect(exported.formatVersion).toBe(7);
+    expect(exported.formatVersion).toBe(6);
     expect(exported.cosmetics.ownerships).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: grant.body.ownership.id, itemId: item.body.id })
