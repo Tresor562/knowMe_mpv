@@ -32,12 +32,15 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-013 | Intégrité applicative et validation des achats | #44 | Fusionnée |
 | KMD-014 | Pipeline média privé et sécurisé | #46 | Fusionnée |
 | KMD-015 | Anti-spam persistant et modération traçable | #47 | Fusionnée |
+| KMD-016 | Feedback autoritaire et historique immuable des défis V2 | #49 | Fusionnée |
 
 ## Prochaine livraison réservée
 
-`KMD-016` est réservé au feedback autoritaire et à l’historique des défis V2.
+`KMD-017` est réservé au registre XP et aux niveaux autoritaires.
 
-Cette livraison appartient à la Phase 6 de la Product Roadmap V2 et dépend uniquement de systèmes déjà fusionnés : versioning des défis, récompenses, audit, confidentialité et anti-spam.
+Cette livraison appartient à la Phase 7 de la Product Roadmap V2. Elle dépend uniquement de systèmes déjà fusionnés : identité de compte, wallet ledger, récompenses idempotentes, défis versionnés, historique des résultats, audit et feature flags.
+
+Son périmètre doit rester distinct des quêtes et des badges : barème XP versionné, écritures immuables, progression de niveau déterministe, historique explicable et interfaces de consultation.
 
 ## Règles de mise à jour
 

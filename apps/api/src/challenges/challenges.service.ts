@@ -10,6 +10,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RewardsService } from '../rewards/rewards.service';
+import { ChallengeResultsService } from './challenge-results.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
 import { SubmitAnswersDto } from './dto/submit-answers.dto';
 import { UpdateChallengeDto } from './dto/update-challenge.dto';
@@ -20,7 +21,8 @@ export class ChallengesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly rewards: RewardsService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly results: ChallengeResultsService
   ) {}
 
   async create(userId: string, dto: CreateChallengeDto) {
@@ -153,9 +155,19 @@ export class ChallengesService {
     const versionSnapshot = challenge.versions.find(
       (version) => version.version === viewerVersion
     );
+    const [resultSummaries, reference] = await Promise.all([
+      this.results.summaries(challengeId),
+      this.results.referenceState(challengeId, viewerVersion)
+    ]);
+    const participants = challenge.participants.map((participant) => ({
+      ...participant,
+      answers: participant.userId === userId ? participant.answers : [],
+      result: resultSummaries.get(participant.id) ?? null
+    }));
 
     return {
       ...challenge,
+      participants,
       title: versionSnapshot?.title ?? challenge.title,
       description: versionSnapshot?.description ?? challenge.description,
       visibility: versionSnapshot?.visibility ?? challenge.visibility,
@@ -166,8 +178,13 @@ export class ChallengesService {
       canEdit: isCreator && challenge.status === 'ACTIVE',
       canAnswer:
         Boolean(viewerParticipation) &&
+        !viewerParticipation?.completedAt &&
         viewerParticipation?.challengeVersion === viewerVersion &&
         challenge.status === 'ACTIVE',
+      viewerResult: viewerParticipation
+        ? resultSummaries.get(viewerParticipation.id) ?? null
+        : null,
+      reference,
       rewardPolicy
     };
   }
@@ -422,7 +439,7 @@ export class ChallengesService {
   ) {
     const participant = await this.prisma.challengeParticipant.findUnique({
       where: { challengeId_userId: { challengeId, userId } },
-      include: { challenge: true }
+      include: { challenge: true, answers: true }
     });
 
     if (!participant) {
@@ -430,6 +447,20 @@ export class ChallengesService {
     }
     if (participant.challenge.status !== 'ACTIVE') {
       throw new BadRequestException('Ce défi est terminé.');
+    }
+
+    if (participant.completedAt) {
+      return {
+        ...participant,
+        challengeVersion: participant.challengeVersion,
+        reward: null,
+        result: await this.results.getForParticipant(participant.id),
+        reference: await this.results.referenceState(
+          challengeId,
+          participant.challengeVersion
+        ),
+        answersLocked: true
+      };
     }
 
     const questions = await this.prisma.challengeQuestion.findMany({
@@ -480,7 +511,7 @@ export class ChallengesService {
     });
     const completed = questions.length > 0 && answerCount === questions.length;
     let reward = null;
-    let completedAt = participant.completedAt;
+    let completedAt: Date | null = participant.completedAt;
 
     if (completed && !participant.completedAt) {
       completedAt = new Date();
@@ -499,11 +530,28 @@ export class ChallengesService {
       data: { completedAt: completed ? completedAt : null },
       include: { answers: true }
     });
+    const archived =
+      completed && completedAt
+        ? await this.results.recordCompletion({
+            participantId: participant.id,
+            userId,
+            creatorId: participant.challenge.creatorId,
+            challengeId,
+            challengeVersion: participant.challengeVersion,
+            questions,
+            answers: updated.answers,
+            completedAt
+          })
+        : null;
 
     return {
       ...updated,
       challengeVersion: participant.challengeVersion,
-      reward
+      reward,
+      result: archived?.result ?? null,
+      reference: archived?.reference ?? null,
+      referenceLocked: archived?.referenceLocked ?? false,
+      answersLocked: completed
     };
   }
 

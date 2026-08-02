@@ -41,7 +41,14 @@ export class AccountService {
   }
 
   async exportData(userId: string) {
-    const [user, security, privacy, media] = await Promise.all([
+    const [
+      user,
+      security,
+      privacy,
+      media,
+      challengeResults,
+      challengeReferences
+    ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         include: {
@@ -73,7 +80,15 @@ export class AccountService {
       }),
       this.security.exportForAccount(userId),
       this.privacy.exportForAccount(userId),
-      this.media.listMine(userId)
+      this.media.listMine(userId),
+      this.prisma.challengeResultSnapshot.findMany({
+        where: { userId },
+        orderBy: { completedAt: 'desc' }
+      }),
+      this.prisma.challengeReferenceSnapshot.findMany({
+        where: { createdById: userId },
+        orderBy: { createdAt: 'desc' }
+      })
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -81,11 +96,27 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 4,
+      formatVersion: 5,
       account: safeUser,
       security,
       privacy,
-      media
+      media,
+      challengeHistory: challengeResults,
+      challengeReferences: challengeReferences.map((reference) => ({
+        id: reference.id,
+        challengeId: reference.challengeId,
+        challengeVersion: reference.challengeVersion,
+        createdAt: reference.createdAt,
+        answers: Array.isArray(reference.answers)
+          ? reference.answers.map((answer) => {
+              if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
+                return answer;
+              }
+              const { normalizedHash: _normalizedHash, ...safeAnswer } = answer;
+              return safeAnswer;
+            })
+          : []
+      }))
     };
   }
 
@@ -94,6 +125,12 @@ export class AccountService {
     if (!user || !(await argon2.verify(user.passwordHash, dto.password))) {
       throw new UnauthorizedException('Mot de passe incorrect.');
     }
+
+    const createdChallenges = await this.prisma.challenge.findMany({
+      where: { creatorId: userId },
+      select: { id: true }
+    });
+    const createdChallengeIds = createdChallenges.map((challenge) => challenge.id);
 
     await this.media.cleanupAccount(userId);
     await this.prisma.$transaction(async (tx) => {
@@ -107,6 +144,26 @@ export class AccountService {
             username: user.username,
             requestedAt: new Date().toISOString()
           }
+        }
+      });
+      await tx.challengeResultSnapshot.deleteMany({
+        where: {
+          OR: [
+            { userId },
+            ...(createdChallengeIds.length
+              ? [{ challengeId: { in: createdChallengeIds } }]
+              : [])
+          ]
+        }
+      });
+      await tx.challengeReferenceSnapshot.deleteMany({
+        where: {
+          OR: [
+            { createdById: userId },
+            ...(createdChallengeIds.length
+              ? [{ challengeId: { in: createdChallengeIds } }]
+              : [])
+          ]
         }
       });
       await tx.privacyConsentEvent.deleteMany({ where: { userId } });
