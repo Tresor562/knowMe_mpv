@@ -23,6 +23,9 @@ describe('KnowMe Concept K delivery health (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE TABLE "ConceptKAssetManifest", "ConceptKCharacterDefinition", "User" RESTART IDENTITY CASCADE'
+    );
     await app.close();
   });
 
