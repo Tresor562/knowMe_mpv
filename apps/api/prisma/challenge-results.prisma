@@ -1,0 +1,33 @@
+model ChallengeReferenceSnapshot {
+  id               String   @id @default(cuid())
+  challengeId      String
+  challengeVersion Int
+  createdById      String
+  answers          Json
+  createdAt        DateTime @default(now())
+
+  @@unique([challengeId, challengeVersion])
+  @@index([createdById, createdAt])
+}
+
+model ChallengeResultSnapshot {
+  id               String    @id @default(cuid())
+  challengeId      String
+  participantId    String    @unique
+  userId           String
+  challengeVersion Int
+  status           String    @default("PENDING_REFERENCE")
+  score            Int       @default(0)
+  correctCount     Int       @default(0)
+  questionCount    Int
+  answers          Json
+  feedback         Json?
+  completedAt      DateTime
+  scoredAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId, completedAt, id])
+  @@index([challengeId, challengeVersion, completedAt])
+  @@index([status, createdAt])
+}
