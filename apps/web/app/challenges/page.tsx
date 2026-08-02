@@ -73,6 +73,7 @@ export default function ChallengesPage() {
       <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16,flexWrap:'wrap'}}>
         <div><small style={{color:'var(--orange)'}}>LE CŒUR DE KNOWME</small><h1>Défis de {user.displayName}</h1></div>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <Link className="btn" href="/progression">Mon niveau</Link>
           <Link className="btn" href="/challenges/history">Mon historique</Link>
           <button className="btn btn-accent" onClick={() => setShowCreator((value) => !value)}>{showCreator ? 'Fermer' : '+ Créer un défi'}</button>
         </div>
