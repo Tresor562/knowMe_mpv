@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -20,9 +19,4 @@ export class UpdateWeeklyLeaderboardPreferenceDto {
     message: 'Le pseudonyme contient des caractères non autorisés.'
   })
   displayAlias?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(32)
-  ignoredClientScore?: string;
 }
