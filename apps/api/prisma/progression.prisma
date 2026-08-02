@@ -1,0 +1,25 @@
+model UserProgression {
+  userId    String   @id
+  totalXp   Int      @default(0)
+  level     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([level, totalXp])
+}
+
+model XpLedgerEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  amount         Int
+  source         String
+  reason         String
+  idempotencyKey String   @unique
+  referenceType  String?
+  referenceId    String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt, id])
+  @@index([referenceType, referenceId])
+}

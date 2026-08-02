@@ -8,9 +8,11 @@ import {
   Post,
   Put,
   Req,
-  UseGuards
+  UseGuards,
+  UseInterceptors
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ChallengeProgressionInterceptor } from './challenge-progression.interceptor';
 import { ChallengeResultsService } from './challenge-results.service';
 import { ChallengesService } from './challenges.service';
 import { CreateChallengeDto } from './dto/create-challenge.dto';
@@ -101,6 +103,7 @@ export class ChallengesController {
   }
 
   @Post(':id/answers')
+  @UseInterceptors(ChallengeProgressionInterceptor)
   submitAnswers(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,

@@ -47,7 +47,9 @@ export class AccountService {
       privacy,
       media,
       challengeResults,
-      challengeReferences
+      challengeReferences,
+      progressionProfile,
+      xpLedger
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -88,6 +90,11 @@ export class AccountService {
       this.prisma.challengeReferenceSnapshot.findMany({
         where: { createdById: userId },
         orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.userProgression.findUnique({ where: { userId } }),
+      this.prisma.xpLedgerEntry.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       })
     ]);
 
@@ -96,7 +103,7 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 5,
+      formatVersion: 6,
       account: safeUser,
       security,
       privacy,
@@ -116,7 +123,11 @@ export class AccountService {
               return safeAnswer;
             })
           : []
-      }))
+      })),
+      progression: {
+        profile: progressionProfile,
+        ledger: xpLedger
+      }
     };
   }
 
@@ -146,6 +157,8 @@ export class AccountService {
           }
         }
       });
+      await tx.xpLedgerEntry.deleteMany({ where: { userId } });
+      await tx.userProgression.deleteMany({ where: { userId } });
       await tx.challengeResultSnapshot.deleteMany({
         where: {
           OR: [
