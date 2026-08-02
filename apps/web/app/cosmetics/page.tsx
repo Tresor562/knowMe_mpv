@@ -117,8 +117,14 @@ export default function CosmeticsPage() {
         <h1>Personnalise ton apparence, jamais ta puissance</h1>
         <p style={{ color: 'var(--muted)', maxWidth: 760 }}>
           Les objets de ce catalogue sont exclusivement visuels. Ils ne modifient ni les scores,
-          ni l’XP, ni les récompenses, ni la visibilité sociale. Aucun achat n’est activé dans ce socle.
+          ni l’XP, ni les récompenses, ni la visibilité sociale. Les acquisitions KnowCoins utilisent
+          le même inventaire autoritaire que les objets gratuits.
         </p>
+        {catalog.rules.purchasesEnabled && (
+          <a className="btn btn-primary" href="/cosmetics/shop" style={{ marginTop: 12 }}>
+            Ouvrir la boutique KnowCoins
+          </a>
+        )}
       </header>
 
       {message && <p role="status">{message}</p>}
