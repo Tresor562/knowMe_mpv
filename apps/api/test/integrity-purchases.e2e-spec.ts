@@ -50,11 +50,12 @@ describe('KnowMe application integrity and purchases (e2e)', () => {
   });
 
   async function register(label: string): Promise<Session> {
+    const username = `integrity_${label.replace(/[^a-zA-Z0-9_]/g, '_')}`.slice(0, 24);
     const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email: `${label}@integrity.knowme.test`,
-        username: `integrity_${label}`,
+        username,
         displayName: `Integrity ${label}`,
         password: 'KnowMeTest123!'
       })
