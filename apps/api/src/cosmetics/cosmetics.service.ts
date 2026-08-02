@@ -33,7 +33,7 @@ export class CosmeticsService {
     return {
       visualOnly: true,
       gameplayEffectsAllowed: false,
-      purchasesEnabled: false,
+      purchasesEnabled: true,
       paidPriorityAllowed: false,
       ownershipRequired: true,
       oneItemPerSlot: true,
@@ -298,7 +298,7 @@ export class CosmeticsService {
   }
 
   async exportForAccount(userId: string) {
-    const [ownerships, equipment] = await Promise.all([
+    const [ownerships, equipment, purchaseReceipts] = await Promise.all([
       this.prisma.cosmeticOwnership.findMany({
         where: { userId },
         include: { item: true },
@@ -308,13 +308,19 @@ export class CosmeticsService {
         where: { userId },
         include: { item: true },
         orderBy: [{ slot: 'asc' }]
+      }),
+      this.prisma.cosmeticPurchaseReceipt.findMany({
+        where: { userId },
+        include: { offer: true, item: true },
+        orderBy: [{ purchasedAt: 'desc' }, { id: 'desc' }]
       })
     ]);
-    return { ownerships, equipment, rules: this.policy() };
+    return { ownerships, equipment, purchaseReceipts, rules: this.policy() };
   }
 
   async deleteForAccount(userId: string, tx: Prisma.TransactionClient) {
     await tx.cosmeticEquipment.deleteMany({ where: { userId } });
+    await tx.cosmeticPurchaseReceipt.deleteMany({ where: { userId } });
     await tx.cosmeticOwnership.deleteMany({ where: { userId } });
   }
 
