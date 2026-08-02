@@ -11,6 +11,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ModerationService } from '../moderation/moderation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessagingService } from './messaging.service';
@@ -18,7 +19,10 @@ import { MessagingService } from './messaging.service';
 @UseGuards(JwtAuthGuard)
 @Controller('conversations')
 export class MessagingController {
-  constructor(private readonly messaging: MessagingService) {}
+  constructor(
+    private readonly messaging: MessagingService,
+    private readonly moderation: ModerationService
+  ) {}
 
   @Post()
   create(
@@ -57,11 +61,17 @@ export class MessagingController {
   }
 
   @Post(':id/messages')
-  send(
+  async send(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: SendMessageDto
   ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'MESSAGE_SEND',
+      content: dto.content,
+      targetId: id
+    });
     return this.messaging.send(req.user.userId, id, dto.content);
   }
 }

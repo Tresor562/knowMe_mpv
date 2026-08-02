@@ -1,0 +1,32 @@
+model AbuseEvent {
+  id          String   @id @default(cuid())
+  actorId     String
+  action      String
+  contentHash String?
+  targetId    String?
+  decision    String   @default("ALLOWED")
+  reasonCode  String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId, action, createdAt])
+  @@index([actorId, contentHash, createdAt])
+  @@index([decision, createdAt])
+}
+
+model ModerationAction {
+  id           String    @id @default(cuid())
+  actorId      String
+  targetType   String
+  targetId     String
+  action       String
+  reason       String
+  expiresAt    DateTime?
+  reversedAt   DateTime?
+  reversedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([targetType, targetId, action, reversedAt, expiresAt])
+  @@index([actorId, createdAt])
+}
