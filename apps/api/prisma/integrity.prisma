@@ -1,0 +1,88 @@
+model DeviceAttestationChallenge {
+  id            String    @id @default(cuid())
+  userId        String
+  sessionId     String
+  platform      String
+  action        String
+  nonceHash     String    @unique
+  attemptCount  Int       @default(0)
+  maxAttempts   Int       @default(3)
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, sessionId, platform, action, expiresAt, consumedAt])
+}
+
+model DeviceAttestation {
+  id             String    @id @default(cuid())
+  userId         String
+  sessionId      String
+  deviceId       String
+  platform       String
+  action         String
+  provider       String
+  appIdentifier  String
+  keyIdentifier  String?
+  verdict        String
+  tokenHash      String    @unique
+  issuedAt       DateTime
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, deviceId, platform, action, expiresAt, revokedAt])
+  @@index([provider, appIdentifier, verdict])
+}
+
+model StoreProduct {
+  id                String   @id @default(cuid())
+  key               String   @unique
+  provider          String
+  platform          String
+  externalProductId String
+  name              String
+  description       String?
+  kind              String
+  entitlementKey    String?
+  coinAmount        Int?
+  durationDays      Int?
+  active            Boolean  @default(false)
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  receipts PurchaseReceipt[]
+
+  @@unique([provider, platform, externalProductId])
+  @@index([active, platform, kind])
+}
+
+model PurchaseReceipt {
+  id                    String    @id @default(cuid())
+  userId                String
+  productId             String
+  provider              String
+  platform              String
+  transactionId         String    @unique
+  originalTransactionId String?
+  receiptHash           String    @unique
+  status                String
+  purchasedAt           DateTime
+  expiresAt             DateTime?
+  verifiedAt            DateTime
+  refundedAt            DateTime?
+  entitlementGrantId    String?
+  ledgerEntryId         String?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  product StoreProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, createdAt])
+  @@index([productId, purchasedAt])
+  @@index([provider, originalTransactionId])
+}
