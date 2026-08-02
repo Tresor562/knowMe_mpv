@@ -1,0 +1,71 @@
+model ExperienceProfile {
+  userId       String   @id
+  totalXp      Int      @default(0)
+  level        Int      @default(1)
+  curveVersion Int      @default(1)
+  version      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([level, totalXp])
+}
+
+model ExperienceLevelDefinition {
+  id           String   @id @default(cuid())
+  curveVersion Int
+  level        Int
+  minimumXp    Int
+  title        String
+  createdAt    DateTime @default(now())
+
+  @@unique([curveVersion, level])
+  @@unique([curveVersion, minimumXp])
+  @@index([curveVersion, minimumXp])
+}
+
+model ExperiencePolicy {
+  id            String    @id @default(cuid())
+  key           String
+  version       Int
+  eventType     String
+  enabled       Boolean   @default(true)
+  amount        Int
+  minQuestions  Int       @default(0)
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  createdById   String?
+  reason        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([key, version])
+  @@index([eventType, enabled, startsAt, endsAt])
+}
+
+model ExperienceLedgerEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  policyId       String
+  policyKey      String
+  policyVersion  Int
+  eventType      String
+  entityType     String
+  entityId       String
+  idempotencyKey String   @unique
+  status         String
+  amount         Int
+  totalBefore    Int
+  totalAfter     Int
+  levelBefore    Int
+  levelAfter     Int
+  curveVersion   Int
+  reasonCode     String
+  explanation    String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt, id])
+  @@index([eventType, entityType, entityId])
+  @@index([status, createdAt])
+  @@index([policyId, createdAt])
+}
