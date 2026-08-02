@@ -55,7 +55,8 @@ export class AccountService {
       questProgress,
       questContributions,
       achievementPreference,
-      achievementGrants
+      achievementGrants,
+      leaderboardPreference
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -120,7 +121,8 @@ export class AccountService {
         where: { userId },
         include: { definition: true },
         orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }]
-      })
+      }),
+      this.prisma.leaderboardPreference.findUnique({ where: { userId } })
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -164,6 +166,9 @@ export class AccountService {
       achievements: {
         preference: achievementPreference,
         grants: achievementGrants
+      },
+      leaderboards: {
+        weeklyXpPreference: leaderboardPreference
       }
     };
   }
@@ -194,6 +199,7 @@ export class AccountService {
           }
         }
       });
+      await tx.leaderboardPreference.deleteMany({ where: { userId } });
       await tx.userAchievementPreference.deleteMany({ where: { userId } });
       await tx.achievementGrant.deleteMany({ where: { userId } });
       await tx.dailyQuestContribution.deleteMany({ where: { userId } });
