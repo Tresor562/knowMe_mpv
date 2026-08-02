@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
+import { ExperienceModule } from './experience/experience.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
@@ -49,6 +50,7 @@ import { WalletModule } from './wallet/wallet.module';
     ModerationModule,
     WalletModule,
     RewardsModule,
+    ExperienceModule,
     BillingModule,
     VerificationModule,
     AuthModule,
