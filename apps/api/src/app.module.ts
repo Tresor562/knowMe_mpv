@@ -18,6 +18,7 @@ import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IntegrityModule } from './integrity/integrity.module';
 import { MediaModule } from './media/media.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RequestContextMiddleware } from './observability/request-context.middleware';
@@ -45,6 +46,7 @@ import { WalletModule } from './wallet/wallet.module';
     PrismaModule,
     ObservabilityModule,
     AccessControlModule,
+    ModerationModule,
     WalletModule,
     RewardsModule,
     BillingModule,
