@@ -27,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { ProgressionModule } from './progression/progression.module';
 import { PurchasesModule } from './purchases/purchases.module';
+import { QuestsModule } from './quests/quests.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
@@ -53,6 +54,7 @@ import { WalletModule } from './wallet/wallet.module';
     RewardsModule,
     ProgressionModule,
     StreaksModule,
+    QuestsModule,
     BillingModule,
     VerificationModule,
     AuthModule,
