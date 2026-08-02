@@ -160,7 +160,8 @@ describe('KnowMe privacy, consent and retention (e2e)', () => {
       .get('/account/export')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
-    expect(exported.body.formatVersion).toBe(3);
+    expect(exported.body.formatVersion).toBe(4);
+    expect(exported.body.media).toEqual([]);
     expect(exported.body.privacy.preferences.profileVisibility).toBe('PRIVATE');
     expect(exported.body.privacy.consentEvents[0].evidenceHash).toBeUndefined();
 
