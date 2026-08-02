@@ -1,0 +1,31 @@
+model UserAnimationPreference {
+  userId         String   @id
+  mode           String   @default("AUTO")
+  soundEnabled   Boolean  @default(false)
+  hapticsEnabled Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([mode, updatedAt])
+}
+
+model AnimationTelemetryEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  eventKey       String
+  catalogVersion Int
+  preferenceMode String
+  variant        String
+  outcome        String
+  durationMs     Int
+  assetBytes     Int
+  platform       String
+  deviceClass    String
+  reason         String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt, id])
+  @@index([eventKey, outcome, createdAt])
+  @@index([platform, deviceClass, createdAt])
+}
