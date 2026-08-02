@@ -39,7 +39,7 @@ describe('KnowMe cosmetics inventory (e2e)', () => {
       .expect(201);
   }
 
-  it('separates definitions, ownership and visual equipment without purchases', async () => {
+  it('separates definitions, ownership and visual equipment', async () => {
     const admin = await register('admin');
     const member = await register('member');
     const outsider = await register('outsider');
@@ -106,7 +106,7 @@ describe('KnowMe cosmetics inventory (e2e)', () => {
         rules: expect.objectContaining({
           visualOnly: true,
           gameplayEffectsAllowed: false,
-          purchasesEnabled: false,
+          purchasesEnabled: true,
           paidPriorityAllowed: false,
           ownershipRequired: true,
           serverAuthoritativeInventory: true
