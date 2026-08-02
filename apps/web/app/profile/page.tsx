@@ -118,6 +118,12 @@ export default function ProfilePage() {
             {user.bio && <p>{user.bio}</p>}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn" href={`/profile/${user.username}`}>
+              Aperçu cosmétique
+            </Link>
+            <Link className="btn" href="/privacy/cosmetics">
+              Confidentialité cosmétique
+            </Link>
             <Link className="btn" href="/verification">
               Vérification
             </Link>
