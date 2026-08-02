@@ -1,0 +1,40 @@
+model PositiveChallenge {
+  id                   String    @id @default(cuid())
+  creatorId            String
+  recipientId          String
+  kind                 String
+  note                 String?
+  challengeDate        DateTime
+  status               String    @default("INVITED")
+  acceptedAt           DateTime?
+  declinedAt           DateTime?
+  cancelledAt          DateTime?
+  creatorConfirmedAt   DateTime?
+  recipientConfirmedAt DateTime?
+  completedAt          DateTime?
+  expiresAt            DateTime
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  events PositiveChallengeEvent[]
+
+  @@unique([creatorId, recipientId, kind, challengeDate])
+  @@index([creatorId, status, createdAt])
+  @@index([recipientId, status, createdAt])
+  @@index([expiresAt, status])
+}
+
+model PositiveChallengeEvent {
+  id             String   @id @default(cuid())
+  challengeId    String
+  actorId        String
+  type           String
+  idempotencyKey String   @unique
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  challenge PositiveChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@index([challengeId, createdAt, id])
+  @@index([actorId, createdAt])
+}
