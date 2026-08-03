@@ -14,7 +14,6 @@ import {
   EVENT_ICON_PACKS,
   ICON_PACKS,
   isUnlocked,
-  PREMIUM_CUSTOMIZATION_CAPABILITIES,
   SEASONAL_THEMES,
   THEME_CATALOG,
   ThemeDefinition
@@ -25,6 +24,7 @@ export const APP_THEMES = THEME_CATALOG;
 const PREMIUM_THEMES_ENTITLEMENT = 'premium.themes';
 const PREMIUM_APP_ICONS_ENTITLEMENT = 'premium.app_icons';
 const LEGACY_PREMIUM_ALIAS = 'subscription.premium';
+const DEFAULT_APP_ICON_KEY = 'classique-knowme';
 
 type PreferenceRecord = {
   userId: string;
@@ -76,6 +76,7 @@ export class AppearanceService {
       premiumAppIconEntitlementKey: PREMIUM_APP_ICONS_ENTITLEMENT,
       safeFallbackThemeKey: 'system',
       defaultIconPackKey: 'soft-glass',
+      defaultAppIconKey: DEFAULT_APP_ICON_KEY,
       supportedContrastModes: ['STANDARD', 'HIGH'],
       supportedEffectIntensity: ['LOW', 'BALANCED', 'HIGH'],
       supportedRotationModes: ['OFF', 'TIME', 'SEASON'],
@@ -83,7 +84,26 @@ export class AppearanceService {
       reduceTransparencySupported: true,
       seasonalAvailabilityIsServerDriven: true,
       weatherEffectsRequirePermission: true,
-      premiumCustomization: PREMIUM_CUSTOMIZATION_CAPABILITIES
+      premiumCustomization: {
+        synchronized: [
+          'INDEPENDENT_ICON_PACK',
+          'THEME_BLEND',
+          'ROTATION_PREFERENCE',
+          'APP_ICON_PREFERENCE',
+          'EFFECT_CONTROLS'
+        ],
+        adapterRequired: [
+          'NATIVE_APP_ICON',
+          'LOCAL_UI_SOUNDS',
+          'REAL_TIME_WEATHER_EFFECTS'
+        ],
+        planned: [
+          'CUSTOM_THEME_EDITOR',
+          'PERSONAL_WALLPAPER_IMPORT',
+          'PER_TAB_ICON_PACKS',
+          'ICON_GEOMETRY_EDITOR'
+        ]
+      }
     };
   }
 
@@ -309,9 +329,17 @@ export class AppearanceService {
     const selectedAppIconAllowed = Boolean(
       selectedAppIcon && isUnlocked(selectedAppIcon.entitlementKeys, appIconEntitlements)
     );
+    const themeAppIcon = effectiveTheme.appIconKey
+      ? APP_ICONS.find((entry) => entry.key === effectiveTheme.appIconKey) ?? null
+      : null;
+    const themeAppIconAllowed = Boolean(
+      themeAppIcon && isUnlocked(themeAppIcon.entitlementKeys, appIconEntitlements)
+    );
     const effectiveAppIconKey = selectedAppIconAllowed
       ? selectedAppIcon!.key
-      : effectiveTheme.appIconKey;
+      : themeAppIconAllowed
+        ? themeAppIcon!.key
+        : DEFAULT_APP_ICON_KEY;
 
     const premiumThemesActive = activeEntitlements.has(PREMIUM_THEMES_ENTITLEMENT);
     const activeSeasons = this.activeSeasonKeys();
