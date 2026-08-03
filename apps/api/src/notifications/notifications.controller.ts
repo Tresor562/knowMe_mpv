@@ -82,8 +82,9 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  unreadCount(@Req() req: AuthRequest) {
-    return this.notifications.unreadCount(req.user.userId);
+  async unreadCount(@Req() req: AuthRequest) {
+    const center = await this.center.center(req.user.userId);
+    return { count: center.totals.unread };
   }
 
   @Patch('read-all')
