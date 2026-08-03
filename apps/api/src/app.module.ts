@@ -39,6 +39,7 @@ import { PositiveChallengesModule } from './positive-challenges/positive-challen
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyModule } from './privacy/privacy.module';
+import { ProfileExperienceModule } from './profile-experience/profile-experience.module';
 import { ProgressionModule } from './progression/progression.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { QuestsModule } from './quests/quests.module';
@@ -74,6 +75,7 @@ import { WalletModule } from './wallet/wallet.module';
     DailyChestModule,
     PositiveChallengesModule,
     ConceptKModule,
+    ProfileExperienceModule,
     CosmeticsModule,
     AvatarStudioModule,
     AvatarUniverseModule,
