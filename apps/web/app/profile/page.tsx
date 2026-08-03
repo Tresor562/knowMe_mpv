@@ -104,6 +104,7 @@ export default function ProfilePage() {
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn btn-primary" href="/profile-studio">Ouvrir le Studio de profil</Link>
+          <Link className="btn" href="/profile-circles">Gérer mes Duos et équipes</Link>
           <Link className="btn" href={`/profile/${encodeURIComponent(user.username)}`}>Voir mon profil public</Link>
           <Link className="btn" href="/avatar-studio">Avatar</Link>
           <Link className="btn" href="/privacy/cosmetics">Objets et confidentialité</Link>
@@ -119,7 +120,7 @@ export default function ProfilePage() {
         </article>
         <article className="card" style={{ padding: 18 }}>
           <strong style={{ fontSize: 28 }}>{user.knowCoins ?? 0}</strong>
-          <div style={{ color: 'var(--muted)' }}>KnowCoins</div>
+          <div style={{ color: 'var(--muted)' }}>KnowCoins privés</div>
         </article>
         <article className="card" style={{ padding: 18 }}>
           <strong style={{ fontSize: 28 }}>{user.verification ? 'Vérifié' : 'Actif'}</strong>
