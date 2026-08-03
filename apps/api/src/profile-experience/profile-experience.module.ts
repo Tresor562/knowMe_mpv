@@ -4,6 +4,8 @@ import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { ProfileCircleController } from './profile-circle.controller';
 import { ProfileCircleGovernanceController } from './profile-circle-governance.controller';
 import { ProfileCircleGovernanceService } from './profile-circle-governance.service';
+import { ProfileCircleNotificationPreferencesController } from './profile-circle-notification-preferences.controller';
+import { ProfileCircleNotificationPreferencesService } from './profile-circle-notification-preferences.service';
 import { ProfileCircleNotificationsService } from './profile-circle-notifications.service';
 import { ProfileCircleService } from './profile-circle.service';
 import { ProfileExperienceController } from './profile-experience.controller';
@@ -20,6 +22,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileExperienceController,
     ProfileCircleController,
     ProfileCircleGovernanceController,
+    ProfileCircleNotificationPreferencesController,
     ProfileMemberDirectoryController,
     ProfileStatsController
   ],
@@ -28,6 +31,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfilePublicService,
     ProfileCircleService,
     ProfileCircleGovernanceService,
+    ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
     ProfileMemberDirectoryService,
     ProfileStatsService,
@@ -38,6 +42,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfilePublicService,
     ProfileCircleService,
     ProfileCircleGovernanceService,
+    ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
     ProfileMemberDirectoryService,
     ProfileStatsService
