@@ -50,6 +50,12 @@ Dans une transaction unique, le serveur :
 
 La répétition de la même clé retourne le reçu existant sans deuxième mutation. Une même clé utilisée pour un autre compte ou un autre preset est refusée.
 
+## Cohérence de l’état actif
+
+`activePresetId` décrit un équipement effectivement appliqué, pas seulement le dernier preset choisi. Une modification manuelle d’un slot ou la révocation d’un objet actuellement équipé remet donc atomiquement `activePresetId` à `null`.
+
+Le preset par défaut reste inchangé. Une activation ultérieure du même preset crée un nouveau reçu, augmente `activationVersion` et restaure l’état actif. Cette règle empêche les clients Web et Mobile d’afficher un thème comme actif alors que l’équipement réel a divergé.
+
 ## Confidentialité et rendu public
 
 L’activation ne modifie aucune préférence de visibilité. Le rendu public continue d’être calculé par KMD-029 : visibilité du profil comme limite supérieure, slots masqués omis et fallback sûr pour les assets indisponibles.
@@ -73,7 +79,7 @@ La `activationVersion` permet aux clients de détecter un changement d’équipe
 
 L’export de compte inclut presets, état et activations. La suppression du compte efface l’état, les activations et les presets dans la même transaction que le reste des données cosmétiques.
 
-Les créations, modifications, choix par défaut, activations, suppressions et nettoyages automatiques produisent des événements d’audit dédiés.
+Les créations, modifications, choix par défaut, activations, suppressions, invalidations de l’état actif et nettoyages automatiques produisent des événements d’audit dédiés.
 
 ## Invariants
 
@@ -81,6 +87,8 @@ Les créations, modifications, choix par défaut, activations, suppressions et n
 - un seul objet par slot ;
 - activation multi-slot atomique ;
 - activation idempotente ;
+- état actif invalidé dès que l’équipement réel diverge ;
+- preset par défaut conservé indépendamment de l’état actif ;
 - aucun contournement des slots masqués ;
 - aucun effet de jeu ou privilège social ;
 - aucun prix ni provenance exposés publiquement ;
