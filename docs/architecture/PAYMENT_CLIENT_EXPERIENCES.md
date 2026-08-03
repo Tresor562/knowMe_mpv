@@ -63,16 +63,25 @@ Idempotency-Key: checkout:<provider>:<product>:<nonce>
 
 Le corps contient la clé produit, le fournisseur et les informations facultatives de facturation. Aucun montant client n’est accepté.
 
-L’identifiant de commande est conservé temporairement dans `sessionStorage` avant la redirection vers le fournisseur. Cette valeur sert uniquement à retrouver la commande au retour ; elle n’autorise aucune livraison.
+L’identifiant et la référence de commande sont conservés temporairement dans `sessionStorage` avant la redirection vers le fournisseur. Ces valeurs servent uniquement à retrouver la commande au retour ; elles n’autorisent aucune livraison.
 
 ### Retour fournisseur
 
 La page `/payments/return` :
 
-1. retrouve la commande créée ;
-2. récupère l’identifiant de transaction lorsqu’il est présent dans l’URL ;
-3. demande explicitement la vérification serveur ;
-4. affiche le statut retourné par KnowMe.
+1. retrouve la commande créée par son identifiant local ;
+2. si le fournisseur revient dans un autre contexte navigateur, résout la référence serveur ;
+3. récupère l’identifiant de transaction lorsqu’il est présent dans l’URL ;
+4. demande explicitement la vérification serveur ;
+5. affiche le statut retourné par KnowMe.
+
+La résolution inter-onglets utilise :
+
+```text
+GET /payments/me/order-references/:reference
+```
+
+Cette route est authentifiée. Elle ne retourne que l’identifiant et la référence, et répond comme si la commande était introuvable lorsqu’elle appartient à un autre compte.
 
 Le retour navigateur n’est jamais considéré comme une preuve. La livraison dépend toujours de :
 
@@ -172,7 +181,7 @@ Les clients ne stockent pas durablement :
 - les preuves mobiles ;
 - les réponses brutes fournisseur.
 
-Le Web conserve temporairement l’identifiant de la dernière commande dans la session du navigateur. Le Mobile conserve seulement les jetons de session selon le mécanisme sécurisé existant.
+Le Web conserve temporairement l’identifiant et la référence de la dernière commande dans la session du navigateur. La résolution par référence reste soumise à l’authentification et à la propriété du compte. Le Mobile conserve seulement les jetons de session selon le mécanisme sécurisé existant.
 
 ## Accessibilité et erreurs
 
@@ -206,6 +215,7 @@ La livraison est fusionnable lorsque :
 - les tests existants et E2E restent verts ;
 - aucun montant libre n’est envoyé par les clients ;
 - le retour Web ne livre rien sans vérification serveur ;
+- la récupération par référence ne révèle aucune commande d’un autre compte ;
 - le Mobile ne permet aucune saisie manuelle de preuve ;
 - l’absence de pont natif bloque proprement les achats ;
 - les liens profils Web et Mobile exposent les nouveaux parcours.
