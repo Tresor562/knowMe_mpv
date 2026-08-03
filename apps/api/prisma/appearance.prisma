@@ -1,11 +1,20 @@
 model UserAppearancePreference {
-  userId            String   @id
-  selectedThemeKey  String   @default("system")
-  contrast          String   @default("STANDARD")
-  reduceTransparency Boolean @default(false)
-  version           Int      @default(1)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  userId                  String   @id
+  selectedThemeKey        String   @default("system")
+  selectedIconPackKey     String?
+  selectedAppIconKey      String?
+  contrast                String   @default("STANDARD")
+  reduceTransparency      Boolean  @default(false)
+  animationsEnabled       Boolean  @default(true)
+  animatedIconsEnabled    Boolean  @default(true)
+  uiSoundsEnabled         Boolean  @default(false)
+  weatherEffectsEnabled   Boolean  @default(false)
+  effectIntensity         String   @default("BALANCED")
+  automaticRotationMode   String   @default("OFF")
+  version                 Int      @default(1)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@index([selectedThemeKey, updatedAt])
+  @@index([selectedIconPackKey, updatedAt])
 }
