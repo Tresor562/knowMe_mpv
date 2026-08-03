@@ -1,0 +1,87 @@
+enum CreatorProfileStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+enum CreatorProfileVisibility {
+  PUBLIC
+  UNLISTED
+}
+
+enum CreatorMetricKind {
+  PROFILE_VIEW
+  POST_VIEW
+}
+
+model CreatorProfile {
+  userId          String                   @id
+  slug            String                   @unique
+  title           String
+  bio             String?
+  category        String
+  visibility      CreatorProfileVisibility @default(PUBLIC)
+  status          CreatorProfileStatus     @default(ACTIVE)
+  followerCount   Int                      @default(0)
+  version         Int                      @default(1)
+  activatedAt     DateTime                 @default(now())
+  suspendedAt     DateTime?
+  suspensionReason String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([status, visibility, updatedAt])
+  @@index([category, followerCount])
+}
+
+model CreatorFollow {
+  id         String   @id @default(cuid())
+  creatorId  String
+  followerId String
+  createdAt  DateTime @default(now())
+
+  @@unique([creatorId, followerId])
+  @@index([followerId, createdAt])
+  @@index([creatorId, createdAt])
+}
+
+model CreatorPinnedPost {
+  id        String   @id @default(cuid())
+  creatorId String
+  postId    String
+  position  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([creatorId, postId])
+  @@unique([creatorId, position])
+  @@index([postId])
+}
+
+model CreatorMetricDaily {
+  id           String   @id @default(cuid())
+  creatorId    String
+  metricDate   DateTime
+  profileViews Int      @default(0)
+  postViews    Int      @default(0)
+  followsGained Int     @default(0)
+  unfollows    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([creatorId, metricDate])
+  @@index([metricDate, creatorId])
+}
+
+model CreatorAudienceReceipt {
+  id          String            @id @default(cuid())
+  creatorId   String
+  metricKind  CreatorMetricKind
+  subjectHash String
+  metricDate  DateTime
+  expiresAt   DateTime
+  createdAt   DateTime          @default(now())
+
+  @@unique([creatorId, metricKind, subjectHash, metricDate])
+  @@index([expiresAt])
+}
