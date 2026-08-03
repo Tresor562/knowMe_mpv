@@ -58,7 +58,9 @@ describe('communities domain', () => {
     );
     expect(abusive.xpEarnedFromWindow).toBeLessThan(clean.xpEarnedFromWindow);
     expect(abusive.level).toBeLessThan(5);
-    expect(abusive.missingRequirements).toContain('TOO_MANY_CONFIRMED_VIOLATIONS');
+    expect(abusive.spamPenaltyXp).toBeGreaterThan(0);
+    expect(abusive.moderationPenaltyXp).toBeGreaterThan(0);
+    expect(abusive.missingRequirements).toContain('REPUTATION_55');
   });
 
   it('does not let inactive purchased members produce prestige', () => {
