@@ -4,6 +4,7 @@ export const PERMISSIONS = {
   REPORTS_RESOLVE: 'moderation.reports.resolve',
   AUDIT_READ: 'audit.logs.read',
   USER_SUSPENSION_MANAGE: 'users.suspension.manage',
+  CREATOR_MANAGE: 'creators.manage',
   FEATURE_FLAGS_MANAGE: 'feature_flags.manage',
   ENTITLEMENTS_MANAGE: 'entitlements.manage',
   STAFF_MANAGE: 'staff.manage',
@@ -24,6 +25,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.REPORTS_RESOLVE, 'Résoudre ou rejeter les signalements.'],
   [PERMISSIONS.AUDIT_READ, 'Consulter les journaux d’audit.'],
   [PERMISSIONS.USER_SUSPENSION_MANAGE, 'Suspendre et restaurer les comptes.'],
+  [PERMISSIONS.CREATOR_MANAGE, 'Suspendre et restaurer les profils créateurs.'],
   [PERMISSIONS.FEATURE_FLAGS_MANAGE, 'Gérer les déploiements par feature flags.'],
   [PERMISSIONS.ENTITLEMENTS_MANAGE, 'Accorder et révoquer les droits exclusifs.'],
   [PERMISSIONS.STAFF_MANAGE, 'Gérer les comptes officiels Équipe KnowMe.'],
@@ -62,6 +64,7 @@ export const SYSTEM_ROLES = [
       PERMISSIONS.REPORTS_READ,
       PERMISSIONS.REPORTS_RESOLVE,
       PERMISSIONS.USER_SUSPENSION_MANAGE,
+      PERMISSIONS.CREATOR_MANAGE,
       PERMISSIONS.VERIFICATION_MANAGE
     ]
   },
@@ -91,7 +94,8 @@ export const SYSTEM_ROLES = [
     description: 'Suivi communautaire et lecture des signalements.',
     permissions: [
       PERMISSIONS.DASHBOARD_READ,
-      PERMISSIONS.REPORTS_READ
+      PERMISSIONS.REPORTS_READ,
+      PERMISSIONS.CREATOR_MANAGE
     ]
   }
 ] as const;
