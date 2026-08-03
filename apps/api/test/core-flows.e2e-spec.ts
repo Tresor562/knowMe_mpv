@@ -205,10 +205,17 @@ describe('KnowMe core flows (e2e)', () => {
       .set('Authorization', `Bearer ${recipient.body.accessToken}`)
       .expect(200);
 
-    await prisma.user.update({
-      where: { id: sender.body.user.id },
-      data: { knowCoins: 100 }
-    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: sender.body.user.id },
+        data: { knowCoins: 100 }
+      }),
+      prisma.knowCoinWallet.upsert({
+        where: { userId: sender.body.user.id },
+        create: { userId: sender.body.user.id, balance: 100 },
+        update: { balance: 100 }
+      })
+    ]);
 
     const idempotencyKey = 'gift:e2e:recipient:spark:00000001';
     const first = await request(app.getHttpServer())
