@@ -51,7 +51,7 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | À ouvrir | CI requise avant fusion |
+| KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | CI requise avant fusion |
 
 ## Prochaine livraison réservée
 
