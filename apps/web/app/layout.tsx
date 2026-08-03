@@ -1,6 +1,6 @@
 import './globals.css';
 import { BottomNavigation } from '../components/bottom-navigation';
-import { I18nProvider } from '../components/i18n-provider';
+import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
 import { ThemeRuntime } from '../components/theme-runtime';
 
@@ -114,12 +114,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
       </head>
       <body>
-        <I18nProvider>
-          <ThemeRuntime />
-          <ServiceWorkerRegistration />
-          {children}
-          <BottomNavigation />
-        </I18nProvider>
+        <I18nRuntime />
+        <ThemeRuntime />
+        <ServiceWorkerRegistration />
+        {children}
+        <BottomNavigation />
       </body>
     </html>
   );
