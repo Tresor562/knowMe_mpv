@@ -50,13 +50,13 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-031 | Thèmes d’application statiques clair, sombre et système | #67 | CI et intégration Mobile requises avant fusion |
 
 ## Prochaine livraison réservée
 
-| Livraison | Domaine | Source backlog | Dépendances |
-| --- | --- | --- | --- |
-| KMD-031 | Thèmes d’application statiques clair, sombre et système | KM-022 | KMD-001 à KMD-030 |
+Aucun identifiant après `KMD-031` n’est réservé avant la fusion verte de cette livraison.
 
 KMD-031 doit fournir une préférence autoritaire synchronisée Web/Mobile, un fallback local avant authentification, une application sans flash visuel, des tokens accessibles et des thèmes statiques sans animation lourde. Les thèmes Premium restent bloqués par les entitlements serveur et ne doivent accorder aucun avantage fonctionnel.
 
