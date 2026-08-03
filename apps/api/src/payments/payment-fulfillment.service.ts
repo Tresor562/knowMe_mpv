@@ -215,13 +215,29 @@ export class PaymentFulfillmentService {
           'externalSubscriptionId' in verification && verification.externalSubscriptionId
             ? verification.externalSubscriptionId
             : order.reference;
+        const subscriptionWhere = {
+          provider_externalSubscriptionId: {
+            provider: order.provider,
+            externalSubscriptionId
+          }
+        };
+        const currentSubscription = await tx.billingSubscription.findUnique({
+          where: subscriptionWhere
+        });
+        if (
+          wasFulfilled &&
+          currentSubscription?.latestExternalEventId === externalTransactionId
+        ) {
+          return {
+            order,
+            subscription: currentSubscription,
+            replayed: true,
+            renewed: false
+          };
+        }
+
         const subscription = await tx.billingSubscription.upsert({
-          where: {
-            provider_externalSubscriptionId: {
-              provider: order.provider,
-              externalSubscriptionId
-            }
-          },
+          where: subscriptionWhere,
           create: {
             userId: order.userId,
             planId: plan.id,
