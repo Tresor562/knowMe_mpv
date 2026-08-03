@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { sha256Hex } from './payment-crypto';
 import { PaymentProvider } from './payment-provider.types';
@@ -30,16 +31,25 @@ export function createPaymentReference(provider: PaymentProvider) {
   return `KM-${prefix}-${Date.now().toString(36).toUpperCase()}-${randomBytes(8).toString('hex').toUpperCase()}`;
 }
 
-export function redactPaymentPayload(value: unknown, depth = 0): unknown {
+export function redactPaymentPayload(
+  value: unknown,
+  depth = 0
+): Prisma.InputJsonValue {
   if (depth > 8) return '[TRUNCATED]';
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'bigint') return value.toString();
+  if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) {
-    return value.slice(0, 100).map((entry) => redactPaymentPayload(entry, depth + 1));
+    return value
+      .slice(0, 100)
+      .map((entry) => redactPaymentPayload(entry, depth + 1));
   }
-  if (!value || typeof value !== 'object') {
+  if (typeof value !== 'object') {
+    if (typeof value === 'number' && !Number.isFinite(value)) return null;
     if (typeof value === 'string' && value.length > 2_000) {
       return `${value.slice(0, 2_000)}…`;
     }
-    return value;
+    return value as string | number | boolean;
   }
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
