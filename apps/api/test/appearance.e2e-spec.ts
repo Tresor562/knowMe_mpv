@@ -5,7 +5,7 @@ import { AccountService } from '../src/account/account.service';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
-describe('KnowMe static application themes (e2e)', () => {
+describe('KnowMe application personalization engine (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let account: AccountService;
@@ -27,7 +27,7 @@ describe('KnowMe static application themes (e2e)', () => {
     await app.close();
   });
 
-  it('synchronizes versioned themes and falls back after entitlement loss', async () => {
+  it('synchronizes 100 themes, accessibility, packs and Premium combinations', async () => {
     const registered = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -44,49 +44,68 @@ describe('KnowMe static application themes (e2e)', () => {
       .get('/appearance')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
-    expect(initial.body).toEqual(
+    expect(initial.body.preference).toEqual(
       expect.objectContaining({
-        preference: expect.objectContaining({
-          selectedThemeKey: 'system',
-          effectiveThemeKey: 'system',
-          version: 0
-        }),
-        rules: expect.objectContaining({
-          staticOnly: true,
-          animatedThemesAllowed: false,
-          functionalAdvantagesAllowed: false
-        })
+        selectedThemeKey: 'system',
+        effectiveThemeKey: 'system',
+        animationsEnabled: true,
+        animatedIconsEnabled: true,
+        uiSoundsEnabled: false,
+        weatherEffectsEnabled: false,
+        version: 0
       })
     );
+    expect(initial.body.rules).toEqual(
+      expect.objectContaining({
+        themeCount: 100,
+        freeThemeCount: 40,
+        premiumThemeCount: 60,
+        animatedThemesAllowed: true,
+        animationsCanBeDisabled: true,
+        functionalAdvantagesAllowed: false
+      })
+    );
+    expect(initial.body.themes).toHaveLength(100);
+    expect(initial.body.iconPacks).toHaveLength(25);
+    expect(initial.body.appIcons).toHaveLength(20);
+    expect(initial.body.seasonalThemes).toHaveLength(10);
     expect(initial.body.themes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'light', locked: false }),
-        expect.objectContaining({ key: 'midnight', locked: true })
+        expect.objectContaining({ order: 2, key: 'light-minimal', locked: false }),
+        expect.objectContaining({ order: 41, key: 'galaxy-ultra', locked: true }),
+        expect.objectContaining({ order: 100, key: 'knowme-prestige', locked: true })
       ])
     );
 
     await request(app.getHttpServer())
       .patch('/appearance')
       .set('Authorization', `Bearer ${token}`)
-      .send({ themeKey: 'midnight', expectedVersion: 0 })
+      .send({ themeKey: 'galaxy-ultra', expectedVersion: 0 })
       .expect(403);
 
-    const dark = await request(app.getHttpServer())
+    const freeTheme = await request(app.getHttpServer())
       .patch('/appearance')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        themeKey: 'dark',
+        themeKey: 'dark-elegant',
         contrast: 'HIGH',
         reduceTransparency: true,
+        animationsEnabled: false,
+        animatedIconsEnabled: false,
+        uiSoundsEnabled: false,
+        effectIntensity: 'LOW',
         expectedVersion: 0
       })
       .expect(200);
-    expect(dark.body.preference).toEqual(
+    expect(freeTheme.body.preference).toEqual(
       expect.objectContaining({
-        selectedThemeKey: 'dark',
-        effectiveThemeKey: 'dark',
+        selectedThemeKey: 'dark-elegant',
+        effectiveThemeKey: 'dark-elegant',
         contrast: 'HIGH',
         reduceTransparency: true,
+        animationsEnabled: false,
+        animatedIconsEnabled: false,
+        effectIntensity: 'LOW',
         version: 1
       })
     );
@@ -94,43 +113,66 @@ describe('KnowMe static application themes (e2e)', () => {
     const stale = await request(app.getHttpServer())
       .patch('/appearance')
       .set('Authorization', `Bearer ${token}`)
-      .send({ themeKey: 'light', expectedVersion: 0 })
+      .send({ themeKey: 'light-minimal', expectedVersion: 0 })
       .expect(409);
     expect(stale.body.message).toContain('autre appareil');
 
     const entitlement = await prisma.entitlementGrant.create({
       data: {
         userId,
-        key: 'theme.midnight',
+        key: 'subscription.premium',
         source: 'TEST',
-        externalReference: 'kmd-031-e2e',
-        reason: 'Validation du verrouillage des thèmes statiques Premium.'
+        externalReference: 'kmd-031-personalization-e2e',
+        reason: 'Validation du moteur complet de personnalisation Premium.'
       }
     });
 
     const premium = await request(app.getHttpServer())
       .patch('/appearance')
       .set('Authorization', `Bearer ${token}`)
-      .send({ themeKey: 'midnight', expectedVersion: 1 })
+      .send({
+        themeKey: 'galaxy-ultra',
+        secondaryThemeKey: 'cyberpunk',
+        themeBlendMode: 'BALANCED',
+        iconPackKey: 'neon',
+        appIconKey: 'galaxy',
+        animationsEnabled: true,
+        animatedIconsEnabled: true,
+        uiSoundsEnabled: true,
+        weatherEffectsEnabled: true,
+        effectIntensity: 'HIGH',
+        automaticRotationMode: 'TIME',
+        expectedVersion: 1
+      })
       .expect(200);
     expect(premium.body.preference).toEqual(
       expect.objectContaining({
-        selectedThemeKey: 'midnight',
-        effectiveThemeKey: 'midnight',
+        selectedThemeKey: 'galaxy-ultra',
+        effectiveThemeKey: 'galaxy-ultra',
+        secondaryThemeKey: 'cyberpunk',
+        effectiveSecondaryThemeKey: 'cyberpunk',
+        effectiveThemeBlendMode: 'BALANCED',
+        effectiveIconPackKey: 'neon',
+        effectiveAppIconKey: 'galaxy',
+        uiSoundsEnabled: true,
+        weatherEffectsEnabled: true,
+        automaticRotationMode: 'TIME',
         version: 2,
         fallbackReason: null
       })
     );
     expect(
-      premium.body.themes.find((theme: { key: string }) => theme.key === 'midnight')
+      premium.body.themes.find((theme: { key: string }) => theme.key === 'galaxy-ultra')
     ).toEqual(expect.objectContaining({ locked: false }));
 
     const exported = await account.exportData(userId);
     expect(exported.formatVersion).toBe(7);
     expect(exported.appearance.preference).toEqual(
       expect.objectContaining({
-        selectedThemeKey: 'midnight',
-        effectiveThemeKey: 'midnight',
+        selectedThemeKey: 'galaxy-ultra',
+        effectiveThemeKey: 'galaxy-ultra',
+        effectiveThemeBlendMode: 'BALANCED',
+        effectiveIconPackKey: 'neon',
         version: 2
       })
     );
@@ -146,8 +188,13 @@ describe('KnowMe static application themes (e2e)', () => {
       .expect(200);
     expect(fallback.body.preference).toEqual(
       expect.objectContaining({
-        selectedThemeKey: 'midnight',
+        selectedThemeKey: 'galaxy-ultra',
         effectiveThemeKey: 'system',
+        effectiveSecondaryThemeKey: null,
+        effectiveThemeBlendMode: 'OFF',
+        effectiveIconPackKey: 'soft-glass',
+        weatherEffectsEnabled: false,
+        automaticRotationMode: 'OFF',
         fallbackReason: 'ENTITLEMENT_MISSING',
         version: 2
       })
