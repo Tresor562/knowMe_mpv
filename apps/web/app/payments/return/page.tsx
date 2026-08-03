@@ -7,11 +7,13 @@ import {
   PaymentOrder,
   paymentStatusLabel,
   paymentStatusTone,
+  resolvePaymentOrderReference,
   verifyWebPayment
 } from '../../../lib/payments';
 import { useSession } from '../../../lib/use-session';
 
 const LAST_PAYMENT_ORDER_KEY = 'knowme:last-payment-order';
+const LAST_PAYMENT_REFERENCE_KEY = 'knowme:last-payment-reference';
 
 function pickTransactionId(query: URLSearchParams) {
   const keys = [
@@ -29,13 +31,22 @@ function pickTransactionId(query: URLSearchParams) {
   return '';
 }
 
-function pickOrderId(query: URLSearchParams) {
+function pickDirectOrderId(query: URLSearchParams) {
   return (
     query.get('orderId')?.trim() ||
     query.get('order_id')?.trim() ||
     window.sessionStorage.getItem(LAST_PAYMENT_ORDER_KEY) ||
     ''
   );
+}
+
+function pickReference(query: URLSearchParams) {
+  const keys = ['tx_ref', 'cpm_trans_id', 'reference', 'payment_reference'];
+  for (const key of keys) {
+    const value = query.get(key)?.trim();
+    if (value?.toUpperCase().startsWith('KM-')) return value.toUpperCase();
+  }
+  return window.sessionStorage.getItem(LAST_PAYMENT_REFERENCE_KEY)?.trim().toUpperCase() || '';
 }
 
 function errorMessage(cause: unknown, fallback: string) {
@@ -53,31 +64,51 @@ export default function PaymentReturnPage() {
 
   useEffect(() => {
     if (!user) return;
-    const query = new URLSearchParams(window.location.search);
-    const resolvedOrderId = pickOrderId(query);
-    const resolvedTransactionId = pickTransactionId(query);
-    setOrderId(resolvedOrderId);
-    setTransactionId(resolvedTransactionId);
+    let active = true;
 
-    if (!resolvedOrderId) {
-      setMessage(
-        'Aucune commande locale n’a été retrouvée. Ouvre ton historique de paiements pour sélectionner la commande.'
-      );
-      setLoading(false);
-      return;
-    }
+    async function loadReturnedOrder() {
+      const query = new URLSearchParams(window.location.search);
+      const returnedTransactionId = pickTransactionId(query);
+      let resolvedOrderId = pickDirectOrderId(query);
+      const reference = pickReference(query);
 
-    getPaymentOrder(resolvedOrderId)
-      .then((value) => {
+      if (active) setTransactionId(returnedTransactionId);
+
+      try {
+        if (!resolvedOrderId && reference) {
+          const resolved = await resolvePaymentOrderReference(reference);
+          resolvedOrderId = resolved.id;
+        }
+
+        if (!resolvedOrderId) {
+          if (active) {
+            setMessage(
+              'Aucune commande liée à ce retour n’a été retrouvée. Ouvre ton historique de paiements pour sélectionner la commande.'
+            );
+          }
+          return;
+        }
+
+        const value = await getPaymentOrder(resolvedOrderId);
+        if (!active) return;
+        setOrderId(resolvedOrderId);
         setOrder(value);
         setMessage(
           value.fulfilledAt
             ? 'Cette commande est déjà vérifiée et livrée.'
             : 'La commande a été retrouvée. Lance la vérification serveur pour confirmer le résultat.'
         );
-      })
-      .catch((cause) => setMessage(errorMessage(cause, 'Commande introuvable.')))
-      .finally(() => setLoading(false));
+      } catch (cause) {
+        if (active) setMessage(errorMessage(cause, 'Commande introuvable.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadReturnedOrder();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   async function verify(event: FormEvent<HTMLFormElement>) {
@@ -93,7 +124,7 @@ export default function PaymentReturnPage() {
           : `Vérification terminée : ${paymentStatusLabel(result.order.status)}.`
       );
       window.sessionStorage.removeItem(LAST_PAYMENT_ORDER_KEY);
-      window.sessionStorage.removeItem('knowme:last-payment-reference');
+      window.sessionStorage.removeItem(LAST_PAYMENT_REFERENCE_KEY);
     } catch (cause) {
       setMessage(errorMessage(cause, 'La vérification du fournisseur a échoué.'));
     } finally {
@@ -115,7 +146,7 @@ export default function PaymentReturnPage() {
           compare la référence, le montant et la devise, puis délivre le produit côté serveur.
         </p>
 
-        {order && (
+        {order ? (
           <div className="card" style={{ padding: 18 }}>
             <div
               style={{
@@ -134,13 +165,15 @@ export default function PaymentReturnPage() {
               </strong>
             </div>
           </div>
-        )}
+        ) : null}
 
         <p role="status" style={{ color: order?.fulfilledAt ? 'var(--mint)' : 'var(--orange)' }}>
           {message}
         </p>
 
-        {order && !order.fulfilledAt && ['FLUTTERWAVE', 'CINETPAY'].includes(order.provider) && (
+        {order &&
+        !order.fulfilledAt &&
+        ['FLUTTERWAVE', 'CINETPAY'].includes(order.provider) ? (
           <form className="grid" onSubmit={verify}>
             <label htmlFor="transaction-id">Identifiant de transaction fournisseur</label>
             <input
@@ -160,14 +193,14 @@ export default function PaymentReturnPage() {
               {verifying ? 'Vérification serveur…' : 'Vérifier maintenant'}
             </button>
           </form>
-        )}
+        ) : null}
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {order && (
+          {order ? (
             <Link className="btn" href={`/payments/orders/${order.id}`}>
               Détails de la commande
             </Link>
-          )}
+          ) : null}
           <Link className="btn" href="/payments">Historique des paiements</Link>
         </div>
       </section>
