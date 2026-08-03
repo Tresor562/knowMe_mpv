@@ -1,0 +1,10 @@
+model UserLocalePreference {
+  userId    String   @id
+  locale    String   @default("fr")
+  source    String   @default("USER")
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([locale, updatedAt])
+}
