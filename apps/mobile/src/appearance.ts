@@ -47,7 +47,7 @@ export type MobileThemePalette = {
 
 const STORAGE_KEY = 'knowme.appearance.v1';
 
-export const MOBILE_THEME_PALETTES: Record<string, MobileThemePalette> = {
+export const MOBILE_THEME_PALETTES = {
   light: {
     background: '#f6fbf8',
     surface: '#ffffff',
@@ -96,7 +96,7 @@ export const MOBILE_THEME_PALETTES: Record<string, MobileThemePalette> = {
     danger: '#9f321e',
     statusBar: 'dark'
   }
-};
+} as const satisfies Record<string, MobileThemePalette>;
 
 export function resolveMobileThemeKey(
   effectiveThemeKey: string,
@@ -109,9 +109,11 @@ export function resolveMobileThemeKey(
 export function resolveMobilePalette(
   preference: AppearanceResponse['preference'],
   systemColorScheme: ColorSchemeName
-) {
+): MobileThemePalette {
   const key = resolveMobileThemeKey(preference.effectiveThemeKey, systemColorScheme);
-  return MOBILE_THEME_PALETTES[key] ?? MOBILE_THEME_PALETTES.dark;
+  return key in MOBILE_THEME_PALETTES
+    ? MOBILE_THEME_PALETTES[key as keyof typeof MOBILE_THEME_PALETTES]
+    : MOBILE_THEME_PALETTES.dark;
 }
 
 export async function loadCachedAppearance() {
