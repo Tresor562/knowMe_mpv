@@ -66,6 +66,7 @@ export type VerifiedProviderPayment = {
 export type RefundProviderPaymentInput = {
   externalTransactionId: string;
   amount: number;
+  currency: string;
   reason: string;
   callbackUrl?: string;
 };
