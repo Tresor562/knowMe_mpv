@@ -1,0 +1,46 @@
+enum ProfileCircleNotificationRecipientStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+}
+
+model ProfileCircleNotificationDispatch {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  type           String
+  circleId       String?
+  actorUserId    String?
+  title          String
+  body           String
+  data           Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  recipients ProfileCircleNotificationRecipient[]
+
+  @@index([circleId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model ProfileCircleNotificationRecipient {
+  id              String                                   @id @default(cuid())
+  dispatchId      String
+  userId          String
+  status          ProfileCircleNotificationRecipientStatus @default(PENDING)
+  processingToken String?
+  processingAt    DateTime?
+  notificationId  String?                                  @unique
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  errorCode       String?
+  attempts        Int                                      @default(0)
+  createdAt       DateTime                                 @default(now())
+  updatedAt       DateTime                                 @updatedAt
+
+  dispatch ProfileCircleNotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, userId])
+  @@index([userId, status, createdAt])
+  @@index([status, processingAt])
+}
