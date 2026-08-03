@@ -48,6 +48,7 @@ describe('KnowMe application personalization engine (e2e)', () => {
       expect.objectContaining({
         selectedThemeKey: 'system',
         effectiveThemeKey: 'system',
+        effectiveIconPackKey: 'soft-glass',
         animationsEnabled: true,
         animatedIconsEnabled: true,
         uiSoundsEnabled: false,
@@ -60,6 +61,8 @@ describe('KnowMe application personalization engine (e2e)', () => {
         themeCount: 100,
         freeThemeCount: 40,
         premiumThemeCount: 60,
+        premiumThemeEntitlementKey: 'premium.themes',
+        premiumAppIconEntitlementKey: 'premium.app_icons',
         animatedThemesAllowed: true,
         animationsCanBeDisabled: true,
         functionalAdvantagesAllowed: false
@@ -117,15 +120,26 @@ describe('KnowMe application personalization engine (e2e)', () => {
       .expect(409);
     expect(stale.body.message).toContain('autre appareil');
 
-    const entitlement = await prisma.entitlementGrant.create({
-      data: {
-        userId,
-        key: 'subscription.premium',
-        source: 'TEST',
-        externalReference: 'kmd-031-personalization-e2e',
-        reason: 'Validation du moteur complet de personnalisation Premium.'
-      }
-    });
+    const [themeEntitlement, appIconEntitlement] = await Promise.all([
+      prisma.entitlementGrant.create({
+        data: {
+          userId,
+          key: 'premium.themes',
+          source: 'TEST',
+          externalReference: 'kmd-031-theme-premium-e2e',
+          reason: 'Validation du moteur de thèmes Premium.'
+        }
+      }),
+      prisma.entitlementGrant.create({
+        data: {
+          userId,
+          key: 'premium.app_icons',
+          source: 'TEST',
+          externalReference: 'kmd-031-app-icon-premium-e2e',
+          reason: 'Validation des icônes d’application Premium.'
+        }
+      })
+    ]);
 
     const premium = await request(app.getHttpServer())
       .patch('/appearance')
@@ -174,12 +188,13 @@ describe('KnowMe application personalization engine (e2e)', () => {
         effectiveThemeKey: 'galaxy-ultra',
         effectiveThemeBlendMode: 'BALANCED',
         effectiveIconPackKey: 'neon',
+        effectiveAppIconKey: 'galaxy',
         version: 2
       })
     );
 
-    await prisma.entitlementGrant.update({
-      where: { id: entitlement.id },
+    await prisma.entitlementGrant.updateMany({
+      where: { id: { in: [themeEntitlement.id, appIconEntitlement.id] } },
       data: { revokedAt: new Date() }
     });
 
@@ -194,6 +209,7 @@ describe('KnowMe application personalization engine (e2e)', () => {
         effectiveSecondaryThemeKey: null,
         effectiveThemeBlendMode: 'OFF',
         effectiveIconPackKey: 'soft-glass',
+        effectiveAppIconKey: 'classique-knowme',
         weatherEffectsEnabled: false,
         automaticRotationMode: 'OFF',
         fallbackReason: 'ENTITLEMENT_MISSING',
