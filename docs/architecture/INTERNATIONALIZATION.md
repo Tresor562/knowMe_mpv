@@ -71,9 +71,9 @@ Aucune locale RTL n’est encore publiée. Ajouter une telle locale exigera une 
 
 ## Intégration Web
 
-Le Web applique la locale avant l’hydratation pour éviter un flash dans la mauvaise langue. `I18nProvider` expose traduction et formatage, synchronise la préférence et met à jour `html.lang`, `html.dir` et `data-locale`.
+Le Web applique la locale avant l’hydratation pour éviter un flash dans la mauvaise langue. Un store externe basé sur `useSyncExternalStore` expose traduction et formatage, synchronise la préférence et met à jour `html.lang`, `html.dir` et `data-locale`.
 
-La navigation globale, les erreurs API et la section Langue des paramètres utilisent déjà ce runtime. Les autres écrans doivent migrer progressivement vers les clés partagées sans modifier leur logique métier.
+`I18nRuntime` monte ce store à la racine sans dépendre d’un `Context.Provider`, ce qui évite les incompatibilités entre les résolutions React du monorepo. La navigation globale, les erreurs API et la section Langue des paramètres utilisent déjà ce runtime. Les autres écrans doivent migrer progressivement vers les clés partagées sans modifier leur logique métier.
 
 ## Intégration Mobile
 
