@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { SecretProfileEntry } from '../../../components/secret-profile-entry';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
@@ -109,6 +110,8 @@ export default function PublicCosmeticProfilePage() {
           )}
         </div>
       </section>
+
+      <SecretProfileEntry username={snapshot.profile.username} />
 
       {!snapshot.visible ? (
         <section className="card" style={{ padding: 24, marginTop: 22 }}>
