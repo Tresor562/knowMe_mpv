@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -116,10 +116,44 @@ function minuteToTime(value: number) {
 }
 
 function timeToMinute(value: string) {
-  const [hour, minute] = value.split(':').map(Number);
+  const [hour = Number.NaN, minute = Number.NaN] = value.split(':').map(Number);
   if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
   return hour * 60 + minute;
+}
+
+function mergeGroups(current: NotificationGroup[], incoming: NotificationGroup[]) {
+  const byKey = new Map(current.map((group) => [group.groupKey, group]));
+  for (const group of incoming) {
+    const previous = byKey.get(group.groupKey);
+    if (!previous) {
+      byKey.set(group.groupKey, group);
+      continue;
+    }
+    const notificationIds = [
+      ...new Set([...previous.notificationIds, ...group.notificationIds])
+    ];
+    byKey.set(group.groupKey, {
+      ...group,
+      notificationIds,
+      count: notificationIds.length,
+      unreadCount: Math.min(
+        notificationIds.length,
+        previous.unreadCount + group.unreadCount
+      ),
+      grouped: notificationIds.length > 1,
+      latest:
+        new Date(previous.latest.createdAt).getTime() >
+        new Date(group.latest.createdAt).getTime()
+          ? previous.latest
+          : group.latest
+    });
+  }
+  return [...byKey.values()].sort(
+    (left, right) =>
+      new Date(right.latest.createdAt).getTime() -
+      new Date(left.latest.createdAt).getTime()
+  );
 }
 
 export function NotificationCenterExperience({
@@ -130,9 +164,11 @@ export function NotificationCenterExperience({
   onOpenRoute?: (route: string) => void;
 }) {
   const { colors } = useAppearance();
+  const cursorRef = useRef<string | null>(null);
   const [center, setCenter] = useState<CenterResponse | null>(null);
   const [view, setView] = useState<CenterView>('ACTIVE');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [settings, setSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dailyTime, setDailyTime] = useState('08:00');
@@ -140,33 +176,57 @@ export function NotificationCenterExperience({
   const [quietEnd, setQuietEnd] = useState('07:00');
   const [timezone, setTimezone] = useState('UTC');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const value = await apiFetch<CenterResponse>(
-        `/notifications/center?view=${view}&limit=50`
-      );
-      setCenter(value);
-      setDailyTime(minuteToTime(value.preferences.dailyDigestMinute));
-      setQuietStart(minuteToTime(value.preferences.quietStartMinute));
-      setQuietEnd(minuteToTime(value.preferences.quietEndMinute));
-      setTimezone(value.preferences.timezone);
-    } catch (cause) {
-      Alert.alert(
-        'Notifications indisponibles',
-        cause instanceof Error ? cause.message : 'Réessaie.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [view]);
+  const load = useCallback(
+    async (append = false) => {
+      append ? setLoadingMore(true) : setLoading(true);
+      try {
+        const query = new URLSearchParams({ view, limit: '50' });
+        if (append && cursorRef.current) {
+          query.set('cursor', cursorRef.current);
+        }
+        const value = await apiFetch<CenterResponse>(
+          `/notifications/center?${query.toString()}`
+        );
+        cursorRef.current = value.nextCursor ?? null;
+        setCenter((current) =>
+          append && current && current.view === value.view
+            ? {
+                ...value,
+                groups: mergeGroups(current.groups, value.groups)
+              }
+            : value
+        );
+        setDailyTime(minuteToTime(value.preferences.dailyDigestMinute));
+        setQuietStart(minuteToTime(value.preferences.quietStartMinute));
+        setQuietEnd(minuteToTime(value.preferences.quietEndMinute));
+        setTimezone(value.preferences.timezone);
+      } catch (cause) {
+        Alert.alert(
+          'Notifications indisponibles',
+          cause instanceof Error ? cause.message : 'Réessaie.'
+        );
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [view]
+  );
 
   useEffect(() => {
-    void load();
+    cursorRef.current = null;
+    setCenter(null);
+    void load(false);
+  }, [load]);
+
+  useEffect(() => {
     let active = true;
     let detach: (() => void) | null = null;
     const refresh = () => {
-      if (view === 'ACTIVE') void load();
+      if (view === 'ACTIVE') {
+        cursorRef.current = null;
+        void load(false);
+      }
     };
     void getRealtimeSocket().then((socket) => {
       if (!active || !socket) return;
@@ -203,7 +263,8 @@ export function NotificationCenterExperience({
           })
         )
       );
-      await load();
+      cursorRef.current = null;
+      await load(false);
     } catch (cause) {
       Alert.alert(
         'Action impossible',
@@ -224,7 +285,10 @@ export function NotificationCenterExperience({
       );
       const route = group.latest.data?.route ?? group.latest.data?.link;
       if (route && onOpenRoute) onOpenRoute(route);
-      else await load();
+      else {
+        cursorRef.current = null;
+        await load(false);
+      }
     } catch (cause) {
       Alert.alert(
         'Action impossible',
@@ -239,7 +303,7 @@ export function NotificationCenterExperience({
     if (!center) return;
     setBusy(true);
     try {
-      const next = {
+      const next: Preferences = {
         ...center.preferences,
         ...patch,
         categorySettings: {
@@ -253,7 +317,8 @@ export function NotificationCenterExperience({
         method: 'PUT',
         body: JSON.stringify(next)
       });
-      await load();
+      cursorRef.current = null;
+      await load(false);
     } catch (cause) {
       Alert.alert(
         'Réglage impossible',
@@ -274,7 +339,10 @@ export function NotificationCenterExperience({
       quietEndMinute === null ||
       !timezone.trim()
     ) {
-      Alert.alert('Horaire invalide', 'Utilise le format HH:MM et un fuseau IANA.');
+      Alert.alert(
+        'Horaire invalide',
+        'Utilise le format HH:MM et un fuseau IANA.'
+      );
       return;
     }
     await patchPreferences({
@@ -300,10 +368,13 @@ export function NotificationCenterExperience({
     >
       <View style={styles.header}>
         <View style={styles.flex}>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>CENTRE INTELLIGENT</Text>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>
+            CENTRE INTELLIGENT
+          </Text>
           <Text style={[styles.title, { color: colors.text }]}>Notifications</Text>
           <Text style={{ color: colors.muted }}>
-            {center.totals.unread} non lue(s) · {center.totals.snoozed} reportée(s)
+            {center.totals.unread} non lue(s) · {center.totals.snoozed}{' '}
+            reportée(s)
           </Text>
         </View>
         <Pressable
@@ -333,7 +404,8 @@ export function NotificationCenterExperience({
             >
               <Text
                 style={{
-                  color: candidate.key === view ? colors.background : colors.text,
+                  color:
+                    candidate.key === view ? colors.background : colors.text,
                   fontWeight: '800'
                 }}
               >
@@ -347,29 +419,44 @@ export function NotificationCenterExperience({
       <Pressable
         accessibilityRole="button"
         onPress={() => setSettings((value) => !value)}
-        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[
+          styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.border }
+        ]}
       >
-        <Text style={[styles.cardTitle, { color: colors.text }]}>⚙️ Préférences globales</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>
+          ⚙️ Préférences globales
+        </Text>
         <Text style={{ color: colors.muted }}>
-          {center.preferences.realtimeEnabled ? 'Temps réel actif' : 'Temps réel coupé'} ·{' '}
-          {center.preferences.digestMode}
+          {center.preferences.realtimeEnabled
+            ? 'Temps réel actif'
+            : 'Temps réel coupé'}{' '}
+          · {center.preferences.digestMode}
         </Text>
       </Pressable>
 
       {settings && (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border }
+          ]}
         >
-          {([
-            ['Centre actif', 'masterEnabled'],
-            ['Alertes en direct', 'realtimeEnabled'],
-            ['Heures calmes', 'quietHoursEnabled']
-          ] as const).map(([label, key]) => (
+          {(
+            [
+              ['Centre actif', 'masterEnabled'],
+              ['Alertes en direct', 'realtimeEnabled'],
+              ['Heures calmes', 'quietHoursEnabled']
+            ] as const
+          ).map(([label, key]) => (
             <View key={key} style={styles.settingRow}>
               <Text style={{ color: colors.text }}>{label}</Text>
               <Switch
                 disabled={busy}
                 value={center.preferences[key]}
-                onValueChange={(value) => void patchPreferences({ [key]: value })}
+                onValueChange={(value) =>
+                  void patchPreferences({ [key]: value } as Partial<Preferences>)
+                }
               />
             </View>
           ))}
@@ -446,16 +533,22 @@ export function NotificationCenterExperience({
             onPress={() => void saveTimes()}
             style={[styles.button, { borderColor: colors.accent }]}
           >
-            <Text style={{ color: colors.accent, fontWeight: '800' }}>Enregistrer les horaires</Text>
+            <Text style={{ color: colors.accent, fontWeight: '800' }}>
+              Enregistrer les horaires
+            </Text>
           </Pressable>
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Catégories</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Catégories
+          </Text>
           {CATEGORY_META.map((category) => {
-            const locked = category.key === 'SECURITY' || category.key === 'SYSTEM';
+            const locked =
+              category.key === 'SECURITY' || category.key === 'SYSTEM';
             return (
               <View key={category.key} style={styles.settingRow}>
                 <Text style={{ color: colors.text }}>
-                  {category.icon} {category.label}{locked ? ' · essentiel' : ''}
+                  {category.icon} {category.label}
+                  {locked ? ' · essentiel' : ''}
                 </Text>
                 <Switch
                   disabled={busy || locked}
@@ -473,15 +566,22 @@ export function NotificationCenterExperience({
             );
           })}
           <Text style={{ color: colors.muted, marginTop: 10 }}>
-            Les endpoints chiffrés et fournisseurs externes restent gérés par {center.policy.transportsOwnedBy}. Aucun secret n’est renvoyé.
+            Les endpoints chiffrés et fournisseurs restent gérés par{' '}
+            {center.policy.transportsOwnedBy}. Aucun secret n’est renvoyé.
           </Text>
         </View>
       )}
 
       {center.groups.length === 0 && (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border }
+          ]}
         >
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Aucune alerte dans cette vue</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
+            Aucune alerte dans cette vue
+          </Text>
           <Text style={{ color: colors.muted }}>
             Les événements d’origine restent conservés pour l’audit.
           </Text>
@@ -489,7 +589,9 @@ export function NotificationCenterExperience({
       )}
 
       {center.groups.map((group) => {
-        const category = CATEGORY_META.find((entry) => entry.key === group.category);
+        const category = CATEGORY_META.find(
+          (entry) => entry.key === group.category
+        );
         return (
           <View
             key={group.groupKey}
@@ -501,18 +603,22 @@ export function NotificationCenterExperience({
               }
             ]}
           >
-            <Text style={[styles.cardTitle, { color: colors.text }]}> 
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
               {category?.icon ?? '🔔'} {group.latest.title}
               {group.grouped ? ` ×${group.count}` : ''}
               {group.latest.critical ? ' · essentiel' : ''}
             </Text>
-            <Text style={{ color: colors.muted, marginTop: 6 }}>{group.latest.body}</Text>
+            <Text style={{ color: colors.muted, marginTop: 6 }}>
+              {group.latest.body}
+            </Text>
             <Text style={{ color: colors.muted, marginTop: 8, fontSize: 12 }}>
-              {new Date(group.latest.createdAt).toLocaleString()} · {group.unreadCount} non lue(s)
+              {new Date(group.latest.createdAt).toLocaleString()} ·{' '}
+              {group.unreadCount} non lue(s)
             </Text>
             {group.latest.state?.snoozedUntil && (
               <Text style={{ color: colors.muted, marginTop: 6 }}>
-                Jusqu’au {new Date(group.latest.state.snoozedUntil).toLocaleString()}
+                Jusqu’au{' '}
+                {new Date(group.latest.state.snoozedUntil).toLocaleString()}
               </Text>
             )}
             <View style={styles.actions}>
@@ -563,6 +669,19 @@ export function NotificationCenterExperience({
           </View>
         );
       })}
+
+      {center.nextCursor && (
+        <Pressable
+          accessibilityRole="button"
+          disabled={loadingMore || busy}
+          onPress={() => void load(true)}
+          style={[styles.button, { borderColor: colors.border }]}
+        >
+          <Text style={{ color: colors.text }}>
+            {loadingMore ? 'Chargement…' : 'Charger plus'}
+          </Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -571,17 +690,50 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20, gap: 14 },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 6
+  },
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
   title: { fontSize: 30, fontWeight: '900', marginVertical: 4 },
   card: { borderWidth: 1, borderRadius: 18, padding: 16 },
   cardTitle: { fontSize: 17, fontWeight: '800' },
-  sectionTitle: { fontSize: 15, fontWeight: '800', marginTop: 16, marginBottom: 8 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 10 },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 8
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10
+  },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   row: { flexDirection: 'row', gap: 8 },
   rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  button: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }
+  pill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  button: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center'
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8
+  }
 });
