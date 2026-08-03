@@ -9,6 +9,7 @@ import { CommerceCatalogService } from './commerce-catalog.service';
 import { PaymentAdminService } from './payment-admin.service';
 import { PaymentFulfillmentService } from './payment-fulfillment.service';
 import { PaymentOrchestrationService } from './payment-orchestration.service';
+import { PaymentPlanBootstrapService } from './payment-plan-bootstrap.service';
 import { PaymentRefundService } from './payment-refund.service';
 import { PaymentReversalService } from './payment-reversal.service';
 import { PaymentSecretBoxService } from './payment-secret-box.service';
@@ -30,6 +31,7 @@ import { GooglePlayService } from './providers/google-play.service';
     PaymentAdminService,
     PaymentFulfillmentService,
     PaymentOrchestrationService,
+    PaymentPlanBootstrapService,
     PaymentRefundService,
     PaymentReversalService,
     PaymentSecretBoxService,
