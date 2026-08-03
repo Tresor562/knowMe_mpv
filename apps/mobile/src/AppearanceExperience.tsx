@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,17 +5,10 @@ import {
   StyleSheet,
   Switch,
   Text,
-  useColorScheme,
   View
 } from 'react-native';
-import {
-  AppearanceResponse,
-  AppearanceTheme,
-  fetchAppearance,
-  loadCachedAppearance,
-  resolveMobilePalette,
-  updateAppearance
-} from './appearance';
+import { AppearanceTheme, MobileThemePalette } from './appearance';
+import { useAppearance } from './AppearanceProvider';
 
 function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : 'Préférences d’apparence indisponibles.';
@@ -33,7 +25,7 @@ function ThemeButton({
   selected: boolean;
   disabled: boolean;
   onPress: () => void;
-  colors: ReturnType<typeof resolveMobilePalette>;
+  colors: MobileThemePalette;
 }) {
   return (
     <Pressable
@@ -99,44 +91,7 @@ function ThemeButton({
 }
 
 export function AppearanceExperience() {
-  const systemColorScheme = useColorScheme();
-  const [appearance, setAppearance] = useState<AppearanceResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  const colors = useMemo(
-    () =>
-      resolveMobilePalette(
-        appearance?.preference ?? {
-          selectedThemeKey: 'system',
-          effectiveThemeKey: 'system',
-          contrast: 'STANDARD',
-          reduceTransparency: false,
-          version: 0,
-          updatedAt: null,
-          fallbackReason: null
-        },
-        systemColorScheme
-      ),
-    [appearance, systemColorScheme]
-  );
-
-  const load = useCallback(async () => {
-    const cached = await loadCachedAppearance();
-    if (cached) setAppearance(cached);
-
-    try {
-      setAppearance(await fetchAppearance());
-    } catch (cause) {
-      if (!cached) Alert.alert('Apparence indisponible', errorMessage(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { appearance, colors, loading, busy, refresh, update } = useAppearance();
 
   async function save(input: {
     themeKey?: string;
@@ -144,15 +99,11 @@ export function AppearanceExperience() {
     reduceTransparency?: boolean;
   }) {
     if (!appearance || busy) return;
-    setBusy(true);
     try {
-      const updated = await updateAppearance(input, appearance.preference.version);
-      setAppearance(updated);
+      await update(input);
     } catch (cause) {
       Alert.alert('Synchronisation impossible', errorMessage(cause));
-      await load();
-    } finally {
-      setBusy(false);
+      await refresh();
     }
   }
 
