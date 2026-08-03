@@ -48,20 +48,17 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | Fusionnée |
 | KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | Fusionnée |
 | KMD-031 | Moteur de 100 thèmes et d’identité visuelle Web/Mobile | #67 | Fusionnée |
+| KMD-032 | Orchestration de paiements Flutterwave, CinetPay, Google Play et Apple | #68 | Fusionnée |
 
 ## Livraison en validation
 
-| Livraison | Domaine | Pull request | État |
-| --- | --- | --- | --- |
-| KMD-032 | Orchestration de paiements Flutterwave, CinetPay, Google Play et Apple | #68 | Prisma, compilation, tests, E2E et revue sécurité requis avant fusion |
+Aucune livraison majeure n’est actuellement en validation.
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-032` n’est réservé avant sa fusion verte.
+Aucun identifiant après `KMD-032` n’est réservé.
 
-KMD-032 doit étendre les sources de vérité existantes sans créer de second portefeuille ni de second moteur d’abonnement. Le prix, la devise, le produit, le compte, la transaction et l’attribution restent autoritaires côté serveur. Les fournisseurs incomplets doivent rester désactivés et aucun paiement fictif ne peut être enregistré comme réussi.
-
-Les thèmes achetables, cadeaux, avatars, stickers créateurs, Event Pass, publicités récompensées, groupes, chaînes et messagerie consommeront ultérieurement ce socle dans des livraisons séparées. Ils ne sont pas implicitement inclus dans KMD-032.
+Le prochain identifiant sera attribué uniquement après isolation d’un périmètre unique avec ses dépendances, ses modèles, ses règles d’autorité et ses critères de fusion. Les candidats identifiés sont notamment les interfaces clientes de paiement, le système social de cadeaux, le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie.
 
 Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
