@@ -31,7 +31,7 @@ Créer une source de vérité commune français/anglais pour Web, Mobile et API,
 19. export de compte version 10 conditionnel ;
 20. suppression transactionnelle de la préférence ;
 21. bootstrap Web avant hydratation ;
-22. provider Web et navigation globale localisée ;
+22. store Web externe et navigation globale localisée ;
 23. erreurs Web localisées par code ;
 24. réglage Web synchronisé ;
 25. cache et provider Mobile racine ;
