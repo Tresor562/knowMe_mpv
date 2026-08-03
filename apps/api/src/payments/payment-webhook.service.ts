@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { sha256Hex } from './payment-crypto';
 import { PaymentOrchestrationService } from './payment-orchestration.service';
+import { PaymentReversalService } from './payment-reversal.service';
 import {
   paymentAccountReference,
   redactPaymentPayload
@@ -22,6 +23,7 @@ export class PaymentWebhookService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orchestration: PaymentOrchestrationService,
+    private readonly reversal: PaymentReversalService,
     private readonly flutterwave: FlutterwaveService,
     private readonly cinetpay: CinetPayService,
     private readonly googlePlay: GooglePlayService,
@@ -262,12 +264,54 @@ export class PaymentWebhookService {
         verification,
         eventId
       );
+      let reversalResult: unknown = null;
+      if (verification.status === 'REFUNDED') {
+        const refund = await this.ensureProviderRefund({
+          orderId: order.id,
+          amount: order.expectedAmount,
+          currency: order.currency,
+          externalRefundId: verification.externalTransactionId,
+          reason: 'Révocation confirmée par une notification Apple signée.'
+        });
+        reversalResult = await this.reversal.reverse(order.id, refund.id);
+      }
       await this.completeWebhook(log.id);
-      return { accepted: true, result };
+      return { accepted: true, result, reversal: reversalResult };
     } catch (error) {
       await this.failWebhook(log.id, error);
       throw error;
     }
+  }
+
+  private async ensureProviderRefund(input: {
+    orderId: string;
+    amount: number;
+    currency: string;
+    externalRefundId: string;
+    reason: string;
+  }) {
+    const idempotencyKey = `provider-refund:apple:${sha256Hex(
+      input.externalRefundId
+    )}`;
+    const existing = await this.prisma.paymentRefund.findUnique({
+      where: { idempotencyKey }
+    });
+    if (existing) return existing;
+    return this.prisma.paymentRefund.create({
+      data: {
+        orderId: input.orderId,
+        provider: 'APPLE_APP_STORE',
+        externalRefundId: input.externalRefundId,
+        amount: input.amount,
+        currency: input.currency,
+        status: 'CONFIRMED',
+        reason: input.reason,
+        idempotencyKey,
+        metadata: {
+          source: 'APP_STORE_SERVER_NOTIFICATION_V2'
+        }
+      }
+    });
   }
 
   private async persistWebhook(input: {
