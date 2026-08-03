@@ -46,18 +46,21 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | Fusionnée |
 | KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | Fusionnée |
 | KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | Fusionnée |
+| KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | Fusionnée |
 
 ## Livraison en validation
 
-| Livraison | Domaine | Pull request | État |
-| --- | --- | --- | --- |
-| KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | CI requise avant fusion |
+Aucune livraison n’est actuellement en validation.
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-030` n’est réservé avant la fusion verte de cette livraison.
+| Livraison | Domaine | Source backlog | Dépendances |
+| --- | --- | --- | --- |
+| KMD-031 | Thèmes d’application statiques clair, sombre et système | KM-022 | KMD-001 à KMD-030 |
 
-Le prochain périmètre devra être validé à partir de l’état réel du produit après KMD-030. Il ne pourra pas réintroduire d’effet de jeu, de priorité sociale, de donnée cachée sur la provenance ou de contournement des préférences de confidentialité dans le système cosmétique.
+KMD-031 doit fournir une préférence autoritaire synchronisée Web/Mobile, un fallback local avant authentification, une application sans flash visuel, des tokens accessibles et des thèmes statiques sans animation lourde. Les thèmes Premium restent bloqués par les entitlements serveur et ne doivent accorder aucun avantage fonctionnel.
+
+Les icônes alternatives (`KM-023`) et les cadeaux (`KM-024`) restent hors périmètre de cette livraison.
 
 ## Règles de mise à jour
 
