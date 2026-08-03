@@ -71,6 +71,7 @@ export class NotificationCenterService {
     const groups = groupNotificationRows(visible);
     return {
       preferences: preference,
+      notifications: visible,
       groups,
       totals: {
         notifications: visible.length,
@@ -170,9 +171,9 @@ export class NotificationCenterService {
             result: {
               notificationId,
               action: dto.action,
-              dismissedAt: updated.dismissedAt,
-              archivedAt: updated.archivedAt,
-              snoozedUntil: updated.snoozedUntil
+              dismissedAt: updated.dismissedAt?.toISOString() ?? null,
+              archivedAt: updated.archivedAt?.toISOString() ?? null,
+              snoozedUntil: updated.snoozedUntil?.toISOString() ?? null
             } as Prisma.InputJsonValue
           }
         });
@@ -291,7 +292,8 @@ export class NotificationCenterService {
       const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
       return hour * 60 + minute;
     } catch {
-      return new Date().getUTCHours() * 60 + new Date().getUTCMinutes();
+      const now = new Date();
+      return now.getUTCHours() * 60 + now.getUTCMinutes();
     }
   }
 
