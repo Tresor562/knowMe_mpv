@@ -127,6 +127,9 @@ export default function ProfilePage() {
             <Link className="btn" href="/payments">
               Paiements
             </Link>
+            <Link className="btn" href="/gifts">
+              Cadeaux sociaux
+            </Link>
             <Link className="btn" href="/settings/appearance">
               Apparence
             </Link>
