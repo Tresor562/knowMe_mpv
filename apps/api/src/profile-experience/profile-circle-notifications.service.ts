@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { randomUUID } from 'crypto';
-import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileCircleNotificationDeliveryService } from './profile-circle-notification-delivery.service';
 import { ProfileCircleNotificationPreferencesService } from './profile-circle-notification-preferences.service';
 import {
   normalizeNotificationRecipients,
@@ -14,8 +13,8 @@ import {
 export class ProfileCircleNotificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService,
-    private readonly preferences: ProfileCircleNotificationPreferencesService
+    private readonly preferences: ProfileCircleNotificationPreferencesService,
+    private readonly delivery: ProfileCircleNotificationDeliveryService
   ) {}
 
   async dispatch(input: {
@@ -39,18 +38,21 @@ export class ProfileCircleNotificationsService {
       recipients: candidates
     });
     if (!validation.deliver) {
-      return { delivered: 0, replayed: false, reason: validation.reason };
+      return { delivered: 0, deferred: 0, replayed: false, reason: validation.reason };
     }
 
+    const now = new Date();
     const preferenceResolution = await this.preferences.resolve({
       type: input.type,
       circleId: input.circleId,
-      recipients: candidates
+      recipients: candidates,
+      now
     });
     const recipients = preferenceResolution.inboxRecipients;
     if (recipients.length === 0) {
       return {
         delivered: 0,
+        deferred: 0,
         replayed: false,
         reason: 'PREFERENCES_SUPPRESSED',
         candidates: candidates.length,
@@ -67,141 +69,65 @@ export class ProfileCircleNotificationsService {
         actorUserId: input.actorUserId ?? null,
         title: input.title.trim(),
         body: input.body.trim(),
-        data: input.data as Prisma.InputJsonValue | undefined,
-        recipients: {
-          create: recipients.map((userId) => ({ userId }))
-        }
+        data: input.data as Prisma.InputJsonValue | undefined
       },
       update: {}
     });
 
     await Promise.all(
-      recipients.map((userId) =>
-        this.prisma.profileCircleNotificationRecipient.upsert({
+      recipients.map((userId) => {
+        const decision = preferenceResolution.decisions.get(userId)!;
+        return this.prisma.profileCircleNotificationRecipient.upsert({
           where: {
             dispatchId_userId: { dispatchId: dispatch.id, userId }
           },
-          create: { dispatchId: dispatch.id, userId },
-          update: {}
-        })
-      )
-    );
-
-    const published: Array<{ userId: string; notification: unknown }> = [];
-    let replayed = true;
-
-    for (const userId of recipients) {
-      const token = randomUUID();
-      try {
-        const notification = await this.prisma.$transaction(
-          async (tx) => {
-            const recipient =
-              await tx.profileCircleNotificationRecipient.findUnique({
-                where: {
-                  dispatchId_userId: { dispatchId: dispatch.id, userId }
-                }
-              });
-            if (!recipient || recipient.status === 'DELIVERED') return null;
-
-            const staleBefore = new Date(Date.now() - 5 * 60 * 1000);
-            const claim = await tx.profileCircleNotificationRecipient.updateMany({
-              where: {
-                id: recipient.id,
-                status: { in: ['PENDING', 'FAILED', 'PROCESSING'] },
-                OR: [
-                  { processingAt: null },
-                  { processingAt: { lte: staleBefore } }
-                ]
-              },
-              data: {
-                status: 'PROCESSING',
-                processingToken: token,
-                processingAt: new Date(),
-                attempts: { increment: 1 },
-                failedAt: null,
-                errorCode: null
-              }
-            });
-            if (claim.count !== 1) return null;
-
-            const created = await tx.notification.create({
-              data: {
-                userId,
-                type: dispatch.type,
-                title: dispatch.title,
-                body: dispatch.body,
-                data: {
-                  ...this.jsonRecord(dispatch.data),
-                  collectiveNotification: true,
-                  dispatchKey: dispatch.idempotencyKey,
-                  circleId: dispatch.circleId,
-                  actorUserId: dispatch.actorUserId
-                } as Prisma.InputJsonValue
-              }
-            });
-            const delivered =
-              await tx.profileCircleNotificationRecipient.updateMany({
-                where: {
-                  id: recipient.id,
-                  status: 'PROCESSING',
-                  processingToken: token
-                },
-                data: {
-                  status: 'DELIVERED',
-                  notificationId: created.id,
-                  deliveredAt: new Date(),
-                  processingToken: null,
-                  processingAt: null
-                }
-              });
-            if (delivered.count !== 1) {
-              throw new Error('NOTIFICATION_DELIVERY_CLAIM_LOST');
-            }
-            return created;
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-        );
-        if (notification) {
-          replayed = false;
-          if (preferenceResolution.realtimeRecipients.has(userId)) {
-            published.push({ userId, notification });
-          }
-        }
-      } catch (error) {
-        await this.prisma.profileCircleNotificationRecipient.updateMany({
-          where: {
+          create: {
             dispatchId: dispatch.id,
             userId,
-            status: 'PROCESSING',
-            processingToken: token
+            status:
+              decision.deliveryMode === 'INSTANT' ? 'PENDING' : 'DEFERRED',
+            deliveryMode: decision.deliveryMode,
+            availableAt: decision.availableAt
           },
-          data: {
-            status: 'FAILED',
-            failedAt: new Date(),
-            errorCode: this.errorCode(error),
-            processingToken: null,
-            processingAt: null
-          }
+          update: {}
         });
+      })
+    );
+
+    let delivered = 0;
+    let realtimePublished = 0;
+    for (const userId of recipients) {
+      const decision = preferenceResolution.decisions.get(userId)!;
+      if (decision.deliveryMode !== 'INSTANT') continue;
+      const created = await this.delivery.deliverInstant({
+        dispatchId: dispatch.id,
+        userId,
+        publishRealtime: decision.realtimeAllowed
+      });
+      if (created) {
+        delivered += 1;
+        if (decision.realtimeAllowed) realtimePublished += 1;
       }
     }
 
-    for (const entry of published) {
-      this.notifications.publishCreated(
-        entry.notification as { userId: string }
-      );
-    }
+    const statusCounts = await this.prisma.profileCircleNotificationRecipient.groupBy({
+      by: ['status'],
+      where: { dispatchId: dispatch.id },
+      _count: { _all: true }
+    });
+    const count = (status: string) =>
+      statusCounts.find((entry) => entry.status === status)?._count._all ?? 0;
 
     return {
       dispatchId: dispatch.id,
       candidates: candidates.length,
       recipients: recipients.length,
       suppressed: candidates.length - recipients.length,
-      delivered: await this.prisma.profileCircleNotificationRecipient.count({
-        where: { dispatchId: dispatch.id, status: 'DELIVERED' }
-      }),
-      realtimePublished: published.length,
-      replayed
+      delivered: count('DELIVERED'),
+      deferred: count('DEFERRED'),
+      failed: count('FAILED'),
+      realtimePublished,
+      replayed: delivered === 0 && count('DELIVERED') > 0
     };
   }
 
@@ -251,19 +177,5 @@ export class ProfileCircleNotificationsService {
       select: { userId: true }
     });
     return [circle.ownerUserId, ...memberships.map((entry) => entry.userId)];
-  }
-
-  private jsonRecord(value: Prisma.JsonValue | null | undefined) {
-    if (!value || Array.isArray(value) || typeof value !== 'object') return {};
-    return value as Record<string, Prisma.JsonValue>;
-  }
-
-  private errorCode(error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return `PRISMA_${error.code}`;
-    }
-    return error instanceof Error
-      ? error.message.replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 120)
-      : 'UNKNOWN_DELIVERY_ERROR';
   }
 }
