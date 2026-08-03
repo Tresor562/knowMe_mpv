@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { AppearanceExperience } from './AppearanceExperience';
+import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
 
@@ -206,6 +207,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       </View>
 
       <AppearanceExperience />
+      <PaymentsExperience />
       <SecurityExperience onSessionClosed={onAccountDeleted} />
       <PrivacyExperience />
 
