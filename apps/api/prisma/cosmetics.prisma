@@ -20,6 +20,7 @@ model CosmeticItemDefinition {
   equippedBy       CosmeticEquipment[]
   offers           CosmeticOfferDefinition[]
   purchaseReceipts CosmeticPurchaseReceipt[]
+  presetItems      CosmeticPresetItem[]
 
   @@unique([key, version])
   @@index([active, slot, startsAt, endsAt])
@@ -59,6 +60,67 @@ model CosmeticEquipment {
   @@unique([userId, slot])
   @@index([userId, updatedAt])
   @@index([itemId])
+}
+
+model CosmeticPreset {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  normalizedName String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  items         CosmeticPresetItem[]
+  activations   CosmeticPresetActivation[]
+  defaultStates CosmeticPresetState[] @relation("DefaultCosmeticPreset")
+  activeStates  CosmeticPresetState[] @relation("ActiveCosmeticPreset")
+
+  @@unique([userId, normalizedName])
+  @@index([userId, updatedAt])
+}
+
+model CosmeticPresetItem {
+  id        String   @id @default(cuid())
+  presetId  String
+  slot      String
+  itemId    String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  preset CosmeticPreset         @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  item   CosmeticItemDefinition @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([presetId, slot])
+  @@index([itemId])
+}
+
+model CosmeticPresetState {
+  userId            String   @id
+  defaultPresetId   String?
+  activePresetId    String?
+  activationVersion Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  defaultPreset CosmeticPreset? @relation("DefaultCosmeticPreset", fields: [defaultPresetId], references: [id], onDelete: SetNull)
+  activePreset  CosmeticPreset? @relation("ActiveCosmeticPreset", fields: [activePresetId], references: [id], onDelete: SetNull)
+
+  @@index([defaultPresetId])
+  @@index([activePresetId])
+}
+
+model CosmeticPresetActivation {
+  id                String    @id @default(cuid())
+  userId            String
+  presetId          String?
+  presetName        String
+  idempotencyKey    String    @unique
+  equipmentSnapshot Json
+  activatedAt       DateTime  @default(now())
+
+  preset CosmeticPreset? @relation(fields: [presetId], references: [id], onDelete: SetNull)
+
+  @@index([userId, activatedAt])
+  @@index([presetId, activatedAt])
 }
 
 model CosmeticOfferDefinition {
