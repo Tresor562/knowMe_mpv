@@ -88,6 +88,7 @@ export type StorePurchaseVerificationInput = {
 export type VerifiedStorePurchase = {
   status: VerifiedPaymentStatus;
   externalTransactionId: string;
+  externalEventId?: string;
   externalSubscriptionId?: string;
   externalProductId: string;
   accountReference?: string;
