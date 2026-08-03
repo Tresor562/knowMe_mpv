@@ -52,6 +52,12 @@ type Preferences = {
   categorySettings: Record<Category, boolean>;
 };
 
+type BooleanPreferenceKey =
+  | 'masterEnabled'
+  | 'realtimeEnabled'
+  | 'quietHoursEnabled'
+  | 'pushEnabled';
+
 type CenterResponse = {
   preferences: Preferences;
   groups: NotificationGroup[];
@@ -70,8 +76,25 @@ const CATEGORY_META: Array<{ key: Category; label: string; icon: string }> = [
   { key: 'SYSTEM', label: 'Système', icon: '⚙️' }
 ];
 
+const BOOLEAN_SETTINGS: Array<{ label: string; key: BooleanPreferenceKey }> = [
+  { label: 'Centre actif', key: 'masterEnabled' },
+  { label: 'Alertes en direct', key: 'realtimeEnabled' },
+  { label: 'Heures calmes', key: 'quietHoursEnabled' },
+  { label: 'Push mobile préparé', key: 'pushEnabled' }
+];
+
 function idempotencyKey(prefix: string) {
   return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+}
+
+function booleanPreferencePatch(
+  key: BooleanPreferenceKey,
+  value: boolean
+): Partial<Preferences> {
+  if (key === 'masterEnabled') return { masterEnabled: value };
+  if (key === 'realtimeEnabled') return { realtimeEnabled: value };
+  if (key === 'quietHoursEnabled') return { quietHoursEnabled: value };
+  return { pushEnabled: value };
 }
 
 export function NotificationCenterExperience({ onClose }: { onClose: () => void }) {
@@ -93,15 +116,25 @@ export function NotificationCenterExperience({ onClose }: { onClose: () => void 
 
   useEffect(() => {
     void load();
-    const socket = getRealtimeSocket();
+    let active = true;
+    let detach: (() => void) | null = null;
     const refresh = () => void load();
-    socket.on('notification:created', refresh);
-    socket.on('notification:read', refresh);
-    socket.on('notification:read-all', refresh);
+
+    void getRealtimeSocket().then((socket) => {
+      if (!active || !socket) return;
+      socket.on('notification:created', refresh);
+      socket.on('notification:read', refresh);
+      socket.on('notification:read-all', refresh);
+      detach = () => {
+        socket.off('notification:created', refresh);
+        socket.off('notification:read', refresh);
+        socket.off('notification:read-all', refresh);
+      };
+    });
+
     return () => {
-      socket.off('notification:created', refresh);
-      socket.off('notification:read', refresh);
-      socket.off('notification:read-all', refresh);
+      active = false;
+      detach?.();
     };
   }, [load]);
 
@@ -201,18 +234,15 @@ export function NotificationCenterExperience({ onClose }: { onClose: () => void 
 
       {settings && (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {[
-            ['Centre actif', 'masterEnabled'],
-            ['Alertes en direct', 'realtimeEnabled'],
-            ['Heures calmes', 'quietHoursEnabled'],
-            ['Push mobile préparé', 'pushEnabled']
-          ].map(([label, key]) => (
-            <View key={key} style={styles.settingRow}>
-              <Text style={{ color: colors.text }}>{label}</Text>
+          {BOOLEAN_SETTINGS.map((setting) => (
+            <View key={setting.key} style={styles.settingRow}>
+              <Text style={{ color: colors.text }}>{setting.label}</Text>
               <Switch
-                disabled={busy || (key === 'pushEnabled' && !center.policy.pushProviderConfigured)}
-                value={Boolean(center.preferences[key as keyof Preferences])}
-                onValueChange={(value) => void patchPreferences({ [key]: value })}
+                disabled={busy || (setting.key === 'pushEnabled' && !center.policy.pushProviderConfigured)}
+                value={center.preferences[setting.key]}
+                onValueChange={(value) => void patchPreferences(
+                  booleanPreferencePatch(setting.key, value)
+                )}
               />
             </View>
           ))}
