@@ -106,7 +106,9 @@ export default function ProfilePage() {
           <Link className="btn btn-primary" href="/profile-studio">Ouvrir le Studio de profil</Link>
           <Link className="btn btn-primary" href="/profile-circle-create">Créer un Duo ou une équipe</Link>
           <Link className="btn" href="/profile-circles">Gérer mes Duos et équipes</Link>
+          <Link className="btn" href="/profile-circle-members">Gérer les membres par nom</Link>
           <Link className="btn" href="/profile-circle-governance">Gouvernance et contenus</Link>
+          <Link className="btn" href="/settings/profile-circle-notifications">Notifications collectives</Link>
           <Link className="btn" href={`/profile/${encodeURIComponent(user.username)}`}>Voir mon profil public</Link>
           <Link className="btn" href="/avatar-studio">Avatar</Link>
           <Link className="btn" href="/privacy/cosmetics">Objets et confidentialité</Link>
