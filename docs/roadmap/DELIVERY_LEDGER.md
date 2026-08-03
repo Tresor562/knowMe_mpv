@@ -50,22 +50,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-031 | Moteur de 100 thèmes et d’identité visuelle Web/Mobile | #67 | Fusionnée |
 | KMD-032 | Orchestration de paiements Flutterwave, CinetPay, Google Play et Apple | #68 | Fusionnée |
 | KMD-033 | Interfaces clientes de paiement Web et Mobile | #69 | Fusionnée |
+| KMD-034 | Cadeaux sociaux visuels et KnowCoins atomiques | #70 | Fusionnée |
 
 ## Livraison en validation
 
-| Livraison | Domaine | Pull request | État |
-| --- | --- | --- | --- |
-| KMD-034 | Cadeaux sociaux visuels et KnowCoins atomiques | #70 | Build, tests, E2E, confidentialité, concurrence et clients Web/Mobile requis avant fusion |
+Aucune livraison majeure n’est actuellement en validation.
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-034` n’est réservé avant sa fusion verte.
+Aucun identifiant après `KMD-034` n’est réservé.
 
-KMD-034 est limité aux cadeaux sociaux purement visuels entre amitiés acceptées. Le prix est autoritaire côté serveur, le débit utilise le registre KnowCoins, le destinataire ne reçoit aucun solde, et le cadeau ne peut être revendu, transféré, converti en argent ou utilisé pour attribuer un avantage de jeu.
+Le prochain identifiant sera attribué uniquement après isolation d’un périmètre unique avec ses dépendances, ses règles d’autorité, son cycle de données et ses critères de fusion. Les candidats identifiés restent notamment le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie.
 
-Les prochains candidats restent notamment le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie. Ils ne sont pas implicitement inclus dans KMD-034.
-
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
 ## Règles de mise à jour
 
