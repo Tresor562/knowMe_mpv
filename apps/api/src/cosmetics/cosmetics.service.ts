@@ -209,11 +209,21 @@ export class CosmeticsService {
       const unequipped = await tx.cosmeticEquipment.deleteMany({
         where: { userId: ownership.userId, itemId: ownership.itemId }
       });
+      const clearedPreset = unequipped.count
+        ? await tx.cosmeticPresetState.updateMany({
+            where: { userId: ownership.userId, activePresetId: { not: null } },
+            data: { activePresetId: null }
+          })
+        : { count: 0 };
       const revoked = await tx.cosmeticOwnership.update({
         where: { id: ownership.id },
         data: { revokedAt: new Date(), revokedById: actorId }
       });
-      return { ownership: revoked, unequippedSlots: unequipped.count };
+      return {
+        ownership: revoked,
+        unequippedSlots: unequipped.count,
+        activePresetCleared: clearedPreset.count > 0
+      };
     });
 
     await this.audit.record({
@@ -226,7 +236,8 @@ export class CosmeticsService {
         itemId: ownership.itemId,
         slot: ownership.item.slot,
         reason: dto.reason,
-        unequippedSlots: result.unequippedSlots
+        unequippedSlots: result.unequippedSlots,
+        activePresetCleared: result.activePresetCleared
       }
     });
 
@@ -245,16 +256,32 @@ export class CosmeticsService {
 
     if (!dto.itemId) {
       if (!current) return { slot, item: null, replayed: true };
-      await this.prisma.cosmeticEquipment.delete({ where: { id: current.id } });
+      const result = await this.prisma.$transaction(async (tx) => {
+        await tx.cosmeticEquipment.delete({ where: { id: current.id } });
+        const clearedPreset = await tx.cosmeticPresetState.updateMany({
+          where: { userId, activePresetId: { not: null } },
+          data: { activePresetId: null }
+        });
+        return { activePresetCleared: clearedPreset.count > 0 };
+      });
       await this.audit.record({
         actorId: userId,
         action: 'COSMETIC_ITEM_UNEQUIPPED',
         entity: 'CosmeticEquipment',
         entityId: current.id,
         targetAccountId: userId,
-        metadata: { slot, itemId: current.itemId }
+        metadata: {
+          slot,
+          itemId: current.itemId,
+          activePresetCleared: result.activePresetCleared
+        }
       });
-      return { slot, item: null, replayed: false };
+      return {
+        slot,
+        item: null,
+        activePresetCleared: result.activePresetCleared,
+        replayed: false
+      };
     }
 
     if (current?.itemId === dto.itemId) {
@@ -278,23 +305,41 @@ export class CosmeticsService {
       throw new BadRequestException('Cet objet cosmétique n’est pas actuellement disponible.');
     }
 
-    const equipment = await this.prisma.cosmeticEquipment.upsert({
-      where: { userId_slot: { userId, slot } },
-      create: { userId, slot, itemId: item.id },
-      update: { itemId: item.id, equippedAt: new Date() },
-      include: { item: true }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const equipment = await tx.cosmeticEquipment.upsert({
+        where: { userId_slot: { userId, slot } },
+        create: { userId, slot, itemId: item.id },
+        update: { itemId: item.id, equippedAt: new Date() },
+        include: { item: true }
+      });
+      const clearedPreset = await tx.cosmeticPresetState.updateMany({
+        where: { userId, activePresetId: { not: null } },
+        data: { activePresetId: null }
+      });
+      return { equipment, activePresetCleared: clearedPreset.count > 0 };
     });
 
     await this.audit.record({
       actorId: userId,
       action: 'COSMETIC_ITEM_EQUIPPED',
       entity: 'CosmeticEquipment',
-      entityId: equipment.id,
+      entityId: result.equipment.id,
       targetAccountId: userId,
-      metadata: { slot, itemId: item.id, visualOnly: true }
+      metadata: {
+        slot,
+        itemId: item.id,
+        visualOnly: true,
+        activePresetCleared: result.activePresetCleared
+      }
     });
 
-    return { slot, item: equipment.item, equipment, replayed: false };
+    return {
+      slot,
+      item: result.equipment.item,
+      equipment: result.equipment,
+      activePresetCleared: result.activePresetCleared,
+      replayed: false
+    };
   }
 
   async exportForAccount(userId: string) {
