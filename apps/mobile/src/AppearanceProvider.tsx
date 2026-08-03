@@ -17,6 +17,7 @@ import {
   resolveMobilePalette,
   updateAppearance
 } from './appearance';
+import { I18nProvider } from './I18nProvider';
 
 type AppearanceContextValue = {
   appearance: AppearanceResponse | null;
@@ -86,7 +87,11 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     [appearance, colors, loading, busy, refresh, update]
   );
 
-  return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
+  return (
+    <AppearanceContext.Provider value={value}>
+      <I18nProvider>{children}</I18nProvider>
+    </AppearanceContext.Provider>
+  );
 }
 
 export function useAppearance() {
