@@ -7,6 +7,8 @@ import {
 import { ProfileCircleNotificationDeliveryService } from './profile-circle-notification-delivery.service';
 import { ProfileCircleNotificationLeaseService } from './profile-circle-notification-lease.service';
 import { ProfileCircleNotificationRuntimeConfigService } from './profile-circle-notification-runtime.config';
+import { ProfileCircleNotificationTelemetryService } from './profile-circle-notification-telemetry.service';
+import { ProfileCircleWeeklyDigestService } from './profile-circle-weekly-digest.service';
 
 @Injectable()
 export class ProfileCircleNotificationSchedulerService
@@ -25,6 +27,8 @@ export class ProfileCircleNotificationSchedulerService
   constructor(
     private readonly delivery: ProfileCircleNotificationDeliveryService,
     private readonly leases: ProfileCircleNotificationLeaseService,
+    private readonly weekly: ProfileCircleWeeklyDigestService,
+    private readonly telemetry: ProfileCircleNotificationTelemetryService,
     private readonly runtimeConfig: ProfileCircleNotificationRuntimeConfigService
   ) {}
 
@@ -43,6 +47,7 @@ export class ProfileCircleNotificationSchedulerService
   async tick() {
     if (this.running) return { skipped: true, reason: 'LOCAL_RUN_ACTIVE' };
     this.running = true;
+    const startedAt = Date.now();
     const config = this.runtimeConfig.get();
     const key = 'profile-circle-notification-delivery';
     const lease = await this.leases.acquire({
@@ -65,12 +70,20 @@ export class ProfileCircleNotificationSchedulerService
       const flush = await this.delivery.flushDue({
         limit: config.schedulerBatchSize
       });
+      const weekly =
+        this.ticks % 20 === 0
+          ? await this.weekly.flushDue({ limit: Math.min(100, config.schedulerBatchSize) })
+          : null;
       this.lastRunAt = new Date();
-      this.lastResult = { retry, flush };
+      this.lastResult = { retry, flush, weekly };
       this.lastError = undefined;
-      return { skipped: false, retry, flush };
+      this.telemetry.schedulerSucceeded(flush);
+      this.telemetry.observe('scheduler.tick', Date.now() - startedAt);
+      return { skipped: false, retry, flush, weekly };
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+      this.telemetry.schedulerFailed(error);
+      this.telemetry.observe('scheduler.tick.failed', Date.now() - startedAt);
       this.logger.error('Notification scheduler tick failed', error);
       throw error;
     } finally {
