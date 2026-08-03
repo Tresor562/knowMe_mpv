@@ -167,7 +167,8 @@ describe('KnowMe application personalization engine (e2e)', () => {
 
     const exported = await account.exportData(userId);
     expect(exported.formatVersion).toBe(7);
-    expect(exported.appearance.preference).toEqual(
+    expect(exported.appearance).toBeDefined();
+    expect(exported.appearance!.preference).toEqual(
       expect.objectContaining({
         selectedThemeKey: 'galaxy-ultra',
         effectiveThemeKey: 'galaxy-ultra',
