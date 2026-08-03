@@ -41,14 +41,16 @@ export function mobileStoreProvider(): NativeStoreProvider | null {
 }
 
 export async function nativePurchasesAvailable() {
-  if (!activeBridge || !mobileStoreProvider()) return false;
-  return Boolean(await activeBridge.isAvailable());
+  const bridge = activeBridge;
+  if (!bridge || !mobileStoreProvider()) return false;
+  return Boolean(await bridge.isAvailable());
 }
 
 export async function requestNativePurchase(
   request: NativePurchaseRequest
 ): Promise<NativePurchaseProof> {
-  if (!activeBridge || !(await activeBridge.isAvailable())) {
+  const bridge = activeBridge;
+  if (!bridge || !(await bridge.isAvailable())) {
     throw new Error(
       'Le module d’achat natif signé n’est pas installé dans cette version de l’application.'
     );
@@ -56,7 +58,7 @@ export async function requestNativePurchase(
   if (request.provider !== mobileStoreProvider()) {
     throw new Error('Le fournisseur demandé ne correspond pas à la plateforme de cet appareil.');
   }
-  const proof = await activeBridge.purchase(request);
+  const proof = await bridge.purchase(request);
   if (proof.provider !== request.provider) {
     throw new Error('La preuve retournée ne correspond pas au fournisseur demandé.');
   }
