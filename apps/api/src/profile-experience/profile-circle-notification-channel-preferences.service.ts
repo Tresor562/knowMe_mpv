@@ -3,12 +3,11 @@ import {
   Controller,
   Get,
   Injectable,
-  IsBoolean,
-  IsIn,
   Post,
   Req,
   UseGuards
 } from '@nestjs/common';
+import { IsBoolean, IsIn } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileCircleTransportChannel } from './profile-circle-notification-endpoints.service';
