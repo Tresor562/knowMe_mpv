@@ -11,6 +11,7 @@ import { AchievementsModule } from './achievements/achievements.module';
 import { AdminModule } from './admin/admin.module';
 import { AppearanceModule } from './appearance/appearance.module';
 import { AvatarStudioModule } from './avatar-studio/avatar-studio.module';
+import { AvatarUniverseModule } from './avatar-universe/avatar-universe.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
@@ -19,6 +20,7 @@ import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IntegrityModule } from './integrity/integrity.module';
@@ -71,6 +73,8 @@ import { WalletModule } from './wallet/wallet.module';
     ConceptKModule,
     CosmeticsModule,
     AvatarStudioModule,
+    AvatarUniverseModule,
+    GiftExchangeModule,
     AppearanceModule,
     BillingModule,
     PaymentsModule,
