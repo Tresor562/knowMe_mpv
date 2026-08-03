@@ -19,6 +19,27 @@ pnpm db:migrate
 pnpm dev
 ```
 
+## Stickers signés
+
+En production, les stickers utilisent une clé HMAC dédiée et ne doivent pas dépendre de `JWT_SECRET`.
+
+```bash
+STICKER_TOKEN_ACTIVE_KEY_ID=primary
+STICKER_TOKEN_ACTIVE_SECRET=<secret aléatoire de 32 caractères minimum>
+STICKER_TOKEN_PREVIOUS_KEYS_JSON=[]
+STICKER_TOKEN_TTL_MS=31536000000
+```
+
+Rotation sans casser les messages encore valides :
+
+1. déplacer l’ancienne paire `id` / `secret` dans `STICKER_TOKEN_PREVIOUS_KEYS_JSON` ;
+2. définir une nouvelle clé active avec un nouvel identifiant ;
+3. déployer toutes les instances ;
+4. conserver l’ancienne clé au moins jusqu’à l’expiration du dernier message signé avec elle ;
+5. retirer ensuite cette clé de la liste précédente.
+
+Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clés précédentes servent uniquement à la lecture ; toutes les nouvelles signatures utilisent la clé active.
+
 ## Avant une mise en production
 
 À ajouter ou renforcer :

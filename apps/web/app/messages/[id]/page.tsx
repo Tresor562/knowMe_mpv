@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
+import { StickerPicker } from './StickerPicker';
 
 type Sender = {
   id:string;
@@ -13,6 +14,23 @@ type Sender = {
   username:string;
   avatarUrl?:string|null;
 };
+type StickerPresentation = {
+  kind:'STICKER';
+  pack:{key:string;version:number;name:string};
+  sticker:{
+    key:string;
+    version:number;
+    label:string;
+    glyph:string;
+    accessibilityLabel:string;
+  };
+  issuedAt:string;
+  expiresAt:string;
+  visualOnly:true;
+  externalAssetAllowed:false;
+  arbitraryHtmlAllowed:false;
+};
+type TextPresentation = {kind:'TEXT';text:string};
 type Message = {
   id:string;
   conversationId:string;
@@ -20,6 +38,7 @@ type Message = {
   createdAt:string;
   senderId:string;
   sender:Sender;
+  presentation?:StickerPresentation|TextPresentation;
 };
 type ReadState = {
   userId:string;
@@ -46,6 +65,28 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
   const known=new Set(current.map(item=>item.id));
   const fresh=incoming.filter(item=>!known.has(item.id));
   return prepend?[...fresh,...current]:[...current,...fresh];
+}
+
+function MessageContent({item}:{item:Message}){
+  if(item.presentation?.kind==='STICKER'){
+    return(
+      <div
+        aria-label={item.presentation.sticker.accessibilityLabel}
+        title={`${item.presentation.pack.name} · ${item.presentation.sticker.label}`}
+        style={{display:'grid',placeItems:'center',gap:4,minWidth:90,minHeight:72}}
+      >
+        <span aria-hidden="true" style={{fontSize:44,lineHeight:1}}>
+          {item.presentation.sticker.glyph}
+        </span>
+        <small style={{opacity:.75}}>{item.presentation.sticker.label}</small>
+      </div>
+    );
+  }
+  return(
+    <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
+      {item.presentation?.kind==='TEXT'?item.presentation.text:item.content}
+    </div>
+  );
 }
 
 export default function ConversationPage() {
@@ -223,6 +264,16 @@ export default function ConversationPage() {
     typingActive.current=false;
   }
 
+  function acceptSent(created:Message){
+    setItems(current=>mergeMessages(current,[created]));
+    setReadStates(current=>current.map(state=>
+      state.userId===user?.id
+        ? {...state,lastReadAt:created.createdAt}
+        : state
+    ));
+    setMessage('');
+  }
+
   async function send(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     const content=draft.trim();
@@ -234,14 +285,8 @@ export default function ConversationPage() {
         `/conversations/${conversationId}/messages`,
         {method:'POST',body:JSON.stringify({content})}
       );
-      setItems(current=>mergeMessages(current,[created]));
-      setReadStates(current=>current.map(state=>
-        state.userId===user?.id
-          ? {...state,lastReadAt:created.createdAt}
-          : state
-      ));
+      acceptSent(created);
       setDraft('');
-      setMessage('');
     }catch(cause){
       setMessage(cause instanceof Error?cause.message:'Envoi impossible.');
     }finally{
@@ -328,9 +373,7 @@ export default function ConversationPage() {
                   {item.sender.displayName}
                 </strong>
               )}
-              <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-                {item.content}
-              </div>
+              <MessageContent item={item}/>
               <small style={{display:'block',marginTop:6,opacity:.7}}>
                 {new Date(item.createdAt).toLocaleString('fr-FR')}
               </small>
@@ -356,8 +399,12 @@ export default function ConversationPage() {
       <form
         onSubmit={send}
         className="card"
-        style={{padding:14,display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}}
+        style={{padding:14,display:'flex',gap:10,marginTop:14,flexWrap:'wrap',alignItems:'center'}}
       >
+        <StickerPicker<Message>
+          conversationId={conversationId}
+          onSent={acceptSent}
+        />
         <input
           className="input"
           value={draft}

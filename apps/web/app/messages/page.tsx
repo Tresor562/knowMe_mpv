@@ -11,6 +11,10 @@ type Member = {
   lastReadAt:string;
   user:{ id:string; displayName:string; username:string; avatarUrl?:string|null };
 };
+type StickerPresentation = {
+  kind:'STICKER';
+  sticker:{label:string;glyph:string;accessibilityLabel:string};
+};
 type Message = {
   id:string;
   conversationId:string;
@@ -18,6 +22,7 @@ type Message = {
   createdAt:string;
   senderId:string;
   sender?:{ id:string; displayName:string; username:string };
+  presentation?:StickerPresentation|{kind:'TEXT';text:string};
 };
 type Conversation = {
   id:string;
@@ -32,6 +37,14 @@ type Friend = { user:{ id:string; displayName:string; username:string } };
 type ReadEvent = { conversationId:string; userId:string; lastReadAt:string };
 type PresenceEvent = { userId:string; online:boolean };
 type PresenceSnapshot = { onlineUserIds:string[] };
+
+function preview(message:Message){
+  return message.presentation?.kind==='STICKER'
+    ? `${message.presentation.sticker.glyph} ${message.presentation.sticker.label}`
+    : message.presentation?.kind==='TEXT'
+      ? message.presentation.text
+      : message.content;
+}
 
 export default function MessagesPage() {
   const { user, loading: sessionLoading } = useSession({ required:true });
@@ -189,7 +202,7 @@ export default function MessagesPage() {
                   {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
                 </div>
                 <div style={{color:unread?'var(--text)':'var(--muted)',fontWeight:unread?700:400,marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {last ? `${last.senderId===user?.id?'Toi : ':''}${last.content}` : 'Aucun message pour le moment.'}
+                  {last ? `${last.senderId===user?.id?'Toi : ':''}${preview(last)}` : 'Aucun message pour le moment.'}
                 </div>
               </div>
               <small style={{color:'var(--muted)',textAlign:'right'}}>{last ? new Date(last.createdAt).toLocaleString('fr-FR') : ''}</small>

@@ -3,13 +3,18 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import {
+  StickerPresentation,
+  StickerTokenService
+} from './stickers/sticker-token.service';
 
 @Injectable()
 export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly stickerTokens: StickerTokenService
   ) {}
 
   createConversation(userId: string, dto: CreateConversationDto) {
@@ -89,6 +94,9 @@ export class MessagingService {
 
         return {
           ...conversation,
+          messages: conversation.messages.map((message) =>
+            this.presentMessage(message)
+          ),
           unreadCount,
           lastReadAt: membership?.lastReadAt ?? null
         };
@@ -170,7 +178,9 @@ export class MessagingService {
       : null;
 
     return {
-      items: [...pageDescending].reverse(),
+      items: [...pageDescending]
+        .reverse()
+        .map((message) => this.presentMessage(message)),
       nextCursor,
       readStates: members
     };
@@ -197,7 +207,29 @@ export class MessagingService {
 
   async send(userId: string, conversationId: string, content: string) {
     await this.assertMember(userId, conversationId);
+    return this.sendAuthorized(userId, conversationId, content);
+  }
 
+  async sendSticker(input: {
+    userId: string;
+    conversationId: string;
+    packKey: string;
+    stickerKey: string;
+  }) {
+    await this.assertMember(input.userId, input.conversationId);
+    const content = this.stickerTokens.create({
+      conversationId: input.conversationId,
+      packKey: input.packKey,
+      stickerKey: input.stickerKey
+    });
+    return this.sendAuthorized(input.userId, input.conversationId, content);
+  }
+
+  private async sendAuthorized(
+    userId: string,
+    conversationId: string,
+    content: string
+  ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
         data: { conversationId, senderId: userId, content },
@@ -232,8 +264,13 @@ export class MessagingService {
       return { message: created, recipients: conversationRecipients };
     });
 
-    const preview =
-      content.length > 120 ? `${content.slice(0, 117)}…` : content;
+    const sticker = this.stickerTokens.resolve(content, { conversationId });
+    const preview = sticker
+      ? `Sticker : ${sticker.sticker.label}`
+      : content.length > 120
+        ? `${content.slice(0, 117)}…`
+        : content;
+    const presented = this.presentMessage(message, sticker);
 
     await Promise.all([
       recipients.length
@@ -248,19 +285,38 @@ export class MessagingService {
                 entityType: 'CONVERSATION',
                 entityId: conversationId,
                 messageId: message.id,
-                actorId: userId
+                actorId: userId,
+                messageKind: sticker ? 'STICKER' : 'TEXT'
               }
             }))
           )
         : Promise.resolve([]),
-      this.realtime.emitMessageCreated(conversationId, message),
+      this.realtime.emitMessageCreated(conversationId, presented),
       this.realtime.emitConversationRead(conversationId, {
         userId,
         lastReadAt: message.createdAt
       })
     ]);
 
-    return message;
+    return presented;
+  }
+
+  private presentMessage<T extends { content: string; conversationId: string }>(
+    message: T,
+    knownSticker?: StickerPresentation | null
+  ) {
+    const sticker =
+      knownSticker ??
+      this.stickerTokens.resolve(message.content, {
+        conversationId: message.conversationId
+      });
+    return {
+      ...message,
+      presentation: sticker ?? {
+        kind: 'TEXT' as const,
+        text: message.content
+      }
+    };
   }
 
   private async assertMember(userId: string, conversationId: string) {
