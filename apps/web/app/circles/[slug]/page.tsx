@@ -6,6 +6,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
+type PublicUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
 type CircleSnapshot = {
   circle: {
     id: string;
@@ -34,12 +41,7 @@ type CircleSnapshot = {
     bioFragment: string | null;
     portraitPosition: number | null;
     joinedAt: string | null;
-    user: {
-      id: string;
-      username: string;
-      displayName: string;
-      avatarUrl: string | null;
-    };
+    user: PublicUser;
   }>;
   recentActivity: Array<{
     id: string;
@@ -47,6 +49,36 @@ type CircleSnapshot = {
     xpAwarded: number;
     occurredAt: string;
   }>;
+  moments: Array<{
+    id: string;
+    type: string;
+    text: string | null;
+    assetId: string | null;
+    giftInstanceId: string | null;
+    audience: string;
+    createdAt: string;
+    author: PublicUser | null;
+  }>;
+  stories: Array<{
+    id: string;
+    type: string;
+    text: string | null;
+    assetId: string | null;
+    giftInstanceId: string | null;
+    audience: string;
+    expiresAt: string;
+    createdAt: string;
+    author: PublicUser | null;
+  }>;
+  familyTree: Array<{
+    id: string;
+    type: string;
+    inverseType: string;
+    label: string | null;
+    first: PublicUser | null;
+    second: PublicUser | null;
+    acceptedAt: string | null;
+  }> | null;
   viewer: {
     member: boolean;
     role: string | null;
@@ -59,6 +91,13 @@ type CircleSnapshot = {
     pendingInvitationsOmitted: boolean;
     joinRequestsOmitted: boolean;
     memberPrivateDataOmitted: boolean;
+    serverResolved: boolean;
+  };
+  contentPrivacy: {
+    pendingContentOmitted: boolean;
+    hiddenContentOmitted: boolean;
+    expiredStoriesOmitted: boolean;
+    familyPendingRelationsOmitted: boolean;
     serverResolved: boolean;
   };
 };
@@ -84,6 +123,16 @@ const ACTIVITY_LABELS: Record<string, string> = {
   MEMBER_CONTRIBUTION: 'Contribution collective'
 };
 
+const FAMILY_LABELS: Record<string, string> = {
+  PARENT: 'Parent',
+  CHILD: 'Enfant',
+  SIBLING: 'Frère / sœur',
+  COUSIN: 'Cousin / cousine',
+  SPOUSE: 'Partenaire',
+  GUARDIAN: 'Responsable déclaré',
+  OTHER: 'Lien personnalisé'
+};
+
 export default function PublicCirclePage() {
   const params = useParams<{ slug: string }>();
   const { user, loading: sessionLoading } = useSession();
@@ -96,7 +145,7 @@ export default function PublicCirclePage() {
       const slug = decodeURIComponent(params.slug);
       setSnapshot(
         await apiFetch<CircleSnapshot>(
-          `/profile-circles/public/${encodeURIComponent(slug)}`
+          `/profile-circle-governance/public/${encodeURIComponent(slug)}`
         )
       );
       setMessage('');
@@ -233,15 +282,45 @@ export default function PublicCirclePage() {
               </Link>
             )}
             {snapshot.viewer.canManage && (
-              <Link className="btn" href="/profile-circles">
-                Gérer cette structure
+              <Link className="btn" href="/profile-circle-governance">
+                Gouvernance et contenus
               </Link>
             )}
+            <Link className="btn" href="/profile-circles">Mes relations</Link>
             <Link className="btn" href="/profile">Mon profil</Link>
           </div>
           {message && <p role="status" style={{ color: 'var(--mint)' }}>{message}</p>}
         </div>
       </section>
+
+      {snapshot.stories.length > 0 && (
+        <section className="card" style={{ padding: 24 }}>
+          <h2>Stories actives</h2>
+          <div
+            style={{
+              display: 'flex',
+              gap: 14,
+              overflowX: 'auto',
+              paddingBottom: 6
+            }}
+          >
+            {snapshot.stories.map((story) => (
+              <article
+                className="card"
+                key={story.id}
+                style={{ minWidth: 240, padding: 18 }}
+              >
+                <small>{story.type}</small>
+                <h3>{story.author?.displayName ?? 'Membre'}</h3>
+                {story.text && <p>{story.text}</p>}
+                <small style={{ color: 'var(--muted)' }}>
+                  Expire le {new Date(story.expiresAt).toLocaleString('fr-FR')}
+                </small>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="card" style={{ padding: 24 }}>
         <h2>Membres actifs · {snapshot.members.length}</h2>
@@ -282,6 +361,52 @@ export default function PublicCirclePage() {
         </div>
       </section>
 
+      {snapshot.familyTree && (
+        <section className="card" style={{ padding: 24 }}>
+          <h2>Arbre familial déclaré</h2>
+          <p style={{ color: 'var(--muted)' }}>
+            Ces liens ont été déclarés et acceptés volontairement. Ils ne constituent
+            pas une preuve biologique ou légale.
+          </p>
+          {snapshot.familyTree.length === 0 && (
+            <p style={{ color: 'var(--muted)' }}>Aucun lien accepté pour le moment.</p>
+          )}
+          <div className="grid">
+            {snapshot.familyTree.map((relation) => (
+              <article className="card" style={{ padding: 18 }} key={relation.id}>
+                <strong>{relation.first?.displayName ?? 'Membre'}</strong>
+                <span style={{ margin: '0 10px', color: 'var(--mint)' }}>↔</span>
+                <strong>{relation.second?.displayName ?? 'Membre'}</strong>
+                <div style={{ color: 'var(--muted)' }}>
+                  {relation.label ?? FAMILY_LABELS[relation.type] ?? relation.type}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="card" style={{ padding: 24 }}>
+        <h2>Moments collectifs</h2>
+        {snapshot.moments.length === 0 && (
+          <p style={{ color: 'var(--muted)' }}>
+            Aucun moment autorisé n’est visible pour cette audience.
+          </p>
+        )}
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>
+          {snapshot.moments.map((moment) => (
+            <article className="card" style={{ padding: 18 }} key={moment.id}>
+              <small>{moment.type} · {moment.audience}</small>
+              <h3>{moment.author?.displayName ?? 'Membre'}</h3>
+              {moment.text && <p>{moment.text}</p>}
+              <small style={{ color: 'var(--muted)' }}>
+                {new Date(moment.createdAt).toLocaleString('fr-FR')}
+              </small>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="card" style={{ padding: 24 }}>
         <h2>Activité collective récente</h2>
         {snapshot.recentActivity.length === 0 && (
@@ -304,9 +429,10 @@ export default function PublicCirclePage() {
 
       <section className="card" style={{ padding: 20 }}>
         <small style={{ color: 'var(--muted)' }}>
-          Les invitations, membres inactifs, demandes d’adhésion et données privées
-          ne sont jamais inclus dans cette vue publique. La progression collective
-          est gagnée par l’activité et ne peut pas être achetée.
+          Les invitations, demandes, contenus en attente, Stories expirées, liens
+          familiaux non acceptés et données privées ne sont jamais inclus dans cette
+          vue. La progression collective est gagnée par l’activité et ne peut pas être
+          achetée.
         </small>
       </section>
     </main>
