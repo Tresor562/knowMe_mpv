@@ -160,11 +160,14 @@ export class PaymentWebhookService {
           order.userId,
           'GOOGLE_PLAY'
         ),
-        kind: order.product.kind === 'SUBSCRIPTION'
-          ? 'SUBSCRIPTION' as const
-          : 'ONE_TIME' as const
+        kind:
+          order.product.kind === 'SUBSCRIPTION'
+            ? ('SUBSCRIPTION' as const)
+            : ('ONE_TIME' as const)
       };
-      const verification = await this.googlePlay.verifyPurchase(verificationInput);
+      const verification = await this.googlePlay.verifyPurchase(
+        verificationInput
+      );
       const result = await this.orchestration.applyVerification(
         order.id,
         verification,
@@ -187,7 +190,8 @@ export class PaymentWebhookService {
     headers: Record<string, string | string[] | undefined>
   ) {
     const parsed = this.appleStore.parseNotification(payload);
-    const eventId = parsed.externalEventId || `apple-${sha256Hex(rawBody).slice(0, 48)}`;
+    const eventId =
+      parsed.externalEventId || `apple-${sha256Hex(rawBody).slice(0, 48)}`;
     const log = await this.persistWebhook({
       provider: 'APPLE_APP_STORE',
       externalEventId: eventId,
@@ -201,6 +205,7 @@ export class PaymentWebhookService {
       await this.ignoreWebhook(log.id, 'NOTIFICATION_WITHOUT_TRANSACTION');
       return { accepted: true, ignored: true };
     }
+
     const attempt = await this.prisma.paymentAttempt.findFirst({
       where: {
         provider: 'APPLE_APP_STORE',
@@ -208,24 +213,52 @@ export class PaymentWebhookService {
       },
       include: { order: { include: { product: true, price: true } } }
     });
-    if (!attempt) {
+    let order = attempt?.order ?? null;
+
+    if (!order && parsed.reference) {
+      const subscription = await this.prisma.billingSubscription.findUnique({
+        where: {
+          provider_externalSubscriptionId: {
+            provider: 'APPLE_APP_STORE',
+            externalSubscriptionId: parsed.reference
+          }
+        },
+        select: { metadata: true }
+      });
+      const metadata =
+        subscription?.metadata && typeof subscription.metadata === 'object'
+          ? (subscription.metadata as Record<string, unknown>)
+          : {};
+      const orderId =
+        typeof metadata.orderId === 'string' ? metadata.orderId : null;
+      if (orderId) {
+        order = await this.prisma.paymentOrder.findUnique({
+          where: { id: orderId },
+          include: { product: true, price: true }
+        });
+      }
+    }
+
+    if (!order) {
       await this.ignoreWebhook(log.id, 'UNKNOWN_STORE_PURCHASE');
       return { accepted: true, ignored: true };
     }
+
     try {
       const verification = await this.appleStore.verifyPurchase({
-        externalProductId: String(attempt.order.price.externalProductId),
+        externalProductId: String(order.price.externalProductId),
         transactionId: parsed.externalTransactionId,
         expectedAccountReference: paymentAccountReference(
-          attempt.order.userId,
+          order.userId,
           'APPLE_APP_STORE'
         ),
-        kind: attempt.order.product.kind === 'SUBSCRIPTION'
-          ? 'SUBSCRIPTION'
-          : 'ONE_TIME'
+        kind:
+          order.product.kind === 'SUBSCRIPTION'
+            ? 'SUBSCRIPTION'
+            : 'ONE_TIME'
       });
       const result = await this.orchestration.applyVerification(
-        attempt.order.id,
+        order.id,
         verification,
         eventId
       );
@@ -278,8 +311,8 @@ export class PaymentWebhookService {
         externalEventId: input.externalEventId,
         signatureValid: input.signatureValid,
         payloadHash,
-        headers: redactPaymentPayload(input.headers) as Prisma.InputJsonValue,
-        payload: redactPaymentPayload(input.payload) as Prisma.InputJsonValue
+        headers: redactPaymentPayload(input.headers),
+        payload: redactPaymentPayload(input.payload)
       }
     });
     return { ...created, replayed: false };
@@ -288,21 +321,33 @@ export class PaymentWebhookService {
   private completeWebhook(id: string) {
     return this.prisma.paymentWebhookLog.update({
       where: { id },
-      data: { status: 'PROCESSED', processedAt: new Date(), errorCode: null }
+      data: {
+        status: 'PROCESSED',
+        processedAt: new Date(),
+        errorCode: null
+      }
     });
   }
 
   private ignoreWebhook(id: string, reason: string) {
     return this.prisma.paymentWebhookLog.update({
       where: { id },
-      data: { status: 'IGNORED', processedAt: new Date(), errorCode: reason }
+      data: {
+        status: 'IGNORED',
+        processedAt: new Date(),
+        errorCode: reason
+      }
     });
   }
 
   private rejectWebhook(id: string, reason: string) {
     return this.prisma.paymentWebhookLog.update({
       where: { id },
-      data: { status: 'REJECTED', processedAt: new Date(), errorCode: reason }
+      data: {
+        status: 'REJECTED',
+        processedAt: new Date(),
+        errorCode: reason
+      }
     });
   }
 
@@ -311,7 +356,8 @@ export class PaymentWebhookService {
       where: { id },
       data: {
         status: 'FAILED',
-        errorCode: error instanceof Error ? error.constructor.name : 'UNKNOWN_ERROR'
+        errorCode:
+          error instanceof Error ? error.constructor.name : 'UNKNOWN_ERROR'
       }
     });
   }
@@ -325,8 +371,14 @@ export class PaymentWebhookService {
   }
 
   private googlePurchaseToken(payload: Record<string, unknown>) {
-    const subscription = (payload.subscriptionNotification ?? {}) as Record<string, unknown>;
-    const product = (payload.oneTimeProductNotification ?? {}) as Record<string, unknown>;
+    const subscription = (payload.subscriptionNotification ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const product = (payload.oneTimeProductNotification ?? {}) as Record<
+      string,
+      unknown
+    >;
     const token = subscription.purchaseToken ?? product.purchaseToken;
     return token ? String(token) : null;
   }
