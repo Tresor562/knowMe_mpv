@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000';
 const ACCESS_KEY = 'knowme_access_token';
@@ -111,7 +112,10 @@ async function refreshAccessToken() {
 
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept-Language': getRuntimeLocale()
+      },
       body: JSON.stringify({ refreshToken })
     });
 
@@ -141,6 +145,9 @@ export async function apiFetch<T>(
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+  if (!headers.has('Accept-Language')) {
+    headers.set('Accept-Language', getRuntimeLocale());
+  }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
@@ -153,13 +160,12 @@ export async function apiFetch<T>(
   const data = await response.json().catch(() => null) as ApiErrorPayload | null;
   if (!response.ok) {
     const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
-    const baseMessage = Array.isArray(data?.message)
+    const fallback = Array.isArray(data?.message)
       ? data.message.join(', ')
       : data?.message ?? 'Une erreur est survenue.';
-    const message = requestId
-      ? `${baseMessage} (référence support : ${requestId})`
-      : baseMessage;
-    const error = new Error(message) as ApiError;
+    const error = new Error(
+      localizeApiFailure(data?.code, fallback, requestId)
+    ) as ApiError;
     error.status = response.status;
     error.code = data?.code;
     error.requestId = requestId;

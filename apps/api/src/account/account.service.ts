@@ -7,6 +7,7 @@ import { AppearanceService } from '../appearance/appearance.service';
 import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
+import { I18nService } from '../i18n/i18n.service';
 import { MediaService } from '../media/media.service';
 import {
   defaultNotificationCenterPreference,
@@ -28,6 +29,7 @@ export class AccountService {
     private readonly prisma: PrismaService,
     private readonly security: SecurityService,
     private readonly privacy: PrivacyService,
+    private readonly i18n: I18nService,
     private readonly notificationCenter: NotificationCenterLifecycleService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
@@ -64,6 +66,7 @@ export class AccountService {
       user,
       security,
       privacy,
+      localization,
       notificationCenter,
       media,
       challengeResults,
@@ -117,6 +120,7 @@ export class AccountService {
       }),
       this.security.exportForAccount(userId),
       this.privacy.exportForAccount(userId),
+      this.i18n.exportForAccount(userId),
       this.notificationCenter.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
@@ -174,6 +178,7 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasLocalizationData = localization.preference !== null;
     const hasAppearanceData = appearance.preference.version > 0;
     const hasSocialGiftData =
       socialGifts.received.length > 0 || socialGifts.sent.length > 0;
@@ -209,16 +214,19 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasNotificationCenterData
-        ? 9
-        : hasSocialGiftData
-          ? 8
-          : hasAppearanceData
-            ? 7
-            : 6,
+      formatVersion: hasLocalizationData
+        ? 10
+        : hasNotificationCenterData
+          ? 9
+          : hasSocialGiftData
+            ? 8
+            : hasAppearanceData
+              ? 7
+              : 6,
       account: safeUser,
       security,
       privacy,
+      ...(hasLocalizationData ? { localization } : {}),
       ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
       ...(hasSocialGiftData ? { socialGifts } : {}),
@@ -301,6 +309,7 @@ export class AccountService {
           }
         }
       });
+      await this.i18n.deleteForAccount(userId, tx);
       await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);

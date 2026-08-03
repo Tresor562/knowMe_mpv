@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
+    "@knowme/i18n-contract": "workspace:*",
     "next": "^15.4.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

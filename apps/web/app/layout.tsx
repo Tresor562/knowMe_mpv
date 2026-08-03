@@ -1,5 +1,6 @@
 import './globals.css';
 import { BottomNavigation } from '../components/bottom-navigation';
+import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
 import { ThemeRuntime } from '../components/theme-runtime';
 
@@ -13,6 +14,24 @@ export const metadata = {
     statusBarStyle: 'black-translucent'
   }
 };
+
+const localeBootstrap = `
+(function () {
+  try {
+    var stored = localStorage.getItem('knowme-locale');
+    var detected = stored || (navigator.languages && navigator.languages[0]) || navigator.language || 'fr';
+    var language = String(detected).toLowerCase().replace('_', '-').split('-')[0];
+    var locale = language === 'en' ? 'en' : 'fr';
+    var rtl = ['ar', 'fa', 'he', 'ps', 'ur'].indexOf(language) >= 0;
+    var root = document.documentElement;
+    root.lang = locale;
+    root.dir = rtl ? 'rtl' : 'ltr';
+    root.dataset.locale = locale;
+  } catch (_) {
+    document.documentElement.lang = 'fr';
+    document.documentElement.dir = 'ltr';
+  }
+})();`;
 
 const appearanceBootstrap = `
 (function () {
@@ -89,11 +108,13 @@ const appearanceBootstrap = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
+    <html lang="fr" dir="ltr" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: localeBootstrap }} />
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
       </head>
       <body>
+        <I18nRuntime />
         <ThemeRuntime />
         <ServiceWorkerRegistration />
         {children}
