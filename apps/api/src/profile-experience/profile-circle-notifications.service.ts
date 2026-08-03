@@ -189,6 +189,28 @@ export class ProfileCircleNotificationsService {
     return user?.displayName || (user?.username ? `@${user.username}` : 'Un membre');
   }
 
+  circleSummary(circleId: string) {
+    return this.prisma.profileCircle.findUnique({
+      where: { id: circleId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+        status: true,
+        ownerUserId: true
+      }
+    });
+  }
+
+  async activeMembers(circleId: string) {
+    const memberships = await this.prisma.profileCircleMember.findMany({
+      where: { circleId, status: 'ACTIVE' },
+      select: { userId: true }
+    });
+    return memberships.map((entry) => entry.userId);
+  }
+
   async activeManagers(circleId: string) {
     const circle = await this.prisma.profileCircle.findUnique({
       where: { id: circleId },
