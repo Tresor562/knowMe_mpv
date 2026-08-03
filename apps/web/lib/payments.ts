@@ -96,6 +96,11 @@ export type PaymentOrderPage = {
   nextCursor: string | null;
 };
 
+export type PaymentOrderReference = {
+  id: string;
+  reference: string;
+};
+
 export type CreateWebCheckoutInput = {
   productKey: string;
   provider: WebPaymentProvider;
@@ -157,6 +162,12 @@ export function getPaymentOrders(cursor?: string, limit = 30) {
 
 export function getPaymentOrder(orderId: string) {
   return apiFetch<PaymentOrder>(`/payments/me/orders/${encodeURIComponent(orderId)}`);
+}
+
+export function resolvePaymentOrderReference(reference: string) {
+  return apiFetch<PaymentOrderReference>(
+    `/payments/me/order-references/${encodeURIComponent(reference.trim().toUpperCase())}`
+  );
 }
 
 export function createWebCheckout(
