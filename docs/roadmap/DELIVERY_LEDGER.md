@@ -47,33 +47,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | Fusionnée |
 | KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | Fusionnée |
 | KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | Fusionnée |
+| KMD-031 | Moteur de 100 thèmes et d’identité visuelle Web/Mobile | #67 | Fusionnée |
 
 ## Livraison en validation
 
-| Livraison | Domaine | Pull request | État |
-| --- | --- | --- | --- |
-| KMD-031 | Moteur de 100 thèmes et d’identité visuelle Web/Mobile | #67 | CI, contrats natifs et E2E requis avant fusion |
+Aucune livraison majeure n’est actuellement en validation.
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-031` n’est réservé avant la fusion verte de cette livraison.
+Aucun identifiant après `KMD-031` n’est réservé.
 
-KMD-031 doit fournir :
+Le prochain identifiant ne sera attribué qu’après validation d’un périmètre unique, de ses dépendances et de ses critères de fusion. Les adaptateurs natifs d’icône d’application, de sons locaux et de météo en temps réel, ainsi que l’éditeur libre de thèmes, l’import de fonds personnels et les packs par onglet, restent des travaux distincts et ne sont pas implicitement regroupés sous un identifiant non réservé.
 
-- un catalogue autoritaire de 100 thèmes, dont 40 gratuits et 60 Premium ;
-- des palettes, packs d’icônes, bulles, effets, sons déclaratifs et icônes d’application ;
-- une préférence versionnée et synchronisée Web/Mobile ;
-- un fallback local avant authentification et un fallback serveur après perte de droit ;
-- une application Web avant hydratation ;
-- des animations, sons et transparences désactivables ;
-- un contraste élevé et le respect des préférences système ;
-- des combinaisons et rotations Premium contrôlées ;
-- des thèmes saisonniers pilotés par le serveur ;
-- aucun avantage fonctionnel, économique ou social.
-
-Les adaptateurs natifs de changement d’icône, de lecture sonore locale et de météo doivent rester séparés de la préférence autoritaire. L’éditeur libre de thèmes, l’import de fonds personnels et les packs par onglet sont documentés comme travaux futurs et ne doivent pas être présentés comme livrés par KMD-031.
-
-Les cadeaux restent hors périmètre de cette livraison.
+Les cadeaux restent hors du périmètre de KMD-031.
 
 ## Règles de mise à jour
 
