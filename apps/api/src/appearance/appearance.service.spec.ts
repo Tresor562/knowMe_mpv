@@ -26,6 +26,26 @@ describe('AppearanceService', () => {
     };
   }
 
+  const premiumPreference = {
+    userId: 'user-1',
+    selectedThemeKey: 'galaxy-ultra',
+    secondaryThemeKey: null,
+    themeBlendMode: 'OFF',
+    selectedIconPackKey: null,
+    selectedAppIconKey: null,
+    contrast: 'STANDARD',
+    reduceTransparency: false,
+    animationsEnabled: true,
+    animatedIconsEnabled: true,
+    uiSoundsEnabled: false,
+    weatherEffectsEnabled: false,
+    effectIntensity: 'BALANCED',
+    automaticRotationMode: 'OFF',
+    version: 4,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-02T00:00:00.000Z')
+  };
+
   it('keeps the canonical catalog at exactly 40 free and 60 Premium themes', () => {
     expect(APP_THEMES).toHaveLength(100);
     expect(APP_THEMES.filter((theme) => theme.tier === 'FREE')).toHaveLength(40);
@@ -45,6 +65,7 @@ describe('AppearanceService', () => {
         selectedThemeKey: 'system',
         effectiveThemeKey: 'system',
         effectiveIconPackKey: 'soft-glass',
+        effectiveAppIconKey: 'classique-knowme',
         contrast: 'STANDARD',
         reduceTransparency: false,
         animationsEnabled: true,
@@ -67,38 +88,47 @@ describe('AppearanceService', () => {
   });
 
   it('falls back safely when a stored Premium theme loses its entitlement', async () => {
-    const { service } = createService({
-      preference: {
-        userId: 'user-1',
-        selectedThemeKey: 'galaxy-ultra',
-        secondaryThemeKey: null,
-        themeBlendMode: 'OFF',
-        selectedIconPackKey: null,
-        selectedAppIconKey: null,
-        contrast: 'HIGH',
-        reduceTransparency: true,
-        animationsEnabled: true,
-        animatedIconsEnabled: true,
-        uiSoundsEnabled: false,
-        weatherEffectsEnabled: false,
-        effectIntensity: 'BALANCED',
-        automaticRotationMode: 'OFF',
-        version: 4,
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-02T00:00:00.000Z')
-      }
-    });
+    const { service } = createService({ preference: premiumPreference });
 
     const response = await service.getForUser('user-1');
     expect(response.preference).toEqual(
       expect.objectContaining({
         selectedThemeKey: 'galaxy-ultra',
         effectiveThemeKey: 'system',
-        fallbackReason: 'ENTITLEMENT_MISSING',
-        contrast: 'HIGH',
-        reduceTransparency: true
+        effectiveAppIconKey: 'classique-knowme',
+        fallbackReason: 'ENTITLEMENT_MISSING'
       })
     );
+  });
+
+  it('does not grant a Premium app icon through premium.themes alone', async () => {
+    const themesOnly = createService({
+      preference: premiumPreference,
+      entitlementKeys: ['premium.themes']
+    });
+    const themesOnlyResponse = await themesOnly.service.getForUser('user-1');
+
+    expect(themesOnlyResponse.preference).toEqual(
+      expect.objectContaining({
+        effectiveThemeKey: 'galaxy-ultra',
+        effectiveIconPackKey: 'cosmic',
+        effectiveAppIconKey: 'classique-knowme'
+      })
+    );
+    expect(
+      themesOnlyResponse.appIcons.find((icon) => icon.key === 'galaxy')
+    ).toEqual(expect.objectContaining({ locked: true }));
+
+    const withAppIcons = createService({
+      preference: premiumPreference,
+      entitlementKeys: ['premium.themes', 'premium.app_icons']
+    });
+    const completeResponse = await withAppIcons.service.getForUser('user-1');
+
+    expect(completeResponse.preference.effectiveAppIconKey).toBe('galaxy');
+    expect(
+      completeResponse.appIcons.find((icon) => icon.key === 'galaxy')
+    ).toEqual(expect.objectContaining({ locked: false }));
   });
 
   it('rejects a Premium theme before any preference mutation', async () => {
@@ -124,6 +154,7 @@ describe('AppearanceService', () => {
         serverAuthoritativePreference: true,
         synchronizedVersioning: true,
         safeFallbackThemeKey: 'system',
+        defaultAppIconKey: 'classique-knowme',
         seasonalAvailabilityIsServerDriven: true,
         weatherEffectsRequirePermission: true
       })
