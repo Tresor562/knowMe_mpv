@@ -17,6 +17,7 @@ model NotificationCenterPreference {
   masterEnabled     Boolean                      @default(true)
   realtimeEnabled   Boolean                      @default(true)
   digestMode        NotificationCenterDigestMode @default(INSTANT)
+  dailyDigestMinute Int                          @default(480)
   quietHoursEnabled Boolean                      @default(false)
   quietStartMinute  Int                          @default(1320)
   quietEndMinute    Int                          @default(420)
@@ -46,19 +47,19 @@ model NotificationCenterUserState {
 }
 
 model NotificationCenterActionReceipt {
-  idempotencyKey  String   @id
-  userId          String
-  notificationId  String
-  action           String
-  result           Json?
-  createdAt        DateTime @default(now())
+  idempotencyKey String   @id
+  userId         String
+  notificationId String
+  action          String
+  result          Json?
+  createdAt       DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([notificationId, createdAt])
 }
 
 model NotificationCenterDigestQueueItem {
-  notificationId String                              @id
+  notificationId String                               @id
   userId         String
   category       String
   digestMode     NotificationCenterDigestMode
@@ -68,10 +69,10 @@ model NotificationCenterDigestQueueItem {
   processingToken String?
   processingAt   DateTime?
   processedAt    DateTime?
-  attempts       Int                                 @default(0)
+  attempts       Int                                  @default(0)
   lastError      String?
-  createdAt      DateTime                            @default(now())
-  updatedAt      DateTime                            @updatedAt
+  createdAt      DateTime                             @default(now())
+  updatedAt      DateTime                             @updatedAt
 
   @@index([status, dueAt])
   @@index([processingToken])
