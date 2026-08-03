@@ -23,6 +23,7 @@ import {
   saveTrustedDeviceToken,
   SessionTokens
 } from './src/api';
+import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -49,10 +50,18 @@ type TwoFactorChallenge = {
 type LoginResult = SessionTokens | TwoFactorChallenge;
 
 function Field(props: React.ComponentProps<typeof TextInput>) {
+  const { colors } = useAppearance();
   return (
     <TextInput
-      placeholderTextColor="#789187"
-      style={styles.input}
+      placeholderTextColor={colors.muted}
+      style={[
+        styles.input,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          color: colors.text
+        }
+      ]}
       {...props}
     />
   );
@@ -67,16 +76,18 @@ function PrimaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryButton,
+        { backgroundColor: colors.accent },
         (pressed || disabled) && styles.buttonMuted
       ]}
     >
-      <Text style={styles.primaryButtonText}>{title}</Text>
+      <Text style={[styles.primaryButtonText, { color: colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -90,6 +101,7 @@ function AuthScreen({
 }: {
   onAuthenticated: () => Promise<void>;
 }) {
+  const { colors } = useAppearance();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identifier, setIdentifier] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -191,22 +203,22 @@ function AuthScreen({
 
   return (
     <KeyboardAvoidingView
-      style={styles.authRoot}
+      style={[styles.authRoot, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={styles.authContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brandMark}>
-          <Text style={styles.brandMarkText}>K</Text>
+        <View style={[styles.brandMark, { backgroundColor: colors.accent }]}>
+          <Text style={[styles.brandMarkText, { color: colors.accentText }]}>K</Text>
         </View>
-        <Text style={styles.logo}>KnowMe</Text>
-        <Text style={styles.subtitle}>Mieux se connaître, vraiment.</Text>
+        <Text style={[styles.logo, { color: colors.text }]}>KnowMe</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>Mieux se connaître, vraiment.</Text>
 
         {!challengeToken ? (
-          <View style={styles.card}>
-            <View style={styles.segmented}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.segmented, { backgroundColor: colors.background }]}>
               {(['login', 'register'] as const).map((value) => (
                 <Pressable
                   key={value}
@@ -217,13 +229,13 @@ function AuthScreen({
                   }}
                   style={[
                     styles.segment,
-                    mode === value && styles.segmentActive
+                    mode === value && { backgroundColor: colors.surfaceRaised }
                   ]}
                 >
                   <Text
                     style={[
                       styles.segmentText,
-                      mode === value && styles.segmentTextActive
+                      { color: mode === value ? colors.text : colors.muted }
                     ]}
                   >
                     {value === 'login' ? 'Connexion' : 'Inscription'}
@@ -242,7 +254,7 @@ function AuthScreen({
               <Field value={identifier} onChangeText={setIdentifier} autoCapitalize="none" placeholder="Email ou pseudo" />
             )}
             <Field value={password} onChangeText={setPassword} secureTextEntry placeholder="Mot de passe" />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
             <PrimaryButton
               disabled={!valid || busy}
               onPress={() => void submit()}
@@ -250,9 +262,9 @@ function AuthScreen({
             />
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Deuxième preuve</Text>
-            <Text style={styles.cardText}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Deuxième preuve</Text>
+            <Text style={[styles.cardText, { color: colors.muted }]}>
               Le mot de passe est correct, mais aucune session n’est encore ouverte.
             </Text>
             <Field
@@ -268,21 +280,31 @@ function AuthScreen({
               onPress={() => setTrustDevice((current) => !current)}
               style={styles.checkboxRow}
             >
-              <View style={[styles.checkbox, trustDevice && styles.checkboxActive]}>
-                <Text style={styles.checkboxText}>{trustDevice ? '✓' : ''}</Text>
+              <View
+                style={[
+                  styles.checkbox,
+                  { borderColor: colors.accent },
+                  trustDevice && { backgroundColor: colors.accent }
+                ]}
+              >
+                <Text style={[styles.checkboxText, { color: colors.accentText }]}>{trustDevice ? '✓' : ''}</Text>
               </View>
-              <Text style={styles.checkboxLabel}>
+              <Text style={[styles.checkboxLabel, { color: colors.muted }]}>
                 Faire confiance à cet appareil pendant 30 jours. Cette autorisation reste révocable.
               </Text>
             </Pressable>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
             <PrimaryButton
               disabled={busy || securityCode.trim().length < 6}
               onPress={() => void verifySecondFactor()}
               title={busy ? 'Validation…' : 'Valider et ouvrir la session'}
             />
-            <Pressable disabled={busy} onPress={resetChallenge} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Recommencer la connexion</Text>
+            <Pressable
+              disabled={busy}
+              onPress={resetChallenge}
+              style={[styles.secondaryButton, { borderColor: colors.accent }]}
+            >
+              <Text style={[styles.secondaryButtonText, { color: colors.accent }]}>Recommencer la connexion</Text>
             </Pressable>
           </View>
         )}
@@ -302,6 +324,7 @@ function HomeScreen({
   openFeed: () => void;
   openChallenges: () => void;
 }) {
+  const { colors } = useAppearance();
   const [challenges, setChallenges] = useState<ChallengeSummary[]>([]);
   const [notificationUnread, setNotificationUnread] = useState(0);
   const [messageUnread, setMessageUnread] = useState(0);
@@ -331,11 +354,16 @@ function HomeScreen({
     void load();
   }, [load]);
 
+  const cardStyle = { backgroundColor: colors.surface, borderColor: colors.border };
+
   return (
     <ScrollView
+      style={{ backgroundColor: colors.background }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -344,45 +372,45 @@ function HomeScreen({
       }
       contentContainerStyle={styles.screenContent}
     >
-      <Text style={styles.eyebrow}>BON RETOUR</Text>
-      <Text style={styles.heading}>Salut, {user.displayName}</Text>
-      <Text style={styles.muted}>Ton univers KnowMe est prêt.</Text>
+      <Text style={[styles.eyebrow, { color: colors.accent }]}>BON RETOUR</Text>
+      <Text style={[styles.heading, { color: colors.text }]}>Salut, {user.displayName}</Text>
+      <Text style={[styles.muted, { color: colors.muted }]}>Ton univers KnowMe est prêt.</Text>
       <View style={styles.statsGrid}>
-        <Pressable onPress={openChallenges} style={styles.statCard}>
-          <Text style={styles.statValue}>
+        <Pressable onPress={openChallenges} style={[styles.statCard, cardStyle]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {challenges.filter((item) => item.status === 'ACTIVE').length}
           </Text>
-          <Text style={styles.statLabel}>Défis actifs</Text>
+          <Text style={[styles.statLabel, { color: colors.muted }]}>Défis actifs</Text>
         </Pressable>
-        <Pressable onPress={openSocial} style={styles.statCard}>
-          <Text style={styles.statValue}>{messageUnread}</Text>
-          <Text style={styles.statLabel}>Messages</Text>
+        <Pressable onPress={openSocial} style={[styles.statCard, cardStyle]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>{messageUnread}</Text>
+          <Text style={[styles.statLabel, { color: colors.muted }]}>Messages</Text>
         </Pressable>
-        <Pressable onPress={openSocial} style={styles.statCard}>
-          <Text style={styles.statValue}>{notificationUnread}</Text>
-          <Text style={styles.statLabel}>Alertes</Text>
+        <Pressable onPress={openSocial} style={[styles.statCard, cardStyle]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>{notificationUnread}</Text>
+          <Text style={[styles.statLabel, { color: colors.muted }]}>Alertes</Text>
         </Pressable>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{user.knowCoins ?? 0}</Text>
-          <Text style={styles.statLabel}>KnowCoins</Text>
+        <View style={[styles.statCard, cardStyle]}>
+          <Text style={[styles.statValue, { color: colors.text }]}>{user.knowCoins ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.muted }]}>KnowCoins</Text>
         </View>
       </View>
-      <Pressable onPress={openSocial} style={styles.card}>
-        <Text style={styles.cardTitle}>Mon cercle</Text>
-        <Text style={styles.cardText}>
+      <Pressable onPress={openSocial} style={[styles.card, cardStyle]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Mon cercle</Text>
+        <Text style={[styles.cardText, { color: colors.muted }]}>
           {messageUnread > 0 ? `${messageUnread} message(s) t’attendent. ` : ''}
           Retrouve tes amis, tes messages et toutes tes alertes au même endroit.
         </Text>
       </Pressable>
-      <Pressable onPress={openFeed} style={styles.card}>
-        <Text style={styles.cardTitle}>Discussions</Text>
-        <Text style={styles.cardText}>
+      <Pressable onPress={openFeed} style={[styles.card, cardStyle]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Discussions</Text>
+        <Text style={[styles.cardText, { color: colors.muted }]}>
           Explore le fil, ouvre une publication, réponds et gère tes commentaires.
         </Text>
       </Pressable>
-      <Pressable onPress={openChallenges} style={styles.card}>
-        <Text style={styles.cardTitle}>Défis en profondeur</Text>
-        <Text style={styles.cardText}>
+      <Pressable onPress={openChallenges} style={[styles.card, cardStyle]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Défis en profondeur</Text>
+        <Text style={[styles.cardText, { color: colors.muted }]}>
           Réponds question par question, sauvegarde ta progression et suis les participants.
         </Text>
       </Pressable>
@@ -390,7 +418,8 @@ function HomeScreen({
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { colors, refresh: refreshAppearance } = useAppearance();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
@@ -404,6 +433,7 @@ export default function App() {
       }
       const currentUser = await apiFetch<MobileUser>('/users/me');
       setUser(currentUser);
+      void refreshAppearance();
       void getRealtimeSocket();
     } catch {
       disconnectRealtimeSocket();
@@ -412,7 +442,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshAppearance]);
 
   useEffect(() => {
     void loadSession();
@@ -436,9 +466,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingRoot}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#45e6bd" />
+      <SafeAreaView style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.statusBar} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
   }
@@ -446,7 +476,7 @@ export default function App() {
   if (!user) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={colors.statusBar} />
         <AuthScreen onAuthenticated={loadSession} />
       </>
     );
@@ -461,9 +491,9 @@ export default function App() {
   ];
 
   return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar style="light" />
-      <View style={styles.body}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.statusBar} />
+      <View style={[styles.body, { backgroundColor: colors.background }]}>
         {screen === 'home' && (
           <HomeScreen
             user={user}
@@ -492,29 +522,35 @@ export default function App() {
           />
         )}
       </View>
-      <View style={styles.tabBar}>
-        {tabs.map(([value, icon, label]) => (
-          <Pressable key={value} onPress={() => setScreen(value)} style={styles.tab}>
-            <Text
-              style={[
-                styles.tabIcon,
-                (screen === value || (value === 'profile' && screen === 'verification')) && styles.tabActive
-              ]}
-            >
-              {icon}
-            </Text>
-            <Text
-              style={[
-                styles.tabLabel,
-                (screen === value || (value === 'profile' && screen === 'verification')) && styles.tabActive
-              ]}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
+      <View
+        style={[
+          styles.tabBar,
+          { backgroundColor: colors.surface, borderTopColor: colors.border }
+        ]}
+      >
+        {tabs.map(([value, icon, label]) => {
+          const active = screen === value || (value === 'profile' && screen === 'verification');
+          return (
+            <Pressable key={value} onPress={() => setScreen(value)} style={styles.tab}>
+              <Text style={[styles.tabIcon, { color: active ? colors.accent : colors.muted }]}>
+                {icon}
+              </Text>
+              <Text style={[styles.tabLabel, { color: active ? colors.accent : colors.muted }]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <AppearanceProvider>
+      <AppContent />
+    </AppearanceProvider>
   );
 }
 
@@ -553,7 +589,7 @@ const styles = StyleSheet.create({
   checkboxText: { color: '#052017', fontWeight: '900' },
   checkboxLabel: { flex: 1, color: '#b6c8c0', lineHeight: 20 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: { width: '48%', minHeight: 86, backgroundColor: '#10231d', borderRadius: 20, padding: 14 },
+  statCard: { width: '48%', minHeight: 86, backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 20, padding: 14 },
   statValue: { color: '#f4fff9', fontSize: 25, fontWeight: '900' },
   statLabel: { color: '#91a79e', fontSize: 12, marginTop: 4 },
   tabBar: { flexDirection: 'row', backgroundColor: '#0b1d17', borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 18 : 8 },
