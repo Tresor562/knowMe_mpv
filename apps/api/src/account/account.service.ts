@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { I18nService } from '../i18n/i18n.service';
+import { MediaDownloadPreferenceService } from '../media/media-download-preference.service';
 import { MediaService } from '../media/media.service';
 import {
   defaultNotificationCenterPreference,
@@ -31,6 +32,7 @@ export class AccountService {
     private readonly privacy: PrivacyService,
     private readonly i18n: I18nService,
     private readonly notificationCenter: NotificationCenterLifecycleService,
+    private readonly mediaDownloads: MediaDownloadPreferenceService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
@@ -68,6 +70,7 @@ export class AccountService {
       privacy,
       localization,
       notificationCenter,
+      mediaDownloads,
       media,
       challengeResults,
       challengeReferences,
@@ -122,6 +125,7 @@ export class AccountService {
       this.privacy.exportForAccount(userId),
       this.i18n.exportForAccount(userId),
       this.notificationCenter.exportForAccount(userId),
+      this.mediaDownloads.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -178,33 +182,26 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasMediaDownloadData = mediaDownloads.preference !== null;
     const hasLocalizationData = localization.preference !== null;
     const hasAppearanceData = appearance.preference.version > 0;
-    const hasSocialGiftData =
-      socialGifts.received.length > 0 || socialGifts.sent.length > 0;
+    const hasSocialGiftData = socialGifts.received.length > 0 || socialGifts.sent.length > 0;
     const defaultNotificationCenter = defaultNotificationCenterPreference();
     const centerPreference = notificationCenter.preference;
     const hasCustomNotificationCenterPreference =
       centerPreference !== null &&
       (centerPreference.masterEnabled !== defaultNotificationCenter.masterEnabled ||
-        centerPreference.realtimeEnabled !==
-          defaultNotificationCenter.realtimeEnabled ||
+        centerPreference.realtimeEnabled !== defaultNotificationCenter.realtimeEnabled ||
         centerPreference.digestMode !== defaultNotificationCenter.digestMode ||
-        centerPreference.dailyDigestMinute !==
-          defaultNotificationCenter.dailyDigestMinute ||
-        centerPreference.quietHoursEnabled !==
-          defaultNotificationCenter.quietHoursEnabled ||
-        centerPreference.quietStartMinute !==
-          defaultNotificationCenter.quietStartMinute ||
-        centerPreference.quietEndMinute !==
-          defaultNotificationCenter.quietEndMinute ||
+        centerPreference.dailyDigestMinute !== defaultNotificationCenter.dailyDigestMinute ||
+        centerPreference.quietHoursEnabled !== defaultNotificationCenter.quietHoursEnabled ||
+        centerPreference.quietStartMinute !== defaultNotificationCenter.quietStartMinute ||
+        centerPreference.quietEndMinute !== defaultNotificationCenter.quietEndMinute ||
         centerPreference.timezone !== defaultNotificationCenter.timezone ||
-        JSON.stringify(
-          normalizeNotificationCategories(centerPreference.categorySettings)
-        ) !== JSON.stringify(defaultNotificationCenter.categorySettings) ||
+        JSON.stringify(normalizeNotificationCategories(centerPreference.categorySettings)) !==
+          JSON.stringify(defaultNotificationCenter.categorySettings) ||
         normalizeNotificationStringList(centerPreference.mutedTypes).length > 0 ||
-        normalizeNotificationStringList(centerPreference.mutedCircleIds).length >
-          0);
+        normalizeNotificationStringList(centerPreference.mutedCircleIds).length > 0);
     const hasNotificationCenterData =
       hasCustomNotificationCenterPreference ||
       notificationCenter.states.length > 0 ||
@@ -214,18 +211,21 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasLocalizationData
-        ? 10
-        : hasNotificationCenterData
-          ? 9
-          : hasSocialGiftData
-            ? 8
-            : hasAppearanceData
-              ? 7
-              : 6,
+      formatVersion: hasMediaDownloadData
+        ? 11
+        : hasLocalizationData
+          ? 10
+          : hasNotificationCenterData
+            ? 9
+            : hasSocialGiftData
+              ? 8
+              : hasAppearanceData
+                ? 7
+                : 6,
       account: safeUser,
       security,
       privacy,
+      ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
       ...(hasLocalizationData ? { localization } : {}),
       ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
@@ -239,47 +239,21 @@ export class AccountService {
         createdAt: reference.createdAt,
         answers: Array.isArray(reference.answers)
           ? reference.answers.map((answer) => {
-              if (!answer || typeof answer !== 'object' || Array.isArray(answer)) {
-                return answer;
-              }
+              if (!answer || typeof answer !== 'object' || Array.isArray(answer)) return answer;
               const { normalizedHash: _normalizedHash, ...safeAnswer } = answer;
               return safeAnswer;
             })
           : []
       })),
-      progression: {
-        profile: progressionProfile,
-        ledger: xpLedger
-      },
-      streaks: {
-        profile: streakProfile,
-        days: streakDays
-      },
-      quests: {
-        progress: questProgress,
-        contributions: questContributions
-      },
-      achievements: {
-        preference: achievementPreference,
-        grants: achievementGrants
-      },
-      leaderboards: {
-        weeklyXpPreference: leaderboardPreference
-      },
-      dailyChest: {
-        claims: dailyChestClaims
-      },
-      positiveChallenges: {
-        items: positiveChallenges
-      },
-      conceptK: {
-        ...conceptK,
-        assetDeliveries: conceptKAssetDeliveries
-      },
-      cosmetics: {
-        ...cosmetics,
-        presets: cosmeticPresets
-      }
+      progression: { profile: progressionProfile, ledger: xpLedger },
+      streaks: { profile: streakProfile, days: streakDays },
+      quests: { progress: questProgress, contributions: questContributions },
+      achievements: { preference: achievementPreference, grants: achievementGrants },
+      leaderboards: { weeklyXpPreference: leaderboardPreference },
+      dailyChest: { claims: dailyChestClaims },
+      positiveChallenges: { items: positiveChallenges },
+      conceptK: { ...conceptK, assetDeliveries: conceptKAssetDeliveries },
+      cosmetics: { ...cosmetics, presets: cosmeticPresets }
     };
   }
 
@@ -303,12 +277,10 @@ export class AccountService {
           action: 'ACCOUNT_DELETE',
           entity: 'User',
           entityId: userId,
-          metadata: {
-            username: user.username,
-            requestedAt: new Date().toISOString()
-          }
+          metadata: { username: user.username, requestedAt: new Date().toISOString() }
         }
       });
+      await this.mediaDownloads.deleteForAccount(userId, tx);
       await this.i18n.deleteForAccount(userId, tx);
       await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
@@ -317,9 +289,7 @@ export class AccountService {
       await this.cosmetics.deleteForAccount(userId, tx);
       await tx.conceptKAssetDeliveryEvent.deleteMany({ where: { userId } });
       await this.conceptK.deleteForAccount(userId, tx);
-      await tx.positiveChallenge.deleteMany({
-        where: { OR: [{ creatorId: userId }, { recipientId: userId }] }
-      });
+      await tx.positiveChallenge.deleteMany({ where: { OR: [{ creatorId: userId }, { recipientId: userId }] } });
       await tx.dailyChestClaim.deleteMany({ where: { userId } });
       await tx.leaderboardPreference.deleteMany({ where: { userId } });
       await tx.userAchievementPreference.deleteMany({ where: { userId } });
@@ -331,24 +301,10 @@ export class AccountService {
       await tx.xpLedgerEntry.deleteMany({ where: { userId } });
       await tx.userProgression.deleteMany({ where: { userId } });
       await tx.challengeResultSnapshot.deleteMany({
-        where: {
-          OR: [
-            { userId },
-            ...(createdChallengeIds.length
-              ? [{ challengeId: { in: createdChallengeIds } }]
-              : [])
-          ]
-        }
+        where: { OR: [{ userId }, ...(createdChallengeIds.length ? [{ challengeId: { in: createdChallengeIds } }] : [])] }
       });
       await tx.challengeReferenceSnapshot.deleteMany({
-        where: {
-          OR: [
-            { createdById: userId },
-            ...(createdChallengeIds.length
-              ? [{ challengeId: { in: createdChallengeIds } }]
-              : [])
-          ]
-        }
+        where: { OR: [{ createdById: userId }, ...(createdChallengeIds.length ? [{ challengeId: { in: createdChallengeIds } }] : [])] }
       });
       await tx.privacyConsentEvent.deleteMany({ where: { userId } });
       await tx.privacyPreference.deleteMany({ where: { userId } });
