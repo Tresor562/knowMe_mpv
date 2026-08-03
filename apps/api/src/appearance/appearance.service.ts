@@ -22,6 +22,10 @@ import {
 
 export const APP_THEMES = THEME_CATALOG;
 
+const PREMIUM_THEMES_ENTITLEMENT = 'premium.themes';
+const PREMIUM_APP_ICONS_ENTITLEMENT = 'premium.app_icons';
+const LEGACY_PREMIUM_ALIAS = 'subscription.premium';
+
 type PreferenceRecord = {
   userId: string;
   selectedThemeKey: string;
@@ -68,6 +72,8 @@ export class AppearanceService {
       localPreAuthFallbackAllowed: true,
       synchronizedVersioning: true,
       premiumThemesCanBeIndividuallyOwned: true,
+      premiumThemeEntitlementKey: PREMIUM_THEMES_ENTITLEMENT,
+      premiumAppIconEntitlementKey: PREMIUM_APP_ICONS_ENTITLEMENT,
       safeFallbackThemeKey: 'system',
       defaultIconPackKey: 'soft-glass',
       supportedContrastModes: ['STANDARD', 'HIGH'],
@@ -104,11 +110,13 @@ export class AppearanceService {
     const activeEntitlements = new Set(
       entitlementState.entitlements.map((entry) => entry.key)
     );
+    const themeEntitlements = this.themeEntitlements(activeEntitlements);
+    const appIconEntitlements = this.appIconEntitlements(activeEntitlements);
 
     const primaryTheme = this.requireTheme(
       dto.themeKey ?? existing?.selectedThemeKey ?? 'system'
     );
-    this.assertUnlocked('Ce thème', primaryTheme.entitlementKeys, activeEntitlements);
+    this.assertUnlocked('Ce thème', primaryTheme.entitlementKeys, themeEntitlements);
 
     const secondaryKey = dto.secondaryThemeKey === 'none'
       ? null
@@ -119,8 +127,8 @@ export class AppearanceService {
       if (!secondaryTheme) {
         throw new BadRequestException('Un thème secondaire est requis pour activer la combinaison.');
       }
-      this.assertPremiumSubscription(activeEntitlements, 'La combinaison de thèmes');
-      this.assertUnlocked('Le thème secondaire', secondaryTheme.entitlementKeys, activeEntitlements);
+      this.assertPremiumThemes(activeEntitlements, 'La combinaison de thèmes');
+      this.assertUnlocked('Le thème secondaire', secondaryTheme.entitlementKeys, themeEntitlements);
     }
 
     const iconPackKey = dto.iconPackKey === 'theme-default'
@@ -128,7 +136,7 @@ export class AppearanceService {
       : dto.iconPackKey ?? existing?.selectedIconPackKey ?? null;
     const iconPack = iconPackKey ? this.requireIconPack(iconPackKey) : null;
     if (iconPack) {
-      this.assertUnlocked('Ce pack d’icônes', iconPack.entitlementKeys, activeEntitlements);
+      this.assertUnlocked('Ce pack d’icônes', iconPack.entitlementKeys, themeEntitlements);
     }
 
     const appIconKey = dto.appIconKey === 'theme-default'
@@ -136,20 +144,20 @@ export class AppearanceService {
       : dto.appIconKey ?? existing?.selectedAppIconKey ?? null;
     const appIcon = appIconKey ? this.requireAppIcon(appIconKey) : null;
     if (appIcon) {
-      this.assertUnlocked('Cette icône d’application', appIcon.entitlementKeys, activeEntitlements);
+      this.assertUnlocked('Cette icône d’application', appIcon.entitlementKeys, appIconEntitlements);
     }
 
     const rotationMode = dto.automaticRotationMode
       ?? existing?.automaticRotationMode
       ?? 'OFF';
     if (rotationMode !== 'OFF') {
-      this.assertPremiumSubscription(activeEntitlements, 'La rotation automatique');
+      this.assertPremiumThemes(activeEntitlements, 'La rotation automatique');
     }
     const weatherEffectsEnabled = dto.weatherEffectsEnabled
       ?? existing?.weatherEffectsEnabled
       ?? false;
     if (weatherEffectsEnabled) {
-      this.assertPremiumSubscription(activeEntitlements, 'Les effets météo en temps réel');
+      this.assertPremiumThemes(activeEntitlements, 'Les effets météo en temps réel');
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -261,11 +269,13 @@ export class AppearanceService {
     preference: PreferenceRecord | null,
     activeEntitlements: Set<string>
   ) {
+    const themeEntitlements = this.themeEntitlements(activeEntitlements);
+    const appIconEntitlements = this.appIconEntitlements(activeEntitlements);
     const fallbackTheme = THEME_CATALOG[0]!;
     const selectedThemeKey = preference?.selectedThemeKey ?? fallbackTheme.key;
     const selectedTheme = THEME_CATALOG.find((entry) => entry.key === selectedThemeKey);
     const selectedAllowed = Boolean(
-      selectedTheme && isUnlocked(selectedTheme.entitlementKeys, activeEntitlements)
+      selectedTheme && isUnlocked(selectedTheme.entitlementKeys, themeEntitlements)
     );
     const effectiveTheme = selectedTheme && selectedAllowed ? selectedTheme : fallbackTheme;
 
@@ -274,8 +284,8 @@ export class AppearanceService {
       : null;
     const secondaryAllowed = Boolean(
       secondaryTheme &&
-      activeEntitlements.has('subscription.premium') &&
-      isUnlocked(secondaryTheme.entitlementKeys, activeEntitlements)
+      activeEntitlements.has(PREMIUM_THEMES_ENTITLEMENT) &&
+      isUnlocked(secondaryTheme.entitlementKeys, themeEntitlements)
     );
     const effectiveBlendMode = secondaryAllowed
       ? preference?.themeBlendMode ?? 'OFF'
@@ -285,7 +295,7 @@ export class AppearanceService {
       ? ICON_PACKS.find((entry) => entry.key === preference.selectedIconPackKey) ?? null
       : null;
     const selectedIconPackAllowed = Boolean(
-      selectedIconPack && isUnlocked(selectedIconPack.entitlementKeys, activeEntitlements)
+      selectedIconPack && isUnlocked(selectedIconPack.entitlementKeys, themeEntitlements)
     );
     const effectiveIconPackKey = selectedIconPackAllowed
       ? selectedIconPack!.key
@@ -297,13 +307,13 @@ export class AppearanceService {
       ? APP_ICONS.find((entry) => entry.key === preference.selectedAppIconKey) ?? null
       : null;
     const selectedAppIconAllowed = Boolean(
-      selectedAppIcon && isUnlocked(selectedAppIcon.entitlementKeys, activeEntitlements)
+      selectedAppIcon && isUnlocked(selectedAppIcon.entitlementKeys, appIconEntitlements)
     );
     const effectiveAppIconKey = selectedAppIconAllowed
       ? selectedAppIcon!.key
       : effectiveTheme.appIconKey;
 
-    const premiumActive = activeEntitlements.has('subscription.premium');
+    const premiumThemesActive = activeEntitlements.has(PREMIUM_THEMES_ENTITLEMENT);
     const activeSeasons = this.activeSeasonKeys();
 
     return {
@@ -323,9 +333,10 @@ export class AppearanceService {
         animationsEnabled: preference?.animationsEnabled ?? true,
         animatedIconsEnabled: preference?.animatedIconsEnabled ?? true,
         uiSoundsEnabled: preference?.uiSoundsEnabled ?? false,
-        weatherEffectsEnabled: premiumActive && (preference?.weatherEffectsEnabled ?? false),
+        weatherEffectsEnabled:
+          premiumThemesActive && (preference?.weatherEffectsEnabled ?? false),
         effectIntensity: preference?.effectIntensity ?? 'BALANCED',
-        automaticRotationMode: premiumActive
+        automaticRotationMode: premiumThemesActive
           ? preference?.automaticRotationMode ?? 'OFF'
           : 'OFF',
         version: preference?.version ?? 0,
@@ -339,15 +350,24 @@ export class AppearanceService {
       themes: THEME_CATALOG.map((theme) => ({
         ...theme,
         iconPackKey: theme.key === 'system' ? 'soft-glass' : theme.iconPackKey,
-        locked: !isUnlocked(theme.entitlementKeys, activeEntitlements)
+        entitlementKeys: theme.premium
+          ? [`theme.${theme.key}`, PREMIUM_THEMES_ENTITLEMENT]
+          : [],
+        locked: !isUnlocked(theme.entitlementKeys, themeEntitlements)
       })),
       iconPacks: ICON_PACKS.map((pack) => ({
         ...pack,
-        locked: !isUnlocked(pack.entitlementKeys, activeEntitlements)
+        entitlementKeys: pack.tier === 'PREMIUM'
+          ? [`icon-pack.${pack.key}`, PREMIUM_THEMES_ENTITLEMENT]
+          : [],
+        locked: !isUnlocked(pack.entitlementKeys, themeEntitlements)
       })),
       appIcons: APP_ICONS.map((icon) => ({
         ...icon,
-        locked: !isUnlocked(icon.entitlementKeys, activeEntitlements)
+        entitlementKeys: icon.tier === 'PREMIUM'
+          ? [`app-icon.${icon.key}`, PREMIUM_APP_ICONS_ENTITLEMENT]
+          : [],
+        locked: !isUnlocked(icon.entitlementKeys, appIconEntitlements)
       })),
       seasonalThemes: SEASONAL_THEMES.map((theme) => ({
         ...theme,
@@ -380,6 +400,22 @@ export class AppearanceService {
     return icon;
   }
 
+  private themeEntitlements(activeEntitlements: ReadonlySet<string>) {
+    const normalized = new Set(activeEntitlements);
+    if (activeEntitlements.has(PREMIUM_THEMES_ENTITLEMENT)) {
+      normalized.add(LEGACY_PREMIUM_ALIAS);
+    }
+    return normalized;
+  }
+
+  private appIconEntitlements(activeEntitlements: ReadonlySet<string>) {
+    const normalized = new Set(activeEntitlements);
+    if (activeEntitlements.has(PREMIUM_APP_ICONS_ENTITLEMENT)) {
+      normalized.add(LEGACY_PREMIUM_ALIAS);
+    }
+    return normalized;
+  }
+
   private assertUnlocked(
     label: string,
     entitlementKeys: readonly string[],
@@ -390,12 +426,12 @@ export class AppearanceService {
     }
   }
 
-  private assertPremiumSubscription(
+  private assertPremiumThemes(
     activeEntitlements: ReadonlySet<string>,
     featureName: string
   ) {
-    if (!activeEntitlements.has('subscription.premium')) {
-      throw new ForbiddenException(`${featureName} nécessite un abonnement Premium actif.`);
+    if (!activeEntitlements.has(PREMIUM_THEMES_ENTITLEMENT)) {
+      throw new ForbiddenException(`${featureName} nécessite l’accès Premium aux thèmes.`);
     }
   }
 
