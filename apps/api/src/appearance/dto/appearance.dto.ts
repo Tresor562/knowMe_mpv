@@ -22,6 +22,16 @@ export class UpdateAppearancePreferenceDto {
   @Transform(normalizedKey)
   @IsString()
   @MaxLength(60)
+  secondaryThemeKey?: string;
+
+  @IsOptional()
+  @IsIn(['OFF', 'ACCENT', 'EFFECTS', 'BALANCED'])
+  themeBlendMode?: 'OFF' | 'ACCENT' | 'EFFECTS' | 'BALANCED';
+
+  @IsOptional()
+  @Transform(normalizedKey)
+  @IsString()
+  @MaxLength(60)
   iconPackKey?: string;
 
   @IsOptional()
