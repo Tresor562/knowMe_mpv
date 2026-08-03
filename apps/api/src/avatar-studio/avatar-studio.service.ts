@@ -46,6 +46,20 @@ type InventoryEntry = {
   item: CosmeticItem;
 };
 
+type PublicSnapshotSlot = {
+  slot: string;
+  item: {
+    id: string;
+    key: string;
+    version: number;
+    name: string;
+    description?: string | null;
+    rarity: string;
+    assetUrl: string;
+    previewUrl?: string | null;
+  } | null;
+};
+
 @Injectable()
 export class AvatarStudioService {
   constructor(
@@ -120,7 +134,8 @@ export class AvatarStudioService {
 
   async publicSnapshot(viewerId: string, username: string) {
     const snapshot = await this.publicCosmetics.snapshot(viewerId, username);
-    const slots = snapshot.slots.filter((entry) => this.isAvatarSlot(entry.slot));
+    const publicSlots = snapshot.slots as PublicSnapshotSlot[];
+    const slots = publicSlots.filter((entry) => this.isAvatarSlot(entry.slot));
     const equipment: EquipmentEntry[] = [];
 
     for (const entry of slots) {
