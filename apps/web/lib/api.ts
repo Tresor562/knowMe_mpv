@@ -1,5 +1,7 @@
 'use client';
 
+import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TRUSTED_DEVICE_KEY = 'knowme_trusted_device_token';
 
@@ -71,7 +73,10 @@ async function refreshSession() {
 
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept-Language': getRuntimeLocale()
+      },
       body: JSON.stringify({ refreshToken }),
       cache: 'no-store'
     });
@@ -98,6 +103,9 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+  if (!headers.has('Accept-Language')) {
+    headers.set('Accept-Language', getRuntimeLocale());
+  }
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -120,13 +128,12 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
 
   if (!response.ok) {
     const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
-    const baseMessage = Array.isArray(data?.message)
+    const fallback = Array.isArray(data?.message)
       ? data.message.join(', ')
       : data?.message ?? 'Une erreur est survenue.';
-    const message = requestId
-      ? `${baseMessage} (référence support : ${requestId})`
-      : baseMessage;
-    const error = new Error(message) as ApiError;
+    const error = new Error(
+      localizeApiFailure(data?.code, fallback, requestId)
+    ) as ApiError;
     error.status = response.status;
     error.code = data?.code;
     error.requestId = requestId;
