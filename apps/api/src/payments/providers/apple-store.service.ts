@@ -5,11 +5,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  createPublicKey,
-  verify,
-  X509Certificate
-} from 'crypto';
+import { verify, X509Certificate } from 'crypto';
 import { fetchProviderJson, ProviderHttpError } from '../payment-http';
 import {
   decodeBase64UrlJson,
@@ -274,19 +270,12 @@ export class AppleStoreService {
     if (!raw) return [];
     try {
       const values = JSON.parse(raw) as string[];
+      if (!Array.isArray(values)) return [];
       return values.map(
-        (value) => new X509Certificate(createPublicKey(value.replace(/\\n/g, '\n')).export({
-          type: 'spki',
-          format: 'pem'
-        }))
+        (value) => new X509Certificate(value.replace(/\\n/g, '\n'))
       );
     } catch {
-      try {
-        const values = JSON.parse(raw) as string[];
-        return values.map((value) => new X509Certificate(value.replace(/\\n/g, '\n')));
-      } catch {
-        return [];
-      }
+      return [];
     }
   }
 
