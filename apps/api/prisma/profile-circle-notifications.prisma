@@ -1,8 +1,15 @@
 enum ProfileCircleNotificationRecipientStatus {
   PENDING
+  DEFERRED
   PROCESSING
   DELIVERED
   FAILED
+}
+
+enum ProfileCircleNotificationDeliveryMode {
+  INSTANT
+  AFTER_QUIET_HOURS
+  DAILY_DIGEST
 }
 
 model ProfileCircleNotificationDispatch {
@@ -28,9 +35,11 @@ model ProfileCircleNotificationRecipient {
   dispatchId      String
   userId          String
   status          ProfileCircleNotificationRecipientStatus @default(PENDING)
+  deliveryMode    ProfileCircleNotificationDeliveryMode     @default(INSTANT)
+  availableAt     DateTime                                  @default(now())
   processingToken String?
   processingAt    DateTime?
-  notificationId  String?                                  @unique
+  notificationId  String?
   deliveredAt     DateTime?
   failedAt        DateTime?
   errorCode       String?
@@ -41,6 +50,7 @@ model ProfileCircleNotificationRecipient {
   dispatch ProfileCircleNotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
 
   @@unique([dispatchId, userId])
-  @@index([userId, status, createdAt])
-  @@index([status, processingAt])
+  @@index([userId, status, availableAt])
+  @@index([status, availableAt, processingAt])
+  @@index([notificationId])
 }
