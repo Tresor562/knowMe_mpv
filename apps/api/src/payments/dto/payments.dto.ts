@@ -102,6 +102,16 @@ export class RequestPaymentRefundDto {
   idempotencyKey!: string;
 }
 
+export class ConfirmPaymentRefundDto {
+  @IsString()
+  @Matches(EXTERNAL_ID)
+  externalRefundId!: string;
+
+  @IsString()
+  @Length(5, 500)
+  evidenceReference!: string;
+}
+
 export class ResolvePaymentFraudDto {
   @IsIn(['RESOLVED', 'DISMISSED', 'CONFIRMED'])
   status!: 'RESOLVED' | 'DISMISSED' | 'CONFIRMED';
