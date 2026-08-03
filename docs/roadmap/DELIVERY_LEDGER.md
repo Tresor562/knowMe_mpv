@@ -51,15 +51,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison majeure n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-032 | Orchestration de paiements Flutterwave, CinetPay, Google Play et Apple | #68 | Prisma, compilation, tests, E2E et revue sécurité requis avant fusion |
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-031` n’est réservé.
+Aucun identifiant après `KMD-032` n’est réservé avant sa fusion verte.
 
-Le prochain identifiant ne sera attribué qu’après validation d’un périmètre unique, de ses dépendances et de ses critères de fusion. Les adaptateurs natifs d’icône d’application, de sons locaux et de météo en temps réel, ainsi que l’éditeur libre de thèmes, l’import de fonds personnels et les packs par onglet, restent des travaux distincts et ne sont pas implicitement regroupés sous un identifiant non réservé.
+KMD-032 doit étendre les sources de vérité existantes sans créer de second portefeuille ni de second moteur d’abonnement. Le prix, la devise, le produit, le compte, la transaction et l’attribution restent autoritaires côté serveur. Les fournisseurs incomplets doivent rester désactivés et aucun paiement fictif ne peut être enregistré comme réussi.
 
-Les cadeaux restent hors du périmètre de KMD-031.
+Les thèmes achetables, cadeaux, avatars, stickers créateurs, Event Pass, publicités récompensées, groupes, chaînes et messagerie consommeront ultérieurement ce socle dans des livraisons séparées. Ils ne sont pas implicitement inclus dans KMD-032.
+
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
 ## Règles de mise à jour
 

@@ -28,6 +28,7 @@ import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RequestContextMiddleware } from './observability/request-context.middleware';
+import { PaymentsModule } from './payments/payments.module';
 import { PositiveChallengesModule } from './positive-challenges/positive-challenges.module';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -70,6 +71,7 @@ import { WalletModule } from './wallet/wallet.module';
     CosmeticsModule,
     AppearanceModule,
     BillingModule,
+    PaymentsModule,
     VerificationModule,
     AuthModule,
     UsersModule,

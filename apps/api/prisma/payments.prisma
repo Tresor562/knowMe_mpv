@@ -1,0 +1,190 @@
+model CommerceProduct {
+  id                      String   @id @default(cuid())
+  key                     String   @unique
+  name                    String
+  description             String?
+  kind                    String
+  active                  Boolean  @default(false)
+  highlighted             Boolean  @default(false)
+  fulfillmentType         String
+  fulfillmentReference    String
+  fulfillmentQuantity     Int      @default(1)
+  requiresVerification    Boolean  @default(false)
+  requiresManualReview    Boolean  @default(false)
+  metadata                Json?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  prices CommercePrice[]
+  orders PaymentOrder[]
+
+  @@index([active, highlighted, kind])
+  @@index([fulfillmentType, fulfillmentReference])
+}
+
+model CommercePrice {
+  id                String   @id @default(cuid())
+  productId         String
+  provider          String
+  externalProductId String?
+  platform          String
+  countryCode       String?
+  currency          String
+  unitAmount        Int
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product CommerceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orders  PaymentOrder[]
+
+  @@unique([provider, externalProductId])
+  @@index([productId, active, platform, countryCode, currency])
+  @@index([provider, platform, active])
+}
+
+model PaymentOrder {
+  id                 String    @id @default(cuid())
+  userId             String
+  productId          String
+  priceId            String
+  provider           String
+  platform           String
+  status             String    @default("CREATED")
+  quantity           Int       @default(1)
+  expectedAmount     Int
+  currency           String
+  countryCode        String?
+  reference          String    @unique
+  idempotencyKey     String    @unique
+  providerCheckoutId String?
+  checkoutUrl        String?
+  returnUrl          String?
+  expiresAt          DateTime
+  fulfilledAt        DateTime?
+  failureCode        String?
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  product  CommerceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  price    CommercePrice   @relation(fields: [priceId], references: [id], onDelete: Restrict)
+  attempts PaymentAttempt[]
+  refunds  PaymentRefund[]
+  invoice  PaymentInvoice?
+
+  @@index([userId, status, createdAt])
+  @@index([provider, status, expiresAt])
+  @@index([productId, status, createdAt])
+}
+
+model PaymentAttempt {
+  id                    String    @id @default(cuid())
+  orderId               String
+  provider              String
+  status                String    @default("PENDING")
+  externalTransactionId String?
+  externalEventId       String?
+  amount                Int?
+  currency              String?
+  rawStatus             String?
+  payloadHash           String?
+  verifiedAt            DateTime?
+  failureCode           String?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  order   PaymentOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds PaymentRefund[]
+
+  @@unique([provider, externalTransactionId])
+  @@unique([provider, externalEventId])
+  @@index([orderId, status, createdAt])
+  @@index([provider, status, createdAt])
+}
+
+model PaymentRefund {
+  id               String    @id @default(cuid())
+  orderId          String
+  attemptId        String?
+  provider         String
+  externalRefundId String?
+  amount           Int
+  currency         String
+  status           String    @default("REQUESTED")
+  reason           String
+  idempotencyKey   String    @unique
+  requestedById    String?
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+
+  order   PaymentOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  attempt PaymentAttempt? @relation(fields: [attemptId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalRefundId])
+  @@index([orderId, status, createdAt])
+  @@index([provider, status, createdAt])
+}
+
+model PaymentInvoice {
+  id         String    @id @default(cuid())
+  orderId    String    @unique
+  number     String    @unique
+  status     String    @default("ISSUED")
+  subtotal   Int
+  total      Int
+  currency   String
+  issuedAt   DateTime  @default(now())
+  paidAt     DateTime?
+  refundedAt DateTime?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  order PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, issuedAt])
+}
+
+model PaymentWebhookLog {
+  id              String    @id @default(cuid())
+  provider        String
+  externalEventId String
+  signatureValid  Boolean
+  payloadHash     String
+  status          String    @default("RECEIVED")
+  attempts        Int       @default(1)
+  headers         Json?
+  payload         Json
+  errorCode       String?
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+
+  @@unique([provider, externalEventId])
+  @@index([provider, status, receivedAt])
+  @@index([payloadHash])
+}
+
+model PaymentFraudLog {
+  id              String    @id @default(cuid())
+  userId          String?
+  orderId         String?
+  provider        String?
+  type            String
+  severity        String
+  status          String    @default("OPEN")
+  fingerprintHash String?
+  ipHash          String?
+  details         Json?
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedById    String?
+
+  @@index([status, severity, createdAt])
+  @@index([userId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([provider, type, createdAt])
+}
