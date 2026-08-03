@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CosmeticsPublicController } from './cosmetics-public.controller';
+import { CosmeticsPublicService } from './cosmetics-public.service';
 import {
   AdminCosmeticsShopController,
   CosmeticsShopController
@@ -12,9 +14,10 @@ import { CosmeticsService } from './cosmetics.service';
     CosmeticsController,
     AdminCosmeticsController,
     CosmeticsShopController,
-    AdminCosmeticsShopController
+    AdminCosmeticsShopController,
+    CosmeticsPublicController
   ],
-  providers: [CosmeticsService, CosmeticsShopService],
-  exports: [CosmeticsService, CosmeticsShopService]
+  providers: [CosmeticsService, CosmeticsShopService, CosmeticsPublicService],
+  exports: [CosmeticsService, CosmeticsShopService, CosmeticsPublicService]
 })
 export class CosmeticsModule {}

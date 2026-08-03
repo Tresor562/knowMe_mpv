@@ -39,17 +39,19 @@ model PrivacyConsentEvent {
 }
 
 model PrivacyPreference {
-  userId                     String   @id
-  profileVisibility          String   @default("FRIENDS")
-  discoverability            Boolean  @default(true)
-  personalizedRecommendations Boolean @default(true)
-  analytics                  Boolean  @default(false)
-  marketing                  Boolean  @default(false)
-  readReceipts               Boolean  @default(true)
-  activityStatus             Boolean  @default(true)
-  version                     Int      @default(1)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  userId                       String   @id
+  profileVisibility            String   @default("FRIENDS")
+  cosmeticVisibility           String   @default("FOLLOW_PROFILE")
+  hiddenCosmeticSlots          String[] @default([])
+  discoverability              Boolean  @default(true)
+  personalizedRecommendations  Boolean  @default(true)
+  analytics                    Boolean  @default(false)
+  marketing                    Boolean  @default(false)
+  readReceipts                 Boolean  @default(true)
+  activityStatus               Boolean  @default(true)
+  version                      Int      @default(1)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 }
 
 model DataSubjectRequest {
@@ -73,18 +75,18 @@ model DataSubjectRequest {
 }
 
 model DataRetentionPolicy {
-  id             String   @id @default(cuid())
-  key            String   @unique
-  resourceType   String
-  retentionDays  Int
-  gracePeriodDays Int     @default(0)
-  action         String   @default("DELETE")
-  enabled        Boolean  @default(true)
-  legalBasis     String
-  createdById    String?
-  reason         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  key             String   @unique
+  resourceType    String
+  retentionDays   Int
+  gracePeriodDays Int      @default(0)
+  action          String   @default("DELETE")
+  enabled         Boolean  @default(true)
+  legalBasis      String
+  createdById     String?
+  reason          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   executions DataRetentionExecution[]
 

@@ -56,6 +56,35 @@ export type CosmeticPurchaseReceipt = {
   item: CosmeticItem;
 };
 
+export type PublicCosmeticSlot = {
+  slot: string;
+  item: CosmeticItem | null;
+  fallback: boolean;
+  fallbackReason: string | null;
+};
+
+export type PublicCosmeticSnapshot = {
+  profile: {
+    accountId?: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+  };
+  visible: boolean;
+  visibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
+  viewerContext?: 'OWNER' | 'FRIEND' | 'PUBLIC';
+  slots: PublicCosmeticSlot[];
+  rules: Record<string, unknown>;
+  serverTime: string;
+};
+
+export type CosmeticPrivacyPreferences = {
+  profileVisibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
+  cosmeticVisibility: 'FOLLOW_PROFILE' | 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
+  hiddenCosmeticSlots: string[];
+  version: number;
+};
+
 export function fetchCosmeticCatalog() {
   return apiFetch<{
     items: CosmeticItem[];
@@ -115,4 +144,20 @@ export function fetchCosmeticPurchaseHistory() {
     receipts: CosmeticPurchaseReceipt[];
     rules: Record<string, unknown>;
   }>('/cosmetics/shop/purchases');
+}
+
+export function fetchPublicCosmetics(username: string) {
+  return apiFetch<PublicCosmeticSnapshot>(
+    `/cosmetics/public/${encodeURIComponent(username)}`
+  );
+}
+
+export function updateCosmeticPrivacy(
+  cosmeticVisibility: CosmeticPrivacyPreferences['cosmeticVisibility'],
+  hiddenCosmeticSlots: string[]
+) {
+  return apiFetch<CosmeticPrivacyPreferences>('/privacy/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify({ cosmeticVisibility, hiddenCosmeticSlots })
+  });
 }

@@ -1,5 +1,8 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -10,6 +13,7 @@ import {
   MaxLength,
   Min
 } from 'class-validator';
+import { COSMETIC_SLOTS } from '../../cosmetics/dto/cosmetics.dto';
 
 export class RecordConsentDto {
   @Transform(({ value }) => String(value ?? '').trim().toLowerCase())
@@ -43,6 +47,17 @@ export class UpdatePrivacyPreferencesDto {
   @IsOptional()
   @IsIn(['PRIVATE', 'FRIENDS', 'PUBLIC'])
   profileVisibility?: string;
+
+  @IsOptional()
+  @IsIn(['FOLLOW_PROFILE', 'PRIVATE', 'FRIENDS', 'PUBLIC'])
+  cosmeticVisibility?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(COSMETIC_SLOTS.length)
+  @ArrayUnique()
+  @IsIn(COSMETIC_SLOTS, { each: true })
+  hiddenCosmeticSlots?: string[];
 
   @IsOptional()
   @IsBoolean()
