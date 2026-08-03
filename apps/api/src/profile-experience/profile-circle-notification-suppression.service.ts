@@ -56,13 +56,19 @@ export class ProfileCircleNotificationSuppressionService {
           userId: input.userId,
           channel: input.channel,
           active: true,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } }
-          ],
-          ...(input.addressHash
-            ? { OR: [{ addressHash: null }, { addressHash: input.addressHash }] }
-            : { addressHash: null })
+          AND: [
+            {
+              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
+            },
+            input.addressHash
+              ? {
+                  OR: [
+                    { addressHash: null },
+                    { addressHash: input.addressHash }
+                  ]
+                }
+              : { addressHash: null }
+          ]
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       });
@@ -84,7 +90,10 @@ export class ProfileCircleNotificationSuppressionService {
     return result.count === 1;
   }
 
-  async releaseUserOptOuts(userId: string, channel: ProfileCircleTransportChannel) {
+  async releaseUserOptOuts(
+    userId: string,
+    channel: ProfileCircleTransportChannel
+  ) {
     const result =
       await this.prisma.profileCircleNotificationSuppression.updateMany({
         where: {
