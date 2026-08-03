@@ -5,7 +5,11 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createPublicKey, verify } from 'crypto';
+import {
+  createPublicKey,
+  JsonWebKey as CryptoJsonWebKey,
+  verify
+} from 'crypto';
 import { fetchProviderJson } from '../payment-http';
 import {
   decodeBase64UrlJson,
@@ -27,11 +31,12 @@ type ServiceAccount = {
 };
 
 type AccessToken = { value: string; expiresAt: number };
+type GoogleJwk = CryptoJsonWebKey & { kid?: string };
 
 @Injectable()
 export class GooglePlayService {
   private cachedToken: AccessToken | null = null;
-  private cachedJwks: { expiresAt: number; keys: JsonWebKey[] } | null = null;
+  private cachedJwks: { expiresAt: number; keys: GoogleJwk[] } | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -276,7 +281,7 @@ export class GooglePlayService {
     if (this.cachedJwks && this.cachedJwks.expiresAt > Date.now()) {
       return this.cachedJwks.keys;
     }
-    const response = await fetchProviderJson<{ keys?: JsonWebKey[] }>(
+    const response = await fetchProviderJson<{ keys?: GoogleJwk[] }>(
       'Google Identity',
       GOOGLE_CERTS,
       {}
