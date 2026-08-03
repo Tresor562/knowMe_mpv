@@ -1,0 +1,112 @@
+model GiftCampaign {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  themeKey    String?
+  active      Boolean  @default(false)
+  startsAt    DateTime
+  endsAt      DateTime
+  metadata    Json?
+  createdById String
+  reason      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gifts GiftDefinition[]
+
+  @@index([active, startsAt, endsAt])
+}
+
+model GiftDefinition {
+  id                String    @id @default(cuid())
+  key               String
+  version           Int
+  name              String
+  description       String?
+  category          String    @default("SOCIAL")
+  rarity            String    @default("COMMON")
+  priceKnowCoins    Int
+  assetUrl          String
+  previewUrl        String?
+  animationKey      String?
+  soundKey          String?
+  premiumOnly       Boolean   @default(false)
+  anonymousAllowed  Boolean   @default(true)
+  publicFeedAllowed Boolean   @default(true)
+  active            Boolean   @default(false)
+  startsAt          DateTime  @default(now())
+  endsAt            DateTime?
+  campaignId        String?
+  createdById       String
+  reason            String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  campaign       GiftCampaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  transfers      GiftTransfer[]
+  collectionItems GiftCollectionItem[]
+
+  @@unique([key, version])
+  @@index([active, startsAt, endsAt, rarity])
+  @@index([campaignId, active])
+  @@index([key, active, version])
+}
+
+model GiftUserPreference {
+  userId               String   @id
+  acceptMode           String   @default("EVERYONE")
+  anonymousGiftsAllowed Boolean  @default(true)
+  publicMomentsAllowed Boolean   @default(true)
+  updatedAt            DateTime @updatedAt
+}
+
+model GiftTransfer {
+  id                   String    @id @default(cuid())
+  senderId             String
+  receiverId           String
+  giftId               String
+  quantity             Int       @default(1)
+  unitPriceKnowCoins   Int
+  totalPriceKnowCoins  Int
+  message              String?
+  anonymous            Boolean   @default(false)
+  visibility           String    @default("PRIVATE")
+  contextType          String?
+  contextId            String?
+  status               String    @default("DELIVERED")
+  moderationState      String    @default("VISIBLE")
+  idempotencyKey       String    @unique
+  ledgerEntryId        String    @unique
+  sentAt               DateTime  @default(now())
+  deliveredAt          DateTime  @default(now())
+  hiddenByReceiverAt   DateTime?
+  revokedAt            DateTime?
+  revokedById          String?
+  revokeReason         String?
+
+  gift GiftDefinition @relation(fields: [giftId], references: [id], onDelete: Restrict)
+
+  @@index([senderId, sentAt, id])
+  @@index([receiverId, sentAt, id])
+  @@index([visibility, moderationState, sentAt])
+  @@index([giftId, sentAt])
+  @@index([contextType, contextId])
+}
+
+model GiftCollectionItem {
+  id              String    @id @default(cuid())
+  userId          String
+  giftId          String
+  quantity        Int       @default(0)
+  firstReceivedAt DateTime  @default(now())
+  lastReceivedAt  DateTime  @default(now())
+  featuredAt      DateTime?
+  hiddenAt        DateTime?
+
+  gift GiftDefinition @relation(fields: [giftId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, giftId])
+  @@index([userId, featuredAt, lastReceivedAt])
+  @@index([giftId, quantity])
+}
