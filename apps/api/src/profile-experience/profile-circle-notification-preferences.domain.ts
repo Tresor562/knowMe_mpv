@@ -19,6 +19,12 @@ export type ProfileCircleNotificationPreferenceSnapshot = {
   familyEnabled: boolean;
   realtimeEnabled: boolean;
   mutedCircleIds: string[];
+  quietHoursEnabled: boolean;
+  quietStartMinute: number;
+  quietEndMinute: number;
+  timezone: string;
+  digestMode: 'OFF' | 'DAILY';
+  digestMinuteOfDay: number;
 };
 
 const MANDATORY_TYPES = new Set<ProfileCircleNotificationType>([
@@ -134,6 +140,12 @@ export function defaultCircleNotificationPreference(): ProfileCircleNotification
     contentEnabled: true,
     familyEnabled: true,
     realtimeEnabled: true,
-    mutedCircleIds: []
+    mutedCircleIds: [],
+    quietHoursEnabled: false,
+    quietStartMinute: 22 * 60,
+    quietEndMinute: 7 * 60,
+    timezone: 'UTC',
+    digestMode: 'OFF',
+    digestMinuteOfDay: 8 * 60
   };
 }

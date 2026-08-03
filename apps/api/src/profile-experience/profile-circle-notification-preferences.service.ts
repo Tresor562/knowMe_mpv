@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,9 +6,13 @@ import { UpdateProfileCircleNotificationPreferenceDto } from './dto/profile-circ
 import {
   defaultCircleNotificationPreference,
   normalizeMutedCircleIds,
-  ProfileCircleNotificationPreferenceSnapshot,
-  resolveCircleNotificationPreference
+  ProfileCircleNotificationPreferenceSnapshot
 } from './profile-circle-notification-preferences.domain';
+import {
+  ProfileCircleNotificationDeliveryDecision,
+  resolveNotificationDeliverySchedule,
+  validateNotificationSchedulePreference
+} from './profile-circle-notification-schedule.domain';
 import { ProfileCircleNotificationType } from './profile-circle-notifications.domain';
 
 @Injectable()
@@ -31,6 +35,13 @@ export class ProfileCircleNotificationPreferencesService {
     userId: string,
     dto: UpdateProfileCircleNotificationPreferenceDto
   ) {
+    try {
+      validateNotificationSchedulePreference(dto);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Planification de notification invalide.'
+      );
+    }
     const mutedCircleIds = normalizeMutedCircleIds(dto.mutedCircleIds ?? []);
     const preference = await this.prisma.profileCircleNotificationPreference.upsert({
       where: { userId },
@@ -43,7 +54,13 @@ export class ProfileCircleNotificationPreferencesService {
         contentEnabled: dto.contentEnabled,
         familyEnabled: dto.familyEnabled,
         realtimeEnabled: dto.realtimeEnabled,
-        mutedCircleIds: mutedCircleIds as Prisma.InputJsonValue
+        mutedCircleIds: mutedCircleIds as Prisma.InputJsonValue,
+        quietHoursEnabled: dto.quietHoursEnabled,
+        quietStartMinute: dto.quietStartMinute,
+        quietEndMinute: dto.quietEndMinute,
+        timezone: dto.timezone.trim(),
+        digestMode: dto.digestMode,
+        digestMinuteOfDay: dto.digestMinuteOfDay
       },
       update: {
         enabled: dto.enabled,
@@ -53,7 +70,13 @@ export class ProfileCircleNotificationPreferencesService {
         contentEnabled: dto.contentEnabled,
         familyEnabled: dto.familyEnabled,
         realtimeEnabled: dto.realtimeEnabled,
-        mutedCircleIds: mutedCircleIds as Prisma.InputJsonValue
+        mutedCircleIds: mutedCircleIds as Prisma.InputJsonValue,
+        quietHoursEnabled: dto.quietHoursEnabled,
+        quietStartMinute: dto.quietStartMinute,
+        quietEndMinute: dto.quietEndMinute,
+        timezone: dto.timezone.trim(),
+        digestMode: dto.digestMode,
+        digestMinuteOfDay: dto.digestMinuteOfDay
       }
     });
     await this.audit.record({
@@ -70,7 +93,13 @@ export class ProfileCircleNotificationPreferencesService {
         contentEnabled: preference.contentEnabled,
         familyEnabled: preference.familyEnabled,
         realtimeEnabled: preference.realtimeEnabled,
-        mutedCircleCount: mutedCircleIds.length
+        mutedCircleCount: mutedCircleIds.length,
+        quietHoursEnabled: preference.quietHoursEnabled,
+        quietStartMinute: preference.quietStartMinute,
+        quietEndMinute: preference.quietEndMinute,
+        timezone: preference.timezone,
+        digestMode: preference.digestMode,
+        digestMinuteOfDay: preference.digestMinuteOfDay
       }
     });
     return this.snapshot(preference);
@@ -80,10 +109,15 @@ export class ProfileCircleNotificationPreferencesService {
     type: ProfileCircleNotificationType;
     circleId?: string | null;
     recipients: string[];
+    now?: Date;
   }) {
     const unique = [...new Set(input.recipients)].filter(Boolean);
     if (unique.length === 0) {
-      return { inboxRecipients: [], realtimeRecipients: new Set<string>() };
+      return {
+        inboxRecipients: [],
+        realtimeRecipients: new Set<string>(),
+        decisions: new Map<string, ProfileCircleNotificationDeliveryDecision>()
+      };
     }
 
     const stored = await this.prisma.profileCircleNotificationPreference.findMany({
@@ -92,21 +126,26 @@ export class ProfileCircleNotificationPreferencesService {
     const map = new Map(stored.map((preference) => [preference.userId, preference]));
     const inboxRecipients: string[] = [];
     const realtimeRecipients = new Set<string>();
+    const decisions = new Map<string, ProfileCircleNotificationDeliveryDecision>();
 
     for (const userId of unique) {
       const preference = map.has(userId)
         ? this.snapshot(map.get(userId)!)
         : defaultCircleNotificationPreference();
-      const decision = resolveCircleNotificationPreference({
+      const decision = resolveNotificationDeliverySchedule({
         type: input.type,
         circleId: input.circleId,
-        preference
+        preference,
+        now: input.now
       });
+      decisions.set(userId, decision);
       if (decision.inboxAllowed) inboxRecipients.push(userId);
-      if (decision.realtimeAllowed) realtimeRecipients.add(userId);
+      if (decision.realtimeAllowed && decision.deliveryMode === 'INSTANT') {
+        realtimeRecipients.add(userId);
+      }
     }
 
-    return { inboxRecipients, realtimeRecipients };
+    return { inboxRecipients, realtimeRecipients, decisions };
   }
 
   async muteCircle(userId: string, circleId: string, muted: boolean) {
@@ -129,6 +168,12 @@ export class ProfileCircleNotificationPreferencesService {
     familyEnabled: boolean;
     realtimeEnabled: boolean;
     mutedCircleIds: Prisma.JsonValue;
+    quietHoursEnabled: boolean;
+    quietStartMinute: number;
+    quietEndMinute: number;
+    timezone: string;
+    digestMode: 'OFF' | 'DAILY';
+    digestMinuteOfDay: number;
   }): ProfileCircleNotificationPreferenceSnapshot {
     return {
       enabled: input.enabled,
@@ -138,7 +183,13 @@ export class ProfileCircleNotificationPreferencesService {
       contentEnabled: input.contentEnabled,
       familyEnabled: input.familyEnabled,
       realtimeEnabled: input.realtimeEnabled,
-      mutedCircleIds: normalizeMutedCircleIds(input.mutedCircleIds)
+      mutedCircleIds: normalizeMutedCircleIds(input.mutedCircleIds),
+      quietHoursEnabled: input.quietHoursEnabled,
+      quietStartMinute: input.quietStartMinute,
+      quietEndMinute: input.quietEndMinute,
+      timezone: input.timezone,
+      digestMode: input.digestMode,
+      digestMinuteOfDay: input.digestMinuteOfDay
     };
   }
 }
