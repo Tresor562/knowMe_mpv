@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CosmeticPresetsController } from './cosmetic-presets.controller';
+import { CosmeticPresetsService } from './cosmetic-presets.service';
 import { CosmeticsPublicController } from './cosmetics-public.controller';
 import { CosmeticsPublicService } from './cosmetics-public.service';
 import {
@@ -15,9 +17,20 @@ import { CosmeticsService } from './cosmetics.service';
     AdminCosmeticsController,
     CosmeticsShopController,
     AdminCosmeticsShopController,
-    CosmeticsPublicController
+    CosmeticsPublicController,
+    CosmeticPresetsController
   ],
-  providers: [CosmeticsService, CosmeticsShopService, CosmeticsPublicService],
-  exports: [CosmeticsService, CosmeticsShopService, CosmeticsPublicService]
+  providers: [
+    CosmeticsService,
+    CosmeticsShopService,
+    CosmeticsPublicService,
+    CosmeticPresetsService
+  ],
+  exports: [
+    CosmeticsService,
+    CosmeticsShopService,
+    CosmeticsPublicService,
+    CosmeticPresetsService
+  ]
 })
 export class CosmeticsModule {}
