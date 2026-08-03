@@ -11,6 +11,7 @@ import { MediaService } from '../media/media.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
+import { SocialGiftsService } from '../social/social-gifts.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -24,7 +25,8 @@ export class AccountService {
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
     private readonly cosmeticPresets: CosmeticPresetsService,
-    private readonly appearance: AppearanceService
+    private readonly appearance: AppearanceService,
+    private readonly socialGifts: SocialGiftsService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -247,6 +249,7 @@ export class AccountService {
           }
         }
       });
+      await this.socialGifts.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
       await this.cosmetics.deleteForAccount(userId, tx);
