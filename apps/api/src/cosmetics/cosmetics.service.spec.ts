@@ -1,13 +1,7 @@
 import { CosmeticsService } from './cosmetics.service';
 
 describe('CosmeticsService', () => {
-  const service = new CosmeticsService(
-    {} as never,
-    {} as never,
-    {
-      syncEquipmentWithActivePreset: jest.fn().mockResolvedValue(undefined)
-    } as never
-  );
+  const service = new CosmeticsService({} as never, {} as never);
 
   it('keeps cosmetics visual-only and server-authoritative', () => {
     expect(service.policy()).toEqual(
