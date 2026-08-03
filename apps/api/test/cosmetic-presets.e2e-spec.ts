@@ -190,11 +190,40 @@ describe('KnowMe cosmetic presets (e2e)', () => {
     expect(replay.body.replayed).toBe(true);
     expect(await prisma.cosmeticPresetActivation.count({ where: { userId } })).toBe(1);
 
-    await request(app.getHttpServer())
+    const manualUnequip = await request(app.getHttpServer())
+      .put('/cosmetics/equipment/PROFILE_BACKGROUND')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ itemId: null })
+      .expect(200);
+    expect(manualUnequip.body.activePresetCleared).toBe(true);
+
+    const afterManualChange = await request(app.getHttpServer())
+      .get('/cosmetics/presets')
+      .set('Authorization', `Bearer ${userToken}`)
+      .expect(200);
+    expect(afterManualChange.body.state.activePresetId).toBeNull();
+    expect(afterManualChange.body.state.defaultPresetId).toBe(presetId);
+
+    const secondIdempotencyKey = 'preset-activation-owner-0002';
+    const reactivated = await request(app.getHttpServer())
+      .post(`/cosmetics/presets/${presetId}/activate`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ idempotencyKey: secondIdempotencyKey })
+      .expect(201);
+    expect(reactivated.body).toEqual(
+      expect.objectContaining({
+        replayed: false,
+        state: expect.objectContaining({ activePresetId: presetId, activationVersion: 2 })
+      })
+    );
+    expect(await prisma.cosmeticPresetActivation.count({ where: { userId } })).toBe(2);
+
+    const revoked = await request(app.getHttpServer())
       .patch(`/admin/cosmetics/grants/${ownerships[background.body.id]}/revoke`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ reason: 'Validation du nettoyage automatique du preset.' })
       .expect(200);
+    expect(revoked.body.activePresetCleared).toBe(true);
 
     const listed = await request(app.getHttpServer())
       .get('/cosmetics/presets')
@@ -202,12 +231,17 @@ describe('KnowMe cosmetic presets (e2e)', () => {
       .expect(200);
     expect(listed.body.maintenance.removedInvalidItems).toBe(1);
     expect(listed.body.presets[0].items).toHaveLength(1);
+    expect(listed.body.state.activePresetId).toBeNull();
+    expect(listed.body.state.defaultPresetId).toBe(presetId);
 
     const exported = await account.exportData(userId);
     expect(exported.cosmetics.presets).toEqual(
       expect.objectContaining({
-        state: expect.objectContaining({ defaultPresetId: presetId, activePresetId: presetId }),
-        activations: [expect.objectContaining({ idempotencyKey })]
+        state: expect.objectContaining({ defaultPresetId: presetId, activePresetId: null }),
+        activations: expect.arrayContaining([
+          expect.objectContaining({ idempotencyKey }),
+          expect.objectContaining({ idempotencyKey: secondIdempotencyKey })
+        ])
       })
     );
 
