@@ -159,14 +159,15 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasAppearanceData = appearance.preference.version > 0;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 7,
+      formatVersion: hasAppearanceData ? 7 : 6,
       account: safeUser,
       security,
       privacy,
-      appearance,
+      ...(hasAppearanceData ? { appearance } : {}),
       media,
       challengeHistory: challengeResults,
       challengeReferences: challengeReferences.map((reference) => ({
