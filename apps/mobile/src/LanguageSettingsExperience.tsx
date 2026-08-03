@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
+import { CreatorSettingsExperience } from './CreatorSettingsExperience';
 import { useI18n } from './I18nProvider';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 
@@ -45,6 +46,7 @@ export function LanguageSettingsExperience() {
         {message ? <Text style={[styles.message, { color: colors.secondary }]}>{message}</Text> : null}
       </View>
       <MediaDownloadSettingsExperience />
+      <CreatorSettingsExperience />
     </>
   );
 }
