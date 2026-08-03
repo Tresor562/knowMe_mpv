@@ -6,11 +6,16 @@ import { ProfileCircleService } from './profile-circle.service';
 import { ProfileExperienceController } from './profile-experience.controller';
 import { ProfileExperienceService } from './profile-experience.service';
 import { ProfilePublicService } from './profile-public.service';
+import { ProfileStatsController } from './profile-stats.controller';
 import { ProfileStatsService } from './profile-stats.service';
 
 @Module({
   imports: [EntitlementsModule],
-  controllers: [ProfileExperienceController, ProfileCircleController],
+  controllers: [
+    ProfileExperienceController,
+    ProfileCircleController,
+    ProfileStatsController
+  ],
   providers: [
     ProfileExperienceService,
     ProfilePublicService,
