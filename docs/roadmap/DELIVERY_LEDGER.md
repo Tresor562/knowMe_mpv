@@ -54,13 +54,17 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison majeure n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-035 | Studio d’avatar composable et rendu autoritaire | #71 | Build, tests, E2E, confidentialité et clients Web/Mobile requis avant fusion |
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-034` n’est réservé.
+Aucun identifiant après `KMD-035` n’est réservé avant sa fusion verte.
 
-Le prochain identifiant sera attribué uniquement après isolation d’un périmètre unique avec ses dépendances, ses règles d’autorité, son cycle de données et ses critères de fusion. Les candidats identifiés restent notamment le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie.
+KMD-035 réutilise exclusivement les objets, possessions, équipements, presets et préférences de visibilité du domaine Cosmetics. Il ne crée aucun inventaire parallèle, n’accepte aucun asset arbitraire côté client et ne peut attribuer un effet de jeu, un entitlement, un rôle ou un badge staff.
+
+Les prochains candidats restent notamment la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie. Ils ne sont pas implicitement inclus dans KMD-035.
 
 Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 

@@ -11,7 +11,17 @@ import {
   MinLength
 } from 'class-validator';
 
+export const AVATAR_LAYER_SLOTS = [
+  'AVATAR_SKIN',
+  'AVATAR_HAIR',
+  'AVATAR_FACE',
+  'AVATAR_OUTFIT',
+  'AVATAR_ACCESSORY',
+  'AVATAR_AURA'
+] as const;
+
 export const COSMETIC_SLOTS = [
+  ...AVATAR_LAYER_SLOTS,
   'AVATAR_FRAME',
   'PROFILE_BACKGROUND',
   'CHAT_BUBBLE',
