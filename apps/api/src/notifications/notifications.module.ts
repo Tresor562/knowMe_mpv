@@ -2,6 +2,7 @@ import { forwardRef, Global, Module } from '@nestjs/common';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { NotificationCenterDigestSchedulerService } from './notification-center-digest-scheduler.service';
 import { NotificationCenterDigestService } from './notification-center-digest.service';
+import { NotificationCenterLifecycleService } from './notification-center-lifecycle.service';
 import { AdminNotificationCenterOperationsController } from './notification-center-operations.controller';
 import { NotificationCenterPolicyService } from './notification-center-policy.service';
 import { NotificationCenterService } from './notification-center.service';
@@ -20,13 +21,15 @@ import { NotificationsService } from './notifications.service';
     NotificationCenterPolicyService,
     NotificationCenterService,
     NotificationCenterDigestService,
-    NotificationCenterDigestSchedulerService
+    NotificationCenterDigestSchedulerService,
+    NotificationCenterLifecycleService
   ],
   exports: [
     NotificationsService,
     NotificationCenterPolicyService,
     NotificationCenterService,
-    NotificationCenterDigestService
+    NotificationCenterDigestService,
+    NotificationCenterLifecycleService
   ]
 })
 export class NotificationsModule {}
