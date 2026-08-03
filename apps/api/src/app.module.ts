@@ -23,6 +23,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
 import { HealthController } from './health.controller';
+import { I18nModule } from './i18n/i18n.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IntegrityModule } from './integrity/integrity.module';
 import { KnowMeSecretModule } from './knowme-secret/knowme-secret.module';
@@ -63,6 +64,7 @@ import { WalletModule } from './wallet/wallet.module';
     }),
     PrismaModule,
     ObservabilityModule,
+    I18nModule,
     AccessControlModule,
     ModerationModule,
     WalletModule,
