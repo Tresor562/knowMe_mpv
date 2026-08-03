@@ -1,3 +1,8 @@
+enum ProfileCircleNotificationDigestMode {
+  OFF
+  DAILY
+}
+
 model ProfileCircleNotificationPreference {
   userId              String   @id
   enabled             Boolean  @default(true)
@@ -8,6 +13,12 @@ model ProfileCircleNotificationPreference {
   familyEnabled       Boolean  @default(true)
   realtimeEnabled     Boolean  @default(true)
   mutedCircleIds      Json     @default("[]")
+  quietHoursEnabled   Boolean  @default(false)
+  quietStartMinute    Int      @default(1320)
+  quietEndMinute      Int      @default(420)
+  timezone            String   @default("UTC")
+  digestMode          ProfileCircleNotificationDigestMode @default(OFF)
+  digestMinuteOfDay   Int      @default(480)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
