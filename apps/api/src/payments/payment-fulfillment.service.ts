@@ -30,9 +30,17 @@ export class PaymentFulfillmentService {
       include: { product: true, price: true, invoice: true }
     });
     if (!order) throw new NotFoundException('Commande de paiement introuvable.');
-    if (order.fulfilledAt) return { order, replayed: true };
+    if (
+      order.fulfilledAt &&
+      order.product.fulfillmentType !== 'BILLING_PLAN'
+    ) {
+      return { order, replayed: true };
+    }
 
-    const eligible = await this.isEligible(order.userId, order.product.requiresVerification);
+    const eligible = await this.isEligible(
+      order.userId,
+      order.product.requiresVerification
+    );
     if (!eligible) {
       const review = await this.prisma.paymentOrder.update({
         where: { id: order.id },
@@ -184,19 +192,21 @@ export class PaymentFulfillmentService {
           where: { id: orderId },
           include: { product: true, price: true, invoice: true }
         });
-        if (order.fulfilledAt) return { order, replayed: true };
+        const wasFulfilled = Boolean(order.fulfilledAt);
         const plan = await tx.billingPlan.findUnique({
           where: { key: order.product.fulfillmentReference },
           include: { entitlements: true }
         });
         if (!plan) throw new NotFoundException('Plan d’abonnement introuvable.');
         const now = new Date();
-        const periodStart = 'periodStart' in verification && verification.periodStart
-          ? verification.periodStart
-          : now;
-        const periodEnd = 'periodEnd' in verification && verification.periodEnd
-          ? verification.periodEnd
-          : this.defaultPeriodEnd(periodStart, order.product.metadata);
+        const periodStart =
+          'periodStart' in verification && verification.periodStart
+            ? verification.periodStart
+            : now;
+        const periodEnd =
+          'periodEnd' in verification && verification.periodEnd
+            ? verification.periodEnd
+            : this.defaultPeriodEnd(periodStart, order.product.metadata);
         if (periodEnd <= periodStart) {
           throw new BadRequestException('Période d’abonnement invalide.');
         }
@@ -262,13 +272,21 @@ export class PaymentFulfillmentService {
         );
         const fulfilled = await tx.paymentOrder.update({
           where: { id: order.id },
-          data: { status: 'FULFILLED', fulfilledAt: now, failureCode: null },
+          data: {
+            status: 'FULFILLED',
+            fulfilledAt: order.fulfilledAt ?? now,
+            failureCode: null
+          },
           include: { product: true, price: true, invoice: true }
         });
-        await this.upsertPaidInvoice(tx, fulfilled, now);
+        if (!wasFulfilled) {
+          await this.upsertPaidInvoice(tx, fulfilled, now);
+        }
         await tx.auditLog.create({
           data: {
-            action: 'PAYMENT_ORDER_FULFILLED',
+            action: wasFulfilled
+              ? 'PAYMENT_SUBSCRIPTION_PERIOD_SYNCED'
+              : 'PAYMENT_ORDER_FULFILLED',
             entity: 'PaymentOrder',
             entityId: order.id,
             targetAccountId: order.userId,
@@ -278,11 +296,19 @@ export class PaymentFulfillmentService {
               fulfillmentType: 'BILLING_PLAN',
               planKey: plan.key,
               subscriptionId: subscription.id,
-              currentPeriodEnd: periodEnd.toISOString()
+              externalTransactionId,
+              currentPeriodStart: periodStart.toISOString(),
+              currentPeriodEnd: periodEnd.toISOString(),
+              renewal: wasFulfilled
             }
           }
         });
-        return { order: fulfilled, subscription, replayed: false };
+        return {
+          order: fulfilled,
+          subscription,
+          replayed: false,
+          renewed: wasFulfilled
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -319,7 +345,10 @@ export class PaymentFulfillmentService {
       if (current) {
         await tx.entitlementGrant.update({
           where: { id: current.id },
-          data: { expiresAt: periodEnd, reason: 'Droit synchronisé depuis un paiement vérifié.' }
+          data: {
+            expiresAt: periodEnd,
+            reason: 'Droit synchronisé depuis un paiement vérifié.'
+          }
         });
       } else {
         await tx.entitlementGrant.create({
@@ -351,7 +380,10 @@ export class PaymentFulfillmentService {
     },
     paidAt: Date
   ) {
-    const number = `KM-${paidAt.getUTCFullYear()}-${order.reference.replace(/[^A-Z0-9]/gi, '').slice(-18).toUpperCase()}`;
+    const number = `KM-${paidAt.getUTCFullYear()}-${order.reference
+      .replace(/[^A-Z0-9]/gi, '')
+      .slice(-18)
+      .toUpperCase()}`;
     return tx.paymentInvoice.upsert({
       where: { orderId: order.id },
       create: {
@@ -386,15 +418,21 @@ export class PaymentFulfillmentService {
   }
 
   private defaultPeriodEnd(start: Date, metadata: unknown) {
-    const value = metadata && typeof metadata === 'object'
-      ? (metadata as Record<string, unknown>)
-      : {};
+    const value =
+      metadata && typeof metadata === 'object'
+        ? (metadata as Record<string, unknown>)
+        : {};
     const count = Number(value.intervalCount ?? 1);
     const end = new Date(start);
-    if (value.interval === 'YEAR') end.setUTCFullYear(end.getUTCFullYear() + count);
-    else if (value.interval === 'WEEK') end.setUTCDate(end.getUTCDate() + 7 * count);
-    else if (value.interval === 'DAY') end.setUTCDate(end.getUTCDate() + count);
-    else end.setUTCMonth(end.getUTCMonth() + count);
+    if (value.interval === 'YEAR') {
+      end.setUTCFullYear(end.getUTCFullYear() + count);
+    } else if (value.interval === 'WEEK') {
+      end.setUTCDate(end.getUTCDate() + 7 * count);
+    } else if (value.interval === 'DAY') {
+      end.setUTCDate(end.getUTCDate() + count);
+    } else {
+      end.setUTCMonth(end.getUTCMonth() + count);
+    }
     return end;
   }
 }
