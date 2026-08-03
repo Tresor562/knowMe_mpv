@@ -65,6 +65,8 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-046 | Orchestration distribuée des notifications | #83 | Fusionnée |
 | KMD-047 | Résilience et gouvernance des notifications | #86 | Fusionnée |
 | KMD-048 | Centre de notifications intelligent | #88 | Fusionnée |
+| KMD-049 | Internationalisation Web/Mobile et erreurs localisables | #90 | Fusionnée |
+| KMD-050 | Politique de téléchargement et gouvernance du cache média | #91 | Fusionnée |
 
 ## Livraison en validation
 
@@ -72,19 +74,23 @@ Aucune livraison n’est actuellement en validation dans ce registre. Une livrai
 
 ## Prochaine livraison réservée
 
-`KMD-049` est réservé à la **fondation d’internationalisation Web/Mobile et aux erreurs localisables**.
+`KMD-051` est réservé à la **fondation Créateurs et audience**.
 
 Cette livraison dépend de :
 
-- KMD-002 pour les codes d’erreur API stables et les identifiants de requête ;
-- KMD-012 pour le cycle de vie et l’export des préférences utilisateur ;
-- KMD-048 pour les surfaces de réglages et notifications déjà centralisées.
+- KMD-004 pour les permissions et actions administratives ;
+- KMD-010 pour garder le statut créateur distinct de la vérification d’identité ;
+- KMD-038 et KMD-042 pour les communautés, pages sociales et événements existants ;
+- KMD-012 pour l’export, la suppression et les préférences de confidentialité ;
+- KMD-015 pour la modération, le signalement et l’anti-abus.
 
-Le périmètre réservé comprend un contrat partagé français/anglais, une préférence de langue synchronisée, un fallback déterministe, les pluriels et formats de dates/nombres, une direction de texte prête pour le RTL, un dictionnaire client des codes d’erreur et l’intégration initiale aux shells Web/Mobile. Il ne prétend pas traduire automatiquement l’intégralité des contenus utilisateur ni remplacer les codes stables de l’API.
+Le périmètre réservé comprend un profil créateur volontaire et révocable, un identifiant public stable, les abonnements et désabonnements idempotents, une page publique contrôlée, l’épinglage de publications, des agrégats de portée minimisés, un tableau de bord propriétaire et une gouvernance administrateur auditée. La monétisation, les revenus, les commissions, les lives et les partenariats commerciaux restent hors périmètre de cette fondation.
 
 ## Frontières permanentes
 
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+
+Le statut créateur reste distinct de Premium, de la vérification d’identité et du rôle staff. Les compteurs d’audience ne peuvent pas modifier les permissions, la visibilité privée ou les décisions de modération.
 
 Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
 
