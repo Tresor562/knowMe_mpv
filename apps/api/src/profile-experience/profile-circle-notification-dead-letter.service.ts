@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/roles.decorator';
@@ -20,6 +21,11 @@ class DiscardProfileCircleNotificationDeadLetterDto {
   @IsString()
   @MaxLength(300)
   reason!: string;
+}
+
+function toJsonValue(value?: Record<string, unknown>) {
+  if (!value) return undefined;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 @Injectable()
@@ -36,6 +42,7 @@ export class ProfileCircleNotificationDeadLetterService {
     reasonCode: string;
     payload?: Record<string, unknown>;
   }) {
+    const payload = toJsonValue(input.payload);
     return this.prisma.profileCircleNotificationDeadLetter.upsert({
       where: { idempotencyKey: input.idempotencyKey },
       create: {
@@ -46,12 +53,12 @@ export class ProfileCircleNotificationDeadLetterService {
         idempotencyKey: input.idempotencyKey,
         priority: input.priority,
         reasonCode: input.reasonCode,
-        payload: input.payload ?? undefined
+        payload
       },
       update: {
         reasonCode: input.reasonCode,
         lastErrorCode: input.reasonCode,
-        payload: input.payload ?? undefined,
+        payload,
         availableAt: new Date()
       }
     });
