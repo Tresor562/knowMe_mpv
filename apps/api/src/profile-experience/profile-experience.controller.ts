@@ -20,6 +20,7 @@ import {
   UpdateProfileGuardDto,
   UpdateProfileVisibilityDto
 } from './dto/profile-experience.dto';
+import { ProfileCircleNotificationsService } from './profile-circle-notifications.service';
 import { ProfileExperienceService } from './profile-experience.service';
 import { ProfilePublicService } from './profile-public.service';
 
@@ -30,7 +31,8 @@ type OptionalAuthRequest = { user: { userId: string } | null };
 export class ProfileExperienceController {
   constructor(
     private readonly profiles: ProfileExperienceService,
-    private readonly publicProfiles: ProfilePublicService
+    private readonly publicProfiles: ProfilePublicService,
+    private readonly circleNotifications: ProfileCircleNotificationsService
   ) {}
 
   @Get('policy')
@@ -67,14 +69,57 @@ export class ProfileExperienceController {
 
   @UseGuards(JwtAuthGuard)
   @Post('circles')
-  createCircle(@Req() req: AuthRequest, @Body() dto: CreateProfileCircleDto) {
-    return this.profiles.createCircle(req.user.userId, dto);
+  async createCircle(
+    @Req() req: AuthRequest,
+    @Body() dto: CreateProfileCircleDto
+  ) {
+    const circle = await this.profiles.createCircle(req.user.userId, dto);
+    const actor = await this.circleNotifications.actorLabel(req.user.userId);
+    await this.circleNotifications.dispatch({
+      idempotencyKey: `circle-invitation:${circle.id}`,
+      type: 'CIRCLE_INVITATION',
+      title: `Invitation · ${circle.name}`,
+      body: `${actor} t’invite à rejoindre ce profil collectif.`,
+      recipients: circle.members
+        .filter((member) => member.status === 'INVITED')
+        .map((member) => member.userId),
+      actorUserId: req.user.userId,
+      circleId: circle.id,
+      data: {
+        circleId: circle.id,
+        circleSlug: circle.slug,
+        circleType: circle.type,
+        link: '/profile-circles'
+      }
+    });
+    return circle;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('circles/:circleId/accept')
-  acceptCircle(@Req() req: AuthRequest, @Param('circleId') circleId: string) {
-    return this.profiles.acceptCircle(req.user.userId, circleId);
+  async acceptCircle(
+    @Req() req: AuthRequest,
+    @Param('circleId') circleId: string
+  ) {
+    const circle = await this.profiles.acceptCircle(req.user.userId, circleId);
+    if (circle) {
+      const actor = await this.circleNotifications.actorLabel(req.user.userId);
+      await this.circleNotifications.dispatch({
+        idempotencyKey: `circle-invitation-accepted:${circleId}:${req.user.userId}`,
+        type: 'CIRCLE_INVITATION_ACCEPTED',
+        title: `Invitation acceptée · ${circle.name}`,
+        body: `${actor} a accepté l’invitation.`,
+        recipients: [circle.ownerUserId],
+        actorUserId: req.user.userId,
+        circleId,
+        data: {
+          circleId,
+          circleSlug: circle.slug,
+          link: `/circles/${encodeURIComponent(circle.slug)}`
+        }
+      });
+    }
+    return circle;
   }
 
   @UseGuards(OptionalJwtAuthGuard)
