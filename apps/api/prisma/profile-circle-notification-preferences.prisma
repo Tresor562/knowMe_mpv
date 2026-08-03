@@ -1,0 +1,13 @@
+model ProfileCircleNotificationPreference {
+  userId              String   @id
+  enabled             Boolean  @default(true)
+  invitationsEnabled  Boolean  @default(true)
+  membershipEnabled   Boolean  @default(true)
+  governanceEnabled   Boolean  @default(true)
+  contentEnabled      Boolean  @default(true)
+  familyEnabled       Boolean  @default(true)
+  realtimeEnabled     Boolean  @default(true)
+  mutedCircleIds      Json     @default("[]")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
