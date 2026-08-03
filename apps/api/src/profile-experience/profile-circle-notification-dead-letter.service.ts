@@ -3,14 +3,12 @@ import {
   Controller,
   Get,
   Injectable,
-  IsOptional,
-  IsString,
-  MaxLength,
   Param,
   Post,
   Query,
   UseGuards
 } from '@nestjs/common';
+import { IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
