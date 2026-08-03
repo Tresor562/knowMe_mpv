@@ -104,6 +104,7 @@ export default function ProfilePage() {
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn btn-primary" href="/profile-studio">Ouvrir le Studio de profil</Link>
+          <Link className="btn btn-primary" href="/profile-circle-create">Créer un Duo ou une équipe</Link>
           <Link className="btn" href="/profile-circles">Gérer mes Duos et équipes</Link>
           <Link className="btn" href="/profile-circle-governance">Gouvernance et contenus</Link>
           <Link className="btn" href={`/profile/${encodeURIComponent(user.username)}`}>Voir mon profil public</Link>
