@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AccessControlModule } from '../access-control/access-control.module';
+import { PaymentClientLookupController } from './payment-client-lookup.controller';
 import {
   AdminPaymentsController,
   PaymentsController,
@@ -23,6 +24,7 @@ import { GooglePlayService } from './providers/google-play.service';
   imports: [AccessControlModule],
   controllers: [
     PaymentsController,
+    PaymentClientLookupController,
     PaymentWebhookController,
     AdminPaymentsController
   ],
