@@ -36,7 +36,7 @@ export function redactPaymentPayload(
   depth = 0
 ): Prisma.InputJsonValue {
   if (depth > 8) return '[TRUNCATED]';
-  if (value === undefined || value === null) return null;
+  if (value === undefined || value === null) return '[NULL]';
   if (typeof value === 'bigint') return value.toString();
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) {
@@ -45,7 +45,9 @@ export function redactPaymentPayload(
       .map((entry) => redactPaymentPayload(entry, depth + 1));
   }
   if (typeof value !== 'object') {
-    if (typeof value === 'number' && !Number.isFinite(value)) return null;
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      return '[NON_FINITE_NUMBER]';
+    }
     if (typeof value === 'string' && value.length > 2_000) {
       return `${value.slice(0, 2_000)}…`;
     }
