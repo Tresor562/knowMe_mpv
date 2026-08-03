@@ -9,16 +9,7 @@ import {
   type SupportedLocale,
   type TranslationParams
 } from '@knowme/i18n-contract';
-import {
-  createContext,
-  createElement,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode
-} from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { apiFetch, getAccessToken, type ApiError } from '../lib/api';
 import {
   LOCALE_CHANGE_EVENT,
@@ -36,103 +27,144 @@ type LocalePreference = {
   updatedAt: string | null;
 };
 
-type I18nContextValue = {
+type LocaleState = {
   locale: SupportedLocale;
   version: number;
   persisted: boolean;
   ready: boolean;
-  t: (key: MessageKey, params?: TranslationParams) => string;
-  number: (value: number, options?: Intl.NumberFormatOptions) => string;
-  date: (
-    value: Date | string | number,
-    options?: Intl.DateTimeFormatOptions
-  ) => string;
-  setLocalLocale: (locale: SupportedLocale) => void;
-  syncLocale: (locale: SupportedLocale) => Promise<LocalePreference>;
-  refresh: () => Promise<LocalePreference | null>;
 };
 
-const I18nContext = createContext<I18nContextValue | null>(null);
+const serverState: LocaleState = {
+  locale: DEFAULT_LOCALE,
+  version: 0,
+  persisted: false,
+  ready: false
+};
+let state: LocaleState = serverState;
+const listeners = new Set<() => void>();
+let runtimeConsumers = 0;
+let localeEventListener: ((event: Event) => void) | null = null;
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<SupportedLocale>(DEFAULT_LOCALE);
-  const [version, setVersion] = useState(0);
-  const [persisted, setPersisted] = useState(false);
-  const [ready, setReady] = useState(false);
+function emit(next: Partial<LocaleState>) {
+  const candidate = { ...state, ...next };
+  if (
+    candidate.locale === state.locale &&
+    candidate.version === state.version &&
+    candidate.persisted === state.persisted &&
+    candidate.ready === state.ready
+  ) {
+    return;
+  }
+  state = candidate;
+  listeners.forEach((listener) => listener());
+}
 
-  const apply = useCallback((nextLocale: SupportedLocale) => {
-    setLocale(nextLocale);
-    persistRuntimeLocale(nextLocale);
-  }, []);
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
-  const refresh = useCallback(async () => {
-    if (!getAccessToken()) return null;
-    const preference = await apiFetch<LocalePreference>('/i18n/preferences');
-    setVersion(preference.version);
-    setPersisted(preference.persisted);
-    apply(preference.locale);
+function getSnapshot() {
+  return state;
+}
+
+function getServerSnapshot() {
+  return serverState;
+}
+
+function applyLocale(locale: SupportedLocale, persist: boolean) {
+  emit({ locale });
+  if (persist) {
+    persistRuntimeLocale(locale);
+  } else {
+    applyRuntimeLocale(locale);
+  }
+}
+
+async function refreshLocalePreference() {
+  if (!getAccessToken()) return null;
+  const preference = await apiFetch<LocalePreference>('/i18n/preferences');
+  emit({
+    locale: preference.locale,
+    version: preference.version,
+    persisted: preference.persisted
+  });
+  persistRuntimeLocale(preference.locale);
+  return preference;
+}
+
+async function syncLocalePreference(nextLocale: SupportedLocale) {
+  try {
+    const preference = await apiFetch<LocalePreference>('/i18n/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({
+        locale: nextLocale,
+        expectedVersion: state.version
+      })
+    });
+    emit({
+      locale: preference.locale,
+      version: preference.version,
+      persisted: true
+    });
+    persistRuntimeLocale(preference.locale);
     return preference;
-  }, [apply]);
+  } catch (cause) {
+    if ((cause as ApiError)?.code === 'I18N_VERSION_CONFLICT') {
+      await refreshLocalePreference().catch(() => undefined);
+    }
+    throw cause;
+  }
+}
 
-  useEffect(() => {
+function mountRuntime() {
+  runtimeConsumers += 1;
+  if (runtimeConsumers === 1) {
     const initial = getRuntimeLocale();
-    setLocale(initial);
+    state = { ...state, locale: initial, ready: true };
     applyRuntimeLocale(initial);
-    setReady(true);
+    listeners.forEach((listener) => listener());
 
-    const onLocaleChange = (event: Event) => {
+    localeEventListener = (event: Event) => {
       const nextLocale = (event as CustomEvent<SupportedLocale>).detail;
-      if (nextLocale) setLocale(nextLocale);
+      if (nextLocale) emit({ locale: nextLocale });
     };
-    window.addEventListener(LOCALE_CHANGE_EVENT, onLocaleChange);
-    void refresh().catch(() => undefined);
-    return () => window.removeEventListener(LOCALE_CHANGE_EVENT, onLocaleChange);
-  }, [refresh]);
+    window.addEventListener(LOCALE_CHANGE_EVENT, localeEventListener);
+    void refreshLocalePreference().catch(() => undefined);
+  }
 
-  const syncLocale = useCallback(
-    async (nextLocale: SupportedLocale) => {
-      try {
-        const preference = await apiFetch<LocalePreference>('/i18n/preferences', {
-          method: 'PUT',
-          body: JSON.stringify({ locale: nextLocale, expectedVersion: version })
-        });
-        setVersion(preference.version);
-        setPersisted(true);
-        apply(preference.locale);
-        return preference;
-      } catch (cause) {
-        if ((cause as ApiError)?.code === 'I18N_VERSION_CONFLICT') {
-          await refresh().catch(() => undefined);
-        }
-        throw cause;
-      }
-    },
-    [apply, refresh, version]
-  );
+  return () => {
+    runtimeConsumers = Math.max(0, runtimeConsumers - 1);
+    if (runtimeConsumers === 0 && localeEventListener) {
+      window.removeEventListener(LOCALE_CHANGE_EVENT, localeEventListener);
+      localeEventListener = null;
+    }
+  };
+}
 
-  const value = useMemo<I18nContextValue>(
-    () => ({
-      locale,
-      version,
-      persisted,
-      ready,
-      t: (key, params) => translate(locale, key, params),
-      number: (value, options) => formatNumber(locale, value, options),
-      date: (value, options) => formatDate(locale, value, options),
-      setLocalLocale: apply,
-      syncLocale,
-      refresh
-    }),
-    [apply, locale, persisted, ready, refresh, syncLocale, version]
-  );
-
-  return createElement(I18nContext.Provider, { value }, children);
+export function I18nRuntime() {
+  useEffect(() => mountRuntime(), []);
+  return null;
 }
 
 export function useI18n() {
-  const context = useContext(I18nContext);
-  if (!context) {
-    throw new Error('useI18n must be used inside I18nProvider.');
-  }
-  return context;
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  return useMemo(
+    () => ({
+      ...snapshot,
+      t: (key: MessageKey, params?: TranslationParams) =>
+        translate(snapshot.locale, key, params),
+      number: (value: number, options?: Intl.NumberFormatOptions) =>
+        formatNumber(snapshot.locale, value, options),
+      date: (
+        value: Date | string | number,
+        options?: Intl.DateTimeFormatOptions
+      ) => formatDate(snapshot.locale, value, options),
+      setLocalLocale: (locale: SupportedLocale) => applyLocale(locale, true),
+      syncLocale: syncLocalePreference,
+      refresh: refreshLocalePreference
+    }),
+    [snapshot]
+  );
 }
