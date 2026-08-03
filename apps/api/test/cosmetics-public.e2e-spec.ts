@@ -35,7 +35,7 @@ describe('KnowMe public cosmetics (e2e)', () => {
       .post('/auth/register')
       .send({
         email: `${name}@public-cosmetics.knowme.test`,
-        username: `public_cosmetics_${name}`,
+        username: `cosmetic_${name}`,
         displayName: `Public Cosmetics ${name}`,
         password: 'KnowMeTest123!'
       })
