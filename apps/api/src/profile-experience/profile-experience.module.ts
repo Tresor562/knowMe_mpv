@@ -2,6 +2,11 @@ import { Module } from '@nestjs/common';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { ProfileCircleController } from './profile-circle.controller';
+import {
+  AdminProfileCircleNotificationDeliveryController,
+  ProfileCircleNotificationDeliveryController
+} from './profile-circle-notification-delivery.controller';
+import { ProfileCircleNotificationDeliveryService } from './profile-circle-notification-delivery.service';
 import { ProfileCircleGovernanceController } from './profile-circle-governance.controller';
 import { ProfileCircleGovernanceService } from './profile-circle-governance.service';
 import { ProfileCircleNotificationPreferencesController } from './profile-circle-notification-preferences.controller';
@@ -23,6 +28,8 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleController,
     ProfileCircleGovernanceController,
     ProfileCircleNotificationPreferencesController,
+    ProfileCircleNotificationDeliveryController,
+    AdminProfileCircleNotificationDeliveryController,
     ProfileMemberDirectoryController,
     ProfileStatsController
   ],
@@ -33,6 +40,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleGovernanceService,
     ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
+    ProfileCircleNotificationDeliveryService,
     ProfileMemberDirectoryService,
     ProfileStatsService,
     OptionalJwtAuthGuard
@@ -44,6 +52,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleGovernanceService,
     ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
+    ProfileCircleNotificationDeliveryService,
     ProfileMemberDirectoryService,
     ProfileStatsService
   ]
