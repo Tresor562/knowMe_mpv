@@ -1,0 +1,23 @@
+enum ProfileStatEventOperation {
+  INCREMENT
+  SET_MAX
+  SET_VALUE
+}
+
+model ProfileStatEvent {
+  id             String                    @id @default(cuid())
+  userId         String
+  key            String
+  operation      ProfileStatEventOperation
+  numericValue   Int
+  sourceType     String?
+  sourceId       String?
+  idempotencyKey String                    @unique
+  metadata       Json?
+  occurredAt     DateTime                  @default(now())
+  createdAt      DateTime                  @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([userId, key, occurredAt])
+  @@index([sourceType, sourceId])
+}
