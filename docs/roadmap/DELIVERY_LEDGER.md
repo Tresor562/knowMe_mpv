@@ -45,22 +45,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-026 | Santé, quarantaine et fallback des assets Concept K | #61 | Fusionnée |
 | KMD-027 | Catalogue cosmétique, inventaire autoritaire et équipement visuel | #63 | Fusionnée |
 | KMD-028 | Boutique cosmétique KnowCoins et acquisitions idempotentes | #64 | Fusionnée |
+| KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | Fusionnée |
 
 ## Livraison en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-029 | Rendu public contrôlé des équipements cosmétiques | #65 | CI requise avant fusion |
+| KMD-030 | Presets cosmétiques et thèmes de profil synchronisés | #66 | CI requise avant fusion |
 
 ## Prochaine livraison réservée
 
-`KMD-030` est réservé aux presets cosmétiques et thèmes de profil synchronisés.
+Aucun identifiant après `KMD-030` n’est réservé avant la fusion verte de cette livraison.
 
-Cette livraison ne pourra commencer qu’après fusion verte de KMD-029. Elle devra composer uniquement des objets déjà possédés et réutiliser les mêmes contrôles de disponibilité, de slot et de confidentialité.
-
-Le périmètre attendu comprend des presets nommés, une activation atomique de plusieurs slots, un preset par défaut, la validation serveur de chaque possession, le retrait automatique des éléments révoqués ou indisponibles, la prévisualisation avant activation et la synchronisation Web/Mobile. Un preset ne pourra contenir aucun effet de jeu, prix, statut social ou donnée cachée sur la provenance des objets.
-
-L’activation d’un thème devra être idempotente et ne pourra jamais équiper un objet non possédé, contourner un slot masqué ou augmenter la visibilité du profil.
+Le prochain périmètre devra être validé à partir de l’état réel du produit après KMD-030. Il ne pourra pas réintroduire d’effet de jeu, de priorité sociale, de donnée cachée sur la provenance ou de contournement des préférences de confidentialité dans le système cosmétique.
 
 ## Règles de mise à jour
 

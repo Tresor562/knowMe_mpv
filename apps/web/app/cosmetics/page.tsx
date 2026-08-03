@@ -120,11 +120,16 @@ export default function CosmeticsPage() {
           ni l’XP, ni les récompenses, ni la visibilité sociale. Les acquisitions KnowCoins utilisent
           le même inventaire autoritaire que les objets gratuits.
         </p>
-        {catalog.rules.purchasesEnabled && (
-          <a className="btn btn-primary" href="/cosmetics/shop" style={{ marginTop: 12 }}>
-            Ouvrir la boutique KnowCoins
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+          {catalog.rules.purchasesEnabled && (
+            <a className="btn btn-primary" href="/cosmetics/shop">
+              Ouvrir la boutique KnowCoins
+            </a>
+          )}
+          <a className="btn" href="/cosmetics/presets">
+            Composer des thèmes synchronisés
           </a>
-        )}
+        </div>
       </header>
 
       {message && <p role="status">{message}</p>}
