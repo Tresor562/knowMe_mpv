@@ -1,0 +1,98 @@
+enum ProfileCircleNotificationTransportChannel {
+  PUSH
+  EMAIL
+}
+
+enum ProfileCircleNotificationEndpointStatus {
+  ACTIVE
+  DISABLED
+  INVALID
+}
+
+enum ProfileCircleNotificationTransportAttemptStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  SUPPRESSED
+}
+
+enum ProfileCircleNotificationGroupingMode {
+  BY_CIRCLE
+  BY_TYPE
+  CHRONOLOGICAL
+}
+
+model ProfileCircleNotificationSchedulerLease {
+  key         String   @id
+  ownerId     String
+  leaseToken  String   @unique
+  acquiredAt  DateTime @default(now())
+  heartbeatAt DateTime @default(now())
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([ownerId, expiresAt])
+}
+
+model ProfileCircleNotificationEndpoint {
+  id             String   @id @default(cuid())
+  userId         String
+  channel        ProfileCircleNotificationTransportChannel
+  addressHash    String
+  addressCiphertext String
+  platform       String?
+  locale         String   @default("fr")
+  status         ProfileCircleNotificationEndpointStatus @default(ACTIVE)
+  failureCount   Int      @default(0)
+  lastSeenAt     DateTime @default(now())
+  lastSuccessAt  DateTime?
+  disabledAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, channel, addressHash])
+  @@index([userId, channel, status])
+  @@index([status, lastSeenAt])
+}
+
+model ProfileCircleNotificationTransportAttempt {
+  id             String   @id @default(cuid())
+  recipientId    String?
+  userId         String
+  channel        ProfileCircleNotificationTransportChannel
+  provider       String
+  idempotencyKey String   @unique
+  status         ProfileCircleNotificationTransportAttemptStatus @default(PENDING)
+  attempts       Int      @default(0)
+  nextAttemptAt  DateTime @default(now())
+  processingAt   DateTime?
+  sentAt         DateTime?
+  failedAt       DateTime?
+  errorCode      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([userId, channel, createdAt])
+  @@index([recipientId])
+}
+
+model ProfileCircleNotificationDigestSubscription {
+  userId          String   @id
+  weeklyEnabled   Boolean  @default(false)
+  emailEnabled    Boolean  @default(false)
+  pushEnabled     Boolean  @default(false)
+  groupingMode    ProfileCircleNotificationGroupingMode @default(BY_CIRCLE)
+  locale          String   @default("fr")
+  timezone        String   @default("UTC")
+  weeklyDay       Int      @default(1)
+  minuteOfDay     Int      @default(480)
+  lastWeeklyAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([weeklyEnabled, weeklyDay, minuteOfDay])
+}
