@@ -60,9 +60,11 @@ export class NotificationCenterDigestService {
         orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
         take: limit
       });
-    const groups = [...new Map(
-      candidates.map((item) => [`${item.userId}\u0000${item.bucketKey}`, item])
-    ).values()];
+    const groups = [
+      ...new Map(
+        candidates.map((item) => [`${item.userId}\u0000${item.bucketKey}`, item])
+      ).values()
+    ];
 
     let batches = 0;
     let notifications = 0;
@@ -160,11 +162,29 @@ export class NotificationCenterDigestService {
       where: { id: { in: ids }, userId: input.userId },
       orderBy: { createdAt: 'asc' }
     });
-    const idempotencyKey = `center-digest:${input.userId}:${input.bucketKey}`;
     const mode = input.queueItems[0]?.digestMode;
     if (mode !== 'HOURLY' && mode !== 'DAILY') {
       throw new Error('NOTIFICATION_CENTER_DIGEST_MODE_INVALID');
     }
+    if (!originals.length) {
+      await this.prisma.notificationCenterDigestQueueItem.updateMany({
+        where: { notificationId: { in: ids } },
+        data: {
+          status: 'PROCESSED',
+          processedAt: input.now,
+          processingToken: null,
+          processingAt: null,
+          lastError: 'SOURCE_NOT_FOUND'
+        }
+      });
+      return {
+        created: false as const,
+        notificationId: null,
+        skippedReason: 'SOURCE_NOT_FOUND' as const
+      };
+    }
+
+    const idempotencyKey = `center-digest:${input.userId}:${input.bucketKey}`;
     const categoryCounts = originals.reduce<Record<string, number>>(
       (result, notification) => {
         const category = classifyNotificationType(notification.type);
@@ -190,7 +210,10 @@ export class NotificationCenterDigestService {
               lastError: null
             }
           });
-          return { created: false, notificationId: existing.notificationId };
+          return {
+            created: false as const,
+            notificationId: existing.notificationId
+          };
         }
 
         const label = mode === 'HOURLY' ? 'horaire' : 'quotidien';
@@ -238,14 +261,14 @@ export class NotificationCenterDigestService {
             lastError: null
           }
         });
-        return { created: true, notification: digest };
+        return { created: true as const, notification: digest };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
 
     if (result.created && 'notification' in result) {
       this.realtime.emitNotificationCreated(input.userId, result.notification);
-      return { created: true, notificationId: result.notification.id };
+      return { created: true as const, notificationId: result.notification.id };
     }
     return result;
   }
