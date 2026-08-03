@@ -56,6 +56,35 @@ export type CosmeticPurchaseReceipt = {
   item: CosmeticItem;
 };
 
+export type CosmeticPresetItem = {
+  id: string;
+  slot: string;
+  itemId: string;
+  position: number;
+  item: CosmeticItem;
+};
+
+export type CosmeticPreset = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: CosmeticPresetItem[];
+};
+
+export type CosmeticPresetState = {
+  defaultPresetId: string | null;
+  activePresetId: string | null;
+  activationVersion: number;
+};
+
+export type CosmeticPresetInput = {
+  slot: string;
+  itemId: string;
+};
+
 export type PublicCosmeticSlot = {
   slot: string;
   item: CosmeticItem | null;
@@ -160,4 +189,87 @@ export function updateCosmeticPrivacy(
     method: 'PATCH',
     body: JSON.stringify({ cosmeticVisibility, hiddenCosmeticSlots })
   });
+}
+
+export function fetchCosmeticPresets() {
+  return apiFetch<{
+    presets: CosmeticPreset[];
+    state: CosmeticPresetState;
+    maintenance: { removedInvalidItems: number };
+    rules: Record<string, unknown>;
+  }>('/cosmetics/presets');
+}
+
+export function createCosmeticPreset(
+  name: string,
+  items: CosmeticPresetInput[],
+  setAsDefault = false
+) {
+  return apiFetch<{ preset: CosmeticPreset; rules: Record<string, unknown> }>(
+    '/cosmetics/presets',
+    {
+      method: 'POST',
+      body: JSON.stringify({ name, items, setAsDefault })
+    }
+  );
+}
+
+export function updateCosmeticPreset(
+  presetId: string,
+  input: { name?: string; items?: CosmeticPresetInput[]; setAsDefault?: boolean }
+) {
+  return apiFetch<{ preset: CosmeticPreset; rules: Record<string, unknown> }>(
+    `/cosmetics/presets/${encodeURIComponent(presetId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input)
+    }
+  );
+}
+
+export function previewCosmeticPreset(presetId: string) {
+  return apiFetch<{
+    preset: CosmeticPreset;
+    preview: Array<{
+      slot: string;
+      item: CosmeticItem;
+      applicable: boolean;
+      blockedReason: 'HIDDEN_SLOT' | null;
+    }>;
+    maintenance: { removedInvalidItems: number };
+    rules: Record<string, unknown>;
+  }>(`/cosmetics/presets/${encodeURIComponent(presetId)}/preview`);
+}
+
+export function activateCosmeticPreset(presetId: string, idempotencyKey: string) {
+  return apiFetch<{
+    state?: CosmeticPresetState;
+    equipment: CosmeticEquipment[] | Record<string, unknown>;
+    maintenance?: {
+      prunedInvalidItems: number;
+      skippedHiddenSlots: string[];
+    };
+    replayed: boolean;
+    rules: Record<string, unknown>;
+  }>(`/cosmetics/presets/${encodeURIComponent(presetId)}/activate`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotencyKey })
+  });
+}
+
+export function setDefaultCosmeticPreset(presetId: string) {
+  return apiFetch<{
+    defaultPresetId: string;
+    activationVersion: number;
+    rules: Record<string, unknown>;
+  }>(`/cosmetics/presets/${encodeURIComponent(presetId)}/default`, {
+    method: 'POST'
+  });
+}
+
+export function deleteCosmeticPreset(presetId: string) {
+  return apiFetch<{ deleted: boolean; presetId: string }>(
+    `/cosmetics/presets/${encodeURIComponent(presetId)}`,
+    { method: 'DELETE' }
+  );
 }
