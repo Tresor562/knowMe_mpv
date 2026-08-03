@@ -112,9 +112,11 @@ export class NotificationCenterService {
       }
     }
 
-    const hasMore = collected.length > limit;
-    const items = hasMore ? collected.slice(0, limit) : collected;
-    const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null;
+    const hasMore = collected.length > limit || rawHasMore;
+    const items = collected.slice(0, limit);
+    const nextCursor = hasMore
+      ? items[items.length - 1]?.id ?? scanCursor ?? null
+      : null;
     const groups = groupNotificationCenterRows(items);
 
     const stateTotals = await this.stateTotals(input.userId, now);
@@ -172,7 +174,10 @@ export class NotificationCenterService {
       cursor = page[page.length - 1]?.id;
       const states =
         await this.prisma.notificationCenterUserState.findMany({
-          where: { userId, notificationId: { in: page.map((row) => row.id) } }
+          where: {
+            userId,
+            notificationId: { in: page.map((row) => row.id) }
+          }
         });
       const stateById = new Map(
         states.map((state) => [state.notificationId, state])
@@ -378,7 +383,10 @@ export class NotificationCenterService {
       cursor = page[page.length - 1]?.id;
       const states =
         await this.prisma.notificationCenterUserState.findMany({
-          where: { userId, notificationId: { in: page.map((row) => row.id) } }
+          where: {
+            userId,
+            notificationId: { in: page.map((row) => row.id) }
+          }
         });
       const stateById = new Map(
         states.map((state) => [state.notificationId, state])
