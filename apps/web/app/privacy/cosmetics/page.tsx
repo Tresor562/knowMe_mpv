@@ -5,7 +5,17 @@ import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
 type CosmeticVisibility = 'FOLLOW_PROFILE' | 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
-type Slot = 'AVATAR_FRAME' | 'PROFILE_BACKGROUND' | 'CHAT_BUBBLE' | 'PROFILE_BADGE';
+type Slot =
+  | 'AVATAR_SKIN'
+  | 'AVATAR_HAIR'
+  | 'AVATAR_FACE'
+  | 'AVATAR_OUTFIT'
+  | 'AVATAR_ACCESSORY'
+  | 'AVATAR_AURA'
+  | 'AVATAR_FRAME'
+  | 'PROFILE_BACKGROUND'
+  | 'CHAT_BUBBLE'
+  | 'PROFILE_BADGE';
 
 type Preferences = {
   profileVisibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
@@ -19,6 +29,12 @@ type PrivacyCenter = {
 };
 
 const SLOT_LABELS: Record<Slot, string> = {
+  AVATAR_SKIN: 'Avatar · base et peau',
+  AVATAR_HAIR: 'Avatar · cheveux',
+  AVATAR_FACE: 'Avatar · visage',
+  AVATAR_OUTFIT: 'Avatar · tenue',
+  AVATAR_ACCESSORY: 'Avatar · accessoire',
+  AVATAR_AURA: 'Avatar · aura',
   AVATAR_FRAME: 'Cadre d’avatar',
   PROFILE_BACKGROUND: 'Fond de profil',
   CHAT_BUBBLE: 'Bulle de discussion',
@@ -142,9 +158,14 @@ export default function CosmeticPrivacyPage() {
           Le rendu est résolu par le serveur. Un asset retiré ou hors fenêtre est remplacé par un
           fallback sûr et aucune application cliente ne peut déclarer un objet non équipé.
         </p>
-        <a className="btn btn-primary" href={`/profile/${user.username}`}>
-          Voir mon profil cosmétique
-        </a>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <a className="btn btn-primary" href={`/profile/${user.username}`}>
+            Voir mon profil cosmétique
+          </a>
+          <a className="btn" href="/avatar-studio">
+            Ouvrir le studio d’avatar
+          </a>
+        </div>
       </section>
     </main>
   );
