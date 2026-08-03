@@ -21,7 +21,7 @@ Invariants :
 - palettes déterministes et lisibles ;
 - aucun code distant ou comportement fonctionnel fourni par un thème.
 
-`Classique KnowMe` est le thème numéro 1, utilise la clé `system` et constitue le fallback sûr. Il suit le mode clair ou sombre de l’appareil.
+`Classique KnowMe` est le thème numéro 1, utilise la clé `system` et constitue le fallback sûr. Il suit le mode clair ou sombre de l’appareil et conserve le pack officiel `Soft Glass`.
 
 ### Thèmes gratuits 1–40
 
@@ -54,7 +54,7 @@ Les effets possibles comprennent notamment pluie, neige, pétales, étoiles fila
 
 ## Packs d’icônes
 
-Le moteur contient 25 familles :
+Le moteur contient 25 familles.
 
 ### Gratuits
 
@@ -68,13 +68,15 @@ Le moteur contient 25 familles :
 
 Crystal, Neon, Cyber, Anime, Pixel, Fantasy, Gold, Diamond, Cosmic, Liquid, Glass Ultra, Matte Black, White Pearl, Chrome, Gradient Dynamic, RGB Gaming, Holographic, Frost, Fire et Lightning.
 
-Le thème choisit un pack par défaut. Un compte autorisé peut sélectionner un pack indépendant. Le serveur valide toujours le droit `icon-pack.<clé>` ou l’abonnement `subscription.premium` ; le client ne peut pas déverrouiller un pack lui-même.
+Le thème choisit un pack par défaut. Un compte autorisé peut sélectionner un pack indépendant. Le serveur valide toujours le droit individuel `icon-pack.<clé>` ou l’accès global `premium.themes` ; le client ne peut pas déverrouiller un pack lui-même.
 
 Les animations d’icônes sont discrètes et désactivables séparément. Le mode système de réduction des mouvements reste prioritaire.
 
 ## Icônes d’application
 
 Le catalogue expose cinq icônes gratuites et quinze icônes Premium. La préférence et les droits sont synchronisés par le serveur.
+
+Une icône Premium requiert `premium.app_icons` ou une possession individuelle `app-icon.<clé>`. Ce droit est volontairement distinct de `premium.themes`, conformément au catalogue de facturation KnowMe.
 
 Le changement effectif dépend d’un adaptateur de plateforme :
 
@@ -118,16 +120,16 @@ Si un droit expire, le choix n’est pas détruit. Le serveur renvoie `ENTITLEME
 
 Un thème Premium est utilisable lorsque l’un des droits suivants est actif :
 
-- `subscription.premium` ;
-- `theme.<clé>` pour une possession individuelle.
+- `premium.themes`, accordé par l’offre Premium KnowMe ;
+- `theme.<clé>`, accordé pour une possession individuelle.
+
+Un pack Premium suit la même règle avec `premium.themes` ou `icon-pack.<clé>`. Une icône d’application Premium utilise séparément `premium.app_icons` ou `app-icon.<clé>`.
 
 Ce contrat prépare trois voies légitimes sans modifier le moteur : abonnement, achat KnowCoins ou récompense de défi. Les systèmes commerciaux attribuent un entitlement ; ils ne modifient jamais directement la préférence visuelle.
 
-Les packs et icônes d’application suivent la même règle avec `icon-pack.<clé>` et `app-icon.<clé>`.
-
 ## Combinaison de thèmes
 
-Un abonnement Premium peut combiner un thème principal et un thème secondaire selon quatre modes :
+L’accès `premium.themes` permet de combiner un thème principal et un thème secondaire selon quatre modes :
 
 - `OFF` ;
 - `ACCENT` : couleurs d’accent du thème secondaire ;
@@ -153,7 +155,7 @@ Les presets sonores ne contiennent pas encore d’audio distant. Un adaptateur c
 
 La préférence météo nécessite :
 
-- un abonnement Premium actif ;
+- le droit actif `premium.themes` ;
 - une permission explicite de l’utilisateur ;
 - un adaptateur météo/localisation de plateforme ;
 - un mode sans localisation précise lorsque possible ;
@@ -177,7 +179,7 @@ Les modes synchronisés sont :
 - `TIME` ;
 - `SEASON`.
 
-La préférence nécessite Premium. La sélection finale doit rester déterministe et auditable : le client ne peut choisir que des thèmes autorisés, et une rotation saisonnière dépend du calendrier serveur.
+La préférence nécessite `premium.themes`. La sélection finale doit rester déterministe et auditable : le client ne peut choisir que des thèmes autorisés, et une rotation saisonnière dépend du calendrier serveur.
 
 ## Web
 
@@ -223,7 +225,7 @@ Un thème inaccessible doit être corrigé dans le catalogue ; le client ne doit
 
 ## Personnalisation Premium avancée
 
-Le moteur possède les fondations pour :
+Le moteur possède les fondations suivantes.
 
 ### Déjà synchronisé
 
