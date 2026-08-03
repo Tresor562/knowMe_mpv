@@ -5,6 +5,7 @@ const items = [
   { href: '/feed', label: 'Activité', icon: '◉' },
   { href: '/challenges', label: 'Défis', icon: '⚡' },
   { href: '/messages', label: 'Messages', icon: '✉' },
+  { href: '/secret', label: 'Secret', icon: '◌' },
   { href: '/profile', label: 'Profil', icon: '●' }
 ];
 
