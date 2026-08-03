@@ -1,6 +1,6 @@
 # KnowMe Notification Center
 
-Version : KMD-044
+Version : KMD-046
 
 ## Objectif
 
@@ -61,7 +61,7 @@ Les catégories `SECURITY` et `SYSTEM` :
 
 ## Push mobile
 
-KMD-044 prépare `NotificationPushEndpoint` sans activer un fournisseur externe.
+KMD-046 prépare `NotificationPushEndpoint` sans activer un fournisseur externe.
 
 Règles :
 
@@ -75,7 +75,7 @@ Avant la production, `tokenReference` devra pointer vers un coffre de secrets ou
 
 ## Reprise et résumés collectifs
 
-La file collective existante conserve :
+Les files collectives KMD-044 et KMD-045 conservent :
 
 - les états Pending, Deferred, Processing, Delivered, Suppressed et Failed ;
 - les revendications par jeton ;
