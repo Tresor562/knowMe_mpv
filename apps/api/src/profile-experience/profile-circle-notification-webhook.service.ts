@@ -7,6 +7,7 @@ import {
   Post
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import {
   IsIn,
@@ -71,6 +72,11 @@ function canonicalPayload(
   });
 }
 
+function toJsonValue(value?: Record<string, unknown>) {
+  if (!value) return undefined;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
 @Injectable()
 export class ProfileCircleNotificationWebhookService {
   constructor(
@@ -108,6 +114,7 @@ export class ProfileCircleNotificationWebhookService {
     if (!valid) throw new Error('NOTIFICATION_WEBHOOK_SIGNATURE_INVALID');
 
     const signatureHash = createHash('sha256').update(actual).digest('hex');
+    const metadata = toJsonValue(input.dto.metadata);
     const receipt =
       await this.prisma.profileCircleNotificationWebhookReceipt.upsert({
         where: {
@@ -119,7 +126,7 @@ export class ProfileCircleNotificationWebhookService {
           eventType: input.dto.eventType,
           attemptId: input.dto.attemptId ?? null,
           signatureHash,
-          metadata: input.dto.metadata ?? undefined
+          metadata
         },
         update: {}
       });
