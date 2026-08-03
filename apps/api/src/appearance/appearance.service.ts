@@ -69,6 +69,7 @@ export class AppearanceService {
       synchronizedVersioning: true,
       premiumThemesCanBeIndividuallyOwned: true,
       safeFallbackThemeKey: 'system',
+      defaultIconPackKey: 'soft-glass',
       supportedContrastModes: ['STANDARD', 'HIGH'],
       supportedEffectIntensity: ['LOW', 'BALANCED', 'HIGH'],
       supportedRotationModes: ['OFF', 'TIME', 'SEASON'],
@@ -288,7 +289,9 @@ export class AppearanceService {
     );
     const effectiveIconPackKey = selectedIconPackAllowed
       ? selectedIconPack!.key
-      : effectiveTheme.iconPackKey;
+      : effectiveTheme.key === 'system'
+        ? 'soft-glass'
+        : effectiveTheme.iconPackKey;
 
     const selectedAppIcon = preference?.selectedAppIconKey
       ? APP_ICONS.find((entry) => entry.key === preference.selectedAppIconKey) ?? null
@@ -335,6 +338,7 @@ export class AppearanceService {
       },
       themes: THEME_CATALOG.map((theme) => ({
         ...theme,
+        iconPackKey: theme.key === 'system' ? 'soft-glass' : theme.iconPackKey,
         locked: !isUnlocked(theme.entitlementKeys, activeEntitlements)
       })),
       iconPacks: ICON_PACKS.map((pack) => ({
