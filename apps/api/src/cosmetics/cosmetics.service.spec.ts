@@ -1,7 +1,13 @@
 import { CosmeticsService } from './cosmetics.service';
 
 describe('CosmeticsService', () => {
-  const service = new CosmeticsService({} as never, {} as never);
+  const service = new CosmeticsService(
+    {} as never,
+    {} as never,
+    {
+      syncEquipmentWithActivePreset: jest.fn().mockResolvedValue(undefined)
+    } as never
+  );
 
   it('keeps cosmetics visual-only and server-authoritative', () => {
     expect(service.policy()).toEqual(
@@ -55,5 +61,7 @@ describe('CosmeticsService', () => {
   it('never permits an item to cross equipment slots', () => {
     expect(service.slotMatches('AVATAR_FRAME', 'AVATAR_FRAME')).toBe(true);
     expect(service.slotMatches('AVATAR_FRAME', 'CHAT_BUBBLE')).toBe(false);
+    expect(service.slotMatches('AVATAR_HAIR', 'AVATAR_HAIR')).toBe(true);
+    expect(service.slotMatches('AVATAR_HAIR', 'AVATAR_FACE')).toBe(false);
   });
 });
