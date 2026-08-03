@@ -97,6 +97,10 @@ describe('KnowMe payment orchestration (e2e)', () => {
       ])
     );
 
+    await request(app.getHttpServer())
+      .get('/payments/store/account-reference?provider=GOOGLE_PLAY')
+      .expect(401);
+
     const registration = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -108,6 +112,29 @@ describe('KnowMe payment orchestration (e2e)', () => {
       .expect(201);
     const token = registration.body.accessToken as string;
     const auth = { Authorization: `Bearer ${token}` };
+
+    const googleReference = await request(app.getHttpServer())
+      .get('/payments/store/account-reference?provider=GOOGLE_PLAY')
+      .set(auth)
+      .expect(200);
+    expect(googleReference.body).toEqual({
+      provider: 'GOOGLE_PLAY',
+      accountReference: expect.stringMatching(/^[0-9a-f]{64}$/)
+    });
+
+    const appleReference = await request(app.getHttpServer())
+      .get('/payments/store/account-reference?provider=APPLE_APP_STORE')
+      .set(auth)
+      .expect(200);
+    expect(appleReference.body).toEqual({
+      provider: 'APPLE_APP_STORE',
+      accountReference: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      )
+    });
+    expect(appleReference.body.accountReference).not.toBe(
+      googleReference.body.accountReference
+    );
 
     await request(app.getHttpServer())
       .post('/payments/checkout')
