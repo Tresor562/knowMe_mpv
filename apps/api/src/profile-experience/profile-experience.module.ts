@@ -2,11 +2,23 @@ import { Module } from '@nestjs/common';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { ProfileCircleController } from './profile-circle.controller';
+import { ProfileCircleEmailDigestService, ProfileCircleHttpEmailProvider } from './profile-circle-email-digest.service';
+import { ProfileCircleNotificationEndpointsService } from './profile-circle-notification-endpoints.service';
 import {
   AdminProfileCircleNotificationDeliveryController,
   ProfileCircleNotificationDeliveryController
 } from './profile-circle-notification-delivery.controller';
 import { ProfileCircleNotificationDeliveryService } from './profile-circle-notification-delivery.service';
+import { ProfileCircleNotificationLeaseService } from './profile-circle-notification-lease.service';
+import {
+  AdminProfileCircleNotificationOperationsController,
+  ProfileCircleNotificationEndpointsController
+} from './profile-circle-notification-operations.controller';
+import { ProfileCircleNotificationRuntimeConfigService } from './profile-circle-notification-runtime.config';
+import { ProfileCircleNotificationSchedulerService } from './profile-circle-notification-scheduler.service';
+import { ProfileCircleNotificationTelemetryService } from './profile-circle-notification-telemetry.service';
+import { ProfileCircleHttpPushProvider, ProfileCirclePushDeliveryService } from './profile-circle-push-delivery.service';
+import { ProfileCircleWeeklyDigestService } from './profile-circle-weekly-digest.service';
 import { ProfileCircleGovernanceController } from './profile-circle-governance.controller';
 import { ProfileCircleGovernanceService } from './profile-circle-governance.service';
 import { ProfileCircleNotificationPreferencesController } from './profile-circle-notification-preferences.controller';
@@ -30,6 +42,8 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleNotificationPreferencesController,
     ProfileCircleNotificationDeliveryController,
     AdminProfileCircleNotificationDeliveryController,
+    ProfileCircleNotificationEndpointsController,
+    AdminProfileCircleNotificationOperationsController,
     ProfileMemberDirectoryController,
     ProfileStatsController
   ],
@@ -41,6 +55,16 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
     ProfileCircleNotificationDeliveryService,
+    ProfileCircleNotificationRuntimeConfigService,
+    ProfileCircleNotificationLeaseService,
+    ProfileCircleNotificationSchedulerService,
+    ProfileCircleNotificationEndpointsService,
+    ProfileCircleHttpPushProvider,
+    ProfileCirclePushDeliveryService,
+    ProfileCircleHttpEmailProvider,
+    ProfileCircleEmailDigestService,
+    ProfileCircleWeeklyDigestService,
+    ProfileCircleNotificationTelemetryService,
     ProfileMemberDirectoryService,
     ProfileStatsService,
     OptionalJwtAuthGuard
@@ -53,6 +77,10 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileCircleNotificationPreferencesService,
     ProfileCircleNotificationsService,
     ProfileCircleNotificationDeliveryService,
+    ProfileCircleNotificationEndpointsService,
+    ProfileCirclePushDeliveryService,
+    ProfileCircleEmailDigestService,
+    ProfileCircleWeeklyDigestService,
     ProfileMemberDirectoryService,
     ProfileStatsService
   ]
