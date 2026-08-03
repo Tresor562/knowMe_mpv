@@ -22,14 +22,14 @@ export function ThemeRuntime() {
     const synchronize = async () => {
       try {
         const response = await apiFetch<AppearanceResponse>('/appearance');
-        saveLocalAppearance(response.preference);
+        saveLocalAppearance(response);
       } catch {
-        // The local pre-auth preference remains the safe fallback.
+        // Le cache pré-authentification reste le fallback local sûr.
       }
     };
 
     const onAppearanceChanged = (event: Event) => {
-      const custom = event as CustomEvent<AppearanceResponse['preference']>;
+      const custom = event as CustomEvent<AppearanceResponse>;
       if (custom.detail) saveLocalAppearance(custom.detail);
       else applyStored();
     };
@@ -37,7 +37,7 @@ export function ThemeRuntime() {
     const media = window.matchMedia('(prefers-color-scheme: light)');
     const onSystemThemeChanged = () => {
       const stored = loadLocalAppearance();
-      if (stored?.effectiveThemeKey === 'system') applyAppearance(stored);
+      if (stored?.preference.effectiveThemeKey === 'system') applyAppearance(stored);
     };
 
     window.addEventListener(APPEARANCE_EVENT, onAppearanceChanged);
