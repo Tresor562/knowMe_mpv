@@ -1,6 +1,8 @@
 model UserAppearancePreference {
   userId                  String   @id
   selectedThemeKey        String   @default("system")
+  secondaryThemeKey       String?
+  themeBlendMode          String   @default("OFF")
   selectedIconPackKey     String?
   selectedAppIconKey      String?
   contrast                String   @default("STANDARD")
@@ -16,5 +18,6 @@ model UserAppearancePreference {
   updatedAt               DateTime @updatedAt
 
   @@index([selectedThemeKey, updatedAt])
+  @@index([secondaryThemeKey, updatedAt])
   @@index([selectedIconPackKey, updatedAt])
 }
