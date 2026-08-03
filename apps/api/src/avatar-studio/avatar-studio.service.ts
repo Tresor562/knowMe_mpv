@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { CosmeticsPublicService } from '../cosmetics/cosmetics-public.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import {
   AVATAR_LAYER_SLOTS,
   EquipCosmeticDto
 } from '../cosmetics/dto/cosmetics.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 const AVATAR_RENDER_SLOTS = [
   ...AVATAR_LAYER_SLOTS,
@@ -121,17 +121,25 @@ export class AvatarStudioService {
   async publicSnapshot(viewerId: string, username: string) {
     const snapshot = await this.publicCosmetics.snapshot(viewerId, username);
     const slots = snapshot.slots.filter((entry) => this.isAvatarSlot(entry.slot));
-    const equipment = slots
-      .filter((entry): entry is typeof entry & { item: NonNullable<typeof entry.item> } =>
-        Boolean(entry.item)
-      )
-      .map((entry) => ({
+    const equipment: EquipmentEntry[] = [];
+
+    for (const entry of slots) {
+      if (!entry.item) continue;
+      equipment.push({
         slot: entry.slot,
         item: {
-          ...entry.item,
-          slot: entry.slot
+          id: entry.item.id,
+          key: entry.item.key,
+          version: entry.item.version,
+          name: entry.item.name,
+          description: entry.item.description ?? null,
+          slot: entry.slot,
+          rarity: entry.item.rarity,
+          assetUrl: entry.item.assetUrl,
+          previewUrl: entry.item.previewUrl ?? null
         }
-      })) as EquipmentEntry[];
+      });
+    }
 
     return {
       ...snapshot,
@@ -202,12 +210,13 @@ export class AvatarStudioService {
   }
 
   private initialsFallback(displayName: string, username = '') {
-    const initials = displayName
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('') || '?';
+    const initials =
+      displayName
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('') || '?';
     const source = `${username}:${displayName}`;
     let hash = 0;
     for (let index = 0; index < source.length; index += 1) {
