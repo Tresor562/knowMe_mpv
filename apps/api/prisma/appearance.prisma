@@ -1,0 +1,11 @@
+model UserAppearancePreference {
+  userId            String   @id
+  selectedThemeKey  String   @default("system")
+  contrast          String   @default("STANDARD")
+  reduceTransparency Boolean @default(false)
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([selectedThemeKey, updatedAt])
+}
