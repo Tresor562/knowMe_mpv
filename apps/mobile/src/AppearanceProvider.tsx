@@ -10,6 +10,7 @@ import {
 import { useColorScheme } from 'react-native';
 import {
   AppearanceResponse,
+  AppearanceUpdateInput,
   fetchAppearance,
   loadCachedAppearance,
   MobileThemePalette,
@@ -17,27 +18,13 @@ import {
   updateAppearance
 } from './appearance';
 
-const DEFAULT_PREFERENCE: AppearanceResponse['preference'] = {
-  selectedThemeKey: 'system',
-  effectiveThemeKey: 'system',
-  contrast: 'STANDARD',
-  reduceTransparency: false,
-  version: 0,
-  updatedAt: null,
-  fallbackReason: null
-};
-
 type AppearanceContextValue = {
   appearance: AppearanceResponse | null;
   colors: MobileThemePalette;
   loading: boolean;
   busy: boolean;
   refresh: () => Promise<AppearanceResponse | null>;
-  update: (input: {
-    themeKey?: string;
-    contrast?: 'STANDARD' | 'HIGH';
-    reduceTransparency?: boolean;
-  }) => Promise<AppearanceResponse>;
+  update: (input: AppearanceUpdateInput) => Promise<AppearanceResponse>;
 };
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null);
@@ -49,7 +36,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
 
   const colors = useMemo(
-    () => resolveMobilePalette(appearance?.preference ?? DEFAULT_PREFERENCE, systemColorScheme),
+    () => resolveMobilePalette(appearance, systemColorScheme),
     [appearance, systemColorScheme]
   );
 
@@ -78,14 +65,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const update = useCallback(
-    async (input: {
-      themeKey?: string;
-      contrast?: 'STANDARD' | 'HIGH';
-      reduceTransparency?: boolean;
-    }) => {
+    async (input: AppearanceUpdateInput) => {
       setBusy(true);
       try {
-        const response = await updateAppearance(input, appearance?.preference.version ?? 0);
+        const response = await updateAppearance(
+          input,
+          appearance?.preference.version ?? 0
+        );
         setAppearance(response);
         return response;
       } finally {
