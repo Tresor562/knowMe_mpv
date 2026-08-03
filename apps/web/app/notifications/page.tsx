@@ -1,6 +1,13 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
@@ -14,22 +21,15 @@ type Category =
   | 'CIRCLES'
   | 'SECURITY'
   | 'SYSTEM';
-type View = 'ACTIVE' | 'ARCHIVED' | 'SNOOZED' | 'DISMISSED';
+type CenterView = 'ACTIVE' | 'ARCHIVED' | 'SNOOZED' | 'DISMISSED';
 type DigestMode = 'INSTANT' | 'HOURLY' | 'DAILY' | 'CENTER_ONLY';
-
-type NotificationData = {
-  route?: string;
-  link?: string;
-  circleId?: string;
-  [key: string]: unknown;
-};
 
 type NotificationItem = {
   id: string;
   type: string;
   title: string;
   body: string;
-  data?: NotificationData | null;
+  data?: { route?: string; link?: string; [key: string]: unknown } | null;
   readAt?: string | null;
   createdAt: string;
   category: Category;
@@ -70,7 +70,7 @@ type NotificationGroup = {
 
 type CenterResponse = {
   preferences: Preferences;
-  view: View;
+  view: CenterView;
   items: NotificationItem[];
   groups: NotificationGroup[];
   nextCursor?: string | null;
@@ -91,9 +91,6 @@ type CenterResponse = {
   };
 };
 
-type ReadEvent = { notificationId: string; readAt: string };
-type ReadAllEvent = { readAt: string };
-
 const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
   { key: 'SOCIAL', label: 'Social', icon: '👥' },
   { key: 'MESSAGING', label: 'Messages et appels', icon: '💬' },
@@ -105,40 +102,35 @@ const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
   { key: 'SYSTEM', label: 'Système et compte', icon: '⚙️' }
 ];
 
-const VIEWS: Array<{ key: View; label: string }> = [
+const VIEWS: Array<{ key: CenterView; label: string }> = [
   { key: 'ACTIVE', label: 'Actives' },
   { key: 'SNOOZED', label: 'Reportées' },
   { key: 'ARCHIVED', label: 'Archivées' },
   { key: 'DISMISSED', label: 'Masquées' }
 ];
 
-const icons: Record<string, string> = {
+const ICONS: Record<string, string> = {
   FRIEND_REQUEST: '👥',
   FRIEND_ACCEPTED: '🤝',
   MESSAGE: '💬',
   POST_LIKE: '♥',
-  POST_LIKED: '♥',
   POST_COMMENT: '💬',
-  POST_COMMENTED: '💬',
   CHALLENGE_JOIN: '🎯',
-  CHALLENGE_JOINED: '🎯',
   CIRCLE_INVITATION: '⭐',
-  CIRCLE_MEMBER_JOINED: '⭐',
   CIRCLE_DAILY_DIGEST: '🗞️',
   NOTIFICATION_DIGEST: '🗞️',
-  FAMILY_RELATION_PROPOSED: '👨‍👩‍👧‍👦',
   SECURITY_LOGIN_ALERT: '🛡️'
 };
 
 function minuteToTime(value: number) {
-  const hour = Math.floor(value / 60).toString().padStart(2, '0');
-  const minute = (value % 60).toString().padStart(2, '0');
-  return `${hour}:${minute}`;
+  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(
+    value % 60
+  ).padStart(2, '0')}`;
 }
 
 function timeToMinute(value: string) {
   const [hour, minute] = value.split(':').map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return 0;
   return Math.max(0, Math.min(1439, hour * 60 + minute));
 }
 
@@ -158,17 +150,24 @@ function mergeGroups(current: NotificationGroup[], incoming: NotificationGroup[]
       byKey.set(group.groupKey, group);
       continue;
     }
-    const ids = [...new Set([...previous.notificationIds, ...group.notificationIds])];
+    const notificationIds = [
+      ...new Set([...previous.notificationIds, ...group.notificationIds])
+    ];
+    const latest =
+      new Date(previous.latest.createdAt).getTime() >
+      new Date(group.latest.createdAt).getTime()
+        ? previous.latest
+        : group.latest;
     byKey.set(group.groupKey, {
       ...group,
-      count: ids.length,
-      unreadCount: previous.unreadCount + group.unreadCount,
-      notificationIds: ids,
-      grouped: ids.length > 1,
-      latest:
-        new Date(previous.latest.createdAt) > new Date(group.latest.createdAt)
-          ? previous.latest
-          : group.latest
+      latest,
+      notificationIds,
+      count: notificationIds.length,
+      unreadCount: Math.min(
+        notificationIds.length,
+        previous.unreadCount + group.unreadCount
+      ),
+      grouped: notificationIds.length > 1
     });
   }
   return [...byKey.values()].sort(
@@ -181,8 +180,9 @@ function mergeGroups(current: NotificationGroup[], incoming: NotificationGroup[]
 export default function NotificationsPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const socket = useMemo(() => getRealtimeSocket(), []);
+  const nextCursorRef = useRef<string | null>(null);
   const [center, setCenter] = useState<CenterResponse | null>(null);
-  const [view, setView] = useState<View>('ACTIVE');
+  const [view, setView] = useState<CenterView>('ACTIVE');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [live, setLive] = useState(false);
@@ -195,26 +195,28 @@ export default function NotificationsPage() {
       append ? setLoadingMore(true) : setLoading(true);
       try {
         const query = new URLSearchParams({ view, limit: '30' });
-        if (append && center?.nextCursor) {
-          query.set('cursor', center.nextCursor);
+        if (append && nextCursorRef.current) {
+          query.set('cursor', nextCursorRef.current);
         }
         const incoming = await apiFetch<CenterResponse>(
           `/notifications/center?${query}`
         );
-        setCenter((current) =>
-          append && current
-            ? {
-                ...incoming,
-                items: [
-                  ...current.items,
-                  ...incoming.items.filter(
-                    (item) => !current.items.some((known) => known.id === item.id)
-                  )
-                ],
-                groups: mergeGroups(current.groups, incoming.groups)
-              }
-            : incoming
-        );
+        nextCursorRef.current = incoming.nextCursor ?? null;
+        setCenter((current) => {
+          if (!append || !current || current.view !== incoming.view) {
+            return incoming;
+          }
+          return {
+            ...incoming,
+            items: [
+              ...current.items,
+              ...incoming.items.filter(
+                (item) => !current.items.some((known) => known.id === item.id)
+              )
+            ],
+            groups: mergeGroups(current.groups, incoming.groups)
+          };
+        });
         setMessage('');
       } catch (cause) {
         setMessage(
@@ -227,35 +229,39 @@ export default function NotificationsPage() {
         setLoadingMore(false);
       }
     },
-    [center?.nextCursor, view]
+    [view]
   );
 
   useEffect(() => {
-    if (!sessionLoading && user) void load(false);
-  }, [load, sessionLoading, user, view]);
+    if (sessionLoading || !user) return;
+    nextCursorRef.current = null;
+    setCenter(null);
+    void load(false);
+  }, [load, sessionLoading, user]);
 
   useEffect(() => {
     if (sessionLoading || !user) return;
     const onConnect = () => setLive(true);
     const onDisconnect = () => setLive(false);
-    const reloadActive = () => {
-      if (view === 'ACTIVE') void load(false);
+    const refreshActive = () => {
+      if (view === 'ACTIVE') {
+        nextCursorRef.current = null;
+        void load(false);
+      }
     };
-    const onRead = (_event: ReadEvent) => reloadActive();
-    const onReadAll = (_event: ReadAllEvent) => reloadActive();
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
-    socket.on('notification:created', reloadActive);
-    socket.on('notification:read', onRead);
-    socket.on('notification:read-all', onReadAll);
+    socket.on('notification:created', refreshActive);
+    socket.on('notification:read', refreshActive);
+    socket.on('notification:read-all', refreshActive);
     if (socket.connected) onConnect();
     else socket.connect();
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      socket.off('notification:created', reloadActive);
-      socket.off('notification:read', onRead);
-      socket.off('notification:read-all', onReadAll);
+      socket.off('notification:created', refreshActive);
+      socket.off('notification:read', refreshActive);
+      socket.off('notification:read-all', refreshActive);
     };
   }, [load, sessionLoading, socket, user, view]);
 
@@ -286,8 +292,9 @@ export default function NotificationsPage() {
           mutedCircleIds: center.preferences.mutedCircleIds
         })
       });
+      nextCursorRef.current = null;
       await load(false);
-      setMessage('Préférences de notification enregistrées.');
+      setMessage('Préférences enregistrées.');
     } catch (cause) {
       setMessage(
         cause instanceof Error ? cause.message : 'Préférences non enregistrées.'
@@ -339,6 +346,7 @@ export default function NotificationsPage() {
           })
         )
       );
+      nextCursorRef.current = null;
       await load(false);
       setMessage(
         action === 'SNOOZE'
@@ -360,6 +368,7 @@ export default function NotificationsPage() {
     setBusy(true);
     try {
       await apiFetch('/notifications/read-all', { method: 'PATCH' });
+      nextCursorRef.current = null;
       await load(false);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
@@ -403,7 +412,10 @@ export default function NotificationsPage() {
             <button
               className="btn"
               disabled={loading || busy}
-              onClick={() => void load(false)}
+              onClick={() => {
+                nextCursorRef.current = null;
+                void load(false);
+              }}
             >
               Actualiser
             </button>
@@ -433,10 +445,7 @@ export default function NotificationsPage() {
               type="button"
               className={`btn ${view === candidate.key ? 'btn-primary' : ''}`}
               key={candidate.key}
-              onClick={() => {
-                setCenter(null);
-                setView(candidate.key);
-              }}
+              onClick={() => setView(candidate.key)}
             >
               {candidate.label}
             </button>
@@ -457,9 +466,9 @@ export default function NotificationsPage() {
             <small style={{ color: 'var(--mint)' }}>PRÉFÉRENCES GLOBALES</small>
             <h2>Choisis comment KnowMe te prévient</h2>
             <p style={{ color: 'var(--muted)' }}>
-              Les alertes Sécurité et Système restent toujours visibles. Les
-              endpoints externes chiffrés et leurs fournisseurs sont gérés par
-              la couche de transport résiliente, jamais par ce formulaire.
+              Sécurité et Système restent toujours visibles. Les secrets et
+              fournisseurs externes appartiennent à la couche de transport
+              résiliente, jamais à ce formulaire.
             </p>
           </div>
           <div
@@ -540,10 +549,7 @@ export default function NotificationsPage() {
               <input
                 className="input"
                 name="timezone"
-                defaultValue={
-                  center.preferences.timezone ||
-                  Intl.DateTimeFormat().resolvedOptions().timeZone
-                }
+                defaultValue={center.preferences.timezone}
                 required
               />
             </label>
@@ -611,7 +617,7 @@ export default function NotificationsPage() {
               }}
             >
               <div style={{ fontSize: 30 }}>
-                {icons[notification.type] ??
+                {ICONS[notification.type] ??
                   CATEGORIES.find((item) => item.key === group.category)?.icon ??
                   '🔔'}
               </div>
@@ -661,7 +667,12 @@ export default function NotificationsPage() {
                   </small>
                 )}
                 <div
-                  style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    marginTop: 10
+                  }}
                 >
                   {route && view === 'ACTIVE' && (
                     <button
@@ -742,8 +753,8 @@ export default function NotificationsPage() {
 
       {center && (
         <footer className="card" style={{ padding: 16, color: 'var(--muted)' }}>
-          Les secrets de transport ne sont jamais exposés. Orchestration externe :{' '}
-          {center.policy.transportsOwnedBy}. Fenêtre de regroupement :{' '}
+          Secrets de transport non exposés. Orchestration externe :{' '}
+          {center.policy.transportsOwnedBy}. Regroupement :{' '}
           {center.policy.groupingWindowMinutes} minutes.
         </footer>
       )}
