@@ -21,13 +21,17 @@ import {
   UpdateProfileVisibilityDto
 } from './dto/profile-experience.dto';
 import { ProfileExperienceService } from './profile-experience.service';
+import { ProfilePublicService } from './profile-public.service';
 
 type AuthRequest = { user: { userId: string } };
 type OptionalAuthRequest = { user: { userId: string } | null };
 
 @Controller('profile-experience')
 export class ProfileExperienceController {
-  constructor(private readonly profiles: ProfileExperienceService) {}
+  constructor(
+    private readonly profiles: ProfileExperienceService,
+    private readonly publicProfiles: ProfilePublicService
+  ) {}
 
   @Get('policy')
   policy() {
@@ -79,7 +83,7 @@ export class ProfileExperienceController {
     @Req() req: OptionalAuthRequest,
     @Param('username') username: string
   ) {
-    return this.profiles.publicSnapshot(
+    return this.publicProfiles.snapshot(
       username.trim(),
       req.user?.userId ?? null
     );
