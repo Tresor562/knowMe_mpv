@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileCircleNotificationPreferencesService } from './profile-circle-notification-preferences.service';
 import {
   normalizeNotificationRecipients,
   ProfileCircleNotificationType,
@@ -13,7 +14,8 @@ import {
 export class ProfileCircleNotificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly preferences: ProfileCircleNotificationPreferencesService
   ) {}
 
   async dispatch(input: {
@@ -27,17 +29,33 @@ export class ProfileCircleNotificationsService {
     data?: Record<string, unknown>;
     includeActor?: boolean;
   }) {
-    const recipients = normalizeNotificationRecipients({
+    const candidates = normalizeNotificationRecipients({
       recipients: input.recipients,
       actorUserId: input.actorUserId,
       includeActor: input.includeActor
     });
     const validation = validateCircleNotification({
       ...input,
-      recipients
+      recipients: candidates
     });
     if (!validation.deliver) {
       return { delivered: 0, replayed: false, reason: validation.reason };
+    }
+
+    const preferenceResolution = await this.preferences.resolve({
+      type: input.type,
+      circleId: input.circleId,
+      recipients: candidates
+    });
+    const recipients = preferenceResolution.inboxRecipients;
+    if (recipients.length === 0) {
+      return {
+        delivered: 0,
+        replayed: false,
+        reason: 'PREFERENCES_SUPPRESSED',
+        candidates: candidates.length,
+        suppressed: candidates.length
+      };
     }
 
     const dispatch = await this.prisma.profileCircleNotificationDispatch.upsert({
@@ -145,7 +163,9 @@ export class ProfileCircleNotificationsService {
         );
         if (notification) {
           replayed = false;
-          published.push({ userId, notification });
+          if (preferenceResolution.realtimeRecipients.has(userId)) {
+            published.push({ userId, notification });
+          }
         }
       } catch (error) {
         await this.prisma.profileCircleNotificationRecipient.updateMany({
@@ -174,8 +194,13 @@ export class ProfileCircleNotificationsService {
 
     return {
       dispatchId: dispatch.id,
+      candidates: candidates.length,
       recipients: recipients.length,
-      delivered: published.length,
+      suppressed: candidates.length - recipients.length,
+      delivered: await this.prisma.profileCircleNotificationRecipient.count({
+        where: { dispatchId: dispatch.id, status: 'DELIVERED' }
+      }),
+      realtimePublished: published.length,
       replayed
     };
   }
