@@ -119,6 +119,7 @@ export class AppleStoreService {
       }
     }
     let externalTransactionId: string | undefined;
+    let originalTransactionId: string | undefined;
     if (notification.data?.signedTransactionInfo) {
       const transaction = this.verifySignedPayload<AppleTransaction>(
         notification.data.signedTransactionInfo
@@ -127,10 +128,12 @@ export class AppleStoreService {
         throw new UnauthorizedException('La transaction Apple notifiée est invalide.');
       }
       externalTransactionId = transaction.transactionId;
+      originalTransactionId = transaction.originalTransactionId;
     }
     return {
       externalEventId: String(notification.notificationUUID ?? ''),
       externalTransactionId,
+      reference: originalTransactionId,
       eventType: String(notification.notificationType ?? 'UNKNOWN'),
       raw: notification as Record<string, unknown>
     };
