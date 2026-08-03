@@ -51,22 +51,44 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-032 | Orchestration de paiements Flutterwave, CinetPay, Google Play et Apple | #68 | Fusionnée |
 | KMD-033 | Interfaces clientes de paiement Web et Mobile | #69 | Fusionnée |
 | KMD-034 | Cadeaux sociaux visuels et KnowCoins atomiques | #70 | Fusionnée |
+| KMD-035 | Studio d’avatar composable et rendu autoritaire | #71 | Fusionnée |
+| KMD-036 | Stickers signés autoritaires | #87 | Fusionnée |
+| KMD-037 | Avatar Universe et Gift Exchange | #73 | Fusionnée |
+| KMD-038 | Messenger, communautés et KnowMe Secret | #74 | Fusionnée |
+| KMD-039 | KnowMe Secret public, activable et partageable | #75 | Fusionnée |
+| KMD-040 | Concept K Profils vivants et Profile Guard | #76 | Fusionnée |
+| KMD-041 | Confidentialité KnowCoins et profils collectifs | #77 | Fusionnée |
+| KMD-042 | Gouvernance, moments et famille KnowMe | #78 | Fusionnée |
+| KMD-043 | Sélecteur de membres et notifications temps réel | #79 | Fusionnée |
+| KMD-044 | Préférences et gouvernance humaine | #80 | Fusionnée |
+| KMD-045 | Horaires silencieux, résumés et reprise fiable | #81 | Fusionnée |
+| KMD-046 | Orchestration distribuée des notifications | #83 | Fusionnée |
+| KMD-047 | Résilience et gouvernance des notifications | #86 | Fusionnée |
+| KMD-048 | Centre de notifications intelligent | #88 | Fusionnée |
 
 ## Livraison en validation
 
-| Livraison | Domaine | Pull request | État |
-| --- | --- | --- | --- |
-| KMD-035 | Studio d’avatar composable et rendu autoritaire | #71 | Build, tests, E2E, confidentialité et clients Web/Mobile requis avant fusion |
+Aucune livraison n’est actuellement en validation dans ce registre. Une livraison rejoint ce tableau uniquement après ouverture de sa PR et démarrage de sa validation CI.
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-035` n’est réservé avant sa fusion verte.
+`KMD-049` est réservé à la **fondation d’internationalisation Web/Mobile et aux erreurs localisables**.
 
-KMD-035 réutilise exclusivement les objets, possessions, équipements, presets et préférences de visibilité du domaine Cosmetics. Il ne crée aucun inventaire parallèle, n’accepte aucun asset arbitraire côté client et ne peut attribuer un effet de jeu, un entitlement, un rôle ou un badge staff.
+Cette livraison dépend de :
 
-Les prochains candidats restent notamment la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie. Ils ne sont pas implicitement inclus dans KMD-035.
+- KMD-002 pour les codes d’erreur API stables et les identifiants de requête ;
+- KMD-012 pour le cycle de vie et l’export des préférences utilisateur ;
+- KMD-048 pour les surfaces de réglages et notifications déjà centralisées.
 
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Le périmètre réservé comprend un contrat partagé français/anglais, une préférence de langue synchronisée, un fallback déterministe, les pluriels et formats de dates/nombres, une direction de texte prête pour le RTL, un dictionnaire client des codes d’erreur et l’intégration initiale aux shells Web/Mobile. Il ne prétend pas traduire automatiquement l’intégralité des contenus utilisateur ni remplacer les codes stables de l’API.
+
+## Frontières permanentes
+
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+
+Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
+
+Les anciens prototypes ou PR dupliquées ne réservent pas un nouvel identifiant canonique. Les remplacements doivent conserver un lien explicite vers la PR fusionnée correspondante.
 
 ## Règles de mise à jour
 
