@@ -4,9 +4,12 @@ import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { ProfileCircleController } from './profile-circle.controller';
 import { ProfileCircleGovernanceController } from './profile-circle-governance.controller';
 import { ProfileCircleGovernanceService } from './profile-circle-governance.service';
+import { ProfileCircleNotificationsService } from './profile-circle-notifications.service';
 import { ProfileCircleService } from './profile-circle.service';
 import { ProfileExperienceController } from './profile-experience.controller';
 import { ProfileExperienceService } from './profile-experience.service';
+import { ProfileMemberDirectoryController } from './profile-member-directory.controller';
+import { ProfileMemberDirectoryService } from './profile-member-directory.service';
 import { ProfilePublicService } from './profile-public.service';
 import { ProfileStatsController } from './profile-stats.controller';
 import { ProfileStatsService } from './profile-stats.service';
@@ -17,6 +20,7 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfileExperienceController,
     ProfileCircleController,
     ProfileCircleGovernanceController,
+    ProfileMemberDirectoryController,
     ProfileStatsController
   ],
   providers: [
@@ -24,6 +28,8 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfilePublicService,
     ProfileCircleService,
     ProfileCircleGovernanceService,
+    ProfileCircleNotificationsService,
+    ProfileMemberDirectoryService,
     ProfileStatsService,
     OptionalJwtAuthGuard
   ],
@@ -32,6 +38,8 @@ import { ProfileStatsService } from './profile-stats.service';
     ProfilePublicService,
     ProfileCircleService,
     ProfileCircleGovernanceService,
+    ProfileCircleNotificationsService,
+    ProfileMemberDirectoryService,
     ProfileStatsService
   ]
 })
