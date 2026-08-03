@@ -1,0 +1,310 @@
+enum ProfileVisibilityAudience {
+  PUBLIC
+  FRIENDS
+  FOLLOWERS
+  BEST_FRIENDS
+  DUO
+  TEAM
+  FAMILY
+  GUILD
+  COMMUNITIES
+  PRIVATE
+}
+
+enum ProfileCircleType {
+  DUO_COUPLE
+  DUO_BEST_FRIENDS
+  DUO_SIBLINGS
+  DUO_GAMING
+  DUO_CREATIVE
+  TEAM
+  FAMILY
+  GUILD
+}
+
+enum ProfileCircleStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum ProfileCircleMemberStatus {
+  INVITED
+  ACTIVE
+  DECLINED
+  LEFT
+  REMOVED
+}
+
+enum ProfileWallMode {
+  PUBLIC
+  FRIENDS
+  DISABLED
+}
+
+enum ProfileWallPostStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+  REMOVED
+}
+
+enum ProfileMemoryType {
+  AVATAR
+  COVER
+  USERNAME
+  THEME
+  SEASONAL_BADGE
+  PRECIOUS_GIFT
+  MOMENT_CAPTURE
+}
+
+enum ProfileGuardStyle {
+  GLASS
+  CRYSTAL
+  NEON
+  GOLD
+  PREMIUM
+  ANIME
+  CYBER
+  GALAXY
+  MAGIC
+}
+
+enum ProfileCapturePlatform {
+  ANDROID
+  IOS
+  WEB
+  DESKTOP
+  UNKNOWN
+}
+
+enum ProfileCaptureEventType {
+  SCREENSHOT_ATTEMPT
+  SCREENSHOT_COMPLETED
+  SCREEN_RECORDING_STARTED
+  SCREEN_RECORDING_STOPPED
+  SCREEN_MIRRORING_STARTED
+  SCREEN_MIRRORING_STOPPED
+  SECURE_SURFACE_BLOCKED
+}
+
+model ProfileExperience {
+  userId                  String   @id
+  coverAssetId            String?
+  coverVideoAssetId       String?
+  frameAssetId            String?
+  themeKey                String   @default("knowme-classic")
+  effectKey               String?
+  intelligentBio          Json?
+  influencerMode          Boolean  @default(false)
+  wallMode                ProfileWallMode @default(FRIENDS)
+  profileLocked           Boolean  @default(false)
+  profileEvolutionEnabled Boolean  @default(true)
+  weatherEffectsEnabled   Boolean  @default(false)
+  seasonalEffectsEnabled  Boolean  @default(true)
+  birthdayEffectsEnabled  Boolean  @default(true)
+  animatedAvatarEnabled   Boolean  @default(false)
+  publicShortCode         String   @unique
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  visibilities ProfileSectionVisibility[]
+  wallPosts    ProfileWallPost[]
+  timeline     ProfileTimelineEvent[]
+  showcase     ProfileGiftShowcaseItem[]
+}
+
+model ProfileSectionVisibility {
+  id                String                    @id @default(cuid())
+  userId            String
+  section           String
+  audience          ProfileVisibilityAudience @default(FRIENDS)
+  allowedWhenLocked Boolean                   @default(false)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  profile ProfileExperience @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, section])
+  @@index([userId, audience])
+}
+
+model ProfileStatSnapshot {
+  userId    String   @id
+  metrics   Json     @default("{}")
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model ProfileCircle {
+  id               String              @id @default(cuid())
+  type             ProfileCircleType
+  name             String
+  slug             String              @unique
+  ownerUserId      String
+  status           ProfileCircleStatus @default(PENDING)
+  bannerAssetId    String?
+  emblemAssetId    String?
+  accentColor      String               @default("#45e6bd")
+  sharedBio        String?
+  animationKey     String?
+  xp               Int                  @default(0)
+  level            Int                  @default(1)
+  maxMembers       Int
+  visibility       ProfileVisibilityAudience @default(PUBLIC)
+  joinable         Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  members ProfileCircleMember[]
+
+  @@index([ownerUserId, status])
+  @@index([type, status, level])
+}
+
+model ProfileCircleMember {
+  id               String                    @id @default(cuid())
+  circleId         String
+  userId           String
+  role             String                    @default("MEMBER")
+  status           ProfileCircleMemberStatus @default(INVITED)
+  bioFragment      String?
+  portraitPosition Int?
+  consentedAt      DateTime?
+  joinedAt         DateTime?
+  leftAt           DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  circle ProfileCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([userId, status])
+}
+
+model ProfileTimelineEvent {
+  id           String                    @id @default(cuid())
+  userId       String
+  type         String
+  title        String
+  description  String?
+  mediaAssetId String?
+  happenedAt   DateTime
+  visibility   ProfileVisibilityAudience @default(FRIENDS)
+  metadata     Json?
+  createdAt    DateTime                  @default(now())
+
+  profile ProfileExperience @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, happenedAt])
+}
+
+model ProfileMemoryVaultItem {
+  id           String            @id @default(cuid())
+  userId       String
+  type         ProfileMemoryType
+  label        String
+  assetId      String?
+  privateValue String?
+  sourceType   String?
+  sourceId     String?
+  metadata     Json?
+  capturedAt   DateTime          @default(now())
+  createdAt    DateTime          @default(now())
+
+  @@index([userId, type, capturedAt])
+}
+
+model ProfileWallPost {
+  id             String                @id @default(cuid())
+  profileOwnerId String
+  authorId       String
+  contentType    String
+  text           String?
+  assetId        String?
+  giftInstanceId String?
+  status         ProfileWallPostStatus @default(PENDING)
+  visibility     ProfileVisibilityAudience @default(FRIENDS)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  profile ProfileExperience @relation(fields: [profileOwnerId], references: [userId], onDelete: Cascade)
+
+  @@index([profileOwnerId, status, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model ProfileGiftShowcaseItem {
+  id             String                    @id @default(cuid())
+  userId         String
+  giftInstanceId String
+  pinned         Boolean                   @default(false)
+  position       Int                       @default(0)
+  visibility     ProfileVisibilityAudience @default(PUBLIC)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  profile ProfileExperience @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, giftInstanceId])
+  @@index([userId, pinned, position])
+}
+
+model ProfileGuardPreference {
+  userId                      String            @id
+  enabled                     Boolean           @default(false)
+  scopes                      Json              @default("[]")
+  style                       ProfileGuardStyle @default(GLASS)
+  warnViewer                  Boolean           @default(true)
+  notifyOwner                 Boolean           @default(false)
+  premiumGranularControl      Boolean           @default(false)
+  platformDisclosureAccepted Boolean           @default(false)
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+}
+
+model ProfileCaptureSecurityEvent {
+  id                String                  @id @default(cuid())
+  ownerUserId       String
+  viewerUserId      String?
+  platform          ProfileCapturePlatform
+  eventType         ProfileCaptureEventType
+  scope             String
+  nativeSignal      Boolean                 @default(false)
+  attestationValid  Boolean                 @default(false)
+  ownerNotified     Boolean                 @default(false)
+  clientOccurredAt  DateTime?
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+
+  @@index([ownerUserId, createdAt])
+  @@index([viewerUserId, createdAt])
+}
+
+model ProfileShareCard {
+  userId       String   @id
+  shortCode    String   @unique
+  themeKey     String   @default("knowme-classic")
+  qrPayload    String
+  shareCount   Int      @default(0)
+  lastSharedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ProfileCompatibilitySnapshot {
+  pairKey       String   @id
+  firstUserId   String
+  secondUserId  String
+  overallBps    Int
+  categories    Json     @default("[]")
+  explanation   Json     @default("[]")
+  signalVersion Int      @default(1)
+  computedAt    DateTime @default(now())
+  expiresAt     DateTime
+
+  @@index([firstUserId, secondUserId])
+  @@index([secondUserId, firstUserId])
+}
