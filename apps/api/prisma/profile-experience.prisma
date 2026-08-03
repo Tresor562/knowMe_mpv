@@ -37,6 +37,23 @@ enum ProfileCircleMemberStatus {
   REMOVED
 }
 
+enum ProfileCircleJoinRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum ProfileCircleActivityType {
+  CHALLENGE_WON
+  GAME_WON
+  MOMENT_PUBLISHED
+  STORY_PUBLISHED
+  EVENT_COMPLETED
+  GIFT_RECEIVED
+  MEMBER_CONTRIBUTION
+}
+
 enum ProfileWallMode {
   PUBLIC
   FRIENDS
@@ -158,7 +175,9 @@ model ProfileCircle {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  members ProfileCircleMember[]
+  members      ProfileCircleMember[]
+  joinRequests ProfileCircleJoinRequest[]
+  activities   ProfileCircleActivityEvent[]
 
   @@index([ownerUserId, status])
   @@index([type, status, level])
@@ -182,6 +201,43 @@ model ProfileCircleMember {
 
   @@unique([circleId, userId])
   @@index([userId, status])
+}
+
+model ProfileCircleJoinRequest {
+  id           String                         @id @default(cuid())
+  circleId     String
+  userId       String
+  message      String?
+  status       ProfileCircleJoinRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime                       @default(now())
+  updatedAt    DateTime                       @updatedAt
+
+  circle ProfileCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([circleId, status, createdAt])
+  @@index([userId, status, createdAt])
+}
+
+model ProfileCircleActivityEvent {
+  id             String                    @id @default(cuid())
+  circleId       String
+  actorUserId    String?
+  type           ProfileCircleActivityType
+  xpAwarded      Int
+  sourceType     String?
+  sourceId       String?
+  idempotencyKey String                    @unique
+  metadata       Json?
+  occurredAt     DateTime                  @default(now())
+  createdAt      DateTime                  @default(now())
+
+  circle ProfileCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, occurredAt])
+  @@index([actorUserId, occurredAt])
 }
 
 model ProfileTimelineEvent {
