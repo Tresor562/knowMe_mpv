@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { MediaService } from '../media/media.service';
+import { NotificationCenterLifecycleService } from '../notifications/notification-center-lifecycle.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
@@ -22,6 +23,7 @@ export class AccountService {
     private readonly prisma: PrismaService,
     private readonly security: SecurityService,
     private readonly privacy: PrivacyService,
+    private readonly notificationCenter: NotificationCenterLifecycleService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
@@ -57,6 +59,7 @@ export class AccountService {
       user,
       security,
       privacy,
+      notificationCenter,
       media,
       challengeResults,
       challengeReferences,
@@ -109,6 +112,7 @@ export class AccountService {
       }),
       this.security.exportForAccount(userId),
       this.privacy.exportForAccount(userId),
+      this.notificationCenter.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -171,10 +175,11 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasSocialGiftData ? 8 : hasAppearanceData ? 7 : 6,
+      formatVersion: 9,
       account: safeUser,
       security,
       privacy,
+      notificationCenter,
       ...(hasAppearanceData ? { appearance } : {}),
       ...(hasSocialGiftData ? { socialGifts } : {}),
       media,
@@ -256,6 +261,7 @@ export class AccountService {
           }
         }
       });
+      await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
