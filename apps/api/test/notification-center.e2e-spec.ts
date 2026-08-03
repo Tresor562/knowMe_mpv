@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
+import { AccountService } from '../src/account/account.service';
 import { AppModule } from '../src/app.module';
 import { NotificationCenterDigestService } from '../src/notifications/notification-center-digest.service';
 import { NotificationsService } from '../src/notifications/notifications.service';
@@ -11,6 +12,7 @@ describe('KnowMe intelligent notification center (e2e)', () => {
   let prisma: PrismaService;
   let notifications: NotificationsService;
   let digests: NotificationCenterDigestService;
+  let accounts: AccountService;
 
   beforeAll(async () => {
     process.env.NOTIFICATION_CENTER_DIGEST_ENABLED = 'false';
@@ -21,6 +23,7 @@ describe('KnowMe intelligent notification center (e2e)', () => {
     prisma = app.get(PrismaService);
     notifications = app.get(NotificationsService);
     digests = app.get(NotificationCenterDigestService);
+    accounts = app.get(AccountService);
     await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
   });
 
@@ -248,5 +251,26 @@ describe('KnowMe intelligent notification center (e2e)', () => {
       .get('/notifications/unread-count')
       .set(authorization)
       .expect(200, { count: 0 });
+
+    const exported = await accounts.exportData(userId);
+    expect(exported.formatVersion).toBe(9);
+    expect(exported.notificationCenter).toMatchObject({
+      formatVersion: 1,
+      preference: { userId },
+      transportSecretsIncluded: false
+    });
+    expect(exported.notificationCenter.actionReceipts.length).toBeGreaterThan(0);
+    expect(exported.notificationCenter.digestBatches).toHaveLength(1);
+
+    await accounts.deleteAccount(userId, { password: 'KnowMeTest123!' });
+    const lifecycleCounts = await Promise.all([
+      prisma.notificationCenterPreference.count({ where: { userId } }),
+      prisma.notificationCenterUserState.count({ where: { userId } }),
+      prisma.notificationCenterActionReceipt.count({ where: { userId } }),
+      prisma.notificationCenterDigestQueueItem.count({ where: { userId } }),
+      prisma.notificationCenterDigestBatch.count({ where: { userId } })
+    ]);
+    expect(lifecycleCounts).toEqual([0, 0, 0, 0, 0]);
+    expect(await prisma.user.findUnique({ where: { id: userId } })).toBeNull();
   });
 });
