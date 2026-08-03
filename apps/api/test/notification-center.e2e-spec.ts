@@ -259,8 +259,8 @@ describe('KnowMe intelligent notification center (e2e)', () => {
       preference: { userId },
       transportSecretsIncluded: false
     });
-    expect(exported.notificationCenter.actionReceipts.length).toBeGreaterThan(0);
-    expect(exported.notificationCenter.digestBatches).toHaveLength(1);
+    expect(exported.notificationCenter!.actionReceipts.length).toBeGreaterThan(0);
+    expect(exported.notificationCenter!.digestBatches).toHaveLength(1);
 
     await accounts.deleteAccount(userId, { password: 'KnowMeTest123!' });
     const lifecycleCounts = await Promise.all([
