@@ -1,0 +1,93 @@
+enum NotificationCenterDigestMode {
+  INSTANT
+  HOURLY
+  DAILY
+  CENTER_ONLY
+}
+
+enum NotificationCenterDigestQueueStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+model NotificationCenterPreference {
+  userId            String                       @id
+  masterEnabled     Boolean                      @default(true)
+  realtimeEnabled   Boolean                      @default(true)
+  digestMode        NotificationCenterDigestMode @default(INSTANT)
+  dailyDigestMinute Int                          @default(480)
+  quietHoursEnabled Boolean                      @default(false)
+  quietStartMinute  Int                          @default(1320)
+  quietEndMinute    Int                          @default(420)
+  timezone          String                       @default("UTC")
+  categorySettings  Json                         @default("{}")
+  mutedTypes        Json                         @default("[]")
+  mutedCircleIds    Json                         @default("[]")
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@index([digestMode, updatedAt])
+}
+
+model NotificationCenterUserState {
+  notificationId String
+  userId         String
+  dismissedAt    DateTime?
+  archivedAt     DateTime?
+  snoozedUntil   DateTime?
+  restoredAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@id([notificationId, userId])
+  @@index([userId, archivedAt, dismissedAt])
+  @@index([userId, snoozedUntil])
+}
+
+model NotificationCenterActionReceipt {
+  idempotencyKey String   @id
+  userId         String
+  notificationId String
+  action          String
+  result          Json?
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([notificationId, createdAt])
+}
+
+model NotificationCenterDigestQueueItem {
+  notificationId String                               @id
+  userId         String
+  category       String
+  digestMode     NotificationCenterDigestMode
+  bucketKey      String
+  dueAt          DateTime
+  status         NotificationCenterDigestQueueStatus @default(PENDING)
+  processingToken String?
+  processingAt   DateTime?
+  processedAt    DateTime?
+  attempts       Int                                  @default(0)
+  lastError      String?
+  createdAt      DateTime                             @default(now())
+  updatedAt      DateTime                             @updatedAt
+
+  @@index([status, dueAt])
+  @@index([processingToken])
+  @@index([userId, bucketKey, status])
+}
+
+model NotificationCenterDigestBatch {
+  idempotencyKey String                       @id
+  userId         String
+  digestMode     NotificationCenterDigestMode
+  bucketKey      String
+  notificationId String?
+  itemCount      Int
+  createdAt      DateTime                     @default(now())
+
+  @@unique([userId, bucketKey])
+  @@index([createdAt])
+}

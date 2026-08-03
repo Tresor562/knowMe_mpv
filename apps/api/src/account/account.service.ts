@@ -8,6 +8,12 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { MediaService } from '../media/media.service';
+import {
+  defaultNotificationCenterPreference,
+  normalizeNotificationCategories,
+  normalizeNotificationStringList
+} from '../notifications/notification-center.domain';
+import { NotificationCenterLifecycleService } from '../notifications/notification-center-lifecycle.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
@@ -22,6 +28,7 @@ export class AccountService {
     private readonly prisma: PrismaService,
     private readonly security: SecurityService,
     private readonly privacy: PrivacyService,
+    private readonly notificationCenter: NotificationCenterLifecycleService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
@@ -57,6 +64,7 @@ export class AccountService {
       user,
       security,
       privacy,
+      notificationCenter,
       media,
       challengeResults,
       challengeReferences,
@@ -109,6 +117,7 @@ export class AccountService {
       }),
       this.security.exportForAccount(userId),
       this.privacy.exportForAccount(userId),
+      this.notificationCenter.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -168,13 +177,49 @@ export class AccountService {
     const hasAppearanceData = appearance.preference.version > 0;
     const hasSocialGiftData =
       socialGifts.received.length > 0 || socialGifts.sent.length > 0;
+    const defaultNotificationCenter = defaultNotificationCenterPreference();
+    const centerPreference = notificationCenter.preference;
+    const hasCustomNotificationCenterPreference =
+      centerPreference !== null &&
+      (centerPreference.masterEnabled !== defaultNotificationCenter.masterEnabled ||
+        centerPreference.realtimeEnabled !==
+          defaultNotificationCenter.realtimeEnabled ||
+        centerPreference.digestMode !== defaultNotificationCenter.digestMode ||
+        centerPreference.dailyDigestMinute !==
+          defaultNotificationCenter.dailyDigestMinute ||
+        centerPreference.quietHoursEnabled !==
+          defaultNotificationCenter.quietHoursEnabled ||
+        centerPreference.quietStartMinute !==
+          defaultNotificationCenter.quietStartMinute ||
+        centerPreference.quietEndMinute !==
+          defaultNotificationCenter.quietEndMinute ||
+        centerPreference.timezone !== defaultNotificationCenter.timezone ||
+        JSON.stringify(
+          normalizeNotificationCategories(centerPreference.categorySettings)
+        ) !== JSON.stringify(defaultNotificationCenter.categorySettings) ||
+        normalizeNotificationStringList(centerPreference.mutedTypes).length > 0 ||
+        normalizeNotificationStringList(centerPreference.mutedCircleIds).length >
+          0);
+    const hasNotificationCenterData =
+      hasCustomNotificationCenterPreference ||
+      notificationCenter.states.length > 0 ||
+      notificationCenter.actionReceipts.length > 0 ||
+      notificationCenter.digestQueue.length > 0 ||
+      notificationCenter.digestBatches.length > 0;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasSocialGiftData ? 8 : hasAppearanceData ? 7 : 6,
+      formatVersion: hasNotificationCenterData
+        ? 9
+        : hasSocialGiftData
+          ? 8
+          : hasAppearanceData
+            ? 7
+            : 6,
       account: safeUser,
       security,
       privacy,
+      ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
       ...(hasSocialGiftData ? { socialGifts } : {}),
       media,
@@ -256,6 +301,7 @@ export class AccountService {
           }
         }
       });
+      await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
