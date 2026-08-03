@@ -69,7 +69,7 @@ const PRODUCT_SEEDS: ProductSeed[] = [
   }))
 ];
 
-const WEB_PRICE_SEEDS: PriceSeed[] = [
+const DEFAULT_WEB_PRICE_SEEDS: PriceSeed[] = [
   {
     productKey: 'premium_monthly',
     provider: 'FLUTTERWAVE',
@@ -78,22 +78,8 @@ const WEB_PRICE_SEEDS: PriceSeed[] = [
     unitAmount: 2000
   },
   {
-    productKey: 'premium_monthly',
-    provider: 'CINETPAY',
-    platform: 'WEB',
-    currency: 'USD',
-    unitAmount: 2000
-  },
-  {
     productKey: 'verified_monthly',
     provider: 'FLUTTERWAVE',
-    platform: 'WEB',
-    currency: 'USD',
-    unitAmount: 2500
-  },
-  {
-    productKey: 'verified_monthly',
-    provider: 'CINETPAY',
     platform: 'WEB',
     currency: 'USD',
     unitAmount: 2500
@@ -139,8 +125,26 @@ export class CommerceCatalogService implements OnModuleInit {
       });
     }
 
-    const configuredStorePrices = this.storePriceSeeds();
-    for (const seed of [...WEB_PRICE_SEEDS, ...configuredStorePrices]) {
+    const configuredWebPrices = this.priceSeedsFromEnvironment(
+      'PAYMENTS_WEB_CATALOG_JSON',
+      (entry) =>
+        ['FLUTTERWAVE', 'CINETPAY'].includes(entry.provider) &&
+        entry.platform === 'WEB' &&
+        !entry.externalProductId
+    );
+    const configuredStorePrices = this.priceSeedsFromEnvironment(
+      'PAYMENTS_STORE_CATALOG_JSON',
+      (entry) =>
+        ['GOOGLE_PLAY', 'APPLE_APP_STORE'].includes(entry.provider) &&
+        ['ANDROID', 'IOS'].includes(entry.platform) &&
+        Boolean(entry.externalProductId)
+    );
+
+    for (const seed of [
+      ...DEFAULT_WEB_PRICE_SEEDS,
+      ...configuredWebPrices,
+      ...configuredStorePrices
+    ]) {
       const product = await this.prisma.commerceProduct.findUniqueOrThrow({
         where: { key: seed.productKey },
         select: { id: true }
@@ -297,23 +301,36 @@ export class CommerceCatalogService implements OnModuleInit {
     return { product: price.product, price };
   }
 
-  private storePriceSeeds(): PriceSeed[] {
-    const raw = this.config.get<string>('PAYMENTS_STORE_CATALOG_JSON')?.trim();
+  private priceSeedsFromEnvironment(
+    name: string,
+    providerConstraint: (entry: PriceSeed) => boolean
+  ): PriceSeed[] {
+    const raw = this.config.get<string>(name)?.trim();
     if (!raw) return [];
     try {
       const values = JSON.parse(raw) as PriceSeed[];
-      return values.filter(
-        (entry) =>
-          PRODUCT_SEEDS.some((product) => product.key === entry.productKey) &&
-          ['GOOGLE_PLAY', 'APPLE_APP_STORE'].includes(entry.provider) &&
-          ['ANDROID', 'IOS'].includes(entry.platform) &&
-          /^[A-Z]{3}$/.test(entry.currency) &&
-          Number.isSafeInteger(entry.unitAmount) &&
-          entry.unitAmount >= 0 &&
-          Boolean(entry.externalProductId)
-      );
+      if (!Array.isArray(values)) throw new Error('not-array');
+      return values
+        .map((entry) => ({
+          ...entry,
+          productKey: String(entry.productKey ?? '').trim().toLowerCase(),
+          provider: String(entry.provider ?? '').trim().toUpperCase() as PaymentProvider,
+          platform: String(entry.platform ?? '').trim().toUpperCase() as PaymentPlatform,
+          countryCode: entry.countryCode?.trim().toUpperCase(),
+          currency: String(entry.currency ?? '').trim().toUpperCase(),
+          externalProductId: entry.externalProductId?.trim()
+        }))
+        .filter(
+          (entry) =>
+            PRODUCT_SEEDS.some((product) => product.key === entry.productKey) &&
+            providerConstraint(entry) &&
+            (!entry.countryCode || /^[A-Z]{2}$/.test(entry.countryCode)) &&
+            /^[A-Z]{3}$/.test(entry.currency) &&
+            Number.isSafeInteger(entry.unitAmount) &&
+            entry.unitAmount >= 0
+        );
     } catch {
-      throw new BadRequestException('PAYMENTS_STORE_CATALOG_JSON est invalide.');
+      throw new BadRequestException(`${name} est invalide.`);
     }
   }
 }
