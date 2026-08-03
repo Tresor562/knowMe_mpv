@@ -53,13 +53,17 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison majeure n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-034 | Cadeaux sociaux visuels et KnowCoins atomiques | #70 | Build, tests, E2E, confidentialité, concurrence et clients Web/Mobile requis avant fusion |
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-033` n’est réservé.
+Aucun identifiant après `KMD-034` n’est réservé avant sa fusion verte.
 
-Le prochain identifiant sera attribué uniquement après isolation d’un périmètre unique avec ses dépendances, ses modèles, ses règles d’autorité et ses critères de fusion. Les candidats identifiés restent notamment le système social de cadeaux, le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie.
+KMD-034 est limité aux cadeaux sociaux purement visuels entre amitiés acceptées. Le prix est autoritaire côté serveur, le débit utilise le registre KnowCoins, le destinataire ne reçoit aucun solde, et le cadeau ne peut être revendu, transféré, converti en argent ou utilisé pour attribuer un avantage de jeu.
+
+Les prochains candidats restent notamment le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie. Ils ne sont pas implicitement inclus dans KMD-034.
 
 Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
