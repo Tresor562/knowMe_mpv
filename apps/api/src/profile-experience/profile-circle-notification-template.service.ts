@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileCircleTransportChannel } from './profile-circle-notification-endpoints.service';
 
@@ -20,6 +21,11 @@ function interpolate(
     const value = variables[key] ?? '';
     return html ? escapeHtml(value) : value;
   });
+}
+
+function toJsonValue(value?: Record<string, unknown>) {
+  if (!value) return undefined;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 @Injectable()
@@ -45,6 +51,7 @@ export class ProfileCircleNotificationTemplateService {
     if (!Number.isInteger(input.version) || input.version < 1) {
       throw new Error('NOTIFICATION_TEMPLATE_VERSION_INVALID');
     }
+    const metadata = toJsonValue(input.metadata);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.profileCircleNotificationTemplate.updateMany({
@@ -68,7 +75,7 @@ export class ProfileCircleNotificationTemplateService {
           subject: input.subject?.replace(/[\r\n]+/g, ' ').slice(0, 180) ?? null,
           textBody: input.textBody,
           htmlBody: input.htmlBody ?? null,
-          metadata: input.metadata ?? undefined,
+          metadata,
           createdBy: input.createdBy ?? null,
           active: true,
           publishedAt: new Date()
@@ -77,7 +84,7 @@ export class ProfileCircleNotificationTemplateService {
           subject: input.subject?.replace(/[\r\n]+/g, ' ').slice(0, 180) ?? null,
           textBody: input.textBody,
           htmlBody: input.htmlBody ?? null,
-          metadata: input.metadata ?? undefined,
+          metadata,
           createdBy: input.createdBy ?? null,
           active: true,
           publishedAt: new Date()
