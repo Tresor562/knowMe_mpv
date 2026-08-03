@@ -167,6 +167,7 @@ export function familyRelationPairKey(
 }
 
 export function validateFamilyRelationProposal(input: {
+  circleId: string;
   circleType: string;
   proposerUserId: string;
   firstUserId: string;
@@ -192,7 +193,7 @@ export function validateFamilyRelationProposal(input: {
   }
   return {
     pairKey: familyRelationPairKey(
-      input.circleType,
+      input.circleId,
       input.firstUserId,
       input.secondUserId
     ),
