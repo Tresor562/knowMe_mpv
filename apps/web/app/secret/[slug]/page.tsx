@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { apiFetch } from '../../../lib/api';
 
 type PublicSecretPage = {
@@ -26,20 +26,28 @@ type PublicSecretPage = {
 
 export default function PublicSecretPage() {
   const params = useParams<{ slug: string }>();
-  const search = useSearchParams();
+  const [queryState, setQueryState] = useState({ question: '', entry: 'SHARED_LINK', ready: false });
   const [page, setPage] = useState<PublicSecretPage | null>(null);
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const question = search.get('question') ?? '';
-  const entry = search.get('entry') ?? (question ? 'QUESTION_CARD' : 'SHARED_LINK');
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    const question = search.get('question') ?? '';
+    setQueryState({
+      question,
+      entry: search.get('entry') ?? (question ? 'QUESTION_CARD' : 'SHARED_LINK'),
+      ready: true
+    });
+  }, []);
 
   const load = useCallback(async () => {
+    if (!queryState.ready) return;
     try {
       const query = new URLSearchParams();
-      if (question) query.set('question', question);
-      query.set('entry', entry);
+      if (queryState.question) query.set('question', queryState.question);
+      query.set('entry', queryState.entry);
       const data = await apiFetch<PublicSecretPage>(
         `/knowme-secret/public/${encodeURIComponent(params.slug)}?${query.toString()}`
       );
@@ -48,7 +56,7 @@ export default function PublicSecretPage() {
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : 'Cette page Secret est indisponible.');
     }
-  }, [entry, params.slug, question]);
+  }, [params.slug, queryState]);
 
   useEffect(() => { void load(); }, [load]);
 
