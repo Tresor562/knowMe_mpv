@@ -10,6 +10,7 @@ import { AccountModule } from './account/account.module';
 import { AchievementsModule } from './achievements/achievements.module';
 import { AdminModule } from './admin/admin.module';
 import { AppearanceModule } from './appearance/appearance.module';
+import { AvatarStudioModule } from './avatar-studio/avatar-studio.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
@@ -69,6 +70,7 @@ import { WalletModule } from './wallet/wallet.module';
     PositiveChallengesModule,
     ConceptKModule,
     CosmeticsModule,
+    AvatarStudioModule,
     AppearanceModule,
     BillingModule,
     PaymentsModule,
