@@ -5,6 +5,7 @@ import { CosmeticsModule } from '../cosmetics/cosmetics.module';
 import { MediaModule } from '../media/media.module';
 import { PrivacyModule } from '../privacy/privacy.module';
 import { SecurityModule } from '../security/security.module';
+import { SocialModule } from '../social/social.module';
 import { AccountController } from './account.controller';
 import { AccountService } from './account.service';
 
@@ -15,7 +16,8 @@ import { AccountService } from './account.service';
     MediaModule,
     ConceptKModule,
     CosmeticsModule,
-    AppearanceModule
+    AppearanceModule,
+    SocialModule
   ],
   controllers: [AccountController],
   providers: [AccountService]

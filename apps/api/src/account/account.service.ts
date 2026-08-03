@@ -11,6 +11,8 @@ import { MediaService } from '../media/media.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
+import { SocialGiftExportService } from '../social/social-gift-export.service';
+import { SocialGiftsService } from '../social/social-gifts.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -24,7 +26,9 @@ export class AccountService {
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
     private readonly cosmeticPresets: CosmeticPresetsService,
-    private readonly appearance: AppearanceService
+    private readonly appearance: AppearanceService,
+    private readonly socialGifts: SocialGiftsService,
+    private readonly socialGiftExport: SocialGiftExportService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -71,7 +75,8 @@ export class AccountService {
       conceptKAssetDeliveries,
       cosmetics,
       cosmeticPresets,
-      appearance
+      appearance,
+      socialGifts
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -154,20 +159,24 @@ export class AccountService {
       }),
       this.cosmetics.exportForAccount(userId),
       this.cosmeticPresets.exportForAccount(userId),
-      this.appearance.exportForAccount(userId)
+      this.appearance.exportForAccount(userId),
+      this.socialGiftExport.exportForAccount(userId)
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
     const hasAppearanceData = appearance.preference.version > 0;
+    const hasSocialGiftData =
+      socialGifts.received.length > 0 || socialGifts.sent.length > 0;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasAppearanceData ? 7 : 6,
+      formatVersion: hasSocialGiftData ? 8 : hasAppearanceData ? 7 : 6,
       account: safeUser,
       security,
       privacy,
       ...(hasAppearanceData ? { appearance } : {}),
+      ...(hasSocialGiftData ? { socialGifts } : {}),
       media,
       challengeHistory: challengeResults,
       challengeReferences: challengeReferences.map((reference) => ({
@@ -247,6 +256,7 @@ export class AccountService {
           }
         }
       });
+      await this.socialGifts.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
       await this.cosmetics.deleteForAccount(userId, tx);

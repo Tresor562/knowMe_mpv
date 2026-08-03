@@ -172,4 +172,135 @@ describe('KnowMe core flows (e2e)', () => {
       ])
     );
   });
+
+  it('sends an idempotent visual gift with one KnowCoin debit and one receipt', async () => {
+    const sender = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'gift-sender@knowme.test',
+        username: 'gift_sender',
+        displayName: 'Gift Sender',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const recipient = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: 'gift-recipient@knowme.test',
+        username: 'gift_recipient',
+        displayName: 'Gift Recipient',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+
+    const friendship = await request(app.getHttpServer())
+      .post('/social/friend-requests')
+      .set('Authorization', `Bearer ${sender.body.accessToken}`)
+      .send({ addresseeId: recipient.body.user.id })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/social/friend-requests/${friendship.body.id}/accept`)
+      .set('Authorization', `Bearer ${recipient.body.accessToken}`)
+      .expect(200);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: sender.body.user.id },
+        data: { knowCoins: 100 }
+      }),
+      prisma.knowCoinWallet.upsert({
+        where: { userId: sender.body.user.id },
+        create: { userId: sender.body.user.id, balance: 100 },
+        update: { balance: 100 }
+      })
+    ]);
+
+    const idempotencyKey = 'gift:e2e:recipient:spark:00000001';
+    const first = await request(app.getHttpServer())
+      .post('/social/gifts')
+      .set('Authorization', `Bearer ${sender.body.accessToken}`)
+      .set('Idempotency-Key', idempotencyKey)
+      .send({
+        recipientId: recipient.body.user.id,
+        giftKey: 'spark',
+        message: 'Bravo pour ton progrès !'
+      })
+      .expect(201);
+
+    expect(first.body).toMatchObject({
+      gift: {
+        key: 'spark',
+        priceKnowCoins: 25,
+        visualOnly: true,
+        redeemable: false,
+        transferable: false,
+        gameplayEffectsAllowed: false
+      },
+      recipientId: recipient.body.user.id,
+      senderBalance: 75,
+      replayed: false,
+      recipientBalanceCredited: false,
+      immutableReceipt: true
+    });
+
+    const replay = await request(app.getHttpServer())
+      .post('/social/gifts')
+      .set('Authorization', `Bearer ${sender.body.accessToken}`)
+      .set('Idempotency-Key', idempotencyKey)
+      .send({
+        recipientId: recipient.body.user.id,
+        giftKey: 'spark',
+        message: 'Bravo pour ton progrès !'
+      })
+      .expect(201);
+
+    expect(replay.body).toMatchObject({
+      giftId: first.body.giftId,
+      senderBalance: 75,
+      replayed: true
+    });
+
+    const wallet = await request(app.getHttpServer())
+      .get('/wallet/me')
+      .set('Authorization', `Bearer ${sender.body.accessToken}`)
+      .expect(200);
+    expect(wallet.body.balance).toBe(75);
+
+    const inbox = await request(app.getHttpServer())
+      .get('/social/gifts/inbox')
+      .set('Authorization', `Bearer ${recipient.body.accessToken}`)
+      .expect(200);
+
+    expect(inbox.body.items).toEqual([
+      expect.objectContaining({
+        id: first.body.giftId,
+        gift: expect.objectContaining({ key: 'spark', priceKnowCoins: 25 }),
+        sender: expect.objectContaining({ id: sender.body.user.id }),
+        message: 'Bravo pour ton progrès !',
+        viewedAt: null,
+        visualOnly: true,
+        redeemable: false,
+        transferable: false
+      })
+    ]);
+
+    expect(
+      await prisma.knowCoinLedgerEntry.count({
+        where: { idempotencyKey }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { id: first.body.giftId, userId: recipient.body.user.id }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.user.findUnique({
+        where: { id: recipient.body.user.id },
+        select: { knowCoins: true }
+      })
+    ).toEqual({ knowCoins: 0 });
+  });
 });

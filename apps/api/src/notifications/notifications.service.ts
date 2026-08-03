@@ -43,7 +43,11 @@ export class NotificationsService {
       }
     });
 
-    this.realtime.emitNotificationCreated(input.userId, notification);
+    return this.publishCreated(notification);
+  }
+
+  publishCreated<T extends { userId: string }>(notification: T) {
+    this.realtime.emitNotificationCreated(notification.userId, notification);
     return notification;
   }
 

@@ -14,6 +14,7 @@ import { AppearanceExperience } from './AppearanceExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
+import { SocialGiftsExperience } from './SocialGiftsExperience';
 
 export type MobileUser = {
   id: string;
@@ -208,6 +209,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
       <AppearanceExperience />
       <PaymentsExperience />
+      <SocialGiftsExperience />
       <SecurityExperience onSessionClosed={onAccountDeleted} />
       <PrivacyExperience />
 
