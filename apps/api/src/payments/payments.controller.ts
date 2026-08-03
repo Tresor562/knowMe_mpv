@@ -26,6 +26,7 @@ import {
 import { VerifyWebPaymentDto } from './dto/payment-verification.dto';
 import { PaymentOrchestrationService } from './payment-orchestration.service';
 import { PaymentRefundService } from './payment-refund.service';
+import { paymentAccountReference } from './payment-security';
 import { PaymentWebhookService } from './payment-webhook.service';
 
 type AuthenticatedRequest = {
@@ -51,6 +52,24 @@ export class PaymentsController {
   @Get('providers')
   providers() {
     return this.payments.providerConfiguration();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('store/account-reference')
+  storeAccountReference(
+    @Req() req: AuthenticatedRequest,
+    @Query('provider') providerValue: string
+  ) {
+    const provider = providerValue?.trim().toUpperCase();
+    if (provider !== 'GOOGLE_PLAY' && provider !== 'APPLE_APP_STORE') {
+      throw new BadRequestException(
+        'Le fournisseur doit être GOOGLE_PLAY ou APPLE_APP_STORE.'
+      );
+    }
+    return {
+      provider,
+      accountReference: paymentAccountReference(req.user.userId, provider)
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -135,10 +154,7 @@ export class PaymentWebhookController {
     @Req() req: AuthenticatedRequest,
     @Body() _payload: Record<string, unknown>
   ) {
-    return this.webhooks.flutterwaveWebhook(
-      this.rawBody(req),
-      req.headers
-    );
+    return this.webhooks.flutterwaveWebhook(this.rawBody(req), req.headers);
   }
 
   @Post('cinetpay')
