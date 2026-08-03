@@ -111,9 +111,16 @@ export function resolveMobilePalette(
   systemColorScheme: ColorSchemeName
 ): MobileThemePalette {
   const key = resolveMobileThemeKey(preference.effectiveThemeKey, systemColorScheme);
-  return key in MOBILE_THEME_PALETTES
+  const base = key in MOBILE_THEME_PALETTES
     ? MOBILE_THEME_PALETTES[key as keyof typeof MOBILE_THEME_PALETTES]
     : MOBILE_THEME_PALETTES.dark;
+
+  if (preference.contrast !== 'HIGH') return base;
+  return {
+    ...base,
+    muted: base.text,
+    border: base.text
+  };
 }
 
 export async function loadCachedAppearance() {
