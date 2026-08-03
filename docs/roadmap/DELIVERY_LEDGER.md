@@ -52,13 +52,17 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison majeure n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-033 | Interfaces clientes de paiement Web et Mobile | #69 | Build monorepo, tests, E2E et revue sécurité requis avant fusion |
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-032` n’est réservé.
+Aucun identifiant après `KMD-033` n’est réservé avant sa fusion verte.
 
-Le prochain identifiant sera attribué uniquement après isolation d’un périmètre unique avec ses dépendances, ses modèles, ses règles d’autorité et ses critères de fusion. Les candidats identifiés sont notamment les interfaces clientes de paiement, le système social de cadeaux, le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie.
+KMD-033 doit consommer exclusivement les produits, prix, commandes, vérifications et attributions autoritaires de KMD-032. Le client ne peut fournir aucun montant libre, déclarer un paiement réussi, contourner la vérification fournisseur ou générer une preuve Mobile par saisie manuelle.
+
+Les prochaines livraisons candidates restent notamment le système social de cadeaux, le studio d’avatars, la marketplace de stickers, les publicités récompensées, les groupes et chaînes, ainsi que la messagerie enrichie. Elles ne sont pas implicitement incluses dans KMD-033.
 
 Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
