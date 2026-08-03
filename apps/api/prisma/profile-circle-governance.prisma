@@ -1,0 +1,132 @@
+enum ProfileCircleTransferStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ProfileCircleMomentType {
+  TEXT
+  PHOTO
+  DRAWING
+  GIF
+  GIFT
+  ACHIEVEMENT
+}
+
+enum ProfileCircleContentStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+  REMOVED
+}
+
+enum ProfileCircleContentAudience {
+  PUBLIC
+  MEMBERS
+}
+
+enum ProfileCircleStoryType {
+  TEXT
+  PHOTO
+  VIDEO
+  GIFT
+  ACHIEVEMENT
+}
+
+enum ProfileFamilyRelationType {
+  PARENT
+  CHILD
+  SIBLING
+  COUSIN
+  SPOUSE
+  GUARDIAN
+  OTHER
+}
+
+enum ProfileFamilyRelationStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  REMOVED
+}
+
+model ProfileCircleOwnershipTransfer {
+  id             String                      @id @default(cuid())
+  circleId       String
+  fromUserId     String
+  toUserId       String
+  status         ProfileCircleTransferStatus @default(PENDING)
+  reason         String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@index([circleId, status, createdAt])
+  @@index([toUserId, status, expiresAt])
+  @@index([fromUserId, status, expiresAt])
+}
+
+model ProfileCircleMoment {
+  id          String                       @id @default(cuid())
+  circleId    String
+  authorUserId String
+  type        ProfileCircleMomentType
+  text        String?
+  assetId     String?
+  giftInstanceId String?
+  status      ProfileCircleContentStatus   @default(PENDING)
+  audience    ProfileCircleContentAudience @default(MEMBERS)
+  moderatedById String?
+  moderatedAt DateTime?
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  @@index([circleId, status, audience, createdAt])
+  @@index([authorUserId, createdAt])
+}
+
+model ProfileCircleStory {
+  id           String                       @id @default(cuid())
+  circleId     String
+  authorUserId String
+  type         ProfileCircleStoryType
+  text         String?
+  assetId      String?
+  giftInstanceId String?
+  status       ProfileCircleContentStatus   @default(PENDING)
+  audience     ProfileCircleContentAudience @default(PUBLIC)
+  expiresAt    DateTime
+  moderatedById String?
+  moderatedAt  DateTime?
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+
+  @@index([circleId, status, audience, expiresAt])
+  @@index([authorUserId, expiresAt])
+}
+
+model ProfileFamilyRelation {
+  id             String                      @id @default(cuid())
+  circleId       String
+  pairKey        String
+  firstUserId    String
+  secondUserId   String
+  type           ProfileFamilyRelationType
+  inverseType    ProfileFamilyRelationType
+  label          String?
+  status         ProfileFamilyRelationStatus @default(PENDING)
+  proposedById   String
+  acceptedById   String?
+  acceptedAt     DateTime?
+  removedAt      DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@unique([circleId, pairKey])
+  @@index([circleId, status, createdAt])
+  @@index([firstUserId, status])
+  @@index([secondUserId, status])
+}
