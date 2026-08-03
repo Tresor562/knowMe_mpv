@@ -11,6 +11,15 @@ export type ProfileCircleNotificationRuntimeConfig = {
   emailEnabled: boolean;
   weeklyDigestEnabled: boolean;
   maxAttempts: number;
+  resilienceEnabled: boolean;
+  providerFailureThreshold: number;
+  providerRecoverySuccesses: number;
+  circuitCooldownMs: number;
+  retryBaseMs: number;
+  retryMaximumMs: number;
+  userRatePerMinute: number;
+  providerRatePerMinute: number;
+  webhookToleranceMs: number;
 };
 
 @Injectable()
@@ -52,6 +61,58 @@ export class ProfileCircleNotificationRuntimeConfigService {
         8,
         1,
         100
+      ),
+      resilienceEnabled: this.boolean(
+        'PROFILE_NOTIFICATION_RESILIENCE_ENABLED',
+        true
+      ),
+      providerFailureThreshold: this.integer(
+        'PROFILE_NOTIFICATION_PROVIDER_FAILURE_THRESHOLD',
+        5,
+        1,
+        100
+      ),
+      providerRecoverySuccesses: this.integer(
+        'PROFILE_NOTIFICATION_PROVIDER_RECOVERY_SUCCESSES',
+        2,
+        1,
+        20
+      ),
+      circuitCooldownMs: this.integer(
+        'PROFILE_NOTIFICATION_CIRCUIT_COOLDOWN_MS',
+        60_000,
+        5_000,
+        24 * 60 * 60_000
+      ),
+      retryBaseMs: this.integer(
+        'PROFILE_NOTIFICATION_RETRY_BASE_MS',
+        5_000,
+        1_000,
+        15 * 60_000
+      ),
+      retryMaximumMs: this.integer(
+        'PROFILE_NOTIFICATION_RETRY_MAXIMUM_MS',
+        6 * 60 * 60_000,
+        60_000,
+        7 * 24 * 60 * 60_000
+      ),
+      userRatePerMinute: this.integer(
+        'PROFILE_NOTIFICATION_USER_RATE_PER_MINUTE',
+        30,
+        1,
+        10_000
+      ),
+      providerRatePerMinute: this.integer(
+        'PROFILE_NOTIFICATION_PROVIDER_RATE_PER_MINUTE',
+        5_000,
+        10,
+        1_000_000
+      ),
+      webhookToleranceMs: this.integer(
+        'PROFILE_NOTIFICATION_WEBHOOK_TOLERANCE_MS',
+        5 * 60_000,
+        30_000,
+        24 * 60 * 60_000
       )
     };
   }
