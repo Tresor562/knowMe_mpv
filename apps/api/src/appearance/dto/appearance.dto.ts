@@ -9,12 +9,26 @@ import {
   Min
 } from 'class-validator';
 
+const normalizedKey = ({ value }: { value: unknown }) => String(value ?? '').trim().toLowerCase();
+
 export class UpdateAppearancePreferenceDto {
   @IsOptional()
-  @Transform(({ value }) => String(value ?? '').trim().toLowerCase())
+  @Transform(normalizedKey)
   @IsString()
-  @MaxLength(40)
+  @MaxLength(60)
   themeKey?: string;
+
+  @IsOptional()
+  @Transform(normalizedKey)
+  @IsString()
+  @MaxLength(60)
+  iconPackKey?: string;
+
+  @IsOptional()
+  @Transform(normalizedKey)
+  @IsString()
+  @MaxLength(60)
+  appIconKey?: string;
 
   @IsOptional()
   @IsIn(['STANDARD', 'HIGH'])
@@ -23,6 +37,30 @@ export class UpdateAppearancePreferenceDto {
   @IsOptional()
   @IsBoolean()
   reduceTransparency?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  animationsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  animatedIconsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  uiSoundsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  weatherEffectsEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['LOW', 'BALANCED', 'HIGH'])
+  effectIntensity?: 'LOW' | 'BALANCED' | 'HIGH';
+
+  @IsOptional()
+  @IsIn(['OFF', 'TIME', 'SEASON'])
+  automaticRotationMode?: 'OFF' | 'TIME' | 'SEASON';
 
   @IsOptional()
   @Type(() => Number)
