@@ -8,6 +8,11 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { MediaService } from '../media/media.service';
+import {
+  defaultNotificationCenterPreference,
+  normalizeNotificationCategories,
+  normalizeNotificationStringList
+} from '../notifications/notification-center.domain';
 import { NotificationCenterLifecycleService } from '../notifications/notification-center-lifecycle.service';
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -172,14 +177,49 @@ export class AccountService {
     const hasAppearanceData = appearance.preference.version > 0;
     const hasSocialGiftData =
       socialGifts.received.length > 0 || socialGifts.sent.length > 0;
+    const defaultNotificationCenter = defaultNotificationCenterPreference();
+    const centerPreference = notificationCenter.preference;
+    const hasCustomNotificationCenterPreference =
+      centerPreference !== null &&
+      (centerPreference.masterEnabled !== defaultNotificationCenter.masterEnabled ||
+        centerPreference.realtimeEnabled !==
+          defaultNotificationCenter.realtimeEnabled ||
+        centerPreference.digestMode !== defaultNotificationCenter.digestMode ||
+        centerPreference.dailyDigestMinute !==
+          defaultNotificationCenter.dailyDigestMinute ||
+        centerPreference.quietHoursEnabled !==
+          defaultNotificationCenter.quietHoursEnabled ||
+        centerPreference.quietStartMinute !==
+          defaultNotificationCenter.quietStartMinute ||
+        centerPreference.quietEndMinute !==
+          defaultNotificationCenter.quietEndMinute ||
+        centerPreference.timezone !== defaultNotificationCenter.timezone ||
+        JSON.stringify(
+          normalizeNotificationCategories(centerPreference.categorySettings)
+        ) !== JSON.stringify(defaultNotificationCenter.categorySettings) ||
+        normalizeNotificationStringList(centerPreference.mutedTypes).length > 0 ||
+        normalizeNotificationStringList(centerPreference.mutedCircleIds).length >
+          0);
+    const hasNotificationCenterData =
+      hasCustomNotificationCenterPreference ||
+      notificationCenter.states.length > 0 ||
+      notificationCenter.actionReceipts.length > 0 ||
+      notificationCenter.digestQueue.length > 0 ||
+      notificationCenter.digestBatches.length > 0;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 9,
+      formatVersion: hasNotificationCenterData
+        ? 9
+        : hasSocialGiftData
+          ? 8
+          : hasAppearanceData
+            ? 7
+            : 6,
       account: safeUser,
       security,
       privacy,
-      notificationCenter,
+      ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
       ...(hasSocialGiftData ? { socialGifts } : {}),
       media,
