@@ -179,7 +179,7 @@ export class FlutterwaveService {
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          amount: input.amount,
+          amount: minorToMajorString(input.amount, input.currency),
           comments: input.reason,
           callbackurl: input.callbackUrl
         })
