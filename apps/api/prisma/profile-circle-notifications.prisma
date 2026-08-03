@@ -3,6 +3,7 @@ enum ProfileCircleNotificationRecipientStatus {
   DEFERRED
   PROCESSING
   DELIVERED
+  SUPPRESSED
   FAILED
 }
 
@@ -41,6 +42,7 @@ model ProfileCircleNotificationRecipient {
   processingAt    DateTime?
   notificationId  String?
   deliveredAt     DateTime?
+  suppressedAt    DateTime?
   failedAt        DateTime?
   errorCode       String?
   attempts        Int                                      @default(0)
