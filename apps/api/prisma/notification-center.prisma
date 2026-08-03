@@ -1,0 +1,75 @@
+enum NotificationDigestMode {
+  INSTANT
+  HOURLY
+  DAILY
+  OFF
+}
+
+enum NotificationPushPlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+model NotificationPreference {
+  userId             String                 @id
+  masterEnabled      Boolean                @default(true)
+  realtimeEnabled    Boolean                @default(true)
+  pushEnabled        Boolean                @default(false)
+  digestMode         NotificationDigestMode @default(INSTANT)
+  quietHoursEnabled  Boolean                @default(false)
+  quietStartMinute   Int                    @default(1320)
+  quietEndMinute     Int                    @default(420)
+  timezone           String                 @default("UTC")
+  categorySettings   Json                   @default("{}")
+  mutedTypes         Json                   @default("[]")
+  mutedCircleIds     Json                   @default("[]")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([digestMode, pushEnabled])
+}
+
+model NotificationUserState {
+  notificationId String
+  userId         String
+  dismissedAt    DateTime?
+  archivedAt     DateTime?
+  snoozedUntil   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@id([notificationId, userId])
+  @@index([userId, dismissedAt, archivedAt])
+  @@index([userId, snoozedUntil])
+}
+
+model NotificationPushEndpoint {
+  id               String                   @id @default(cuid())
+  userId           String
+  platform         NotificationPushPlatform
+  tokenFingerprint String
+  tokenReference   String
+  appVersion       String?
+  deviceLabel      String?
+  enabled          Boolean                  @default(true)
+  lastSeenAt       DateTime                 @default(now())
+  failedAt         DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@unique([userId, tokenFingerprint])
+  @@index([userId, enabled, platform])
+}
+
+model NotificationCenterActionReceipt {
+  idempotencyKey String   @id
+  userId         String
+  action         String
+  notificationId String?
+  result         Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([notificationId, createdAt])
+}
