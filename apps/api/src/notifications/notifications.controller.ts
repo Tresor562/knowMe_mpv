@@ -29,8 +29,9 @@ export class NotificationsController {
   ) {}
 
   @Get()
-  list(@Req() req: AuthRequest) {
-    return this.notifications.list(req.user.userId);
+  async list(@Req() req: AuthRequest) {
+    const center = await this.center.center(req.user.userId);
+    return center.groups.map((group) => group.latest);
   }
 
   @Get('center')
