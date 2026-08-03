@@ -3,6 +3,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { AppearanceService } from '../appearance/appearance.service';
 import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
@@ -22,7 +23,8 @@ export class AccountService {
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
-    private readonly cosmeticPresets: CosmeticPresetsService
+    private readonly cosmeticPresets: CosmeticPresetsService,
+    private readonly appearance: AppearanceService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -68,7 +70,8 @@ export class AccountService {
       conceptK,
       conceptKAssetDeliveries,
       cosmetics,
-      cosmeticPresets
+      cosmeticPresets,
+      appearance
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -150,18 +153,21 @@ export class AccountService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       }),
       this.cosmetics.exportForAccount(userId),
-      this.cosmeticPresets.exportForAccount(userId)
+      this.cosmeticPresets.exportForAccount(userId),
+      this.appearance.exportForAccount(userId)
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasAppearanceData = appearance.preference.version > 0;
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: 6,
+      formatVersion: hasAppearanceData ? 7 : 6,
       account: safeUser,
       security,
       privacy,
+      ...(hasAppearanceData ? { appearance } : {}),
       media,
       challengeHistory: challengeResults,
       challengeReferences: challengeReferences.map((reference) => ({
@@ -241,6 +247,7 @@ export class AccountService {
           }
         }
       });
+      await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
       await this.cosmetics.deleteForAccount(userId, tx);
       await tx.conceptKAssetDeliveryEvent.deleteMany({ where: { userId } });

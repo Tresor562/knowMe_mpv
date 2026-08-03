@@ -50,17 +50,30 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 
 ## Livraison en validation
 
-Aucune livraison n’est actuellement en validation.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-031 | Moteur de 100 thèmes et d’identité visuelle Web/Mobile | #67 | CI, contrats natifs et E2E requis avant fusion |
 
 ## Prochaine livraison réservée
 
-| Livraison | Domaine | Source backlog | Dépendances |
-| --- | --- | --- | --- |
-| KMD-031 | Thèmes d’application statiques clair, sombre et système | KM-022 | KMD-001 à KMD-030 |
+Aucun identifiant après `KMD-031` n’est réservé avant la fusion verte de cette livraison.
 
-KMD-031 doit fournir une préférence autoritaire synchronisée Web/Mobile, un fallback local avant authentification, une application sans flash visuel, des tokens accessibles et des thèmes statiques sans animation lourde. Les thèmes Premium restent bloqués par les entitlements serveur et ne doivent accorder aucun avantage fonctionnel.
+KMD-031 doit fournir :
 
-Les icônes alternatives (`KM-023`) et les cadeaux (`KM-024`) restent hors périmètre de cette livraison.
+- un catalogue autoritaire de 100 thèmes, dont 40 gratuits et 60 Premium ;
+- des palettes, packs d’icônes, bulles, effets, sons déclaratifs et icônes d’application ;
+- une préférence versionnée et synchronisée Web/Mobile ;
+- un fallback local avant authentification et un fallback serveur après perte de droit ;
+- une application Web avant hydratation ;
+- des animations, sons et transparences désactivables ;
+- un contraste élevé et le respect des préférences système ;
+- des combinaisons et rotations Premium contrôlées ;
+- des thèmes saisonniers pilotés par le serveur ;
+- aucun avantage fonctionnel, économique ou social.
+
+Les adaptateurs natifs de changement d’icône, de lecture sonore locale et de météo doivent rester séparés de la préférence autoritaire. L’éditeur libre de thèmes, l’import de fonds personnels et les packs par onglet sont documentés comme travaux futurs et ne doivent pas être présentés comme livrés par KMD-031.
+
+Les cadeaux restent hors périmètre de cette livraison.
 
 ## Règles de mise à jour
 

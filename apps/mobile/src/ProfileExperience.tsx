@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { AppearanceExperience } from './AppearanceExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
 
@@ -204,6 +205,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         <Button title="Gérer ma vérification" secondary onPress={onOpenVerification} />
       </View>
 
+      <AppearanceExperience />
       <SecurityExperience onSessionClosed={onAccountDeleted} />
       <PrivacyExperience />
 

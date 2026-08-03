@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AppearanceModule } from '../appearance/appearance.module';
 import { ConceptKModule } from '../concept-k/concept-k.module';
 import { CosmeticsModule } from '../cosmetics/cosmetics.module';
 import { MediaModule } from '../media/media.module';
@@ -8,7 +9,14 @@ import { AccountController } from './account.controller';
 import { AccountService } from './account.service';
 
 @Module({
-  imports: [SecurityModule, PrivacyModule, MediaModule, ConceptKModule, CosmeticsModule],
+  imports: [
+    SecurityModule,
+    PrivacyModule,
+    MediaModule,
+    ConceptKModule,
+    CosmeticsModule,
+    AppearanceModule
+  ],
   controllers: [AccountController],
   providers: [AccountService]
 })

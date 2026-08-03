@@ -124,6 +124,9 @@ export default function ProfilePage() {
             <Link className="btn" href="/privacy/cosmetics">
               Confidentialité cosmétique
             </Link>
+            <Link className="btn" href="/settings/appearance">
+              Apparence
+            </Link>
             <Link className="btn" href="/verification">
               Vérification
             </Link>
