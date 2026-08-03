@@ -3,15 +3,12 @@ import {
   Controller,
   Delete,
   Get,
-  IsEnum,
-  IsOptional,
-  IsString,
-  MaxLength,
   Param,
   Post,
   Req,
   UseGuards
 } from '@nestjs/common';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
@@ -26,7 +23,7 @@ import { ProfileCircleNotificationTelemetryService } from './profile-circle-noti
 import { ProfileCircleWeeklyDigestService } from './profile-circle-weekly-digest.service';
 
 class RegisterProfileCircleNotificationEndpointDto {
-  @IsEnum(['PUSH', 'EMAIL'])
+  @IsIn(['PUSH', 'EMAIL'])
   channel!: ProfileCircleTransportChannel;
 
   @IsString()
