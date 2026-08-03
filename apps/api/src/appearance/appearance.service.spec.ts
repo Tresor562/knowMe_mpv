@@ -1,11 +1,10 @@
 import { ForbiddenException } from '@nestjs/common';
-import { AppearanceService } from './appearance.service';
+import { APP_THEMES, AppearanceService } from './appearance.service';
 
 describe('AppearanceService', () => {
   function createService(options?: {
     preference?: Record<string, unknown> | null;
     entitlementKeys?: string[];
-    hasAll?: boolean;
   }) {
     const prisma = {
       userAppearancePreference: {
@@ -16,8 +15,7 @@ describe('AppearanceService', () => {
     const entitlements = {
       listForUser: jest.fn().mockResolvedValue({
         entitlements: (options?.entitlementKeys ?? []).map((key) => ({ key }))
-      }),
-      hasAll: jest.fn().mockResolvedValue(options?.hasAll ?? false)
+      })
     };
     const audit = { record: jest.fn() };
     return {
@@ -28,7 +26,17 @@ describe('AppearanceService', () => {
     };
   }
 
-  it('returns system defaults and locks premium themes without entitlements', async () => {
+  it('keeps the canonical catalog at exactly 40 free and 60 Premium themes', () => {
+    expect(APP_THEMES).toHaveLength(100);
+    expect(APP_THEMES.filter((theme) => theme.tier === 'FREE')).toHaveLength(40);
+    expect(APP_THEMES.filter((theme) => theme.tier === 'PREMIUM')).toHaveLength(60);
+    expect(new Set(APP_THEMES.map((theme) => theme.key)).size).toBe(100);
+    expect(APP_THEMES.map((theme) => theme.order)).toEqual(
+      Array.from({ length: 100 }, (_, index) => index + 1)
+    );
+  });
+
+  it('returns safe defaults and locks Premium personalization without entitlements', async () => {
     const { service } = createService();
     const response = await service.getForUser('user-1');
 
@@ -36,27 +44,45 @@ describe('AppearanceService', () => {
       expect.objectContaining({
         selectedThemeKey: 'system',
         effectiveThemeKey: 'system',
+        effectiveIconPackKey: 'soft-glass',
         contrast: 'STANDARD',
         reduceTransparency: false,
+        animationsEnabled: true,
+        animatedIconsEnabled: true,
+        uiSoundsEnabled: false,
+        weatherEffectsEnabled: false,
+        effectIntensity: 'BALANCED',
         version: 0,
         fallbackReason: null
       })
     );
+    expect(response.themes).toHaveLength(100);
+    expect(response.iconPacks).toHaveLength(25);
     expect(response.themes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'light', locked: false }),
-        expect.objectContaining({ key: 'midnight', locked: true })
+        expect.objectContaining({ key: 'light-minimal', locked: false }),
+        expect.objectContaining({ key: 'galaxy-ultra', locked: true })
       ])
     );
   });
 
-  it('falls back safely when a stored premium theme loses its entitlement', async () => {
+  it('falls back safely when a stored Premium theme loses its entitlement', async () => {
     const { service } = createService({
       preference: {
         userId: 'user-1',
-        selectedThemeKey: 'midnight',
+        selectedThemeKey: 'galaxy-ultra',
+        secondaryThemeKey: null,
+        themeBlendMode: 'OFF',
+        selectedIconPackKey: null,
+        selectedAppIconKey: null,
         contrast: 'HIGH',
         reduceTransparency: true,
+        animationsEnabled: true,
+        animatedIconsEnabled: true,
+        uiSoundsEnabled: false,
+        weatherEffectsEnabled: false,
+        effectIntensity: 'BALANCED',
+        automaticRotationMode: 'OFF',
         version: 4,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-02T00:00:00.000Z')
@@ -66,7 +92,7 @@ describe('AppearanceService', () => {
     const response = await service.getForUser('user-1');
     expect(response.preference).toEqual(
       expect.objectContaining({
-        selectedThemeKey: 'midnight',
+        selectedThemeKey: 'galaxy-ultra',
         effectiveThemeKey: 'system',
         fallbackReason: 'ENTITLEMENT_MISSING',
         contrast: 'HIGH',
@@ -75,26 +101,31 @@ describe('AppearanceService', () => {
     );
   });
 
-  it('rejects a premium theme before any preference mutation', async () => {
-    const { service, prisma } = createService({ hasAll: false });
+  it('rejects a Premium theme before any preference mutation', async () => {
+    const { service, prisma } = createService();
 
     await expect(
-      service.update('user-1', { themeKey: 'ivory', expectedVersion: 0 })
+      service.update('user-1', { themeKey: 'galaxy-ultra', expectedVersion: 0 })
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('exposes static, non-functional theme policy guarantees', () => {
+  it('exposes animation, accessibility and server-authority guarantees', () => {
     const { service } = createService();
     expect(service.policy()).toEqual(
       expect.objectContaining({
-        staticOnly: true,
-        animatedThemesAllowed: false,
+        themeCount: 100,
+        freeThemeCount: 40,
+        premiumThemeCount: 60,
+        animatedThemesAllowed: true,
+        animationsCanBeDisabled: true,
+        uiSoundsOptionalAndDisabledByDefault: true,
         functionalAdvantagesAllowed: false,
         serverAuthoritativePreference: true,
         synchronizedVersioning: true,
-        premiumThemesRequireEntitlement: true,
-        safeFallbackThemeKey: 'system'
+        safeFallbackThemeKey: 'system',
+        seasonalAvailabilityIsServerDriven: true,
+        weatherEffectsRequirePermission: true
       })
     );
   });
