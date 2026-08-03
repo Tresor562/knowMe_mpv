@@ -15,6 +15,7 @@ import { AvatarUniverseModule } from './avatar-universe/avatar-universe.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { CommunitiesModule } from './communities/communities.module';
 import { ConceptKModule } from './concept-k/concept-k.module';
 import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
@@ -24,8 +25,10 @@ import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
 import { HealthController } from './health.controller';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IntegrityModule } from './integrity/integrity.module';
+import { KnowMeSecretModule } from './knowme-secret/knowme-secret.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MediaModule } from './media/media.module';
+import { MessengerExperienceModule } from './messenger-experience/messenger-experience.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -75,6 +78,9 @@ import { WalletModule } from './wallet/wallet.module';
     AvatarStudioModule,
     AvatarUniverseModule,
     GiftExchangeModule,
+    MessengerExperienceModule,
+    CommunitiesModule,
+    KnowMeSecretModule,
     AppearanceModule,
     BillingModule,
     PaymentsModule,
