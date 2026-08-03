@@ -1,0 +1,14 @@
+model UserMediaDownloadPreference {
+  userId               String   @id
+  wifiKinds            Json
+  cellularKinds        Json
+  roamingKinds         Json
+  backgroundDownloads  Boolean  @default(false)
+  respectDataSaver     Boolean  @default(true)
+  maxCacheMb           Int      @default(512)
+  version              Int      @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([updatedAt])
+}
