@@ -41,29 +41,31 @@ model GameDefinition {
 }
 
 model GameSession {
-  id                String            @id @default(cuid())
-  definitionId      String
-  definitionKey     String
-  definitionVersion Int
-  ownerId           String
-  status            GameSessionStatus @default(WAITING)
-  seed              String
-  initialState      Json
-  state             Json
-  stateHash         String
-  sequence          Int               @default(0)
+  id                  String            @id @default(cuid())
+  definitionId        String
+  definitionKey       String
+  definitionVersion   Int
+  ownerId             String
+  creationKey         String
+  status              GameSessionStatus @default(WAITING)
+  seed                String
+  initialState        Json
+  state               Json
+  stateHash           String
+  sequence            Int               @default(0)
   currentTurnPosition Int?
-  winnerUserId      String?
-  result            Json?
-  version           Int               @default(1)
-  expiresAt         DateTime
-  startedAt         DateTime?
-  completedAt       DateTime?
-  cancelledAt       DateTime?
-  cancellationReason String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  winnerUserId        String?
+  result              Json?
+  version             Int               @default(1)
+  expiresAt           DateTime
+  startedAt           DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
+  @@unique([ownerId, creationKey])
   @@index([ownerId, status, updatedAt])
   @@index([status, expiresAt])
   @@index([definitionKey, definitionVersion, createdAt])
@@ -117,16 +119,16 @@ model GameActionReceipt {
 }
 
 model GameReplaySnapshot {
-  sessionId       String   @id
-  definitionKey  String
+  sessionId         String   @id
+  definitionKey    String
   definitionVersion Int
-  seed            String
-  initialState    Json
-  finalState      Json
-  result          Json
-  actionCount     Int
-  checksum        String
-  createdAt       DateTime @default(now())
+  seed              String
+  initialState      Json
+  finalState        Json
+  result            Json
+  actionCount       Int
+  checksum          String
+  createdAt         DateTime @default(now())
 
   @@index([definitionKey, definitionVersion, createdAt])
 }
