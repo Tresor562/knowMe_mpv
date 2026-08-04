@@ -100,7 +100,9 @@ export default function GamesPage() {
       apiFetch<GameSession[]>('/games/sessions')
     ]);
     setCatalog(nextCatalog);
-    setSessions(nextSessions);
+    setSessions(
+      nextSessions.filter((session) => session.game.key === 'pulse-duel')
+    );
     if (selected) {
       const current = await apiFetch<GameSession>(`/games/sessions/${selected.id}`);
       setSelected(current);
@@ -134,7 +136,7 @@ export default function GamesPage() {
       const created = await apiFetch<GameSession>('/games/sessions', {
         method: 'POST',
         body: JSON.stringify({
-          gameKey: catalog[0]?.key ?? 'pulse-duel',
+          gameKey: 'pulse-duel',
           opponentUsernames: [username],
           idempotencyKey: operationKey('web-game-create')
         })
@@ -235,6 +237,9 @@ export default function GamesPage() {
           Le serveur valide chaque tour, calcule le résultat et produit le replay. Aucun score,
           gagnant ou mise n’est accepté depuis le client.
         </p>
+        <a href="/games/affinity" style={{ color: 'var(--mint)' }}>
+          Ouvrir le Miroir d’affinité volontaire
+        </a>
       </header>
 
       {message ? (
@@ -244,7 +249,7 @@ export default function GamesPage() {
       ) : null}
 
       <section className="card" style={{ padding: 22, marginBottom: 20 }}>
-        <h2>Nouvelle partie</h2>
+        <h2>Nouvelle partie Pulse Duel</h2>
         <form onSubmit={createSession} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input
             className="input"
@@ -256,7 +261,10 @@ export default function GamesPage() {
             required
             style={{ flex: '1 1 250px' }}
           />
-          <button className="btn btn-primary" disabled={busy || !catalog.length}>
+          <button
+            className="btn btn-primary"
+            disabled={busy || !catalog.some((item) => item.key === 'pulse-duel')}
+          >
             Inviter à Pulse Duel
           </button>
         </form>
@@ -267,7 +275,7 @@ export default function GamesPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 0.8fr) minmax(0, 1.4fr)', gap: 18 }}>
         <section className="card" style={{ padding: 18 }}>
-          <h2>Mes parties</h2>
+          <h2>Mes parties Pulse Duel</h2>
           <div style={{ display: 'grid', gap: 10 }}>
             {sessions.map((session) => (
               <button
