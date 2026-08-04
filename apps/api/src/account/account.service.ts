@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { CreatorsService } from '../creators/creators.service';
+import { GamePlatformService } from '../games/game-platform.service';
 import { I18nService } from '../i18n/i18n.service';
 import { MediaDownloadPreferenceService } from '../media/media-download-preference.service';
 import { MediaService } from '../media/media.service';
@@ -35,6 +36,7 @@ export class AccountService {
     private readonly notificationCenter: NotificationCenterLifecycleService,
     private readonly mediaDownloads: MediaDownloadPreferenceService,
     private readonly creators: CreatorsService,
+    private readonly games: GamePlatformService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
@@ -74,6 +76,7 @@ export class AccountService {
       notificationCenter,
       mediaDownloads,
       creatorFoundation,
+      gamePlatform,
       media,
       challengeResults,
       challengeReferences,
@@ -130,6 +133,7 @@ export class AccountService {
       this.notificationCenter.exportForAccount(userId),
       this.mediaDownloads.exportForAccount(userId),
       this.creators.exportForAccount(userId),
+      this.games.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -186,6 +190,9 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasGameData =
+      gamePlatform.memberships.length > 0 ||
+      gamePlatform.authoredActions.length > 0;
     const hasCreatorData =
       creatorFoundation.profile !== null ||
       creatorFoundation.following.length > 0 ||
@@ -221,22 +228,25 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasCreatorData
-        ? 12
-        : hasMediaDownloadData
-          ? 11
-          : hasLocalizationData
-            ? 10
-            : hasNotificationCenterData
-              ? 9
-              : hasSocialGiftData
-                ? 8
-                : hasAppearanceData
-                  ? 7
-                  : 6,
+      formatVersion: hasGameData
+        ? 13
+        : hasCreatorData
+          ? 12
+          : hasMediaDownloadData
+            ? 11
+            : hasLocalizationData
+              ? 10
+              : hasNotificationCenterData
+                ? 9
+                : hasSocialGiftData
+                  ? 8
+                  : hasAppearanceData
+                    ? 7
+                    : 6,
       account: safeUser,
       security,
       privacy,
+      ...(hasGameData ? { gamePlatform } : {}),
       ...(hasCreatorData ? { creatorFoundation } : {}),
       ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
       ...(hasLocalizationData ? { localization } : {}),
@@ -293,6 +303,7 @@ export class AccountService {
           metadata: { username: user.username, requestedAt: new Date().toISOString() }
         }
       });
+      await this.games.deleteForAccount(userId, tx);
       await this.creators.deleteForAccount(userId, tx);
       await this.mediaDownloads.deleteForAccount(userId, tx);
       await this.i18n.deleteForAccount(userId, tx);
