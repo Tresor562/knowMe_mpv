@@ -5,6 +5,7 @@ import { AffinityGamePolicyService } from './affinity-game-policy.service';
 import { AffinityReplayPrivacyService } from './affinity-replay-privacy.service';
 import { GameAccountLifecycleService } from './game-account-lifecycle.service';
 import { GameEngineRegistry } from './game-engine.registry';
+import { GameExperienceService } from './game-experience.service';
 import { GamePlatformController } from './game-platform.controller';
 import { GamePlatformService } from './game-platform.service';
 import { GameSessionMaintenanceService } from './game-session-maintenance.service';
@@ -20,12 +21,14 @@ import { GameSessionMaintenanceService } from './game-session-maintenance.servic
     AffinityGamePolicyService,
     AffinityReplayPrivacyService,
     GamePlatformService,
+    GameExperienceService,
     GameAccountLifecycleService,
     GameSessionMaintenanceService
   ],
   exports: [
     AffinityGamePolicyService,
     GamePlatformService,
+    GameExperienceService,
     GameAccountLifecycleService,
     GameSessionMaintenanceService
   ]
