@@ -68,6 +68,9 @@ type BlockedUser = {
   } | null;
 };
 
+const PURPOSES = ['CHAT', 'PLAY', 'LEARN', 'CREATE'] as const;
+const PACES = ['REALTIME', 'ASYNC', 'FLEXIBLE'] as const;
+const LANGUAGES = ['fr', 'en', 'pt', 'es', 'de', 'it', 'ar'] as const;
 const TOPICS = [
   'TECH',
   'MUSIC',
@@ -82,7 +85,7 @@ const TOPICS = [
   'LANGUAGES',
   'COOKING',
   'TRAVEL_IDEAS'
-];
+] as const;
 
 function operationKey(prefix: string) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -101,9 +104,9 @@ export default function MatchmakingPage() {
   const [preference, setPreference] = useState<Preference | null>(null);
   const [status, setStatus] = useState<MatchStatus | null>(null);
   const [blocks, setBlocks] = useState<BlockedUser[]>([]);
-  const [purpose, setPurpose] = useState('LEARN');
-  const [pace, setPace] = useState('FLEXIBLE');
-  const [languages, setLanguages] = useState('fr,en');
+  const [purpose, setPurpose] = useState<(typeof PURPOSES)[number]>('LEARN');
+  const [pace, setPace] = useState<(typeof PACES)[number]>('FLEXIBLE');
+  const [languages, setLanguages] = useState<string[]>(['fr', 'en']);
   const [topics, setTopics] = useState<string[]>(['TECH', 'BOOKS']);
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startMinute, setStartMinute] = useState(900);
@@ -129,6 +132,7 @@ export default function MatchmakingPage() {
   }, []);
 
   async function execute(task: () => Promise<void>) {
+    if (busy) return;
     setBusy(true);
     setMessage('');
     try {
@@ -152,33 +156,28 @@ export default function MatchmakingPage() {
     });
   }
 
-  function toggleTopic(topic: string) {
-    setTopics((current) =>
-      current.includes(topic)
-        ? current.filter((item) => item !== topic)
-        : current.length < 8
-          ? [...current, topic]
-          : current
-    );
+  function toggleValue(
+    value: string,
+    current: string[],
+    maximum: number,
+    update: (next: string[]) => void
+  ) {
+    if (current.includes(value)) {
+      if (current.length > 1) update(current.filter((item) => item !== value));
+      return;
+    }
+    if (current.length < maximum) update([...current, value]);
   }
 
   function join() {
     void execute(async () => {
-      const normalizedLanguages = [
-        ...new Set(
-          languages
-            .split(',')
-            .map((language) => language.trim().toLowerCase())
-            .filter(Boolean)
-        )
-      ];
       setStatus(
         await apiFetch<MatchStatus>('/social-matchmaking/queue', {
           method: 'POST',
           body: JSON.stringify({
             purpose,
             pace,
-            languages: normalizedLanguages,
+            languages,
             topics,
             availability: [{ dayOfWeek, startMinute, endMinute }],
             idempotencyKey: operationKey('web-social-match-join')
@@ -197,16 +196,19 @@ export default function MatchmakingPage() {
   }
 
   function decide(decision: 'ACCEPT' | 'DECLINE' | 'BLOCK') {
-    if (!status?.proposal) return;
+    const proposalId = status?.proposal?.id;
+    if (!proposalId) return;
     void execute(async () => {
       setStatus(
         await apiFetch<MatchStatus>(
-          `/social-matchmaking/proposals/${status.proposal.id}/decision`,
+          `/social-matchmaking/proposals/${proposalId}/decision`,
           {
             method: 'POST',
             body: JSON.stringify({
               decision,
-              idempotencyKey: operationKey(`web-social-match-${decision.toLowerCase()}`)
+              idempotencyKey: operationKey(
+                `web-social-match-${decision.toLowerCase()}`
+              )
             })
           }
         )
@@ -226,8 +228,9 @@ export default function MatchmakingPage() {
     preference?.matchmakingEnabled &&
     preference.allowNewPeople &&
     topics.length > 0 &&
-    languages.trim().length > 0 &&
+    languages.length > 0 &&
     endMinute - startMinute >= 30;
+  const proposal = status?.proposal ?? null;
 
   return (
     <main className="shell" style={{ maxWidth: 1080, margin: '0 auto' }}>
@@ -238,12 +241,14 @@ export default function MatchmakingPage() {
         <h1>Rencontres sociales explicables</h1>
         <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
           L’appariement utilise seulement l’objectif, le rythme, les langues, les sujets et
-          les créneaux UTC que tu choisis ici. Il n’utilise ni réponses d’affinité, ni messages
+          les créneaux UTC choisis ici. Il n’utilise ni réponses d’affinité, ni messages
           privés, ni localisation précise, ni donnée sensible.
         </p>
       </header>
 
-      {message ? <p role="status" style={{ color: 'var(--orange)' }}>{message}</p> : null}
+      {message ? (
+        <p role="status" style={{ color: 'var(--orange)' }}>{message}</p>
+      ) : null}
 
       <section className="card" style={{ padding: 22, marginBottom: 18 }}>
         <h2>Consentement</h2>
@@ -281,7 +286,14 @@ export default function MatchmakingPage() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <label style={{ flex: 1 }}>
               Objectif
-              <select className="input" value={purpose} onChange={(event) => setPurpose(event.target.value)} style={{ width: '100%' }}>
+              <select
+                className="input"
+                value={purpose}
+                onChange={(event) =>
+                  setPurpose(event.target.value as (typeof PURPOSES)[number])
+                }
+                style={{ width: '100%' }}
+              >
                 <option value="CHAT">Discuter</option>
                 <option value="PLAY">Jouer</option>
                 <option value="LEARN">Apprendre</option>
@@ -290,7 +302,14 @@ export default function MatchmakingPage() {
             </label>
             <label style={{ flex: 1 }}>
               Rythme
-              <select className="input" value={pace} onChange={(event) => setPace(event.target.value)} style={{ width: '100%' }}>
+              <select
+                className="input"
+                value={pace}
+                onChange={(event) =>
+                  setPace(event.target.value as (typeof PACES)[number])
+                }
+                style={{ width: '100%' }}
+              >
                 <option value="REALTIME">Temps réel</option>
                 <option value="ASYNC">Asynchrone</option>
                 <option value="FLEXIBLE">Flexible</option>
@@ -298,43 +317,59 @@ export default function MatchmakingPage() {
             </label>
           </div>
 
-          <label>
-            Langues, séparées par une virgule
-            <input className="input" value={languages} onChange={(event) => setLanguages(event.target.value)} maxLength={60} style={{ width: '100%' }} />
-          </label>
-
-          <div>
-            <strong>Sujets publics choisis</strong>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {TOPICS.map((topic) => (
-                <button
-                  key={topic}
-                  type="button"
-                  className={topics.includes(topic) ? 'btn btn-primary' : 'btn'}
-                  onClick={() => toggleTopic(topic)}
-                  disabled={busy}
-                >
-                  {topic.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
+          <CriteriaButtons
+            label="Langues autorisées"
+            values={LANGUAGES}
+            selected={languages}
+            disabled={busy}
+            onToggle={(value) => toggleValue(value, languages, 5, setLanguages)}
+          />
+          <CriteriaButtons
+            label="Sujets publics choisis"
+            values={TOPICS}
+            selected={topics}
+            disabled={busy}
+            onToggle={(value) => toggleValue(value, topics, 8, setTopics)}
+          />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
             <label>
               Jour UTC
-              <select className="input" value={dayOfWeek} onChange={(event) => setDayOfWeek(Number(event.target.value))} style={{ width: '100%' }}>
-                {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((day, index) => <option key={day} value={index}>{day}</option>)}
+              <select
+                className="input"
+                value={dayOfWeek}
+                onChange={(event) => setDayOfWeek(Number(event.target.value))}
+                style={{ width: '100%' }}
+              >
+                {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map(
+                  (day, index) => <option key={day} value={index}>{day}</option>
+                )}
               </select>
             </label>
             <label>
               Début UTC
-              <input className="input" type="number" min={0} max={1439} value={startMinute} onChange={(event) => setStartMinute(Number(event.target.value))} style={{ width: '100%' }} />
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={1439}
+                value={startMinute}
+                onChange={(event) => setStartMinute(Number(event.target.value))}
+                style={{ width: '100%' }}
+              />
               <small>{minutesLabel(startMinute)}</small>
             </label>
             <label>
               Fin UTC
-              <input className="input" type="number" min={1} max={1440} value={endMinute} onChange={(event) => setEndMinute(Number(event.target.value))} style={{ width: '100%' }} />
+              <input
+                className="input"
+                type="number"
+                min={1}
+                max={1440}
+                value={endMinute}
+                onChange={(event) => setEndMinute(Number(event.target.value))}
+                style={{ width: '100%' }}
+              />
               <small>{minutesLabel(endMinute)}</small>
             </label>
           </div>
@@ -343,7 +378,15 @@ export default function MatchmakingPage() {
             <button className="btn btn-primary" onClick={join} disabled={busy || !canJoin}>
               Rejoindre ou actualiser la file
             </button>
-            <button className="btn" onClick={leave} disabled={busy || !status?.queue || !['QUEUED', 'MATCHED'].includes(status.queue.status)}>
+            <button
+              className="btn"
+              onClick={leave}
+              disabled={
+                busy ||
+                !status?.queue ||
+                !['QUEUED', 'MATCHED'].includes(status.queue.status)
+              }
+            >
               Quitter immédiatement
             </button>
           </div>
@@ -356,32 +399,35 @@ export default function MatchmakingPage() {
           File : <strong>{status?.queue?.status ?? 'ABSENT'}</strong>
           {status?.queue ? ` · ${status.queue.purpose} · ${status.queue.pace}` : ''}
         </p>
-        {status?.proposal ? (
+        {proposal ? (
           <div style={{ display: 'grid', gap: 14 }}>
             <div>
-              <h3>{status.proposal.partner?.displayName ?? 'Compte supprimé'}</h3>
-              {status.proposal.partner ? <p style={{ color: 'var(--muted)' }}>@{status.proposal.partner.username}</p> : null}
-              <strong>Score explicatif : {status.proposal.score}/100</strong>
+              <h3>{proposal.partner?.displayName ?? 'Compte supprimé'}</h3>
+              {proposal.partner ? (
+                <p style={{ color: 'var(--muted)' }}>@{proposal.partner.username}</p>
+              ) : null}
+              <strong>Score explicatif : {proposal.score}/100</strong>
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
-              {status.proposal.explanation.explanations.map((explanation) => (
+              {proposal.explanation.explanations.map((explanation) => (
                 <p key={explanation} style={{ margin: 0 }}>{explanation}</p>
               ))}
             </div>
             <p style={{ color: 'var(--muted)' }}>
-              Données sensibles utilisées : non · réponses d’affinité : non · messages privés : non · localisation précise : non
+              Données sensibles utilisées : non · réponses d’affinité : non · messages
+              privés : non · localisation précise : non
             </p>
-            {status.proposal.status === 'PENDING' && !status.proposal.yourDecision ? (
+            {proposal.status === 'PENDING' && !proposal.yourDecision ? (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" onClick={() => decide('ACCEPT')} disabled={busy}>Accepter</button>
                 <button className="btn" onClick={() => decide('DECLINE')} disabled={busy}>Refuser</button>
                 <button className="btn" onClick={() => decide('BLOCK')} disabled={busy}>Bloquer</button>
               </div>
             ) : null}
-            {status.proposal.yourDecision ? <p>Ta réponse : {status.proposal.yourDecision}</p> : null}
-            {status.proposal.status === 'ACCEPTED' ? (
+            {proposal.yourDecision ? <p>Ta réponse : {proposal.yourDecision}</p> : null}
+            {proposal.status === 'ACCEPTED' ? (
               <p style={{ color: 'var(--mint)', fontWeight: 800 }}>
-                Acceptation mutuelle confirmée. Vous pouvez maintenant choisir librement de vous contacter.
+                Acceptation mutuelle confirmée. Aucun lien social n’est encore créé automatiquement.
               </p>
             ) : null}
           </div>
@@ -394,14 +440,57 @@ export default function MatchmakingPage() {
         <h2>Personnes bloquées</h2>
         <div style={{ display: 'grid', gap: 10 }}>
           {blocks.map((block) => (
-            <div key={block.blockedId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <div
+              key={block.blockedId}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                alignItems: 'center'
+              }}
+            >
               <span>{block.user?.displayName ?? 'Compte indisponible'}</span>
-              <button className="btn" onClick={() => unblock(block.blockedId)} disabled={busy}>Débloquer</button>
+              <button className="btn" onClick={() => unblock(block.blockedId)} disabled={busy}>
+                Débloquer
+              </button>
             </div>
           ))}
           {!blocks.length ? <p style={{ color: 'var(--muted)' }}>Aucun blocage.</p> : null}
         </div>
       </section>
     </main>
+  );
+}
+
+function CriteriaButtons({
+  label,
+  values,
+  selected,
+  disabled,
+  onToggle
+}: {
+  label: string;
+  values: readonly string[];
+  selected: string[];
+  disabled: boolean;
+  onToggle: (value: string) => void;
+}) {
+  return (
+    <div>
+      <strong>{label}</strong>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        {values.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={selected.includes(value) ? 'btn btn-primary' : 'btn'}
+            onClick={() => onToggle(value)}
+            disabled={disabled}
+          >
+            {value.replace('_', ' ')}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
