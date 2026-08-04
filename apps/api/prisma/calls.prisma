@@ -1,0 +1,70 @@
+enum CallMedia {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  REJECTED
+  MISSED
+  CANCELLED
+}
+
+enum CallEndReason {
+  HANGUP
+  REJECTED
+  MISSED
+  CANCELLED
+  ACCOUNT_DELETED
+  MODERATION
+}
+
+model CallSession {
+  id                String        @id @default(cuid())
+  callerId          String
+  calleeId          String
+  media             CallMedia
+  status            CallStatus    @default(RINGING)
+  creationKey       String
+  offerForwardedAt  DateTime?
+  answeredAt        DateTime?
+  endedAt           DateTime?
+  expiresAt         DateTime
+  endedById         String?
+  endReason         CallEndReason?
+  version           Int           @default(1)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([callerId, creationKey])
+  @@index([callerId, createdAt])
+  @@index([calleeId, createdAt])
+  @@index([status, expiresAt])
+  @@index([callerId, calleeId, status])
+}
+
+model CallEvent {
+  id         String   @id @default(cuid())
+  callId     String
+  actorId    String
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([callId, createdAt])
+  @@index([actorId, action, createdAt])
+}
+
+model CallReceipt {
+  userId         String
+  idempotencyKey String
+  operation      String
+  callId         String
+  createdAt      DateTime @default(now())
+
+  @@id([userId, idempotencyKey])
+  @@index([callId])
+  @@index([createdAt])
+}
