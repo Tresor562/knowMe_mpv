@@ -70,26 +70,19 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-051 | Fondation Créateurs et audience | #93 | Fusionnée |
 | KMD-052 | Game Platform autoritaire | #94 | Fusionnée |
 | KMD-053 | Miroir d’affinité explicable | #95 | Fusionnée |
+| KMD-054 | Matchmaking social volontaire et non sensible | #96 | Fusionnée |
 
 ## Livraison en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-054 | Matchmaking social volontaire et non sensible | #96 | CI en validation |
+| KMD-055 | Connexion sociale post-acceptation | #98 | CI en validation |
 
 ## Prochaine livraison réservée
 
-`KMD-055` est réservé à la **connexion sociale post-acceptation** construite sur KMD-054.
+Aucun identifiant après `KMD-055` n’est réservé à ce stade.
 
-Cette livraison dépend de :
-
-- KMD-015 pour l’anti-spam persistant ;
-- KMD-038 pour la messagerie ;
-- KMD-043 à KMD-048 pour les notifications et préférences ;
-- KMD-049 pour les libellés localisables ;
-- KMD-054 pour l’acceptation mutuelle et les blocages.
-
-Le périmètre réservé comprend une intention séparée d’amitié ou d’ouverture de conversation après acceptation mutuelle, un choix privé de chaque participant, une intersection exécutée côté serveur, une expiration, une révocation, des limites anti-spam et une traçabilité. Aucune conversation ou amitié ne peut être créée automatiquement par le seul score d’appariement.
+Le prochain identifiant ne pourra être attribué qu’après la fusion de KMD-055 et la réconciliation du backlog restant avec les frontières juridiques, de sécurité et de produit. Le chantier Arena avec mises demeure explicitement bloqué tant que les règles d’âge, de territoire, de fraude, de litige et de conformité financière ne sont pas validées.
 
 ## Frontières permanentes
 
@@ -102,6 +95,8 @@ La Game Platform ne peut accepter du client ni score, ni gagnant, ni état final
 Le Miroir d’affinité ne peut produire ni diagnostic, ni prédiction, ni recommandation relationnelle, ni classement public. Les réponses détaillées exigent le consentement mutuel et doivent être expurgées lors d’une suppression de compte.
 
 Le matchmaking social ne peut utiliser ni réponse d’affinité, ni conversation privée, ni localisation précise, ni donnée sensible, ni score économique. Toute priorité payante et tout boost acheté sont interdits. Une mise en contact exige une acceptation mutuelle persistée.
+
+L’acceptation mutuelle d’un match ne crée jamais automatiquement une amitié ou une conversation. Chaque participant doit enregistrer une intention KMD-055 distincte et privée. Seule l’intersection mutuelle active peut créer ou réutiliser un objet social, et le choix détaillé du partenaire ne doit jamais être exposé.
 
 Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
 
