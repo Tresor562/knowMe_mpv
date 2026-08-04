@@ -12,11 +12,15 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateGameSessionDto } from './dto/create-game-session.dto';
 import { SubmitGameActionDto } from './dto/submit-game-action.dto';
+import { GameExperienceService } from './game-experience.service';
 import { GamePlatformService } from './game-platform.service';
 
 @Controller('games')
 export class GamePlatformController {
-  constructor(private readonly games: GamePlatformService) {}
+  constructor(
+    private readonly games: GamePlatformService,
+    private readonly experience: GameExperienceService
+  ) {}
 
   @Get('catalog')
   catalog() {
@@ -38,7 +42,7 @@ export class GamePlatformController {
     @Req() req: { user: { userId: string } },
     @Body() dto: CreateGameSessionDto
   ) {
-    return this.games.create(req.user.userId, dto);
+    return this.experience.create(req.user.userId, dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -102,6 +106,6 @@ export class GamePlatformController {
     @Req() req: { user: { userId: string } },
     @Param('sessionId') sessionId: string
   ) {
-    return this.games.replay(req.user.userId, sessionId);
+    return this.experience.replay(req.user.userId, sessionId);
   }
 }

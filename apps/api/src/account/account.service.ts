@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { CreatorsService } from '../creators/creators.service';
+import { AffinityGamePolicyService } from '../games/affinity-game-policy.service';
 import { GameAccountLifecycleService } from '../games/game-account-lifecycle.service';
 import { GamePlatformService } from '../games/game-platform.service';
 import { I18nService } from '../i18n/i18n.service';
@@ -38,6 +39,7 @@ export class AccountService {
     private readonly mediaDownloads: MediaDownloadPreferenceService,
     private readonly creators: CreatorsService,
     private readonly games: GamePlatformService,
+    private readonly affinityPolicy: AffinityGamePolicyService,
     private readonly gameLifecycle: GameAccountLifecycleService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
@@ -79,6 +81,7 @@ export class AccountService {
       mediaDownloads,
       creatorFoundation,
       gamePlatform,
+      affinityPreference,
       media,
       challengeResults,
       challengeReferences,
@@ -136,6 +139,7 @@ export class AccountService {
       this.mediaDownloads.exportForAccount(userId),
       this.creators.exportForAccount(userId),
       this.games.exportForAccount(userId),
+      this.affinityPolicy.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -195,6 +199,11 @@ export class AccountService {
     const hasGameData =
       gamePlatform.memberships.length > 0 ||
       gamePlatform.authoredActions.length > 0;
+    const hasAffinityData =
+      affinityPreference !== null ||
+      gamePlatform.sessions.some(
+        (session) => session.definitionKey === 'affinity-mirror'
+      );
     const hasCreatorData =
       creatorFoundation.profile !== null ||
       creatorFoundation.following.length > 0 ||
@@ -230,25 +239,29 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasGameData
-        ? 13
-        : hasCreatorData
-          ? 12
-          : hasMediaDownloadData
-            ? 11
-            : hasLocalizationData
-              ? 10
-              : hasNotificationCenterData
-                ? 9
-                : hasSocialGiftData
-                  ? 8
-                  : hasAppearanceData
-                    ? 7
-                    : 6,
+      formatVersion: hasAffinityData
+        ? 14
+        : hasGameData
+          ? 13
+          : hasCreatorData
+            ? 12
+            : hasMediaDownloadData
+              ? 11
+              : hasLocalizationData
+                ? 10
+                : hasNotificationCenterData
+                  ? 9
+                  : hasSocialGiftData
+                    ? 8
+                    : hasAppearanceData
+                      ? 7
+                      : 6,
       account: safeUser,
       security,
       privacy,
-      ...(hasGameData ? { gamePlatform } : {}),
+      ...(hasGameData || hasAffinityData
+        ? { gamePlatform: { ...gamePlatform, affinityPreference } }
+        : {}),
       ...(hasCreatorData ? { creatorFoundation } : {}),
       ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
       ...(hasLocalizationData ? { localization } : {}),
