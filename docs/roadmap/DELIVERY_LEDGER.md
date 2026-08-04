@@ -67,30 +67,35 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-048 | Centre de notifications intelligent | #88 | Fusionnée |
 | KMD-049 | Internationalisation Web/Mobile et erreurs localisables | #90 | Fusionnée |
 | KMD-050 | Politique de téléchargement et gouvernance du cache média | #91 | Fusionnée |
+| KMD-051 | Fondation Créateurs et audience | #93 | Fusionnée |
 
 ## Livraison en validation
 
-Aucune livraison n’est actuellement en validation dans ce registre. Une livraison rejoint ce tableau uniquement après ouverture de sa PR et démarrage de sa validation CI.
+| Livraison | Domaine | Pull request | État |
+| --- | --- | --- | --- |
+| KMD-052 | Game Platform autoritaire | #94 | CI en validation |
 
 ## Prochaine livraison réservée
 
-`KMD-051` est réservé à la **fondation Créateurs et audience**.
+`KMD-053` est réservé au **jeu d’affinité explicable** construit sur la Game Platform KMD-052.
 
 Cette livraison dépend de :
 
-- KMD-004 pour les permissions et actions administratives ;
-- KMD-010 pour garder le statut créateur distinct de la vérification d’identité ;
-- KMD-038 et KMD-042 pour les communautés, pages sociales et événements existants ;
-- KMD-012 pour l’export, la suppression et les préférences de confidentialité ;
-- KMD-015 pour la modération, le signalement et l’anti-abus.
+- KMD-008 et KMD-016 pour les contenus versionnés et les historiques immuables ;
+- KMD-012 pour le consentement, l’export et la suppression ;
+- KMD-038 et KMD-042 pour les cercles, relations et profils collectifs ;
+- KMD-049 pour les libellés localisables ;
+- KMD-052 pour les sessions, actions, séquences et replays autoritaires.
 
-Le périmètre réservé comprend un profil créateur volontaire et révocable, un identifiant public stable, les abonnements et désabonnements idempotents, une page publique contrôlée, l’épinglage de publications, des agrégats de portée minimisés, un tableau de bord propriétaire et une gouvernance administrateur auditée. La monétisation, les revenus, les commissions, les lives et les partenariats commerciaux restent hors périmètre de cette fondation.
+Le périmètre réservé comprend un jeu relationnel volontaire, des questions ou choix versionnés, un résultat explicable calculé par le serveur, une comparaison minimisée entre participants, un replay interprétable et des contrôles de confidentialité. Les diagnostics psychologiques, le classement public des relations, les mises, récompenses économiques et achats de puissance restent interdits.
 
 ## Frontières permanentes
 
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur, jeu ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
 Le statut créateur reste distinct de Premium, de la vérification d’identité et du rôle staff. Les compteurs d’audience ne peuvent pas modifier les permissions, la visibilité privée ou les décisions de modération.
+
+La Game Platform ne peut accepter du client ni score, ni gagnant, ni état final, ni mise. Les jeux ne peuvent pas modifier un solde, une permission ou un entitlement sans passer par un système autoritaire distinct explicitement livré.
 
 Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
 
