@@ -11,6 +11,7 @@ import { CreatorsService } from '../creators/creators.service';
 import { AffinityGamePolicyService } from '../games/affinity-game-policy.service';
 import { GameAccountLifecycleService } from '../games/game-account-lifecycle.service';
 import { GamePlatformService } from '../games/game-platform.service';
+import { TournamentService } from '../games/tournament.service';
 import { I18nService } from '../i18n/i18n.service';
 import { MediaDownloadPreferenceService } from '../media/media-download-preference.service';
 import { MediaService } from '../media/media.service';
@@ -41,6 +42,7 @@ export class AccountService {
     private readonly mediaDownloads: MediaDownloadPreferenceService,
     private readonly creators: CreatorsService,
     private readonly games: GamePlatformService,
+    private readonly tournaments: TournamentService,
     private readonly affinityPolicy: AffinityGamePolicyService,
     private readonly gameLifecycle: GameAccountLifecycleService,
     private readonly media: MediaService,
@@ -85,6 +87,7 @@ export class AccountService {
       mediaDownloads,
       creatorFoundation,
       gamePlatform,
+      tournaments,
       affinityPreference,
       socialMatchmaking,
       postAcceptanceConnection,
@@ -145,6 +148,7 @@ export class AccountService {
       this.mediaDownloads.exportForAccount(userId),
       this.creators.exportForAccount(userId),
       this.games.exportForAccount(userId),
+      this.tournaments.exportForAccount(userId),
       this.affinityPolicy.exportForAccount(userId),
       this.socialMatchmaking.exportForAccount(userId),
       this.socialConnection.exportForAccount(userId),
@@ -204,7 +208,12 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasTournamentData =
+      tournaments.memberships.length > 0 ||
+      tournaments.tournaments.length > 0 ||
+      tournaments.authoredEvents.length > 0;
     const hasGameData =
+      hasTournamentData ||
       gamePlatform.memberships.length > 0 ||
       gamePlatform.authoredActions.length > 0;
     const hasAffinityData =
@@ -258,32 +267,40 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasSocialConnectionData
-        ? 16
-        : hasSocialMatchmakingData
-          ? 15
-          : hasAffinityData
-            ? 14
-            : hasGameData
-              ? 13
-              : hasCreatorData
-                ? 12
-                : hasMediaDownloadData
-                  ? 11
-                  : hasLocalizationData
-                    ? 10
-                    : hasNotificationCenterData
-                      ? 9
-                      : hasSocialGiftData
-                        ? 8
-                        : hasAppearanceData
-                          ? 7
-                          : 6,
+      formatVersion: hasTournamentData
+        ? 17
+        : hasSocialConnectionData
+          ? 16
+          : hasSocialMatchmakingData
+            ? 15
+            : hasAffinityData
+              ? 14
+              : hasGameData
+                ? 13
+                : hasCreatorData
+                  ? 12
+                  : hasMediaDownloadData
+                    ? 11
+                    : hasLocalizationData
+                      ? 10
+                      : hasNotificationCenterData
+                        ? 9
+                        : hasSocialGiftData
+                          ? 8
+                          : hasAppearanceData
+                            ? 7
+                            : 6,
       account: safeUser,
       security,
       privacy,
       ...(hasGameData || hasAffinityData
-        ? { gamePlatform: { ...gamePlatform, affinityPreference } }
+        ? {
+            gamePlatform: {
+              ...gamePlatform,
+              affinityPreference,
+              ...(hasTournamentData ? { tournaments } : {})
+            }
+          }
         : {}),
       ...(hasSocialMatchmakingData
         ? {
@@ -349,6 +366,7 @@ export class AccountService {
           metadata: { username: user.username, requestedAt: new Date().toISOString() }
         }
       });
+      await this.tournaments.deleteForAccount(userId, tx);
       await this.gameLifecycle.prepareDeletion(userId, tx);
       await this.games.deleteForAccount(userId, tx);
       await this.socialConnection.deleteForAccount(userId, tx);

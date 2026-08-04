@@ -1,12 +1,16 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { GamePlatformService } from './game-platform.service';
+import { TournamentService } from './tournament.service';
 
 @Injectable()
 export class GameSessionMaintenanceService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private readonly games: GamePlatformService) {}
+  constructor(
+    private readonly games: GamePlatformService,
+    private readonly tournaments: TournamentService
+  ) {}
 
   onModuleInit() {
     if (process.env.GAME_PLATFORM_MAINTENANCE_ENABLED === 'false') return;
@@ -25,13 +29,24 @@ export class GameSessionMaintenanceService implements OnModuleInit, OnModuleDest
   }
 
   async tick(limit?: number) {
-    if (this.running) return { skipped: true, inspected: 0, expired: 0 };
+    if (this.running) {
+      return {
+        skipped: true,
+        inspected: 0,
+        expired: 0,
+        inspectedTournamentMatches: 0,
+        advancedTournamentMatches: 0,
+        tournamentMatchesRequiringReview: 0
+      };
+    }
     this.running = true;
     try {
       const batchSize =
         limit ??
         this.integerEnv('GAME_PLATFORM_MAINTENANCE_BATCH_SIZE', 100, 1, 500);
-      return { skipped: false, ...(await this.games.expireDue(batchSize)) };
+      const expired = await this.games.expireDue(batchSize);
+      const synchronized = await this.tournaments.syncDue(batchSize);
+      return { skipped: false, ...expired, ...synchronized };
     } finally {
       this.running = false;
     }
