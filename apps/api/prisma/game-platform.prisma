@@ -1,0 +1,147 @@
+enum GameCatalogStatus {
+  ACTIVE
+  RETIRED
+}
+
+enum GameSessionStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  CANCELLED
+  EXPIRED
+}
+
+enum GameParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+  ABANDONED
+  COMPLETED
+}
+
+model GameDefinition {
+  id            String            @id @default(cuid())
+  key           String
+  version       Int
+  name          String
+  description   String
+  engineKey     String
+  minPlayers    Int
+  maxPlayers    Int
+  status        GameCatalogStatus @default(ACTIVE)
+  rules         Json
+  initialConfig Json
+  checksum      String
+  createdAt     DateTime          @default(now())
+  retiredAt     DateTime?
+
+  @@unique([key, version])
+  @@index([status, key, version])
+}
+
+model GameSession {
+  id                  String            @id @default(cuid())
+  definitionId        String
+  definitionKey       String
+  definitionVersion   Int
+  ownerId             String
+  creationKey         String
+  status              GameSessionStatus @default(WAITING)
+  seed                String
+  initialState        Json
+  state               Json
+  stateHash           String
+  sequence            Int               @default(0)
+  currentTurnPosition Int?
+  winnerUserId        String?
+  result              Json?
+  version             Int               @default(1)
+  expiresAt           DateTime
+  startedAt           DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([ownerId, creationKey])
+  @@index([ownerId, status, updatedAt])
+  @@index([status, expiresAt])
+  @@index([definitionKey, definitionVersion, createdAt])
+}
+
+model GameParticipant {
+  sessionId  String
+  userId     String
+  position   Int
+  status     GameParticipantStatus @default(INVITED)
+  joinedAt   DateTime?
+  lastSeenAt DateTime?
+  leftAt     DateTime?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@id([sessionId, userId])
+  @@unique([sessionId, position])
+  @@index([userId, status, updatedAt])
+  @@index([sessionId, status, position])
+}
+
+model GameAction {
+  id              String   @id @default(cuid())
+  sessionId       String
+  actorId         String
+  sequence        Int
+  idempotencyKey  String
+  actionType      String
+  payload         Json
+  stateHashBefore String
+  stateHashAfter  String
+  createdAt       DateTime @default(now())
+
+  @@unique([sessionId, sequence])
+  @@unique([sessionId, actorId, idempotencyKey])
+  @@index([actorId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model GameActionReceipt {
+  sessionId      String
+  actorId        String
+  idempotencyKey String
+  sequence       Int
+  response       Json
+  createdAt      DateTime @default(now())
+
+  @@id([sessionId, actorId, idempotencyKey])
+  @@index([createdAt])
+}
+
+model GameReplaySnapshot {
+  sessionId         String   @id
+  definitionKey    String
+  definitionVersion Int
+  seed              String
+  initialState      Json
+  finalState        Json
+  result            Json
+  actionCount       Int
+  checksum          String
+  createdAt         DateTime @default(now())
+
+  @@index([definitionKey, definitionVersion, createdAt])
+}
+
+model GameGovernanceEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  actorId   String
+  action    String
+  reason    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([actorId, createdAt])
+}

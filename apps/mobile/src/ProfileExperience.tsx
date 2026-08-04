@@ -12,6 +12,7 @@ import {
 import { apiFetch } from './api';
 import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
+import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
@@ -214,6 +215,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       <AvatarStudioExperience />
       <PaymentsExperience />
       <SocialGiftsExperience />
+      <GamePlatformExperience />
       <SecurityExperience onSessionClosed={onAccountDeleted} />
       <PrivacyExperience />
 

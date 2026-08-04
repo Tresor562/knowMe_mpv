@@ -5,6 +5,7 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit.logs.read',
   USER_SUSPENSION_MANAGE: 'users.suspension.manage',
   CREATOR_MANAGE: 'creators.manage',
+  GAMES_MANAGE: 'games.manage',
   FEATURE_FLAGS_MANAGE: 'feature_flags.manage',
   ENTITLEMENTS_MANAGE: 'entitlements.manage',
   STAFF_MANAGE: 'staff.manage',
@@ -26,6 +27,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.AUDIT_READ, 'Consulter les journaux d’audit.'],
   [PERMISSIONS.USER_SUSPENSION_MANAGE, 'Suspendre et restaurer les comptes.'],
   [PERMISSIONS.CREATOR_MANAGE, 'Suspendre et restaurer les profils créateurs.'],
+  [PERMISSIONS.GAMES_MANAGE, 'Annuler et auditer les parties de jeux.'],
   [PERMISSIONS.FEATURE_FLAGS_MANAGE, 'Gérer les déploiements par feature flags.'],
   [PERMISSIONS.ENTITLEMENTS_MANAGE, 'Accorder et révoquer les droits exclusifs.'],
   [PERMISSIONS.STAFF_MANAGE, 'Gérer les comptes officiels Équipe KnowMe.'],
@@ -65,6 +67,7 @@ export const SYSTEM_ROLES = [
       PERMISSIONS.REPORTS_RESOLVE,
       PERMISSIONS.USER_SUSPENSION_MANAGE,
       PERMISSIONS.CREATOR_MANAGE,
+      PERMISSIONS.GAMES_MANAGE,
       PERMISSIONS.VERIFICATION_MANAGE
     ]
   },

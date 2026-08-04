@@ -22,6 +22,7 @@ import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { GamePlatformModule } from './games/game-platform.module';
 import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
 import { HealthController } from './health.controller';
 import { I18nModule } from './i18n/i18n.module';
@@ -86,6 +87,7 @@ import { WalletModule } from './wallet/wallet.module';
     MessengerExperienceModule,
     CommunitiesModule,
     CreatorsModule,
+    GamePlatformModule,
     KnowMeSecretModule,
     AppearanceModule,
     BillingModule,
