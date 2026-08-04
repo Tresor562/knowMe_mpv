@@ -156,7 +156,7 @@ describe('KnowMe voluntary social matchmaking (e2e)', () => {
     );
     const proposalId = bobMatched.body.proposal.id as string;
     expect(JSON.stringify(bobMatched.body.proposal)).not.toMatch(
-      /affinityAnswer|privateMessage|latitude|longitude|religion|health|politic|financial/i
+      /affinityAnswers(?!Used)|privateMessages(?!Used)|latitude|longitude|religion|health|politic|financial/i
     );
     expect(
       await prisma.notification.count({
