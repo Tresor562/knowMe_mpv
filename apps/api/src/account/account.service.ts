@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { CreatorsService } from '../creators/creators.service';
+import { GameAccountLifecycleService } from '../games/game-account-lifecycle.service';
 import { GamePlatformService } from '../games/game-platform.service';
 import { I18nService } from '../i18n/i18n.service';
 import { MediaDownloadPreferenceService } from '../media/media-download-preference.service';
@@ -37,6 +38,7 @@ export class AccountService {
     private readonly mediaDownloads: MediaDownloadPreferenceService,
     private readonly creators: CreatorsService,
     private readonly games: GamePlatformService,
+    private readonly gameLifecycle: GameAccountLifecycleService,
     private readonly media: MediaService,
     private readonly conceptK: ConceptKService,
     private readonly cosmetics: CosmeticsService,
@@ -303,6 +305,7 @@ export class AccountService {
           metadata: { username: user.username, requestedAt: new Date().toISOString() }
         }
       });
+      await this.gameLifecycle.prepareDeletion(userId, tx);
       await this.games.deleteForAccount(userId, tx);
       await this.creators.deleteForAccount(userId, tx);
       await this.mediaDownloads.deleteForAccount(userId, tx);
