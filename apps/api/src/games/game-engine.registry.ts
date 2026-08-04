@@ -2,6 +2,10 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  AFFINITY_GAME_DEFINITION,
+  AffinityMirrorEngine
+} from './affinity-mirror.engine';
+import {
   BUILTIN_GAME_CATALOG,
   GameEngineAdapter,
   PulseDuelEngine,
@@ -14,7 +18,9 @@ export class GameEngineRegistry implements OnModuleInit {
 
   constructor(private readonly prisma: PrismaService) {
     const pulseDuel = new PulseDuelEngine();
+    const affinityMirror = new AffinityMirrorEngine();
     this.engines.set(pulseDuel.engineKey, pulseDuel);
+    this.engines.set(affinityMirror.engineKey, affinityMirror);
   }
 
   async onModuleInit() {
@@ -22,7 +28,7 @@ export class GameEngineRegistry implements OnModuleInit {
   }
 
   async syncCatalog() {
-    for (const definition of BUILTIN_GAME_CATALOG) {
+    for (const definition of [...BUILTIN_GAME_CATALOG, AFFINITY_GAME_DEFINITION]) {
       const checksum = gameDefinitionChecksum(definition);
       const existing = await this.prisma.gameDefinition.findUnique({
         where: { key_version: { key: definition.key, version: definition.version } }
