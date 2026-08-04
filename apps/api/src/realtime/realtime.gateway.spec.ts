@@ -22,11 +22,26 @@ describe('RealtimeGateway', () => {
         findUnique: jest.fn()
       }
     };
+    const calls = {
+      authorizeSignal: jest.fn().mockResolvedValue({
+        id: 'call-allowed',
+        callerId: 'alice',
+        calleeId: 'bob',
+        media: 'video',
+        status: 'RINGING',
+        endReason: null,
+        ended: false
+      })
+    };
     const roomEmitter = { emit: jest.fn() };
     const server = {
       to: jest.fn().mockReturnValue(roomEmitter)
     };
-    const gateway = new RealtimeGateway(jwt as never, prisma as never);
+    const gateway = new RealtimeGateway(
+      jwt as never,
+      prisma as never,
+      calls as never
+    );
     gateway.server = server as never;
 
     const rooms = new Set<string>();
@@ -49,6 +64,7 @@ describe('RealtimeGateway', () => {
       gateway,
       jwt,
       prisma,
+      calls,
       server,
       roomEmitter,
       client
@@ -147,11 +163,17 @@ describe('RealtimeGateway', () => {
     });
   });
 
-  it('allows calls only between known conversation peers', async () => {
-    const { gateway, client, server, roomEmitter } = setup();
+  it('forwards calls only after authoritative domain authorization', async () => {
+    const { gateway, client, calls, server, roomEmitter } = setup();
     client.data.userId = 'alice';
     client.data.username = 'alice';
 
+    calls.authorizeSignal.mockRejectedValueOnce({
+      getResponse: () => ({
+        code: 'CALL_SIGNAL_FORBIDDEN',
+        message: 'Signalisation refusée.'
+      })
+    });
     await gateway.forwardOffer(client as never, {
       targetUserId: 'outsider',
       callId: 'call-denied',
@@ -162,7 +184,8 @@ describe('RealtimeGateway', () => {
     expect(client.emit).toHaveBeenCalledWith('call:error', {
       callId: 'call-denied',
       targetUserId: 'outsider',
-      message: 'Tu ne peux appeler que les membres de tes conversations.'
+      code: 'CALL_SIGNAL_FORBIDDEN',
+      message: 'Signalisation refusée.'
     });
     expect(server.to).not.toHaveBeenCalledWith('user:outsider');
 
@@ -173,6 +196,13 @@ describe('RealtimeGateway', () => {
       offer: { type: 'offer', sdp: 'allowed' }
     });
 
+    expect(calls.authorizeSignal).toHaveBeenLastCalledWith(
+      'alice',
+      'bob',
+      'call-allowed',
+      'OFFER',
+      undefined
+    );
     expect(server.to).toHaveBeenCalledWith('user:bob');
     expect(roomEmitter.emit).toHaveBeenCalledWith('call:incoming', {
       callId: 'call-allowed',
