@@ -6,6 +6,7 @@ export const PERMISSIONS = {
   USER_SUSPENSION_MANAGE: 'users.suspension.manage',
   CREATOR_MANAGE: 'creators.manage',
   GAMES_MANAGE: 'games.manage',
+  MATCHMAKING_MANAGE: 'matchmaking.manage',
   FEATURE_FLAGS_MANAGE: 'feature_flags.manage',
   ENTITLEMENTS_MANAGE: 'entitlements.manage',
   STAFF_MANAGE: 'staff.manage',
@@ -28,6 +29,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.USER_SUSPENSION_MANAGE, 'Suspendre et restaurer les comptes.'],
   [PERMISSIONS.CREATOR_MANAGE, 'Suspendre et restaurer les profils créateurs.'],
   [PERMISSIONS.GAMES_MANAGE, 'Annuler et auditer les parties de jeux.'],
+  [PERMISSIONS.MATCHMAKING_MANAGE, 'Auditer et maintenir le matchmaking social volontaire.'],
   [PERMISSIONS.FEATURE_FLAGS_MANAGE, 'Gérer les déploiements par feature flags.'],
   [PERMISSIONS.ENTITLEMENTS_MANAGE, 'Accorder et révoquer les droits exclusifs.'],
   [PERMISSIONS.STAFF_MANAGE, 'Gérer les comptes officiels Équipe KnowMe.'],
@@ -68,6 +70,7 @@ export const SYSTEM_ROLES = [
       PERMISSIONS.USER_SUSPENSION_MANAGE,
       PERMISSIONS.CREATOR_MANAGE,
       PERMISSIONS.GAMES_MANAGE,
+      PERMISSIONS.MATCHMAKING_MANAGE,
       PERMISSIONS.VERIFICATION_MANAGE
     ]
   },
