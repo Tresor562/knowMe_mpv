@@ -33,6 +33,12 @@ enum SocialMatchDecisionType {
   BLOCK
 }
 
+enum SocialConnectionIntentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
 model SocialMatchPreference {
   userId             String   @id
   matchmakingEnabled Boolean  @default(false)
@@ -66,20 +72,20 @@ model SocialMatchQueueEntry {
 }
 
 model SocialMatchProposal {
-  id           String                    @id @default(cuid())
-  firstUserId  String
-  secondUserId String
-  firstEntryId String
+  id            String                    @id @default(cuid())
+  firstUserId   String
+  secondUserId  String
+  firstEntryId  String
   secondEntryId String
-  status       SocialMatchProposalStatus @default(PENDING)
-  score        Int
-  explanation  Json
-  version      Int                       @default(1)
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  closedReason String?
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
+  status        SocialMatchProposalStatus @default(PENDING)
+  score         Int
+  explanation   Json
+  version       Int                       @default(1)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  closedReason  String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
 
   @@index([firstUserId, status, updatedAt])
   @@index([secondUserId, status, updatedAt])
@@ -119,11 +125,64 @@ model SocialMatchEvent {
 }
 
 model SocialMatchReceipt {
-  userId        String
+  userId         String
   idempotencyKey String
-  operation     String
-  response      Json
-  createdAt     DateTime @default(now())
+  operation      String
+  response       Json
+  createdAt      DateTime @default(now())
+
+  @@id([userId, idempotencyKey])
+  @@index([createdAt])
+}
+
+model SocialConnectionIntent {
+  proposalId       String
+  userId           String
+  wantsFriendship  Boolean                      @default(false)
+  wantsConversation Boolean                     @default(false)
+  status           SocialConnectionIntentStatus @default(ACTIVE)
+  version          Int                          @default(1)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@id([proposalId, userId])
+  @@index([userId, status, expiresAt])
+  @@index([status, expiresAt])
+}
+
+model SocialConnectionOutcome {
+  proposalId             String    @id
+  friendshipId           String?
+  conversationId         String?
+  friendshipCreatedAt    DateTime?
+  conversationCreatedAt  DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([friendshipId])
+  @@index([conversationId])
+}
+
+model SocialConnectionEvent {
+  id         String   @id @default(cuid())
+  proposalId String
+  userId     String
+  action     String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, action, createdAt])
+  @@index([proposalId, createdAt])
+}
+
+model SocialConnectionReceipt {
+  userId         String
+  idempotencyKey String
+  operation      String
+  response       Json
+  createdAt      DateTime @default(now())
 
   @@id([userId, idempotencyKey])
   @@index([createdAt])

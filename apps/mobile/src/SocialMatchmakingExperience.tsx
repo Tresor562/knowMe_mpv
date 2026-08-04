@@ -42,6 +42,28 @@ type MatchStatus = {
   sensitiveCriteriaUsed: false;
 };
 
+type ConnectionStatus = {
+  proposalId: string;
+  available: boolean;
+  expiresAt: string;
+  intent: {
+    wantsFriendship: boolean;
+    wantsConversation: boolean;
+    status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+  } | null;
+  partnerResponded: boolean;
+  result: {
+    friendshipCreated: boolean;
+    conversationCreated: boolean;
+    friendshipId: string | null;
+    conversationId: string | null;
+  };
+  privacy: {
+    partnerChoicesExposed: false;
+    automaticConnectionAllowed: false;
+  };
+};
+
 const PURPOSES = ['CHAT', 'PLAY', 'LEARN', 'CREATE'] as const;
 const PACES = ['REALTIME', 'ASYNC', 'FLEXIBLE'] as const;
 const LANGUAGES = ['fr', 'en', 'pt', 'es', 'de', 'it', 'ar'] as const;
@@ -69,6 +91,7 @@ export function SocialMatchmakingExperience() {
   const { colors } = useAppearance();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [status, setStatus] = useState<MatchStatus | null>(null);
+  const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [purpose, setPurpose] = useState<(typeof PURPOSES)[number]>('LEARN');
   const [pace, setPace] = useState<(typeof PACES)[number]>('FLEXIBLE');
   const [languages, setLanguages] = useState<string[]>(['fr', 'en']);
@@ -76,6 +99,8 @@ export function SocialMatchmakingExperience() {
   const [dayOfWeek, setDayOfWeek] = useState('1');
   const [startMinute, setStartMinute] = useState('900');
   const [endMinute, setEndMinute] = useState('1020');
+  const [wantsFriendship, setWantsFriendship] = useState(false);
+  const [wantsConversation, setWantsConversation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -84,8 +109,19 @@ export function SocialMatchmakingExperience() {
       apiFetch<Preference>('/social-matchmaking/preferences'),
       apiFetch<MatchStatus>('/social-matchmaking/status')
     ]);
+    let nextConnection: ConnectionStatus | null = null;
+    if (nextStatus.proposal?.status === 'ACCEPTED') {
+      nextConnection = await apiFetch<ConnectionStatus>(
+        `/social-matchmaking/proposals/${nextStatus.proposal.id}/connection`
+      );
+    }
     setPreference(nextPreference);
     setStatus(nextStatus);
+    setConnection(nextConnection);
+    if (nextConnection?.intent) {
+      setWantsFriendship(nextConnection.intent.wantsFriendship);
+      setWantsConversation(nextConnection.intent.wantsConversation);
+    }
   }
 
   useEffect(() => {
@@ -186,6 +222,48 @@ export function SocialMatchmakingExperience() {
     });
   }
 
+  function saveConnectionIntent() {
+    const proposalId = status?.proposal?.id;
+    if (!proposalId || (!wantsFriendship && !wantsConversation)) return;
+    void execute(async () => {
+      setConnection(
+        await apiFetch<ConnectionStatus>(
+          `/social-matchmaking/proposals/${proposalId}/connection/intent`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              wantsFriendship,
+              wantsConversation,
+              idempotencyKey: operationKey('mobile-social-connection-intent')
+            })
+          }
+        )
+      );
+      setMessage('Tes choix privés ont été enregistrés.');
+    });
+  }
+
+  function revokeConnectionIntent() {
+    const proposalId = status?.proposal?.id;
+    if (!proposalId) return;
+    void execute(async () => {
+      setConnection(
+        await apiFetch<ConnectionStatus>(
+          `/social-matchmaking/proposals/${proposalId}/connection/revoke`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              idempotencyKey: operationKey('mobile-social-connection-revoke')
+            })
+          }
+        )
+      );
+      setWantsFriendship(false);
+      setWantsConversation(false);
+      setMessage('Ton intention a été révoquée.');
+    });
+  }
+
   const card = { backgroundColor: colors.surface, borderColor: colors.border };
   const raised = {
     backgroundColor: colors.surfaceRaised,
@@ -198,6 +276,9 @@ export function SocialMatchmakingExperience() {
     languages.length > 0 &&
     Number(endMinute) - Number(startMinute) >= 30;
   const proposal = status?.proposal ?? null;
+  const connectionExecuted = Boolean(
+    connection?.result.friendshipCreated || connection?.result.conversationCreated
+  );
 
   return (
     <View style={[styles.card, card]}>
@@ -342,7 +423,85 @@ export function SocialMatchmakingExperience() {
           ) : null}
           {proposal.status === 'ACCEPTED' ? (
             <Text style={{ color: colors.secondary, fontWeight: '900' }}>
-              Acceptation mutuelle confirmée.
+              Acceptation mutuelle confirmée. Aucun lien n’est créé automatiquement.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {proposal?.status === 'ACCEPTED' && connection ? (
+        <View style={[styles.connection, raised]}>
+          <Text style={[styles.proposalTitle, { color: colors.text }]}>
+            Choix privé post-acceptation
+          </Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Le détail du choix de l’autre personne reste privé. Seule votre intersection
+            mutuelle peut créer une amitié ou une conversation.
+          </Text>
+
+          {connectionExecuted ? (
+            <View style={{ gap: 8 }}>
+              {connection.result.friendshipCreated ? (
+                <Text style={{ color: colors.secondary, fontWeight: '900' }}>
+                  Amitié créée par consentement mutuel.
+                </Text>
+              ) : null}
+              {connection.result.conversationCreated ? (
+                <Text style={{ color: colors.secondary, fontWeight: '900' }}>
+                  Conversation créée par consentement mutuel.
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              <PreferenceRow
+                label="Autoriser une amitié si le choix est mutuel"
+                value={wantsFriendship}
+                disabled={busy || !connection.available}
+                onChange={setWantsFriendship}
+                textColor={colors.text}
+              />
+              <PreferenceRow
+                label="Autoriser une conversation si le choix est mutuel"
+                value={wantsConversation}
+                disabled={busy || !connection.available}
+                onChange={setWantsConversation}
+                textColor={colors.text}
+              />
+              <View style={styles.wrap}>
+                <ActionButton
+                  label="Enregistrer mes choix"
+                  disabled={
+                    busy ||
+                    !connection.available ||
+                    (!wantsFriendship && !wantsConversation)
+                  }
+                  onPress={saveConnectionIntent}
+                  backgroundColor={colors.accent}
+                  textColor={colors.accentText}
+                />
+                {connection.intent?.status === 'ACTIVE' ? (
+                  <ActionButton
+                    label="Révoquer"
+                    disabled={busy}
+                    onPress={revokeConnectionIntent}
+                    borderColor={colors.secondary}
+                    textColor={colors.secondary}
+                  />
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            Réponse de l’autre personne : {connection.partnerResponded ? 'enregistrée' : 'pas encore enregistrée'}.
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            Expiration : {new Date(connection.expiresAt).toLocaleString()}.
+          </Text>
+          {!connection.available && !connectionExecuted ? (
+            <Text style={{ color: colors.danger, fontWeight: '900' }}>
+              Cette étape n’est plus disponible. Aucun lien n’a été créé automatiquement.
             </Text>
           ) : null}
         </View>
@@ -522,5 +681,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8
   },
   proposal: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 10 },
+  connection: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 12 },
   muted: { opacity: 0.5 }
 });

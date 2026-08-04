@@ -58,6 +58,35 @@ type MatchStatus = {
   replayed?: boolean;
 };
 
+type ConnectionStatus = {
+  proposalId: string;
+  available: boolean;
+  expiresAt: string;
+  intent: {
+    wantsFriendship: boolean;
+    wantsConversation: boolean;
+    status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+    version: number;
+    expiresAt: string;
+    revokedAt: string | null;
+    updatedAt: string;
+  } | null;
+  partnerResponded: boolean;
+  result: {
+    friendshipCreated: boolean;
+    conversationCreated: boolean;
+    friendshipId: string | null;
+    conversationId: string | null;
+    friendshipCreatedAt: string | null;
+    conversationCreatedAt: string | null;
+  };
+  privacy: {
+    partnerChoicesExposed: false;
+    automaticConnectionAllowed: false;
+  };
+  replayed?: boolean;
+};
+
 type BlockedUser = {
   blockedId: string;
   createdAt: string;
@@ -103,6 +132,7 @@ function minutesLabel(value: number) {
 export default function MatchmakingPage() {
   const [preference, setPreference] = useState<Preference | null>(null);
   const [status, setStatus] = useState<MatchStatus | null>(null);
+  const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [blocks, setBlocks] = useState<BlockedUser[]>([]);
   const [purpose, setPurpose] = useState<(typeof PURPOSES)[number]>('LEARN');
   const [pace, setPace] = useState<(typeof PACES)[number]>('FLEXIBLE');
@@ -111,6 +141,8 @@ export default function MatchmakingPage() {
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startMinute, setStartMinute] = useState(900);
   const [endMinute, setEndMinute] = useState(1020);
+  const [wantsFriendship, setWantsFriendship] = useState(false);
+  const [wantsConversation, setWantsConversation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -120,9 +152,20 @@ export default function MatchmakingPage() {
       apiFetch<MatchStatus>('/social-matchmaking/status'),
       apiFetch<BlockedUser[]>('/social-matchmaking/blocks')
     ]);
+    let nextConnection: ConnectionStatus | null = null;
+    if (nextStatus.proposal?.status === 'ACCEPTED') {
+      nextConnection = await apiFetch<ConnectionStatus>(
+        `/social-matchmaking/proposals/${nextStatus.proposal.id}/connection`
+      );
+    }
     setPreference(nextPreference);
     setStatus(nextStatus);
     setBlocks(nextBlocks);
+    setConnection(nextConnection);
+    if (nextConnection?.intent) {
+      setWantsFriendship(nextConnection.intent.wantsFriendship);
+      setWantsConversation(nextConnection.intent.wantsConversation);
+    }
   }
 
   useEffect(() => {
@@ -216,6 +259,48 @@ export default function MatchmakingPage() {
     });
   }
 
+  function saveConnectionIntent() {
+    const proposalId = status?.proposal?.id;
+    if (!proposalId || (!wantsFriendship && !wantsConversation)) return;
+    void execute(async () => {
+      setConnection(
+        await apiFetch<ConnectionStatus>(
+          `/social-matchmaking/proposals/${proposalId}/connection/intent`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              wantsFriendship,
+              wantsConversation,
+              idempotencyKey: operationKey('web-social-connection-intent')
+            })
+          }
+        )
+      );
+      setMessage('Tes choix privés ont été enregistrés.');
+    });
+  }
+
+  function revokeConnectionIntent() {
+    const proposalId = status?.proposal?.id;
+    if (!proposalId) return;
+    void execute(async () => {
+      setConnection(
+        await apiFetch<ConnectionStatus>(
+          `/social-matchmaking/proposals/${proposalId}/connection/revoke`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              idempotencyKey: operationKey('web-social-connection-revoke')
+            })
+          }
+        )
+      );
+      setWantsFriendship(false);
+      setWantsConversation(false);
+      setMessage('Ton intention a été révoquée.');
+    });
+  }
+
   function unblock(blockedId: string) {
     void execute(async () => {
       await apiFetch(`/social-matchmaking/blocks/${blockedId}`, {
@@ -231,6 +316,9 @@ export default function MatchmakingPage() {
     languages.length > 0 &&
     endMinute - startMinute >= 30;
   const proposal = status?.proposal ?? null;
+  const connectionExecuted = Boolean(
+    connection?.result.friendshipCreated || connection?.result.conversationCreated
+  );
 
   return (
     <main className="shell" style={{ maxWidth: 1080, margin: '0 auto' }}>
@@ -427,7 +515,7 @@ export default function MatchmakingPage() {
             {proposal.yourDecision ? <p>Ta réponse : {proposal.yourDecision}</p> : null}
             {proposal.status === 'ACCEPTED' ? (
               <p style={{ color: 'var(--mint)', fontWeight: 800 }}>
-                Acceptation mutuelle confirmée. Aucun lien social n’est encore créé automatiquement.
+                Acceptation mutuelle confirmée. Aucun lien social n’est créé automatiquement.
               </p>
             ) : null}
           </div>
@@ -435,6 +523,90 @@ export default function MatchmakingPage() {
           <p style={{ color: 'var(--muted)' }}>Aucune proposition active.</p>
         )}
       </section>
+
+      {proposal?.status === 'ACCEPTED' && connection ? (
+        <section className="card" style={{ padding: 22, marginBottom: 18 }}>
+          <small style={{ color: 'var(--mint)', fontWeight: 800 }}>
+            KMD-055 · CHOIX PRIVÉ POST-ACCEPTATION
+          </small>
+          <h2>Que veux-tu autoriser maintenant ?</h2>
+          <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+            Tes choix restent privés. Le serveur crée uniquement ce que vous avez tous les
+            deux choisi. Le détail du choix de l’autre personne n’est jamais affiché.
+          </p>
+
+          {connectionExecuted ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {connection.result.friendshipCreated ? (
+                <p style={{ color: 'var(--mint)', fontWeight: 800 }}>
+                  Amitié créée par consentement mutuel. <a href="/friends">Voir mes amis</a>
+                </p>
+              ) : null}
+              {connection.result.conversationCreated && connection.result.conversationId ? (
+                <p style={{ color: 'var(--mint)', fontWeight: 800 }}>
+                  Conversation créée par consentement mutuel.{' '}
+                  <a href={`/messages/${connection.result.conversationId}`}>Ouvrir la conversation</a>
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={wantsFriendship}
+                  onChange={(event) => setWantsFriendship(event.target.checked)}
+                  disabled={busy || !connection.available}
+                />{' '}
+                Autoriser la création d’une amitié si le choix est mutuel
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={wantsConversation}
+                  onChange={(event) => setWantsConversation(event.target.checked)}
+                  disabled={busy || !connection.available}
+                />{' '}
+                Autoriser une conversation directe si le choix est mutuel
+              </label>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={saveConnectionIntent}
+                  disabled={
+                    busy ||
+                    !connection.available ||
+                    (!wantsFriendship && !wantsConversation)
+                  }
+                >
+                  Enregistrer mes choix privés
+                </button>
+                {connection.intent?.status === 'ACTIVE' ? (
+                  <button
+                    className="btn"
+                    onClick={revokeConnectionIntent}
+                    disabled={busy}
+                  >
+                    Révoquer mon intention
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          <p style={{ color: 'var(--muted)' }}>
+            Réponse de l’autre personne : {connection.partnerResponded ? 'enregistrée' : 'pas encore enregistrée'}.
+          </p>
+          <p style={{ color: 'var(--muted)' }}>
+            Fenêtre disponible jusqu’au {new Date(connection.expiresAt).toLocaleString()}.
+          </p>
+          {!connection.available && !connectionExecuted ? (
+            <p style={{ color: 'var(--orange)', fontWeight: 800 }}>
+              Cette étape n’est plus disponible. Aucun lien n’a été créé automatiquement.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="card" style={{ padding: 22 }}>
         <h2>Personnes bloquées</h2>
