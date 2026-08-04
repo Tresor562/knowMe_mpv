@@ -1,0 +1,159 @@
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentFormat {
+  SINGLE_ELIMINATION
+}
+
+enum TournamentEntrantStatus {
+  PENDING
+  READY
+  WITHDRAWN
+  ELIMINATED
+  CHAMPION
+  DISQUALIFIED
+}
+
+enum TournamentMemberStatus {
+  INVITED
+  JOINED
+  LEFT
+}
+
+enum TournamentMemberRole {
+  CAPTAIN
+  MEMBER
+}
+
+enum TournamentMatchStatus {
+  PENDING
+  WAITING
+  ACTIVE
+  COMPLETED
+  FORFEIT
+  REVIEW_REQUIRED
+  CANCELLED
+}
+
+enum TournamentNextSlot {
+  FIRST
+  SECOND
+}
+
+model Tournament {
+  id                    String           @id @default(cuid())
+  ownerId               String
+  creationKey           String
+  name                   String
+  description            String?
+  gameDefinitionId       String
+  gameDefinitionKey      String
+  gameDefinitionVersion  Int
+  format                 TournamentFormat @default(SINGLE_ELIMINATION)
+  teamSize               Int              @default(1)
+  maxEntrants            Int
+  status                 TournamentStatus @default(DRAFT)
+  bracketSeed            String?
+  bracketSize            Int?
+  championEntrantId      String?
+  registrationClosesAt   DateTime
+  startedAt              DateTime?
+  completedAt            DateTime?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  version                 Int              @default(1)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  @@unique([ownerId, creationKey])
+  @@index([status, registrationClosesAt])
+  @@index([ownerId, status, updatedAt])
+  @@index([gameDefinitionKey, gameDefinitionVersion, createdAt])
+}
+
+model TournamentEntrant {
+  id           String                  @id @default(cuid())
+  tournamentId String
+  captainId    String
+  name         String
+  seed         Int?
+  status       TournamentEntrantStatus @default(PENDING)
+  registeredAt DateTime                @default(now())
+  withdrawnAt  DateTime?
+  eliminatedAt DateTime?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@unique([tournamentId, captainId])
+  @@index([tournamentId, status, registeredAt])
+}
+
+model TournamentEntrantMember {
+  tournamentId String
+  entrantId    String
+  userId       String
+  role         TournamentMemberRole
+  status       TournamentMemberStatus @default(INVITED)
+  joinedAt     DateTime?
+  leftAt       DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@id([tournamentId, userId])
+  @@index([entrantId, status, createdAt])
+  @@index([userId, status, updatedAt])
+}
+
+model TournamentMatch {
+  id               String                @id @default(cuid())
+  tournamentId     String
+  round            Int
+  position         Int
+  firstEntrantId   String?
+  secondEntrantId  String?
+  winnerEntrantId  String?
+  gameSessionId    String?               @unique
+  status           TournamentMatchStatus @default(PENDING)
+  nextMatchId      String?
+  nextSlot         TournamentNextSlot?
+  version          Int                   @default(1)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  resolutionReason String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([tournamentId, round, position])
+  @@index([tournamentId, status, round, position])
+  @@index([nextMatchId])
+}
+
+model TournamentEvent {
+  id           String   @id @default(cuid())
+  tournamentId String
+  actorId      String
+  action       String
+  subjectId    String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([tournamentId, createdAt])
+  @@index([actorId, action, createdAt])
+  @@index([subjectId, action, createdAt])
+}
+
+model TournamentReceipt {
+  userId         String
+  idempotencyKey String
+  operation      String
+  response       Json
+  createdAt      DateTime @default(now())
+
+  @@id([userId, idempotencyKey])
+  @@index([createdAt])
+}
