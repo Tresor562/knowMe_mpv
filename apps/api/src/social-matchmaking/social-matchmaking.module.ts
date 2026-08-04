@@ -3,6 +3,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { AdminSocialMatchmakingController } from './admin-social-matchmaking.controller';
 import { SocialMatchmakingController } from './social-matchmaking.controller';
+import { SocialMatchmakingGovernanceService } from './social-matchmaking-governance.service';
 import { SocialMatchmakingMaintenanceService } from './social-matchmaking-maintenance.service';
 import { SocialMatchmakingService } from './social-matchmaking.service';
 
@@ -13,7 +14,10 @@ import { SocialMatchmakingService } from './social-matchmaking.service';
     AdminSocialMatchmakingController
   ],
   providers: [
-    SocialMatchmakingService,
+    {
+      provide: SocialMatchmakingService,
+      useClass: SocialMatchmakingGovernanceService
+    },
     SocialMatchmakingMaintenanceService
   ],
   exports: [
