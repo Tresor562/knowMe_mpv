@@ -23,6 +23,7 @@ import { NotificationCenterLifecycleService } from '../notifications/notificatio
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
+import { SocialConnectionService } from '../social-matchmaking/social-connection.service';
 import { SocialMatchmakingService } from '../social-matchmaking/social-matchmaking.service';
 import { SocialGiftExportService } from '../social/social-gift-export.service';
 import { SocialGiftsService } from '../social/social-gifts.service';
@@ -49,6 +50,7 @@ export class AccountService {
     private readonly appearance: AppearanceService,
     private readonly socialGifts: SocialGiftsService,
     private readonly socialGiftExport: SocialGiftExportService,
+    private readonly socialConnection: SocialConnectionService,
     private readonly socialMatchmaking: SocialMatchmakingService
   ) {}
 
@@ -85,6 +87,7 @@ export class AccountService {
       gamePlatform,
       affinityPreference,
       socialMatchmaking,
+      postAcceptanceConnection,
       media,
       challengeResults,
       challengeReferences,
@@ -144,6 +147,7 @@ export class AccountService {
       this.games.exportForAccount(userId),
       this.affinityPolicy.exportForAccount(userId),
       this.socialMatchmaking.exportForAccount(userId),
+      this.socialConnection.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -208,7 +212,12 @@ export class AccountService {
       gamePlatform.sessions.some(
         (session) => session.definitionKey === 'affinity-mirror'
       );
+    const hasSocialConnectionData =
+      postAcceptanceConnection.intents.length > 0 ||
+      postAcceptanceConnection.outcomes.length > 0 ||
+      postAcceptanceConnection.events.length > 0;
     const hasSocialMatchmakingData =
+      hasSocialConnectionData ||
       socialMatchmaking.preference !== null ||
       socialMatchmaking.queue !== null ||
       socialMatchmaking.decisions.length > 0 ||
@@ -249,32 +258,41 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasSocialMatchmakingData
-        ? 15
-        : hasAffinityData
-          ? 14
-          : hasGameData
-            ? 13
-            : hasCreatorData
-              ? 12
-              : hasMediaDownloadData
-                ? 11
-                : hasLocalizationData
-                  ? 10
-                  : hasNotificationCenterData
-                    ? 9
-                    : hasSocialGiftData
-                      ? 8
-                      : hasAppearanceData
-                        ? 7
-                        : 6,
+      formatVersion: hasSocialConnectionData
+        ? 16
+        : hasSocialMatchmakingData
+          ? 15
+          : hasAffinityData
+            ? 14
+            : hasGameData
+              ? 13
+              : hasCreatorData
+                ? 12
+                : hasMediaDownloadData
+                  ? 11
+                  : hasLocalizationData
+                    ? 10
+                    : hasNotificationCenterData
+                      ? 9
+                      : hasSocialGiftData
+                        ? 8
+                        : hasAppearanceData
+                          ? 7
+                          : 6,
       account: safeUser,
       security,
       privacy,
       ...(hasGameData || hasAffinityData
         ? { gamePlatform: { ...gamePlatform, affinityPreference } }
         : {}),
-      ...(hasSocialMatchmakingData ? { socialMatchmaking } : {}),
+      ...(hasSocialMatchmakingData
+        ? {
+            socialMatchmaking: {
+              ...socialMatchmaking,
+              ...(hasSocialConnectionData ? { postAcceptanceConnection } : {})
+            }
+          }
+        : {}),
       ...(hasCreatorData ? { creatorFoundation } : {}),
       ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
       ...(hasLocalizationData ? { localization } : {}),
@@ -333,6 +351,7 @@ export class AccountService {
       });
       await this.gameLifecycle.prepareDeletion(userId, tx);
       await this.games.deleteForAccount(userId, tx);
+      await this.socialConnection.deleteForAccount(userId, tx);
       await this.socialMatchmaking.deleteForAccount(userId, tx);
       await this.creators.deleteForAccount(userId, tx);
       await this.mediaDownloads.deleteForAccount(userId, tx);
