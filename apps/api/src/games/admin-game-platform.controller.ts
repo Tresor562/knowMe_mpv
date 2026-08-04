@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards
 } from '@nestjs/common';
 import { PERMISSIONS } from '../access-control/access-control.catalog';
@@ -33,10 +34,11 @@ export class AdminGamePlatformController {
   @RequirePermissions(PERMISSIONS.GAMES_MANAGE)
   @Patch('sessions/:sessionId/governance')
   govern(
+    @Req() req: { user: { userId: string } },
     @Param('sessionId') sessionId: string,
     @Body() dto: GovernGameSessionDto
   ) {
-    return this.games.govern('system-admin-route', sessionId, dto);
+    return this.games.govern(req.user.userId, sessionId, dto);
   }
 
   @RequirePermissions(PERMISSIONS.GAMES_MANAGE)
