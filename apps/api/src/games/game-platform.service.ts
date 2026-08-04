@@ -1004,8 +1004,8 @@ export class GamePlatformService {
         definitionKey: session.definitionKey,
         definitionVersion: session.definitionVersion,
         seed: session.seed,
-        initialState: session.initialState,
-        finalState: session.state,
+        initialState: this.json(session.initialState),
+        finalState: this.json(session.state),
         result: this.json({ outcome: 'EXPIRED' }),
         actionCount: session.sequence,
         checksum: sha256Json({
