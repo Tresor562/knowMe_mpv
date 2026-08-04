@@ -183,7 +183,12 @@ describe('Affinity Mirror engine', () => {
     });
     expect(shared.privacyRedacted).toBe(false);
     expect(shared.reproducibleByParticipant).toBe(true);
-    expect(shared.actions.some((action) => action.payload.option === 0)).toBe(true);
+    expect(
+      shared.actions.some(
+        (action) =>
+          (action.payload as Record<string, unknown>).option === 0
+      )
+    ).toBe(true);
 
     const privateResult = {
       ...(completed?.result ?? {}),
@@ -201,7 +206,10 @@ describe('Affinity Mirror engine', () => {
     expect(
       privateReplay.actions
         .filter((action) => action.actionType === 'ANSWER')
-        .every((action) => action.payload.redacted === true)
+        .every(
+          (action) =>
+            (action.payload as Record<string, unknown>).redacted === true
+        )
     ).toBe(true);
   });
 
