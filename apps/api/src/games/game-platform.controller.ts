@@ -10,13 +10,19 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AffinityGamePolicyService } from './affinity-game-policy.service';
+import { AffinityReplayPrivacyService } from './affinity-replay-privacy.service';
 import { CreateGameSessionDto } from './dto/create-game-session.dto';
 import { SubmitGameActionDto } from './dto/submit-game-action.dto';
 import { GamePlatformService } from './game-platform.service';
 
 @Controller('games')
 export class GamePlatformController {
-  constructor(private readonly games: GamePlatformService) {}
+  constructor(
+    private readonly games: GamePlatformService,
+    private readonly affinityPolicy: AffinityGamePolicyService,
+    private readonly affinityReplay: AffinityReplayPrivacyService
+  ) {}
 
   @Get('catalog')
   catalog() {
@@ -34,10 +40,16 @@ export class GamePlatformController {
 
   @UseGuards(JwtAuthGuard)
   @Post('sessions')
-  create(
+  async create(
     @Req() req: { user: { userId: string } },
     @Body() dto: CreateGameSessionDto
   ) {
+    if (dto.gameKey === 'affinity-mirror') {
+      await this.affinityPolicy.assertCanInviteByUsernames(
+        req.user.userId,
+        dto.opponentUsernames
+      );
+    }
     return this.games.create(req.user.userId, dto);
   }
 
@@ -98,10 +110,11 @@ export class GamePlatformController {
 
   @UseGuards(JwtAuthGuard)
   @Get('sessions/:sessionId/replay')
-  replay(
+  async replay(
     @Req() req: { user: { userId: string } },
     @Param('sessionId') sessionId: string
   ) {
-    return this.games.replay(req.user.userId, sessionId);
+    const replay = await this.games.replay(req.user.userId, sessionId);
+    return this.affinityReplay.sanitize(replay);
   }
 }
