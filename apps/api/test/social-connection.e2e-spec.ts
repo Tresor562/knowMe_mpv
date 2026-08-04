@@ -258,7 +258,10 @@ describe('KnowMe post-acceptance social connection (e2e)', () => {
 
     const exported = await accounts.exportData(aliceId);
     expect(exported.formatVersion).toBe(16);
-    expect(exported.socialMatchmaking.postAcceptanceConnection).toEqual(
+    const connectionExport = exported.socialMatchmaking?.postAcceptanceConnection;
+    expect(connectionExport).toBeDefined();
+    if (!connectionExport) throw new Error('KMD-055 export missing.');
+    expect(connectionExport).toEqual(
       expect.objectContaining({
         formatVersion: 1,
         partnerChoicesIncluded: false,
@@ -269,7 +272,7 @@ describe('KnowMe post-acceptance social connection (e2e)', () => {
       })
     );
     expect(
-      exported.socialMatchmaking.postAcceptanceConnection.intents.every(
+      connectionExport.intents.every(
         (intent: Record<string, unknown>) => !('userId' in intent)
       )
     ).toBe(true);
