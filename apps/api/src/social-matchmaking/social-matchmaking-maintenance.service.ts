@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { SocialConnectionService } from './social-connection.service';
 import { SocialMatchmakingService } from './social-matchmaking.service';
 
 @Injectable()
@@ -8,7 +9,10 @@ export class SocialMatchmakingMaintenanceService
   private timer?: NodeJS.Timeout;
   private running = false;
 
-  constructor(private readonly matchmaking: SocialMatchmakingService) {}
+  constructor(
+    private readonly matchmaking: SocialMatchmakingService,
+    private readonly connections: SocialConnectionService
+  ) {}
 
   onModuleInit() {
     if (process.env.SOCIAL_MATCHMAKING_MAINTENANCE_ENABLED === 'false') return;
@@ -32,6 +36,7 @@ export class SocialMatchmakingMaintenanceService
         skipped: true,
         expiredEntries: 0,
         expiredProposals: 0,
+        expiredConnectionIntents: 0,
         inspected: 0,
         matched: 0
       };
@@ -46,9 +51,17 @@ export class SocialMatchmakingMaintenanceService
           1,
           500
         );
-      const expired = await this.matchmaking.expireDue(batchSize);
+      const [expired, expiredConnections] = await Promise.all([
+        this.matchmaking.expireDue(batchSize),
+        this.connections.expireDue(batchSize)
+      ]);
       const matched = await this.matchmaking.matchQueued(batchSize);
-      return { skipped: false, ...expired, ...matched };
+      return {
+        skipped: false,
+        ...expired,
+        ...expiredConnections,
+        ...matched
+      };
     } finally {
       this.running = false;
     }
