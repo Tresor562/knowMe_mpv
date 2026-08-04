@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminGamePlatformController } from './admin-game-platform.controller';
+import { AdminTournamentController } from './admin-tournament.controller';
 import { AffinityGameController } from './affinity-game.controller';
 import { AffinityGamePolicyService } from './affinity-game-policy.service';
 import { AffinityReplayPrivacyService } from './affinity-replay-privacy.service';
@@ -9,12 +10,16 @@ import { GameExperienceService } from './game-experience.service';
 import { GamePlatformController } from './game-platform.controller';
 import { GamePlatformService } from './game-platform.service';
 import { GameSessionMaintenanceService } from './game-session-maintenance.service';
+import { TournamentController } from './tournament.controller';
+import { TournamentService } from './tournament.service';
 
 @Module({
   controllers: [
     GamePlatformController,
     AffinityGameController,
-    AdminGamePlatformController
+    TournamentController,
+    AdminGamePlatformController,
+    AdminTournamentController
   ],
   providers: [
     GameEngineRegistry,
@@ -22,6 +27,7 @@ import { GameSessionMaintenanceService } from './game-session-maintenance.servic
     AffinityReplayPrivacyService,
     GamePlatformService,
     GameExperienceService,
+    TournamentService,
     GameAccountLifecycleService,
     GameSessionMaintenanceService
   ],
@@ -29,6 +35,7 @@ import { GameSessionMaintenanceService } from './game-session-maintenance.servic
     AffinityGamePolicyService,
     GamePlatformService,
     GameExperienceService,
+    TournamentService,
     GameAccountLifecycleService,
     GameSessionMaintenanceService
   ]
