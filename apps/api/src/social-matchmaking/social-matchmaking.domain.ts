@@ -3,6 +3,15 @@ import { createHash } from 'crypto';
 
 export const SOCIAL_MATCH_PURPOSES = ['CHAT', 'PLAY', 'LEARN', 'CREATE'] as const;
 export const SOCIAL_MATCH_PACES = ['REALTIME', 'ASYNC', 'FLEXIBLE'] as const;
+export const SOCIAL_MATCH_LANGUAGES = [
+  'ar',
+  'de',
+  'en',
+  'es',
+  'fr',
+  'it',
+  'pt'
+] as const;
 export const SOCIAL_MATCH_TOPICS = [
   'TECH',
   'MUSIC',
@@ -21,6 +30,7 @@ export const SOCIAL_MATCH_TOPICS = [
 
 export type SocialMatchPurpose = (typeof SOCIAL_MATCH_PURPOSES)[number];
 export type SocialMatchPace = (typeof SOCIAL_MATCH_PACES)[number];
+export type SocialMatchLanguage = (typeof SOCIAL_MATCH_LANGUAGES)[number];
 export type SocialMatchTopic = (typeof SOCIAL_MATCH_TOPICS)[number];
 
 export type SocialAvailabilityWindow = {
@@ -32,7 +42,7 @@ export type SocialAvailabilityWindow = {
 export type NormalizedSocialCriteria = Record<string, unknown> & {
   purpose: SocialMatchPurpose;
   pace: SocialMatchPace;
-  languages: string[];
+  languages: SocialMatchLanguage[];
   topics: SocialMatchTopic[];
   availability: SocialAvailabilityWindow[];
 };
@@ -40,7 +50,7 @@ export type NormalizedSocialCriteria = Record<string, unknown> & {
 export type SocialCompatibility = Record<string, unknown> & {
   compatible: boolean;
   score: number;
-  sharedLanguages: string[];
+  sharedLanguages: SocialMatchLanguage[];
   sharedTopics: SocialMatchTopic[];
   overlapMinutes: number;
   paceReason: string;
@@ -184,15 +194,15 @@ export function availabilityOverlapMinutes(
   return total;
 }
 
-function normalizeLanguage(value: string) {
+function normalizeLanguage(value: string): SocialMatchLanguage {
   const normalized = value.trim().replace('_', '-').toLowerCase();
-  if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/.test(normalized)) {
+  if (!SOCIAL_MATCH_LANGUAGES.includes(normalized as SocialMatchLanguage)) {
     throw new BadRequestException({
       code: 'SOCIAL_MATCH_LANGUAGE_INVALID',
-      message: 'Une langue choisie est invalide.'
+      message: 'Une langue choisie ne fait pas partie du catalogue autorisé.'
     });
   }
-  return normalized;
+  return normalized as SocialMatchLanguage;
 }
 
 function normalizeAvailability(input: SocialAvailabilityWindow[]) {
