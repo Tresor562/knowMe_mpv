@@ -68,34 +68,40 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-049 | Internationalisation Web/Mobile et erreurs localisables | #90 | Fusionnée |
 | KMD-050 | Politique de téléchargement et gouvernance du cache média | #91 | Fusionnée |
 | KMD-051 | Fondation Créateurs et audience | #93 | Fusionnée |
+| KMD-052 | Game Platform autoritaire | #94 | Fusionnée |
+| KMD-053 | Miroir d’affinité explicable | #95 | Fusionnée |
 
 ## Livraison en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-052 | Game Platform autoritaire | #94 | CI en validation |
+| KMD-054 | Matchmaking social volontaire et non sensible | #96 | CI en validation |
 
 ## Prochaine livraison réservée
 
-`KMD-053` est réservé au **jeu d’affinité explicable** construit sur la Game Platform KMD-052.
+`KMD-055` est réservé à la **connexion sociale post-acceptation** construite sur KMD-054.
 
 Cette livraison dépend de :
 
-- KMD-008 et KMD-016 pour les contenus versionnés et les historiques immuables ;
-- KMD-012 pour le consentement, l’export et la suppression ;
-- KMD-038 et KMD-042 pour les cercles, relations et profils collectifs ;
+- KMD-015 pour l’anti-spam persistant ;
+- KMD-038 pour la messagerie ;
+- KMD-043 à KMD-048 pour les notifications et préférences ;
 - KMD-049 pour les libellés localisables ;
-- KMD-052 pour les sessions, actions, séquences et replays autoritaires.
+- KMD-054 pour l’acceptation mutuelle et les blocages.
 
-Le périmètre réservé comprend un jeu relationnel volontaire, des questions ou choix versionnés, un résultat explicable calculé par le serveur, une comparaison minimisée entre participants, un replay interprétable et des contrôles de confidentialité. Les diagnostics psychologiques, le classement public des relations, les mises, récompenses économiques et achats de puissance restent interdits.
+Le périmètre réservé comprend une intention séparée d’amitié ou d’ouverture de conversation après acceptation mutuelle, un choix privé de chaque participant, une intersection exécutée côté serveur, une expiration, une révocation, des limites anti-spam et une traçabilité. Aucune conversation ou amitié ne peut être créée automatiquement par le seul score d’appariement.
 
 ## Frontières permanentes
 
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur, jeu ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur, jeu, matchmaking ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
 Le statut créateur reste distinct de Premium, de la vérification d’identité et du rôle staff. Les compteurs d’audience ne peuvent pas modifier les permissions, la visibilité privée ou les décisions de modération.
 
 La Game Platform ne peut accepter du client ni score, ni gagnant, ni état final, ni mise. Les jeux ne peuvent pas modifier un solde, une permission ou un entitlement sans passer par un système autoritaire distinct explicitement livré.
+
+Le Miroir d’affinité ne peut produire ni diagnostic, ni prédiction, ni recommandation relationnelle, ni classement public. Les réponses détaillées exigent le consentement mutuel et doivent être expurgées lors d’une suppression de compte.
+
+Le matchmaking social ne peut utiliser ni réponse d’affinité, ni conversation privée, ni localisation précise, ni donnée sensible, ni score économique. Toute priorité payante et tout boost acheté sont interdits. Une mise en contact exige une acceptation mutuelle persistée.
 
 Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
 
