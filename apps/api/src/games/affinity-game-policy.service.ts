@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateAffinityPreferenceDto } from './dto/update-affinity-preference.dto';
@@ -45,6 +49,27 @@ export class AffinityGamePolicyService {
         version: { increment: 1 }
       }
     });
+  }
+
+  async assertCanInviteByUsernames(ownerId: string, usernames: string[]) {
+    const normalized = [...new Set(usernames.map((item) => item.toLowerCase()))];
+    const opponents = await this.prisma.user.findMany({
+      where: {
+        username: { in: normalized, mode: 'insensitive' },
+        isSuspended: false
+      },
+      select: { id: true }
+    });
+    if (opponents.length !== normalized.length) {
+      throw new NotFoundException({
+        code: 'GAME_OPPONENT_NOT_FOUND',
+        message: 'Au moins un joueur invité est introuvable ou indisponible.'
+      });
+    }
+    await this.assertCanInvite(
+      ownerId,
+      opponents.map((opponent) => opponent.id)
+    );
   }
 
   async assertCanInvite(ownerId: string, opponentIds: string[]) {
