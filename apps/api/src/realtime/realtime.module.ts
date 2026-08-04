@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { CallsModule } from '../calls/calls.module';
 import { RealtimeGateway } from './realtime.gateway';
 
 @Module({
   imports: [
+    CallsModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
