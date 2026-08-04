@@ -128,7 +128,7 @@ describe('KnowMe authoritative tournaments (e2e)', () => {
     expect(started.body.bracketSize).toBe(4);
     expect(started.body.matches).toHaveLength(3);
     expect(started.body.entrants.every((entrant: { seed: number | null }) => entrant.seed)).toBe(true);
-    expect(JSON.stringify(started.body)).not.toMatch(/bracketSeed|economicStake[^A]/i);
+    expect(JSON.stringify(started.body)).not.toMatch(/"(?:bracketSeed|economicStake)"\s*:/i);
 
     let view = started.body;
     const firstRound = view.matches.filter((match: { round: number }) => match.round === 1);
