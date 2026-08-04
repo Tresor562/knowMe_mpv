@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AffinityGamePolicyService } from './affinity-game-policy.service';
 import { canonicalJson, sha256Json } from './game-platform.domain';
 
 @Injectable()
 export class GameAccountLifecycleService {
+  constructor(private readonly affinityPolicy: AffinityGamePolicyService) {}
+
   async prepareDeletion(userId: string, tx: Prisma.TransactionClient) {
+    await this.affinityPolicy.deleteForAccount(userId, tx);
     const memberships = await tx.gameParticipant.findMany({
       where: { userId },
       select: { sessionId: true }
