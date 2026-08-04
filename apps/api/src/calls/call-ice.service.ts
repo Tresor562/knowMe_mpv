@@ -5,10 +5,17 @@ import {
   TooManyRequestsException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CallsService } from './calls.service';
+
+type IceServer = {
+  urls: string[];
+  username?: string;
+  credential?: string;
+  credentialType?: 'password';
+};
 
 const MAX_ISSUES_PER_WINDOW = 12;
 const ISSUE_WINDOW_MS = 10 * 60 * 1_000;
@@ -27,7 +34,8 @@ export class CallIceService {
     if (!['RINGING', 'ACTIVE'].includes(call.status)) {
       throw new ForbiddenException({
         code: 'CALL_ICE_NOT_AVAILABLE',
-        message: 'La configuration réseau n’est disponible que pour un appel vivant.'
+        message:
+          'La configuration réseau n’est disponible que pour un appel vivant.'
       });
     }
 
@@ -48,7 +56,8 @@ export class CallIceService {
 
     const stunUrls = this.urls('CALL_STUN_URLS_JSON');
     const turnUrls = this.urls('CALL_TURN_URLS_JSON');
-    const turnSecret = this.config.get<string>('CALL_TURN_SECRET')?.trim() ?? '';
+    const turnSecret =
+      this.config.get<string>('CALL_TURN_SECRET')?.trim() ?? '';
     const production = this.config.get<string>('NODE_ENV') === 'production';
     const requireTurn =
       this.config.get<string>('CALL_REQUIRE_TURN_IN_PRODUCTION') !== 'false';
@@ -66,14 +75,19 @@ export class CallIceService {
       });
     }
 
-    const ttlSeconds = this.integer('CALL_TURN_TTL_SECONDS', 600, 60, 3_600);
+    const ttlSeconds = this.integer(
+      'CALL_TURN_TTL_SECONDS',
+      600,
+      60,
+      3_600
+    );
     const expiresUnix = Math.floor(Date.now() / 1_000) + ttlSeconds;
     const username = `${expiresUnix}:${userId}:${callId}`;
     const credential = turnSecret
       ? createHmac('sha1', turnSecret).update(username).digest('base64')
       : null;
 
-    const iceServers: RTCIceServer[] = [];
+    const iceServers: IceServer[] = [];
     if (stunUrls.length) iceServers.push({ urls: stunUrls });
     if (turnUrls.length && credential) {
       iceServers.push({
@@ -146,7 +160,12 @@ export class CallIceService {
     }
   }
 
-  private integer(name: string, fallback: number, minimum: number, maximum: number) {
+  private integer(
+    name: string,
+    fallback: number,
+    minimum: number,
+    maximum: number
+  ) {
     const parsed = Number.parseInt(this.config.get<string>(name) ?? '', 10);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.min(maximum, Math.max(minimum, parsed));
