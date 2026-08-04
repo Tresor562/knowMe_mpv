@@ -5,16 +5,8 @@ import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
 
-const rtcConfiguration: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
-
 type Friend = {
-  user: {
-    id: string;
-    displayName: string;
-    username: string;
-  };
+  user: { id: string; displayName: string; username: string };
 };
 
 type IncomingCall = {
@@ -30,11 +22,7 @@ type CallView = {
   direction: 'OUTGOING' | 'INCOMING';
   media: 'audio' | 'video';
   status: string;
-  peer: {
-    id: string;
-    displayName: string;
-    username: string;
-  } | null;
+  peer: { id: string; displayName: string; username: string } | null;
   answeredAt: string | null;
   endedAt: string | null;
   endReason: string | null;
@@ -43,6 +31,17 @@ type CallView = {
     serverIssuedCallId: true;
     sessionDescriptionsPersisted: false;
     iceCandidatesPersisted: false;
+  };
+};
+
+type IceConfiguration = {
+  callId: string;
+  iceServers: RTCIceServer[];
+  expiresAt: string;
+  policy: {
+    ephemeralCredentials: boolean;
+    secretExposed: false;
+    persistedCredential: false;
   };
 };
 
@@ -88,6 +87,16 @@ export default function CallsPage() {
 
   async function refreshHistory() {
     setHistory(await apiFetch<CallView[]>('/calls/history?take=30'));
+  }
+
+  async function loadIceConfiguration(callId: string) {
+    const configuration = await apiFetch<IceConfiguration>(
+      `/calls/${callId}/ice-configuration`
+    );
+    if (configuration.callId !== callId || !configuration.iceServers.length) {
+      throw new Error('La configuration réseau de cet appel est invalide.');
+    }
+    return configuration;
   }
 
   useEffect(() => {
@@ -194,8 +203,14 @@ export default function CallsPage() {
     };
   }, [socket]);
 
-  function createPeer(remoteUserId: string, callId: string) {
-    const peer = new RTCPeerConnection(rtcConfiguration);
+  function createPeer(
+    remoteUserId: string,
+    callId: string,
+    configuration: IceConfiguration
+  ) {
+    const peer = new RTCPeerConnection({
+      iceServers: configuration.iceServers
+    });
     remoteUserIdRef.current = remoteUserId;
 
     peer.onicecandidate = (event) => {
@@ -206,11 +221,9 @@ export default function CallsPage() {
         candidate: event.candidate.toJSON()
       });
     };
-
     peer.ontrack = (event) => {
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
     };
-
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'failed' || peer.connectionState === 'closed') {
         cleanup();
@@ -240,7 +253,8 @@ export default function CallsPage() {
     try {
       setTargetUserId(call.callerUserId);
       setActiveCallId(call.callId);
-      const peer = createPeer(call.callerUserId, call.callId);
+      const configuration = await loadIceConfiguration(call.callId);
+      const peer = createPeer(call.callerUserId, call.callId, configuration);
       await peer.setRemoteDescription(call.offer);
       const stream = await getLocalStream(call.media);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -252,9 +266,13 @@ export default function CallsPage() {
         answer
       });
       setIncoming(null);
-      setStatus('Appel connecté');
+      setStatus('Appel connecté via une configuration ICE éphémère');
     } catch (cause) {
-      setStatus(cause instanceof Error ? cause.message : 'Impossible d’accepter l’appel.');
+      setStatus(
+        cause instanceof Error
+          ? cause.message
+          : 'Impossible d’accepter l’appel.'
+      );
       declineIncoming();
     } finally {
       setStarting(false);
@@ -291,7 +309,8 @@ export default function CallsPage() {
       });
       serverCallId = created.id;
       setActiveCallId(created.id);
-      const peer = createPeer(targetUserId, created.id);
+      const configuration = await loadIceConfiguration(created.id);
+      const peer = createPeer(targetUserId, created.id, configuration);
       const stream = await getLocalStream(media);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       const offer = await peer.createOffer();
@@ -302,7 +321,7 @@ export default function CallsPage() {
         offer,
         media
       });
-      setStatus('Appel en cours…');
+      setStatus('Appel en cours · relais éphémère prêt');
       void refreshHistory();
     } catch (cause) {
       if (serverCallId) {
@@ -353,11 +372,12 @@ export default function CallsPage() {
   return (
     <main className="shell" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header>
-        <small style={{ color: 'var(--orange)' }}>KMD-057 · APPELS AUTORITAIRES</small>
+        <small style={{ color: 'var(--orange)' }}>KMD-058 · RELAIS ÉPHÉMÈRES</small>
         <h1>Appels KnowMe</h1>
         <p style={{ color: 'var(--muted)' }}>{status}</p>
         <p style={{ color: 'var(--muted)' }}>
-          L’identifiant, l’état, l’expiration et l’historique sont contrôlés par l’API. Les offres SDP et candidats ICE ne sont jamais persistés.
+          L’API livre une configuration ICE limitée à cet appel. Le secret TURN,
+          les offres SDP et les candidats ICE ne sont jamais persistés ni exposés.
         </p>
       </header>
 
@@ -365,7 +385,8 @@ export default function CallsPage() {
         <section className="card" style={{ padding: 22, marginBottom: 18, borderColor: 'var(--mint)' }}>
           <h2>Appel entrant</h2>
           <p>
-            {incoming.callerUsername ?? incoming.callerUserId} souhaite lancer un appel {incoming.media === 'video' ? 'vidéo' : 'audio'}.
+            {incoming.callerUsername ?? incoming.callerUserId} souhaite lancer un
+            appel {incoming.media === 'video' ? 'vidéo' : 'audio'}.
           </p>
           <p style={{ color: 'var(--muted)' }}>
             La caméra et le microphone ne seront demandés qu’après ton accord.
@@ -430,12 +451,21 @@ export default function CallsPage() {
         <div style={{ display: 'grid', gap: 10 }}>
           {history.map((call) => (
             <article key={call.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
-              <strong>{call.direction === 'OUTGOING' ? 'Sortant' : 'Entrant'} · {call.media === 'video' ? 'Vidéo' : 'Audio'}</strong>
-              <p style={{ margin: '6px 0' }}>{call.peer?.displayName ?? 'Compte supprimé'} · {call.status}</p>
-              <small style={{ color: 'var(--muted)' }}>{new Date(call.createdAt).toLocaleString()}</small>
+              <strong>
+                {call.direction === 'OUTGOING' ? 'Sortant' : 'Entrant'} ·{' '}
+                {call.media === 'video' ? 'Vidéo' : 'Audio'}
+              </strong>
+              <p style={{ margin: '6px 0' }}>
+                {call.peer?.displayName ?? 'Compte supprimé'} · {call.status}
+              </p>
+              <small style={{ color: 'var(--muted)' }}>
+                {new Date(call.createdAt).toLocaleString()}
+              </small>
             </article>
           ))}
-          {!history.length ? <p style={{ color: 'var(--muted)' }}>Aucun appel enregistré.</p> : null}
+          {!history.length ? (
+            <p style={{ color: 'var(--muted)' }}>Aucun appel enregistré.</p>
+          ) : null}
         </div>
       </section>
     </main>
