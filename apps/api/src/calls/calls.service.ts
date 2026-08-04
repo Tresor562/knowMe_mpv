@@ -27,7 +27,14 @@ type CallRecord = {
   endedAt: Date | null;
   expiresAt: Date;
   endedById: string | null;
-  endReason: 'HANGUP' | 'REJECTED' | 'MISSED' | 'CANCELLED' | 'ACCOUNT_DELETED' | 'MODERATION' | null;
+  endReason:
+    | 'HANGUP'
+    | 'REJECTED'
+    | 'MISSED'
+    | 'CANCELLED'
+    | 'ACCOUNT_DELETED'
+    | 'MODERATION'
+    | null;
   version: number;
   createdAt: Date;
   updatedAt: Date;
@@ -193,7 +200,9 @@ export class CallsService {
     });
     const peerIds = [
       ...new Set(
-        calls.map((call) => (call.callerId === userId ? call.calleeId : call.callerId))
+        calls.map((call) =>
+          call.callerId === userId ? call.calleeId : call.callerId
+        )
       )
     ];
     const peers = peerIds.length
@@ -205,7 +214,11 @@ export class CallsService {
     const peerMap = new Map(peers.map((peer) => [peer.id, peer]));
     return calls.map((call) => {
       const peerId = call.callerId === userId ? call.calleeId : call.callerId;
-      return this.present(call as CallRecord, userId, peerMap.get(peerId) ?? null);
+      return this.present(
+        call as CallRecord,
+        userId,
+        peerMap.get(peerId) ?? null
+      );
     });
   }
 
@@ -222,11 +235,7 @@ export class CallsService {
       this.assertSignalPair(call as CallRecord, actorId, targetUserId);
 
       if (call.status === 'RINGING' && call.expiresAt <= new Date()) {
-        await this.markMissedTx(tx, call as CallRecord, 'SIGNAL_AFTER_EXPIRY');
-        throw new ConflictException({
-          code: 'CALL_EXPIRED',
-          message: 'Cet appel a expiré.'
-        });
+        return { expired: true as const, call: call as CallRecord, ended: false };
       }
 
       if (action === 'OFFER') {
@@ -234,21 +243,22 @@ export class CallsService {
           throw this.invalidTransition();
         }
         if (!call.offerForwardedAt) {
-          await tx.callSession.update({
+          const updated = await tx.callSession.update({
             where: { id: call.id },
             data: { offerForwardedAt: new Date(), version: { increment: 1 } }
           });
           await tx.callEvent.create({
             data: { callId, actorId, action: 'OFFER_FORWARDED' }
           });
+          return { expired: false as const, call: updated as CallRecord, ended: false };
         }
-        return { call: call as CallRecord, ended: false };
+        return { expired: false as const, call: call as CallRecord, ended: false };
       }
 
       if (action === 'ANSWER') {
         if (call.calleeId !== actorId) throw this.invalidTransition();
         if (call.status === 'ACTIVE') {
-          return { call: call as CallRecord, ended: false };
+          return { expired: false as const, call: call as CallRecord, ended: false };
         }
         if (call.status !== 'RINGING' || !call.offerForwardedAt) {
           throw this.invalidTransition();
@@ -265,19 +275,27 @@ export class CallsService {
         await tx.callEvent.create({
           data: { callId, actorId, action: 'CALL_ANSWERED' }
         });
-        return { call: updated as CallRecord, ended: false };
+        return { expired: false as const, call: updated as CallRecord, ended: false };
       }
 
       if (action === 'ICE') {
         if (!['RINGING', 'ACTIVE'].includes(call.status)) {
           throw this.invalidTransition();
         }
-        return { call: call as CallRecord, ended: false };
+        return { expired: false as const, call: call as CallRecord, ended: false };
       }
 
       const ended = await this.endTx(tx, call as CallRecord, actorId, reason);
-      return { call: ended as CallRecord, ended: true };
+      return { expired: false as const, call: ended as CallRecord, ended: true };
     });
+
+    if (result.expired) {
+      await this.expireCall(callId, 'SIGNAL_AFTER_EXPIRY');
+      throw new ConflictException({
+        code: 'CALL_EXPIRED',
+        message: 'Cet appel a expiré.'
+      });
+    }
 
     if (result.ended) {
       await this.audit.record({
@@ -320,28 +338,7 @@ export class CallsService {
     });
     let missed = 0;
     for (const candidate of candidates) {
-      const changed = await this.serializable(async (tx) => {
-        const current = await tx.callSession.findUnique({ where: { id: candidate.id } });
-        if (!current || current.status !== 'RINGING' || current.expiresAt > new Date()) {
-          return false;
-        }
-        await this.markMissedTx(tx, current as CallRecord, 'RING_TIMEOUT');
-        return true;
-      });
-      if (!changed) continue;
-      missed += 1;
-      await this.notifications.create({
-        userId: candidate.calleeId,
-        type: 'CALL_MISSED',
-        title: 'Appel manqué',
-        body: candidate.media === 'VIDEO' ? 'Tu as manqué un appel vidéo.' : 'Tu as manqué un appel audio.',
-        data: {
-          route: '/calls',
-          entityType: 'CALL_SESSION',
-          entityId: candidate.id,
-          actorId: candidate.callerId
-        }
-      });
+      if (await this.expireCall(candidate.id, 'RING_TIMEOUT')) missed += 1;
     }
     return { inspectedCalls: candidates.length, missedCalls: missed };
   }
@@ -406,18 +403,70 @@ export class CallsService {
     }
     const tombstone = `deleted-${randomUUID()}`;
     await tx.callReceipt.deleteMany({ where: { userId } });
-    await tx.callEvent.updateMany({ where: { actorId: userId }, data: { actorId: tombstone } });
-    await tx.callSession.updateMany({ where: { callerId: userId }, data: { callerId: tombstone } });
-    await tx.callSession.updateMany({ where: { calleeId: userId }, data: { calleeId: tombstone } });
-    await tx.callSession.updateMany({ where: { endedById: userId }, data: { endedById: tombstone } });
+    await tx.callEvent.updateMany({
+      where: { actorId: userId },
+      data: { actorId: tombstone }
+    });
+    await tx.callSession.updateMany({
+      where: { callerId: userId },
+      data: { callerId: tombstone }
+    });
+    await tx.callSession.updateMany({
+      where: { calleeId: userId },
+      data: { calleeId: tombstone }
+    });
+    await tx.callSession.updateMany({
+      where: { endedById: userId },
+      data: { endedById: tombstone }
+    });
   }
 
-  private async endTx(tx: Tx, call: CallRecord, actorId: string, reason?: string) {
+  private async expireCall(callId: string, source: string) {
+    const call = await this.prisma.callSession.findUnique({ where: { id: callId } });
+    if (!call || call.status !== 'RINGING' || call.expiresAt > new Date()) {
+      return false;
+    }
+    const changed = await this.serializable(async (tx) => {
+      const current = await tx.callSession.findUnique({ where: { id: callId } });
+      if (!current || current.status !== 'RINGING' || current.expiresAt > new Date()) {
+        return false;
+      }
+      return this.markMissedTx(tx, current as CallRecord, source);
+    });
+    if (!changed) return false;
+    await this.notifications.create({
+      userId: call.calleeId,
+      type: 'CALL_MISSED',
+      title: 'Appel manqué',
+      body:
+        call.media === 'VIDEO'
+          ? 'Tu as manqué un appel vidéo.'
+          : 'Tu as manqué un appel audio.',
+      data: {
+        route: '/calls',
+        entityType: 'CALL_SESSION',
+        entityId: call.id,
+        actorId: call.callerId
+      }
+    });
+    return true;
+  }
+
+  private async endTx(
+    tx: Tx,
+    call: CallRecord,
+    actorId: string,
+    reason?: string
+  ) {
     if (TERMINAL_STATUSES.includes(call.status)) return call;
     const normalized = reason?.toLowerCase();
     let status: 'ENDED' | 'REJECTED' | 'CANCELLED';
     let endReason: 'HANGUP' | 'REJECTED' | 'CANCELLED';
-    if (call.status === 'RINGING' && actorId === call.calleeId && normalized === 'rejected') {
+    if (
+      call.status === 'RINGING' &&
+      actorId === call.calleeId &&
+      normalized === 'rejected'
+    ) {
       status = 'REJECTED';
       endReason = 'REJECTED';
     } else if (call.status === 'RINGING') {
@@ -473,7 +522,12 @@ export class CallsService {
   private present(
     call: CallRecord,
     userId: string,
-    peer: { id: string; username: string; displayName: string; avatarUrl: string | null } | null
+    peer: {
+      id: string;
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+    } | null
   ) {
     return {
       id: call.id,
@@ -498,7 +552,10 @@ export class CallsService {
     };
   }
 
-  private assertParticipant(call: { callerId: string; calleeId: string }, userId: string) {
+  private assertParticipant(
+    call: { callerId: string; calleeId: string },
+    userId: string
+  ) {
     if (![call.callerId, call.calleeId].includes(userId)) {
       throw new ForbiddenException({
         code: 'CALL_PARTICIPANT_REQUIRED',
@@ -507,9 +564,14 @@ export class CallsService {
     }
   }
 
-  private assertSignalPair(call: CallRecord, actorId: string, targetUserId: string) {
+  private assertSignalPair(
+    call: CallRecord,
+    actorId: string,
+    targetUserId: string
+  ) {
     this.assertParticipant(call, actorId);
-    const expectedTarget = call.callerId === actorId ? call.calleeId : call.callerId;
+    const expectedTarget =
+      call.callerId === actorId ? call.calleeId : call.callerId;
     if (expectedTarget !== targetUserId) {
       throw new ForbiddenException({
         code: 'CALL_SIGNAL_TARGET_INVALID',
