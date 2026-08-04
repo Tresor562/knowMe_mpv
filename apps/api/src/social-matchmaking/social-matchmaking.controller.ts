@@ -12,13 +12,19 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DecideSocialMatchDto } from './dto/decide-social-match.dto';
 import { JoinSocialMatchQueueDto } from './dto/join-social-match-queue.dto';
+import { RevokeSocialConnectionIntentDto } from './dto/revoke-social-connection-intent.dto';
+import { SetSocialConnectionIntentDto } from './dto/set-social-connection-intent.dto';
 import { UpdateSocialMatchPreferenceDto } from './dto/update-social-match-preference.dto';
+import { SocialConnectionService } from './social-connection.service';
 import { SocialMatchmakingService } from './social-matchmaking.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('social-matchmaking')
 export class SocialMatchmakingController {
-  constructor(private readonly matchmaking: SocialMatchmakingService) {}
+  constructor(
+    private readonly matchmaking: SocialMatchmakingService,
+    private readonly connections: SocialConnectionService
+  ) {}
 
   @Get('preferences')
   preferences(@Req() req: { user: { userId: string } }) {
@@ -58,6 +64,32 @@ export class SocialMatchmakingController {
     @Body() dto: DecideSocialMatchDto
   ) {
     return this.matchmaking.decide(req.user.userId, proposalId, dto);
+  }
+
+  @Get('proposals/:proposalId/connection')
+  connectionStatus(
+    @Req() req: { user: { userId: string } },
+    @Param('proposalId') proposalId: string
+  ) {
+    return this.connections.status(req.user.userId, proposalId);
+  }
+
+  @Post('proposals/:proposalId/connection/intent')
+  setConnectionIntent(
+    @Req() req: { user: { userId: string } },
+    @Param('proposalId') proposalId: string,
+    @Body() dto: SetSocialConnectionIntentDto
+  ) {
+    return this.connections.setIntent(req.user.userId, proposalId, dto);
+  }
+
+  @Post('proposals/:proposalId/connection/revoke')
+  revokeConnectionIntent(
+    @Req() req: { user: { userId: string } },
+    @Param('proposalId') proposalId: string,
+    @Body() dto: RevokeSocialConnectionIntentDto
+  ) {
+    return this.connections.revokeIntent(req.user.userId, proposalId, dto);
   }
 
   @Get('blocks')
