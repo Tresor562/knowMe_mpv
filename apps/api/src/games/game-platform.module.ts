@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminGamePlatformController } from './admin-game-platform.controller';
 import { AffinityGameController } from './affinity-game.controller';
 import { AffinityGamePolicyService } from './affinity-game-policy.service';
+import { AffinityReplayPrivacyService } from './affinity-replay-privacy.service';
 import { GameAccountLifecycleService } from './game-account-lifecycle.service';
 import { GameEngineRegistry } from './game-engine.registry';
 import { GamePlatformController } from './game-platform.controller';
@@ -17,6 +18,7 @@ import { GameSessionMaintenanceService } from './game-session-maintenance.servic
   providers: [
     GameEngineRegistry,
     AffinityGamePolicyService,
+    AffinityReplayPrivacyService,
     GamePlatformService,
     GameAccountLifecycleService,
     GameSessionMaintenanceService
