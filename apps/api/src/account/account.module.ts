@@ -7,6 +7,7 @@ import { GamePlatformModule } from '../games/game-platform.module';
 import { MediaModule } from '../media/media.module';
 import { PrivacyModule } from '../privacy/privacy.module';
 import { SecurityModule } from '../security/security.module';
+import { SocialMatchmakingModule } from '../social-matchmaking/social-matchmaking.module';
 import { SocialModule } from '../social/social.module';
 import { AccountController } from './account.controller';
 import { AccountService } from './account.service';
@@ -18,6 +19,7 @@ import { AccountService } from './account.service';
     MediaModule,
     CreatorsModule,
     GamePlatformModule,
+    SocialMatchmakingModule,
     ConceptKModule,
     CosmeticsModule,
     AppearanceModule,

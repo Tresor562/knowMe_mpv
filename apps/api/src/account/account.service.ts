@@ -23,6 +23,7 @@ import { NotificationCenterLifecycleService } from '../notifications/notificatio
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
+import { SocialMatchmakingService } from '../social-matchmaking/social-matchmaking.service';
 import { SocialGiftExportService } from '../social/social-gift-export.service';
 import { SocialGiftsService } from '../social/social-gifts.service';
 import { DeleteAccountDto } from './dto/delete-account.dto';
@@ -47,7 +48,8 @@ export class AccountService {
     private readonly cosmeticPresets: CosmeticPresetsService,
     private readonly appearance: AppearanceService,
     private readonly socialGifts: SocialGiftsService,
-    private readonly socialGiftExport: SocialGiftExportService
+    private readonly socialGiftExport: SocialGiftExportService,
+    private readonly socialMatchmaking: SocialMatchmakingService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -82,6 +84,7 @@ export class AccountService {
       creatorFoundation,
       gamePlatform,
       affinityPreference,
+      socialMatchmaking,
       media,
       challengeResults,
       challengeReferences,
@@ -140,6 +143,7 @@ export class AccountService {
       this.creators.exportForAccount(userId),
       this.games.exportForAccount(userId),
       this.affinityPolicy.exportForAccount(userId),
+      this.socialMatchmaking.exportForAccount(userId),
       this.media.listMine(userId),
       this.prisma.challengeResultSnapshot.findMany({
         where: { userId },
@@ -204,6 +208,12 @@ export class AccountService {
       gamePlatform.sessions.some(
         (session) => session.definitionKey === 'affinity-mirror'
       );
+    const hasSocialMatchmakingData =
+      socialMatchmaking.preference !== null ||
+      socialMatchmaking.queue !== null ||
+      socialMatchmaking.decisions.length > 0 ||
+      socialMatchmaking.proposals.length > 0 ||
+      socialMatchmaking.blocks.length > 0;
     const hasCreatorData =
       creatorFoundation.profile !== null ||
       creatorFoundation.following.length > 0 ||
@@ -239,29 +249,32 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasAffinityData
-        ? 14
-        : hasGameData
-          ? 13
-          : hasCreatorData
-            ? 12
-            : hasMediaDownloadData
-              ? 11
-              : hasLocalizationData
-                ? 10
-                : hasNotificationCenterData
-                  ? 9
-                  : hasSocialGiftData
-                    ? 8
-                    : hasAppearanceData
-                      ? 7
-                      : 6,
+      formatVersion: hasSocialMatchmakingData
+        ? 15
+        : hasAffinityData
+          ? 14
+          : hasGameData
+            ? 13
+            : hasCreatorData
+              ? 12
+              : hasMediaDownloadData
+                ? 11
+                : hasLocalizationData
+                  ? 10
+                  : hasNotificationCenterData
+                    ? 9
+                    : hasSocialGiftData
+                      ? 8
+                      : hasAppearanceData
+                        ? 7
+                        : 6,
       account: safeUser,
       security,
       privacy,
       ...(hasGameData || hasAffinityData
         ? { gamePlatform: { ...gamePlatform, affinityPreference } }
         : {}),
+      ...(hasSocialMatchmakingData ? { socialMatchmaking } : {}),
       ...(hasCreatorData ? { creatorFoundation } : {}),
       ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
       ...(hasLocalizationData ? { localization } : {}),
@@ -320,6 +333,7 @@ export class AccountService {
       });
       await this.gameLifecycle.prepareDeletion(userId, tx);
       await this.games.deleteForAccount(userId, tx);
+      await this.socialMatchmaking.deleteForAccount(userId, tx);
       await this.creators.deleteForAccount(userId, tx);
       await this.mediaDownloads.deleteForAccount(userId, tx);
       await this.i18n.deleteForAccount(userId, tx);

@@ -1,0 +1,130 @@
+enum SocialMatchPurpose {
+  CHAT
+  PLAY
+  LEARN
+  CREATE
+}
+
+enum SocialMatchPace {
+  REALTIME
+  ASYNC
+  FLEXIBLE
+}
+
+enum SocialMatchQueueStatus {
+  QUEUED
+  MATCHED
+  LEFT
+  EXPIRED
+}
+
+enum SocialMatchProposalStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+  CANCELLED
+  EXPIRED
+}
+
+enum SocialMatchDecisionType {
+  ACCEPT
+  DECLINE
+  BLOCK
+}
+
+model SocialMatchPreference {
+  userId             String   @id
+  matchmakingEnabled Boolean  @default(false)
+  allowNewPeople     Boolean  @default(true)
+  version            Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([matchmakingEnabled, allowNewPeople])
+}
+
+model SocialMatchQueueEntry {
+  id           String                 @id @default(cuid())
+  userId       String                 @unique
+  purpose      SocialMatchPurpose
+  pace         SocialMatchPace
+  languages    Json
+  topics       Json
+  availability Json
+  criteriaHash String
+  status       SocialMatchQueueStatus @default(QUEUED)
+  version      Int                    @default(1)
+  joinedAt     DateTime               @default(now())
+  expiresAt    DateTime
+  matchedAt    DateTime?
+  leftAt       DateTime?
+  updatedAt    DateTime               @updatedAt
+
+  @@index([status, purpose, joinedAt])
+  @@index([status, expiresAt])
+}
+
+model SocialMatchProposal {
+  id           String                    @id @default(cuid())
+  firstUserId  String
+  secondUserId String
+  firstEntryId String
+  secondEntryId String
+  status       SocialMatchProposalStatus @default(PENDING)
+  score        Int
+  explanation  Json
+  version      Int                       @default(1)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  closedReason String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([firstUserId, status, updatedAt])
+  @@index([secondUserId, status, updatedAt])
+  @@index([status, expiresAt])
+}
+
+model SocialMatchDecision {
+  proposalId String
+  userId     String
+  decision   SocialMatchDecisionType
+  createdAt  DateTime @default(now())
+
+  @@id([proposalId, userId])
+  @@index([userId, createdAt])
+}
+
+model SocialMatchBlock {
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId, createdAt])
+}
+
+model SocialMatchEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  subjectId String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, action, createdAt])
+  @@index([subjectId, action, createdAt])
+}
+
+model SocialMatchReceipt {
+  userId        String
+  idempotencyKey String
+  operation     String
+  response      Json
+  createdAt     DateTime @default(now())
+
+  @@id([userId, idempotencyKey])
+  @@index([createdAt])
+}
