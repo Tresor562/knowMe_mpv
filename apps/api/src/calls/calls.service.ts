@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
   TooManyRequestsException
@@ -48,6 +50,7 @@ const TERMINAL_STATUSES = ['ENDED', 'REJECTED', 'MISSED', 'CANCELLED'];
 export class CallsService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService
   ) {}
