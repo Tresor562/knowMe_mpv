@@ -1,8 +1,9 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
-  ServiceUnavailableException,
-  TooManyRequestsException
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac } from 'crypto';
@@ -48,10 +49,13 @@ export class CallIceService {
       }
     });
     if (recentIssues >= MAX_ISSUES_PER_WINDOW) {
-      throw new TooManyRequestsException({
-        code: 'CALL_ICE_RATE_LIMITED',
-        message: 'Trop de configurations réseau ont été demandées récemment.'
-      });
+      throw new HttpException(
+        {
+          code: 'CALL_ICE_RATE_LIMITED',
+          message: 'Trop de configurations réseau ont été demandées récemment.'
+        },
+        HttpStatus.TOO_MANY_REQUESTS
+      );
     }
 
     const stunUrls = this.urls('CALL_STUN_URLS_JSON');
