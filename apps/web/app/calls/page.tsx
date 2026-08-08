@@ -25,8 +25,36 @@ type IncomingCall = {
   media: 'audio' | 'video';
 };
 
+type CallView = {
+  id: string;
+  direction: 'OUTGOING' | 'INCOMING';
+  media: 'audio' | 'video';
+  status: string;
+  peer: {
+    id: string;
+    displayName: string;
+    username: string;
+  } | null;
+  answeredAt: string | null;
+  endedAt: string | null;
+  endReason: string | null;
+  createdAt: string;
+  policy: {
+    serverIssuedCallId: true;
+    sessionDescriptionsPersisted: false;
+    iceCandidatesPersisted: false;
+  };
+};
+
 type PresenceEvent = { userId: string; online: boolean };
 type PresenceSnapshot = { onlineUserIds: string[] };
+
+function operationKey(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}:${crypto.randomUUID()}`;
+  }
+  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+}
 
 export default function CallsPage() {
   const { loading: sessionLoading } = useSession({ required: true });
@@ -40,6 +68,7 @@ export default function CallsPage() {
   const incomingRef = useRef<IncomingCall | null>(null);
 
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [history, setHistory] = useState<CallView[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [targetUserId, setTargetUserId] = useState('');
   const [status, setStatus] = useState('Prêt');
@@ -57,14 +86,18 @@ export default function CallsPage() {
     setIncomingState(value);
   }
 
+  async function refreshHistory() {
+    setHistory(await apiFetch<CallView[]>('/calls/history?take=30'));
+  }
+
   useEffect(() => {
     if (sessionLoading) return;
-
-    void apiFetch<Friend[]>('/social/friends')
-      .then(setFriends)
-      .catch((cause) => {
-        setStatus(cause instanceof Error ? cause.message : 'Amis indisponibles.');
-      });
+    void Promise.all([
+      apiFetch<Friend[]>('/social/friends').then(setFriends),
+      refreshHistory()
+    ]).catch((cause) => {
+      setStatus(cause instanceof Error ? cause.message : 'Appels indisponibles.');
+    });
   }, [sessionLoading]);
 
   useEffect(() => {
@@ -75,20 +108,20 @@ export default function CallsPage() {
   }, [friends, socket]);
 
   useEffect(() => {
-    const onConnect = () => {
-      setStatus('Prêt · temps réel connecté');
-    };
+    const onConnect = () => setStatus('Prêt · temps réel connecté');
     const onIncoming = (event: IncomingCall) => {
       if (activeCallIdRef.current || incomingRef.current) {
         socket.emit('call:end', {
           targetUserId: event.callerUserId,
           callId: event.callId,
-          reason: 'busy'
+          reason: 'rejected'
         });
         return;
       }
       setIncoming(event);
-      setStatus(`Appel ${event.media === 'video' ? 'vidéo' : 'audio'} entrant de ${event.callerUsername ?? 'un contact'}.`);
+      setStatus(
+        `Appel ${event.media === 'video' ? 'vidéo' : 'audio'} entrant de ${event.callerUsername ?? 'un contact'}.`
+      );
     };
     const onAnswered = async (event: {
       callId: string;
@@ -98,6 +131,7 @@ export default function CallsPage() {
       if (event.callId !== activeCallIdRef.current) return;
       await peerRef.current?.setRemoteDescription(event.answer);
       setStatus('Appel connecté');
+      void refreshHistory();
     };
     const onIceCandidate = async (event: {
       callId: string;
@@ -115,18 +149,14 @@ export default function CallsPage() {
       }
       cleanup();
       setIncoming(null);
-      setStatus(
-        event.reason === 'declined'
-          ? 'Appel refusé'
-          : event.reason === 'busy'
-            ? 'Contact occupé'
-            : 'Appel terminé'
-      );
+      setStatus(event.reason === 'rejected' ? 'Appel refusé' : 'Appel terminé');
+      void refreshHistory();
     };
     const onCallError = (event: { callId?: string; message: string }) => {
       if (event.callId && event.callId !== activeCallIdRef.current) return;
       cleanup();
       setStatus(event.message);
+      void refreshHistory();
     };
     const onPresence = (event: PresenceEvent) => {
       setOnlineUserIds((current) => {
@@ -178,16 +208,11 @@ export default function CallsPage() {
     };
 
     peer.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
     };
 
     peer.onconnectionstatechange = () => {
-      if (
-        peer.connectionState === 'failed' ||
-        peer.connectionState === 'closed'
-      ) {
+      if (peer.connectionState === 'failed' || peer.connectionState === 'closed') {
         cleanup();
       }
       setStatus(`État : ${peer.connectionState}`);
@@ -229,52 +254,66 @@ export default function CallsPage() {
       setIncoming(null);
       setStatus('Appel connecté');
     } catch (cause) {
-      setStatus(
-        cause instanceof Error
-          ? cause.message
-          : 'Impossible d’accepter l’appel.'
-      );
-      declineIncoming('media-error');
+      setStatus(cause instanceof Error ? cause.message : 'Impossible d’accepter l’appel.');
+      declineIncoming();
     } finally {
       setStarting(false);
     }
   }
 
-  function declineIncoming(reason = 'declined') {
+  function declineIncoming() {
     const call = incomingRef.current;
     if (!call) return;
     socket.emit('call:end', {
       targetUserId: call.callerUserId,
       callId: call.callId,
-      reason
+      reason: 'rejected'
     });
     setIncoming(null);
     cleanup();
     setStatus('Appel refusé');
+    void refreshHistory();
   }
 
   async function startCall(media: 'audio' | 'video') {
     if (!targetUserId || starting || activeCallIdRef.current) return;
     setStarting(true);
-    const callId = crypto.randomUUID();
-    setActiveCallId(callId);
+    let serverCallId: string | null = null;
 
     try {
-      const peer = createPeer(targetUserId, callId);
+      const created = await apiFetch<CallView>('/calls', {
+        method: 'POST',
+        body: JSON.stringify({
+          calleeUserId: targetUserId,
+          media,
+          idempotencyKey: operationKey('web-call-create')
+        })
+      });
+      serverCallId = created.id;
+      setActiveCallId(created.id);
+      const peer = createPeer(targetUserId, created.id);
       const stream = await getLocalStream(media);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       socket.emit('call:offer', {
         targetUserId,
-        callId,
+        callId: created.id,
         offer,
         media
       });
       setStatus('Appel en cours…');
+      void refreshHistory();
     } catch (cause) {
+      if (serverCallId) {
+        void apiFetch(`/calls/${serverCallId}/end`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: 'cancelled' })
+        }).catch(() => undefined);
+      }
       cleanup();
       setStatus(cause instanceof Error ? cause.message : 'Appel impossible.');
+      void refreshHistory();
     } finally {
       setStarting(false);
     }
@@ -291,13 +330,13 @@ export default function CallsPage() {
     }
     cleanup();
     setStatus('Appel terminé');
+    void refreshHistory();
   }
 
   function cleanup() {
     const peer = peerRef.current;
     peerRef.current = null;
     if (peer && peer.connectionState !== 'closed') peer.close();
-
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -306,56 +345,43 @@ export default function CallsPage() {
     setActiveCallId(null);
   }
 
-  const selectedFriend = friends.find(
-    ({ user }) => user.id === targetUserId
-  )?.user;
-  const selectedOnline = targetUserId
-    ? onlineUserIds.has(targetUserId)
-    : false;
+  const selectedFriend = friends.find(({ user }) => user.id === targetUserId)?.user;
+  const selectedOnline = targetUserId ? onlineUserIds.has(targetUserId) : false;
 
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   return (
     <main className="shell" style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header>
-        <small style={{ color: 'var(--orange)' }}>APPELS PRIVÉS</small>
+        <small style={{ color: 'var(--orange)' }}>KMD-057 · APPELS AUTORITAIRES</small>
         <h1>Appels KnowMe</h1>
         <p style={{ color: 'var(--muted)' }}>{status}</p>
+        <p style={{ color: 'var(--muted)' }}>
+          L’identifiant, l’état, l’expiration et l’historique sont contrôlés par l’API. Les offres SDP et candidats ICE ne sont jamais persistés.
+        </p>
       </header>
 
-      {incoming && (
-        <section
-          className="card"
-          style={{ padding: 22, marginBottom: 18, borderColor: 'var(--mint)' }}
-        >
+      {incoming ? (
+        <section className="card" style={{ padding: 22, marginBottom: 18, borderColor: 'var(--mint)' }}>
           <h2>Appel entrant</h2>
           <p>
-            {incoming.callerUsername ?? incoming.callerUserId} souhaite lancer
-            un appel {incoming.media === 'video' ? 'vidéo' : 'audio'}.
+            {incoming.callerUsername ?? incoming.callerUserId} souhaite lancer un appel {incoming.media === 'video' ? 'vidéo' : 'audio'}.
           </p>
           <p style={{ color: 'var(--muted)' }}>
             La caméra et le microphone ne seront demandés qu’après ton accord.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              className="btn btn-primary"
-              disabled={starting}
-              onClick={() => void acceptIncoming()}
-            >
+            <button className="btn btn-primary" disabled={starting} onClick={() => void acceptIncoming()}>
               {starting ? 'Connexion…' : 'Accepter'}
             </button>
-            <button className="btn" onClick={() => declineIncoming()}>
-              Refuser
-            </button>
+            <button className="btn" onClick={declineIncoming}>Refuser</button>
           </div>
         </section>
-      )}
+      ) : null}
 
       <section className="card grid" style={{ padding: 22 }}>
         <label>
-          <span style={{ display: 'block', marginBottom: 8 }}>
-            Choisir un contact
-          </span>
+          <span style={{ display: 'block', marginBottom: 8 }}>Choisir un contact</span>
           <select
             className="input"
             value={targetUserId}
@@ -365,85 +391,52 @@ export default function CallsPage() {
             <option value="">Sélectionne un ami</option>
             {friends.map(({ user }) => (
               <option key={user.id} value={user.id}>
-                {onlineUserIds.has(user.id) ? '●' : '○'} {user.displayName}
-                {' '}(@{user.username})
+                {onlineUserIds.has(user.id) ? '●' : '○'} {user.displayName} (@{user.username})
               </option>
             ))}
           </select>
         </label>
 
-        {selectedFriend && (
-          <p
-            style={{
-              color: selectedOnline ? 'var(--mint)' : 'var(--muted)'
-            }}
-          >
-            {selectedOnline ? '● En ligne' : '○ Hors ligne'} ·{' '}
-            {selectedFriend.displayName}
+        {selectedFriend ? (
+          <p style={{ color: selectedOnline ? 'var(--mint)' : 'var(--muted)' }}>
+            {selectedOnline ? '● En ligne' : '○ Hors ligne'} · {selectedFriend.displayName}
           </p>
-        )}
+        ) : null}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-primary"
-            disabled={!targetUserId || starting || Boolean(activeCallId)}
-            onClick={() => void startCall('audio')}
-          >
+          <button className="btn btn-primary" disabled={!targetUserId || starting || Boolean(activeCallId)} onClick={() => void startCall('audio')}>
             Appel audio
           </button>
-          <button
-            className="btn btn-accent"
-            disabled={!targetUserId || starting || Boolean(activeCallId)}
-            onClick={() => void startCall('video')}
-          >
+          <button className="btn btn-accent" disabled={!targetUserId || starting || Boolean(activeCallId)} onClick={() => void startCall('video')}>
             Appel vidéo
           </button>
-          <button
-            className="btn"
-            disabled={!activeCallId}
-            onClick={endCall}
-          >
-            Terminer
-          </button>
+          <button className="btn" disabled={!activeCallId} onClick={endCall}>Terminer</button>
         </div>
       </section>
 
-      <section
-        className="grid"
-        style={{
-          gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))',
-          marginTop: 20
-        }}
-      >
+      <section className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', marginTop: 20 }}>
         <article className="card" style={{ padding: 16 }}>
           <h2>Moi</h2>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            style={{
-              width: '100%',
-              borderRadius: 18,
-              background: '#000',
-              minHeight: 200
-            }}
-          />
+          <video ref={localVideoRef} autoPlay muted playsInline style={{ width: '100%', borderRadius: 18, background: '#000', minHeight: 200 }} />
         </article>
         <article className="card" style={{ padding: 16 }}>
           <h2>Correspondant</h2>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{
-              width: '100%',
-              borderRadius: 18,
-              background: '#000',
-              minHeight: 200
-            }}
-          />
+          <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', borderRadius: 18, background: '#000', minHeight: 200 }} />
         </article>
+      </section>
+
+      <section className="card" style={{ padding: 22, marginTop: 20 }}>
+        <h2>Historique autoritaire</h2>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {history.map((call) => (
+            <article key={call.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
+              <strong>{call.direction === 'OUTGOING' ? 'Sortant' : 'Entrant'} · {call.media === 'video' ? 'Vidéo' : 'Audio'}</strong>
+              <p style={{ margin: '6px 0' }}>{call.peer?.displayName ?? 'Compte supprimé'} · {call.status}</p>
+              <small style={{ color: 'var(--muted)' }}>{new Date(call.createdAt).toLocaleString()}</small>
+            </article>
+          ))}
+          {!history.length ? <p style={{ color: 'var(--muted)' }}>Aucun appel enregistré.</p> : null}
+        </div>
       </section>
     </main>
   );

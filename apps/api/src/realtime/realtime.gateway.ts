@@ -9,6 +9,7 @@ import {
   WebSocketServer
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { CallsService } from '../calls/calls.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type AuthSocket = Socket & {
@@ -17,6 +18,8 @@ type AuthSocket = Socket & {
     username?: string;
   };
 };
+
+type CallSignalAction = 'OFFER' | 'ANSWER' | 'ICE' | 'END';
 
 @WebSocketGateway({
   namespace: '/realtime',
@@ -30,7 +33,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   constructor(
     private readonly jwt: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly calls: CallsService
   ) {}
 
   async handleConnection(client: AuthSocket) {
@@ -165,7 +169,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       media: 'audio' | 'video';
     }
   ) {
-    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
+    if (
+      !(await this.canSignalPeer(
+        client,
+        body?.targetUserId,
+        body?.callId,
+        'OFFER'
+      ))
+    ) {
+      return;
+    }
 
     this.server.to(`user:${body.targetUserId}`).emit('call:incoming', {
       callId: body.callId,
@@ -186,7 +199,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       answer: RTCSessionDescriptionInit;
     }
   ) {
-    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
+    if (
+      !(await this.canSignalPeer(
+        client,
+        body?.targetUserId,
+        body?.callId,
+        'ANSWER'
+      ))
+    ) {
+      return;
+    }
 
     this.server.to(`user:${body.targetUserId}`).emit('call:answered', {
       callId: body.callId,
@@ -205,15 +227,22 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       candidate: RTCIceCandidateInit;
     }
   ) {
-    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
+    if (
+      !(await this.canSignalPeer(
+        client,
+        body?.targetUserId,
+        body?.callId,
+        'ICE'
+      ))
+    ) {
+      return;
+    }
 
-    this.server
-      .to(`user:${body.targetUserId}`)
-      .emit('call:ice-candidate', {
-        callId: body.callId,
-        senderUserId: client.data.userId,
-        candidate: body.candidate
-      });
+    this.server.to(`user:${body.targetUserId}`).emit('call:ice-candidate', {
+      callId: body.callId,
+      senderUserId: client.data.userId,
+      candidate: body.candidate
+    });
   }
 
   @SubscribeMessage('call:end')
@@ -226,7 +255,17 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       reason?: string;
     }
   ) {
-    if (!(await this.canSignalPeer(client, body?.targetUserId, body?.callId))) return;
+    if (
+      !(await this.canSignalPeer(
+        client,
+        body?.targetUserId,
+        body?.callId,
+        'END',
+        body?.reason
+      ))
+    ) {
+      return;
+    }
 
     this.server.to(`user:${body.targetUserId}`).emit('call:ended', {
       callId: body.callId,
@@ -306,22 +345,50 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   private async canSignalPeer(
     client: AuthSocket,
     targetUserId: string | undefined,
-    callId: string | undefined
+    callId: string | undefined,
+    action: CallSignalAction,
+    reason?: string
   ) {
     const userId = client.data.userId;
     if (!userId || !targetUserId || !callId || targetUserId === userId) {
       return false;
     }
 
-    const allowed = await this.allowedPresenceUserIds(userId);
-    if (allowed.has(targetUserId)) return true;
-
-    client.emit('call:error', {
-      callId,
-      targetUserId,
-      message: 'Tu ne peux appeler que les membres de tes conversations.'
-    });
-    return false;
+    try {
+      await this.calls.authorizeSignal(
+        userId,
+        targetUserId,
+        callId,
+        action,
+        reason
+      );
+      return true;
+    } catch (error) {
+      const response =
+        error &&
+        typeof error === 'object' &&
+        'getResponse' in error &&
+        typeof (error as { getResponse?: unknown }).getResponse === 'function'
+          ? (error as { getResponse: () => unknown }).getResponse()
+          : null;
+      const details =
+        response && typeof response === 'object' && !Array.isArray(response)
+          ? (response as Record<string, unknown>)
+          : {};
+      client.emit('call:error', {
+        callId,
+        targetUserId,
+        code:
+          typeof details.code === 'string'
+            ? details.code
+            : 'CALL_SIGNAL_FORBIDDEN',
+        message:
+          typeof details.message === 'string'
+            ? details.message
+            : 'La signalisation de cet appel a été refusée par le serveur.'
+      });
+      return false;
+    }
   }
 
   private async emitPresenceToPeers(userId: string, online: boolean) {
