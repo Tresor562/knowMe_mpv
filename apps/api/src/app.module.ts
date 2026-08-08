@@ -34,6 +34,7 @@ import { MediaModule } from './media/media.module';
 import { MessengerExperienceModule } from './messenger-experience/messenger-experience.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { NexusIntegrationModule } from './nexus-integration/nexus-integration.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { RequestContextMiddleware } from './observability/request-context.middleware';
@@ -113,7 +114,8 @@ import { WalletModule } from './wallet/wallet.module';
     ReportsModule,
     FeatureFlagsModule,
     EntitlementsModule,
-    StaffModule
+    StaffModule,
+    NexusIntegrationModule
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
