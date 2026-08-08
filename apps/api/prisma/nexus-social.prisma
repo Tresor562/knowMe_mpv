@@ -9,23 +9,23 @@ model NexusSocialConversation {
 }
 
 model NexusSocialReply {
-  id             String   @id @default(cuid())
-  requestId      String   @unique
-  idempotencyKey String
-  conversationId String
-  invokingUserId String
+  id              String   @id @default(cuid())
+  requestId       String   @unique
+  idempotencyKey  String
+  conversationId  String
+  invokingUserId  String
   sourceMessageId String
-  surface        String
-  invocationKind String
-  content        String
-  provider       String?
-  model          String?
-  route          String?
-  fallbackUsed   Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  surface         String
+  invocationKind  String
+  content         String
+  provider        String?
+  model           String?
+  route           String?
+  fallbackUsed    Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
   @@unique([conversationId, idempotencyKey])
+  @@unique([conversationId, sourceMessageId])
   @@index([conversationId, createdAt])
   @@index([invokingUserId, createdAt])
-  @@index([sourceMessageId])
 }
