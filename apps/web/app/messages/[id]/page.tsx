@@ -38,6 +38,7 @@ type Message = {
   createdAt:string;
   senderId:string;
   sender:Sender;
+  nexusAuthored?:boolean;
   presentation?:StickerPresentation|TextPresentation;
 };
 type ReadState = {
@@ -60,6 +61,8 @@ type TypingEvent = {
 };
 type PresenceEvent = { userId:string; online:boolean };
 type PresenceSnapshot = { onlineUserIds:string[] };
+
+const NEXUS_MENTION=/(^|\s)@nexus\b/i;
 
 function mergeMessages(current:Message[],incoming:Message[],prepend=false){
   const known=new Set(current.map(item=>item.id));
@@ -107,6 +110,7 @@ export default function ConversationPage() {
   const [message,setMessage]=useState('');
   const [socketStatus,setSocketStatus]=useState<'connecting'|'connected'|'offline'>('connecting');
   const [sending,setSending]=useState(false);
+  const [nexusPending,setNexusPending]=useState(false);
   const [loadingOlder,setLoadingOlder]=useState(false);
   const [refreshing,setRefreshing]=useState(false);
 
@@ -239,6 +243,7 @@ export default function ConversationPage() {
     ()=>readStates.map(state=>state.userId).filter(id=>id!==user?.id),
     [readStates,user?.id]
   );
+  const isNexusPrivate=Boolean(user?.id&&readStates.length===1&&readStates[0]?.userId===user.id);
 
   useEffect(()=>{
     if(socketStatus!=='connected'||!peerIds.length)return;
@@ -274,6 +279,30 @@ export default function ConversationPage() {
     setMessage('');
   }
 
+  async function invokeNexus(created:Message){
+    if(!user?.id)return;
+    setNexusPending(true);
+    try{
+      const reply=await apiFetch<Message>(
+        `/conversations/${conversationId}/nexus/reply`,
+        {
+          method:'POST',
+          body:JSON.stringify({
+            sourceMessageId:created.id,
+            idempotencyKey:`web:${conversationId}:${created.id}:${user.id}`,
+            mode:'instant'
+          })
+        }
+      );
+      setItems(current=>mergeMessages(current,[reply]));
+      void markRead().catch(()=>undefined);
+    }catch(cause){
+      setMessage(`Message envoyé, mais Nexus n'a pas répondu : ${cause instanceof Error?cause.message:'service indisponible.'}`);
+    }finally{
+      setNexusPending(false);
+    }
+  }
+
   async function send(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     const content=draft.trim();
@@ -287,6 +316,9 @@ export default function ConversationPage() {
       );
       acceptSent(created);
       setDraft('');
+      if(isNexusPrivate||NEXUS_MENTION.test(content)){
+        await invokeNexus(created);
+      }
     }catch(cause){
       setMessage(cause instanceof Error?cause.message:'Envoi impossible.');
     }finally{
@@ -306,13 +338,14 @@ export default function ConversationPage() {
       <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
         <div>
           <small style={{color:'var(--mint)'}}>
-            DISCUSSION · {socketStatus==='connected'
+            {isNexusPrivate?'NEXUS · PRIVÉ':`DISCUSSION · ${socketStatus==='connected'
               ?'EN DIRECT'
               :socketStatus==='connecting'
                 ?'CONNEXION…'
-                :'HORS LIGNE'}
+                :'HORS LIGNE'}`}
           </small>
-          <h1>Conversation</h1>
+          <h1>{isNexusPrivate?'Nexus':'Conversation'}</h1>
+          {isNexusPrivate&&<p style={{color:'var(--muted)',margin:0}}>Conversation explicite avec Nexus. Aucun accès caché à tes autres discussions.</p>}
           {peers.length>0&&(
             <p style={{color:'var(--muted)',margin:0}}>
               {peers.map(peer=>
@@ -349,6 +382,7 @@ export default function ConversationPage() {
       <section className="card" style={{padding:18,minHeight:420,display:'flex',flexDirection:'column',gap:12,marginTop:14}}>
         {items.map(item=>{
           const mine=item.senderId===user?.id;
+          const nexus=item.nexusAuthored===true;
           const readers=mine
             ?readStates.filter(state=>
                 state.userId!==user?.id&&
@@ -362,15 +396,16 @@ export default function ConversationPage() {
               style={{
                 alignSelf:mine?'flex-end':'flex-start',
                 maxWidth:'78%',
-                background:mine?'var(--mint)':'var(--surface-2)',
+                background:mine?'var(--mint)':nexus?'linear-gradient(135deg,rgba(69,230,189,.15),rgba(119,108,255,.15))':'var(--surface-2)',
+                border:nexus?'1px solid rgba(119,108,255,.35)':'none',
                 color:mine?'#06110e':'inherit',
                 padding:'12px 14px',
                 borderRadius:18
               }}
             >
               {!mine&&(
-                <strong style={{display:'block',marginBottom:4}}>
-                  {item.sender.displayName}
+                <strong style={{display:'block',marginBottom:4,color:nexus?'var(--mint)':'inherit'}}>
+                  {nexus?'✦ Nexus':item.sender.displayName}
                 </strong>
               )}
               <MessageContent item={item}/>
@@ -386,8 +421,9 @@ export default function ConversationPage() {
           );
         })}
         {!items.length&&(
-          <p style={{color:'var(--muted)'}}>Commence la conversation.</p>
+          <p style={{color:'var(--muted)'}}>{isNexusPrivate?'Écris ton premier message à Nexus.':'Commence la conversation.'}</p>
         )}
+        {nexusPending&&<p aria-live="polite" style={{color:'var(--mint)',fontStyle:'italic',margin:0}}>✦ Nexus réfléchit…</p>}
         {typingNames.length>0&&(
           <p aria-live="polite" style={{color:'var(--mint)',fontStyle:'italic',margin:0}}>
             {typingNames.join(', ')}{' '}
@@ -401,23 +437,23 @@ export default function ConversationPage() {
         className="card"
         style={{padding:14,display:'flex',gap:10,marginTop:14,flexWrap:'wrap',alignItems:'center'}}
       >
-        <StickerPicker<Message>
+        {!isNexusPrivate&&<StickerPicker<Message>
           conversationId={conversationId}
           onSent={acceptSent}
-        />
+        />}
         <input
           className="input"
           value={draft}
           onChange={event=>changeDraft(event.target.value)}
           onBlur={stopTyping}
           maxLength={2000}
-          placeholder="Écris un message…"
+          placeholder={isNexusPrivate?'Écris à Nexus…':'Écris un message… Utilise @Nexus pour l’invoquer.'}
           required
           style={{flex:'1 1 260px'}}
           autoComplete="off"
         />
-        <button className="btn btn-primary" disabled={sending}>
-          {sending?'Envoi…':'Envoyer'}
+        <button className="btn btn-primary" disabled={sending||nexusPending}>
+          {sending?'Envoi…':nexusPending?'Nexus…':'Envoyer'}
         </button>
       </form>
     </main>
