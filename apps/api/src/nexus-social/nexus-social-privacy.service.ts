@@ -68,4 +68,41 @@ export class NexusSocialPrivacyService {
     });
     return { deleted: true };
   }
+
+  async purgeForDeletedAccount(userId: string) {
+    const privateConversation = await this.prisma.nexusSocialConversation.findUnique({
+      where: { ownerUserId: userId },
+      select: { id: true, conversationId: true }
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      const invokedReplies = await tx.nexusSocialReply.deleteMany({
+        where: { invokingUserId: userId }
+      });
+
+      if (!privateConversation) {
+        return {
+          invokedRepliesDeleted: invokedReplies.count,
+          privateRepliesDeleted: 0,
+          privateConversationDeleted: false
+        };
+      }
+
+      const privateReplies = await tx.nexusSocialReply.deleteMany({
+        where: { conversationId: privateConversation.conversationId }
+      });
+      await tx.nexusSocialConversation.deleteMany({
+        where: { id: privateConversation.id }
+      });
+      await tx.conversation.deleteMany({
+        where: { id: privateConversation.conversationId }
+      });
+
+      return {
+        invokedRepliesDeleted: invokedReplies.count,
+        privateRepliesDeleted: privateReplies.count,
+        privateConversationDeleted: true
+      };
+    });
+  }
 }
