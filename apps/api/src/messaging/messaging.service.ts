@@ -177,13 +177,47 @@ export class MessagingService {
     await this.assertMember(userId, conversationId);
 
     const safeLimit = Math.min(Math.max(limit, 1), 100);
-    const cursorDate = cursor
+    const cursorPoint = cursor
       ? await this.resolveTimelineCursor(conversationId, cursor)
       : null;
-    const before = cursorDate ? { lt: cursorDate } : undefined;
+
+    const messageWhere = cursorPoint
+      ? {
+          conversationId,
+          OR: [
+            { createdAt: { lt: cursorPoint.createdAt } },
+            ...(cursorPoint.source === 'human'
+              ? [
+                  {
+                    createdAt: cursorPoint.createdAt,
+                    id: { lt: cursorPoint.sourceId }
+                  }
+                ]
+              : [])
+          ]
+        }
+      : { conversationId };
+
+    const nexusWhere = cursorPoint
+      ? {
+          conversationId,
+          OR: [
+            { createdAt: { lt: cursorPoint.createdAt } },
+            ...(cursorPoint.source === 'human'
+              ? [{ createdAt: cursorPoint.createdAt }]
+              : [
+                  {
+                    createdAt: cursorPoint.createdAt,
+                    id: { lt: cursorPoint.sourceId }
+                  }
+                ])
+          ]
+        }
+      : { conversationId };
+
     const [messages, nexusReplies, members] = await Promise.all([
       this.prisma.message.findMany({
-        where: { conversationId, ...(before ? { createdAt: before } : {}) },
+        where: messageWhere,
         take: safeLimit + 1,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: {
@@ -198,7 +232,7 @@ export class MessagingService {
         }
       }),
       this.prisma.nexusSocialReply.findMany({
-        where: { conversationId, ...(before ? { createdAt: before } : {}) },
+        where: nexusWhere,
         take: safeLimit + 1,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
       }),
@@ -222,10 +256,7 @@ export class MessagingService {
     const timeline = [
       ...messages.map((message) => this.presentMessage(message)),
       ...nexusReplies.map((message) => this.presentNexusReply(message))
-    ].sort((a, b) => {
-      const time = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      return time || b.id.localeCompare(a.id);
-    });
+    ].sort((a, b) => this.compareTimelineItems(a, b));
     const hasMore = timeline.length > safeLimit;
     const pageDescending = timeline.slice(0, safeLimit);
     const nextCursor = hasMore
@@ -419,21 +450,56 @@ export class MessagingService {
     };
   }
 
+  private compareTimelineItems(
+    a: {
+      id: string;
+      createdAt: Date;
+      nexusAuthored?: boolean;
+      sourceId?: string;
+    },
+    b: {
+      id: string;
+      createdAt: Date;
+      nexusAuthored?: boolean;
+      sourceId?: string;
+    }
+  ) {
+    const time = b.createdAt.getTime() - a.createdAt.getTime();
+    if (time) return time;
+
+    const aSourceRank = a.nexusAuthored ? 1 : 0;
+    const bSourceRank = b.nexusAuthored ? 1 : 0;
+    if (aSourceRank !== bSourceRank) return aSourceRank - bSourceRank;
+
+    const aId = a.sourceId ?? a.id;
+    const bId = b.sourceId ?? b.id;
+    if (aId === bId) return 0;
+    return aId < bId ? 1 : -1;
+  }
+
   private async resolveTimelineCursor(conversationId: string, cursor: string) {
     if (cursor.startsWith('nexus:')) {
       const row = await this.prisma.nexusSocialReply.findFirst({
         where: { id: cursor.slice(6), conversationId },
-        select: { createdAt: true }
+        select: { id: true, createdAt: true }
       });
       if (!row) throw new ForbiddenException('Invalid conversation cursor.');
-      return row.createdAt;
+      return {
+        source: 'nexus' as const,
+        sourceId: row.id,
+        createdAt: row.createdAt
+      };
     }
     const row = await this.prisma.message.findFirst({
       where: { id: cursor, conversationId },
-      select: { createdAt: true }
+      select: { id: true, createdAt: true }
     });
     if (!row) throw new ForbiddenException('Invalid conversation cursor.');
-    return row.createdAt;
+    return {
+      source: 'human' as const,
+      sourceId: row.id,
+      createdAt: row.createdAt
+    };
   }
 
   private async assertMember(userId: string, conversationId: string) {
