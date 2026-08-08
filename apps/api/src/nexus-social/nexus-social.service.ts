@@ -157,17 +157,6 @@ export class NexusSocialService {
       throw new BadRequestException('A stable idempotencyKey of 16-160 characters is required.');
     }
 
-    const [keyReplay, sourceReplay] = await Promise.all([
-      this.prisma.nexusSocialReply.findUnique({
-        where: { conversationId_idempotencyKey: { conversationId, idempotencyKey } }
-      }),
-      this.prisma.nexusSocialReply.findUnique({
-        where: { conversationId_sourceMessageId: { conversationId, sourceMessageId } }
-      })
-    ]);
-    const replay = keyReplay ?? sourceReplay;
-    if (replay) return this.presentReply(replay);
-
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
@@ -203,6 +192,22 @@ export class NexusSocialService {
       throw new BadRequestException('Nexus direct replies are only available in an explicit private Nexus conversation.');
     }
 
+    const [keyReplay, sourceReplay] = await Promise.all([
+      this.prisma.nexusSocialReply.findUnique({
+        where: { conversationId_idempotencyKey: { conversationId, idempotencyKey } }
+      }),
+      this.prisma.nexusSocialReply.findUnique({
+        where: { conversationId_sourceMessageId: { conversationId, sourceMessageId } }
+      })
+    ]);
+    const replay = keyReplay ?? sourceReplay;
+    if (replay) {
+      if (replay.invokingUserId !== userId) {
+        throw new ForbiddenException('Only the original invoking member can replay this Nexus turn.');
+      }
+      return this.presentReply(replay);
+    }
+
     const source = await this.prisma.message.findFirst({
       where: { id: sourceMessageId, conversationId },
       select: { id: true, senderId: true, content: true, createdAt: true }
@@ -217,7 +222,13 @@ export class NexusSocialService {
 
     const [laterHuman, laterNexus] = await Promise.all([
       this.prisma.message.findFirst({
-        where: { conversationId, createdAt: { gt: source.createdAt } },
+        where: {
+          conversationId,
+          OR: [
+            { createdAt: { gt: source.createdAt } },
+            { createdAt: source.createdAt, id: { gt: source.id } }
+          ]
+        },
         select: { id: true }
       }),
       this.prisma.nexusSocialReply.findFirst({
