@@ -75,17 +75,16 @@ export class NexusSocialController {
   }
 
   @Post('conversations/:id/nexus/reply')
-  invoke(
+  async invoke(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() body: unknown
   ) {
-    return this.nexusSocial.invoke(
-      req.user.userId,
-      id,
-      body && typeof body === 'object' && !Array.isArray(body)
-        ? body as Record<string, unknown>
-        : {}
-    );
+    const input = body && typeof body === 'object' && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : {};
+    const mode = input.mode === 'think' ? 'think' : 'instant';
+    await this.entitlements.authorizeConversationTurn(req.user.userId, id, mode);
+    return this.nexusSocial.invoke(req.user.userId, id, input);
   }
 }
