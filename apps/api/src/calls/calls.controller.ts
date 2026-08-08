@@ -1,12 +1,16 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CallIceService } from './call-ice.service';
 import { CallsService } from './calls.service';
 import { CreateCallDto, EndCallDto } from './dto/call.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('calls')
 export class CallsController {
-  constructor(private readonly calls: CallsService) {}
+  constructor(
+    private readonly calls: CallsService,
+    private readonly ice: CallIceService
+  ) {}
 
   @Post()
   create(
@@ -23,6 +27,14 @@ export class CallsController {
   ) {
     const parsed = take ? Number.parseInt(take, 10) : 50;
     return this.calls.history(req.user.userId, Number.isFinite(parsed) ? parsed : 50);
+  }
+
+  @Get(':callId/ice-configuration')
+  iceConfiguration(
+    @Req() req: { user: { userId: string } },
+    @Param('callId') callId: string
+  ) {
+    return this.ice.issue(req.user.userId, callId);
   }
 
   @Get(':callId')
