@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private privateScanOffset = 0;
+  private replyScanOffset = 0;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -40,10 +42,12 @@ export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestro
     );
 
     const privateRows = await this.prisma.nexusSocialConversation.findMany({
+      skip: this.privateScanOffset,
       take: batchSize,
-      orderBy: { updatedAt: 'asc' }
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }]
     });
     let privateConversationsDeleted = 0;
+    let privateRowsRetained = 0;
     for (const row of privateRows) {
       const [owner, membership] = await Promise.all([
         this.prisma.user.findUnique({ where: { id: row.ownerUserId }, select: { id: true } }),
@@ -57,7 +61,10 @@ export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestro
           select: { id: true }
         })
       ]);
-      if (owner && membership) continue;
+      if (owner && membership) {
+        privateRowsRetained += 1;
+        continue;
+      }
 
       await this.prisma.$transaction(async (tx) => {
         await tx.nexusSocialReply.deleteMany({
@@ -73,10 +80,14 @@ export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestro
       });
       privateConversationsDeleted += 1;
     }
+    this.privateScanOffset = privateRows.length < batchSize
+      ? 0
+      : this.privateScanOffset + privateRowsRetained;
 
     const replies = await this.prisma.nexusSocialReply.findMany({
+      skip: this.replyScanOffset,
       take: batchSize,
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true,
         invokingUserId: true,
@@ -84,6 +95,7 @@ export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestro
       }
     });
     let repliesDeleted = 0;
+    let repliesRetained = 0;
     for (const reply of replies) {
       const [user, source] = await Promise.all([
         this.prisma.user.findUnique({
@@ -95,12 +107,18 @@ export class NexusSocialLifecycleService implements OnModuleInit, OnModuleDestro
           select: { id: true }
         })
       ]);
-      if (user && source) continue;
+      if (user && source) {
+        repliesRetained += 1;
+        continue;
+      }
       const result = await this.prisma.nexusSocialReply.deleteMany({
         where: { id: reply.id }
       });
       repliesDeleted += result.count;
     }
+    this.replyScanOffset = replies.length < batchSize
+      ? 0
+      : this.replyScanOffset + repliesRetained;
 
     return { privateConversationsDeleted, repliesDeleted };
   }
