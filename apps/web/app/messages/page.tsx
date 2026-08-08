@@ -22,6 +22,7 @@ type Message = {
   createdAt:string;
   senderId:string;
   sender?:{ id:string; displayName:string; username:string };
+  nexusAuthored?:boolean;
   presentation?:StickerPresentation|{kind:'TEXT';text:string};
 };
 type Conversation = {
@@ -55,6 +56,7 @@ export default function MessagesPage() {
   const [message,setMessage] = useState('');
   const [live,setLive] = useState(false);
   const [creating,setCreating] = useState(false);
+  const [creatingNexus,setCreatingNexus] = useState(false);
   const [refreshing,setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -152,6 +154,21 @@ export default function MessagesPage() {
     }
   }
 
+  async function openNexusConversation() {
+    if (creatingNexus) return;
+    setCreatingNexus(true);
+    try {
+      const conversation = await apiFetch<Conversation>('/nexus-social/private-conversation', {
+        method:'POST',
+        body:'{}'
+      });
+      window.location.href = `/messages/${conversation.id}`;
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Nexus est indisponible.');
+      setCreatingNexus(false);
+    }
+  }
+
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
@@ -164,7 +181,12 @@ export default function MessagesPage() {
           <h1>Messages</h1>
           <p style={{color:'var(--muted)'}}>{totalUnread} message(s) non lu(s)</p>
         </div>
-        <button className="btn" disabled={refreshing} onClick={() => void load()}>{refreshing ? 'Actualisation…' : 'Actualiser'}</button>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button className="btn btn-primary" disabled={creatingNexus} onClick={() => void openNexusConversation()}>
+            {creatingNexus?'Ouverture…':'✦ Parler à Nexus'}
+          </button>
+          <button className="btn" disabled={refreshing} onClick={() => void load()}>{refreshing ? 'Actualisation…' : 'Actualiser'}</button>
+        </div>
       </header>
 
       <form className="card" onSubmit={createConversation} style={{padding:18,display:'grid',gridTemplateColumns:'minmax(180px,1fr) minmax(180px,1fr) auto',gap:10,marginBottom:20}}>
@@ -184,25 +206,27 @@ export default function MessagesPage() {
           const name = conversation.title || otherMembers.map(member => member.user.displayName).join(', ') || 'Conversation';
           const last = conversation.messages[0];
           const unread = conversation.unreadCount > 0;
-          const online=otherMembers.some(member=>onlineUserIds.has(member.user.id));
+          const isNexus = name === 'Nexus' && otherMembers.length === 0;
+          const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
           return (
             <Link
               href={`/messages/${conversation.id}`}
               key={conversation.id}
               style={{display:'grid',gridTemplateColumns:'52px minmax(0,1fr) auto',gap:14,padding:18,borderBottom:'1px solid rgba(255,255,255,.06)',alignItems:'center',background:unread?'rgba(69,230,189,.055)':'transparent'}}
             >
-              <div style={{position:'relative',width:52,height:52,borderRadius:'50%',background:unread?'var(--mint)':'var(--surface-2)',color:unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>
-                {name[0]?.toUpperCase()}
-                <span aria-label={online?'En ligne':'Hors ligne'} style={{position:'absolute',right:0,bottom:1,width:13,height:13,borderRadius:'50%',background:online?'#45e6bd':'#607a70',border:'2px solid var(--surface)'}} />
+              <div style={{position:'relative',width:52,height:52,borderRadius:'50%',background:isNexus?'linear-gradient(135deg,#45e6bd,#776cff)':unread?'var(--mint)':'var(--surface-2)',color:isNexus||unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>
+                {isNexus?'✦':name[0]?.toUpperCase()}
+                {!isNexus&&<span aria-label={online?'En ligne':'Hors ligne'} style={{position:'absolute',right:0,bottom:1,width:13,height:13,borderRadius:'50%',background:online?'#45e6bd':'#607a70',border:'2px solid var(--surface)'}} />}
               </div>
               <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <strong>{name}</strong>
+                  {isNexus&&<small style={{color:'var(--mint)'}}>assistant privé</small>}
                   {online&&<small style={{color:'var(--mint)'}}>en ligne</small>}
                   {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
                 </div>
                 <div style={{color:unread?'var(--text)':'var(--muted)',fontWeight:unread?700:400,marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {last ? `${last.senderId===user?.id?'Toi : ':''}${preview(last)}` : 'Aucun message pour le moment.'}
+                  {last ? `${last.senderId===user?.id?'Toi : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}` : isNexus?'Pose une question à Nexus.':'Aucun message pour le moment.'}
                 </div>
               </div>
               <small style={{color:'var(--muted)',textAlign:'right'}}>{last ? new Date(last.createdAt).toLocaleString('fr-FR') : ''}</small>

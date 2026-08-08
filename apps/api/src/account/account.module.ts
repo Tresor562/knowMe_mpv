@@ -5,6 +5,7 @@ import { CosmeticsModule } from '../cosmetics/cosmetics.module';
 import { CreatorsModule } from '../creators/creators.module';
 import { GamePlatformModule } from '../games/game-platform.module';
 import { MediaModule } from '../media/media.module';
+import { NexusSocialModule } from '../nexus-social/nexus-social.module';
 import { PrivacyModule } from '../privacy/privacy.module';
 import { SecurityModule } from '../security/security.module';
 import { SocialMatchmakingModule } from '../social-matchmaking/social-matchmaking.module';
@@ -23,7 +24,8 @@ import { AccountService } from './account.service';
     ConceptKModule,
     CosmeticsModule,
     AppearanceModule,
-    SocialModule
+    SocialModule,
+    NexusSocialModule
   ],
   controllers: [AccountController],
   providers: [AccountService]
