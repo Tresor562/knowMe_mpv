@@ -1,4 +1,4 @@
-import { BadRequestException, TooManyRequestsException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { NexusEntitlementService } from './nexus-entitlement.service';
 
 describe('NexusEntitlementService', () => {
@@ -44,7 +44,7 @@ describe('NexusEntitlementService', () => {
     prisma.nexusSocialConversation.findUnique.mockResolvedValue({ ownerUserId: 'knowme-user-1' });
     prisma.nexusSocialReply.count.mockResolvedValue(12);
     await expect(service.authorizeConversationTurn('knowme-user-1', 'conv-1', 'instant'))
-      .rejects.toBeInstanceOf(TooManyRequestsException);
+      .rejects.toMatchObject({ status: 429 });
   });
 
   it('does not apply private-subscription gating to ordinary group @Nexus turns', async () => {
