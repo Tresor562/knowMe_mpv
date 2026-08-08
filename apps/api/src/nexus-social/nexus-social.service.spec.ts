@@ -126,6 +126,49 @@ describe('NexusSocialService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('does not return an idempotent replay to a different invoking member', async () => {
+    process.env = {
+      ...originalEnv,
+      NEXUS_INTEGRATION_ENABLED: 'true',
+      NEXUS_SOCIAL_ENABLED: 'true'
+    };
+    const { service, prisma } = createService();
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: 'conversation-123456',
+      isGroup: true,
+      members: [
+        { userId: 'user-123456', user: { username: 'one', displayName: 'One' } },
+        { userId: 'user-654321', user: { username: 'two', displayName: 'Two' } }
+      ]
+    });
+    prisma.nexusSocialConversation.findUnique.mockResolvedValue(null);
+    prisma.nexusSocialReply.findUnique
+      .mockResolvedValueOnce({
+        id: 'reply-123456',
+        requestId: 'ksocial-request-123456',
+        idempotencyKey: 'unit:group:replay:123456',
+        conversationId: 'conversation-123456',
+        invokingUserId: 'user-654321',
+        sourceMessageId: 'message-654321',
+        surface: 'group',
+        invocationKind: 'mention',
+        content: 'Réponse existante',
+        provider: 'provider',
+        model: 'model',
+        route: 'instant',
+        fallbackUsed: false,
+        createdAt: new Date()
+      })
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      service.invoke('user-123456', 'conversation-123456', {
+        sourceMessageId: 'message-654321',
+        idempotencyKey: 'unit:group:replay:123456'
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('requires HTTPS for the Nexus server in production', () => {
     process.env = {
       ...originalEnv,
