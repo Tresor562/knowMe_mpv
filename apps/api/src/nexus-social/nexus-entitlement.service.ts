@@ -1,9 +1,10 @@
 import {
   BadGatewayException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
-  ServiceUnavailableException,
-  TooManyRequestsException
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -130,7 +131,9 @@ export class NexusEntitlementService {
     const used = await this.prisma.nexusSocialReply.count({
       where: { invokingUserId: userId, surface: 'private', createdAt: { gte: since } }
     });
-    if (used >= entitlement.knowMe.hourlyTurns) throw new TooManyRequestsException('Quota horaire Nexus dans KnowMe atteint.');
+    if (used >= entitlement.knowMe.hourlyTurns) {
+      throw new HttpException('Quota horaire Nexus dans KnowMe atteint.', HttpStatus.TOO_MANY_REQUESTS);
+    }
     return entitlement;
   }
 
