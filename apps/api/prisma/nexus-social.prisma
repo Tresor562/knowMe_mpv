@@ -1,0 +1,31 @@
+model NexusSocialConversation {
+  id             String   @id @default(cuid())
+  conversationId String   @unique
+  ownerUserId    String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerUserId, createdAt])
+}
+
+model NexusSocialReply {
+  id             String   @id @default(cuid())
+  requestId      String   @unique
+  idempotencyKey String
+  conversationId String
+  invokingUserId String
+  sourceMessageId String
+  surface        String
+  invocationKind String
+  content        String
+  provider       String?
+  model          String?
+  route          String?
+  fallbackUsed   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([conversationId, idempotencyKey])
+  @@index([conversationId, createdAt])
+  @@index([invokingUserId, createdAt])
+  @@index([sourceMessageId])
+}
