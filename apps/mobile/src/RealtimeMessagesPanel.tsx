@@ -34,6 +34,7 @@ type ConversationMessage = {
   createdAt: string;
   senderId: string;
   sender?: UserSummary;
+  nexusAuthored?: boolean;
 };
 type Conversation = {
   id: string;
@@ -58,6 +59,8 @@ type TypingEvent = {
 };
 type PresenceEvent = { userId: string; online: boolean };
 type PresenceSnapshot = { onlineUserIds: string[] };
+
+const NEXUS_MENTION = /(^|\s)@nexus\b/i;
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -111,6 +114,8 @@ export function RealtimeMessagesPanel({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [nexusPending, setNexusPending] = useState(false);
+  const [creatingNexus, setCreatingNexus] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [live, setLive] = useState(false);
 
@@ -369,6 +374,27 @@ export function RealtimeMessagesPanel({
     }
   }
 
+  async function createNexusConversation() {
+    if (creatingNexus) return;
+    setCreatingNexus(true);
+    try {
+      const created = await apiFetch<Conversation>('/nexus-social/private-conversation', {
+        method: 'POST',
+        body: '{}'
+      });
+      const conversation = normalizeConversation(created);
+      setConversations((current) => [
+        conversation,
+        ...current.filter((item) => item.id !== conversation.id)
+      ]);
+      await openConversation(conversation);
+    } catch (cause) {
+      Alert.alert('Nexus indisponible', errorMessage(cause, 'Réessaie.'));
+    } finally {
+      setCreatingNexus(false);
+    }
+  }
+
   function changeDraft(value: string) {
     setDraft(value);
     if (!active) return;
@@ -400,8 +426,36 @@ export function RealtimeMessagesPanel({
     typingActive.current = false;
   }
 
+  async function invokeNexus(conversation: Conversation, created: ConversationMessage) {
+    setNexusPending(true);
+    try {
+      const reply = await apiFetch<ConversationMessage>(
+        `/conversations/${conversation.id}/nexus/reply`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            sourceMessageId: created.id,
+            idempotencyKey: `mobile:${conversation.id}:${created.id}:${userId}`,
+            mode: 'instant'
+          })
+        }
+      );
+      setHistory((current) => mergeMessages(current, [reply]));
+      void markRead(conversation.id).catch(() => undefined);
+    } catch (cause) {
+      Alert.alert(
+        'Message envoyé, Nexus indisponible',
+        errorMessage(cause, 'Tu peux réessayer avec un nouveau message.')
+      );
+    } finally {
+      setNexusPending(false);
+    }
+  }
+
   async function send() {
-    if (!active || !draft.trim() || sending) return;
+    if (!active || !draft.trim() || sending || nexusPending) return;
+    const content = draft.trim();
+    const isNexusPrivate = active.title === 'Nexus' && active.members.length === 1 && active.members[0]?.userId === userId;
     setSending(true);
     stopTyping();
     try {
@@ -409,7 +463,7 @@ export function RealtimeMessagesPanel({
         `/conversations/${active.id}/messages`,
         {
           method: 'POST',
-          body: JSON.stringify({ content: draft.trim() })
+          body: JSON.stringify({ content })
         }
       );
       setHistory((current) => mergeMessages(current, [created]));
@@ -419,6 +473,9 @@ export function RealtimeMessagesPanel({
           : state
       ));
       setDraft('');
+      if (isNexusPrivate || NEXUS_MENTION.test(content)) {
+        await invokeNexus(active, created);
+      }
     } catch (cause) {
       Alert.alert('Envoi impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
@@ -438,6 +495,7 @@ export function RealtimeMessagesPanel({
     setReadStates([]);
     setTypingUsers({});
     setNextCursor(null);
+    setNexusPending(false);
     void load();
   }
 
@@ -445,10 +503,11 @@ export function RealtimeMessagesPanel({
     const others = active.members.filter(
       (member) => member.user.id !== userId
     );
-    const name = active.title || others
+    const isNexusPrivate = active.title === 'Nexus' && others.length === 0;
+    const name = isNexusPrivate ? 'Nexus' : active.title || others
       .map((member) => member.user.displayName)
       .join(', ') || 'Conversation';
-    const online = others.some((member) =>
+    const online = !isNexusPrivate && others.some((member) =>
       onlineUserIds.has(member.user.id)
     );
     const typingNames = Object.values(typingUsers);
@@ -458,13 +517,15 @@ export function RealtimeMessagesPanel({
         <View style={styles.conversationHeader}>
           <SecondaryButton title="Retour" onPress={closeConversation} />
           <View style={styles.flex}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{name}</Text>
-            <Text style={online ? styles.online : styles.muted}>
-              {live
-                ? online
-                  ? '● En ligne'
-                  : '○ Hors ligne'
-                : 'Temps réel déconnecté'}
+            <Text style={styles.cardTitle} numberOfLines={1}>{isNexusPrivate ? '✦ Nexus' : name}</Text>
+            <Text style={isNexusPrivate ? styles.online : online ? styles.online : styles.muted}>
+              {isNexusPrivate
+                ? 'Assistant privé · invocation explicite'
+                : live
+                  ? online
+                    ? '● En ligne'
+                    : '○ Hors ligne'
+                  : 'Temps réel déconnecté'}
             </Text>
           </View>
           <SecondaryButton
@@ -486,6 +547,7 @@ export function RealtimeMessagesPanel({
           ) : null}
           renderItem={({ item }) => {
             const mine = item.senderId === userId;
+            const nexus = item.nexusAuthored === true;
             const readers = mine
               ? readStates.filter((state) =>
                   state.userId !== userId &&
@@ -497,11 +559,11 @@ export function RealtimeMessagesPanel({
             return (
               <View style={[
                 styles.bubble,
-                mine ? styles.bubbleMine : styles.bubbleOther
+                mine ? styles.bubbleMine : nexus ? styles.bubbleNexus : styles.bubbleOther
               ]}>
-                {!mine && item.sender ? (
+                {!mine ? (
                   <Text style={styles.senderName}>
-                    {item.sender.displayName}
+                    {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
                 ) : null}
                 <Text style={
@@ -522,8 +584,10 @@ export function RealtimeMessagesPanel({
               </View>
             );
           }}
-          ListEmptyComponent={<Empty text="Commence la conversation." />}
-          ListFooterComponent={typingNames.length ? (
+          ListEmptyComponent={<Empty text={isNexusPrivate ? 'Écris ton premier message à Nexus.' : 'Commence la conversation.'} />}
+          ListFooterComponent={nexusPending ? (
+            <Text style={styles.typing}>✦ Nexus réfléchit…</Text>
+          ) : typingNames.length ? (
             <Text style={styles.typing}>
               {typingNames.join(', ')}{' '}
               {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
@@ -537,13 +601,13 @@ export function RealtimeMessagesPanel({
             onChangeText={changeDraft}
             onBlur={stopTyping}
             maxLength={2000}
-            placeholder="Écris un message…"
+            placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
             placeholderTextColor="#789187"
             style={[styles.input, styles.composerInput]}
           />
           <ActionButton
-            title={sending ? '…' : 'Envoyer'}
-            disabled={sending || !draft.trim()}
+            title={sending ? '…' : nexusPending ? 'Nexus…' : 'Envoyer'}
+            disabled={sending || nexusPending || !draft.trim()}
             onPress={() => void send()}
             compact
           />
@@ -573,6 +637,18 @@ export function RealtimeMessagesPanel({
       <Text style={styles.liveStatus}>
         {live ? '● Messages en direct' : '○ Reconnexion au temps réel…'}
       </Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Nexus</Text>
+        <Text style={styles.muted}>
+          Conversation privée avec Nexus. Dans les groupes, écris @Nexus pour l’invoquer uniquement sur ce tour.
+        </Text>
+        <ActionButton
+          title={creatingNexus ? 'Ouverture…' : '✦ Parler à Nexus'}
+          disabled={creatingNexus}
+          onPress={() => void createNexusConversation()}
+        />
+      </View>
 
       {friends.length > 0 ? (
         <View style={styles.card}>
@@ -624,12 +700,13 @@ export function RealtimeMessagesPanel({
         const others = conversation.members.filter(
           (member) => member.user.id !== userId
         );
-        const name = conversation.title || others
+        const isNexus = conversation.title === 'Nexus' && others.length === 0;
+        const name = isNexus ? 'Nexus' : conversation.title || others
           .map((member) => member.user.displayName)
           .join(', ') || 'Conversation';
         const last = conversation.messages[0];
         const unread = conversation.unreadCount > 0;
-        const online = others.some((member) =>
+        const online = !isNexus && others.some((member) =>
           onlineUserIds.has(member.user.id)
         );
 
@@ -640,19 +717,19 @@ export function RealtimeMessagesPanel({
             style={[styles.card, unread && styles.unreadConversation]}
           >
             <View style={styles.conversationTitleRow}>
-              <View style={styles.conversationAvatar}>
+              <View style={[styles.conversationAvatar, isNexus && styles.nexusAvatar]}>
                 <Text style={styles.avatarText}>
-                  {name.charAt(0).toUpperCase()}
+                  {isNexus ? '✦' : name.charAt(0).toUpperCase()}
                 </Text>
-                <View style={[
+                {!isNexus ? <View style={[
                   styles.presenceDot,
                   online ? styles.presenceOnline : styles.presenceOffline
-                ]} />
+                ]} /> : null}
               </View>
               <View style={styles.flex}>
                 <Text style={styles.cardTitle}>{name}</Text>
-                <Text style={online ? styles.online : styles.muted}>
-                  {online ? 'en ligne' : 'hors ligne'}
+                <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
+                  {isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                 </Text>
               </View>
               {unread ? (
@@ -668,8 +745,8 @@ export function RealtimeMessagesPanel({
               numberOfLines={2}
             >
               {last
-                ? `${last.senderId === userId ? 'Toi : ' : ''}${last.content}`
-                : 'Aucun message pour le moment.'}
+                ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
+                : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
             </Text>
             {last ? (
               <Text style={styles.date}>
@@ -839,6 +916,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative'
   },
+  nexusAvatar: { backgroundColor: '#253a3c', borderColor: '#776cff', borderWidth: 1 },
   avatarText: { color: '#45e6bd', fontSize: 18, fontWeight: '900' },
   presenceDot: {
     position: 'absolute',
@@ -878,6 +956,12 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '82%', padding: 12, borderRadius: 18, gap: 5 },
   bubbleMine: { backgroundColor: '#45e6bd', alignSelf: 'flex-end' },
   bubbleOther: { backgroundColor: '#10231d', alignSelf: 'flex-start' },
+  bubbleNexus: {
+    backgroundColor: '#17252a',
+    borderColor: '#776cff',
+    borderWidth: 1,
+    alignSelf: 'flex-start'
+  },
   bubbleText: { color: '#f4fff9' },
   bubbleMineText: { color: '#052017', fontWeight: '600' },
   senderName: { color: '#45e6bd', fontWeight: '800', fontSize: 11 },
