@@ -6,31 +6,43 @@ export class NexusSocialPrivacyService {
   constructor(private readonly prisma: PrismaService) {}
 
   async exportForAccount(userId: string) {
-    const privateConversation = await this.prisma.nexusSocialConversation.findUnique({
-      where: { ownerUserId: userId }
-    });
-    const invokedReplies = await this.prisma.nexusSocialReply.findMany({
-      where: { invokingUserId: userId },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        requestId: true,
-        conversationId: true,
-        sourceMessageId: true,
-        surface: true,
-        invocationKind: true,
-        content: true,
-        provider: true,
-        model: true,
-        route: true,
-        fallbackUsed: true,
-        createdAt: true
-      },
-      take: 5_000
-    });
+    const [privateConversation, accountLink, invokedReplies] = await Promise.all([
+      this.prisma.nexusSocialConversation.findUnique({ where: { ownerUserId: userId } }),
+      this.prisma.nexusAccountLink.findUnique({
+        where: { knowMeUserId: userId },
+        select: {
+          nexusUserId: true,
+          lastPlan: true,
+          lastStatus: true,
+          verifiedAt: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      }),
+      this.prisma.nexusSocialReply.findMany({
+        where: { invokingUserId: userId },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          requestId: true,
+          conversationId: true,
+          sourceMessageId: true,
+          surface: true,
+          invocationKind: true,
+          content: true,
+          provider: true,
+          model: true,
+          route: true,
+          fallbackUsed: true,
+          createdAt: true
+        },
+        take: 5_000
+      })
+    ]);
 
     return {
       exportedAt: new Date().toISOString(),
+      nexusAccountLink: accountLink,
       privateConversation: privateConversation
         ? {
             conversationId: privateConversation.conversationId,
@@ -43,26 +55,17 @@ export class NexusSocialPrivacyService {
   }
 
   async deletePrivateConversation(userId: string) {
-    const row = await this.prisma.nexusSocialConversation.findUnique({
-      where: { ownerUserId: userId }
-    });
+    const row = await this.prisma.nexusSocialConversation.findUnique({ where: { ownerUserId: userId } });
     if (!row) return { deleted: false };
 
     const member = await this.prisma.conversationMember.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId: row.conversationId,
-          userId
-        }
-      },
+      where: { conversationId_userId: { conversationId: row.conversationId, userId } },
       select: { id: true }
     });
     if (!member) throw new ForbiddenException('Private Nexus conversation ownership is inconsistent.');
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.nexusSocialReply.deleteMany({
-        where: { conversationId: row.conversationId }
-      });
+      await tx.nexusSocialReply.deleteMany({ where: { conversationId: row.conversationId } });
       await tx.nexusSocialConversation.delete({ where: { id: row.id } });
       await tx.conversation.delete({ where: { id: row.conversationId } });
     });
@@ -76,30 +79,27 @@ export class NexusSocialPrivacyService {
     });
 
     return this.prisma.$transaction(async (tx) => {
-      const invokedReplies = await tx.nexusSocialReply.deleteMany({
-        where: { invokingUserId: userId }
-      });
+      const [invokedReplies, accountLinks] = await Promise.all([
+        tx.nexusSocialReply.deleteMany({ where: { invokingUserId: userId } }),
+        tx.nexusAccountLink.deleteMany({ where: { knowMeUserId: userId } })
+      ]);
 
       if (!privateConversation) {
         return {
           invokedRepliesDeleted: invokedReplies.count,
+          nexusAccountLinksDeleted: accountLinks.count,
           privateRepliesDeleted: 0,
           privateConversationDeleted: false
         };
       }
 
-      const privateReplies = await tx.nexusSocialReply.deleteMany({
-        where: { conversationId: privateConversation.conversationId }
-      });
-      await tx.nexusSocialConversation.deleteMany({
-        where: { id: privateConversation.id }
-      });
-      await tx.conversation.deleteMany({
-        where: { id: privateConversation.conversationId }
-      });
+      const privateReplies = await tx.nexusSocialReply.deleteMany({ where: { conversationId: privateConversation.conversationId } });
+      await tx.nexusSocialConversation.deleteMany({ where: { id: privateConversation.id } });
+      await tx.conversation.deleteMany({ where: { id: privateConversation.conversationId } });
 
       return {
         invokedRepliesDeleted: invokedReplies.count,
+        nexusAccountLinksDeleted: accountLinks.count,
         privateRepliesDeleted: privateReplies.count,
         privateConversationDeleted: true
       };
