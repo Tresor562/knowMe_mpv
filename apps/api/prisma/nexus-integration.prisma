@@ -1,0 +1,19 @@
+model NexusIntegrationReceipt {
+  id                String   @id @default(cuid())
+  requestId         String   @unique
+  capabilityId      String
+  actorNexusUserId  String
+  actorKnowMeUserId String?
+  risk              String
+  idempotencyKey    String?
+  approvalId        String?
+  outcome           String
+  response          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([capabilityId, idempotencyKey])
+  @@index([actorNexusUserId, createdAt])
+  @@index([actorKnowMeUserId, createdAt])
+  @@index([capabilityId, createdAt])
+}
