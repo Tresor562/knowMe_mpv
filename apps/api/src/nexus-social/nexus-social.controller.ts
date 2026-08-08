@@ -11,6 +11,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { NexusEntitlementService } from './nexus-entitlement.service';
 import { NexusSocialPrivacyService } from './nexus-social-privacy.service';
 import { NexusSocialService } from './nexus-social.service';
 
@@ -19,12 +20,34 @@ import { NexusSocialService } from './nexus-social.service';
 export class NexusSocialController {
   constructor(
     private readonly nexusSocial: NexusSocialService,
-    private readonly privacy: NexusSocialPrivacyService
+    private readonly privacy: NexusSocialPrivacyService,
+    private readonly entitlements: NexusEntitlementService
   ) {}
 
   @Get('nexus-social/status')
   status() {
     return this.nexusSocial.status();
+  }
+
+  @Get('nexus-social/entitlement')
+  entitlement(@Req() req: { user: { userId: string } }) {
+    return this.entitlements.statusForUser(req.user.userId);
+  }
+
+  @Post('nexus-social/account-link')
+  linkAccount(
+    @Req() req: { user: { userId: string } },
+    @Body() body: unknown
+  ) {
+    const code = body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>).code
+      : undefined;
+    return this.entitlements.linkAccount(req.user.userId, code);
+  }
+
+  @Delete('nexus-social/account-link')
+  unlinkAccount(@Req() req: { user: { userId: string } }) {
+    return this.entitlements.unlinkAccount(req.user.userId);
   }
 
   @Get('nexus-social/export')
@@ -52,17 +75,16 @@ export class NexusSocialController {
   }
 
   @Post('conversations/:id/nexus/reply')
-  invoke(
+  async invoke(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() body: unknown
   ) {
-    return this.nexusSocial.invoke(
-      req.user.userId,
-      id,
-      body && typeof body === 'object' && !Array.isArray(body)
-        ? body as Record<string, unknown>
-        : {}
-    );
+    const input = body && typeof body === 'object' && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : {};
+    const mode = input.mode === 'think' ? 'think' : 'instant';
+    await this.entitlements.authorizeConversationTurn(req.user.userId, id, mode);
+    return this.nexusSocial.invoke(req.user.userId, id, input);
   }
 }

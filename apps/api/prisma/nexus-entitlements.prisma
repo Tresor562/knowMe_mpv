@@ -1,0 +1,12 @@
+model NexusAccountLink {
+  id             String   @id @default(cuid())
+  knowMeUserId   String   @unique
+  nexusUserId    String   @unique
+  lastPlan       String   @default("free")
+  lastStatus     String   @default("active")
+  verifiedAt     DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([lastPlan, verifiedAt])
+}
