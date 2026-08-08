@@ -1,147 +1,105 @@
 # KnowMe × Nexus AI — mandatory integration checkpoint
 
-Last reconciled: 2026-08-07, Africa/Porto-Novo.
+Last reconciled: 2026-08-08.
 
-This document is a durable handoff for any future ChatGPT instance, coding agent, or maintainer. Read it before resuming KnowMe or integrating Nexus AI.
+Live GitHub state always wins over this document.
 
 ## Canonical repositories
 
 - KnowMe: `Tresor562/knowMe_mpv`
 - Nexus AI: `Tresor562/Nexus-Ai-`
-- `knowMe_secret` is not the target repository for this Nexus integration.
+- `knowMe_secret` is not the target repository for this integration.
 
-## Current KnowMe state at the checkpoint
+Never mix KnowMe core, Nexus core, and Nexus × KnowMe integration in the same feature branch.
 
-### KMD-056
+## Current reconciled KnowMe state
 
-- authoritative single-elimination tournaments
-- PR #99
-- already merged into `main`
+The old KMD-057/KMD-058 blocker sequence is complete and must not be recreated.
 
-### KMD-057 — unfinished
+- PR #99 — KMD-056 authoritative tournaments: merged.
+- PR #101 — KMD-057 authoritative persistent call lifecycle: merged.
+- PR #102 — old stacked KMD-058 branch: closed without merge after KMD-057 landed.
+- PR #104 — rebuilt KMD-058 secure ephemeral TURN credentials: merged after validation.
+- PR #105 — Nexus OS capability executor: merged. KnowMe exposes narrow server-authenticated Nexus capability execution with scopes, kill switch, idempotency and receipts rather than unrestricted database access.
+- PR #106 — Nexus Social messaging integration: merged. KnowMe supports explicit private Nexus conversations and group responses only when a current participant explicitly invokes `@Nexus`; assistant output remains distinct from human messages and delivery is revalidated by KnowMe.
+- PR #107 — Nexus account entitlements: merged. Every authenticated KnowMe user has a bounded private Nexus baseline without linking a Nexus account; a linked Nexus account unlocks Nexus-authoritative Free / Plus / Pro / Business capabilities and quotas.
 
-- PR #101
-- title: `feat(KMD-057): authoritative persistent call lifecycle`
-- state at checkpoint: open, draft, mergeable, not merged
-- base: `main`
-- head: `feat/kmd-057-authoritative-call-lifecycle-clean`
-- head SHA at checkpoint: `ea11a5841d33e9cdcd0bf0813c7037ff77878fbc`
+PR #107 was not merged on first implementation. CI first exposed TypeScript unsafe optional entitlement access. After correction, the build passed but the new quota unit test exposed an invalid exception assertion/runtime export assumption. That was corrected to an explicit HTTP 429 contract. Final validation passed build, the complete unit suite, and API E2E before merge.
 
-Scope includes server-issued call IDs, authoritative RINGING/ACTIVE/terminal states, server-authorized signaling, shared-conversation requirements, one active call per participant, idempotency/anti-spam, authoritative expiry/missed calls, minimized call history, audit/export/deletion primitives, and privacy rules excluding persisted SDP/ICE/network addresses.
+## Nexus account entitlement architecture
 
-Historical validation note: an older E2E assertion was too broad around words such as `offer` and `candidate`. The intended test should reject actual sensitive fields such as `offer`, `answer`, `candidate`, `sdp`, and `ipAddress`, while allowing safe governance indicators such as `iceCandidatesPersisted: false`. Do not assume this failure still exists: inspect the current head and CI first.
+### Unlinked KnowMe user
 
-### KMD-058 — unfinished and dependent on KMD-057
+Every authenticated KnowMe user can use private Nexus chat at a bounded free baseline without linking a Nexus account.
 
-- PR #102
-- title: `feat(KMD-058): secure ephemeral TURN credentials`
-- state at checkpoint: open, draft, mergeable, not merged
-- base: `feat/kmd-057-authoritative-call-lifecycle-clean`
-- head: `feat/kmd-058-secure-turn-credentials`
-- head SHA at checkpoint: `6f5b9a8a8b98d90cb3e1f60a3429f940e6918783`
+The baseline is intentionally limited and does not grant paid Nexus capabilities.
 
-Scope includes server-controlled ICE configuration, ephemeral TURN REST HMAC-SHA1 credentials, bounded TTL, server-only TURN secret, no credential persistence, production fail-closed policy when TURN is required, per-user/per-call issuance rate limiting, audit fingerprinting, Web ICE consumption, cryptographic tests, and rotation documentation.
+### Linked Nexus account
 
-## Mandatory KnowMe resume order
+Linking is server-to-server. KnowMe stores only minimal association/last-verified entitlement metadata. Nexus remains the subscription authority.
 
-1. Inspect current `main` and the current delivery ledger/specification.
-2. Inspect PR #101 live: head, diff, comments, CI, mergeability.
-3. Finish KMD-057 and obtain the required green builds/tests/E2E before merge.
-4. Merge KMD-057 only after validation.
-5. Rebase/rebuild/retarget KMD-058 onto the canonical merged KMD-057 state if necessary.
-6. Inspect and validate PR #102 fully.
-7. Merge KMD-058 only after green validation.
-8. Continue KMD-059+ only after reconciling the canonical ledger with `main`.
+Supported product plan names:
 
-## Nexus integration must not enter those branches
+- `free`
+- `plus`
+- `pro`
+- `business`
 
-Do not add Nexus AI integration code to:
+KnowMe client code must never choose, set, or elevate a Nexus plan. Paid authorization is refreshed from Nexus server-to-server. If a stale paid profile cannot be revalidated, authorization fails down instead of preserving stale paid access.
 
-- `feat/kmd-057-authoritative-call-lifecycle-clean`
-- `feat/kmd-058-secure-turn-credentials`
+### Safety is never premium
 
-They are KnowMe core call-infrastructure branches and must remain auditable in their own scope.
+Plan upgrades may increase model modes, quotas, context limits, and other product capabilities, but they never bypass:
+
+- privacy boundaries;
+- Safety Kernel policy;
+- permission checks;
+- audit requirements;
+- idempotency requirements;
+- secret protection;
+- explicit approval for consequential external writes;
+- local device confirmation;
+- operating-system permissions/consent.
 
 ## Division of responsibility
 
-### Nexus AI work stream
+### Nexus AI core
 
 Repository: `Tresor562/Nexus-Ai-`
 
-Responsible for reusable AI-side contracts and capabilities such as:
+Owns reusable AI-side systems such as model routing, entitlement contracts, memory, research, agents, safety, tools/plugins, SDK/API, provider adapters, observability, and device protocols.
 
-- model routing;
-- memory and personalization contracts;
-- research;
-- agents;
-- safety/risk classification;
-- tool schemas;
-- Nexus SDK/API;
-- provider adapters;
-- observability contracts;
-- device/desktop/mobile agent protocols;
-- permission and approval contracts.
-
-### KnowMe work stream
+### KnowMe product
 
 Repository: `Tresor562/knowMe_mpv`
 
-Responsible for the final application-side integration because it owns the current schemas, API, permissions, accounts, messaging, groups, games, security, avatars, events, items, themes, Web and Mobile behavior.
+Owns application-side schemas, authorization, accounts, messaging, groups, games, moderation, security, avatars, events, items, themes, Web, and Mobile behavior.
 
-The integrating instance must first read this file and inspect live KnowMe state. It must not integrate from a stale remembered architecture.
+Future Nexus × KnowMe features must start from the then-current `knowMe_mpv/main` on a dedicated branch such as `feat/knowme-nexus-integration-*`.
 
-## Future Nexus × KnowMe requirements
+## Required architecture for future integrations
 
-The requested product integration eventually includes:
+1. Start from current stable `main` after inspecting live PRs/CI.
+2. Use narrow authenticated server-side capabilities; never give Nexus unrestricted direct database or shell access.
+3. Separate read, write, moderation, destructive and administrative scopes.
+4. Require explicit approval for consequential operations.
+5. Use audit logs, actor attribution, idempotency keys and immutable receipts where appropriate.
+6. Keep feature flags, kill switches and rollback paths.
+7. Keep all provider/service secrets server-only.
+8. Validate user, tenant, conversation and role boundaries server-side.
+9. Test unit, integration, E2E, abuse/security, concurrency, migrations, Web and Mobile as relevant before rollout.
+10. Roll out progressively rather than granting broad autonomous authority.
 
-- private Nexus conversations for KnowMe users;
-- Nexus participating in group chats when explicitly invoked/mentioned;
-- app-management assistance;
-- account-management assistance;
-- security monitoring and defensive response assistance;
-- game administration/creation assistance;
-- avatar workflows;
-- seasonal events;
-- item creation;
-- theme creation;
-- moderation/community support;
-- repeated pre-release verification before enabling changes in production.
+## Restart protocol
 
-These are future integration requirements, not authorization to bypass KnowMe's existing permission model.
-
-## Required integration architecture
-
-When integration begins:
-
-1. Start from then-current stable `knowMe_mpv/main`.
-2. Use dedicated branches such as `feat/knowme-nexus-integration-*`.
-3. Give Nexus narrow authenticated server-side capabilities, not unrestricted database access.
-4. Define independent permission scopes for domains such as accounts, games, events, items, themes, avatars, security, moderation, messaging, and groups.
-5. Separate read, write, moderation, destructive, and administrative operations.
-6. Require explicit approval for consequential operations.
-7. Use audit logs, idempotency keys, actor attribution, and immutable action receipts.
-8. Put integrations behind feature flags and kill switches.
-9. Provide rollback paths for schema/config/content changes.
-10. Keep all provider/service secrets server-only.
-11. Validate tenant/user boundaries and authorization server-side.
-12. Test unit, integration, E2E, security, abuse, concurrency, migration, Web, and Mobile behavior before rollout.
-13. Roll out progressively rather than enabling broad autonomous authority immediately.
-
-## Restart protocol for any future ChatGPT/agent
-
-Before changing code:
-
-1. Read `/AGENTS.md`.
-2. Read this document completely.
-3. Inspect live GitHub state.
-4. Determine whether the request is KnowMe core, Nexus core, or integration.
-5. Compare live state with this checkpoint.
-6. If they differ, live GitHub state wins and this checkpoint should be updated deliberately.
-7. Never recreate merged work.
-8. Never merge stacked dependencies out of order.
-9. Never assume an old CI failure is still current without checking.
-10. Never use a different KnowMe repository merely because an old conversation mentioned one.
+1. Read `/AGENTS.md` and this file.
+2. Inspect live `main`, open PRs, active branches and CI.
+3. Identify the stream: KnowMe core, Nexus core, or Nexus × KnowMe.
+4. Never recreate merged milestones.
+5. Never trust old failure notes without checking the current head.
+6. Keep Nexus subscription authority server-side and minimal in KnowMe.
+7. Reconcile this checkpoint whenever project state changes materially.
 
 ## Cross-repository continuity
 
-The Nexus repository contains its own continuity instructions (`AGENTS.md` and `docs/PROJECT_CONTINUITY.md`). When doing integration work, read both repositories' continuity instructions before coding.
+The Nexus repository contains its own `AGENTS.md` and `docs/PROJECT_CONTINUITY.md`. Read both before cross-repository work.
