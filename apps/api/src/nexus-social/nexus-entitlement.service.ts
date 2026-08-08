@@ -141,6 +141,9 @@ export class NexusEntitlementService {
     const capabilities = payload.entitlement?.capabilities;
     const nexusUserId = typeof payload.nexusUserId === 'string' ? payload.nexusUserId : '';
     const verifiedAt = typeof payload.verifiedAt === 'string' ? payload.verifiedAt : '';
+    const hourlyTurns = Number(knowMe?.hourlyTurns);
+    const maxContextMessages = Number(knowMe?.maxContextMessages);
+    const maxReplyChars = Number(knowMe?.maxReplyChars);
     const modes = Array.isArray(knowMe?.modes)
       ? knowMe.modes.filter((mode): mode is NexusMode => mode === 'instant' || mode === 'think')
       : [];
@@ -149,9 +152,9 @@ export class NexusEntitlementService {
       !['free', 'plus', 'pro', 'business'].includes(String(plan)) ||
       !['active', 'inactive'].includes(String(status)) ||
       !nexusUserId || !verifiedAt || !Number.isFinite(Date.parse(verifiedAt)) ||
-      !Number.isInteger(knowMe?.hourlyTurns) || Number(knowMe?.hourlyTurns) < 1 || Number(knowMe?.hourlyTurns) > 10_000 ||
-      !Number.isInteger(knowMe?.maxContextMessages) || Number(knowMe?.maxContextMessages) < 1 || Number(knowMe?.maxContextMessages) > 30 ||
-      !Number.isInteger(knowMe?.maxReplyChars) || Number(knowMe?.maxReplyChars) < 1 || Number(knowMe?.maxReplyChars) > 30_000 ||
+      !Number.isInteger(hourlyTurns) || hourlyTurns < 1 || hourlyTurns > 10_000 ||
+      !Number.isInteger(maxContextMessages) || maxContextMessages < 1 || maxContextMessages > 30 ||
+      !Number.isInteger(maxReplyChars) || maxReplyChars < 1 || maxReplyChars > 30_000 ||
       modes.length === 0 || capabilities?.knowMePrivateChat !== true || typeof capabilities?.knowMeThink !== 'boolean'
     ) throw new BadGatewayException('Nexus a retourné un profil d’abonnement invalide.');
 
@@ -160,9 +163,9 @@ export class NexusEntitlementService {
       plan: plan as NexusPlan,
       status: status as 'active' | 'inactive',
       knowMe: {
-        hourlyTurns: Number(knowMe.hourlyTurns),
-        maxContextMessages: Number(knowMe.maxContextMessages),
-        maxReplyChars: Number(knowMe.maxReplyChars),
+        hourlyTurns,
+        maxContextMessages,
+        maxReplyChars,
         modes
       },
       capabilities: { knowMePrivateChat: true, knowMeThink: capabilities.knowMeThink as boolean },
