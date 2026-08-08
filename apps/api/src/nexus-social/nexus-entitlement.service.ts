@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 type NexusPlan = 'free' | 'plus' | 'pro' | 'business';
 type NexusMode = 'instant' | 'think';
 
-type KnowMeEntitlement = {
+export type KnowMeNexusEntitlement = {
   linked: boolean;
   plan: NexusPlan;
   status: 'active' | 'inactive';
@@ -40,37 +40,27 @@ type NexusEntitlementResponse = {
   error?: unknown;
 };
 
-const UNLINKED: Omit<KnowMeEntitlement, 'verifiedAt'> = {
+const UNLINKED: Omit<KnowMeNexusEntitlement, 'verifiedAt'> = {
   linked: false,
   plan: 'free',
   status: 'active',
   capabilities: { knowMePrivateChat: true, knowMeThink: false },
-  knowMe: {
-    hourlyTurns: 12,
-    maxContextMessages: 12,
-    maxReplyChars: 6_000,
-    modes: ['instant']
-  }
+  knowMe: { hourlyTurns: 12, maxContextMessages: 12, maxReplyChars: 6_000, modes: ['instant'] }
 };
 
-const LINKED_FREE: Omit<KnowMeEntitlement, 'verifiedAt'> = {
+const LINKED_FREE: Omit<KnowMeNexusEntitlement, 'verifiedAt'> = {
   linked: true,
   plan: 'free',
   status: 'active',
   capabilities: { knowMePrivateChat: true, knowMeThink: true },
-  knowMe: {
-    hourlyTurns: 30,
-    maxContextMessages: 20,
-    maxReplyChars: 12_000,
-    modes: ['instant', 'think']
-  }
+  knowMe: { hourlyTurns: 30, maxContextMessages: 20, maxReplyChars: 12_000, modes: ['instant', 'think'] }
 };
 
 @Injectable()
 export class NexusEntitlementService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async statusForUser(userId: string): Promise<KnowMeEntitlement> {
+  async statusForUser(userId: string): Promise<KnowMeNexusEntitlement> {
     const link = await this.prisma.nexusAccountLink.findUnique({ where: { knowMeUserId: userId } });
     if (!link) return { ...UNLINKED, verifiedAt: new Date().toISOString() };
     try {
@@ -86,16 +76,14 @@ export class NexusEntitlementService {
       });
       return parsed.entitlement;
     } catch {
-      // Never preserve stale paid authorization when the subscription authority cannot be reached.
+      // Subscription authority unavailable: never preserve stale paid authorization.
       return { ...LINKED_FREE, verifiedAt: new Date().toISOString() };
     }
   }
 
-  async linkAccount(userId: string, rawCode: unknown): Promise<KnowMeEntitlement> {
+  async linkAccount(userId: string, rawCode: unknown): Promise<KnowMeNexusEntitlement> {
     const code = typeof rawCode === 'string' ? rawCode.trim() : '';
-    if (!/^[A-Za-z0-9_-]{16,64}$/.test(code)) {
-      throw new BadRequestException('Code de liaison Nexus invalide.');
-    }
+    if (!/^[A-Za-z0-9_-]{16,64}$/.test(code)) throw new BadRequestException('Code de liaison Nexus invalide.');
     const payload = await this.callNexus({ action: 'consume-link', code, knowMeUserId: userId });
     const parsed = this.parseNexusEntitlement(payload, true);
     await this.prisma.nexusAccountLink.upsert({
@@ -122,7 +110,14 @@ export class NexusEntitlementService {
     return { linked: false, entitlement: { ...UNLINKED, verifiedAt: new Date().toISOString() } };
   }
 
-  async authorizePrivateTurn(userId: string, requestedMode: NexusMode) {
+  async authorizeConversationTurn(userId: string, conversationId: string, requestedMode: NexusMode) {
+    const privateSurface = await this.prisma.nexusSocialConversation.findUnique({
+      where: { conversationId },
+      select: { ownerUserId: true }
+    });
+    if (!privateSurface) return null;
+    if (privateSurface.ownerUserId !== userId) throw new BadRequestException('Conversation Nexus privée invalide.');
+
     const entitlement = await this.statusForUser(userId);
     if (!entitlement.knowMe.modes.includes(requestedMode)) {
       throw new BadRequestException(
@@ -135,9 +130,7 @@ export class NexusEntitlementService {
     const used = await this.prisma.nexusSocialReply.count({
       where: { invokingUserId: userId, surface: 'private', createdAt: { gte: since } }
     });
-    if (used >= entitlement.knowMe.hourlyTurns) {
-      throw new TooManyRequestsException('Quota horaire Nexus dans KnowMe atteint.');
-    }
+    if (used >= entitlement.knowMe.hourlyTurns) throw new TooManyRequestsException('Quota horaire Nexus dans KnowMe atteint.');
     return entitlement;
   }
 
@@ -155,18 +148,14 @@ export class NexusEntitlementService {
       (requireLinked && payload.linked !== true) ||
       !['free', 'plus', 'pro', 'business'].includes(String(plan)) ||
       !['active', 'inactive'].includes(String(status)) ||
-      !nexusUserId ||
-      !verifiedAt || !Number.isFinite(Date.parse(verifiedAt)) ||
+      !nexusUserId || !verifiedAt || !Number.isFinite(Date.parse(verifiedAt)) ||
       !Number.isInteger(knowMe?.hourlyTurns) || Number(knowMe?.hourlyTurns) < 1 || Number(knowMe?.hourlyTurns) > 10_000 ||
       !Number.isInteger(knowMe?.maxContextMessages) || Number(knowMe?.maxContextMessages) < 1 || Number(knowMe?.maxContextMessages) > 30 ||
       !Number.isInteger(knowMe?.maxReplyChars) || Number(knowMe?.maxReplyChars) < 1 || Number(knowMe?.maxReplyChars) > 30_000 ||
-      modes.length === 0 ||
-      capabilities?.knowMePrivateChat !== true ||
-      typeof capabilities?.knowMeThink !== 'boolean'
-    ) {
-      throw new BadGatewayException('Nexus a retourné un profil d’abonnement invalide.');
-    }
-    const entitlement: KnowMeEntitlement = {
+      modes.length === 0 || capabilities?.knowMePrivateChat !== true || typeof capabilities?.knowMeThink !== 'boolean'
+    ) throw new BadGatewayException('Nexus a retourné un profil d’abonnement invalide.');
+
+    const entitlement: KnowMeNexusEntitlement = {
       linked: true,
       plan: plan as NexusPlan,
       status: status as 'active' | 'inactive',
@@ -176,10 +165,7 @@ export class NexusEntitlementService {
         maxReplyChars: Number(knowMe.maxReplyChars),
         modes
       },
-      capabilities: {
-        knowMePrivateChat: true,
-        knowMeThink: capabilities.knowMeThink as boolean
-      },
+      capabilities: { knowMePrivateChat: true, knowMeThink: capabilities.knowMeThink as boolean },
       verifiedAt
     };
     return { nexusUserId, verifiedAt, entitlement };
