@@ -157,9 +157,15 @@ export class NexusSocialService {
       throw new BadRequestException('A stable idempotencyKey of 16-160 characters is required.');
     }
 
-    const replay = await this.prisma.nexusSocialReply.findUnique({
-      where: { conversationId_idempotencyKey: { conversationId, idempotencyKey } }
-    });
+    const [keyReplay, sourceReplay] = await Promise.all([
+      this.prisma.nexusSocialReply.findUnique({
+        where: { conversationId_idempotencyKey: { conversationId, idempotencyKey } }
+      }),
+      this.prisma.nexusSocialReply.findUnique({
+        where: { conversationId_sourceMessageId: { conversationId, sourceMessageId } }
+      })
+    ]);
+    const replay = keyReplay ?? sourceReplay;
     if (replay) return this.presentReply(replay);
 
     const conversation = await this.prisma.conversation.findUnique({
@@ -190,10 +196,10 @@ export class NexusSocialService {
       where: { conversationId }
     });
     const surface = nexusPrivate ? 'private' as const : 'group' as const;
-    if (surface === 'private' && nexusPrivate.ownerUserId !== userId) {
+    if (nexusPrivate && nexusPrivate.ownerUserId !== userId) {
       throw new ForbiddenException('This private Nexus conversation belongs to another user.');
     }
-    if (surface === 'group' && !conversation.isGroup) {
+    if (!nexusPrivate && !conversation.isGroup) {
       throw new BadRequestException('Nexus direct replies are only available in an explicit private Nexus conversation.');
     }
 
@@ -205,7 +211,7 @@ export class NexusSocialService {
     if (source.senderId !== userId) {
       throw new ForbiddenException('Only the author of the current message can invoke Nexus for that turn.');
     }
-    if (surface === 'group' && !MENTION.test(source.content)) {
+    if (!nexusPrivate && !MENTION.test(source.content)) {
       throw new BadRequestException('Group Nexus replies require an explicit @Nexus mention in the source message.');
     }
 
@@ -230,7 +236,7 @@ export class NexusSocialService {
       invokingUserId: userId,
       requestId,
       surface,
-      invocationKind: surface === 'private' ? 'direct' : 'mention'
+      invocationKind: nexusPrivate ? 'direct' : 'mention'
     });
     const bridge = await this.callNexus(mode, bridgeRequest);
     const envelope = bridge.envelope;
@@ -256,7 +262,7 @@ export class NexusSocialService {
           invokingUserId: userId,
           sourceMessageId,
           surface,
-          invocationKind: surface === 'private' ? 'direct' : 'mention',
+          invocationKind: nexusPrivate ? 'direct' : 'mention',
           content: replyText,
           provider: this.text(bridge.provider, 120) || null,
           model: this.text(bridge.model, 200) || null,
