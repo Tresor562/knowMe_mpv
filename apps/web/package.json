@@ -5,6 +5,7 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "next lint",
+    "test": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test lib/call-preparation.test.ts",
     "start": "next start"
   },
   "dependencies": {

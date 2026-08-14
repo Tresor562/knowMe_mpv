@@ -24,6 +24,18 @@ Le serveur ne demande, ne reçoit et ne conserve ni liste de périphériques, ni
 
 Les bornes sont des minutes locales inclusives au début et exclusives à la fin. Une borne de début supérieure à la borne de fin traverse minuit. Deux bornes égales représentent une journée entière silencieuse lorsque la fonction est activée.
 
-## Suite réservée
+## Bloc Web livré
 
-Le bloc Web doit ajouter l'aperçu local, la sélection audio/vidéo, les états de permission et la restitution de l'indisponibilité. Il doit consommer le contrat API sans envoyer de données matérielles au serveur.
+- formulaire versionné des préférences avec rechargement sûr en cas de conflit optimiste ;
+- états explicites de permission et d'échec sans déclenchement automatique du navigateur ;
+- aperçu local volontaire, sélection microphone/caméra et invalidation du test après un changement d'appareil ;
+- application locale des valeurs initiales du micro et de la caméra ;
+- obligation de préparation appliquée avant émission ou acceptation lorsque la préférence l'exige ;
+- sérialisation par liste blanche, testée pour exclure les identifiants matériels et les métadonnées de réponse ;
+- contraintes média et classification des erreurs couvertes par des tests unitaires Web.
+
+La connexion WebRTC ne réutilise l'aperçu qu'après une action explicite d'appel. Un appel audio retire toute piste vidéo locale avant la négociation. Aucun identifiant d'appareil n'est envoyé au contrat API.
+
+## Suite
+
+Valider sur la matrice de navigateurs et d'appareils réels, puis aligner la même préparation locale dans le client Mobile sans élargir le contrat serveur.

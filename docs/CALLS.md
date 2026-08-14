@@ -76,6 +76,14 @@ Les mises à jour sont validées, versionnées et auditées. Les préférences p
 - `call:ended`
 - `call:error`
 
-## Étape suivante
+## Préparation Web locale
 
-Terminer KMD-059 côté Web avec un écran de préparation local, la sélection des périphériques disponibles et des états explicites de permission, sans transmettre d'identifiant matériel ni de flux média à l'API.
+La page Web des appels consomme les préférences versionnées et fournit :
+
+- un formulaire de disponibilité, types d'appel, heures calmes et valeurs initiales des médias ;
+- un état explicite des permissions microphone/caméra sans demande automatique au chargement ;
+- un test volontaire audio ou audio/vidéo, un aperçu local et la sélection des entrées disponibles ;
+- un verrou avant émission ou acceptation lorsque l'aperçu est obligatoire ;
+- des contrôles locaux pour démarrer avec le micro ou la caméra désactivés.
+
+Les identifiants de périphérique restent uniquement dans l'état du navigateur et ne figurent pas dans la sérialisation des préférences. Le flux de test reste local jusqu'à l'action explicite qui lance ou accepte un appel. Les erreurs de permission, d'absence, d'occupation et de sélection obsolète sont restituées sans journaliser de donnée matérielle.
