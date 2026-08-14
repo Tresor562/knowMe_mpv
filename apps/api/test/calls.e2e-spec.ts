@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
 import { AppModule } from '../src/app.module';
+import { AccountService } from '../src/account/account.service';
 import { CallsService } from '../src/calls/calls.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -41,6 +42,7 @@ describe('KnowMe authoritative calls (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let calls: CallsService;
+  let accounts: AccountService;
 
   beforeAll(async () => {
     process.env.CALL_MAINTENANCE_ENABLED = 'false';
@@ -50,6 +52,8 @@ describe('KnowMe authoritative calls (e2e)', () => {
     await app.init();
     prisma = app.get(PrismaService);
     calls = app.get(CallsService);
+    accounts = app.get(AccountService);
+    await prisma.userCallPreference.deleteMany();
     await prisma.callReceipt.deleteMany();
     await prisma.callEvent.deleteMany();
     await prisma.callSession.deleteMany();
@@ -223,5 +227,227 @@ describe('KnowMe authoritative calls (e2e)', () => {
         calls: expect.any(Array)
       })
     );
+  });
+
+  it('enforces recipient media, availability and quiet-hour preferences', async () => {
+    const caller = await register(
+      'call-preference-caller@knowme.test',
+      'call_preference_caller',
+      'Preference Caller'
+    );
+    const recipient = await register(
+      'call-preference-recipient@knowme.test',
+      'call_preference_recipient',
+      'Preference Recipient'
+    );
+
+    await request(app.getHttpServer())
+      .post('/conversations')
+      .set(auth(caller))
+      .send({ title: 'Call preferences', memberIds: [recipient.body.user.id] })
+      .expect(201);
+
+    const defaults = await request(app.getHttpServer())
+      .get('/calls/preferences')
+      .set(auth(recipient))
+      .expect(200);
+    expect(defaults.body).toEqual(
+      expect.objectContaining({
+        incomingCallsEnabled: true,
+        allowAudioCalls: true,
+        allowVideoCalls: true,
+        microphoneEnabledByDefault: true,
+        cameraEnabledByDefault: true,
+        devicePreviewRequired: true,
+        version: 0,
+        persisted: false
+      })
+    );
+
+    const basePreference = {
+      incomingCallsEnabled: true,
+      allowAudioCalls: true,
+      allowVideoCalls: false,
+      quietHoursEnabled: false,
+      quietStartMinute: 22 * 60,
+      quietEndMinute: 7 * 60,
+      timezone: 'Africa/Porto-Novo',
+      microphoneEnabledByDefault: false,
+      cameraEnabledByDefault: false,
+      devicePreviewRequired: true
+    };
+    const mediaRestricted = await request(app.getHttpServer())
+      .put('/calls/preferences')
+      .set(auth(recipient))
+      .send({ ...basePreference, expectedVersion: 0 })
+      .expect(200);
+    expect(mediaRestricted.body.version).toBe(1);
+
+    await request(app.getHttpServer())
+      .put('/calls/preferences')
+      .set(auth(recipient))
+      .send({ ...basePreference, expectedVersion: 0 })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .post('/calls')
+      .set(auth(caller))
+      .send({
+        calleeUserId: recipient.body.user.id,
+        media: 'video',
+        idempotencyKey: 'call:preference:video:0001'
+      })
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.code).toBe('CALL_RECIPIENT_UNAVAILABLE');
+      });
+
+    const quiet = await request(app.getHttpServer())
+      .put('/calls/preferences')
+      .set(auth(recipient))
+      .send({
+        ...basePreference,
+        allowVideoCalls: true,
+        quietHoursEnabled: true,
+        quietStartMinute: 0,
+        quietEndMinute: 0,
+        expectedVersion: 1
+      })
+      .expect(200);
+    expect(quiet.body.version).toBe(2);
+
+    await request(app.getHttpServer())
+      .post('/calls')
+      .set(auth(caller))
+      .send({
+        calleeUserId: recipient.body.user.id,
+        media: 'audio',
+        idempotencyKey: 'call:preference:quiet:0001'
+      })
+      .expect(409);
+
+    const disabled = await request(app.getHttpServer())
+      .put('/calls/preferences')
+      .set(auth(recipient))
+      .send({
+        ...basePreference,
+        incomingCallsEnabled: false,
+        allowVideoCalls: true,
+        expectedVersion: 2
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/calls')
+      .set(auth(caller))
+      .send({
+        calleeUserId: recipient.body.user.id,
+        media: 'audio',
+        idempotencyKey: 'call:preference:disabled:0001'
+      })
+      .expect(409);
+
+    const enabled = await request(app.getHttpServer())
+      .put('/calls/preferences')
+      .set(auth(recipient))
+      .send({
+        ...basePreference,
+        allowVideoCalls: true,
+        expectedVersion: disabled.body.version
+      })
+      .expect(200);
+
+    const created = await request(app.getHttpServer())
+      .post('/calls')
+      .set(auth(caller))
+      .send({
+        calleeUserId: recipient.body.user.id,
+        media: 'audio',
+        idempotencyKey: 'call:preference:allowed:0001'
+      })
+      .expect(201);
+    expect(created.body.status).toBe('RINGING');
+
+    await request(app.getHttpServer())
+      .post(`/calls/${created.body.id}/end`)
+      .set(auth(caller))
+      .send({ reason: 'cancelled' })
+      .expect(201);
+
+    expect(enabled.body).toEqual(
+      expect.objectContaining({
+        incomingCallsEnabled: true,
+        microphoneEnabledByDefault: false,
+        cameraEnabledByDefault: false,
+        devicePreviewRequired: true
+      })
+    );
+
+    const exported = await accounts.exportData(recipient.body.user.id);
+    expect(exported.formatVersion).toBe(18);
+    expect(exported.callPreferences).toEqual(
+      expect.objectContaining({
+        formatVersion: 1,
+        preference: expect.objectContaining({
+          userId: recipient.body.user.id,
+          version: enabled.body.version,
+          microphoneEnabledByDefault: false,
+          cameraEnabledByDefault: false,
+          devicePreviewRequired: true
+        })
+      })
+    );
+    expect(exported.calls).toEqual(
+      expect.objectContaining({
+        formatVersion: 1,
+        sessionDescriptionsIncluded: false,
+        iceCandidatesIncluded: false,
+        networkAddressesIncluded: false,
+        calls: expect.arrayContaining([
+          expect.objectContaining({
+            id: created.body.id,
+            calleeId: recipient.body.user.id
+          })
+        ])
+      })
+    );
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          actorId: recipient.body.user.id,
+          action: 'CALL_PREFERENCE_UPDATED'
+        }
+      })
+    ).toBe(4);
+
+    await accounts.deleteAccount(recipient.body.user.id, {
+      password: 'KnowMeTest123!'
+    });
+    expect(
+      await prisma.userCallPreference.count({
+        where: { userId: recipient.body.user.id }
+      })
+    ).toBe(0);
+    expect(
+      await prisma.user.findUnique({
+        where: { id: recipient.body.user.id }
+      })
+    ).toBeNull();
+    expect(
+      await prisma.callSession.count({
+        where: {
+          OR: [
+            { callerId: recipient.body.user.id },
+            { calleeId: recipient.body.user.id },
+            { endedById: recipient.body.user.id }
+          ]
+        }
+      })
+    ).toBe(0);
+    expect(
+      await prisma.callEvent.count({
+        where: { actorId: recipient.body.user.id }
+      })
+    ).toBe(0);
   });
 });
