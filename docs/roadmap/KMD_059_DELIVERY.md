@@ -56,6 +56,8 @@ Sur Mobile, le système d'exploitation reste l'autorité pour le routage du micr
 - création d'appel vérifiée sans identifiant matériel, permission, SDP ou candidat ICE dans le corps HTTP ;
 - arrêt de l'appel vérifié avec détachement de l'aperçu et terminaison des pistes locales ;
 - refus de permission restitué sous forme d'état actionnable et récupération d'un conflit de version couverts ;
+- récupération après un premier refus de permission vérifiée par une nouvelle action explicite, sans rechargement de page ;
+- contrôles locaux du microphone et de la caméra vérifiés sur les pistes actives sans nouvelle acquisition média ;
 - changement de mode vérifié avec invalidation de l'aperçu précédent, arrêt des pistes et nouvelle préparation audio seule ;
 - aperçu facultatif vérifié sans accès média au chargement, puis avec demande audio déclenchée uniquement par l'action d'appel ;
 - refus d'admission serveur vérifié avant tout accès média local, sans tentative d'annulation d'un appel non créé ;

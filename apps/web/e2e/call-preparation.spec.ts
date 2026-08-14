@@ -211,9 +211,10 @@ async function installApi(page: Page, options: ApiOptions = {}) {
 async function installSessionAndMediaProbe(
   page: Page,
   failureName: string | null = null,
+  failuresBeforeSuccess: number | null = null,
 ) {
   await page.addInitScript(
-    ({ forcedFailure }) => {
+    ({ forcedFailure, initialFailuresBeforeSuccess }) => {
       window.localStorage.setItem("knowme_token", "e2e-access-token");
 
       const probe = window as Window & {
@@ -225,10 +226,15 @@ async function installSessionAndMediaProbe(
       const mediaDevices = navigator.mediaDevices;
       if (!mediaDevices?.getUserMedia) return;
       const originalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+      let failuresRemaining = initialFailuresBeforeSuccess;
 
       mediaDevices.getUserMedia = async (constraints) => {
         probe.__knowmeMediaRequests?.push(constraints);
-        if (forcedFailure) {
+        if (
+          forcedFailure &&
+          (failuresRemaining === null || failuresRemaining > 0)
+        ) {
+          if (failuresRemaining !== null) failuresRemaining -= 1;
           throw new DOMException("Forced E2E media failure.", forcedFailure);
         }
         const stream = await originalGetUserMedia(constraints);
@@ -236,7 +242,10 @@ async function installSessionAndMediaProbe(
         return stream;
       };
     },
-    { forcedFailure: failureName },
+    {
+      forcedFailure: failureName,
+      initialFailuresBeforeSuccess: failuresBeforeSuccess,
+    },
   );
 }
 
@@ -255,6 +264,10 @@ async function mediaProbe(page: Page) {
       constraints: probe.__knowmeMediaRequests?.at(-1) ?? null,
       audioTracks: previewStream?.getAudioTracks().length ?? 0,
       videoTracks: previewStream?.getVideoTracks().length ?? 0,
+      audioTrackEnabled:
+        previewStream?.getAudioTracks().map((track) => track.enabled) ?? [],
+      videoTrackEnabled:
+        previewStream?.getVideoTracks().map((track) => track.enabled) ?? [],
       previewAttached: Boolean(previewStream),
       trackCount: probe.__knowmeLastStream?.getTracks().length ?? 0,
       liveTrackCount:
@@ -341,6 +354,89 @@ test("shows a privacy-safe denied state only after the preparation action", asyn
     page.getByText(/Autorise le microphone ou la caméra dans le navigateur/),
   ).toBeVisible();
   expect((await mediaProbe(page)).requestCount).toBe(1);
+});
+
+test("recovers local preparation after an initial permission denial", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page, "NotAllowedError", 1);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+
+  const videoCall = page.getByRole("button", { name: "Appel vidéo" });
+  const prepare = page.getByRole("button", { name: "Tester mes appareils" });
+  await expect(videoCall).toBeDisabled();
+
+  await prepare.click();
+  await expect(
+    page.getByText("Permission refusée", { exact: true }),
+  ).toBeVisible();
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: false,
+    liveTrackCount: 0,
+  });
+  await expect(videoCall).toBeDisabled();
+
+  await prepare.click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  await expect(page.getByText(/Aperçu audio et vidéo prêt\./)).toBeVisible();
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 2,
+    audioTracks: 1,
+    videoTracks: 1,
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+  await expect(videoCall).toBeEnabled();
+
+  await page.getByRole("button", { name: "Arrêter l’aperçu" }).click();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({ previewAttached: false, liveTrackCount: 0 });
+});
+
+test("applies local microphone and camera controls without reacquiring media", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+
+  const microphone = page.getByLabel("Micro actif", { exact: true });
+  const camera = page.getByLabel("Caméra active", { exact: true });
+  await microphone.uncheck();
+  await camera.uncheck();
+
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    audioTrackEnabled: [false],
+    videoTrackEnabled: [false],
+    liveTrackCount: 2,
+  });
+  await expect(page.getByRole("button", { name: "Appel vidéo" })).toBeEnabled();
+
+  await microphone.check();
+  await camera.check();
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    audioTrackEnabled: [true],
+    videoTrackEnabled: [true],
+    liveTrackCount: 2,
+  });
+
+  await page.getByRole("button", { name: "Arrêter l’aperçu" }).click();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({ previewAttached: false, liveTrackCount: 0 });
 });
 
 test("recovers a version conflict without leaking local preparation state", async ({
