@@ -738,3 +738,105 @@ test("stops a voluntary preview and restores the required call gate", async ({
       liveTrackCount: 0,
     });
 });
+
+test("stops an inactive preview when KnowMe moves to the background", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  expect(await mediaProbe(page)).toMatchObject({
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  await expect(
+    page.getByText(
+      "Aperçu local arrêté lorsque KnowMe est passé en arrière-plan.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Appel audio" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Appel vidéo" })).toBeDisabled();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      requestCount: 1,
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+});
+
+test("keeps active call media live when KnowMe moves to the background", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  await page.getByRole("button", { name: "Appel vidéo" }).click();
+  await expect(
+    page.getByText("Appel en cours · relais éphémère prêt"),
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+  await expect(page.getByRole("button", { name: "Terminer" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Terminer" }).click();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({ previewAttached: false, liveTrackCount: 0 });
+});
+
+test("releases preview media when leaving the calls route", async ({ page }) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  expect(await mediaProbe(page)).toMatchObject({
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+
+  await page.locator('a[href="/dashboard"]').click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+});

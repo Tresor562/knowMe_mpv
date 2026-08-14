@@ -238,7 +238,7 @@ export default function CallsPage() {
     }
   }
 
-  function releaseLocalMedia(resetPreparation = true) {
+  const releaseLocalMedia = useCallback((resetPreparation = true) => {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -247,7 +247,7 @@ export default function CallsPage() {
       setPreparationState('idle');
       setPreparationMessage('Aperçu local arrêté.');
     }
-  }
+  }, []);
 
   function applyLocalTrackDefaults(stream: MediaStream) {
     stream
@@ -384,6 +384,33 @@ export default function CallsPage() {
       );
     };
   }, [refreshDevices, refreshPermissionStates]);
+
+  useEffect(() => {
+    const stopInactivePreviewWhenHidden = () => {
+      if (
+        document.visibilityState !== 'hidden' ||
+        activeCallIdRef.current ||
+        !localStreamRef.current
+      ) {
+        return;
+      }
+      releaseLocalMedia();
+      setPreparationMessage(
+        'Aperçu local arrêté lorsque KnowMe est passé en arrière-plan.',
+      );
+    };
+
+    document.addEventListener(
+      'visibilitychange',
+      stopInactivePreviewWhenHidden,
+    );
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        stopInactivePreviewWhenHidden,
+      );
+    };
+  }, [releaseLocalMedia]);
 
   useEffect(() => {
     if (!socket.connected || !friends.length) return;
