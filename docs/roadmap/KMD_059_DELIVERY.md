@@ -48,6 +48,16 @@ La connexion WebRTC ne réutilise l'aperçu qu'après une action explicite d'app
 
 Sur Mobile, le système d'exploitation reste l'autorité pour le routage du microphone et de la sortie audio. L'interface n'invente donc pas une sélection d'appareil que les API natives retenues n'exposent pas de façon portable.
 
+## Validation navigateur automatisée
+
+- scénario Chromium de préparation vidéo avec périphériques média simulés par le navigateur ;
+- preuve qu'aucun appel à `getUserMedia` ne précède l'action explicite de préparation ;
+- verrou d'émission vérifié avant l'aperçu, puis levé après un flux local audio/vidéo valide ;
+- création d'appel vérifiée sans identifiant matériel, permission, SDP ou candidat ICE dans le corps HTTP ;
+- arrêt de l'appel vérifié avec détachement de l'aperçu et terminaison des pistes locales ;
+- refus de permission restitué sous forme d'état actionnable et récupération d'un conflit de version couverts ;
+- exécution Playwright Chromium intégrée à la CI avant la suite E2E PostgreSQL.
+
 ## Suite
 
 Valider les permissions, le remontage de l'aperçu et le changement de caméra sur la matrice réelle Web/iOS/Android. Aucun élargissement du contrat serveur n'est requis.
