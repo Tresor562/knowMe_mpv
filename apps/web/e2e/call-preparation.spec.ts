@@ -273,7 +273,12 @@ async function installRealtimeProbe(page: Page) {
   });
 
   return {
-    async emitIncoming() {
+    async emitIncoming(
+      offer: RTCSessionDescriptionInit = {
+        type: "offer",
+        sdp: "v=0\r\n",
+      },
+    ) {
       await expect.poll(() => namespaceConnected).toBe(true);
       sendToClient?.(
         "42/realtime," +
@@ -283,7 +288,7 @@ async function installRealtimeProbe(page: Page) {
               callId: "call-e2e",
               callerUserId: friend.user.id,
               callerUsername: friend.user.username,
-              offer: { type: "offer", sdp: "v=0\\r\\n" },
+              offer,
               media: "video",
             },
           ]),
@@ -885,6 +890,84 @@ test("gates an incoming video call behind preparation and cleans up on refusal",
   expect(JSON.stringify(realtime.emittedEvents())).not.toMatch(
     /device|microphone|camera|permission|candidate|sdp/i,
   );
+});
+
+test("accepts a prepared incoming call with one media request and ends it cleanly", async ({
+  page,
+}) => {
+  const api = await installApi(page);
+  await installSessionAndMediaProbe(page);
+  const realtime = await installRealtimeProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  const offer = await page.evaluate(async () => {
+    const caller = new RTCPeerConnection();
+    caller.addTransceiver("audio", { direction: "recvonly" });
+    caller.addTransceiver("video", { direction: "recvonly" });
+    await caller.setLocalDescription(await caller.createOffer());
+    const description = caller.localDescription?.toJSON();
+    caller.close();
+    if (!description) throw new Error("Unable to create the E2E offer.");
+    return description;
+  });
+  await realtime.emitIncoming(offer);
+
+  await expect(
+    page.getByRole("heading", { name: "Appel entrant" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Préparer audio et vidéo" })
+    .click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  await page.getByRole("button", { name: "Accepter" }).click();
+
+  await expect(
+    page.getByText("Appel connecté via une configuration ICE éphémère"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Appel entrant" }),
+  ).not.toBeVisible();
+  expect(api.callPayload).toBeNull();
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+  await expect
+    .poll(() => realtime.emittedEvents())
+    .toContainEqual([
+      "call:answer",
+      {
+        targetUserId: friend.user.id,
+        callId: "call-e2e",
+        answer: {
+          type: "answer",
+          sdp: expect.any(String),
+        },
+      },
+    ]);
+
+  await page.getByRole("button", { name: "Terminer" }).click();
+  await expect(page.getByText("Appel terminé", { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      requestCount: 1,
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+  await expect
+    .poll(() => realtime.emittedEvents())
+    .toContainEqual([
+      "call:end",
+      {
+        targetUserId: friend.user.id,
+        callId: "call-e2e",
+        reason: "ended",
+      },
+    ]);
 });
 
 test("keeps active call media live when KnowMe moves to the background", async ({
