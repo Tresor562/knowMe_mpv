@@ -68,6 +68,7 @@ Sur Mobile, le système d'exploitation reste l'autorité pour le routage du micr
 - sortie de la route d'appels vérifiée avec terminaison de toutes les pistes d'aperçu ;
 - appel vidéo entrant simulé en temps réel vérifié avec préparation obligatoire, refus explicite et nettoyage local complet ;
 - acceptation entrante WebRTC vérifiée avec offre réelle, configuration ICE éphémère, réutilisation du seul aperçu autorisé et fin propre ;
+- appel sortant WebRTC vérifié avec offre réelle, réponse distante, signalisation temps réel authentifiée et terminaison locale complète sans SDP dans l’API ;
 - exécution Playwright Chromium intégrée à la CI avant la suite E2E PostgreSQL.
 
 ## Suite

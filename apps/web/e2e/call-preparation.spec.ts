@@ -294,6 +294,20 @@ async function installRealtimeProbe(page: Page) {
           ]),
       );
     },
+    async emitAnswered(answer: RTCSessionDescriptionInit) {
+      await expect.poll(() => namespaceConnected).toBe(true);
+      sendToClient?.(
+        "42/realtime," +
+          JSON.stringify([
+            "call:answered",
+            {
+              callId: "call-e2e",
+              responderUserId: friend.user.id,
+              answer,
+            },
+          ]),
+      );
+    },
     emittedEvents() {
       return clientMessages
         .filter((message) => message.startsWith("42/realtime,"))
@@ -968,6 +982,97 @@ test("accepts a prepared incoming call with one media request and ends it cleanl
         reason: "ended",
       },
     ]);
+});
+
+test("completes outgoing WebRTC signaling without leaking media details to the API", async ({
+  page,
+}) => {
+  const api = await installApi(page, {
+    preferenceOverrides: { devicePreviewRequired: false },
+  });
+  await installSessionAndMediaProbe(page);
+  const realtime = await installRealtimeProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+  await page.getByRole("button", { name: "Appel audio" }).click();
+
+  await expect(
+    page.getByText("Appel en cours · relais éphémère prêt"),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      realtime
+        .emittedEvents()
+        .some(([eventName]) => eventName === "call:offer"),
+    )
+    .toBe(true);
+  const offerEvent = realtime
+    .emittedEvents()
+    .find(([eventName]) => eventName === "call:offer");
+  expect(offerEvent).toEqual([
+    "call:offer",
+    {
+      targetUserId: friend.user.id,
+      callId: "call-e2e",
+      offer: {
+        type: "offer",
+        sdp: expect.any(String),
+      },
+      media: "audio",
+    },
+  ]);
+
+  const offer = (offerEvent?.[1] as { offer: RTCSessionDescriptionInit }).offer;
+  const answer = await page.evaluate(async (remoteOffer) => {
+    const responder = new RTCPeerConnection();
+    await responder.setRemoteDescription(remoteOffer);
+    await responder.setLocalDescription(await responder.createAnswer());
+    const description = responder.localDescription?.toJSON();
+    responder.close();
+    if (!description) throw new Error("Unable to create the E2E answer.");
+    return description;
+  }, offer);
+  await realtime.emitAnswered(answer);
+
+  await expect(page.locator("header").getByRole("status")).toContainText(
+    /Appel connecté|État : (?:connecting|connected)/,
+  );
+  expect(api.callPayload).toEqual({
+    calleeUserId: friend.user.id,
+    media: "audio",
+    idempotencyKey: expect.stringMatching(/^web-call-create:/),
+  });
+  expect(JSON.stringify(api.callPayload)).not.toMatch(
+    /device|microphone|camera|permission|candidate|sdp/i,
+  );
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: true,
+    trackCount: 1,
+    liveTrackCount: 1,
+  });
+
+  await page.getByRole("button", { name: "Terminer" }).click();
+  await expect
+    .poll(() => realtime.emittedEvents())
+    .toContainEqual([
+      "call:end",
+      {
+        targetUserId: friend.user.id,
+        callId: "call-e2e",
+        reason: "ended",
+      },
+    ]);
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      requestCount: 1,
+      previewAttached: false,
+      trackCount: 1,
+      liveTrackCount: 0,
+    });
 });
 
 test("keeps active call media live when KnowMe moves to the background", async ({
