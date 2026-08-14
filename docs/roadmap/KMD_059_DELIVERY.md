@@ -60,6 +60,8 @@ Sur Mobile, le système d'exploitation reste l'autorité pour le routage du micr
 - aperçu facultatif vérifié sans accès média au chargement, puis avec demande audio déclenchée uniquement par l'action d'appel ;
 - refus d'admission serveur vérifié avant tout accès média local, sans tentative d'annulation d'un appel non créé ;
 - échec d'accès média après création vérifié avec annulation autoritaire, nettoyage local et interface immédiatement réutilisable ;
+- enregistrement réussi des choix de disponibilité vérifié par liste blanche, sans demande de périphérique ;
+- arrêt volontaire de l'aperçu vérifié avec terminaison des pistes et réactivation immédiate du verrou obligatoire ;
 - exécution Playwright Chromium intégrée à la CI avant la suite E2E PostgreSQL.
 
 ## Suite

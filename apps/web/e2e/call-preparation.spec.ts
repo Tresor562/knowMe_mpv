@@ -563,3 +563,82 @@ test("cancels the server call when explicit media access fails", async ({
   await expect(audioCall).toBeEnabled();
   await expect(page.getByRole("button", { name: "Terminer" })).toBeDisabled();
 });
+
+test("saves explicit availability choices without requesting local media", async ({
+  page,
+}) => {
+  const api = await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Recevoir des appels").uncheck();
+  await page.getByLabel("Autoriser la vidéo").uncheck();
+  await page.getByLabel("Activer les heures calmes").check();
+  await page.getByLabel("Début du silence").fill("21:15");
+  await page.getByLabel("Fin du silence").fill("06:45");
+  await page.getByLabel("Fuseau horaire IANA").fill("Africa/Porto-Novo");
+  await page.getByLabel("Micro actif par défaut").uncheck();
+  await page.getByLabel("Caméra active par défaut").uncheck();
+  await page.getByLabel("Test obligatoire avant l’appel").uncheck();
+
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+
+  await expect(page.getByText("Version 4 · enregistrée")).toBeVisible();
+  expect(api.preferencePayload).toEqual({
+    incomingCallsEnabled: false,
+    allowAudioCalls: true,
+    allowVideoCalls: false,
+    quietHoursEnabled: true,
+    quietStartMinute: 21 * 60 + 15,
+    quietEndMinute: 6 * 60 + 45,
+    timezone: "Africa/Porto-Novo",
+    microphoneEnabledByDefault: false,
+    cameraEnabledByDefault: false,
+    devicePreviewRequired: false,
+    expectedVersion: 3,
+  });
+  expect(JSON.stringify(api.preferencePayload)).not.toMatch(
+    /deviceId|permission|previewStream|mediaStream/i,
+  );
+  expect((await mediaProbe(page)).requestCount).toBe(0);
+  await expect(page.getByLabel("Recevoir des appels")).not.toBeChecked();
+  await expect(
+    page.getByLabel("Test obligatoire avant l’appel"),
+  ).not.toBeChecked();
+});
+
+test("stops a voluntary preview and restores the required call gate", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+
+  const audioCall = page.getByRole("button", { name: "Appel audio" });
+  const videoCall = page.getByRole("button", { name: "Appel vidéo" });
+  const stopPreview = page.getByRole("button", { name: "Arrêter l’aperçu" });
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  await expect(stopPreview).toBeEnabled();
+  await expect(audioCall).toBeEnabled();
+  await expect(videoCall).toBeEnabled();
+
+  await stopPreview.click();
+
+  await expect(page.getByText("Aperçu local arrêté.")).toBeVisible();
+  await expect(stopPreview).toBeDisabled();
+  await expect(audioCall).toBeDisabled();
+  await expect(videoCall).toBeDisabled();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      requestCount: 1,
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+});
