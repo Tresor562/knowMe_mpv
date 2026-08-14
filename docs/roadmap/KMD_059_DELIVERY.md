@@ -58,6 +58,8 @@ Sur Mobile, le système d'exploitation reste l'autorité pour le routage du micr
 - refus de permission restitué sous forme d'état actionnable et récupération d'un conflit de version couverts ;
 - changement de mode vérifié avec invalidation de l'aperçu précédent, arrêt des pistes et nouvelle préparation audio seule ;
 - aperçu facultatif vérifié sans accès média au chargement, puis avec demande audio déclenchée uniquement par l'action d'appel ;
+- refus d'admission serveur vérifié avant tout accès média local, sans tentative d'annulation d'un appel non créé ;
+- échec d'accès média après création vérifié avec annulation autoritaire, nettoyage local et interface immédiatement réutilisable ;
 - exécution Playwright Chromium intégrée à la CI avant la suite E2E PostgreSQL.
 
 ## Suite

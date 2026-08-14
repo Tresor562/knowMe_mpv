@@ -3,6 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 type CapturedPayload = Record<string, unknown> | null;
 
 type ApiState = {
+  callEndPayload: CapturedPayload;
   callPayload: CapturedPayload;
   preferencePayload: CapturedPayload;
   preferenceReads: number;
@@ -42,6 +43,7 @@ const initialPreferences = {
 };
 
 type ApiOptions = {
+  callCreateFailure?: boolean;
   preferenceConflict?: boolean;
   preferenceOverrides?: Partial<typeof initialPreferences>;
 };
@@ -67,6 +69,7 @@ async function installApi(page: Page, options: ApiOptions = {}) {
     ...options.preferenceOverrides,
   };
   const state: ApiState = {
+    callEndPayload: null,
     callPayload: null,
     preferencePayload: null,
     preferenceReads: 0,
@@ -135,6 +138,19 @@ async function installApi(page: Page, options: ApiOptions = {}) {
     }
     if (method === "POST" && pathname === "/calls") {
       state.callPayload = request.postDataJSON() as Record<string, unknown>;
+      if (options.callCreateFailure) {
+        await fulfillJson(
+          route,
+          {
+            code: "CALL_RECIPIENT_UNAVAILABLE",
+            message:
+              "Cette personne ne peut pas recevoir cet appel actuellement.",
+            requestId: "request-e2e-unavailable",
+          },
+          409,
+        );
+        return;
+      }
       await fulfillJson(route, {
         id: "call-e2e",
         direction: "OUTGOING",
@@ -150,6 +166,21 @@ async function installApi(page: Page, options: ApiOptions = {}) {
           sessionDescriptionsPersisted: false,
           iceCandidatesPersisted: false,
         },
+      });
+      return;
+    }
+    if (method === "POST" && pathname === "/calls/call-e2e/end") {
+      state.callEndPayload = request.postDataJSON() as Record<string, unknown>;
+      await fulfillJson(route, {
+        id: "call-e2e",
+        direction: "OUTGOING",
+        media: state.callPayload?.media ?? "audio",
+        status: "ENDED",
+        peer: friend.user,
+        answeredAt: null,
+        endedAt: "2026-08-14T14:11:00.000Z",
+        endReason: state.callEndPayload.reason,
+        createdAt: "2026-08-14T14:10:00.000Z",
       });
       return;
     }
@@ -463,4 +494,70 @@ test("defers optional preview media access until the explicit call action", asyn
       trackCount: 1,
       liveTrackCount: 0,
     });
+});
+
+test("preserves server admission authority without opening local media", async ({
+  page,
+}) => {
+  const api = await installApi(page, {
+    callCreateFailure: true,
+    preferenceOverrides: { devicePreviewRequired: false },
+  });
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+
+  const audioCall = page.getByRole("button", { name: "Appel audio" });
+  await expect(audioCall).toBeEnabled();
+  await audioCall.click();
+
+  await expect(page.getByRole("status")).toContainText(
+    "Cette personne ne peut pas recevoir cet appel actuellement.",
+  );
+  expect(api.callPayload).toEqual({
+    calleeUserId: friend.user.id,
+    media: "audio",
+    idempotencyKey: expect.stringMatching(/^web-call-create:/),
+  });
+  expect(api.callEndPayload).toBeNull();
+  expect((await mediaProbe(page)).requestCount).toBe(0);
+  await expect(audioCall).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Terminer" })).toBeDisabled();
+});
+
+test("cancels the server call when explicit media access fails", async ({
+  page,
+}) => {
+  const api = await installApi(page, {
+    preferenceOverrides: { devicePreviewRequired: false },
+  });
+  await installSessionAndMediaProbe(page, "NotAllowedError");
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+
+  const audioCall = page.getByRole("button", { name: "Appel audio" });
+  await audioCall.click();
+
+  await expect(page.getByRole("status")).toContainText("Permission refusée");
+  await expect.poll(() => api.callEndPayload).toEqual({ reason: "cancelled" });
+  expect(api.callPayload).toEqual({
+    calleeUserId: friend.user.id,
+    media: "audio",
+    idempotencyKey: expect.stringMatching(/^web-call-create:/),
+  });
+  expect(
+    JSON.stringify({ call: api.callPayload, end: api.callEndPayload }),
+  ).not.toMatch(/device|microphone|camera|candidate|sdp/i);
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: false,
+    trackCount: 0,
+    liveTrackCount: 0,
+  });
+  await expect(audioCall).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Terminer" })).toBeDisabled();
 });
