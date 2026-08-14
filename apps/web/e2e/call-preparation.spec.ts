@@ -8,10 +8,6 @@ type ApiState = {
   preferenceReads: number;
 };
 
-type ApiOptions = {
-  preferenceConflict?: boolean;
-};
-
 const user = {
   id: "user-e2e",
   email: "alpha@knowme.test",
@@ -45,6 +41,11 @@ const initialPreferences = {
   updatedAt: "2026-08-14T14:00:00.000Z",
 };
 
+type ApiOptions = {
+  preferenceConflict?: boolean;
+  preferenceOverrides?: Partial<typeof initialPreferences>;
+};
+
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers":
@@ -61,6 +62,10 @@ async function fulfillJson(route: Route, value: unknown, status = 200) {
 }
 
 async function installApi(page: Page, options: ApiOptions = {}) {
+  const preferences = {
+    ...initialPreferences,
+    ...options.preferenceOverrides,
+  };
   const state: ApiState = {
     callPayload: null,
     preferencePayload: null,
@@ -94,9 +99,9 @@ async function installApi(page: Page, options: ApiOptions = {}) {
       await fulfillJson(
         route,
         state.preferenceReads === 1
-          ? initialPreferences
+          ? preferences
           : {
-              ...initialPreferences,
+              ...preferences,
               version: 4,
               updatedAt: "2026-08-14T14:05:00.000Z",
             },
@@ -121,7 +126,7 @@ async function installApi(page: Page, options: ApiOptions = {}) {
         return;
       }
       await fulfillJson(route, {
-        ...initialPreferences,
+        ...preferences,
         ...state.preferencePayload,
         version: 4,
         updatedAt: "2026-08-14T14:05:00.000Z",
@@ -342,4 +347,120 @@ test("recovers a version conflict without leaking local preparation state", asyn
     /deviceId|permission|previewStream|mediaStream/i,
   );
   expect((await mediaProbe(page)).requestCount).toBe(0);
+});
+
+test("invalidates a prepared video preview when the local mode changes", async ({
+  page,
+}) => {
+  const api = await installApi(page);
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+
+  await page.getByLabel("Mode à préparer").selectOption("audio");
+  await expect(
+    page.getByText("Mode modifié. Lance le test local."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Appel audio" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Appel vidéo" }),
+  ).toBeDisabled();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      requestCount: 1,
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+
+  await page.getByRole("button", { name: "Tester mes appareils" }).click();
+  await expect(page.getByText(/Aperçu audio prêt\./)).toBeVisible();
+
+  const prepared = await mediaProbe(page);
+  expect(prepared.requestCount).toBe(2);
+  expect(prepared.constraints?.audio).toBeTruthy();
+  expect(prepared.constraints?.video).toBeFalsy();
+  expect(prepared.audioTracks).toBeGreaterThan(0);
+  expect(prepared.videoTracks).toBe(0);
+  await expect(page.getByRole("button", { name: "Appel audio" })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Appel vidéo" }),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Appel audio" }).click();
+  await expect(
+    page.getByText("Appel en cours · relais éphémère prêt"),
+  ).toBeVisible();
+  expect(api.callPayload).toEqual({
+    calleeUserId: friend.user.id,
+    media: "audio",
+    idempotencyKey: expect.stringMatching(/^web-call-create:/),
+  });
+  expect(JSON.stringify(api.callPayload)).not.toMatch(
+    /device|microphone|camera|permission|candidate|sdp/i,
+  );
+
+  await page.getByRole("button", { name: "Terminer" }).click();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      previewAttached: false,
+      trackCount: 1,
+      liveTrackCount: 0,
+    });
+});
+
+test("defers optional preview media access until the explicit call action", async ({
+  page,
+}) => {
+  const api = await installApi(page, {
+    preferenceOverrides: { devicePreviewRequired: false },
+  });
+  await installSessionAndMediaProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await page.getByLabel("Choisir un contact").selectOption(friend.user.id);
+
+  const audioCall = page.getByRole("button", { name: "Appel audio" });
+  await expect(audioCall).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Appel vidéo" })).toBeEnabled();
+  expect((await mediaProbe(page)).requestCount).toBe(0);
+
+  await audioCall.click();
+  await expect(
+    page.getByText("Appel en cours · relais éphémère prêt"),
+  ).toBeVisible();
+
+  const active = await mediaProbe(page);
+  expect(active.requestCount).toBe(1);
+  expect(active.constraints?.audio).toBeTruthy();
+  expect(active.constraints?.video).toBeFalsy();
+  expect(active.audioTracks).toBeGreaterThan(0);
+  expect(active.videoTracks).toBe(0);
+  expect(active.previewAttached).toBe(true);
+  expect(api.callPayload).toEqual({
+    calleeUserId: friend.user.id,
+    media: "audio",
+    idempotencyKey: expect.stringMatching(/^web-call-create:/),
+  });
+  expect(JSON.stringify(api.callPayload)).not.toMatch(
+    /device|microphone|camera|permission|candidate|sdp/i,
+  );
+
+  await page.getByRole("button", { name: "Terminer" }).click();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      previewAttached: false,
+      trackCount: 1,
+      liveTrackCount: 0,
+    });
 });
