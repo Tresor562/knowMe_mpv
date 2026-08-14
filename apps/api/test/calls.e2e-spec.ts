@@ -237,7 +237,7 @@ describe('KnowMe authoritative calls (e2e)', () => {
     );
     const recipient = await register(
       'call-preference-recipient@knowme.test',
-      'call_preference_recipient',
+      'call_pref_recipient',
       'Preference Recipient'
     );
 
