@@ -249,6 +249,54 @@ async function installSessionAndMediaProbe(
   );
 }
 
+async function installRealtimeProbe(page: Page) {
+  const clientMessages: string[] = [];
+  let sendToClient: ((message: string) => void) | null = null;
+  let namespaceConnected = false;
+
+  await page.routeWebSocket("ws://localhost:4000/**", (webSocket) => {
+    webSocket.onMessage((message) => {
+      const text =
+        typeof message === "string"
+          ? message
+          : new TextDecoder().decode(message);
+      clientMessages.push(text);
+      if (text.startsWith("40/realtime")) {
+        webSocket.send('40/realtime,{"sid":"e2e-realtime"}');
+        namespaceConnected = true;
+      }
+    });
+    sendToClient = (message) => webSocket.send(message);
+    webSocket.send(
+      '0{"sid":"e2e-engine","upgrades":[],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}',
+    );
+  });
+
+  return {
+    async emitIncoming() {
+      await expect.poll(() => namespaceConnected).toBe(true);
+      sendToClient?.(
+        "42/realtime," +
+          JSON.stringify([
+            "call:incoming",
+            {
+              callId: "call-e2e",
+              callerUserId: friend.user.id,
+              callerUsername: friend.user.username,
+              offer: { type: "offer", sdp: "v=0\\r\\n" },
+              media: "video",
+            },
+          ]),
+      );
+    },
+    emittedEvents() {
+      return clientMessages
+        .filter((message) => message.startsWith("42/realtime,"))
+        .map((message) => JSON.parse(message.slice("42/realtime,".length)));
+    },
+  };
+}
+
 async function mediaProbe(page: Page) {
   return page.evaluate(() => {
     const probe = window as Window & {
@@ -778,6 +826,65 @@ test("stops an inactive preview when KnowMe moves to the background", async ({
       trackCount: 2,
       liveTrackCount: 0,
     });
+});
+
+test("gates an incoming video call behind preparation and cleans up on refusal", async ({
+  page,
+}) => {
+  await installApi(page);
+  await installSessionAndMediaProbe(page);
+  const realtime = await installRealtimeProbe(page);
+
+  await page.goto("/calls");
+  await expect(page.getByText("Version 3 · enregistrée")).toBeVisible();
+  await realtime.emitIncoming();
+
+  await expect(
+    page.getByRole("heading", { name: "Appel entrant" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("trusted_friend souhaite lancer un appel vidéo."),
+  ).toBeVisible();
+  expect((await mediaProbe(page)).requestCount).toBe(0);
+
+  const accept = page.getByRole("button", { name: "Accepter" });
+  await expect(accept).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Préparer audio et vidéo" })
+    .click();
+  await expect(page.getByText("Appareils prêts")).toBeVisible();
+  await expect(accept).toBeEnabled();
+  expect(await mediaProbe(page)).toMatchObject({
+    requestCount: 1,
+    previewAttached: true,
+    liveTrackCount: 2,
+  });
+
+  await page.getByRole("button", { name: "Refuser" }).click();
+  await expect(page.getByText("Appel refusé", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Appel entrant" }),
+  ).not.toBeVisible();
+  await expect
+    .poll(async () => mediaProbe(page))
+    .toMatchObject({
+      previewAttached: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+  await expect
+    .poll(() => realtime.emittedEvents())
+    .toContainEqual([
+      "call:end",
+      {
+        targetUserId: friend.user.id,
+        callId: "call-e2e",
+        reason: "rejected",
+      },
+    ]);
+  expect(JSON.stringify(realtime.emittedEvents())).not.toMatch(
+    /device|microphone|camera|permission|candidate|sdp/i,
+  );
 });
 
 test("keeps active call media live when KnowMe moves to the background", async ({

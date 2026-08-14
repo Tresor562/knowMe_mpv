@@ -66,6 +66,7 @@ Sur Mobile, le système d'exploitation reste l'autorité pour le routage du micr
 - arrêt volontaire de l'aperçu vérifié avec terminaison des pistes et réactivation immédiate du verrou obligatoire ;
 - passage en arrière-plan vérifié avec arrêt de l'aperçu inactif, sans interrompre les pistes d'un appel actif ;
 - sortie de la route d'appels vérifiée avec terminaison de toutes les pistes d'aperçu ;
+- appel vidéo entrant simulé en temps réel vérifié avec préparation obligatoire, refus explicite et nettoyage local complet ;
 - exécution Playwright Chromium intégrée à la CI avant la suite E2E PostgreSQL.
 
 ## Suite
