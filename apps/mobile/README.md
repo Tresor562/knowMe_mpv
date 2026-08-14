@@ -16,9 +16,19 @@ Sur un téléphone physique, `localhost` pointe vers le téléphone. Utiliser do
 
 ```bash
 pnpm --filter @knowme/mobile build
+pnpm --filter @knowme/mobile test
 ```
 
-Cette commande exécute `tsc --noEmit` et fait partie de la CI du monorepo.
+Ces commandes exécutent le contrôle TypeScript et les tests purs du client Mobile. Elles font partie de la CI du monorepo.
+
+## Préparation des appels
+
+L’écran « Préparer mes appels » est accessible depuis l’accueil. Il synchronise les mêmes préférences de disponibilité versionnées que le Web et ne demande les permissions microphone/caméra qu’après l’action « Tester mes appareils ».
+
+- l’aperçu caméra reste local et ne capture ni photo ni vidéo ;
+- le choix caméra avant/arrière n’est ni envoyé ni persisté ;
+- le système mobile conserve le contrôle du microphone et de la sortie audio actifs ;
+- les messages natifs de permission sont configurés par le plugin `expo-camera`, donc leur modification exige un nouveau binaire natif.
 
 ## Builds EAS
 

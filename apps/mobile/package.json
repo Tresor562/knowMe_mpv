@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "expo start",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test src/call-preparation.test.ts"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
@@ -12,6 +13,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "11.4.1",
     "expo": "^53.0.20",
+    "expo-camera": "~16.1.11",
     "expo-file-system": "~18.1.11",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
