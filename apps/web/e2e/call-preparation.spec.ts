@@ -513,7 +513,7 @@ test("preserves server admission authority without opening local media", async (
   await expect(audioCall).toBeEnabled();
   await audioCall.click();
 
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator("header").getByRole("status")).toContainText(
     "Cette personne ne peut pas recevoir cet appel actuellement.",
   );
   expect(api.callPayload).toEqual({
@@ -542,7 +542,9 @@ test("cancels the server call when explicit media access fails", async ({
   const audioCall = page.getByRole("button", { name: "Appel audio" });
   await audioCall.click();
 
-  await expect(page.getByRole("status")).toContainText("Permission refusée");
+  await expect(page.locator("header").getByRole("status")).toContainText(
+    "Permission refusée",
+  );
   await expect.poll(() => api.callEndPayload).toEqual({ reason: "cancelled" });
   expect(api.callPayload).toEqual({
     calleeUserId: friend.user.id,
