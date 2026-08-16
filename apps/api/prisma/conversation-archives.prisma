@@ -1,0 +1,9 @@
+model ConversationArchive {
+  userId         String
+  conversationId String
+  archivedAt     DateTime @default(now())
+
+  @@id([userId, conversationId])
+  @@index([userId, archivedAt])
+  @@index([conversationId])
+}
