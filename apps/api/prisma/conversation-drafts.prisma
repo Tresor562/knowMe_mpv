@@ -1,0 +1,12 @@
+model ConversationDraft {
+  userId         String
+  conversationId String
+  content        String
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@id([userId, conversationId])
+  @@index([userId, updatedAt])
+  @@index([conversationId])
+}
