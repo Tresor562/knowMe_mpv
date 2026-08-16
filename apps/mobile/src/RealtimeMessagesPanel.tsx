@@ -44,6 +44,9 @@ type Conversation = {
   unreadCount: number;
   lastReadAt?: string | null;
 };
+type ConversationPinsResponse = {
+  items: Array<{ conversationId: string }>;
+};
 type MessageHistory = {
   items: ConversationMessage[];
   nextCursor?: string | null;
@@ -105,6 +108,7 @@ export function RealtimeMessagesPanel({
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [pinnedConversationIds, setPinnedConversationIds] = useState<Set<string>>(new Set());
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [active, setActive] = useState<Conversation | null>(null);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
@@ -125,12 +129,14 @@ export function RealtimeMessagesPanel({
 
   const load = useCallback(async () => {
     try {
-      const [conversationData, friendData] = await Promise.all([
+      const [conversationData, friendData, pinData] = await Promise.all([
         apiFetch<Conversation[]>('/conversations'),
-        apiFetch<Friend[]>('/social/friends')
+        apiFetch<Friend[]>('/social/friends'),
+        apiFetch<ConversationPinsResponse>('/conversation-pins')
       ]);
       setConversations(conversationData.map(normalizeConversation));
       setFriends(friendData);
+      setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
     } catch (cause) {
       Alert.alert('Messages indisponibles', errorMessage(cause, 'Réessaie.'));
     } finally {
@@ -620,6 +626,11 @@ export function RealtimeMessagesPanel({
     (total, conversation) => total + conversation.unreadCount,
     0
   );
+  const orderedConversations = [...conversations].sort((left, right) => {
+    const leftPinned = pinnedConversationIds.has(left.id);
+    const rightPinned = pinnedConversationIds.has(right.id);
+    return leftPinned === rightPinned ? 0 : leftPinned ? -1 : 1;
+  });
 
   return (
     <ScrollView
@@ -696,7 +707,7 @@ export function RealtimeMessagesPanel({
         Conversations · {totalUnread} non lu(s)
       </Text>
 
-      {conversations.map((conversation) => {
+      {orderedConversations.map((conversation) => {
         const others = conversation.members.filter(
           (member) => member.user.id !== userId
         );
@@ -706,6 +717,7 @@ export function RealtimeMessagesPanel({
           .join(', ') || 'Conversation';
         const last = conversation.messages[0];
         const unread = conversation.unreadCount > 0;
+        const pinned = pinnedConversationIds.has(conversation.id);
         const online = !isNexus && others.some((member) =>
           onlineUserIds.has(member.user.id)
         );
@@ -729,7 +741,7 @@ export function RealtimeMessagesPanel({
               <View style={styles.flex}>
                 <Text style={styles.cardTitle}>{name}</Text>
                 <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
-                  {isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
+                  {pinned ? '📌 épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                 </Text>
               </View>
               {unread ? (
