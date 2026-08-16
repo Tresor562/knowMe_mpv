@@ -50,7 +50,7 @@ describe('KMD-060 secure short links (e2e)', () => {
     return { Authorization: `Bearer ${response.body.accessToken}` };
   }
 
-  it('creates idempotently, resolves, aggregates usage and revokes fail-closed', async () => {
+  it('creates idempotently, resolves minimally, aggregates usage and revokes fail-closed', async () => {
     const alice = await register(
       'short-alice@knowme.test',
       'short_alice',
@@ -93,8 +93,16 @@ describe('KMD-060 secure short links (e2e)', () => {
       .get(`/short-links/resolve/${created.body.code}`)
       .expect(200)
       .expect((response) => {
-        expect(response.body.webPath).toBe('/profile/short_alice');
-        expect(JSON.stringify(response.body)).not.toContain('ownerId');
+        expect(response.body).toEqual({
+          code: created.body.code,
+          targetType: 'PROFILE',
+          webPath: '/profile/short_alice',
+          deepLink: 'knowme://profile/short_alice',
+          expiresAt: null
+        });
+        expect(response.body).not.toHaveProperty('id');
+        expect(response.body).not.toHaveProperty('targetId');
+        expect(response.body).not.toHaveProperty('ownerId');
       });
 
     const mine = await request(app.getHttpServer())
@@ -159,7 +167,7 @@ describe('KMD-060 secure short links (e2e)', () => {
     expect(await prisma.shortLink.count({ where: { ownerId: bob.body.user.id } })).toBe(0);
   });
 
-  it('prevents a non-member from creating a real group link', async () => {
+  it('authorizes a real group and rechecks membership on every public resolution', async () => {
     const owner = await register(
       'short-owner@knowme.test',
       'short_owner',
@@ -191,6 +199,16 @@ describe('KMD-060 secure short links (e2e)', () => {
       .expect(201);
     expect(conversation.body.isGroup).toBe(true);
 
+    const memberLink = await request(app.getHttpServer())
+      .post('/short-links')
+      .set(auth(memberA))
+      .send({
+        targetType: 'GROUP',
+        targetId: conversation.body.id,
+        idempotencyKey: 'short:create:member-a:0001'
+      })
+      .expect(201);
+
     await request(app.getHttpServer())
       .post('/short-links')
       .set(auth(outsider))
@@ -200,6 +218,20 @@ describe('KMD-060 secure short links (e2e)', () => {
         idempotencyKey: 'short:create:outsider:0001'
       })
       .expect(403);
+
+    await prisma.conversationMember.delete({
+      where: {
+        conversationId_userId: {
+          conversationId: conversation.body.id,
+          userId: memberA.body.user.id
+        }
+      }
+    });
+
+    const unavailable = await request(app.getHttpServer())
+      .get(`/short-links/resolve/${memberLink.body.code}`)
+      .expect(404);
+    expect(unavailable.body.message).toBe('Lien indisponible.');
   });
 
   it('keeps unresolved target families closed until ownership is bound', async () => {
@@ -222,7 +254,7 @@ describe('KMD-060 secure short links (e2e)', () => {
     }
   });
 
-  it('exports owned links and deletes links plus receipts with the account', async () => {
+  it('canonicalizes aliases, exports owned links and deletes links plus receipts with the account', async () => {
     const user = await register(
       'short-lifecycle@knowme.test',
       'short_lifecycle',
@@ -233,16 +265,22 @@ describe('KMD-060 secure short links (e2e)', () => {
       .set(auth(user))
       .send({
         targetType: 'PROFILE',
-        targetId: 'short_lifecycle',
+        targetId: user.body.user.id,
         idempotencyKey: 'short:create:lifecycle:0001'
       })
       .expect(201);
+    expect(created.body.targetId).toBe('short_lifecycle');
+    expect(created.body.webPath).toBe('/profile/short_lifecycle');
 
     const exported = await account.exportData(user.body.user.id);
     expect(exported.formatVersion).toBe(19);
     expect(exported.shortLinks).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: created.body.id, ownerId: user.body.user.id })
+        expect.objectContaining({
+          id: created.body.id,
+          ownerId: user.body.user.id,
+          targetId: 'short_lifecycle'
+        })
       ])
     );
 
