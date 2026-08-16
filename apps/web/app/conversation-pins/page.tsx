@@ -9,6 +9,7 @@ type Pin = {
   userId: string;
   conversationId: string;
   pinnedAt: string;
+  position: number;
 };
 
 type PinList = {
@@ -35,6 +36,7 @@ export default function ConversationPinsPage() {
   const [canPinMore, setCanPinMore] = useState<boolean | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [ordering, setOrdering] = useState(false);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -104,6 +106,29 @@ export default function ConversationPinsPage() {
     }
   }
 
+  async function movePin(index: number, direction: -1 | 1) {
+    if (ordering || busyId !== null) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= pins.length) return;
+
+    const next = [...pins];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    setOrdering(true);
+    setMessage('');
+    try {
+      await apiFetch('/conversation-pins/order', {
+        method: 'PUT',
+        body: JSON.stringify({ conversationIds: next.map((pinItem) => pinItem.conversationId) })
+      });
+      await load();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Réorganisation impossible.');
+      await load();
+    } finally {
+      setOrdering(false);
+    }
+  }
+
   if (loading) return <main className="shell">Chargement…</main>;
 
   return (
@@ -113,7 +138,7 @@ export default function ConversationPinsPage() {
           <small style={{ color: 'var(--mint)' }}>MESSAGERIE · ORGANISATION PRIVÉE</small>
           <h1>Conversations épinglées</h1>
           <p style={{ color: 'var(--muted)', margin: 0 }}>
-            Tes épingles sont personnelles. Elles ne changent jamais les membres, rôles ou permissions d'une conversation.
+            Tes épingles et leur ordre sont personnels. Ils ne changent jamais les membres, rôles ou permissions d'une conversation.
           </p>
         </div>
         <Link href="/messages" className="btn">Retour aux messages</Link>
@@ -128,21 +153,40 @@ export default function ConversationPinsPage() {
 
       <section style={{ marginTop: 20 }}>
         <h2>Épinglées</h2>
+        <p style={{ color: 'var(--muted)' }}>Utilise les flèches pour définir l'ordre affiché. Le serveur reste l'autorité de l'ordre enregistré.</p>
         <div className="grid" style={{ gap: 10 }}>
-          {pins.map((pinItem) => (
+          {pins.map((pinItem, index) => (
             <article className="card" key={pinItem.conversationId} style={{ padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div>
                   <strong>{names.get(pinItem.conversationId) ?? 'Conversation'}</strong>
                   <small style={{ display: 'block', color: 'var(--muted)', marginTop: 4 }}>
-                    Épinglée le {new Date(pinItem.pinnedAt).toLocaleString('fr-FR')}
+                    Position {index + 1} · épinglée le {new Date(pinItem.pinnedAt).toLocaleString('fr-FR')}
                   </small>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    className="btn"
+                    aria-label={`Monter ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
+                    title="Monter"
+                    disabled={ordering || busyId !== null || index === 0}
+                    onClick={() => void movePin(index, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    className="btn"
+                    aria-label={`Descendre ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
+                    title="Descendre"
+                    disabled={ordering || busyId !== null || index === pins.length - 1}
+                    onClick={() => void movePin(index, 1)}
+                  >
+                    ↓
+                  </button>
                   <Link className="btn" href={`/messages/${pinItem.conversationId}`}>Ouvrir</Link>
                   <button
                     className="btn"
-                    disabled={busyId === pinItem.conversationId}
+                    disabled={ordering || busyId === pinItem.conversationId}
                     onClick={() => void unpin(pinItem.conversationId)}
                   >
                     {busyId === pinItem.conversationId ? 'Retrait…' : 'Désépingler'}
@@ -168,7 +212,7 @@ export default function ConversationPinsPage() {
               <Link href={`/messages/${conversation.id}`}><strong>{names.get(conversation.id)}</strong></Link>
               <button
                 className="btn btn-primary"
-                disabled={!capacityKnown || !canPinMore || busyId === conversation.id}
+                disabled={ordering || !capacityKnown || !canPinMore || busyId === conversation.id}
                 onClick={() => void pin(conversation.id)}
               >
                 {busyId === conversation.id ? 'Épinglage…' : 'Épingler'}
