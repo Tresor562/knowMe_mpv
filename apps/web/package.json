@@ -10,6 +10,7 @@
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
     "@knowme/i18n-contract": "workspace:*",
+    "@knowme/link-contract": "workspace:*",
     "@knowme/media-cache-contract": "workspace:*",
     "next": "^15.4.4",
     "react": "^19.1.0",
