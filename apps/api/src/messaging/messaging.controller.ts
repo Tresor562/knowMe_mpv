@@ -13,7 +13,9 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { EditMessageDto } from './dto/edit-message.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { MessageEditingService } from './message-editing.service';
 import { MessagingService } from './messaging.service';
 
 @UseGuards(JwtAuthGuard)
@@ -21,6 +23,7 @@ import { MessagingService } from './messaging.service';
 export class MessagingController {
   constructor(
     private readonly messaging: MessagingService,
+    private readonly messageEditing: MessageEditingService,
     private readonly moderation: ModerationService
   ) {}
 
@@ -73,5 +76,21 @@ export class MessagingController {
       targetId: id
     });
     return this.messaging.send(req.user.userId, id, dto.content);
+  }
+
+  @Patch(':id/messages/:messageId')
+  async edit(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: EditMessageDto
+  ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'MESSAGE_SEND',
+      content: dto.content,
+      targetId: id
+    });
+    return this.messageEditing.edit(req.user.userId, id, messageId, dto);
   }
 }
