@@ -34,6 +34,9 @@ type Conversation = {
   unreadCount:number;
   lastReadAt?:string|null;
 };
+type ConversationPinsResponse = {
+  items:Array<{ conversationId:string }>;
+};
 type Friend = { user:{ id:string; displayName:string; username:string } };
 type ReadEvent = { conversationId:string; userId:string; lastReadAt:string };
 type PresenceEvent = { userId:string; online:boolean };
@@ -52,6 +55,7 @@ export default function MessagesPage() {
   const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
   const [friends,setFriends] = useState<Friend[]>([]);
+  const [pinnedConversationIds,setPinnedConversationIds] = useState<Set<string>>(new Set());
   const [onlineUserIds,setOnlineUserIds] = useState<Set<string>>(new Set());
   const [message,setMessage] = useState('');
   const [live,setLive] = useState(false);
@@ -62,12 +66,14 @@ export default function MessagesPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [conversationData, friendData] = await Promise.all([
+      const [conversationData, friendData, pinData] = await Promise.all([
         apiFetch<Conversation[]>('/conversations'),
-        apiFetch<Friend[]>('/social/friends')
+        apiFetch<Friend[]>('/social/friends'),
+        apiFetch<ConversationPinsResponse>('/conversation-pins')
       ]);
       setConversations(conversationData);
       setFriends(friendData);
+      setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
       setMessage('');
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
@@ -172,6 +178,11 @@ export default function MessagesPage() {
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
+  const orderedConversations = [...conversations].sort((left,right) => {
+    const leftPinned = pinnedConversationIds.has(left.id);
+    const rightPinned = pinnedConversationIds.has(right.id);
+    return leftPinned === rightPinned ? 0 : leftPinned ? -1 : 1;
+  });
 
   return (
     <main className="shell" style={{maxWidth:900,margin:'0 auto'}}>
@@ -203,11 +214,12 @@ export default function MessagesPage() {
       {message && <p role="alert" style={{color:'var(--orange)'}}>{message}</p>}
 
       <section className="card" style={{overflow:'hidden'}}>
-        {conversations.map((conversation) => {
+        {orderedConversations.map((conversation) => {
           const otherMembers = conversation.members.filter(member => member.user.id !== user?.id);
           const name = conversation.title || otherMembers.map(member => member.user.displayName).join(', ') || 'Conversation';
           const last = conversation.messages[0];
           const unread = conversation.unreadCount > 0;
+          const pinned = pinnedConversationIds.has(conversation.id);
           const isNexus = name === 'Nexus' && otherMembers.length === 0;
           const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
           return (
@@ -223,6 +235,7 @@ export default function MessagesPage() {
               <div style={{minWidth:0}}>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <strong>{name}</strong>
+                  {pinned&&<small aria-label="Conversation épinglée" title="Conversation épinglée" style={{color:'var(--mint)'}}>📌 épinglée</small>}
                   {isNexus&&<small style={{color:'var(--mint)'}}>assistant privé</small>}
                   {online&&<small style={{color:'var(--mint)'}}>en ligne</small>}
                   {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
