@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { getRealtimeSocket } from './realtime';
 
 const STANDARD_REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '🎉'] as const;
 
@@ -17,6 +18,12 @@ type ReactionSnapshot = {
   myReaction: string | null;
   reactions: Array<{ emoji: string; count: number }>;
   removed?: boolean;
+};
+
+type ReactionEvent = {
+  conversationId: string;
+  messageId: string;
+  reactions: Array<{ emoji: string; count: number }>;
 };
 
 export function MessageReactionControl({ messageId }: { messageId: string }) {
@@ -37,6 +44,30 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    let connectedSocket: Awaited<ReturnType<typeof getRealtimeSocket>> = null;
+    const onReactions = (event: ReactionEvent) => {
+      if (event.messageId !== messageId) return;
+      setSnapshot((current) =>
+        current
+          ? { ...current, conversationId: event.conversationId, reactions: event.reactions }
+          : current
+      );
+    };
+
+    void getRealtimeSocket().then((socket) => {
+      if (!active || !socket) return;
+      connectedSocket = socket;
+      socket.on('message:reactions', onReactions);
+    });
+
+    return () => {
+      active = false;
+      connectedSocket?.off('message:reactions', onReactions);
+    };
+  }, [messageId]);
 
   const counts = useMemo(
     () => new Map(snapshot?.reactions.map((item) => [item.emoji, item.count]) ?? []),
