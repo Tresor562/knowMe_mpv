@@ -37,4 +37,12 @@ jobs:
       - run: pnpm --filter @knowme/api prisma:push
       - run: pnpm build
       - run: pnpm test
+      - name: Diagnose KMD-061 short-link E2E
+        run: pnpm --filter @knowme/api exec jest --config ./test/jest-e2e.json --runInBand test/short-links.e2e-spec.ts > short-links-e2e.log 2>&1 || true
+      - name: Upload KMD-061 E2E diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmd-061-e2e-diagnostic
+          path: apps/api/short-links-e2e.log
+          if-no-files-found: error
       - run: pnpm --filter @knowme/api test:e2e
