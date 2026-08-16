@@ -11,7 +11,7 @@ type Pin = {
   pinnedAt: string;
 };
 
-type PinList = { items: Pin[]; limit?: number };
+type PinList = { items: Pin[]; limit: number };
 
 type Conversation = {
   id: string;
@@ -22,11 +22,10 @@ type Conversation = {
   }>;
 };
 
-const MAX_PINS = 5;
-
 export default function ConversationPinsPage() {
   const { user, loading } = useSession({ required: true });
   const [pins, setPins] = useState<Pin[]>([]);
+  const [pinLimit, setPinLimit] = useState<number | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -39,6 +38,7 @@ export default function ConversationPinsPage() {
         apiFetch<Conversation[]>('/conversations')
       ]);
       setPins(pinData.items);
+      setPinLimit(pinData.limit);
       setConversations(conversationData);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
@@ -60,7 +60,7 @@ export default function ConversationPinsPage() {
   }, [conversations, user?.id]);
 
   const pinnedIds = useMemo(() => new Set(pins.map((pin) => pin.conversationId)), [pins]);
-  const atLimit = pins.length >= MAX_PINS;
+  const atLimit = pinLimit !== null && pins.length >= pinLimit;
 
   async function pin(conversationId: string) {
     setBusyId(conversationId);
@@ -104,7 +104,7 @@ export default function ConversationPinsPage() {
       </header>
 
       <p style={{ color: 'var(--muted)', marginTop: 14 }}>
-        {pins.length}/{MAX_PINS} épingle(s) utilisée(s).
+        {pinLimit === null ? `${pins.length} épingle(s)` : `${pins.length}/${pinLimit} épingle(s) utilisée(s).`}
       </p>
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
 
@@ -139,9 +139,9 @@ export default function ConversationPinsPage() {
 
       <section style={{ marginTop: 28 }}>
         <h2>Autres conversations</h2>
-        {atLimit && (
+        {atLimit && pinLimit !== null && (
           <p style={{ color: 'var(--muted)' }}>
-            La limite de {MAX_PINS} est atteinte. Désépingle une conversation avant d'en ajouter une autre.
+            La limite de {pinLimit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.
           </p>
         )}
         <div className="grid" style={{ gap: 10 }}>
@@ -150,7 +150,7 @@ export default function ConversationPinsPage() {
               <Link href={`/messages/${conversation.id}`}><strong>{names.get(conversation.id)}</strong></Link>
               <button
                 className="btn btn-primary"
-                disabled={atLimit || busyId === conversation.id}
+                disabled={pinLimit === null || atLimit || busyId === conversation.id}
                 onClick={() => void pin(conversation.id)}
               >
                 {busyId === conversation.id ? 'Épinglage…' : 'Épingler'}
