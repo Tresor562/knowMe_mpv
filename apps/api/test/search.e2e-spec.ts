@@ -83,6 +83,12 @@ describe('KnowMe universal search authorization (e2e)', () => {
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(200);
 
+    expect(result.body.kinds).toEqual([
+      'MESSAGE',
+      'POST',
+      'CHALLENGE',
+      'CONVERSATION'
+    ]);
     expect(result.body.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'MESSAGE', snippet: 'nebula visible shared message' }),
@@ -95,6 +101,22 @@ describe('KnowMe universal search authorization (e2e)', () => {
         expect.objectContaining({ snippet: expect.stringContaining('must stay hidden') })
       ])
     );
+
+    const messageOnly = await request(app.getHttpServer())
+      .get('/search?q=nebula&limit=20&kinds=MESSAGE')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+    expect(messageOnly.body.kinds).toEqual(['MESSAGE']);
+    expect(messageOnly.body.items).toHaveLength(1);
+    expect(messageOnly.body.items[0]).toMatchObject({
+      kind: 'MESSAGE',
+      id: visibleMessage.body.id
+    });
+
+    await request(app.getHttpServer())
+      .get('/search?q=nebula&kinds=PROFILE')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(400);
 
     const firstPage = await request(app.getHttpServer())
       .get('/search?q=nebula&limit=1')
@@ -115,6 +137,11 @@ describe('KnowMe universal search authorization (e2e)', () => {
 
     await request(app.getHttpServer())
       .get(`/search?q=different&limit=1&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .get(`/search?q=nebula&limit=1&kinds=MESSAGE&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`)
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(400);
   });
