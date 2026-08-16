@@ -7,11 +7,13 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('KnowMe universal search authorization (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let registrationIpOctet = 40;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
     await app.init();
     prisma = app.get(PrismaService);
     await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
@@ -21,25 +23,31 @@ describe('KnowMe universal search authorization (e2e)', () => {
     await app.close();
   });
 
+  async function register(email: string, username: string, displayName: string) {
+    const sourceIp = `198.51.100.${registrationIpOctet++}`;
+    return request(app.getHttpServer())
+      .post('/auth/register')
+      .set('X-Forwarded-For', sourceIp)
+      .send({ email, username, displayName, password: 'KnowMeTest123!' })
+      .expect(201);
+  }
+
   it('returns matching private content only inside the caller authorization boundary', async () => {
-    const alice = await request(app.getHttpServer()).post('/auth/register').send({
-      email: 'search.alice@knowme.test',
-      username: 'search_alice',
-      displayName: 'Alice Search',
-      password: 'KnowMeTest123!'
-    }).expect(201);
-    const bob = await request(app.getHttpServer()).post('/auth/register').send({
-      email: 'search.bob@knowme.test',
-      username: 'search_bob',
-      displayName: 'Bob Search',
-      password: 'KnowMeTest123!'
-    }).expect(201);
-    const outsider = await request(app.getHttpServer()).post('/auth/register').send({
-      email: 'search.outsider@knowme.test',
-      username: 'search_outsider',
-      displayName: 'Outsider Search',
-      password: 'KnowMeTest123!'
-    }).expect(201);
+    const alice = await register(
+      'search.alice@knowme.test',
+      'search_alice',
+      'Alice Search'
+    );
+    const bob = await register(
+      'search.bob@knowme.test',
+      'search_bob',
+      'Bob Search'
+    );
+    const outsider = await register(
+      'search.outsider@knowme.test',
+      'search_outsider',
+      'Outsider Search'
+    );
 
     const shared = await request(app.getHttpServer())
       .post('/conversations')
