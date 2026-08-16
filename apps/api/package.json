@@ -16,6 +16,7 @@
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
     "@knowme/i18n-contract": "workspace:*",
+    "@knowme/link-contract": "workspace:*",
     "@knowme/media-cache-contract": "workspace:*",
     "@nestjs/common": "^11.1.5",
     "@nestjs/config": "^4.0.2",
