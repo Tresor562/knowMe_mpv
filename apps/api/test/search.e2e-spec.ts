@@ -48,6 +48,11 @@ describe('KnowMe universal search authorization (e2e)', () => {
       'search_outsider',
       'Outsider Search'
     );
+    const outsiderPeer = await register(
+      'search.outsider.peer@knowme.test',
+      'search_outsider_peer',
+      'Outsider Peer'
+    );
 
     const shared = await request(app.getHttpServer())
       .post('/conversations')
@@ -64,7 +69,7 @@ describe('KnowMe universal search authorization (e2e)', () => {
     const hidden = await request(app.getHttpServer())
       .post('/conversations')
       .set('Authorization', `Bearer ${outsider.body.accessToken}`)
-      .send({ title: 'Hidden nebula room', memberIds: [] })
+      .send({ title: 'Hidden nebula room', memberIds: [outsiderPeer.body.user.id] })
       .expect(201);
 
     await request(app.getHttpServer())
