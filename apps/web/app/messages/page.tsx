@@ -36,6 +36,7 @@ type Conversation = {
 };
 type ConversationPinsResponse = {
   items:Array<{ conversationId:string }>;
+  limit:number;
 };
 type Friend = { user:{ id:string; displayName:string; username:string } };
 type ReadEvent = { conversationId:string; userId:string; lastReadAt:string };
@@ -56,12 +57,19 @@ export default function MessagesPage() {
   const [conversations,setConversations] = useState<Conversation[]>([]);
   const [friends,setFriends] = useState<Friend[]>([]);
   const [pinnedConversationIds,setPinnedConversationIds] = useState<Set<string>>(new Set());
+  const [pinLimit,setPinLimit] = useState<number|null>(null);
+  const [pinBusyId,setPinBusyId] = useState<string|null>(null);
   const [onlineUserIds,setOnlineUserIds] = useState<Set<string>>(new Set());
   const [message,setMessage] = useState('');
   const [live,setLive] = useState(false);
   const [creating,setCreating] = useState(false);
   const [creatingNexus,setCreatingNexus] = useState(false);
   const [refreshing,setRefreshing] = useState(false);
+
+  const applyPinData = useCallback((pinData:ConversationPinsResponse) => {
+    setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
+    setPinLimit(pinData.limit);
+  },[]);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -73,14 +81,14 @@ export default function MessagesPage() {
       ]);
       setConversations(conversationData);
       setFriends(friendData);
-      setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
+      applyPinData(pinData);
       setMessage('');
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
       setRefreshing(false);
     }
-  },[]);
+  },[applyPinData]);
 
   useEffect(()=>{if(!sessionLoading)void load();},[load,sessionLoading]);
 
@@ -175,6 +183,26 @@ export default function MessagesPage() {
     }
   }
 
+  async function togglePin(conversationId:string) {
+    if(pinBusyId)return;
+    const pinned=pinnedConversationIds.has(conversationId);
+    if(!pinned && (pinLimit===null || pinnedConversationIds.size>=pinLimit)) {
+      setMessage(pinLimit===null ? 'Capacité d’épinglage indisponible.' : `La limite de ${pinLimit} conversations épinglées est atteinte.`);
+      return;
+    }
+    setPinBusyId(conversationId);
+    try {
+      await apiFetch(`/conversation-pins/${conversationId}`,{method:pinned?'DELETE':'PUT'});
+      const authoritative = await apiFetch<ConversationPinsResponse>('/conversation-pins');
+      applyPinData(authoritative);
+      setMessage('');
+    } catch(cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Mise à jour de l’épingle impossible.');
+    } finally {
+      setPinBusyId(null);
+    }
+  }
+
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
@@ -222,30 +250,44 @@ export default function MessagesPage() {
           const pinned = pinnedConversationIds.has(conversation.id);
           const isNexus = name === 'Nexus' && otherMembers.length === 0;
           const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
+          const pinDisabled=pinBusyId!==null || (!pinned && (pinLimit===null || pinnedConversationIds.size>=pinLimit));
           return (
-            <Link
-              href={`/messages/${conversation.id}`}
+            <div
               key={conversation.id}
-              style={{display:'grid',gridTemplateColumns:'52px minmax(0,1fr) auto',gap:14,padding:18,borderBottom:'1px solid rgba(255,255,255,.06)',alignItems:'center',background:unread?'rgba(69,230,189,.055)':'transparent'}}
+              style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:12,padding:18,borderBottom:'1px solid rgba(255,255,255,.06)',alignItems:'center',background:unread?'rgba(69,230,189,.055)':'transparent'}}
             >
-              <div style={{position:'relative',width:52,height:52,borderRadius:'50%',background:isNexus?'linear-gradient(135deg,#45e6bd,#776cff)':unread?'var(--mint)':'var(--surface-2)',color:isNexus||unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>
-                {isNexus?'✦':name[0]?.toUpperCase()}
-                {!isNexus&&<span aria-label={online?'En ligne':'Hors ligne'} style={{position:'absolute',right:0,bottom:1,width:13,height:13,borderRadius:'50%',background:online?'#45e6bd':'#607a70',border:'2px solid var(--surface)'}} />}
-              </div>
-              <div style={{minWidth:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <strong>{name}</strong>
-                  {pinned&&<small aria-label="Conversation épinglée" title="Conversation épinglée" style={{color:'var(--mint)'}}>📌 épinglée</small>}
-                  {isNexus&&<small style={{color:'var(--mint)'}}>assistant privé</small>}
-                  {online&&<small style={{color:'var(--mint)'}}>en ligne</small>}
-                  {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
+              <Link href={`/messages/${conversation.id}`} style={{display:'grid',gridTemplateColumns:'52px minmax(0,1fr) auto',gap:14,alignItems:'center',minWidth:0,color:'inherit',textDecoration:'none'}}>
+                <div style={{position:'relative',width:52,height:52,borderRadius:'50%',background:isNexus?'linear-gradient(135deg,#45e6bd,#776cff)':unread?'var(--mint)':'var(--surface-2)',color:isNexus||unread?'#06110e':'inherit',display:'grid',placeItems:'center',fontWeight:900}}>
+                  {isNexus?'✦':name[0]?.toUpperCase()}
+                  {!isNexus&&<span aria-label={online?'En ligne':'Hors ligne'} style={{position:'absolute',right:0,bottom:1,width:13,height:13,borderRadius:'50%',background:online?'#45e6bd':'#607a70',border:'2px solid var(--surface)'}} />}
                 </div>
-                <div style={{color:unread?'var(--text)':'var(--muted)',fontWeight:unread?700:400,marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {last ? `${last.senderId===user?.id?'Toi : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}` : isNexus?'Pose une question à Nexus.':'Aucun message pour le moment.'}
+                <div style={{minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <strong>{name}</strong>
+                    {pinned&&<small aria-label="Conversation épinglée" title="Conversation épinglée" style={{color:'var(--mint)'}}>📌 épinglée</small>}
+                    {isNexus&&<small style={{color:'var(--mint)'}}>assistant privé</small>}
+                    {online&&<small style={{color:'var(--mint)'}}>en ligne</small>}
+                    {unread && <span style={{background:'var(--orange)',color:'#1b0b04',borderRadius:999,minWidth:24,height:24,padding:'0 7px',display:'inline-grid',placeItems:'center',fontSize:12,fontWeight:900}}>{conversation.unreadCount}</span>}
+                  </div>
+                  <div style={{color:unread?'var(--text)':'var(--muted)',fontWeight:unread?700:400,marginTop:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {last ? `${last.senderId===user?.id?'Toi : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}` : isNexus?'Pose une question à Nexus.':'Aucun message pour le moment.'}
+                  </div>
                 </div>
-              </div>
-              <small style={{color:'var(--muted)',textAlign:'right'}}>{last ? new Date(last.createdAt).toLocaleString('fr-FR') : ''}</small>
-            </Link>
+                <small style={{color:'var(--muted)',textAlign:'right'}}>{last ? new Date(last.createdAt).toLocaleString('fr-FR') : ''}</small>
+              </Link>
+              <button
+                type="button"
+                className="btn"
+                aria-pressed={pinned}
+                aria-label={pinned?`Désépingler ${name}`:`Épingler ${name}`}
+                title={pinned?'Désépingler':'Épingler'}
+                disabled={pinDisabled}
+                onClick={() => void togglePin(conversation.id)}
+                style={{minWidth:46}}
+              >
+                {pinBusyId===conversation.id?'…':pinned?'📌':'＋📌'}
+              </button>
+            </div>
           );
         })}
         {!conversations.length && <p style={{padding:20,color:'var(--muted)'}}>Aucune conversation.</p>}
