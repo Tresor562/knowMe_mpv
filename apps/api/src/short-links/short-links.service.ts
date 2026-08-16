@@ -39,6 +39,11 @@ type ShortLinkResponse = {
   revokedAt: string | null;
 };
 
+type PublicShortLinkResolution = Pick<
+  ShortLinkResponse,
+  'code' | 'targetType' | 'webPath' | 'deepLink' | 'expiresAt'
+>;
+
 @Injectable()
 export class ShortLinksService {
   constructor(
@@ -57,9 +62,13 @@ export class ShortLinksService {
     }
 
     const targetType = assertShortLinkTargetType(dto.targetType);
-    const targetId = normalizeTargetId(dto.targetId);
+    const requestedTargetId = normalizeTargetId(dto.targetId);
     const expiresAt = this.parseExpiry(dto.expiresAt);
-    await this.authorizeTarget(ownerId, targetType, targetId);
+    const targetId = await this.authorizeTarget(
+      ownerId,
+      targetType,
+      requestedTargetId
+    );
 
     for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
       const code = randomBytes(12).toString('base64url');
@@ -83,16 +92,16 @@ export class ShortLinksService {
           const link = await tx.shortLink.create({
             data: { code, ownerId, targetType, targetId, expiresAt }
           });
-          const publicLink = this.serialize(link);
+          const ownerLink = this.serialize(link);
           await tx.shortLinkReceipt.create({
             data: {
               ownerId,
               idempotencyKey: dto.idempotencyKey,
               operation: 'CREATE',
-              response: publicLink as unknown as Prisma.InputJsonValue
+              response: ownerLink as unknown as Prisma.InputJsonValue
             }
           });
-          return publicLink;
+          return ownerLink;
         });
 
         await this.audit.record({
@@ -124,11 +133,18 @@ export class ShortLinksService {
     throw new ConflictException('Impossible de générer un code court unique.');
   }
 
-  async resolve(codeValue: string) {
+  async resolve(codeValue: string): Promise<PublicShortLinkResolution> {
     const code = normalizeShortCode(codeValue);
     const link = await this.prisma.shortLink.findUnique({ where: { code } });
     if (!link || link.revokedAt || (link.expiresAt && link.expiresAt <= new Date())) {
-      throw new NotFoundException('Lien indisponible.');
+      throw this.unavailable();
+    }
+
+    const targetType = assertShortLinkTargetType(link.targetType);
+    try {
+      await this.authorizeTarget(link.ownerId, targetType, link.targetId);
+    } catch {
+      throw this.unavailable();
     }
 
     const updated = await this.prisma.shortLink.update({
@@ -138,7 +154,7 @@ export class ShortLinksService {
         lastResolvedAt: new Date()
       }
     });
-    return this.serialize(updated);
+    return this.publicResolution(this.serialize(updated));
   }
 
   async mine(ownerId: string) {
@@ -179,16 +195,16 @@ export class ShortLinksService {
             where: { id: link.id },
             data: { revokedAt: new Date() }
           });
-      const publicLink = this.serialize(updated);
+      const ownerLink = this.serialize(updated);
       await tx.shortLinkReceipt.create({
         data: {
           ownerId,
           idempotencyKey,
           operation: 'REVOKE',
-          response: publicLink as unknown as Prisma.InputJsonValue
+          response: ownerLink as unknown as Prisma.InputJsonValue
         }
       });
-      return publicLink;
+      return ownerLink;
     });
 
     await this.audit.record({
@@ -240,57 +256,67 @@ export class ShortLinksService {
     ownerId: string,
     targetType: ShortLinkTargetType,
     targetId: string
-  ) {
+  ): Promise<string> {
     if (targetType === 'PROFILE') {
       const profile = await this.prisma.user.findFirst({
         where: { OR: [{ id: targetId }, { username: targetId }] },
-        select: { id: true }
+        select: { username: true }
       });
       if (!profile) throw new NotFoundException('Destination introuvable.');
-      return;
+      return profile.username;
     }
 
     if (targetType === 'CHALLENGE') {
       const challenge = await this.prisma.challenge.findUnique({
         where: { id: targetId },
-        select: { creatorId: true, visibility: true, status: true }
+        select: { id: true, creatorId: true, visibility: true, status: true }
       });
       if (!challenge) throw new NotFoundException('Destination introuvable.');
-      if (challenge.creatorId === ownerId) return;
-      if (challenge.visibility === 'PUBLIC' && challenge.status === 'ACTIVE') return;
+      if (challenge.creatorId === ownerId) return challenge.id;
+      if (challenge.visibility === 'PUBLIC' && challenge.status === 'ACTIVE') {
+        return challenge.id;
+      }
       const participant = await this.prisma.challengeParticipant.findUnique({
         where: { challengeId_userId: { challengeId: targetId, userId: ownerId } },
         select: { id: true }
       });
       if (!participant) throw new ForbiddenException('Destination non partageable.');
-      return;
+      return challenge.id;
     }
 
     if (targetType === 'GROUP') {
       const membership = await this.prisma.conversationMember.findUnique({
         where: { conversationId_userId: { conversationId: targetId, userId: ownerId } },
-        include: { conversation: { select: { isGroup: true } } }
+        include: { conversation: { select: { id: true, isGroup: true } } }
       });
       if (!membership?.conversation.isGroup) {
         throw new ForbiddenException('Destination non partageable.');
       }
-      return;
+      return membership.conversation.id;
     }
 
     if (targetType === 'COMMUNITY') {
       const circle = await this.prisma.profileCircle.findFirst({
         where: { OR: [{ id: targetId }, { slug: targetId }] },
-        select: { id: true, ownerUserId: true, visibility: true, status: true }
+        select: {
+          id: true,
+          slug: true,
+          ownerUserId: true,
+          visibility: true,
+          status: true
+        }
       });
       if (!circle) throw new NotFoundException('Destination introuvable.');
-      if (circle.ownerUserId === ownerId) return;
-      if (circle.visibility === 'PUBLIC' && circle.status === 'ACTIVE') return;
+      if (circle.ownerUserId === ownerId) return circle.slug;
+      if (circle.visibility === 'PUBLIC' && circle.status === 'ACTIVE') {
+        return circle.slug;
+      }
       const member = await this.prisma.profileCircleMember.findFirst({
         where: { circleId: circle.id, userId: ownerId, status: 'ACTIVE' },
         select: { id: true }
       });
       if (!member) throw new ForbiddenException('Destination non partageable.');
-      return;
+      return circle.slug;
     }
 
     if (targetType === 'GIFT') {
@@ -299,7 +325,7 @@ export class ShortLinksService {
         select: { id: true }
       });
       if (!gift) throw new ForbiddenException('Destination non partageable.');
-      return;
+      return gift.id;
     }
 
     throw new ForbiddenException('Ce type de destination n’est pas encore partageable.');
@@ -325,6 +351,20 @@ export class ShortLinksService {
       expiresAt: link.expiresAt?.toISOString() ?? null,
       revokedAt: link.revokedAt?.toISOString() ?? null
     };
+  }
+
+  private publicResolution(link: ShortLinkResponse): PublicShortLinkResolution {
+    return {
+      code: link.code,
+      targetType: link.targetType,
+      webPath: link.webPath,
+      deepLink: link.deepLink,
+      expiresAt: link.expiresAt
+    };
+  }
+
+  private unavailable() {
+    return new NotFoundException('Lien indisponible.');
   }
 
   private isUniqueConflict(error: unknown) {
