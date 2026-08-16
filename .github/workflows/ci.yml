@@ -43,6 +43,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kmd-061-e2e-diagnostic
-          path: apps/api/short-links-e2e.log
+          path: short-links-e2e.log
           if-no-files-found: error
       - run: pnpm --filter @knowme/api test:e2e
