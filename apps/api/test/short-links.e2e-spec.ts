@@ -9,11 +9,13 @@ describe('KMD-061 authoritative short-link registry (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let account: AccountService;
+  let registrationIpOctet = 10;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
     await app.init();
     prisma = app.get(PrismaService);
     account = app.get(AccountService);
@@ -40,8 +42,10 @@ describe('KMD-061 authoritative short-link registry (e2e)', () => {
   });
 
   async function register(email: string, username: string, displayName: string) {
+    const sourceIp = `198.51.100.${registrationIpOctet++}`;
     return request(app.getHttpServer())
       .post('/auth/register')
+      .set('X-Forwarded-For', sourceIp)
       .send({ email, username, displayName, password: 'KnowMeTest123!' })
       .expect(201);
   }
