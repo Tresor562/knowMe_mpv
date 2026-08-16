@@ -182,6 +182,7 @@ export default function MessagesPage() {
           <p style={{color:'var(--muted)'}}>{totalUnread} message(s) non lu(s)</p>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <Link href="/conversation-pins" className="btn">📌 Épinglées</Link>
           <Link href="/saved-messages" className="btn">🔖 Enregistrés</Link>
           <button className="btn btn-primary" disabled={creatingNexus} onClick={() => void openNexusConversation()}>
             {creatingNexus?'Ouverture…':'✦ Parler à Nexus'}
