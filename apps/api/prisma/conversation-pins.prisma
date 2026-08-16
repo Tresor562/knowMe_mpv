@@ -2,8 +2,10 @@ model ConversationPin {
   userId         String
   conversationId String
   pinnedAt       DateTime @default(now())
+  position       Int      @default(0)
 
   @@id([userId, conversationId])
+  @@index([userId, position])
   @@index([userId, pinnedAt])
   @@index([conversationId])
 }
