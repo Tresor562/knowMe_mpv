@@ -51,6 +51,7 @@ import { QuestsModule } from './quests/quests.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
+import { ShortLinksModule } from './short-links/short-links.module';
 import { SocialMatchmakingModule } from './social-matchmaking/social-matchmaking.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
@@ -110,6 +111,7 @@ import { WalletModule } from './wallet/wallet.module';
     IntegrityModule,
     PurchasesModule,
     SocialModule,
+    ShortLinksModule,
     AccountModule,
     PrivacyModule,
     ReportsModule,
