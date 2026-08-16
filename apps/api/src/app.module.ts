@@ -51,6 +51,7 @@ import { QuestsModule } from './quests/quests.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
+import { SavedMessagesModule } from './saved-messages/saved-messages.module';
 import { SearchModule } from './search/search.module';
 import { ShortLinksModule } from './short-links/short-links.module';
 import { SocialMatchmakingModule } from './social-matchmaking/social-matchmaking.module';
@@ -103,6 +104,7 @@ import { WalletModule } from './wallet/wallet.module';
     UsersModule,
     ChallengesModule,
     MessagingModule,
+    SavedMessagesModule,
     PostsModule,
     SearchModule,
     NotificationsModule,
