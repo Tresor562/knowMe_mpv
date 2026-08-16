@@ -8,6 +8,7 @@ import { MediaModule } from '../media/media.module';
 import { NexusSocialModule } from '../nexus-social/nexus-social.module';
 import { PrivacyModule } from '../privacy/privacy.module';
 import { SecurityModule } from '../security/security.module';
+import { ShortLinksModule } from '../short-links/short-links.module';
 import { SocialMatchmakingModule } from '../social-matchmaking/social-matchmaking.module';
 import { SocialModule } from '../social/social.module';
 import { AccountController } from './account.controller';
@@ -25,7 +26,8 @@ import { AccountService } from './account.service';
     CosmeticsModule,
     AppearanceModule,
     SocialModule,
-    NexusSocialModule
+    NexusSocialModule,
+    ShortLinksModule
   ],
   controllers: [AccountController],
   providers: [AccountService]
