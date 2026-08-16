@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MAX_PINNED_CONVERSATIONS = 5;
@@ -39,20 +40,24 @@ export class ConversationPinsService {
   async pin(userId: string, conversationId: string) {
     await this.requireMembership(userId, conversationId);
 
-    const existing = await this.prisma.conversationPin.findUnique({
-      where: { userId_conversationId: { userId, conversationId } }
-    });
-    if (existing) {
-      return existing;
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`);
 
-    const count = await this.prisma.conversationPin.count({ where: { userId } });
-    if (count >= MAX_PINNED_CONVERSATIONS) {
-      throw new NotFoundException('CONVERSATION_PIN_LIMIT_REACHED');
-    }
+      const existing = await tx.conversationPin.findUnique({
+        where: { userId_conversationId: { userId, conversationId } }
+      });
+      if (existing) {
+        return existing;
+      }
 
-    return this.prisma.conversationPin.create({
-      data: { userId, conversationId }
+      const count = await tx.conversationPin.count({ where: { userId } });
+      if (count >= MAX_PINNED_CONVERSATIONS) {
+        throw new ConflictException('CONVERSATION_PIN_LIMIT_REACHED');
+      }
+
+      return tx.conversationPin.create({
+        data: { userId, conversationId }
+      });
     });
   }
 
