@@ -20,6 +20,7 @@ import { ConceptKModule } from './concept-k/concept-k.module';
 import { ConversationArchivesModule } from './conversation-archives/conversation-archives.module';
 import { ConversationDraftsModule } from './conversation-drafts/conversation-drafts.module';
 import { ConversationFoldersModule } from './conversation-folders/conversation-folders.module';
+import { ConversationPinsModule } from './conversation-pins/conversation-pins.module';
 import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
@@ -112,6 +113,7 @@ import { WalletModule } from './wallet/wallet.module';
     ConversationDraftsModule,
     ConversationFoldersModule,
     ConversationArchivesModule,
+    ConversationPinsModule,
     MessageReactionsModule,
     PostsModule,
     SearchModule,
