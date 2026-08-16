@@ -32,6 +32,7 @@ import { IntegrityModule } from './integrity/integrity.module';
 import { KnowMeSecretModule } from './knowme-secret/knowme-secret.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MediaModule } from './media/media.module';
+import { MessageReactionsModule } from './message-reactions/message-reactions.module';
 import { MessengerExperienceModule } from './messenger-experience/messenger-experience.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
@@ -107,6 +108,7 @@ import { WalletModule } from './wallet/wallet.module';
     MessagingModule,
     SavedMessagesModule,
     ConversationDraftsModule,
+    MessageReactionsModule,
     PostsModule,
     SearchModule,
     NotificationsModule,
