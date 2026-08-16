@@ -36,6 +36,7 @@ export default function Dashboard() {
   }
 
   const cards = [
+    ['🔎 Recherche', 'Retrouve tes messages, conversations, publications et défis autorisés.', '/search'],
     ['🔥 Défis actifs', `${challengeCount} défi(s) à poursuivre ou à relever.`, '/challenges'],
     ['💬 Messages', `${messageCount} message(s) non lu(s).`, '/messages'],
     ['🔔 Notifications', `${notificationCount} notification(s) non lue(s).`, '/notifications'],
@@ -52,6 +53,7 @@ export default function Dashboard() {
           <p style={{color:'var(--muted)',margin:0}}>Voici ce qui se passe dans ton univers KnowMe.</p>
         </div>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <Link href="/search" className="btn">Rechercher</Link>
           <Link href="/challenges" className="btn btn-accent">+ Nouveau défi</Link>
           <button className="btn" onClick={logout}>Déconnexion</button>
         </div>
