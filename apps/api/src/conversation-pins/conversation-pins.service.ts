@@ -31,9 +31,14 @@ export class ConversationPinsService {
       });
     }
 
+    const items = pins.filter((pin) => allowed.has(pin.conversationId));
+    const remaining = Math.max(0, MAX_PINNED_CONVERSATIONS - items.length);
+
     return {
       limit: MAX_PINNED_CONVERSATIONS,
-      items: pins.filter((pin) => allowed.has(pin.conversationId))
+      remaining,
+      canPinMore: remaining > 0,
+      items
     };
   }
 
