@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { getRealtimeSocket } from '../../../lib/realtime';
 
 type EditedMessage = {
   id: string;
@@ -26,17 +27,41 @@ export function MessageEditControl({
   onUpdated?: (message: EditedMessage) => void;
   onCancel?: () => void;
 }) {
+  const socket = useMemo(() => getRealtimeSocket(), []);
   const [content, setContent] = useState(initialContent);
+  const [baseContent, setBaseContent] = useState(initialContent);
   const [editedAt, setEditedAt] = useState<string | null>(initialEditedAt);
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const onMessageUpdated = (message: EditedMessage) => {
+      if (message.id !== messageId || message.conversationId !== conversationId) return;
+      setEditedAt(message.editedAt);
+      setBaseContent(message.content);
+      setContent((current) => {
+        if (current !== baseContent && current !== message.content) {
+          setConflict(true);
+          setError('Ce message a été modifié ailleurs pendant ta saisie. Recharge ou annule tes changements locaux.');
+          return current;
+        }
+        setConflict(false);
+        setError('');
+        return message.content;
+      });
+      onUpdated?.(message);
+    };
+    socket.on('message:updated', onMessageUpdated);
+    return () => {
+      socket.off('message:updated', onMessageUpdated);
+    };
+  }, [baseContent, conversationId, messageId, onUpdated, socket]);
+
   async function save() {
     const normalized = content.trim();
-    if (!normalized || normalized.length > 4000 || busy) return;
+    if (!normalized || normalized.length > 4000 || busy || conflict) return;
     setBusy(true);
-    setConflict(false);
     setError('');
     try {
       const updated = await apiFetch<EditedMessage>(
@@ -50,7 +75,9 @@ export function MessageEditControl({
         }
       );
       setContent(updated.content);
+      setBaseContent(updated.content);
       setEditedAt(updated.editedAt);
+      setConflict(false);
       onUpdated?.(updated);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Modification impossible.';
@@ -65,6 +92,12 @@ export function MessageEditControl({
     }
   }
 
+  function resetToServer() {
+    setContent(baseContent);
+    setConflict(false);
+    setError('');
+  }
+
   return (
     <div className="card" style={{ padding: 12, marginTop: 8 }}>
       <label htmlFor={`message-edit-${messageId}`} style={{ display: 'block', fontWeight: 800, marginBottom: 8 }}>
@@ -76,7 +109,7 @@ export function MessageEditControl({
         value={content}
         maxLength={4000}
         rows={4}
-        disabled={busy || conflict}
+        disabled={busy}
         onChange={(event) => setContent(event.target.value)}
         style={{ width: '100%', resize: 'vertical' }}
       />
@@ -91,6 +124,11 @@ export function MessageEditControl({
         >
           {busy ? 'Modification…' : 'Enregistrer'}
         </button>
+        {conflict && (
+          <button type="button" className="btn" disabled={busy} onClick={resetToServer}>
+            Utiliser la version serveur
+          </button>
+        )}
         {onCancel && (
           <button type="button" className="btn" disabled={busy} onClick={onCancel}>
             Annuler
