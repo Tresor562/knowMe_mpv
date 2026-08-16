@@ -39,9 +39,33 @@ describe('ConversationPinsService', () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].conversationId).toBe('allowed');
+    expect(result.remaining).toBe(4);
+    expect(result.canPinMore).toBe(true);
     expect(prisma.conversationPin.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u1', conversationId: { in: ['stale'] } }
     });
+  });
+
+  it('derives full-capacity metadata only from currently accessible pins', async () => {
+    const { prisma } = makePrisma();
+    prisma.conversationPin.findMany.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({
+        userId: 'u1',
+        conversationId: `c${index + 1}`,
+        pinnedAt: new Date(`2026-08-16T00:00:0${index}Z`)
+      }))
+    );
+    prisma.conversationMember.findMany.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({ conversationId: `c${index + 1}` }))
+    );
+
+    const service = new ConversationPinsService(prisma as never);
+    const result = await service.list('u1');
+
+    expect(result.limit).toBe(5);
+    expect(result.remaining).toBe(0);
+    expect(result.canPinMore).toBe(false);
+    expect(result.items).toHaveLength(5);
   });
 
   it('rejects pinning a conversation the caller cannot currently access', async () => {
