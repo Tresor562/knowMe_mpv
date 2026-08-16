@@ -1,12 +1,14 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
+import { AccountService } from '../src/account/account.service';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('KMD-060 secure short links (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let account: AccountService;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -14,6 +16,7 @@ describe('KMD-060 secure short links (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
     prisma = app.get(PrismaService);
+    account = app.get(AccountService);
 
     await prisma.shortLinkReceipt.deleteMany();
     await prisma.shortLink.deleteMany();
@@ -112,6 +115,34 @@ describe('KMD-060 secure short links (e2e)', () => {
       .expect(404);
   });
 
+  it('fails closed for an expired link without exposing a different oracle', async () => {
+    const user = await register(
+      'short-expiry@knowme.test',
+      'short_expiry',
+      'Short Expiry'
+    );
+    const created = await request(app.getHttpServer())
+      .post('/short-links')
+      .set(auth(user))
+      .send({
+        targetType: 'PROFILE',
+        targetId: 'short_expiry',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        idempotencyKey: 'short:create:expiry:0001'
+      })
+      .expect(201);
+
+    await prisma.shortLink.update({
+      where: { id: created.body.id },
+      data: { expiresAt: new Date(Date.now() - 1_000) }
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/short-links/resolve/${created.body.code}`)
+      .expect(404);
+    expect(response.body.message).toBe('Lien indisponible.');
+  });
+
   it('rejects external-looking targets before persistence', async () => {
     const bob = await register('short-bob@knowme.test', 'short_bob', 'Short Bob');
 
@@ -128,16 +159,21 @@ describe('KMD-060 secure short links (e2e)', () => {
     expect(await prisma.shortLink.count({ where: { ownerId: bob.body.user.id } })).toBe(0);
   });
 
-  it('prevents a non-member from creating a group link', async () => {
+  it('prevents a non-member from creating a real group link', async () => {
     const owner = await register(
       'short-owner@knowme.test',
       'short_owner',
       'Short Owner'
     );
-    const member = await register(
-      'short-member@knowme.test',
-      'short_member',
-      'Short Member'
+    const memberA = await register(
+      'short-member-a@knowme.test',
+      'short_member_a',
+      'Short Member A'
+    );
+    const memberB = await register(
+      'short-member-b@knowme.test',
+      'short_member_b',
+      'Short Member B'
     );
     const outsider = await register(
       'short-outsider@knowme.test',
@@ -148,8 +184,12 @@ describe('KMD-060 secure short links (e2e)', () => {
     const conversation = await request(app.getHttpServer())
       .post('/conversations')
       .set(auth(owner))
-      .send({ title: 'KMD-060 group', memberIds: [member.body.user.id] })
+      .send({
+        title: 'KMD-060 group',
+        memberIds: [memberA.body.user.id, memberB.body.user.id]
+      })
       .expect(201);
+    expect(conversation.body.isGroup).toBe(true);
 
     await request(app.getHttpServer())
       .post('/short-links')
@@ -180,5 +220,36 @@ describe('KMD-060 secure short links (e2e)', () => {
         })
         .expect(403);
     }
+  });
+
+  it('exports owned links and deletes links plus receipts with the account', async () => {
+    const user = await register(
+      'short-lifecycle@knowme.test',
+      'short_lifecycle',
+      'Short Lifecycle'
+    );
+    const created = await request(app.getHttpServer())
+      .post('/short-links')
+      .set(auth(user))
+      .send({
+        targetType: 'PROFILE',
+        targetId: 'short_lifecycle',
+        idempotencyKey: 'short:create:lifecycle:0001'
+      })
+      .expect(201);
+
+    const exported = await account.exportData(user.body.user.id);
+    expect(exported.formatVersion).toBe(19);
+    expect(exported.shortLinks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: created.body.id, ownerId: user.body.user.id })
+      ])
+    );
+
+    await account.deleteAccount(user.body.user.id, { password: 'KnowMeTest123!' });
+    expect(await prisma.shortLink.count({ where: { ownerId: user.body.user.id } })).toBe(0);
+    expect(
+      await prisma.shortLinkReceipt.count({ where: { ownerId: user.body.user.id } })
+    ).toBe(0);
   });
 });
