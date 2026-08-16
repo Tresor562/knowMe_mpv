@@ -60,7 +60,7 @@ describe('KnowMe universal search authorization (e2e)', () => {
       .send({ title: 'Project nebula', memberIds: [bob.body.user.id] })
       .expect(201);
 
-    await request(app.getHttpServer())
+    const visibleMessage = await request(app.getHttpServer())
       .post(`/conversations/${shared.body.id}/messages`)
       .set('Authorization', `Bearer ${bob.body.accessToken}`)
       .send({ content: 'nebula visible shared message' })
@@ -95,6 +95,28 @@ describe('KnowMe universal search authorization (e2e)', () => {
         expect.objectContaining({ snippet: expect.stringContaining('must stay hidden') })
       ])
     );
+
+    const firstPage = await request(app.getHttpServer())
+      .get('/search?q=nebula&limit=1')
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+    expect(firstPage.body.items).toHaveLength(1);
+    expect(firstPage.body.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await request(app.getHttpServer())
+      .get(`/search?q=nebula&limit=1&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+    expect(secondPage.body.items).toHaveLength(1);
+    expect(secondPage.body.items[0].id).not.toBe(firstPage.body.items[0].id);
+    expect(new Set([firstPage.body.items[0].id, secondPage.body.items[0].id])).toEqual(
+      new Set([shared.body.id, visibleMessage.body.id])
+    );
+
+    await request(app.getHttpServer())
+      .get(`/search?q=different&limit=1&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(400);
   });
 
   it('requires authentication', async () => {

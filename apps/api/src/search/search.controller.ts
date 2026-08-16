@@ -18,8 +18,9 @@ export class SearchController {
   search(
     @Req() req: { user: { userId: string } },
     @Query('q') query = '',
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Query('cursor') cursor?: string
   ) {
-    return this.searchService.search(req.user.userId, query, limit);
+    return this.searchService.search(req.user.userId, query, limit, cursor);
   }
 }

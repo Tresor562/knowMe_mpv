@@ -87,4 +87,64 @@ describe('SearchService', () => {
     expect(result.items[0]?.snippet.length).toBeLessThanOrEqual(182);
     expect(result.items[1]).toMatchObject({ kind: 'POST', id: 'p1' });
   });
+
+  it('returns an opaque query-bound cursor and applies its global boundary', async () => {
+    const { prisma, service } = createService();
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'm1',
+        conversationId: 'c1',
+        content: 'hello newest',
+        createdAt: now
+      },
+      {
+        id: 'm2',
+        conversationId: 'c1',
+        content: 'hello older',
+        createdAt: new Date(now.getTime() - 1000)
+      }
+    ]);
+
+    const first = await service.search('user-1', 'Hello', 1);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    expect(first.nextCursor).not.toContain('m1');
+
+    prisma.message.findMany.mockResolvedValue([]);
+    await service.search('user-1', 'hello', 1, first.nextCursor ?? undefined);
+
+    expect(prisma.message.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [expect.objectContaining({ OR: expect.any(Array) })]
+        })
+      })
+    );
+  });
+
+  it('rejects malformed cursors and cursors issued for another query', async () => {
+    const { prisma, service } = createService();
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: 'm1',
+        conversationId: 'c1',
+        content: 'hello first',
+        createdAt: now
+      },
+      {
+        id: 'm2',
+        conversationId: 'c1',
+        content: 'hello second',
+        createdAt: new Date(now.getTime() - 1000)
+      }
+    ]);
+
+    await expect(service.search('user-1', 'hello', 10, 'broken')).rejects.toThrow(
+      'SEARCH_CURSOR_INVALID'
+    );
+
+    const first = await service.search('user-1', 'hello', 1);
+    await expect(
+      service.search('user-1', 'different', 1, first.nextCursor ?? undefined)
+    ).rejects.toThrow('SEARCH_CURSOR_INVALID');
+  });
 });
