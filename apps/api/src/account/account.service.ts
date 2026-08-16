@@ -24,6 +24,7 @@ import { NotificationCenterLifecycleService } from '../notifications/notificatio
 import { PrivacyService } from '../privacy/privacy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../security/security.service';
+import { ShortLinksService } from '../short-links/short-links.service';
 import { SocialConnectionService } from '../social-matchmaking/social-connection.service';
 import { SocialMatchmakingService } from '../social-matchmaking/social-matchmaking.service';
 import { SocialGiftExportService } from '../social/social-gift-export.service';
@@ -53,7 +54,8 @@ export class AccountService {
     private readonly socialGifts: SocialGiftsService,
     private readonly socialGiftExport: SocialGiftExportService,
     private readonly socialConnection: SocialConnectionService,
-    private readonly socialMatchmaking: SocialMatchmakingService
+    private readonly socialMatchmaking: SocialMatchmakingService,
+    private readonly shortLinks: ShortLinksService
   ) {}
 
   updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -110,7 +112,8 @@ export class AccountService {
       cosmetics,
       cosmeticPresets,
       appearance,
-      socialGifts
+      socialGifts,
+      shortLinks
     ] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -203,7 +206,8 @@ export class AccountService {
       this.cosmetics.exportForAccount(userId),
       this.cosmeticPresets.exportForAccount(userId),
       this.appearance.exportForAccount(userId),
-      this.socialGiftExport.exportForAccount(userId)
+      this.socialGiftExport.exportForAccount(userId),
+      this.shortLinks.exportForAccount(userId)
     ]);
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
@@ -242,6 +246,7 @@ export class AccountService {
     const hasLocalizationData = localization.preference !== null;
     const hasAppearanceData = appearance.preference.version > 0;
     const hasSocialGiftData = socialGifts.received.length > 0 || socialGifts.sent.length > 0;
+    const hasShortLinkData = shortLinks.length > 0;
     const defaultNotificationCenter = defaultNotificationCenterPreference();
     const centerPreference = notificationCenter.preference;
     const hasCustomNotificationCenterPreference =
@@ -267,29 +272,31 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasTournamentData
-        ? 17
-        : hasSocialConnectionData
-          ? 16
-          : hasSocialMatchmakingData
-            ? 15
-            : hasAffinityData
-              ? 14
-              : hasGameData
-                ? 13
-                : hasCreatorData
-                  ? 12
-                  : hasMediaDownloadData
-                    ? 11
-                    : hasLocalizationData
-                      ? 10
-                      : hasNotificationCenterData
-                        ? 9
-                        : hasSocialGiftData
-                          ? 8
-                          : hasAppearanceData
-                            ? 7
-                            : 6,
+      formatVersion: hasShortLinkData
+        ? 19
+        : hasTournamentData
+          ? 17
+          : hasSocialConnectionData
+            ? 16
+            : hasSocialMatchmakingData
+              ? 15
+              : hasAffinityData
+                ? 14
+                : hasGameData
+                  ? 13
+                  : hasCreatorData
+                    ? 12
+                    : hasMediaDownloadData
+                      ? 11
+                      : hasLocalizationData
+                        ? 10
+                        : hasNotificationCenterData
+                          ? 9
+                          : hasSocialGiftData
+                            ? 8
+                            : hasAppearanceData
+                              ? 7
+                              : 6,
       account: safeUser,
       security,
       privacy,
@@ -316,6 +323,7 @@ export class AccountService {
       ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
       ...(hasSocialGiftData ? { socialGifts } : {}),
+      ...(hasShortLinkData ? { shortLinks } : {}),
       media,
       challengeHistory: challengeResults,
       challengeReferences: challengeReferences.map((reference) => ({
@@ -376,6 +384,7 @@ export class AccountService {
       await this.i18n.deleteForAccount(userId, tx);
       await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
+      await this.shortLinks.deleteForAccount(userId, tx);
       await this.appearance.deleteForAccount(userId, tx);
       await this.cosmeticPresets.deleteForAccount(userId, tx);
       await this.cosmetics.deleteForAccount(userId, tx);
