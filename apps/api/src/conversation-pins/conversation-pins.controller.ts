@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
@@ -18,6 +20,20 @@ export class ConversationPinsController {
   @Get()
   list(@Req() req: { user: { userId: string } }) {
     return this.pins.list(req.user.userId);
+  }
+
+  @Put('order')
+  reorder(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { conversationIds?: unknown }
+  ) {
+    if (
+      !Array.isArray(body?.conversationIds) ||
+      body.conversationIds.some((value) => typeof value !== 'string')
+    ) {
+      throw new BadRequestException('CONVERSATION_PIN_ORDER_INVALID');
+    }
+    return this.pins.reorder(req.user.userId, body.conversationIds as string[]);
   }
 
   @Put(':conversationId')

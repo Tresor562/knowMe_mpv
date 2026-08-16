@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -12,7 +17,7 @@ export class ConversationPinsService {
     const [pins, memberships] = await Promise.all([
       this.prisma.conversationPin.findMany({
         where: { userId },
-        orderBy: [{ pinnedAt: 'desc' }, { conversationId: 'asc' }]
+        orderBy: [{ position: 'desc' }, { pinnedAt: 'desc' }, { conversationId: 'asc' }]
       }),
       this.prisma.conversationMember.findMany({
         where: { userId },
@@ -61,8 +66,52 @@ export class ConversationPinsService {
       }
 
       return tx.conversationPin.create({
-        data: { userId, conversationId }
+        data: { userId, conversationId, position: count }
       });
+    });
+  }
+
+  async reorder(userId: string, conversationIds: string[]) {
+    if (conversationIds.length > MAX_PINNED_CONVERSATIONS) {
+      throw new BadRequestException('CONVERSATION_PIN_ORDER_TOO_LARGE');
+    }
+    if (new Set(conversationIds).size !== conversationIds.length) {
+      throw new BadRequestException('CONVERSATION_PIN_ORDER_DUPLICATE');
+    }
+
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId, conversationId: { in: conversationIds } },
+      select: { conversationId: true }
+    });
+    if (memberships.length !== conversationIds.length) {
+      throw new NotFoundException('CONVERSATION_PIN_ORDER_TARGET_NOT_FOUND');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`);
+
+      const current = await tx.conversationPin.findMany({
+        where: { userId },
+        select: { conversationId: true }
+      });
+      const currentIds = new Set(current.map((pin) => pin.conversationId));
+      if (
+        current.length !== conversationIds.length ||
+        conversationIds.some((conversationId) => !currentIds.has(conversationId))
+      ) {
+        throw new ConflictException('CONVERSATION_PIN_ORDER_STALE');
+      }
+
+      await Promise.all(
+        conversationIds.map((conversationId, index) =>
+          tx.conversationPin.update({
+            where: { userId_conversationId: { userId, conversationId } },
+            data: { position: conversationIds.length - index - 1 }
+          })
+        )
+      );
+
+      return { reordered: true, conversationIds };
     });
   }
 
