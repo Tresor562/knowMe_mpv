@@ -3,7 +3,7 @@ import { SHORT_LINK_TARGET_TYPES } from './short-links.domain';
 
 export class CreateShortLinkDto {
   @IsString()
-  @IsIn(SHORT_LINK_TARGET_TYPES)
+  @IsIn([...SHORT_LINK_TARGET_TYPES])
   targetType!: string;
 
   @IsString()
