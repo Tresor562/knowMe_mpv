@@ -1,0 +1,28 @@
+model ShortLink {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  ownerId        String
+  targetType     String
+  targetId       String
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  resolveCount   Int       @default(0)
+  lastResolvedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([ownerId, createdAt])
+  @@index([targetType, targetId])
+  @@index([expiresAt, revokedAt])
+}
+
+model ShortLinkReceipt {
+  ownerId        String
+  idempotencyKey String
+  operation      String
+  response       Json
+  createdAt      DateTime @default(now())
+
+  @@id([ownerId, idempotencyKey])
+  @@index([createdAt])
+}
