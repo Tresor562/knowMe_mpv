@@ -1,0 +1,9 @@
+model SavedMessage {
+  userId    String
+  messageId String
+  savedAt   DateTime @default(now())
+
+  @@id([userId, messageId])
+  @@index([userId, savedAt])
+  @@index([messageId])
+}
