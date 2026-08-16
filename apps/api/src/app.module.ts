@@ -18,6 +18,7 @@ import { ChallengesModule } from './challenges/challenges.module';
 import { CommunitiesModule } from './communities/communities.module';
 import { ConceptKModule } from './concept-k/concept-k.module';
 import { ConversationDraftsModule } from './conversation-drafts/conversation-drafts.module';
+import { ConversationFoldersModule } from './conversation-folders/conversation-folders.module';
 import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
@@ -108,6 +109,7 @@ import { WalletModule } from './wallet/wallet.module';
     MessagingModule,
     SavedMessagesModule,
     ConversationDraftsModule,
+    ConversationFoldersModule,
     MessageReactionsModule,
     PostsModule,
     SearchModule,
