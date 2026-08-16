@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -18,6 +19,20 @@ export class ConversationPinsController {
   @Get()
   list(@Req() req: { user: { userId: string } }) {
     return this.pins.list(req.user.userId);
+  }
+
+  @Put('order')
+  reorder(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { conversationIds?: unknown }
+  ) {
+    const conversationIds = Array.isArray(body?.conversationIds)
+      ? body.conversationIds.filter((value): value is string => typeof value === 'string')
+      : [];
+    if (!Array.isArray(body?.conversationIds) || conversationIds.length !== body.conversationIds.length) {
+      return this.pins.reorder(req.user.userId, ['__INVALID__', '__INVALID__']);
+    }
+    return this.pins.reorder(req.user.userId, conversationIds);
   }
 
   @Put(':conversationId')
