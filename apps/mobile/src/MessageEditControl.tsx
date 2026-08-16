@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { getRealtimeSocket } from './realtime';
 
 type EditedMessage = {
   id: string;
@@ -34,10 +35,43 @@ export function MessageEditControl({
 }) {
   const { colors } = useAppearance();
   const [content, setContent] = useState(initialContent);
+  const [baseContent, setBaseContent] = useState(initialContent);
   const [editedAt, setEditedAt] = useState<string | null>(initialEditedAt);
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    let connectedSocket: Awaited<ReturnType<typeof getRealtimeSocket>> = null;
+    const onMessageUpdated = (message: EditedMessage) => {
+      if (message.id !== messageId || message.conversationId !== conversationId) return;
+      setEditedAt(message.editedAt);
+      setBaseContent(message.content);
+      setContent((current) => {
+        if (current !== baseContent && current !== message.content) {
+          setConflict(true);
+          setError('Ce message a été modifié ailleurs pendant ta saisie. Garde ton texte ou reprends la version serveur.');
+          return current;
+        }
+        setConflict(false);
+        setError('');
+        return message.content;
+      });
+      onUpdated?.(message);
+    };
+
+    void getRealtimeSocket().then((socket) => {
+      if (!active || !socket) return;
+      connectedSocket = socket;
+      socket.on('message:updated', onMessageUpdated);
+    });
+
+    return () => {
+      active = false;
+      connectedSocket?.off('message:updated', onMessageUpdated);
+    };
+  }, [baseContent, conversationId, messageId, onUpdated]);
 
   async function save() {
     const normalized = content.trim();
@@ -56,19 +90,27 @@ export function MessageEditControl({
         }
       );
       setContent(updated.content);
+      setBaseContent(updated.content);
       setEditedAt(updated.editedAt);
+      setConflict(false);
       onUpdated?.(updated);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Modification impossible.';
       if (message.includes('MESSAGE_EDIT_VERSION_CONFLICT')) {
         setConflict(true);
-        setError('Ce message a déjà été modifié ailleurs. Recharge la conversation avant de réessayer.');
+        setError('Ce message a déjà été modifié ailleurs. Reprends la version serveur avant de réessayer.');
       } else {
         setError(message);
       }
     } finally {
       setBusy(false);
     }
+  }
+
+  function resetToServer() {
+    setContent(baseContent);
+    setConflict(false);
+    setError('');
   }
 
   return (
@@ -79,7 +121,7 @@ export function MessageEditControl({
         onChangeText={setContent}
         multiline
         maxLength={4000}
-        editable={!busy && !conflict}
+        editable={!busy}
         placeholder="Corrige ton message…"
         placeholderTextColor={colors.muted}
         style={[
@@ -107,6 +149,15 @@ export function MessageEditControl({
             {busy ? 'Modification…' : 'Enregistrer'}
           </Text>
         </Pressable>
+        {conflict ? (
+          <Pressable
+            disabled={busy}
+            onPress={resetToServer}
+            style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}
+          >
+            <Text style={{ color: colors.text, fontWeight: '800' }}>Version serveur</Text>
+          </Pressable>
+        ) : null}
         {onCancel ? (
           <Pressable
             disabled={busy}
