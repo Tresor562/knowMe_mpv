@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,13 +27,13 @@ export class ConversationPinsController {
     @Req() req: { user: { userId: string } },
     @Body() body: { conversationIds?: unknown }
   ) {
-    const conversationIds = Array.isArray(body?.conversationIds)
-      ? body.conversationIds.filter((value): value is string => typeof value === 'string')
-      : [];
-    if (!Array.isArray(body?.conversationIds) || conversationIds.length !== body.conversationIds.length) {
-      return this.pins.reorder(req.user.userId, ['__INVALID__', '__INVALID__']);
+    if (
+      !Array.isArray(body?.conversationIds) ||
+      body.conversationIds.some((value) => typeof value !== 'string')
+    ) {
+      throw new BadRequestException('CONVERSATION_PIN_ORDER_INVALID');
     }
-    return this.pins.reorder(req.user.userId, conversationIds);
+    return this.pins.reorder(req.user.userId, body.conversationIds as string[]);
   }
 
   @Put(':conversationId')
