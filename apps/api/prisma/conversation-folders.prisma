@@ -1,0 +1,22 @@
+model ConversationFolder {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  normalizedName String
+  position       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, normalizedName])
+  @@index([userId, position, updatedAt])
+}
+
+model ConversationFolderAssignment {
+  userId         String
+  conversationId String
+  folderId       String
+  assignedAt     DateTime @default(now())
+
+  @@id([userId, conversationId])
+  @@index([folderId, assignedAt])
+}
