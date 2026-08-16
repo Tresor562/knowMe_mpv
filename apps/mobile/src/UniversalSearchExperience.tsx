@@ -24,15 +24,17 @@ type SearchItem = {
 
 type SearchResponse = {
   query: string;
+  kinds: SearchKind[];
   items: SearchItem[];
   nextCursor: string | null;
 };
 
+const SEARCH_KINDS: SearchKind[] = ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION'];
 const labels: Record<SearchKind, string> = {
-  MESSAGE: 'Message',
-  POST: 'Publication',
-  CHALLENGE: 'Défi',
-  CONVERSATION: 'Conversation'
+  MESSAGE: 'Messages',
+  POST: 'Publications',
+  CHALLENGE: 'Défis',
+  CONVERSATION: 'Conversations'
 };
 
 export function UniversalSearchExperience({
@@ -42,11 +44,28 @@ export function UniversalSearchExperience({
 }) {
   const { colors } = useAppearance();
   const [query, setQuery] = useState('');
+  const [activeKinds, setActiveKinds] = useState<SearchKind[]>(SEARCH_KINDS);
   const [submittedQuery, setSubmittedQuery] = useState('');
+  const [submittedKinds, setSubmittedKinds] = useState<SearchKind[]>(SEARCH_KINDS);
   const [items, setItems] = useState<SearchItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  function toggleKind(kind: SearchKind) {
+    setActiveKinds((current) => {
+      const selected = current.includes(kind);
+      if (selected && current.length === 1) return current;
+      const next = selected
+        ? current.filter((value) => value !== kind)
+        : SEARCH_KINDS.filter((value) => current.includes(value) || value === kind);
+      setSubmittedQuery('');
+      setItems([]);
+      setNextCursor(null);
+      setError('');
+      return next;
+    });
+  }
 
   async function search() {
     const normalized = query.trim();
@@ -55,10 +74,12 @@ export function UniversalSearchExperience({
     setBusy(true);
     setError('');
     try {
+      const kinds = activeKinds.join(',');
       const response = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(normalized)}&limit=20`
+        `/search?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds)}`
       );
       setSubmittedQuery(response.query);
+      setSubmittedKinds(response.kinds);
       setItems(response.items);
       setNextCursor(response.nextCursor);
     } catch (cause) {
@@ -74,8 +95,9 @@ export function UniversalSearchExperience({
     setBusy(true);
     setError('');
     try {
+      const kinds = submittedKinds.join(',');
       const response = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(submittedQuery)}&limit=20&cursor=${encodeURIComponent(nextCursor)}`
+        `/search?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
       );
       setItems((current) => {
         const seen = new Set(current.map((item) => `${item.kind}:${item.id}`));
@@ -124,6 +146,29 @@ export function UniversalSearchExperience({
             }
           ]}
         />
+        <View style={styles.filterRow}>
+          {SEARCH_KINDS.map((kind) => {
+            const selected = activeKinds.includes(kind);
+            return (
+              <Pressable
+                key={kind}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => toggleKind(kind)}
+                style={[
+                  styles.filterButton,
+                  { borderColor: selected ? colors.accent : colors.border },
+                  selected && { backgroundColor: colors.surfaceRaised }
+                ]}
+              >
+                <Text style={{ color: selected ? colors.accent : colors.muted, fontWeight: '800' }}>
+                  {labels[kind]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.filterHelp, { color: colors.muted }]}>Changer un filtre réinitialise la pagination.</Text>
         <Pressable
           disabled={busy || query.trim().length < 2}
           onPress={() => void search()}
@@ -141,7 +186,12 @@ export function UniversalSearchExperience({
       {busy && items.length === 0 ? <ActivityIndicator color={colors.accent} /> : null}
 
       {submittedQuery ? (
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats pour « {submittedQuery} »</Text>
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats pour « {submittedQuery} »</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>
+            {submittedKinds.map((kind) => labels[kind]).join(' · ')}
+          </Text>
+        </>
       ) : null}
 
       {submittedQuery && !busy && items.length === 0 && !error ? (
@@ -196,6 +246,9 @@ const styles = StyleSheet.create({
   muted: { fontSize: 14, lineHeight: 20 },
   card: { borderWidth: 1, borderRadius: 22, padding: 16, gap: 10 },
   input: { borderWidth: 1, borderRadius: 15, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterButton: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 11 },
+  filterHelp: { fontSize: 12, lineHeight: 17 },
   primaryButton: { borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
   primaryText: { fontWeight: '900' },
   disabled: { opacity: 0.45 },
