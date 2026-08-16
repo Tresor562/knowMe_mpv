@@ -11,7 +11,12 @@ type Pin = {
   pinnedAt: string;
 };
 
-type PinList = { items: Pin[]; limit: number };
+type PinList = {
+  items: Pin[];
+  limit: number;
+  remaining: number;
+  canPinMore: boolean;
+};
 
 type Conversation = {
   id: string;
@@ -26,6 +31,8 @@ export default function ConversationPinsPage() {
   const { user, loading } = useSession({ required: true });
   const [pins, setPins] = useState<Pin[]>([]);
   const [pinLimit, setPinLimit] = useState<number | null>(null);
+  const [pinRemaining, setPinRemaining] = useState<number | null>(null);
+  const [canPinMore, setCanPinMore] = useState<boolean | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -39,8 +46,13 @@ export default function ConversationPinsPage() {
       ]);
       setPins(pinData.items);
       setPinLimit(pinData.limit);
+      setPinRemaining(pinData.remaining);
+      setCanPinMore(pinData.canPinMore);
       setConversations(conversationData);
     } catch (cause) {
+      setPinLimit(null);
+      setPinRemaining(null);
+      setCanPinMore(null);
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
     }
   }, []);
@@ -60,9 +72,13 @@ export default function ConversationPinsPage() {
   }, [conversations, user?.id]);
 
   const pinnedIds = useMemo(() => new Set(pins.map((pin) => pin.conversationId)), [pins]);
-  const atLimit = pinLimit !== null && pins.length >= pinLimit;
+  const capacityKnown = pinLimit !== null && pinRemaining !== null && canPinMore !== null;
 
   async function pin(conversationId: string) {
+    if (!capacityKnown || !canPinMore) {
+      setMessage(capacityKnown ? `La limite de ${pinLimit} conversations épinglées est atteinte.` : 'Capacité d’épinglage indisponible.');
+      return;
+    }
     setBusyId(conversationId);
     setMessage('');
     try {
@@ -104,7 +120,9 @@ export default function ConversationPinsPage() {
       </header>
 
       <p style={{ color: 'var(--muted)', marginTop: 14 }}>
-        {pinLimit === null ? `${pins.length} épingle(s)` : `${pins.length}/${pinLimit} épingle(s) utilisée(s).`}
+        {!capacityKnown
+          ? `${pins.length} épingle(s)`
+          : `${pins.length}/${pinLimit} épingle(s) utilisée(s) · ${pinRemaining} restante(s).`}
       </p>
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
 
@@ -139,7 +157,7 @@ export default function ConversationPinsPage() {
 
       <section style={{ marginTop: 28 }}>
         <h2>Autres conversations</h2>
-        {atLimit && pinLimit !== null && (
+        {capacityKnown && !canPinMore && (
           <p style={{ color: 'var(--muted)' }}>
             La limite de {pinLimit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.
           </p>
@@ -150,7 +168,7 @@ export default function ConversationPinsPage() {
               <Link href={`/messages/${conversation.id}`}><strong>{names.get(conversation.id)}</strong></Link>
               <button
                 className="btn btn-primary"
-                disabled={pinLimit === null || atLimit || busyId === conversation.id}
+                disabled={!capacityKnown || !canPinMore || busyId === conversation.id}
                 onClick={() => void pin(conversation.id)}
               >
                 {busyId === conversation.id ? 'Épinglage…' : 'Épingler'}
