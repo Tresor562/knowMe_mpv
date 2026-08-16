@@ -1,15 +1,28 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallIceService } from './call-ice.service';
+import { CallPreferencesService } from './call-preferences.service';
 import { CallsService } from './calls.service';
 import { CreateCallDto, EndCallDto } from './dto/call.dto';
+import { UpdateCallPreferenceDto } from './dto/update-call-preference.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('calls')
 export class CallsController {
   constructor(
     private readonly calls: CallsService,
-    private readonly ice: CallIceService
+    private readonly ice: CallIceService,
+    private readonly preferences: CallPreferencesService
   ) {}
 
   @Post()
@@ -27,6 +40,19 @@ export class CallsController {
   ) {
     const parsed = take ? Number.parseInt(take, 10) : 50;
     return this.calls.history(req.user.userId, Number.isFinite(parsed) ? parsed : 50);
+  }
+
+  @Get('preferences')
+  getPreferences(@Req() req: { user: { userId: string } }) {
+    return this.preferences.get(req.user.userId);
+  }
+
+  @Put('preferences')
+  updatePreferences(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: UpdateCallPreferenceDto
+  ) {
+    return this.preferences.update(req.user.userId, dto);
   }
 
   @Get(':callId/ice-configuration')

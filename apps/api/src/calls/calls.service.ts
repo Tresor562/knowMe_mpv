@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CallPreferencesService } from './call-preferences.service';
 import { CreateCallDto } from './dto/call.dto';
 
 type Tx = Prisma.TransactionClient;
@@ -52,7 +53,8 @@ export class CallsService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => NotificationsService))
     private readonly notifications: NotificationsService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly preferences: CallPreferencesService
   ) {}
 
   async create(callerId: string, dto: CreateCallDto) {
@@ -128,6 +130,12 @@ export class CallsService {
           message: 'Tu ne peux appeler que les membres de tes conversations.'
         });
       }
+      await this.preferences.assertCanReceive(
+        dto.calleeUserId,
+        dto.media,
+        new Date(),
+        tx
+      );
       if (busyCall) {
         throw new ConflictException({
           code: 'CALL_PARTICIPANT_BUSY',

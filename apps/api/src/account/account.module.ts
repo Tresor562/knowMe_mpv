@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AppearanceModule } from '../appearance/appearance.module';
+import { CallsModule } from '../calls/calls.module';
 import { ConceptKModule } from '../concept-k/concept-k.module';
 import { CosmeticsModule } from '../cosmetics/cosmetics.module';
 import { CreatorsModule } from '../creators/creators.module';
@@ -16,6 +17,7 @@ import { AccountService } from './account.service';
 @Module({
   imports: [
     SecurityModule,
+    CallsModule,
     PrivacyModule,
     MediaModule,
     CreatorsModule,

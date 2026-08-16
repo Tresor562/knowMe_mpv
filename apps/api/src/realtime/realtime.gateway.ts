@@ -1,3 +1,4 @@
+import { forwardRef, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -34,6 +35,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => CallsService))
     private readonly calls: CallsService
   ) {}
 

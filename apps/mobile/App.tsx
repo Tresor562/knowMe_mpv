@@ -24,6 +24,7 @@ import {
   SessionTokens
 } from './src/api';
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
+import { CallPreparationExperience } from './src/CallPreparationExperience';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -37,6 +38,7 @@ type Screen =
   | 'social'
   | 'challenges'
   | 'profile'
+  | 'calls'
   | 'verification';
 type ChallengeSummary = { id: string; status: string };
 type NotificationCount = { count: number };
@@ -317,12 +319,14 @@ function HomeScreen({
   user,
   openSocial,
   openFeed,
-  openChallenges
+  openChallenges,
+  openCalls
 }: {
   user: MobileUser;
   openSocial: () => void;
   openFeed: () => void;
   openChallenges: () => void;
+  openCalls: () => void;
 }) {
   const { colors } = useAppearance();
   const [challenges, setChallenges] = useState<ChallengeSummary[]>([]);
@@ -414,6 +418,12 @@ function HomeScreen({
           Réponds question par question, sauvegarde ta progression et suis les participants.
         </Text>
       </Pressable>
+      <Pressable onPress={openCalls} style={[styles.card, cardStyle]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Préparer mes appels</Text>
+        <Text style={[styles.cardText, { color: colors.muted }]}>
+          Règle ta disponibilité et vérifie volontairement le microphone et la caméra de ce téléphone.
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -500,11 +510,15 @@ function AppContent() {
             openSocial={() => setScreen('social')}
             openFeed={() => setScreen('feed')}
             openChallenges={() => setScreen('challenges')}
+            openCalls={() => setScreen('calls')}
           />
         )}
         {screen === 'feed' && <FeedExperience userId={user.id} />}
         {screen === 'social' && <SocialHub userId={user.id} />}
         {screen === 'challenges' && <ChallengeExperience userId={user.id} />}
+        {screen === 'calls' && (
+          <CallPreparationExperience onBack={() => setScreen('home')} />
+        )}
         {screen === 'profile' && (
           <ProfileExperience
             user={user}
@@ -529,7 +543,10 @@ function AppContent() {
         ]}
       >
         {tabs.map(([value, icon, label]) => {
-          const active = screen === value || (value === 'profile' && screen === 'verification');
+          const active =
+            screen === value ||
+            (value === 'home' && screen === 'calls') ||
+            (value === 'profile' && screen === 'verification');
           return (
             <Pressable key={value} onPress={() => setScreen(value)} style={styles.tab}>
               <Text style={[styles.tabIcon, { color: active ? colors.accent : colors.muted }]}>

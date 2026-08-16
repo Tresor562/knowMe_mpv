@@ -4,6 +4,8 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AppearanceService } from '../appearance/appearance.service';
+import { CallPreferencesService } from '../calls/call-preferences.service';
+import { CallsService } from '../calls/calls.service';
 import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
@@ -40,6 +42,8 @@ export class AccountService {
     private readonly i18n: I18nService,
     private readonly notificationCenter: NotificationCenterLifecycleService,
     private readonly mediaDownloads: MediaDownloadPreferenceService,
+    private readonly callPreferences: CallPreferencesService,
+    private readonly calls: CallsService,
     private readonly creators: CreatorsService,
     private readonly games: GamePlatformService,
     private readonly tournaments: TournamentService,
@@ -85,6 +89,8 @@ export class AccountService {
       localization,
       notificationCenter,
       mediaDownloads,
+      callPreferences,
+      callHistory,
       creatorFoundation,
       gamePlatform,
       tournaments,
@@ -146,6 +152,8 @@ export class AccountService {
       this.i18n.exportForAccount(userId),
       this.notificationCenter.exportForAccount(userId),
       this.mediaDownloads.exportForAccount(userId),
+      this.callPreferences.exportForAccount(userId),
+      this.calls.exportForAccount(userId),
       this.creators.exportForAccount(userId),
       this.games.exportForAccount(userId),
       this.tournaments.exportForAccount(userId),
@@ -239,6 +247,10 @@ export class AccountService {
       creatorFoundation.pins.length > 0 ||
       creatorFoundation.metrics.length > 0;
     const hasMediaDownloadData = mediaDownloads.preference !== null;
+    const hasCallPreferenceData = callPreferences.preference !== null;
+    const hasCallHistoryData =
+      callHistory.calls.length > 0 || callHistory.authoredEvents.length > 0;
+    const hasCallAccountData = hasCallPreferenceData || hasCallHistoryData;
     const hasLocalizationData = localization.preference !== null;
     const hasAppearanceData = appearance.preference.version > 0;
     const hasSocialGiftData = socialGifts.received.length > 0 || socialGifts.sent.length > 0;
@@ -267,9 +279,11 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasTournamentData
-        ? 17
-        : hasSocialConnectionData
+      formatVersion: hasCallAccountData
+        ? 18
+        : hasTournamentData
+          ? 17
+          : hasSocialConnectionData
           ? 16
           : hasSocialMatchmakingData
             ? 15
@@ -312,6 +326,8 @@ export class AccountService {
         : {}),
       ...(hasCreatorData ? { creatorFoundation } : {}),
       ...(hasMediaDownloadData ? { mediaDownloadPolicy: mediaDownloads } : {}),
+      ...(hasCallPreferenceData ? { callPreferences } : {}),
+      ...(hasCallHistoryData ? { calls: callHistory } : {}),
       ...(hasLocalizationData ? { localization } : {}),
       ...(hasNotificationCenterData ? { notificationCenter } : {}),
       ...(hasAppearanceData ? { appearance } : {}),
@@ -373,6 +389,8 @@ export class AccountService {
       await this.socialMatchmaking.deleteForAccount(userId, tx);
       await this.creators.deleteForAccount(userId, tx);
       await this.mediaDownloads.deleteForAccount(userId, tx);
+      await this.calls.deleteForAccount(userId, tx);
+      await this.callPreferences.deleteForAccount(userId, tx);
       await this.i18n.deleteForAccount(userId, tx);
       await this.notificationCenter.deleteForAccount(userId, tx);
       await this.socialGifts.deleteForAccount(userId, tx);
