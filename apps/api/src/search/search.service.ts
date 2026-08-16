@@ -13,8 +13,9 @@ type SearchItem = {
 };
 
 type SearchCursor = {
-  v: 1;
+  v: 2;
   q: string;
+  f: string;
   t: string;
   k: UniversalSearchKind;
   id: string;
@@ -31,16 +32,26 @@ const SEARCH_KINDS: UniversalSearchKind[] = [
 export class SearchService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(userId: string, rawQuery: string, rawLimit = 20, rawCursor?: string) {
+  async search(
+    userId: string,
+    rawQuery: string,
+    rawLimit = 20,
+    rawCursor?: string,
+    rawKinds?: string
+  ) {
     const query = rawQuery.trim();
+    const kinds = this.parseKinds(rawKinds);
+    const filterKey = kinds.join(',');
     if (query.length < 2) {
-      return { query, items: [], nextCursor: null };
+      return { query, kinds, items: [], nextCursor: null };
     }
 
     const limit = Math.min(Math.max(rawLimit, 1), 50);
     const take = Math.min(limit + 1, 51);
     const normalizedQuery = query.toLocaleLowerCase();
-    const cursor = rawCursor ? this.decodeCursor(rawCursor, normalizedQuery) : null;
+    const cursor = rawCursor
+      ? this.decodeCursor(rawCursor, normalizedQuery, filterKey)
+      : null;
     const contains = { contains: query, mode: 'insensitive' as const };
 
     const messageBoundary = this.boundary('MESSAGE', 'createdAt', cursor);
@@ -103,6 +114,7 @@ export class SearchService {
       })
     ]);
 
+    const allowedKinds = new Set(kinds);
     const items: SearchItem[] = [
       ...messages.map((message) => ({
         kind: 'MESSAGE' as const,
@@ -136,16 +148,19 @@ export class SearchService {
         route: `/messages/${conversation.id}`,
         updatedAt: conversation.updatedAt
       }))
-    ].sort((a, b) => {
-      const delta = b.updatedAt.getTime() - a.updatedAt.getTime();
-      if (delta) return delta;
-      return `${a.kind}:${a.id}`.localeCompare(`${b.kind}:${b.id}`);
-    });
+    ]
+      .filter((item) => allowedKinds.has(item.kind))
+      .sort((a, b) => {
+        const delta = b.updatedAt.getTime() - a.updatedAt.getTime();
+        if (delta) return delta;
+        return `${a.kind}:${a.id}`.localeCompare(`${b.kind}:${b.id}`);
+      });
 
     const page = items.slice(0, limit);
     const last = page[page.length - 1];
     return {
       query,
+      kinds,
       items: page.map(({ updatedAt, ...item }) => ({
         ...item,
         updatedAt: updatedAt.toISOString()
@@ -153,8 +168,9 @@ export class SearchService {
       nextCursor:
         items.length > limit && last
           ? this.encodeCursor({
-              v: 1,
+              v: 2,
               q: normalizedQuery,
+              f: filterKey,
               t: last.updatedAt.toISOString(),
               k: last.kind,
               id: last.id
@@ -163,7 +179,29 @@ export class SearchService {
     };
   }
 
-  private boundary(kind: UniversalSearchKind, field: 'createdAt' | 'updatedAt', cursor: SearchCursor | null) {
+  private parseKinds(rawKinds?: string): UniversalSearchKind[] {
+    if (!rawKinds?.trim()) return [...SEARCH_KINDS];
+    const requested = [...new Set(
+      rawKinds
+        .split(',')
+        .map((kind) => kind.trim().toUpperCase())
+        .filter(Boolean)
+    )];
+    if (
+      !requested.length ||
+      requested.some((kind) => !SEARCH_KINDS.includes(kind as UniversalSearchKind))
+    ) {
+      throw new BadRequestException('SEARCH_KIND_INVALID');
+    }
+    const set = new Set(requested);
+    return SEARCH_KINDS.filter((kind) => set.has(kind));
+  }
+
+  private boundary(
+    kind: UniversalSearchKind,
+    field: 'createdAt' | 'updatedAt',
+    cursor: SearchCursor | null
+  ) {
     if (!cursor) return null;
     const timestamp = new Date(cursor.t);
     const sameTimestamp: Record<string, unknown>[] = [];
@@ -182,16 +220,23 @@ export class SearchService {
     return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
   }
 
-  private decodeCursor(rawCursor: string, normalizedQuery: string): SearchCursor {
+  private decodeCursor(
+    rawCursor: string,
+    normalizedQuery: string,
+    filterKey: string
+  ): SearchCursor {
     if (rawCursor.length < 8 || rawCursor.length > 512) {
       throw new BadRequestException('SEARCH_CURSOR_INVALID');
     }
     try {
-      const parsed = JSON.parse(Buffer.from(rawCursor, 'base64url').toString('utf8')) as Partial<SearchCursor>;
+      const parsed = JSON.parse(
+        Buffer.from(rawCursor, 'base64url').toString('utf8')
+      ) as Partial<SearchCursor>;
       const timestamp = typeof parsed.t === 'string' ? new Date(parsed.t) : null;
       if (
-        parsed.v !== 1 ||
+        parsed.v !== 2 ||
         parsed.q !== normalizedQuery ||
+        parsed.f !== filterKey ||
         !timestamp ||
         Number.isNaN(timestamp.getTime()) ||
         !SEARCH_KINDS.includes(parsed.k as UniversalSearchKind) ||
