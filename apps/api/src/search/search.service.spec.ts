@@ -21,6 +21,7 @@ describe('SearchService', () => {
 
     await expect(service.search('user-1', ' a ')).resolves.toEqual({
       query: 'a',
+      kinds: ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION'],
       items: [],
       nextCursor: null
     });
@@ -88,7 +89,39 @@ describe('SearchService', () => {
     expect(result.items[1]).toMatchObject({ kind: 'POST', id: 'p1' });
   });
 
-  it('returns an opaque query-bound cursor and applies its global boundary', async () => {
+  it('filters results by an explicit canonical kind set', async () => {
+    const { prisma, service } = createService();
+    prisma.message.findMany.mockResolvedValue([
+      { id: 'm1', conversationId: 'c1', content: 'hello message', createdAt: now }
+    ]);
+    prisma.post.findMany.mockResolvedValue([
+      { id: 'p1', content: 'hello post', updatedAt: now }
+    ]);
+
+    const result = await service.search(
+      'user-1',
+      'hello',
+      20,
+      undefined,
+      'post, MESSAGE,post'
+    );
+
+    expect(result.kinds).toEqual(['MESSAGE', 'POST']);
+    expect(result.items.map((item) => item.kind)).toEqual(['MESSAGE', 'POST']);
+  });
+
+  it('rejects unknown or empty explicit kind filters', async () => {
+    const { service } = createService();
+
+    await expect(
+      service.search('user-1', 'hello', 20, undefined, 'PROFILE')
+    ).rejects.toThrow('SEARCH_KIND_INVALID');
+    await expect(
+      service.search('user-1', 'hello', 20, undefined, ', ,')
+    ).rejects.toThrow('SEARCH_KIND_INVALID');
+  });
+
+  it('returns an opaque query-and-filter-bound cursor and applies its global boundary', async () => {
     const { prisma, service } = createService();
     prisma.message.findMany.mockResolvedValue([
       {
@@ -105,12 +138,18 @@ describe('SearchService', () => {
       }
     ]);
 
-    const first = await service.search('user-1', 'Hello', 1);
+    const first = await service.search('user-1', 'Hello', 1, undefined, 'MESSAGE');
     expect(first.nextCursor).toEqual(expect.any(String));
     expect(first.nextCursor).not.toContain('m1');
 
     prisma.message.findMany.mockResolvedValue([]);
-    await service.search('user-1', 'hello', 1, first.nextCursor ?? undefined);
+    await service.search(
+      'user-1',
+      'hello',
+      1,
+      first.nextCursor ?? undefined,
+      'MESSAGE'
+    );
 
     expect(prisma.message.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -121,7 +160,7 @@ describe('SearchService', () => {
     );
   });
 
-  it('rejects malformed cursors and cursors issued for another query', async () => {
+  it('rejects malformed cursors and cursors issued for another query or filter', async () => {
     const { prisma, service } = createService();
     prisma.message.findMany.mockResolvedValue([
       {
@@ -142,9 +181,24 @@ describe('SearchService', () => {
       'SEARCH_CURSOR_INVALID'
     );
 
-    const first = await service.search('user-1', 'hello', 1);
+    const first = await service.search('user-1', 'hello', 1, undefined, 'MESSAGE');
     await expect(
-      service.search('user-1', 'different', 1, first.nextCursor ?? undefined)
+      service.search(
+        'user-1',
+        'different',
+        1,
+        first.nextCursor ?? undefined,
+        'MESSAGE'
+      )
+    ).rejects.toThrow('SEARCH_CURSOR_INVALID');
+    await expect(
+      service.search(
+        'user-1',
+        'hello',
+        1,
+        first.nextCursor ?? undefined,
+        'POST'
+      )
     ).rejects.toThrow('SEARCH_CURSOR_INVALID');
   });
 });
