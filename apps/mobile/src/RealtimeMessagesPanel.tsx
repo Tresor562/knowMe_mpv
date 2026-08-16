@@ -46,6 +46,7 @@ type Conversation = {
 };
 type ConversationPinsResponse = {
   items: Array<{ conversationId: string }>;
+  limit: number;
 };
 type MessageHistory = {
   items: ConversationMessage[];
@@ -109,6 +110,8 @@ export function RealtimeMessagesPanel({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pinnedConversationIds, setPinnedConversationIds] = useState<Set<string>>(new Set());
+  const [pinLimit, setPinLimit] = useState<number | null>(null);
+  const [pinBusyId, setPinBusyId] = useState<string | null>(null);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [active, setActive] = useState<Conversation | null>(null);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
@@ -127,6 +130,11 @@ export function RealtimeMessagesPanel({
     activeRef.current = active;
   }, [active]);
 
+  const applyPinData = useCallback((pinData: ConversationPinsResponse) => {
+    setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
+    setPinLimit(pinData.limit);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const [conversationData, friendData, pinData] = await Promise.all([
@@ -136,13 +144,13 @@ export function RealtimeMessagesPanel({
       ]);
       setConversations(conversationData.map(normalizeConversation));
       setFriends(friendData);
-      setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
+      applyPinData(pinData);
     } catch (cause) {
       Alert.alert('Messages indisponibles', errorMessage(cause, 'Réessaie.'));
     } finally {
       setRefreshing(false);
     }
-  }, [setRefreshing]);
+  }, [applyPinData, setRefreshing]);
 
   useEffect(() => {
     void load();
@@ -401,6 +409,28 @@ export function RealtimeMessagesPanel({
     }
   }
 
+  async function toggleConversationPin(conversationId: string, pinned: boolean) {
+    if (pinBusyId) return;
+    if (!pinned && (pinLimit === null || pinnedConversationIds.size >= pinLimit)) {
+      return;
+    }
+
+    setPinBusyId(conversationId);
+    try {
+      await apiFetch(`/conversation-pins/${conversationId}`, {
+        method: pinned ? 'DELETE' : 'PUT'
+      });
+      applyPinData(await apiFetch<ConversationPinsResponse>('/conversation-pins'));
+    } catch (cause) {
+      Alert.alert(
+        pinned ? 'Désépinglage impossible' : 'Épinglage impossible',
+        errorMessage(cause, 'Réessaie.')
+      );
+    } finally {
+      setPinBusyId(null);
+    }
+  }
+
   function changeDraft(value: string) {
     setDraft(value);
     if (!active) return;
@@ -626,6 +656,7 @@ export function RealtimeMessagesPanel({
     (total, conversation) => total + conversation.unreadCount,
     0
   );
+  const pinAtCapacity = pinLimit !== null && pinnedConversationIds.size >= pinLimit;
   const orderedConversations = [...conversations].sort((left, right) => {
     const leftPinned = pinnedConversationIds.has(left.id);
     const rightPinned = pinnedConversationIds.has(right.id);
@@ -706,6 +737,11 @@ export function RealtimeMessagesPanel({
       <Text style={styles.sectionTitle}>
         Conversations · {totalUnread} non lu(s)
       </Text>
+      <Text style={styles.muted}>
+        {pinLimit === null
+          ? 'Capacité d’épinglage indisponible : les nouveaux épinglages restent désactivés.'
+          : `${pinnedConversationIds.size}/${pinLimit} conversation(s) épinglée(s).`}
+      </Text>
 
       {orderedConversations.map((conversation) => {
         const others = conversation.members.filter(
@@ -718,54 +754,64 @@ export function RealtimeMessagesPanel({
         const last = conversation.messages[0];
         const unread = conversation.unreadCount > 0;
         const pinned = pinnedConversationIds.has(conversation.id);
+        const pinBusy = pinBusyId === conversation.id;
         const online = !isNexus && others.some((member) =>
           onlineUserIds.has(member.user.id)
         );
 
         return (
-          <Pressable
+          <View
             key={conversation.id}
-            onPress={() => void openConversation(conversation)}
             style={[styles.card, unread && styles.unreadConversation]}
           >
-            <View style={styles.conversationTitleRow}>
-              <View style={[styles.conversationAvatar, isNexus && styles.nexusAvatar]}>
-                <Text style={styles.avatarText}>
-                  {isNexus ? '✦' : name.charAt(0).toUpperCase()}
-                </Text>
-                {!isNexus ? <View style={[
-                  styles.presenceDot,
-                  online ? styles.presenceOnline : styles.presenceOffline
-                ]} /> : null}
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.cardTitle}>{name}</Text>
-                <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
-                  {pinned ? '📌 épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
-                </Text>
-              </View>
-              {unread ? (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadBadgeText}>
-                    {conversation.unreadCount}
+            <Pressable
+              onPress={() => void openConversation(conversation)}
+              style={styles.conversationOpen}
+            >
+              <View style={styles.conversationTitleRow}>
+                <View style={[styles.conversationAvatar, isNexus && styles.nexusAvatar]}>
+                  <Text style={styles.avatarText}>
+                    {isNexus ? '✦' : name.charAt(0).toUpperCase()}
+                  </Text>
+                  {!isNexus ? <View style={[
+                    styles.presenceDot,
+                    online ? styles.presenceOnline : styles.presenceOffline
+                  ]} /> : null}
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.cardTitle}>{name}</Text>
+                  <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
+                    {pinned ? '📌 épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
                 </View>
-              ) : null}
-            </View>
-            <Text
-              style={[styles.muted, unread && styles.unreadPreview]}
-              numberOfLines={2}
-            >
-              {last
-                ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
-                : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
-            </Text>
-            {last ? (
-              <Text style={styles.date}>
-                {new Date(last.createdAt).toLocaleString('fr-FR')}
+                {unread ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>
+                      {conversation.unreadCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text
+                style={[styles.muted, unread && styles.unreadPreview]}
+                numberOfLines={2}
+              >
+                {last
+                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
+                  : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
               </Text>
-            ) : null}
-          </Pressable>
+              {last ? (
+                <Text style={styles.date}>
+                  {new Date(last.createdAt).toLocaleString('fr-FR')}
+                </Text>
+              ) : null}
+            </Pressable>
+            <SecondaryButton
+              title={pinBusy ? 'Mise à jour…' : pinned ? 'Désépingler' : 'Épingler'}
+              disabled={pinBusy || (!pinned && (pinLimit === null || pinAtCapacity))}
+              onPress={() => void toggleConversationPin(conversation.id, pinned)}
+            />
+          </View>
         );
       })}
 
@@ -914,6 +960,7 @@ const styles = StyleSheet.create({
     position: 'relative'
   },
   choiceLabel: { color: '#d9ebe4', fontSize: 11, maxWidth: 70 },
+  conversationOpen: { gap: 10 },
   conversationTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
