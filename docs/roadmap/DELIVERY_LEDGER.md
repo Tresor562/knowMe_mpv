@@ -9,7 +9,7 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 ## Convention
 
 - `KMB-###` : élément conceptuel du backlog historique (`IMPLEMENTATION_BACKLOG.md`).
-- `KMD-###` : livraison effectivement développée, validée par CI et fusionnée.
+- `KMD-###` : livraison effectivement développée, validée par CI et fusionnée, ou livraison explicitement en validation lorsqu'elle est listée dans la section correspondante.
 - les titres historiques des PR restent inchangés afin de préserver la traçabilité Git.
 - toute nouvelle PR majeure doit indiquer son identifiant `KMD-###`, sa phase produit et ses dépendances déjà fusionnées.
 
@@ -71,22 +71,27 @@ Les anciens documents ont utilisé plusieurs fois des labels comme `KM-013`, `KM
 | KMD-052 | Game Platform autoritaire | #94 | Fusionnée |
 | KMD-053 | Miroir d’affinité explicable | #95 | Fusionnée |
 | KMD-054 | Matchmaking social volontaire et non sensible | #96 | Fusionnée |
+| KMD-055 | Connexion sociale post-acceptation | #98 | Fusionnée |
+| KMD-056 | Tournois autoritaires à élimination directe | #99 | Fusionnée |
+| KMD-057 | Cycle de vie autoritaire et persistant des appels | #101 | Fusionnée |
+| KMD-058 | Configuration ICE et credentials TURN éphémères | #104 | Fusionnée |
 
-## Livraison en validation
+## Livraisons en validation
 
 | Livraison | Domaine | Pull request | État |
 | --- | --- | --- | --- |
-| KMD-055 | Connexion sociale post-acceptation | #98 | CI en validation |
+| KMD-059 | Disponibilité d’appel et préparation privée des appareils | #108 | Draft — CI automatisée verte, validation matérielle Web/iOS/Android requise |
+| KMD-060 | Liens courts sécurisés et deep links | #110 | Draft — validation CI et revue finale en cours |
 
 ## Prochaine livraison réservée
 
-Aucun identifiant après `KMD-055` n’est réservé à ce stade.
+Aucun identifiant après `KMD-060` n’est réservé à ce stade.
 
-Le prochain identifiant ne pourra être attribué qu’après la fusion de KMD-055 et la réconciliation du backlog restant avec les frontières juridiques, de sécurité et de produit. Le chantier Arena avec mises demeure explicitement bloqué tant que les règles d’âge, de territoire, de fraude, de litige et de conformité financière ne sont pas validées.
+Le prochain identifiant ne pourra être attribué qu’après validation de KMD-060 et inspection du `main` canonique, des PR ouvertes, de la CI et des dépendances restantes. KMD-059 conserve son périmètre indépendant tant que la matrice matérielle réelle n'est pas validée. Le chantier Arena avec mises demeure explicitement bloqué tant que les règles d’âge, de territoire, de fraude, de litige et de conformité financière ne sont pas validées.
 
 ## Frontières permanentes
 
-Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur, jeu, matchmaking ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
+Les rôles et badges Équipe KnowMe restent régis par RBAC et les comptes officiels. Aucun achat, cadeau, avatar, sticker, thème, notification, traduction, statut créateur, jeu, matchmaking, lien court ou webhook de paiement ne peut attribuer un rôle de staff, un badge Équipe KnowMe ou une permission administrative.
 
 Le statut créateur reste distinct de Premium, de la vérification d’identité et du rôle staff. Les compteurs d’audience ne peuvent pas modifier les permissions, la visibilité privée ou les décisions de modération.
 
@@ -97,6 +102,10 @@ Le Miroir d’affinité ne peut produire ni diagnostic, ni prédiction, ni recom
 Le matchmaking social ne peut utiliser ni réponse d’affinité, ni conversation privée, ni localisation précise, ni donnée sensible, ni score économique. Toute priorité payante et tout boost acheté sont interdits. Une mise en contact exige une acceptation mutuelle persistée.
 
 L’acceptation mutuelle d’un match ne crée jamais automatiquement une amitié ou une conversation. Chaque participant doit enregistrer une intention KMD-055 distincte et privée. Seule l’intersection mutuelle active peut créer ou réutiliser un objet social, et le choix détaillé du partenaire ne doit jamais être exposé.
+
+Les appels KMD-057 et KMD-058 ne persistent ni SDP, ni candidats ICE, ni adresses réseau de signalisation. Les secrets TURN restent exclusivement serveur. KMD-059 ne peut contourner les permissions micro/caméra du système ou demander un accès matériel silencieux.
+
+Les liens KMD-060 ne peuvent jamais devenir un redirecteur ouvert : les destinations sont allowlistées, les cibles privées sont réautorisées côté serveur à la création et les familles non raccordées à un modèle d’accès restent fermées.
 
 Les transports de notifications externes restent régis par KMD-046 et KMD-047. KMD-048 n’ajoute aucun second registre de jetons ou de fournisseurs.
 
