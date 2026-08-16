@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { getRealtimeSocket } from '../../../lib/realtime';
 
 const STANDARD_REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '🎉'] as const;
 
@@ -13,7 +14,14 @@ type ReactionSnapshot = {
   removed?: boolean;
 };
 
+type ReactionEvent = {
+  conversationId: string;
+  messageId: string;
+  reactions: Array<{ emoji: string; count: number }>;
+};
+
 export function MessageReactionControl({ messageId }: { messageId: string }) {
+  const socket = useMemo(() => getRealtimeSocket(), []);
   const [snapshot, setSnapshot] = useState<ReactionSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -30,6 +38,21 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const onReactions = (event: ReactionEvent) => {
+      if (event.messageId !== messageId) return;
+      setSnapshot((current) =>
+        current
+          ? { ...current, conversationId: event.conversationId, reactions: event.reactions }
+          : current
+      );
+    };
+    socket.on('message:reactions', onReactions);
+    return () => {
+      socket.off('message:reactions', onReactions);
+    };
+  }, [messageId, socket]);
 
   async function choose(emoji: string) {
     if (busy) return;
