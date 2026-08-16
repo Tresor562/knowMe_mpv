@@ -158,7 +158,7 @@ export function UniversalSearchExperience({
                 style={[
                   styles.filterButton,
                   { borderColor: selected ? colors.accent : colors.border },
-                  selected && { backgroundColor: colors.surfaceElevated }
+                  selected && { backgroundColor: colors.surfaceRaised }
                 ]}
               >
                 <Text style={{ color: selected ? colors.accent : colors.muted, fontWeight: '800' }}>
