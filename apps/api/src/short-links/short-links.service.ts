@@ -22,6 +22,11 @@ const CREATION_FLAG = 'short_links.creation';
 const MAX_EXPIRY_MS = 365 * 24 * 60 * 60 * 1_000;
 const MAX_CODE_ATTEMPTS = 5;
 
+type ShortLinkLifecycleDatabase = Pick<
+  Prisma.TransactionClient,
+  'shortLink' | 'shortLinkReceipt'
+>;
+
 type ShortLinkResponse = {
   id: string;
   code: string;
@@ -103,7 +108,15 @@ export class ShortLinksService {
         });
         return response;
       } catch (error) {
-        if (this.isUniqueConflict(error)) continue;
+        if (this.isUniqueConflict(error)) {
+          const replayAfterConflict = await this.readReceipt(
+            ownerId,
+            dto.idempotencyKey,
+            'CREATE'
+          );
+          if (replayAfterConflict) return replayAfterConflict;
+          continue;
+        }
         throw error;
       }
     }
@@ -150,6 +163,16 @@ export class ShortLinksService {
     if (!link) throw new NotFoundException('Lien introuvable.');
 
     const response = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.shortLinkReceipt.findUnique({
+        where: { ownerId_idempotencyKey: { ownerId, idempotencyKey } }
+      });
+      if (existing) {
+        if (existing.operation !== 'REVOKE') {
+          throw new ConflictException('Clé d’idempotence déjà utilisée.');
+        }
+        return existing.response as unknown as ShortLinkResponse;
+      }
+
       const updated = link.revokedAt
         ? link
         : await tx.shortLink.update({
@@ -184,7 +207,10 @@ export class ShortLinksService {
     });
   }
 
-  async deleteForAccount(ownerId: string, tx: Prisma.TransactionClient = this.prisma) {
+  async deleteForAccount(
+    ownerId: string,
+    tx: ShortLinkLifecycleDatabase = this.prisma
+  ) {
     await tx.shortLinkReceipt.deleteMany({ where: { ownerId } });
     await tx.shortLink.deleteMany({ where: { ownerId } });
   }
