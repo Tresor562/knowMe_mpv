@@ -17,6 +17,7 @@ import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { CommunitiesModule } from './communities/communities.module';
 import { ConceptKModule } from './concept-k/concept-k.module';
+import { ConversationArchivesModule } from './conversation-archives/conversation-archives.module';
 import { ConversationDraftsModule } from './conversation-drafts/conversation-drafts.module';
 import { ConversationFoldersModule } from './conversation-folders/conversation-folders.module';
 import { CosmeticsModule } from './cosmetics/cosmetics.module';
@@ -110,6 +111,7 @@ import { WalletModule } from './wallet/wallet.module';
     SavedMessagesModule,
     ConversationDraftsModule,
     ConversationFoldersModule,
+    ConversationArchivesModule,
     MessageReactionsModule,
     PostsModule,
     SearchModule,
