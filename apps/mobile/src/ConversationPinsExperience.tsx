@@ -9,7 +9,7 @@ type Pin = {
   pinnedAt: string;
 };
 
-type PinList = { items: Pin[]; limit?: number };
+type PinList = { items: Pin[]; limit: number };
 
 type Conversation = {
   id: string;
@@ -19,8 +19,6 @@ type Conversation = {
     user: { id: string; displayName: string; username: string };
   }>;
 };
-
-const DEFAULT_PIN_LIMIT = 5;
 
 export function ConversationPinsExperience({
   currentUserId,
@@ -32,7 +30,7 @@ export function ConversationPinsExperience({
   const { colors } = useAppearance();
   const [pins, setPins] = useState<Pin[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [limit, setLimit] = useState(DEFAULT_PIN_LIMIT);
+  const [limit, setLimit] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -44,7 +42,7 @@ export function ConversationPinsExperience({
         apiFetch<Conversation[]>('/conversations')
       ]);
       setPins(pinData.items);
-      setLimit(typeof pinData.limit === 'number' && pinData.limit > 0 ? pinData.limit : DEFAULT_PIN_LIMIT);
+      setLimit(pinData.limit);
       setConversations(conversationData);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
@@ -66,7 +64,7 @@ export function ConversationPinsExperience({
   }, [conversations, currentUserId]);
 
   const pinnedIds = useMemo(() => new Set(pins.map((pin) => pin.conversationId)), [pins]);
-  const atLimit = pins.length >= limit;
+  const atLimit = limit !== null && pins.length >= limit;
 
   async function pin(conversationId: string) {
     setBusyId(conversationId);
@@ -102,7 +100,7 @@ export function ConversationPinsExperience({
         Les épingles sont personnelles et ne changent jamais les membres, rôles ou permissions.
       </Text>
       <Text style={[styles.muted, { color: colors.muted }]}>
-        {pins.length}/{limit} épingle(s) utilisée(s).
+        {limit === null ? `${pins.length} épingle(s)` : `${pins.length}/${limit} épingle(s) utilisée(s).`}
       </Text>
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
@@ -137,8 +135,8 @@ export function ConversationPinsExperience({
       {!pins.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation épinglée.</Text> : null}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Autres conversations</Text>
-      {atLimit ? (
-        <Text style={[styles.muted, { color: colors.muted }]}>La limite est atteinte. Désépingle une conversation avant d'en ajouter une autre.</Text>
+      {atLimit && limit !== null ? (
+        <Text style={[styles.muted, { color: colors.muted }]}>La limite de {limit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.</Text>
       ) : null}
       {conversations.filter((conversation) => !pinnedIds.has(conversation.id)).map((conversation) => (
         <View key={conversation.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -146,12 +144,12 @@ export function ConversationPinsExperience({
             <Text style={[styles.cardTitle, { color: colors.text }]}>{names.get(conversation.id)}</Text>
           </Pressable>
           <Pressable
-            disabled={atLimit || busyId === conversation.id}
+            disabled={limit === null || atLimit || busyId === conversation.id}
             onPress={() => void pin(conversation.id)}
             style={[
               styles.primary,
               { backgroundColor: colors.accent },
-              (atLimit || busyId === conversation.id) && styles.disabled
+              (limit === null || atLimit || busyId === conversation.id) && styles.disabled
             ]}
           >
             <Text style={{ color: colors.accentText, fontWeight: '900' }}>
