@@ -25,7 +25,7 @@ export class ConversationPinsController {
   @Put('order')
   reorder(
     @Req() req: { user: { userId: string } },
-    @Body() body: { conversationIds?: unknown }
+    @Body() body: { conversationIds?: unknown; expectedConversationIds?: unknown }
   ) {
     if (
       !Array.isArray(body?.conversationIds) ||
@@ -33,7 +33,18 @@ export class ConversationPinsController {
     ) {
       throw new BadRequestException('CONVERSATION_PIN_ORDER_INVALID');
     }
-    return this.pins.reorder(req.user.userId, body.conversationIds as string[]);
+    if (
+      body.expectedConversationIds !== undefined &&
+      (!Array.isArray(body.expectedConversationIds) ||
+        body.expectedConversationIds.some((value) => typeof value !== 'string'))
+    ) {
+      throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_INVALID');
+    }
+    return this.pins.reorder(
+      req.user.userId,
+      body.conversationIds as string[],
+      body.expectedConversationIds as string[] | undefined
+    );
   }
 
   @Put(':conversationId')
