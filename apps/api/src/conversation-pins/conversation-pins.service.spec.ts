@@ -14,7 +14,8 @@ describe('ConversationPinsService', () => {
         findMany: jest.fn(),
         count: jest.fn(),
         create: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        deleteMany: jest.fn()
       }
     };
     const prisma = {
@@ -31,24 +32,31 @@ describe('ConversationPinsService', () => {
     return { prisma, tx };
   };
 
-  it('removes stale pins instead of treating a pin as authorization', async () => {
-    const { prisma } = makePrisma();
+  it('removes stale pins and compacts the remaining authoritative order', async () => {
+    const { prisma, tx } = makePrisma();
     prisma.conversationPin.findMany.mockResolvedValue([
       { userId: 'u1', conversationId: 'allowed', pinnedAt: new Date('2026-08-16T00:00:00Z'), position: 1 },
       { userId: 'u1', conversationId: 'stale', pinnedAt: new Date('2026-08-15T00:00:00Z'), position: 0 }
     ]);
     prisma.conversationMember.findMany.mockResolvedValue([{ conversationId: 'allowed' }]);
-    prisma.conversationPin.deleteMany.mockResolvedValue({ count: 1 });
+    tx.conversationPin.deleteMany.mockResolvedValue({ count: 1 });
+    tx.conversationPin.findMany.mockResolvedValue([{ conversationId: 'allowed', position: 1 }]);
+    tx.conversationPin.update.mockResolvedValue({});
 
     const service = new ConversationPinsService(prisma as never);
     const result = await service.list('u1');
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].conversationId).toBe('allowed');
+    expect(result.items[0]).toEqual(expect.objectContaining({ conversationId: 'allowed', position: 0 }));
     expect(result.remaining).toBe(4);
     expect(result.canPinMore).toBe(true);
-    expect(prisma.conversationPin.deleteMany).toHaveBeenCalledWith({
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.conversationPin.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'u1', conversationId: { in: ['stale'] } }
+    });
+    expect(tx.conversationPin.update).toHaveBeenCalledWith({
+      where: { userId_conversationId: { userId: 'u1', conversationId: 'allowed' } },
+      data: { position: 0 }
     });
   });
 
@@ -123,6 +131,41 @@ describe('ConversationPinsService', () => {
     await expect(service.pin('u1', 'c6')).rejects.toBeInstanceOf(ConflictException);
     expect(tx.$queryRaw).toHaveBeenCalled();
     expect(tx.conversationPin.create).not.toHaveBeenCalled();
+  });
+
+  it('compacts positions after unpin so the next pin cannot collide with a surviving position', async () => {
+    const { prisma, tx } = makePrisma();
+    tx.conversationPin.deleteMany.mockResolvedValue({ count: 1 });
+    tx.conversationPin.findMany.mockResolvedValue([
+      { conversationId: 'c5', position: 4 },
+      { conversationId: 'c4', position: 3 },
+      { conversationId: 'c2', position: 1 },
+      { conversationId: 'c1', position: 0 }
+    ]);
+    tx.conversationPin.update.mockResolvedValue({});
+    const service = new ConversationPinsService(prisma as never);
+
+    await expect(service.unpin('u1', 'c3')).resolves.toEqual({ unpinned: true });
+
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.conversationPin.update).toHaveBeenCalledWith({
+      where: { userId_conversationId: { userId: 'u1', conversationId: 'c5' } },
+      data: { position: 3 }
+    });
+    expect(tx.conversationPin.update).toHaveBeenCalledWith({
+      where: { userId_conversationId: { userId: 'u1', conversationId: 'c4' } },
+      data: { position: 2 }
+    });
+  });
+
+  it('does not rewrite positions when unpin is idempotently already absent', async () => {
+    const { prisma, tx } = makePrisma();
+    tx.conversationPin.deleteMany.mockResolvedValue({ count: 0 });
+    const service = new ConversationPinsService(prisma as never);
+
+    await expect(service.unpin('u1', 'missing')).resolves.toEqual({ unpinned: false });
+    expect(tx.conversationPin.findMany).not.toHaveBeenCalled();
+    expect(tx.conversationPin.update).not.toHaveBeenCalled();
   });
 
   it('reorders exactly the current pin set under the serialized user transaction', async () => {
