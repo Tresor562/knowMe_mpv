@@ -8,7 +8,11 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { ConversationArchivesExperience } from './ConversationArchivesExperience';
+import { ConversationFolderSearchExperience } from './ConversationFolderSearchExperience';
+import { ConversationFoldersExperience } from './ConversationFoldersExperience';
 import { ConversationOrganizationDetail } from './ConversationOrganizationDetail';
+import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 
 type Conversation = {
@@ -20,11 +24,40 @@ type Conversation = {
   }>;
 };
 
+type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins';
+
 type Props = {
   userId: string;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 };
+
+const organizationTools: Array<{
+  id: OrganizationTool;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: 'folders',
+    title: '🗂️ Dossiers privés',
+    description: 'Classe et déplace tes conversations dans tes dossiers personnels.'
+  },
+  {
+    id: 'search',
+    title: '🔎 Recherche dans les dossiers',
+    description: 'Retrouve localement un dossier ou une conversation déjà accessible.'
+  },
+  {
+    id: 'archives',
+    title: '📦 Archives personnelles',
+    description: 'Archive ou restaure une conversation sans modifier les droits du groupe.'
+  },
+  {
+    id: 'pins',
+    title: '📌 Conversations épinglées',
+    description: 'Gère tes raccourcis privés et leur ordre personnel.'
+  }
+];
 
 export function MessagesOrganizationExperience({
   userId,
@@ -32,6 +65,7 @@ export function MessagesOrganizationExperience({
   setRefreshing
 }: Props) {
   const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,13 +85,20 @@ export function MessagesOrganizationExperience({
 
   function openOrganization() {
     setOrganizationConversationId(null);
+    setOrganizationTool(null);
     setOrganizationOpen(true);
     void loadConversations();
   }
 
   function closeOrganization() {
     setOrganizationConversationId(null);
+    setOrganizationTool(null);
     setOrganizationOpen(false);
+  }
+
+  function openConversationFromTool(conversationId: string) {
+    setOrganizationTool(null);
+    setOrganizationConversationId(conversationId);
   }
 
   if (organizationConversationId) {
@@ -69,7 +110,7 @@ export function MessagesOrganizationExperience({
             onPress={() => setOrganizationConversationId(null)}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>← Conversations</Text>
+            <Text style={styles.secondaryText}>← Organisation</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -83,6 +124,54 @@ export function MessagesOrganizationExperience({
           conversationId={organizationConversationId}
           currentUserId={userId}
         />
+      </View>
+    );
+  }
+
+  if (organizationTool) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.toolbarPadded}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setOrganizationTool(null)}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.secondaryText}>← Organisation</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={closeOrganization}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.secondaryText}>Messages</Text>
+          </Pressable>
+        </View>
+
+        {organizationTool === 'folders' ? (
+          <ConversationFoldersExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'search' ? (
+          <ConversationFolderSearchExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'archives' ? (
+          <ConversationArchivesExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'pins' ? (
+          <ConversationPinsExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
       </View>
     );
   }
@@ -112,9 +201,27 @@ export function MessagesOrganizationExperience({
         </View>
 
         <Text style={styles.eyebrow}>ORGANISATION PRIVÉE</Text>
-        <Text style={styles.heading}>Mes conversations</Text>
+        <Text style={styles.heading}>Organiser mes conversations</Text>
         <Text style={styles.muted}>
-          Ouvre la vue personnelle d’une conversation sans modifier son contenu ni ses droits d’accès.
+          Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Outils personnels</Text>
+        {organizationTools.map((tool) => (
+          <Pressable
+            accessibilityRole="button"
+            key={tool.id}
+            onPress={() => setOrganizationTool(tool.id)}
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+          >
+            <Text style={styles.cardTitle}>{tool.title}</Text>
+            <Text style={styles.muted}>{tool.description}</Text>
+          </Pressable>
+        ))}
+
+        <Text style={styles.sectionTitle}>Par conversation</Text>
+        <Text style={styles.muted}>
+          Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son brouillon et ses messages enregistrés.
         </Text>
 
         {loading ? <ActivityIndicator color="#45e6bd" /> : null}
@@ -183,6 +290,7 @@ const styles = StyleSheet.create({
   organizationButtonText: { color: '#d9ebe4', fontWeight: '800' },
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   toolbar: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  toolbarPadded: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
   secondaryButton: {
     borderColor: '#315449',
     borderWidth: 1,
@@ -193,6 +301,7 @@ const styles = StyleSheet.create({
   secondaryText: { color: '#d9ebe4', fontWeight: '800' },
   eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },
   heading: { color: '#f4fff9', fontSize: 28, fontWeight: '900' },
+  sectionTitle: { color: '#d9ebe4', fontSize: 16, fontWeight: '900', marginTop: 6 },
   muted: { color: '#91a79e', lineHeight: 20 },
   error: { color: '#ff8f86', lineHeight: 20 },
   card: {
