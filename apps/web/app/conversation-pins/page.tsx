@@ -111,6 +111,7 @@ export default function ConversationPinsPage() {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= pins.length) return;
 
+    const expectedConversationIds = pins.map((pinItem) => pinItem.conversationId);
     const next = [...pins];
     [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
     setOrdering(true);
@@ -118,7 +119,10 @@ export default function ConversationPinsPage() {
     try {
       await apiFetch('/conversation-pins/order', {
         method: 'PUT',
-        body: JSON.stringify({ conversationIds: next.map((pinItem) => pinItem.conversationId) })
+        body: JSON.stringify({
+          conversationIds: next.map((pinItem) => pinItem.conversationId),
+          expectedConversationIds
+        })
       });
       await load();
     } catch (cause) {
