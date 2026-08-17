@@ -84,7 +84,7 @@ export class ConversationPinsService {
   async reorder(
     userId: string,
     conversationIds: string[],
-    expectedConversationIds: string[]
+    expectedConversationIds?: string[]
   ) {
     if (conversationIds.length > MAX_PINNED_CONVERSATIONS) {
       throw new BadRequestException('CONVERSATION_PIN_ORDER_TOO_LARGE');
@@ -92,11 +92,13 @@ export class ConversationPinsService {
     if (new Set(conversationIds).size !== conversationIds.length) {
       throw new BadRequestException('CONVERSATION_PIN_ORDER_DUPLICATE');
     }
-    if (expectedConversationIds.length > MAX_PINNED_CONVERSATIONS) {
-      throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_TOO_LARGE');
-    }
-    if (new Set(expectedConversationIds).size !== expectedConversationIds.length) {
-      throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_DUPLICATE');
+    if (expectedConversationIds) {
+      if (expectedConversationIds.length > MAX_PINNED_CONVERSATIONS) {
+        throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_TOO_LARGE');
+      }
+      if (new Set(expectedConversationIds).size !== expectedConversationIds.length) {
+        throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_DUPLICATE');
+      }
     }
 
     const memberships = await this.prisma.conversationMember.findMany({
@@ -124,10 +126,11 @@ export class ConversationPinsService {
       }
 
       if (
-        expectedConversationIds.length !== current.length ||
-        expectedConversationIds.some(
-          (conversationId, index) => current[index]?.conversationId !== conversationId
-        )
+        expectedConversationIds &&
+        (expectedConversationIds.length !== current.length ||
+          expectedConversationIds.some(
+            (conversationId, index) => current[index]?.conversationId !== conversationId
+          ))
       ) {
         throw new ConflictException('CONVERSATION_PIN_ORDER_STALE');
       }
