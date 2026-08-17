@@ -122,8 +122,13 @@ export function ConversationPinsExperience({
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= pins.length) return;
 
+    const currentPin = pins[index];
+    const targetPin = pins[targetIndex];
+    if (!currentPin || !targetPin) return;
+
     const next = [...pins];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    next[index] = targetPin;
+    next[targetIndex] = currentPin;
     setOrdering(true);
     setError('');
     try {
