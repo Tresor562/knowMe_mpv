@@ -34,16 +34,15 @@ export class ConversationPinsController {
       throw new BadRequestException('CONVERSATION_PIN_ORDER_INVALID');
     }
     if (
-      body.expectedConversationIds !== undefined &&
-      (!Array.isArray(body.expectedConversationIds) ||
-        body.expectedConversationIds.some((value) => typeof value !== 'string'))
+      !Array.isArray(body?.expectedConversationIds) ||
+      body.expectedConversationIds.some((value) => typeof value !== 'string')
     ) {
-      throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_INVALID');
+      throw new BadRequestException('CONVERSATION_PIN_EXPECTED_ORDER_REQUIRED');
     }
     return this.pins.reorder(
       req.user.userId,
       body.conversationIds as string[],
-      body.expectedConversationIds as string[] | undefined
+      body.expectedConversationIds as string[]
     );
   }
 
