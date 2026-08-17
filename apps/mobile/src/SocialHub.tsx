@@ -11,7 +11,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
-import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
+import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
 
 type UserSummary = {
   id: string;
@@ -77,7 +77,7 @@ export function SocialHub({ userId }: { userId: string }) {
         />
       )}
       {section === 'messages' && (
-        <RealtimeMessagesPanel
+        <MessagesOrganizationExperience
           userId={userId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
