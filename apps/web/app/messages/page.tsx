@@ -275,18 +275,28 @@ export default function MessagesPage() {
                 </div>
                 <small style={{color:'var(--muted)',textAlign:'right'}}>{last ? new Date(last.createdAt).toLocaleString('fr-FR') : ''}</small>
               </Link>
-              <button
-                type="button"
-                className="btn"
-                aria-pressed={pinned}
-                aria-label={pinned?`Désépingler ${name}`:`Épingler ${name}`}
-                title={pinned?'Désépingler':'Épingler'}
-                disabled={pinDisabled}
-                onClick={() => void togglePin(conversation.id)}
-                style={{minWidth:46}}
-              >
-                {pinBusyId===conversation.id?'…':pinned?'📌':'＋📌'}
-              </button>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <Link
+                  href={`/messages/${conversation.id}/organization`}
+                  className="btn"
+                  aria-label={`Voir l’organisation privée de ${name}`}
+                  title="Organisation privée"
+                >
+                  🗂️
+                </Link>
+                <button
+                  type="button"
+                  className="btn"
+                  aria-pressed={pinned}
+                  aria-label={pinned?`Désépingler ${name}`:`Épingler ${name}`}
+                  title={pinned?'Désépingler':'Épingler'}
+                  disabled={pinDisabled}
+                  onClick={() => void togglePin(conversation.id)}
+                  style={{minWidth:46}}
+                >
+                  {pinBusyId===conversation.id?'…':pinned?'📌':'＋📌'}
+                </button>
+              </div>
             </div>
           );
         })}
