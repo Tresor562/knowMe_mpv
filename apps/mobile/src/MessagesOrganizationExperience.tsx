@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { ConversationArchivesExperience } from './ConversationArchivesExperience';
+import { ConversationDraftsExperience } from './ConversationDraftsExperience';
 import { ConversationFolderSearchExperience } from './ConversationFolderSearchExperience';
 import { ConversationFoldersExperience } from './ConversationFoldersExperience';
 import { ConversationOrganizationDetail } from './ConversationOrganizationDetail';
@@ -25,7 +26,7 @@ type Conversation = {
   }>;
 };
 
-type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins' | 'saved';
+type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins' | 'saved' | 'drafts';
 
 type Props = {
   userId: string;
@@ -62,6 +63,11 @@ const organizationTools: Array<{
     id: 'saved',
     title: '🔖 Messages enregistrés',
     description: 'Retrouve et retire les messages que tu as enregistrés et qui restent accessibles.'
+  },
+  {
+    id: 'drafts',
+    title: '✍️ Brouillons synchronisés',
+    description: 'Retrouve tes brouillons personnels et rouvre leur conversation sans envoyer de message.'
   }
 ];
 
@@ -179,6 +185,12 @@ export function MessagesOrganizationExperience({
           />
         ) : null}
         {organizationTool === 'saved' ? <SavedMessagesExperience /> : null}
+        {organizationTool === 'drafts' ? (
+          <ConversationDraftsExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
       </View>
     );
   }
