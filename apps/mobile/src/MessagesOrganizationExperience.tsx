@@ -14,6 +14,7 @@ import { ConversationFoldersExperience } from './ConversationFoldersExperience';
 import { ConversationOrganizationDetail } from './ConversationOrganizationDetail';
 import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
+import { SavedMessagesExperience } from './SavedMessagesExperience';
 
 type Conversation = {
   id: string;
@@ -24,7 +25,7 @@ type Conversation = {
   }>;
 };
 
-type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins';
+type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins' | 'saved';
 
 type Props = {
   userId: string;
@@ -56,6 +57,11 @@ const organizationTools: Array<{
     id: 'pins',
     title: '📌 Conversations épinglées',
     description: 'Gère tes raccourcis privés et leur ordre personnel.'
+  },
+  {
+    id: 'saved',
+    title: '🔖 Messages enregistrés',
+    description: 'Retrouve et retire les messages que tu as enregistrés et qui restent accessibles.'
   }
 ];
 
@@ -172,6 +178,7 @@ export function MessagesOrganizationExperience({
             onOpenConversation={openConversationFromTool}
           />
         ) : null}
+        {organizationTool === 'saved' ? <SavedMessagesExperience /> : null}
       </View>
     );
   }
