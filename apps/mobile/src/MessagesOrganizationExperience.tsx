@@ -8,6 +8,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { useAppearance } from './AppearanceProvider';
 import { ConversationArchivesExperience } from './ConversationArchivesExperience';
 import { ConversationDraftsExperience } from './ConversationDraftsExperience';
 import { ConversationFolderSearchExperience } from './ConversationFolderSearchExperience';
@@ -76,6 +77,7 @@ export function MessagesOrganizationExperience({
   refreshing,
   setRefreshing
 }: Props) {
+  const { colors } = useAppearance();
   const [organizationOpen, setOrganizationOpen] = useState(false);
   const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
@@ -113,23 +115,32 @@ export function MessagesOrganizationExperience({
     setOrganizationConversationId(conversationId);
   }
 
+  const rootStyle = [styles.root, { backgroundColor: colors.background }];
+  const secondaryButtonStyle = [styles.secondaryButton, { borderColor: colors.border }];
+  const secondaryTextStyle = [styles.secondaryText, { color: colors.text }];
+  const mutedStyle = [styles.muted, { color: colors.muted }];
+  const cardStyle = [
+    styles.card,
+    { backgroundColor: colors.surface, borderColor: colors.border }
+  ];
+
   if (organizationConversationId) {
     return (
-      <View style={styles.root}>
+      <View style={rootStyle}>
         <View style={styles.toolbar}>
           <Pressable
             accessibilityRole="button"
             onPress={() => setOrganizationConversationId(null)}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>← Organisation</Text>
+            <Text style={secondaryTextStyle}>← Organisation</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={closeOrganization}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>Messages</Text>
+            <Text style={secondaryTextStyle}>Messages</Text>
           </Pressable>
         </View>
         <ConversationOrganizationDetail
@@ -142,21 +153,21 @@ export function MessagesOrganizationExperience({
 
   if (organizationTool) {
     return (
-      <View style={styles.root}>
+      <View style={rootStyle}>
         <View style={styles.toolbarPadded}>
           <Pressable
             accessibilityRole="button"
             onPress={() => setOrganizationTool(null)}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>← Organisation</Text>
+            <Text style={secondaryTextStyle}>← Organisation</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={closeOrganization}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>Messages</Text>
+            <Text style={secondaryTextStyle}>Messages</Text>
           </Pressable>
         </View>
 
@@ -197,54 +208,54 @@ export function MessagesOrganizationExperience({
 
   if (organizationOpen) {
     return (
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
         <View style={styles.toolbar}>
           <Pressable
             accessibilityRole="button"
             onPress={closeOrganization}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.secondaryText}>← Messages</Text>
+            <Text style={secondaryTextStyle}>← Messages</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={loading}
             onPress={() => void loadConversations()}
             style={({ pressed }) => [
-              styles.secondaryButton,
+              secondaryButtonStyle,
               (pressed || loading) && styles.pressed
             ]}
           >
-            <Text style={styles.secondaryText}>Actualiser</Text>
+            <Text style={secondaryTextStyle}>Actualiser</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.eyebrow}>ORGANISATION PRIVÉE</Text>
-        <Text style={styles.heading}>Organiser mes conversations</Text>
-        <Text style={styles.muted}>
+        <Text style={[styles.eyebrow, { color: colors.accent }]}>ORGANISATION PRIVÉE</Text>
+        <Text style={[styles.heading, { color: colors.text }]}>Organiser mes conversations</Text>
+        <Text style={mutedStyle}>
           Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.
         </Text>
 
-        <Text style={styles.sectionTitle}>Outils personnels</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Outils personnels</Text>
         {organizationTools.map((tool) => (
           <Pressable
             accessibilityRole="button"
             key={tool.id}
             onPress={() => setOrganizationTool(tool.id)}
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+            style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
           >
-            <Text style={styles.cardTitle}>{tool.title}</Text>
-            <Text style={styles.muted}>{tool.description}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{tool.title}</Text>
+            <Text style={mutedStyle}>{tool.description}</Text>
           </Pressable>
         ))}
 
-        <Text style={styles.sectionTitle}>Par conversation</Text>
-        <Text style={styles.muted}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Par conversation</Text>
+        <Text style={mutedStyle}>
           Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son brouillon et ses messages enregistrés.
         </Text>
 
-        {loading ? <ActivityIndicator color="#45e6bd" /> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {loading ? <ActivityIndicator color={colors.accent} /> : null}
+        {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
 
         {conversations.map((conversation) => {
           const others = conversation.members.filter((member) => member.userId !== userId);
@@ -257,30 +268,34 @@ export function MessagesOrganizationExperience({
               accessibilityRole="button"
               key={conversation.id}
               onPress={() => setOrganizationConversationId(conversation.id)}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
             >
-              <Text style={styles.cardTitle}>{title}</Text>
-              <Text style={styles.muted}>🗂️ Voir l’organisation privée</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
+              <Text style={mutedStyle}>🗂️ Voir l’organisation privée</Text>
             </Pressable>
           );
         })}
 
         {!loading && !error && conversations.length === 0 ? (
-          <Text style={styles.muted}>Aucune conversation accessible.</Text>
+          <Text style={mutedStyle}>Aucune conversation accessible.</Text>
         ) : null}
       </ScrollView>
     );
   }
 
   return (
-    <View style={styles.root}>
+    <View style={rootStyle}>
       <View style={styles.entrypoint}>
         <Pressable
           accessibilityRole="button"
           onPress={openOrganization}
-          style={({ pressed }) => [styles.organizationButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.organizationButton,
+            { borderColor: colors.border },
+            pressed && styles.pressed
+          ]}
         >
-          <Text style={styles.organizationButtonText}>🗂️ Organisation privée</Text>
+          <Text style={[styles.organizationButtonText, { color: colors.text }]}>🗂️ Organisation privée</Text>
         </Pressable>
       </View>
       <View style={styles.messages}>
@@ -295,42 +310,38 @@ export function MessagesOrganizationExperience({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#071410' },
+  root: { flex: 1 },
   messages: { flex: 1 },
   entrypoint: { paddingHorizontal: 20, paddingTop: 10 },
   organizationButton: {
-    borderColor: '#315449',
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  organizationButtonText: { color: '#d9ebe4', fontWeight: '800' },
+  organizationButtonText: { fontWeight: '800' },
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   toolbar: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   toolbarPadded: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
   secondaryButton: {
-    borderColor: '#315449',
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 13
   },
-  secondaryText: { color: '#d9ebe4', fontWeight: '800' },
-  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },
-  heading: { color: '#f4fff9', fontSize: 28, fontWeight: '900' },
-  sectionTitle: { color: '#d9ebe4', fontSize: 16, fontWeight: '900', marginTop: 6 },
-  muted: { color: '#91a79e', lineHeight: 20 },
-  error: { color: '#ff8f86', lineHeight: 20 },
+  secondaryText: { fontWeight: '800' },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },
+  heading: { fontSize: 28, fontWeight: '900' },
+  sectionTitle: { fontSize: 16, fontWeight: '900', marginTop: 6 },
+  muted: { lineHeight: 20 },
+  error: { lineHeight: 20 },
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
     borderWidth: 1,
     borderRadius: 20,
     padding: 16,
     gap: 6
   },
-  cardTitle: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
+  cardTitle: { fontSize: 17, fontWeight: '800' },
   pressed: { opacity: 0.72 }
 });
