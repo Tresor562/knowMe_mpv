@@ -27,16 +27,26 @@ export class ConversationPinsService {
 
     const allowed = new Set(memberships.map((membership) => membership.conversationId));
     const stale = pins.filter((pin) => !allowed.has(pin.conversationId));
+    let items = pins.filter((pin) => allowed.has(pin.conversationId));
+
     if (stale.length) {
-      await this.prisma.conversationPin.deleteMany({
-        where: {
-          userId,
-          conversationId: { in: stale.map((pin) => pin.conversationId) }
-        }
+      const normalizedPositions = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw(Prisma.sql`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`);
+        await tx.conversationPin.deleteMany({
+          where: {
+            userId,
+            conversationId: { in: stale.map((pin) => pin.conversationId) }
+          }
+        });
+        return this.compactPositions(tx, userId);
       });
+
+      items = items.map((pin) => ({
+        ...pin,
+        position: normalizedPositions.get(pin.conversationId) ?? pin.position
+      }));
     }
 
-    const items = pins.filter((pin) => allowed.has(pin.conversationId));
     const remaining = Math.max(0, MAX_PINNED_CONVERSATIONS - items.length);
 
     return {
@@ -116,10 +126,41 @@ export class ConversationPinsService {
   }
 
   async unpin(userId: string, conversationId: string) {
-    const deleted = await this.prisma.conversationPin.deleteMany({
-      where: { userId, conversationId }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`);
+      const deleted = await tx.conversationPin.deleteMany({
+        where: { userId, conversationId }
+      });
+      if (deleted.count > 0) {
+        await this.compactPositions(tx, userId);
+      }
+      return { unpinned: deleted.count > 0 };
     });
-    return { unpinned: deleted.count > 0 };
+  }
+
+  private async compactPositions(tx: Prisma.TransactionClient, userId: string) {
+    const current = await tx.conversationPin.findMany({
+      where: { userId },
+      select: { conversationId: true, position: true },
+      orderBy: [{ position: 'desc' }, { pinnedAt: 'desc' }, { conversationId: 'asc' }]
+    });
+    const positions = new Map<string, number>();
+
+    await Promise.all(
+      current.map((pin, index) => {
+        const position = current.length - index - 1;
+        positions.set(pin.conversationId, position);
+        if (pin.position === position) {
+          return Promise.resolve(pin);
+        }
+        return tx.conversationPin.update({
+          where: { userId_conversationId: { userId, conversationId: pin.conversationId } },
+          data: { position }
+        });
+      })
+    );
+
+    return positions;
   }
 
   private async requireMembership(userId: string, conversationId: string) {
