@@ -197,12 +197,55 @@ describe('ConversationPinsService', () => {
     });
   });
 
-  it('rejects duplicate or oversized reorder payloads', async () => {
+  it('accepts a reorder when the optimistic baseline still matches the authoritative order', async () => {
+    const { prisma, tx } = makePrisma();
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { conversationId: 'c1' },
+      { conversationId: 'c2' },
+      { conversationId: 'c3' }
+    ]);
+    tx.conversationPin.findMany.mockResolvedValue([
+      { conversationId: 'c1' },
+      { conversationId: 'c2' },
+      { conversationId: 'c3' }
+    ]);
+    tx.conversationPin.update.mockResolvedValue({});
+    const service = new ConversationPinsService(prisma as never);
+
+    await expect(
+      service.reorder('u1', ['c3', 'c1', 'c2'], ['c1', 'c2', 'c3'])
+    ).resolves.toEqual({ reordered: true, conversationIds: ['c3', 'c1', 'c2'] });
+    expect(tx.conversationPin.update).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects a stale same-set reorder when another client changed the authoritative order', async () => {
+    const { prisma, tx } = makePrisma();
+    prisma.conversationMember.findMany.mockResolvedValue([
+      { conversationId: 'c1' },
+      { conversationId: 'c2' },
+      { conversationId: 'c3' }
+    ]);
+    tx.conversationPin.findMany.mockResolvedValue([
+      { conversationId: 'c2' },
+      { conversationId: 'c1' },
+      { conversationId: 'c3' }
+    ]);
+    const service = new ConversationPinsService(prisma as never);
+
+    await expect(
+      service.reorder('u1', ['c3', 'c1', 'c2'], ['c1', 'c2', 'c3'])
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.conversationPin.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate or oversized reorder payloads and malformed optimistic baselines', async () => {
     const { prisma } = makePrisma();
     const service = new ConversationPinsService(prisma as never);
 
     await expect(service.reorder('u1', ['c1', 'c1'])).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.reorder('u1', ['1', '2', '3', '4', '5', '6'])).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.reorder('u1', ['c1'], ['c1', 'c1'])).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.reorder('u1', ['c1'], ['1', '2', '3', '4', '5', '6'])).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
