@@ -45,6 +45,11 @@ export function ConversationPinsExperience({
 
   const load = useCallback(async () => {
     setError('');
+    setPins([]);
+    setConversations([]);
+    setLimit(null);
+    setRemaining(null);
+    setCanPinMore(null);
     try {
       const [pinData, conversationData] = await Promise.all([
         apiFetch<PinList>('/conversation-pins'),
@@ -56,6 +61,8 @@ export function ConversationPinsExperience({
       setCanPinMore(pinData.canPinMore);
       setConversations(conversationData);
     } catch (cause) {
+      setPins([]);
+      setConversations([]);
       setLimit(null);
       setRemaining(null);
       setCanPinMore(null);
@@ -208,7 +215,7 @@ export function ConversationPinsExperience({
           </View>
         </View>
       ))}
-      {!pins.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation épinglée.</Text> : null}
+      {!error && !pins.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation épinglée.</Text> : null}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Autres conversations</Text>
       {capacityKnown && !canPinMore ? (
