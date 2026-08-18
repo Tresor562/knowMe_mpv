@@ -133,7 +133,9 @@ export function MessagesOrganizationExperience({
       });
 
       if ([foldersResult, archivesResult, pinsResult, draftsResult].some((result) => result.status === 'rejected')) {
-        setOverviewWarning('Certains compteurs personnels sont momentanément indisponibles. Les conversations restent accessibles.');
+        setOverviewWarning(
+          'Certains compteurs personnels sont momentanément indisponibles. Les conversations restent accessibles.'
+        );
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
@@ -178,14 +180,26 @@ export function MessagesOrganizationExperience({
     return (
       <View style={rootStyle}>
         <View style={styles.toolbar}>
-          <Pressable accessibilityRole="button" onPress={() => setOrganizationConversationId(null)} style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setOrganizationConversationId(null)}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+          >
             <Text style={secondaryTextStyle}>← Organisation</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={closeOrganization} style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={closeOrganization}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+          >
             <Text style={secondaryTextStyle}>Messages</Text>
           </Pressable>
         </View>
-        <ConversationOrganizationDetail conversationId={organizationConversationId} currentUserId={userId} onOpenTool={openToolFromConversation} />
+        <ConversationOrganizationDetail
+          conversationId={organizationConversationId}
+          currentUserId={userId}
+          onOpenTool={openToolFromConversation}
+        />
       </View>
     );
   }
@@ -194,20 +208,59 @@ export function MessagesOrganizationExperience({
     return (
       <View style={rootStyle}>
         <View style={styles.toolbarPadded}>
-          <Pressable accessibilityRole="button" onPress={() => setOrganizationTool(null)} style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setOrganizationTool(null)}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+          >
             <Text style={secondaryTextStyle}>← Organisation</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={closeOrganization} style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={closeOrganization}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+          >
             <Text style={secondaryTextStyle}>Messages</Text>
           </Pressable>
         </View>
-        {organizationTool === 'folders' ? <ConversationFoldersExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
-        {organizationTool === 'search' ? <ConversationFolderSearchExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
-        {organizationTool === 'archives' ? <ConversationArchivesExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
-        {organizationTool === 'archiveTimeline' ? <ConversationArchiveTimelineExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
-        {organizationTool === 'pins' ? <ConversationPinsExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
+
+        {organizationTool === 'folders' ? (
+          <ConversationFoldersExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'search' ? (
+          <ConversationFolderSearchExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'archives' ? (
+          <ConversationArchivesExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'archiveTimeline' ? (
+          <ConversationArchiveTimelineExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'pins' ? (
+          <ConversationPinsExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
         {organizationTool === 'saved' ? <SavedMessagesExperience /> : null}
-        {organizationTool === 'drafts' ? <ConversationDraftsExperience currentUserId={userId} onOpenConversation={openConversationFromTool} /> : null}
+        {organizationTool === 'drafts' ? (
+          <ConversationDraftsExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
       </View>
     );
   }
@@ -216,17 +269,31 @@ export function MessagesOrganizationExperience({
     return (
       <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
         <View style={styles.toolbar}>
-          <Pressable accessibilityRole="button" onPress={closeOrganization} style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={closeOrganization}
+            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+          >
             <Text style={secondaryTextStyle}>← Messages</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={loading} onPress={() => void loadOrganization()} style={({ pressed }) => [secondaryButtonStyle, (pressed || loading) && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={loading}
+            onPress={() => void loadOrganization()}
+            style={({ pressed }) => [
+              secondaryButtonStyle,
+              (pressed || loading) && styles.pressed
+            ]}
+          >
             <Text style={secondaryTextStyle}>Actualiser</Text>
           </Pressable>
         </View>
 
         <Text style={[styles.eyebrow, { color: colors.accent }]}>ORGANISATION PRIVÉE</Text>
         <Text style={[styles.heading, { color: colors.text }]}>Organiser mes conversations</Text>
-        <Text style={mutedStyle}>Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.</Text>
+        <Text style={mutedStyle}>
+          Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.
+        </Text>
 
         {overview ? (
           <View style={styles.overviewGrid}>
@@ -237,42 +304,66 @@ export function MessagesOrganizationExperience({
               ['Épingles', overview.pins],
               ['Brouillons', overview.drafts]
             ].map(([label, count]) => (
-              <View key={String(label)} style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.overviewCount, { color: colors.text }]}>{count === null ? '—' : String(count)}</Text>
+              <View
+                key={String(label)}
+                style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={[styles.overviewCount, { color: colors.text }]}>
+                  {count === null ? '—' : String(count)}
+                </Text>
                 <Text style={[styles.overviewLabel, { color: colors.muted }]}>{String(label)}</Text>
               </View>
             ))}
           </View>
         ) : null}
 
-        {overviewWarning ? <Text style={[styles.warning, { color: colors.muted }]}>{overviewWarning}</Text> : null}
+        {overviewWarning ? (
+          <Text style={[styles.warning, { color: colors.muted }]}>{overviewWarning}</Text>
+        ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Outils personnels</Text>
         {organizationTools.map((tool) => (
-          <Pressable accessibilityRole="button" key={tool.id} onPress={() => setOrganizationTool(tool.id)} style={({ pressed }) => [cardStyle, pressed && styles.pressed]}>
+          <Pressable
+            accessibilityRole="button"
+            key={tool.id}
+            onPress={() => setOrganizationTool(tool.id)}
+            style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
+          >
             <Text style={[styles.cardTitle, { color: colors.text }]}>{tool.title}</Text>
             <Text style={mutedStyle}>{tool.description}</Text>
           </Pressable>
         ))}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Par conversation</Text>
-        <Text style={mutedStyle}>Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son épingle, son brouillon et ses messages enregistrés.</Text>
+        <Text style={mutedStyle}>
+          Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son épingle, son brouillon et ses messages enregistrés.
+        </Text>
 
         {loading ? <ActivityIndicator color={colors.accent} /> : null}
         {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
 
         {conversations.map((conversation) => {
           const others = conversation.members.filter((member) => member.userId !== userId);
-          const title = conversation.title || others.map((member) => member.user.displayName).join(', ') || 'Conversation';
+          const title = conversation.title || others
+            .map((member) => member.user.displayName)
+            .join(', ') || 'Conversation';
+
           return (
-            <Pressable accessibilityRole="button" key={conversation.id} onPress={() => setOrganizationConversationId(conversation.id)} style={({ pressed }) => [cardStyle, pressed && styles.pressed]}>
+            <Pressable
+              accessibilityRole="button"
+              key={conversation.id}
+              onPress={() => setOrganizationConversationId(conversation.id)}
+              style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
+            >
               <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
               <Text style={mutedStyle}>🗂️ Voir l’organisation privée</Text>
             </Pressable>
           );
         })}
 
-        {!loading && !error && conversations.length === 0 ? <Text style={mutedStyle}>Aucune conversation accessible.</Text> : null}
+        {!loading && !error && conversations.length === 0 ? (
+          <Text style={mutedStyle}>Aucune conversation accessible.</Text>
+        ) : null}
       </ScrollView>
     );
   }
@@ -280,12 +371,24 @@ export function MessagesOrganizationExperience({
   return (
     <View style={rootStyle}>
       <View style={styles.entrypoint}>
-        <Pressable accessibilityRole="button" onPress={openOrganization} style={({ pressed }) => [styles.organizationButton, { borderColor: colors.border }, pressed && styles.pressed]}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={openOrganization}
+          style={({ pressed }) => [
+            styles.organizationButton,
+            { borderColor: colors.border },
+            pressed && styles.pressed
+          ]}
+        >
           <Text style={[styles.organizationButtonText, { color: colors.text }]}>🗂️ Organisation privée</Text>
         </Pressable>
       </View>
       <View style={styles.messages}>
-        <RealtimeMessagesPanel userId={userId} refreshing={refreshing} setRefreshing={setRefreshing} />
+        <RealtimeMessagesPanel
+          userId={userId}
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
       </View>
     </View>
   );
@@ -295,12 +398,23 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   messages: { flex: 1 },
   entrypoint: { paddingHorizontal: 20, paddingTop: 10 },
-  organizationButton: { borderWidth: 1, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, alignItems: 'center' },
+  organizationButton: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: 'center'
+  },
   organizationButtonText: { fontWeight: '800' },
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   toolbar: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   toolbarPadded: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
-  secondaryButton: { borderWidth: 1, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13 },
+  secondaryButton: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 13
+  },
   secondaryText: { fontWeight: '800' },
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },
   heading: { fontSize: 28, fontWeight: '900' },
@@ -309,10 +423,22 @@ const styles = StyleSheet.create({
   warning: { lineHeight: 20, fontStyle: 'italic' },
   error: { lineHeight: 20 },
   overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  overviewCard: { minWidth: 96, flexGrow: 1, borderWidth: 1, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
+  overviewCard: {
+    minWidth: 96,
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14
+  },
   overviewCount: { fontSize: 20, fontWeight: '900' },
   overviewLabel: { marginTop: 2, fontSize: 12, fontWeight: '700' },
-  card: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 6 },
+  card: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
+    gap: 6
+  },
   cardTitle: { fontSize: 17, fontWeight: '800' },
   pressed: { opacity: 0.72 }
 });
