@@ -46,6 +46,8 @@ export function ConversationDraftsExperience({
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    setDrafts([]);
+    setConversations([]);
     try {
       const [draftResponse, conversationResponse] = await Promise.all([
         apiFetch<ConversationDraftList>('/conversation-drafts'),
@@ -54,6 +56,8 @@ export function ConversationDraftsExperience({
       setDrafts(draftResponse.items.filter((draft) => draft.content.trim().length > 0));
       setConversations(conversationResponse);
     } catch (cause) {
+      setDrafts([]);
+      setConversations([]);
       setError(cause instanceof Error ? cause.message : 'Brouillons indisponibles.');
     } finally {
       setLoading(false);
