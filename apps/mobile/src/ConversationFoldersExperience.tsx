@@ -45,6 +45,8 @@ export function ConversationFoldersExperience({
 
   const load = useCallback(async () => {
     setError('');
+    setFolders([]);
+    setConversations([]);
     try {
       const [folderData, conversationData] = await Promise.all([
         apiFetch<FolderList>('/conversation-folders'),
@@ -53,6 +55,8 @@ export function ConversationFoldersExperience({
       setFolders(folderData.items);
       setConversations(conversationData);
     } catch (cause) {
+      setFolders([]);
+      setConversations([]);
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
     }
   }, []);
@@ -226,7 +230,7 @@ export function ConversationFoldersExperience({
         );
       })}
 
-      {!folders.length ? (
+      {!error && !folders.length ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.folderName, { color: colors.text }]}>Aucun dossier</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>Crée ton premier dossier pour organiser tes conversations.</Text>
