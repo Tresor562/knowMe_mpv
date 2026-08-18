@@ -40,6 +40,11 @@ export function ConversationDraftExperience({
   const load = useCallback(async () => {
     setStatus('loading');
     setError('');
+    setContent('');
+    setVersion(0);
+    loadedConversation.current = '';
+    onDraftChanged?.('');
+
     try {
       const response = await apiFetch<ConversationDraftList>('/conversation-drafts');
       const current = response.items.find((item) => item.conversationId === conversationId);
@@ -50,6 +55,10 @@ export function ConversationDraftExperience({
       onDraftChanged?.(nextContent);
       setStatus('ready');
     } catch (cause) {
+      setContent('');
+      setVersion(0);
+      loadedConversation.current = '';
+      onDraftChanged?.('');
       setError(cause instanceof Error ? cause.message : 'Brouillon indisponible.');
       setStatus('error');
     }
@@ -62,11 +71,17 @@ export function ConversationDraftExperience({
   function change(value: string) {
     setContent(value);
     onDraftChanged?.(value);
-    if (status === 'saved' || status === 'conflict') setStatus('ready');
+    if (status === 'saved') setStatus('ready');
   }
 
   async function save() {
-    if (loadedConversation.current !== conversationId || status === 'saving') return;
+    if (
+      loadedConversation.current !== conversationId ||
+      status === 'saving' ||
+      (status !== 'ready' && status !== 'saved')
+    ) {
+      return;
+    }
     setStatus('saving');
     setError('');
     try {
@@ -87,6 +102,7 @@ export function ConversationDraftExperience({
         setError('Le brouillon a changé sur un autre appareil. Recharge-le avant de réessayer.');
         setStatus('conflict');
       } else {
+        loadedConversation.current = '';
         setError(message);
         setStatus('error');
       }
@@ -94,7 +110,13 @@ export function ConversationDraftExperience({
   }
 
   async function remove() {
-    if (status === 'saving') return;
+    if (
+      loadedConversation.current !== conversationId ||
+      status === 'saving' ||
+      (status !== 'ready' && status !== 'saved')
+    ) {
+      return;
+    }
     setStatus('saving');
     setError('');
     try {
@@ -106,6 +128,7 @@ export function ConversationDraftExperience({
       onDraftChanged?.('');
       setStatus('ready');
     } catch (cause) {
+      loadedConversation.current = '';
       setError(cause instanceof Error ? cause.message : 'Suppression impossible.');
       setStatus('error');
     }
@@ -114,6 +137,9 @@ export function ConversationDraftExperience({
   if (status === 'loading') {
     return <ActivityIndicator color={colors.accent} />;
   }
+
+  const canMutate =
+    loadedConversation.current === conversationId && (status === 'ready' || status === 'saved');
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -128,13 +154,15 @@ export function ConversationDraftExperience({
       <TextInput
         value={content}
         onChangeText={change}
+        editable={status !== 'error' && status !== 'saving'}
         placeholder="Écris sans envoyer…"
         placeholderTextColor={colors.muted}
         multiline
         maxLength={8000}
         style={[
           styles.input,
-          { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }
+          { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
+          (status === 'error' || status === 'saving') && styles.disabled
         ]}
       />
       <Text style={[styles.counter, { color: colors.muted }]}>{content.length}/8000</Text>
@@ -146,15 +174,15 @@ export function ConversationDraftExperience({
 
       <View style={styles.actions}>
         <Pressable
-          disabled={status === 'saving'}
+          disabled={!canMutate}
           onPress={() => void save()}
-          style={[styles.primary, { backgroundColor: colors.accent }, status === 'saving' && styles.disabled]}
+          style={[styles.primary, { backgroundColor: colors.accent }, !canMutate && styles.disabled]}
         >
           <Text style={{ color: colors.accentText, fontWeight: '900' }}>
             {status === 'saving' ? 'Synchronisation…' : 'Synchroniser'}
           </Text>
         </Pressable>
-        {status === 'conflict' ? (
+        {status === 'conflict' || status === 'error' ? (
           <Pressable
             onPress={() => void load()}
             style={[styles.secondary, { borderColor: colors.border }]}
@@ -163,12 +191,12 @@ export function ConversationDraftExperience({
           </Pressable>
         ) : null}
         <Pressable
-          disabled={status === 'saving' || (version === 0 && content.length === 0)}
+          disabled={!canMutate || (version === 0 && content.length === 0)}
           onPress={() => void remove()}
           style={[
             styles.secondary,
             { borderColor: colors.border },
-            (status === 'saving' || (version === 0 && content.length === 0)) && styles.disabled
+            (!canMutate || (version === 0 && content.length === 0)) && styles.disabled
           ]}
         >
           <Text style={{ color: colors.text, fontWeight: '800' }}>Effacer</Text>
