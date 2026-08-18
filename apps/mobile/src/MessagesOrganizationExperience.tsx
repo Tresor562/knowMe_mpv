@@ -138,6 +138,10 @@ export function MessagesOrganizationExperience({
         );
       }
     } catch (cause) {
+      setConversations([]);
+      setOverview(null);
+      setOverviewWarning('');
+      setOrganizationConversationId(null);
       setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
     } finally {
       setLoading(false);
