@@ -14,7 +14,10 @@ import { ConversationArchivesExperience } from './ConversationArchivesExperience
 import { ConversationDraftsExperience } from './ConversationDraftsExperience';
 import { ConversationFolderSearchExperience } from './ConversationFolderSearchExperience';
 import { ConversationFoldersExperience } from './ConversationFoldersExperience';
-import { ConversationOrganizationDetail } from './ConversationOrganizationDetail';
+import {
+  ConversationOrganizationDetail,
+  type ConversationOrganizationTool
+} from './ConversationOrganizationDetail';
 import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 import { SavedMessagesExperience } from './SavedMessagesExperience';
@@ -121,6 +124,11 @@ export function MessagesOrganizationExperience({
     setOrganizationConversationId(conversationId);
   }
 
+  function openToolFromConversation(tool: ConversationOrganizationTool) {
+    setOrganizationConversationId(null);
+    setOrganizationTool(tool);
+  }
+
   const rootStyle = [styles.root, { backgroundColor: colors.background }];
   const secondaryButtonStyle = [styles.secondaryButton, { borderColor: colors.border }];
   const secondaryTextStyle = [styles.secondaryText, { color: colors.text }];
@@ -152,6 +160,7 @@ export function MessagesOrganizationExperience({
         <ConversationOrganizationDetail
           conversationId={organizationConversationId}
           currentUserId={userId}
+          onOpenTool={openToolFromConversation}
         />
       </View>
     );
