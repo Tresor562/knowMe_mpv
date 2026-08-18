@@ -40,16 +40,20 @@ export function SavedMessagesExperience({
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [authorityValid, setAuthorityValid] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     setItems([]);
+    setAuthorityValid(false);
     try {
       const response = await apiFetch<SavedMessagesResponse>('/saved-messages?limit=100');
       setItems(response.items);
+      setAuthorityValid(true);
     } catch (cause) {
       setItems([]);
+      setAuthorityValid(false);
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
       setLoading(false);
@@ -61,6 +65,8 @@ export function SavedMessagesExperience({
   }, [load]);
 
   async function remove(messageId: string) {
+    if (!authorityValid || busyId) return;
+
     setBusyId(messageId);
     setError('');
     try {
@@ -69,7 +75,13 @@ export function SavedMessagesExperience({
       });
       setItems((current) => current.filter((item) => item.messageId !== messageId));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Suppression impossible.');
+      setItems([]);
+      setAuthorityValid(false);
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Suppression impossible. Recharge les messages enregistrés avant de réessayer.'
+      );
     } finally {
       setBusyId(null);
     }
@@ -87,13 +99,19 @@ export function SavedMessagesExperience({
           <Text style={[styles.muted, { color: colors.muted }]}>
             {loading
               ? 'Chargement du lot récent…'
-              : `${items.length} référence${items.length > 1 ? 's' : ''} visible${items.length > 1 ? 's' : ''} dans le lot récent chargé.`}
+              : authorityValid
+                ? `${items.length} référence${items.length > 1 ? 's' : ''} visible${items.length > 1 ? 's' : ''} dans le lot récent chargé.`
+                : 'Autorité des messages enregistrés à revalider.'}
           </Text>
         </View>
         <Pressable
           onPress={() => void load()}
-          disabled={loading}
-          style={[styles.refreshButton, { borderColor: colors.border }, loading && styles.disabled]}
+          disabled={loading || busyId !== null}
+          style={[
+            styles.refreshButton,
+            { borderColor: colors.border },
+            (loading || busyId !== null) && styles.disabled
+          ]}
         >
           <Text style={{ color: colors.text, fontWeight: '800' }}>Actualiser</Text>
         </Pressable>
@@ -102,7 +120,7 @@ export function SavedMessagesExperience({
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <ActivityIndicator color={colors.accent} /> : null}
 
-      {!loading && !error && !items.length ? (
+      {!loading && !error && authorityValid && !items.length ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Aucune référence visible dans le lot récent</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
@@ -111,51 +129,57 @@ export function SavedMessagesExperience({
         </View>
       ) : null}
 
-      {items.map((item) => (
-        <View
-          key={item.messageId}
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
-          <View style={styles.authorRow}>
-            <View style={styles.authorCopy}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{item.message.sender.displayName}</Text>
-              <Text style={[styles.handle, { color: colors.muted }]}>@{item.message.sender.username}</Text>
-            </View>
-            <Text style={[styles.date, { color: colors.muted }]}>
-              {new Date(item.savedAt).toLocaleString()}
-            </Text>
-          </View>
-
-          <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
-          <Text style={[styles.date, { color: colors.muted }]}>
-            Message du {new Date(item.message.createdAt).toLocaleString()}
-            {item.message.editedAt ? ' · modifié' : ''}
-          </Text>
-
-          <View style={styles.actions}>
-            <Pressable
-              disabled={!onOpenMessage}
-              onPress={() => onOpenMessage?.(item.message.conversationId, item.message.id)}
-              style={[
-                styles.primaryButton,
-                { backgroundColor: colors.accent },
-                !onOpenMessage && styles.disabled
-              ]}
+      {authorityValid
+        ? items.map((item) => (
+            <View
+              key={item.messageId}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={{ color: colors.accentText, fontWeight: '900' }}>Ouvrir</Text>
-            </Pressable>
-            <Pressable
-              disabled={busyId === item.messageId}
-              onPress={() => void remove(item.messageId)}
-              style={[styles.secondaryButton, { borderColor: colors.border }, busyId === item.messageId && styles.disabled]}
-            >
-              <Text style={{ color: colors.text, fontWeight: '800' }}>
-                {busyId === item.messageId ? 'Suppression…' : 'Retirer'}
+              <View style={styles.authorRow}>
+                <View style={styles.authorCopy}>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>{item.message.sender.displayName}</Text>
+                  <Text style={[styles.handle, { color: colors.muted }]}>@{item.message.sender.username}</Text>
+                </View>
+                <Text style={[styles.date, { color: colors.muted }]}>
+                  {new Date(item.savedAt).toLocaleString()}
+                </Text>
+              </View>
+
+              <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
+              <Text style={[styles.date, { color: colors.muted }]}>
+                Message du {new Date(item.message.createdAt).toLocaleString()}
+                {item.message.editedAt ? ' · modifié' : ''}
               </Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
+
+              <View style={styles.actions}>
+                <Pressable
+                  disabled={!onOpenMessage || busyId !== null}
+                  onPress={() => onOpenMessage?.(item.message.conversationId, item.message.id)}
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: colors.accent },
+                    (!onOpenMessage || busyId !== null) && styles.disabled
+                  ]}
+                >
+                  <Text style={{ color: colors.accentText, fontWeight: '900' }}>Ouvrir</Text>
+                </Pressable>
+                <Pressable
+                  disabled={busyId !== null}
+                  onPress={() => void remove(item.messageId)}
+                  style={[
+                    styles.secondaryButton,
+                    { borderColor: colors.border },
+                    busyId !== null && styles.disabled
+                  ]}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '800' }}>
+                    {busyId === item.messageId ? 'Suppression…' : 'Retirer'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))
+        : null}
     </ScrollView>
   );
 }
