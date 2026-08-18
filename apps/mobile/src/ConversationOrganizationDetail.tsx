@@ -121,7 +121,7 @@ export function ConversationOrganizationDetail({
   const draft = drafts.find((item) => item.conversationId === conversationId);
   const archive = archives.find((item) => item.conversationId === conversationId);
   const pin = pins.find((item) => item.conversationId === conversationId);
-  const savedCount = saved.filter((item) => item.message.conversationId === conversationId).length;
+  const savedPreviewCount = saved.filter((item) => item.message.conversationId === conversationId).length;
 
   const unavailableTitle = 'Indisponible pour le moment';
   const cards: Array<{
@@ -173,9 +173,11 @@ export function ConversationOrganizationDetail({
     {
       tool: 'saved',
       eyebrow: 'MESSAGES ENREGISTRÉS',
-      title: availability.saved ? `🔖 ${savedCount}` : unavailableTitle,
+      title: availability.saved ? '🔖 Aperçu chargé' : unavailableTitle,
       detail: availability.saved
-        ? 'Références personnelles encore accessibles dans cette conversation.'
+        ? savedPreviewCount > 0
+          ? `${savedPreviewCount} référence${savedPreviewCount > 1 ? 's' : ''} visible${savedPreviewCount > 1 ? 's' : ''} dans le lot récent chargé. Ouvre l’outil pour consulter tes messages enregistrés accessibles.`
+          : 'Aucune référence de cette conversation dans le lot récent chargé. Ouvre l’outil pour consulter tes messages enregistrés accessibles.'
         : undefined,
       available: availability.saved
     }
