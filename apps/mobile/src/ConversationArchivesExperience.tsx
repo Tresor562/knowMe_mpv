@@ -37,10 +37,14 @@ export function ConversationArchivesExperience({
   const [archives, setArchives] = useState<Archive[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
+    setLoading(true);
+    setArchives([]);
+    setConversations([]);
     try {
       const [archiveData, conversationData] = await Promise.all([
         apiFetch<ArchiveList>('/conversation-archives'),
@@ -49,7 +53,11 @@ export function ConversationArchivesExperience({
       setArchives(archiveData.items);
       setConversations(conversationData);
     } catch (cause) {
+      setArchives([]);
+      setConversations([]);
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -114,6 +122,7 @@ export function ConversationArchivesExperience({
       </Text>
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+      {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Archivées</Text>
       {archives.map((archiveItem) => (
@@ -152,7 +161,7 @@ export function ConversationArchivesExperience({
           </View>
         </View>
       ))}
-      {!archives.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation archivée.</Text> : null}
+      {!loading && !error && !archives.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation archivée.</Text> : null}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Conversations actives</Text>
       {conversations.filter((conversation) => !archivedIds.has(conversation.id)).map((conversation) => (
