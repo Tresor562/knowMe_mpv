@@ -6,6 +6,7 @@ import { useAppearance } from './AppearanceProvider';
 type Folder = { id: string; name: string; conversationIds: string[] };
 type Draft = { conversationId: string; content: string; version: number; updatedAt: string };
 type Archive = { conversationId: string; archivedAt: string };
+type Pin = { conversationId: string; pinnedAt: string; position: number };
 type SavedMessage = {
   messageId: string;
   savedAt: string;
@@ -17,7 +18,7 @@ type Conversation = {
   members: Array<{ userId: string; user: { displayName: string; username: string } }>;
 };
 
-type Tool = 'folders' | 'archives' | 'drafts' | 'saved';
+type Tool = 'folders' | 'archives' | 'pins' | 'drafts' | 'saved';
 
 export function ConversationOrganizationDetail({
   conversationId,
@@ -32,6 +33,7 @@ export function ConversationOrganizationDetail({
   const [folders, setFolders] = useState<Folder[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [archives, setArchives] = useState<Archive[]>([]);
+  const [pins, setPins] = useState<Pin[]>([]);
   const [saved, setSaved] = useState<SavedMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,14 +45,16 @@ export function ConversationOrganizationDetail({
       apiFetch<{ items: Folder[] }>('/conversation-folders'),
       apiFetch<{ items: Draft[] }>('/conversation-drafts'),
       apiFetch<{ items: Archive[] }>('/conversation-archives'),
+      apiFetch<{ items: Pin[] }>('/conversation-pins'),
       apiFetch<{ items: SavedMessage[] }>('/saved-messages?limit=100'),
       apiFetch<Conversation[]>('/conversations')
     ])
-      .then(([folderData, draftData, archiveData, savedData, conversationData]) => {
+      .then(([folderData, draftData, archiveData, pinData, savedData, conversationData]) => {
         if (!active) return;
         setFolders(folderData.items);
         setDrafts(draftData.items);
         setArchives(archiveData.items);
+        setPins(pinData.items);
         setSaved(savedData.items);
         setConversations(conversationData);
       })
@@ -75,6 +79,7 @@ export function ConversationOrganizationDetail({
   const folder = folders.find((item) => item.conversationIds.includes(conversationId));
   const draft = drafts.find((item) => item.conversationId === conversationId);
   const archive = archives.find((item) => item.conversationId === conversationId);
+  const pin = pins.find((item) => item.conversationId === conversationId);
   const savedCount = saved.filter((item) => item.message.conversationId === conversationId).length;
 
   const cards: Array<{
@@ -93,6 +98,12 @@ export function ConversationOrganizationDetail({
       eyebrow: 'ARCHIVE',
       title: archive ? '📦 Archivée' : '📬 Active',
       detail: archive ? `Depuis ${new Date(archive.archivedAt).toLocaleString()}` : undefined
+    },
+    {
+      tool: 'pins',
+      eyebrow: 'ÉPINGLE',
+      title: pin ? `📌 Épinglée · position ${pin.position + 1}` : '📌 Non épinglée',
+      detail: pin ? `Depuis ${new Date(pin.pinnedAt).toLocaleString()}` : 'Raccourci privé non activé pour cette conversation.'
     },
     {
       tool: 'drafts',
