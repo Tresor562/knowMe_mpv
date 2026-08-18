@@ -32,6 +32,11 @@ export function ConversationArchiveTimelineExperience({
 
   useEffect(() => {
     let active = true;
+    setError('');
+    setLoading(true);
+    setArchives([]);
+    setConversations([]);
+
     Promise.all([
       apiFetch<{ items: Archive[] }>('/conversation-archives'),
       apiFetch<Conversation[]>('/conversations')
@@ -42,7 +47,10 @@ export function ConversationArchiveTimelineExperience({
         setConversations(conversationData);
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+        if (!active) return;
+        setArchives([]);
+        setConversations([]);
+        setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -50,7 +58,7 @@ export function ConversationArchiveTimelineExperience({
     return () => {
       active = false;
     };
-  }, []);
+  }, [currentUserId]);
 
   const names = useMemo(
     () =>
@@ -87,27 +95,29 @@ export function ConversationArchiveTimelineExperience({
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
 
-      {(['recent', 'week', 'older'] as GroupKey[]).map((key) => (
-        <View key={key} style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{GROUP_COPY[key]} ({groups[key].length})</Text>
-          {groups[key].map((archive) => (
-            <Pressable
-              key={archive.conversationId}
-              disabled={!onOpenConversation}
-              onPress={() => onOpenConversation?.(archive.conversationId)}
-              style={({ pressed }) => [
-                styles.card,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                pressed && styles.pressed
-              ]}
-            >
-              <Text style={[styles.title, { color: colors.text }]}>{names.get(archive.conversationId) ?? 'Conversation'}</Text>
-              <Text style={[styles.small, { color: colors.muted }]}>Archivée le {new Date(archive.archivedAt).toLocaleString()}</Text>
-            </Pressable>
-          ))}
-          {!groups[key].length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune archive dans cette période.</Text> : null}
-        </View>
-      ))}
+      {!loading && !error
+        ? (['recent', 'week', 'older'] as GroupKey[]).map((key) => (
+            <View key={key} style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{GROUP_COPY[key]} ({groups[key].length})</Text>
+              {groups[key].map((archive) => (
+                <Pressable
+                  key={archive.conversationId}
+                  disabled={!onOpenConversation}
+                  onPress={() => onOpenConversation?.(archive.conversationId)}
+                  style={({ pressed }) => [
+                    styles.card,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    pressed && styles.pressed
+                  ]}
+                >
+                  <Text style={[styles.title, { color: colors.text }]}>{names.get(archive.conversationId) ?? 'Conversation'}</Text>
+                  <Text style={[styles.small, { color: colors.muted }]}>Archivée le {new Date(archive.archivedAt).toLocaleString()}</Text>
+                </Pressable>
+              ))}
+              {!groups[key].length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune archive dans cette période.</Text> : null}
+            </View>
+          ))
+        : null}
     </ScrollView>
   );
 }
