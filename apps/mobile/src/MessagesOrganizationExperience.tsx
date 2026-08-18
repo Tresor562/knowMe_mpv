@@ -35,10 +35,10 @@ type CollectionResponse = { items: unknown[] };
 
 type OrganizationOverview = {
   conversations: number;
-  folders: number;
-  archives: number;
-  pins: number;
-  drafts: number;
+  folders: number | null;
+  archives: number | null;
+  pins: number | null;
+  drafts: number | null;
 };
 
 type OrganizationTool = 'folders' | 'search' | 'archives' | 'archiveTimeline' | 'pins' | 'saved' | 'drafts';
@@ -102,29 +102,41 @@ export function MessagesOrganizationExperience({
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [overview, setOverview] = useState<OrganizationOverview | null>(null);
+  const [overviewWarning, setOverviewWarning] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const loadOrganization = useCallback(async () => {
     setLoading(true);
     setError('');
+    setOverviewWarning('');
     try {
-      const [conversationData, folderData, archiveData, pinData, draftData] = await Promise.all([
-        apiFetch<Conversation[]>('/conversations'),
+      const conversationData = await apiFetch<Conversation[]>('/conversations');
+      setConversations(conversationData);
+
+      const [foldersResult, archivesResult, pinsResult, draftsResult] = await Promise.allSettled([
         apiFetch<CollectionResponse>('/conversation-folders'),
         apiFetch<CollectionResponse>('/conversation-archives'),
         apiFetch<CollectionResponse>('/conversation-pins'),
         apiFetch<CollectionResponse>('/conversation-drafts')
       ]);
 
-      setConversations(conversationData);
+      const countItems = (result: PromiseSettledResult<CollectionResponse>) =>
+        result.status === 'fulfilled' ? result.value.items.length : null;
+
       setOverview({
         conversations: conversationData.length,
-        folders: folderData.items.length,
-        archives: archiveData.items.length,
-        pins: pinData.items.length,
-        drafts: draftData.items.length
+        folders: countItems(foldersResult),
+        archives: countItems(archivesResult),
+        pins: countItems(pinsResult),
+        drafts: countItems(draftsResult)
       });
+
+      if ([foldersResult, archivesResult, pinsResult, draftsResult].some((result) => result.status === 'rejected')) {
+        setOverviewWarning(
+          'Certains compteurs personnels sont momentanément indisponibles. Les conversations restent accessibles.'
+        );
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
     } finally {
@@ -296,11 +308,17 @@ export function MessagesOrganizationExperience({
                 key={String(label)}
                 style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Text style={[styles.overviewCount, { color: colors.text }]}>{String(count)}</Text>
+                <Text style={[styles.overviewCount, { color: colors.text }]}>
+                  {count === null ? '—' : String(count)}
+                </Text>
                 <Text style={[styles.overviewLabel, { color: colors.muted }]}>{String(label)}</Text>
               </View>
             ))}
           </View>
+        ) : null}
+
+        {overviewWarning ? (
+          <Text style={[styles.warning, { color: colors.muted }]}>{overviewWarning}</Text>
         ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Outils personnels</Text>
@@ -402,6 +420,7 @@ const styles = StyleSheet.create({
   heading: { fontSize: 28, fontWeight: '900' },
   sectionTitle: { fontSize: 16, fontWeight: '900', marginTop: 6 },
   muted: { lineHeight: 20 },
+  warning: { lineHeight: 20, fontStyle: 'italic' },
   error: { lineHeight: 20 },
   overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   overviewCard: {
