@@ -31,6 +31,14 @@ const availableByDefault: OptionalAvailability = {
   saved: true
 };
 
+const unavailableByDefault: OptionalAvailability = {
+  folders: false,
+  archives: false,
+  pins: false,
+  drafts: false,
+  saved: false
+};
+
 export function ConversationOrganizationDetail({
   conversationId,
   currentUserId,
@@ -60,6 +68,12 @@ export function ConversationOrganizationDetail({
       setError('');
       setWarning('');
       setConversations([]);
+      setFolders([]);
+      setDrafts([]);
+      setArchives([]);
+      setPins([]);
+      setSaved([]);
+      setAvailability(unavailableByDefault);
 
       try {
         const conversationData = await apiFetch<Conversation[]>('/conversations');
@@ -98,6 +112,12 @@ export function ConversationOrganizationDetail({
       } catch (cause) {
         if (!active) return;
         setConversations([]);
+        setFolders([]);
+        setDrafts([]);
+        setArchives([]);
+        setPins([]);
+        setSaved([]);
+        setAvailability(unavailableByDefault);
         setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
       } finally {
         if (active) setLoading(false);
@@ -108,7 +128,7 @@ export function ConversationOrganizationDetail({
     return () => {
       active = false;
     };
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
   const conversation = conversations.find((item) => item.id === conversationId);
   const title = useMemo(() => {
