@@ -39,12 +39,14 @@ export function ConversationArchivesExperience({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [authorityValid, setAuthorityValid] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
     setLoading(true);
     setArchives([]);
     setConversations([]);
+    setAuthorityValid(false);
     try {
       const [archiveData, conversationData] = await Promise.all([
         apiFetch<ArchiveList>('/conversation-archives'),
@@ -52,9 +54,11 @@ export function ConversationArchivesExperience({
       ]);
       setArchives(archiveData.items);
       setConversations(conversationData);
+      setAuthorityValid(true);
     } catch (cause) {
       setArchives([]);
       setConversations([]);
+      setAuthorityValid(false);
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
       setLoading(false);
@@ -80,7 +84,16 @@ export function ConversationArchivesExperience({
     [archives]
   );
 
+  function invalidateAuthority(message: string) {
+    setArchives([]);
+    setConversations([]);
+    setAuthorityValid(false);
+    setError(message);
+  }
+
   async function archive(conversationId: string) {
+    if (!authorityValid || busyId) return;
+
     setBusyId(conversationId);
     setError('');
     try {
@@ -89,13 +102,19 @@ export function ConversationArchivesExperience({
       });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Archivage impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Archivage impossible. Recharge les conversations avant de réessayer.'
+      );
     } finally {
       setBusyId(null);
     }
   }
 
   async function restore(conversationId: string) {
+    if (!authorityValid || busyId) return;
+
     setBusyId(conversationId);
     setError('');
     try {
@@ -104,7 +123,11 @@ export function ConversationArchivesExperience({
       });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Restauration impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Restauration impossible. Recharge les conversations avant de réessayer.'
+      );
     } finally {
       setBusyId(null);
     }
@@ -123,74 +146,96 @@ export function ConversationArchivesExperience({
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Archivées</Text>
-      {archives.map((archiveItem) => (
-        <View
-          key={archiveItem.conversationId}
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      {!loading && !authorityValid ? (
+        <Pressable
+          disabled={busyId !== null}
+          onPress={() => void load()}
+          style={[
+            styles.secondary,
+            { borderColor: colors.border, alignSelf: 'flex-start' },
+            busyId !== null && styles.disabled
+          ]}
         >
-          <View style={styles.cardCopy}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {names.get(archiveItem.conversationId) ?? 'Conversation'}
-            </Text>
-            <Text style={[styles.small, { color: colors.muted }]}>Archivée le {new Date(archiveItem.archivedAt).toLocaleString()}</Text>
-          </View>
-          <View style={styles.actions}>
-            {onOpenConversation ? (
-              <Pressable
-                onPress={() => onOpenConversation(archiveItem.conversationId)}
-                style={[styles.secondary, { borderColor: colors.border }]}
-              >
-                <Text style={{ color: colors.text, fontWeight: '800' }}>Ouvrir</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              disabled={busyId === archiveItem.conversationId}
-              onPress={() => void restore(archiveItem.conversationId)}
-              style={[
-                styles.primary,
-                { backgroundColor: colors.accent },
-                busyId === archiveItem.conversationId && styles.disabled
-              ]}
+          <Text style={{ color: colors.text, fontWeight: '800' }}>Recharger</Text>
+        </Pressable>
+      ) : null}
+
+      {authorityValid ? (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Archivées</Text>
+          {archives.map((archiveItem) => (
+            <View
+              key={archiveItem.conversationId}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={{ color: colors.accentText, fontWeight: '900' }}>
-                {busyId === archiveItem.conversationId ? 'Restauration…' : 'Restaurer'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
-      {!loading && !error && !archives.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation archivée.</Text> : null}
+              <View style={styles.cardCopy}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  {names.get(archiveItem.conversationId) ?? 'Conversation'}
+                </Text>
+                <Text style={[styles.small, { color: colors.muted }]}>Archivée le {new Date(archiveItem.archivedAt).toLocaleString()}</Text>
+              </View>
+              <View style={styles.actions}>
+                {onOpenConversation ? (
+                  <Pressable
+                    disabled={busyId !== null}
+                    onPress={() => onOpenConversation(archiveItem.conversationId)}
+                    style={[
+                      styles.secondary,
+                      { borderColor: colors.border },
+                      busyId !== null && styles.disabled
+                    ]}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: '800' }}>Ouvrir</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  disabled={busyId !== null}
+                  onPress={() => void restore(archiveItem.conversationId)}
+                  style={[
+                    styles.primary,
+                    { backgroundColor: colors.accent },
+                    busyId !== null && styles.disabled
+                  ]}
+                >
+                  <Text style={{ color: colors.accentText, fontWeight: '900' }}>
+                    {busyId === archiveItem.conversationId ? 'Restauration…' : 'Restaurer'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+          {!loading && !error && !archives.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation archivée.</Text> : null}
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Conversations actives</Text>
-      {conversations.filter((conversation) => !archivedIds.has(conversation.id)).map((conversation) => (
-        <View
-          key={conversation.id}
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
-          <Pressable
-            disabled={!onOpenConversation}
-            onPress={() => onOpenConversation?.(conversation.id)}
-            style={styles.cardCopy}
-          >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{names.get(conversation.id)}</Text>
-          </Pressable>
-          <Pressable
-            disabled={busyId === conversation.id}
-            onPress={() => void archive(conversation.id)}
-            style={[
-              styles.secondary,
-              { borderColor: colors.border },
-              busyId === conversation.id && styles.disabled
-            ]}
-          >
-            <Text style={{ color: colors.text, fontWeight: '800' }}>
-              {busyId === conversation.id ? 'Archivage…' : 'Archiver'}
-            </Text>
-          </Pressable>
-        </View>
-      ))}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Conversations actives</Text>
+          {conversations.filter((conversation) => !archivedIds.has(conversation.id)).map((conversation) => (
+            <View
+              key={conversation.id}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Pressable
+                disabled={!onOpenConversation || busyId !== null}
+                onPress={() => onOpenConversation?.(conversation.id)}
+                style={[styles.cardCopy, busyId !== null && styles.disabled]}
+              >
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{names.get(conversation.id)}</Text>
+              </Pressable>
+              <Pressable
+                disabled={busyId !== null}
+                onPress={() => void archive(conversation.id)}
+                style={[
+                  styles.secondary,
+                  { borderColor: colors.border },
+                  busyId !== null && styles.disabled
+                ]}
+              >
+                <Text style={{ color: colors.text, fontWeight: '800' }}>
+                  {busyId === conversation.id ? 'Archivage…' : 'Archiver'}
+                </Text>
+              </Pressable>
+            </View>
+          ))}
+        </>
+      ) : null}
     </ScrollView>
   );
 }
