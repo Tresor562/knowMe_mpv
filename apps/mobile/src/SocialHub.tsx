@@ -40,6 +40,11 @@ export function SocialHub({ userId }: { userId: string }) {
   const [section, setSection] = useState<Section>('friends');
   const [refreshing, setRefreshing] = useState(false);
 
+  useEffect(() => {
+    setRefreshing(false);
+    setSection('friends');
+  }, [userId]);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -72,12 +77,14 @@ export function SocialHub({ userId }: { userId: string }) {
 
       {section === 'friends' && (
         <FriendsPanel
+          key={`friends:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
       )}
       {section === 'messages' && (
         <MessagesOrganizationExperience
+          key={`messages:${userId}`}
           userId={userId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
@@ -85,6 +92,7 @@ export function SocialHub({ userId }: { userId: string }) {
       )}
       {section === 'notifications' && (
         <NotificationsPanel
+          key={`notifications:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
