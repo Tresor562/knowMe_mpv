@@ -31,6 +31,16 @@ type Conversation = {
   }>;
 };
 
+type CollectionResponse = { items: unknown[] };
+
+type OrganizationOverview = {
+  conversations: number;
+  folders: number;
+  archives: number;
+  pins: number;
+  drafts: number;
+};
+
 type OrganizationTool = 'folders' | 'search' | 'archives' | 'archiveTimeline' | 'pins' | 'saved' | 'drafts';
 
 type Props = {
@@ -91,16 +101,32 @@ export function MessagesOrganizationExperience({
   const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [overview, setOverview] = useState<OrganizationOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const loadConversations = useCallback(async () => {
+  const loadOrganization = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      setConversations(await apiFetch<Conversation[]>('/conversations'));
+      const [conversationData, folderData, archiveData, pinData, draftData] = await Promise.all([
+        apiFetch<Conversation[]>('/conversations'),
+        apiFetch<CollectionResponse>('/conversation-folders'),
+        apiFetch<CollectionResponse>('/conversation-archives'),
+        apiFetch<CollectionResponse>('/conversation-pins'),
+        apiFetch<CollectionResponse>('/conversation-drafts')
+      ]);
+
+      setConversations(conversationData);
+      setOverview({
+        conversations: conversationData.length,
+        folders: folderData.items.length,
+        archives: archiveData.items.length,
+        pins: pinData.items.length,
+        drafts: draftData.items.length
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Conversations indisponibles.');
+      setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
     } finally {
       setLoading(false);
     }
@@ -110,7 +136,7 @@ export function MessagesOrganizationExperience({
     setOrganizationConversationId(null);
     setOrganizationTool(null);
     setOrganizationOpen(true);
-    void loadConversations();
+    void loadOrganization();
   }
 
   function closeOrganization() {
@@ -241,7 +267,7 @@ export function MessagesOrganizationExperience({
           <Pressable
             accessibilityRole="button"
             disabled={loading}
-            onPress={() => void loadConversations()}
+            onPress={() => void loadOrganization()}
             style={({ pressed }) => [
               secondaryButtonStyle,
               (pressed || loading) && styles.pressed
@@ -256,6 +282,26 @@ export function MessagesOrganizationExperience({
         <Text style={mutedStyle}>
           Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.
         </Text>
+
+        {overview ? (
+          <View style={styles.overviewGrid}>
+            {[
+              ['Conversations', overview.conversations],
+              ['Dossiers', overview.folders],
+              ['Archives', overview.archives],
+              ['Épingles', overview.pins],
+              ['Brouillons', overview.drafts]
+            ].map(([label, count]) => (
+              <View
+                key={String(label)}
+                style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              >
+                <Text style={[styles.overviewCount, { color: colors.text }]}>{String(count)}</Text>
+                <Text style={[styles.overviewLabel, { color: colors.muted }]}>{String(label)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Outils personnels</Text>
         {organizationTools.map((tool) => (
@@ -272,7 +318,7 @@ export function MessagesOrganizationExperience({
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Par conversation</Text>
         <Text style={mutedStyle}>
-          Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son brouillon et ses messages enregistrés.
+          Ouvre la vue personnelle d’une conversation pour retrouver son dossier, son état d’archive, son épingle, son brouillon et ses messages enregistrés.
         </Text>
 
         {loading ? <ActivityIndicator color={colors.accent} /> : null}
@@ -357,6 +403,17 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '900', marginTop: 6 },
   muted: { lineHeight: 20 },
   error: { lineHeight: 20 },
+  overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  overviewCard: {
+    minWidth: 96,
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14
+  },
+  overviewCount: { fontSize: 20, fontWeight: '900' },
+  overviewLabel: { marginTop: 2, fontSize: 12, fontWeight: '700' },
   card: {
     borderWidth: 1,
     borderRadius: 20,
