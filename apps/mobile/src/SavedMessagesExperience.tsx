@@ -44,10 +44,12 @@ export function SavedMessagesExperience({
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    setItems([]);
     try {
       const response = await apiFetch<SavedMessagesResponse>('/saved-messages?limit=100');
       setItems(response.items);
     } catch (cause) {
+      setItems([]);
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
       setLoading(false);
@@ -83,7 +85,9 @@ export function SavedMessagesExperience({
           <Text style={[styles.eyebrow, { color: colors.accent }]}>MESSAGERIE · PRIVÉ</Text>
           <Text style={[styles.heading, { color: colors.text }]}>Messages enregistrés</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            {items.length} message(s) encore accessibles.
+            {loading
+              ? 'Chargement du lot récent…'
+              : `${items.length} référence${items.length > 1 ? 's' : ''} visible${items.length > 1 ? 's' : ''} dans le lot récent chargé.`}
           </Text>
         </View>
         <Pressable
@@ -98,11 +102,11 @@ export function SavedMessagesExperience({
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <ActivityIndicator color={colors.accent} /> : null}
 
-      {!loading && !items.length ? (
+      {!loading && !error && !items.length ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Aucun message enregistré</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Aucune référence visible dans le lot récent</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            Un message devenu inaccessible n'est jamais reconstruit localement et disparaît de cette liste.
+            Ce résultat borné ne prouve pas qu’aucun autre message enregistré existe. Un message devenu inaccessible n'est jamais reconstruit localement.
           </Text>
         </View>
       ) : null}
