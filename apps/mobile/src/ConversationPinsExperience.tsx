@@ -41,15 +41,23 @@ export function ConversationPinsExperience({
   const [canPinMore, setCanPinMore] = useState<boolean | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [ordering, setOrdering] = useState(false);
+  const [authorityValid, setAuthorityValid] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setError('');
+  const clearAuthority = useCallback(() => {
     setPins([]);
     setConversations([]);
     setLimit(null);
     setRemaining(null);
     setCanPinMore(null);
+    setAuthorityValid(false);
+  }, []);
+
+  const load = useCallback(async () => {
+    setError('');
+    setLoading(true);
+    clearAuthority();
     try {
       const [pinData, conversationData] = await Promise.all([
         apiFetch<PinList>('/conversation-pins'),
@@ -60,15 +68,14 @@ export function ConversationPinsExperience({
       setRemaining(pinData.remaining);
       setCanPinMore(pinData.canPinMore);
       setConversations(conversationData);
+      setAuthorityValid(true);
     } catch (cause) {
-      setPins([]);
-      setConversations([]);
-      setLimit(null);
-      setRemaining(null);
-      setCanPinMore(null);
+      clearAuthority();
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [clearAuthority]);
 
   useEffect(() => {
     void load();
@@ -85,10 +92,16 @@ export function ConversationPinsExperience({
   }, [conversations, currentUserId]);
 
   const pinnedIds = useMemo(() => new Set(pins.map((pin) => pin.conversationId)), [pins]);
-  const capacityKnown = limit !== null && remaining !== null && canPinMore !== null;
+  const capacityKnown = authorityValid && limit !== null && remaining !== null && canPinMore !== null;
+  const mutationBusy = busyId !== null || ordering;
+
+  function invalidateAuthority(message: string) {
+    clearAuthority();
+    setError(message);
+  }
 
   async function pin(conversationId: string) {
-    if (ordering) return;
+    if (!authorityValid || mutationBusy) return;
     if (!capacityKnown || !canPinMore) {
       setError(
         capacityKnown
@@ -104,28 +117,37 @@ export function ConversationPinsExperience({
       await apiFetch(`/conversation-pins/${encodeURIComponent(conversationId)}`, { method: 'PUT' });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Épinglage impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Épinglage impossible. Recharge les conversations avant de réessayer.'
+      );
     } finally {
       setBusyId(null);
     }
   }
 
   async function unpin(conversationId: string) {
-    if (ordering) return;
+    if (!authorityValid || mutationBusy) return;
+
     setBusyId(conversationId);
     setError('');
     try {
       await apiFetch(`/conversation-pins/${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Désépinglage impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Désépinglage impossible. Recharge les conversations avant de réessayer.'
+      );
     } finally {
       setBusyId(null);
     }
   }
 
   async function movePin(index: number, direction: -1 | 1) {
-    if (ordering || busyId !== null) return;
+    if (!authorityValid || mutationBusy) return;
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= pins.length) return;
 
@@ -149,8 +171,11 @@ export function ConversationPinsExperience({
       });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Réorganisation impossible.');
-      await load();
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Réorganisation impossible. Recharge les conversations avant de réessayer.'
+      );
     } finally {
       setOrdering(false);
     }
@@ -163,84 +188,108 @@ export function ConversationPinsExperience({
       <Text style={[styles.muted, { color: colors.muted }]}>
         Les épingles et leur ordre sont personnels et ne changent jamais les membres, rôles ou permissions.
       </Text>
-      <Text style={[styles.muted, { color: colors.muted }]}>
-        {!capacityKnown
-          ? `${pins.length} épingle(s)`
-          : `${pins.length}/${limit} épingle(s) utilisée(s) · ${remaining} restante(s).`}
-      </Text>
+      {authorityValid ? (
+        <Text style={[styles.muted, { color: colors.muted }]}>
+          {!capacityKnown
+            ? 'Capacité d’épinglage indisponible.'
+            : `${pins.length}/${limit} épingle(s) utilisée(s) · ${remaining} restante(s).`}
+        </Text>
+      ) : null}
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Épinglées</Text>
-      <Text style={[styles.muted, { color: colors.muted }]}>Utilise les flèches pour définir l’ordre affiché. Le serveur reste l’autorité de l’ordre enregistré.</Text>
-      {pins.map((pinItem, index) => (
-        <View key={pinItem.conversationId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.cardCopy}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {names.get(pinItem.conversationId) ?? 'Conversation'}
-            </Text>
-            <Text style={[styles.small, { color: colors.muted }]}>Position {index + 1} · épinglée le {new Date(pinItem.pinnedAt).toLocaleString()}</Text>
-          </View>
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityLabel={`Monter ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
-              disabled={ordering || busyId !== null || index === 0}
-              onPress={() => void movePin(index, -1)}
-              style={[styles.secondary, { borderColor: colors.border }, (ordering || busyId !== null || index === 0) && styles.disabled]}
-            >
-              <Text style={{ color: colors.text, fontWeight: '800' }}>↑</Text>
-            </Pressable>
-            <Pressable
-              accessibilityLabel={`Descendre ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
-              disabled={ordering || busyId !== null || index === pins.length - 1}
-              onPress={() => void movePin(index, 1)}
-              style={[styles.secondary, { borderColor: colors.border }, (ordering || busyId !== null || index === pins.length - 1) && styles.disabled]}
-            >
-              <Text style={{ color: colors.text, fontWeight: '800' }}>↓</Text>
-            </Pressable>
-            {onOpenConversation ? (
-              <Pressable onPress={() => onOpenConversation(pinItem.conversationId)} style={[styles.secondary, { borderColor: colors.border }]}>
-                <Text style={{ color: colors.text, fontWeight: '800' }}>Ouvrir</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              disabled={ordering || busyId === pinItem.conversationId}
-              onPress={() => void unpin(pinItem.conversationId)}
-              style={[styles.secondary, { borderColor: colors.border }, (ordering || busyId === pinItem.conversationId) && styles.disabled]}
-            >
-              <Text style={{ color: colors.text, fontWeight: '800' }}>
-                {busyId === pinItem.conversationId ? 'Retrait…' : 'Désépingler'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
-      {!error && !pins.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation épinglée.</Text> : null}
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Autres conversations</Text>
-      {capacityKnown && !canPinMore ? (
-        <Text style={[styles.muted, { color: colors.muted }]}>La limite de {limit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.</Text>
+      {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
+      {!loading && !authorityValid ? (
+        <Pressable
+          disabled={mutationBusy}
+          onPress={() => void load()}
+          style={[styles.secondary, { borderColor: colors.border, alignSelf: 'flex-start' }, mutationBusy && styles.disabled]}
+        >
+          <Text style={{ color: colors.text, fontWeight: '800' }}>Recharger</Text>
+        </Pressable>
       ) : null}
-      {conversations.filter((conversation) => !pinnedIds.has(conversation.id)).map((conversation) => (
-        <View key={conversation.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Pressable disabled={!onOpenConversation} onPress={() => onOpenConversation?.(conversation.id)} style={styles.cardCopy}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{names.get(conversation.id)}</Text>
-          </Pressable>
-          <Pressable
-            disabled={ordering || !capacityKnown || !canPinMore || busyId === conversation.id}
-            onPress={() => void pin(conversation.id)}
-            style={[
-              styles.primary,
-              { backgroundColor: colors.accent },
-              (ordering || !capacityKnown || !canPinMore || busyId === conversation.id) && styles.disabled
-            ]}
-          >
-            <Text style={{ color: colors.accentText, fontWeight: '900' }}>
-              {busyId === conversation.id ? 'Épinglage…' : 'Épingler'}
-            </Text>
-          </Pressable>
-        </View>
-      ))}
+
+      {authorityValid ? (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Épinglées</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>Utilise les flèches pour définir l’ordre affiché. Le serveur reste l’autorité de l’ordre enregistré.</Text>
+          {pins.map((pinItem, index) => (
+            <View key={pinItem.conversationId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.cardCopy}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  {names.get(pinItem.conversationId) ?? 'Conversation'}
+                </Text>
+                <Text style={[styles.small, { color: colors.muted }]}>Position {index + 1} · épinglée le {new Date(pinItem.pinnedAt).toLocaleString()}</Text>
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityLabel={`Monter ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
+                  disabled={mutationBusy || index === 0}
+                  onPress={() => void movePin(index, -1)}
+                  style={[styles.secondary, { borderColor: colors.border }, (mutationBusy || index === 0) && styles.disabled]}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '800' }}>↑</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Descendre ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
+                  disabled={mutationBusy || index === pins.length - 1}
+                  onPress={() => void movePin(index, 1)}
+                  style={[styles.secondary, { borderColor: colors.border }, (mutationBusy || index === pins.length - 1) && styles.disabled]}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '800' }}>↓</Text>
+                </Pressable>
+                {onOpenConversation ? (
+                  <Pressable
+                    disabled={mutationBusy}
+                    onPress={() => onOpenConversation(pinItem.conversationId)}
+                    style={[styles.secondary, { borderColor: colors.border }, mutationBusy && styles.disabled]}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: '800' }}>Ouvrir</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  disabled={mutationBusy}
+                  onPress={() => void unpin(pinItem.conversationId)}
+                  style={[styles.secondary, { borderColor: colors.border }, mutationBusy && styles.disabled]}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '800' }}>
+                    {busyId === pinItem.conversationId ? 'Retrait…' : 'Désépingler'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+          {!pins.length ? <Text style={[styles.muted, { color: colors.muted }]}>Aucune conversation épinglée.</Text> : null}
+
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Autres conversations</Text>
+          {capacityKnown && !canPinMore ? (
+            <Text style={[styles.muted, { color: colors.muted }]}>La limite de {limit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.</Text>
+          ) : null}
+          {conversations.filter((conversation) => !pinnedIds.has(conversation.id)).map((conversation) => (
+            <View key={conversation.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Pressable
+                disabled={!onOpenConversation || mutationBusy}
+                onPress={() => onOpenConversation?.(conversation.id)}
+                style={[styles.cardCopy, mutationBusy && styles.disabled]}
+              >
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{names.get(conversation.id)}</Text>
+              </Pressable>
+              <Pressable
+                disabled={mutationBusy || !capacityKnown || !canPinMore}
+                onPress={() => void pin(conversation.id)}
+                style={[
+                  styles.primary,
+                  { backgroundColor: colors.accent },
+                  (mutationBusy || !capacityKnown || !canPinMore) && styles.disabled
+                ]}
+              >
+                <Text style={{ color: colors.accentText, fontWeight: '900' }}>
+                  {busyId === conversation.id ? 'Épinglage…' : 'Épingler'}
+                </Text>
+              </Pressable>
+            </View>
+          ))}
+        </>
+      ) : null}
     </ScrollView>
   );
 }
