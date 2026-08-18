@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -105,13 +105,19 @@ export function MessagesOrganizationExperience({
   const [overviewWarning, setOverviewWarning] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const authorityGeneration = useRef(0);
 
   const loadOrganization = useCallback(async () => {
+    const generation = ++authorityGeneration.current;
     setLoading(true);
     setError('');
     setOverviewWarning('');
+    setConversations([]);
+    setOverview(null);
+
     try {
       const conversationData = await apiFetch<Conversation[]>('/conversations');
+      if (generation !== authorityGeneration.current) return;
       setConversations(conversationData);
 
       const [foldersResult, archivesResult, pinsResult, draftsResult] = await Promise.allSettled([
@@ -120,6 +126,7 @@ export function MessagesOrganizationExperience({
         apiFetch<CollectionResponse>('/conversation-pins'),
         apiFetch<CollectionResponse>('/conversation-drafts')
       ]);
+      if (generation !== authorityGeneration.current) return;
 
       const countItems = (result: PromiseSettledResult<CollectionResponse>) =>
         result.status === 'fulfilled' ? result.value.items.length : null;
@@ -138,21 +145,36 @@ export function MessagesOrganizationExperience({
         );
       }
     } catch (cause) {
+      if (generation !== authorityGeneration.current) return;
       setConversations([]);
       setOverview(null);
       setOverviewWarning('');
       setOrganizationConversationId(null);
       setError(cause instanceof Error ? cause.message : 'Organisation indisponible.');
     } finally {
-      setLoading(false);
+      if (generation === authorityGeneration.current) setLoading(false);
     }
-  }, []);
+  }, [userId]);
+
+  useEffect(() => {
+    authorityGeneration.current += 1;
+    setOrganizationConversationId(null);
+    setOrganizationTool(null);
+    setConversations([]);
+    setOverview(null);
+    setOverviewWarning('');
+    setError('');
+    setLoading(false);
+
+    if (organizationOpen) {
+      void loadOrganization();
+    }
+  }, [userId, organizationOpen, loadOrganization]);
 
   function openOrganization() {
     setOrganizationConversationId(null);
     setOrganizationTool(null);
     setOrganizationOpen(true);
-    void loadOrganization();
   }
 
   function closeOrganization() {
