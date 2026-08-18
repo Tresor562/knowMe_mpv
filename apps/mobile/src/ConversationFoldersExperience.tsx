@@ -41,12 +41,20 @@ export function ConversationFoldersExperience({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [authorityValid, setAuthorityValid] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const clearAuthority = useCallback(() => {
+    setFolders([]);
+    setConversations([]);
+    setAuthorityValid(false);
+  }, []);
 
   const load = useCallback(async () => {
     setError('');
-    setFolders([]);
-    setConversations([]);
+    setLoading(true);
+    clearAuthority();
     try {
       const [folderData, conversationData] = await Promise.all([
         apiFetch<FolderList>('/conversation-folders'),
@@ -54,16 +62,18 @@ export function ConversationFoldersExperience({
       ]);
       setFolders(folderData.items);
       setConversations(conversationData);
+      setAuthorityValid(true);
     } catch (cause) {
-      setFolders([]);
-      setConversations([]);
+      clearAuthority();
       setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [clearAuthority]);
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, currentUserId]);
 
   const conversationNames = useMemo(() => {
     return new Map(
@@ -75,9 +85,14 @@ export function ConversationFoldersExperience({
     );
   }, [conversations, currentUserId]);
 
+  function invalidateAuthority(message: string) {
+    clearAuthority();
+    setError(message);
+  }
+
   async function createFolder() {
     const normalized = name.trim();
-    if (!normalized || busy) return;
+    if (!authorityValid || !normalized || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -88,14 +103,18 @@ export function ConversationFoldersExperience({
       setName('');
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Création impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Création impossible. Recharge les dossiers avant de réessayer.'
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function assign(folderId: string, conversationId: string) {
-    if (busy) return;
+    if (!authorityValid || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -105,14 +124,18 @@ export function ConversationFoldersExperience({
       );
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Classement impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Classement impossible. Recharge les dossiers avant de réessayer.'
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function unassign(conversationId: string) {
-    if (busy) return;
+    if (!authorityValid || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -121,21 +144,29 @@ export function ConversationFoldersExperience({
       });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Retrait impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Retrait impossible. Recharge les dossiers avant de réessayer.'
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function removeFolder(folderId: string) {
-    if (busy) return;
+    if (!authorityValid || busy) return;
     setBusy(true);
     setError('');
     try {
       await apiFetch(`/conversation-folders/${encodeURIComponent(folderId)}`, { method: 'DELETE' });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Suppression impossible.');
+      invalidateAuthority(
+        cause instanceof Error
+          ? cause.message
+          : 'Suppression impossible. Recharge les dossiers avant de réessayer.'
+      );
     } finally {
       setBusy(false);
     }
@@ -151,27 +182,40 @@ export function ConversationFoldersExperience({
       <Text style={[styles.heading, { color: colors.text }]}>Dossiers de conversations</Text>
       <Text style={[styles.muted, { color: colors.muted }]}>Ton classement reste privé et ne change jamais les membres d'une conversation.</Text>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          maxLength={40}
-          placeholder="Nouveau dossier"
-          placeholderTextColor={colors.muted}
-          style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-        />
-        <Pressable
-          disabled={busy || !name.trim()}
-          onPress={() => void createFolder()}
-          style={[styles.primary, { backgroundColor: colors.accent }, (busy || !name.trim()) && styles.disabled]}
-        >
-          <Text style={{ color: colors.accentText, fontWeight: '900' }}>Créer</Text>
-        </Pressable>
-      </View>
+      {authorityValid ? (
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            maxLength={40}
+            placeholder="Nouveau dossier"
+            placeholderTextColor={colors.muted}
+            editable={!busy}
+            style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+          />
+          <Pressable
+            disabled={busy || !name.trim()}
+            onPress={() => void createFolder()}
+            style={[styles.primary, { backgroundColor: colors.accent }, (busy || !name.trim()) && styles.disabled]}
+          >
+            <Text style={{ color: colors.accentText, fontWeight: '900' }}>Créer</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+      {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
+      {!loading && !authorityValid ? (
+        <Pressable
+          disabled={busy}
+          onPress={() => void load()}
+          style={[styles.secondary, { borderColor: colors.border, alignSelf: 'flex-start' }, busy && styles.disabled]}
+        >
+          <Text style={{ color: colors.text, fontWeight: '800' }}>Recharger</Text>
+        </Pressable>
+      ) : null}
 
-      {folders.map((folder) => {
+      {authorityValid ? folders.map((folder) => {
         const assigned = new Set(folders.flatMap((candidate) => candidate.conversationIds));
         const unassigned = conversations.filter((conversation) => !assigned.has(conversation.id));
         return (
@@ -193,9 +237,9 @@ export function ConversationFoldersExperience({
             {folder.conversationIds.map((conversationId) => (
               <View key={conversationId} style={styles.conversationRow}>
                 <Pressable
-                  disabled={!onOpenConversation}
+                  disabled={!onOpenConversation || busy}
                   onPress={() => onOpenConversation?.(conversationId)}
-                  style={styles.conversationLabel}
+                  style={[styles.conversationLabel, busy && styles.disabled]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '800' }}>
                     {conversationNames.get(conversationId) ?? 'Conversation'}
@@ -228,9 +272,9 @@ export function ConversationFoldersExperience({
             ) : null}
           </View>
         );
-      })}
+      }) : null}
 
-      {!error && !folders.length ? (
+      {authorityValid && !folders.length ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.folderName, { color: colors.text }]}>Aucun dossier</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>Crée ton premier dossier pour organiser tes conversations.</Text>
