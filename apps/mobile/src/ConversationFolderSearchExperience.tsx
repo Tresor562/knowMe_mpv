@@ -26,7 +26,11 @@ export function ConversationFolderSearchExperience({
 
   useEffect(() => {
     let active = true;
+    setError('');
     setLoading(true);
+    setFolders([]);
+    setConversations([]);
+
     Promise.all([
       apiFetch<{ items: Folder[] }>('/conversation-folders'),
       apiFetch<Conversation[]>('/conversations')
@@ -37,7 +41,10 @@ export function ConversationFolderSearchExperience({
         setConversations(conversationData);
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+        if (!active) return;
+        setFolders([]);
+        setConversations([]);
+        setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -45,7 +52,7 @@ export function ConversationFolderSearchExperience({
     return () => {
       active = false;
     };
-  }, []);
+  }, [currentUserId]);
 
   const labels = useMemo(
     () =>
@@ -74,6 +81,8 @@ export function ConversationFolderSearchExperience({
     );
   }, [folders, labels, query]);
 
+  const hasAuthoritativeResults = !loading && !error;
+
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
@@ -97,33 +106,37 @@ export function ConversationFolderSearchExperience({
       />
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
-      <Text style={[styles.muted, { color: colors.muted }]}>{filtered.length} résultat(s)</Text>
+      {hasAuthoritativeResults ? (
+        <Text style={[styles.muted, { color: colors.muted }]}>{filtered.length} résultat(s)</Text>
+      ) : null}
 
-      {filtered.map((folder) => (
-        <View
-          key={folder.id}
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
-          <Text style={[styles.title, { color: colors.text }]}>{folder.name}</Text>
-          <Text style={[styles.small, { color: colors.muted }]}>{folder.conversationIds.length} conversation(s)</Text>
-          <View style={styles.list}>
-            {folder.conversationIds.map((conversationId) => (
-              <Pressable
-                key={conversationId}
-                disabled={!onOpenConversation}
-                onPress={() => onOpenConversation?.(conversationId)}
-                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-              >
-                <Text style={{ color: colors.text }}>
-                  {labels.get(conversationId) ?? 'Conversation'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      ))}
+      {hasAuthoritativeResults
+        ? filtered.map((folder) => (
+            <View
+              key={folder.id}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Text style={[styles.title, { color: colors.text }]}>{folder.name}</Text>
+              <Text style={[styles.small, { color: colors.muted }]}>{folder.conversationIds.length} conversation(s)</Text>
+              <View style={styles.list}>
+                {folder.conversationIds.map((conversationId) => (
+                  <Pressable
+                    key={conversationId}
+                    disabled={!onOpenConversation}
+                    onPress={() => onOpenConversation?.(conversationId)}
+                    style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+                  >
+                    <Text style={{ color: colors.text }}>
+                      {labels.get(conversationId) ?? 'Conversation'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ))
+        : null}
 
-      {!loading && !filtered.length ? (
+      {hasAuthoritativeResults && !filtered.length ? (
         <Text style={[styles.muted, { color: colors.muted }]}>Aucun dossier ne correspond.</Text>
       ) : null}
     </ScrollView>
