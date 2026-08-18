@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { ConversationArchiveTimelineExperience } from './ConversationArchiveTimelineExperience';
 import { ConversationArchivesExperience } from './ConversationArchivesExperience';
 import { ConversationDraftsExperience } from './ConversationDraftsExperience';
 import { ConversationFolderSearchExperience } from './ConversationFolderSearchExperience';
@@ -27,7 +28,7 @@ type Conversation = {
   }>;
 };
 
-type OrganizationTool = 'folders' | 'search' | 'archives' | 'pins' | 'saved' | 'drafts';
+type OrganizationTool = 'folders' | 'search' | 'archives' | 'archiveTimeline' | 'pins' | 'saved' | 'drafts';
 
 type Props = {
   userId: string;
@@ -54,6 +55,11 @@ const organizationTools: Array<{
     id: 'archives',
     title: '📦 Archives personnelles',
     description: 'Archive ou restaure une conversation sans modifier les droits du groupe.'
+  },
+  {
+    id: 'archiveTimeline',
+    title: '🕓 Chronologie des archives',
+    description: 'Parcours tes archives personnelles par période sans modifier leur état.'
   },
   {
     id: 'pins',
@@ -185,6 +191,12 @@ export function MessagesOrganizationExperience({
         ) : null}
         {organizationTool === 'archives' ? (
           <ConversationArchivesExperience
+            currentUserId={userId}
+            onOpenConversation={openConversationFromTool}
+          />
+        ) : null}
+        {organizationTool === 'archiveTimeline' ? (
+          <ConversationArchiveTimelineExperience
             currentUserId={userId}
             onOpenConversation={openConversationFromTool}
           />
