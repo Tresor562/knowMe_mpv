@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - build/kmd-059-android-release-apk-v3
+      - build/kmd-059-android-release-apk-v4
   pull_request:
 
 jobs:
