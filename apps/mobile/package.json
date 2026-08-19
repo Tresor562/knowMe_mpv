@@ -1,6 +1,7 @@
 {
   "name": "@knowme/mobile",
   "private": true,
+  "main": "index.js",
   "scripts": {
     "dev": "expo start",
     "build": "tsc --noEmit",
