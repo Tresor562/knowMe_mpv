@@ -448,6 +448,10 @@ function AppContent() {
     void loadSession();
   }, [loadSession]);
 
+  useEffect(() => {
+    setScreen('home');
+  }, [user?.id]);
+
   async function resetLocalSession() {
     disconnectRealtimeSocket();
     await clearSession();
@@ -496,17 +500,21 @@ function AppContent() {
       <View style={[styles.body, { backgroundColor: colors.background }]}>
         {screen === 'home' && (
           <HomeScreen
+            key={`home:${user.id}`}
             user={user}
             openSocial={() => setScreen('social')}
             openFeed={() => setScreen('feed')}
             openChallenges={() => setScreen('challenges')}
           />
         )}
-        {screen === 'feed' && <FeedExperience userId={user.id} />}
-        {screen === 'social' && <SocialHub userId={user.id} />}
-        {screen === 'challenges' && <ChallengeExperience userId={user.id} />}
+        {screen === 'feed' && <FeedExperience key={`feed:${user.id}`} userId={user.id} />}
+        {screen === 'social' && <SocialHub key={`social:${user.id}`} userId={user.id} />}
+        {screen === 'challenges' && (
+          <ChallengeExperience key={`challenges:${user.id}`} userId={user.id} />
+        )}
         {screen === 'profile' && (
           <ProfileExperience
+            key={`profile:${user.id}`}
             user={user}
             onUpdated={loadSession}
             onLogout={logout}
@@ -516,6 +524,7 @@ function AppContent() {
         )}
         {screen === 'verification' && (
           <VerificationExperience
+            key={`verification:${user.id}`}
             user={user}
             onUpdated={loadSession}
             onBack={() => setScreen('profile')}
