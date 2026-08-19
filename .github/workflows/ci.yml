@@ -7,6 +7,10 @@ on:
       - build/kmd-059-android-release-apk-v4
   pull_request:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -110,3 +114,13 @@ jobs:
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Report validation build run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/issues/216/comments" \
+            -f body="KMD-059 Android release validation run: ${RUN_ID} — android-apk job status: ${JOB_STATUS}."
