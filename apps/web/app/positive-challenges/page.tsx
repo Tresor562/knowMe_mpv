@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
@@ -40,27 +40,57 @@ export default function PositiveChallengesPage() {
   const [kind, setKind] = useState('GRATITUDE_NOTE');
   const [note, setNote] = useState('');
   const [message, setMessage] = useState('');
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const loadGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setCatalog([]);
+    setData(null);
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setAuthorityFresh(false);
+    setCatalog([]);
+    setData(null);
+    setMessage('');
+
     try {
       const [catalogResponse, challenges] = await Promise.all([
         apiFetch<{ items: CatalogItem[] }>('/positive-challenges/catalog'),
         apiFetch<ChallengeResponse>('/positive-challenges/me')
       ]);
+      if (generation !== loadGeneration.current) return;
       setCatalog(catalogResponse.items);
       setData(challenges);
-      setMessage('');
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setCatalog([]);
+      setData(null);
+      setAuthorityFresh(false);
       setMessage(cause instanceof Error ? cause.message : 'Positive Challenges indisponibles.');
     }
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading) void load();
-  }, [load, sessionLoading]);
+    invalidateAuthority();
+    setBusy(false);
+    setRecipientId('');
+    setNote('');
+    if (!sessionLoading && user) void load();
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
+    if (!authorityFresh || busy || !data) return;
+    setBusy(true);
     try {
       await apiFetch('/positive-challenges', {
         method: 'POST',
@@ -71,20 +101,28 @@ export default function PositiveChallengesPage() {
       setMessage('Invitation envoyée. Ton ami peut refuser sans aucune pénalité.');
       await load();
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Création impossible.');
+    } finally {
+      setBusy(false);
     }
   }
 
   async function action(id: string, actionName: 'accept' | 'decline' | 'confirm' | 'cancel') {
+    if (!authorityFresh || busy) return;
+    setBusy(true);
     try {
       await apiFetch(`/positive-challenges/${id}/${actionName}`, { method: 'PATCH' });
       await load();
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
+    } finally {
+      setBusy(false);
     }
   }
 
-  if (sessionLoading || !user || !data) {
+  if (sessionLoading || !user || !authorityFresh || !data) {
     return <main className="shell"><p>{message || 'Chargement des Positive Challenges…'}</p></main>;
   }
 
@@ -105,19 +143,19 @@ export default function PositiveChallengesPage() {
         <h2>Proposer à un ami</h2>
         <label>
           Identifiant du compte ami
-          <input value={recipientId} onChange={(event) => setRecipientId(event.target.value)} required />
+          <input value={recipientId} onChange={(event) => setRecipientId(event.target.value)} required disabled={busy} />
         </label>
         <label>
           Défi positif
-          <select value={kind} onChange={(event) => setKind(event.target.value)}>
+          <select value={kind} onChange={(event) => setKind(event.target.value)} disabled={busy}>
             {catalog.map((item) => <option key={item.key} value={item.key}>{item.title}</option>)}
           </select>
         </label>
         <label>
           Note facultative, sans donnée sensible
-          <textarea maxLength={240} value={note} onChange={(event) => setNote(event.target.value)} />
+          <textarea maxLength={240} value={note} onChange={(event) => setNote(event.target.value)} disabled={busy} />
         </label>
-        <button className="btn btn-primary" type="submit">Envoyer l’invitation</button>
+        <button className="btn btn-primary" type="submit" disabled={!authorityFresh || busy}>Envoyer l’invitation</button>
       </form>
 
       <section style={{ display: 'grid', gap: 14, marginTop: 24 }}>
@@ -139,10 +177,10 @@ export default function PositiveChallengesPage() {
                   <small>Expire le {new Date(item.expiresAt).toLocaleString('fr-FR')}</small>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  {canRespond && <button className="btn btn-primary" onClick={() => void action(item.id, 'accept')}>Accepter</button>}
-                  {canRespond && <button className="btn" onClick={() => void action(item.id, 'decline')}>Refuser librement</button>}
-                  {canConfirm && <button className="btn btn-primary" onClick={() => void action(item.id, 'confirm')}>Confirmer la réalisation</button>}
-                  {canCancel && <button className="btn" onClick={() => void action(item.id, 'cancel')}>Annuler sans pénalité</button>}
+                  {canRespond && <button className="btn btn-primary" disabled={busy} onClick={() => void action(item.id, 'accept')}>Accepter</button>}
+                  {canRespond && <button className="btn" disabled={busy} onClick={() => void action(item.id, 'decline')}>Refuser librement</button>}
+                  {canConfirm && <button className="btn btn-primary" disabled={busy} onClick={() => void action(item.id, 'confirm')}>Confirmer la réalisation</button>}
+                  {canCancel && <button className="btn" disabled={busy} onClick={() => void action(item.id, 'cancel')}>Annuler sans pénalité</button>}
                 </div>
               </div>
             </article>
