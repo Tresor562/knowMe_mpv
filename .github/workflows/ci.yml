@@ -71,6 +71,12 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile=false
 
+      - name: Build Mobile workspace contracts
+        run: |
+          pnpm --filter @knowme/animation-contract build
+          pnpm --filter @knowme/i18n-contract build
+          pnpm --filter @knowme/media-cache-contract build
+
       - name: Generate Android native project with Expo
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean
 
