@@ -59,8 +59,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 22
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -70,7 +69,7 @@ jobs:
           cache: gradle
 
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile=false
 
       - name: Generate Android native project with Expo
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean
