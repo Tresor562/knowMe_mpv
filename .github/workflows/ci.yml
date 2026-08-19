@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - build/kmd-059-android-release-apk-v3
   pull_request:
 
 jobs:
