@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
@@ -20,26 +20,60 @@ export default function ChallengesPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreator, setShowCreator] = useState(false);
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const loadGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setChallenges([]);
+    setShowCreator(false);
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setLoading(true);
+    setAuthorityFresh(false);
+    setChallenges([]);
+    setMessage('');
+
     try {
-      setChallenges(await apiFetch<Challenge[]>('/challenges'));
-      setMessage('');
+      const incoming = await apiFetch<Challenge[]>('/challenges');
+      if (generation !== loadGeneration.current) return;
+      setChallenges(incoming);
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setChallenges([]);
+      setAuthorityFresh(false);
       setMessage(cause instanceof Error ? cause.message : 'Défis indisponibles.');
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    invalidateAuthority();
+    setLoading(true);
+    if (!sessionLoading && user) void load();
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function createChallenge(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!authorityFresh || busy) {
+      setMessage('Recharge les défis avant de créer un nouveau défi.');
+      return;
+    }
+
     const form = event.currentTarget;
     const data = new FormData(form);
     const questions = String(data.get('questions') ?? '').split('\n').map((question) => question.trim()).filter(Boolean);
 
+    setBusy(true);
     try {
       const created = await apiFetch<Challenge>('/challenges', {
         method: 'POST',
@@ -53,16 +87,24 @@ export default function ChallengesPage() {
       setShowCreator(false);
       window.location.href = `/challenges/${created.id}`;
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Création impossible.');
+    } finally {
+      setBusy(false);
     }
   }
 
   async function join(id: string) {
+    if (!authorityFresh || busy) return;
+    setBusy(true);
     try {
       await apiFetch(`/challenges/${id}/join`, { method: 'POST' });
       window.location.href = `/challenges/${id}`;
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Participation impossible.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -75,29 +117,30 @@ export default function ChallengesPage() {
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
           <Link className="btn" href="/progression">Mon niveau</Link>
           <Link className="btn" href="/challenges/history">Mon historique</Link>
-          <button className="btn btn-accent" onClick={() => setShowCreator((value) => !value)}>{showCreator ? 'Fermer' : '+ Créer un défi'}</button>
+          <button className="btn btn-accent" disabled={!authorityFresh || busy} onClick={() => setShowCreator((value) => !value)}>{showCreator ? 'Fermer' : '+ Créer un défi'}</button>
         </div>
       </header>
 
-      {showCreator && (
+      {showCreator && authorityFresh && (
         <form className="card grid" onSubmit={createChallenge} style={{padding:22,marginBottom:20}}>
           <h2>Nouveau défi</h2>
-          <input className="input" name="title" placeholder="Titre du défi" minLength={3} required />
-          <textarea className="input" name="description" placeholder="Description" rows={3} />
-          <textarea className="input" name="questions" placeholder={'Une question par ligne\nQuel est mon plus grand rêve ?\nQuel sujet me passionne ?'} rows={7} required />
-          <button className="btn btn-primary">Créer le défi</button>
+          <input className="input" name="title" placeholder="Titre du défi" minLength={3} required disabled={busy} />
+          <textarea className="input" name="description" placeholder="Description" rows={3} disabled={busy} />
+          <textarea className="input" name="questions" placeholder={'Une question par ligne\nQuel est mon plus grand rêve ?\nQuel sujet me passionne ?'} rows={7} required disabled={busy} />
+          <button className="btn btn-primary" disabled={busy}>Créer le défi</button>
         </form>
       )}
 
+      {!authorityFresh && !message && <p style={{color:'var(--muted)'}}>Validation des défis…</p>}
       {message && <p role="alert" style={{color:'var(--orange)'}}>{message}</p>}
       {loading && <p>Chargement...</p>}
 
       <section className="grid">
-        {!loading && challenges.length === 0 && (
+        {authorityFresh && !loading && challenges.length === 0 && (
           <article className="card" style={{padding:28,textAlign:'center'}}><div style={{fontSize:52}}>🧠</div><h2>Aucun défi pour le moment</h2><p style={{color:'var(--muted)'}}>Crée le premier défi pour commencer à mieux connaître tes proches.</p></article>
         )}
 
-        {challenges.map((challenge) => (
+        {authorityFresh && challenges.map((challenge) => (
           <article className="card" key={challenge.id} style={{padding:22,display:'grid',gridTemplateColumns:'64px 1fr auto',gap:18,alignItems:'center'}}>
             <div style={{fontSize:42}}>🎯</div>
             <div>
@@ -108,7 +151,7 @@ export default function ChallengesPage() {
             <div style={{display:'grid',gap:8}}>
               <Link className="btn" href={`/challenges/${challenge.id}`}>Ouvrir</Link>
               {challenge.status === 'ACTIVE' && !challenge.participants.some((participant) => participant.userId === user.id) && (
-                <button className="btn btn-accent" onClick={() => join(challenge.id)}>Participer</button>
+                <button className="btn btn-accent" disabled={!authorityFresh || busy} onClick={() => void join(challenge.id)}>Participer</button>
               )}
             </div>
           </article>
