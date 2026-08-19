@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
@@ -42,37 +42,77 @@ type ResultDetail = HistoryItem & {
 };
 
 export default function ChallengeHistoryPage() {
-  const { loading: sessionLoading } = useSession({ required: true });
+  const { user, loading: sessionLoading } = useSession({ required: true });
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [selected, setSelected] = useState<ResultDetail | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [detailBusy, setDetailBusy] = useState(false);
+  const loadGeneration = useRef(0);
+  const detailGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    detailGeneration.current += 1;
+    setAuthorityFresh(false);
+    setItems([]);
+    setSelected(null);
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    detailGeneration.current += 1;
+    setLoading(true);
+    setAuthorityFresh(false);
+    setItems([]);
+    setSelected(null);
+    setMessage('');
+
     try {
       const history = await apiFetch<{ items: HistoryItem[] }>('/challenges/history');
+      if (generation !== loadGeneration.current) return;
       setItems(history.items);
-      setMessage('');
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setItems([]);
+      setSelected(null);
+      setAuthorityFresh(false);
       setMessage(cause instanceof Error ? cause.message : 'Historique indisponible.');
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading) void load();
-  }, [load, sessionLoading]);
+    invalidateAuthority();
+    setLoading(true);
+    if (!sessionLoading && user) void load();
+    return () => {
+      loadGeneration.current += 1;
+      detailGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function openResult(item: HistoryItem) {
+    if (!authorityFresh || detailBusy) return;
+    const generation = ++detailGeneration.current;
+    setDetailBusy(true);
+    setSelected(null);
     try {
       const result = await apiFetch<ResultDetail>(
         `/challenges/${item.challengeId}/results/${item.participantId}`
       );
+      if (generation !== detailGeneration.current || !authorityFresh) return;
       setSelected({ ...item, ...result });
       setMessage('');
     } catch (cause) {
+      if (generation !== detailGeneration.current) return;
+      setSelected(null);
       setMessage(cause instanceof Error ? cause.message : 'Résultat indisponible.');
+    } finally {
+      if (generation === detailGeneration.current) setDetailBusy(false);
     }
   }
 
@@ -95,8 +135,9 @@ export default function ChallengeHistoryPage() {
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
       {loading && <p>Chargement…</p>}
+      {!authorityFresh && !loading && !message && <p>Validation de l’historique…</p>}
 
-      {!loading && items.length === 0 && (
+      {authorityFresh && !loading && items.length === 0 && (
         <section className="card" style={{ padding: 28, textAlign: 'center' }}>
           <div style={{ fontSize: 48 }}>🗂️</div>
           <h2>Aucune partie terminée</h2>
@@ -107,7 +148,7 @@ export default function ChallengeHistoryPage() {
       )}
 
       <section className="grid" style={{ marginTop: 20 }}>
-        {items.map((item) => (
+        {authorityFresh && items.map((item) => (
           <article className="card" key={item.id} style={{ padding: 20 }}>
             <small style={{ color: 'var(--mint)' }}>VERSION {item.challengeVersion}</small>
             <h2>{item.challenge?.title ?? 'Défi supprimé'}</h2>
@@ -129,7 +170,7 @@ export default function ChallengeHistoryPage() {
               Terminé le {new Date(item.completedAt).toLocaleString('fr-FR')}
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" onClick={() => void openResult(item)}>
+              <button className="btn btn-primary" disabled={!authorityFresh || detailBusy} onClick={() => void openResult(item)}>
                 Voir le feedback
               </button>
               <Link className="btn" href={`/challenges/${item.challengeId}`}>Ouvrir le défi</Link>
@@ -138,7 +179,7 @@ export default function ChallengeHistoryPage() {
         ))}
       </section>
 
-      {selected && (
+      {authorityFresh && selected && (
         <section className="card" style={{ padding: 24, marginTop: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div>
