@@ -46,6 +46,7 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
+      NODE_ENV: production
     steps:
       - name: Checkout KMD-059 branch
         uses: actions/checkout@v4
@@ -73,11 +74,20 @@ jobs:
       - name: Generate Android native project with Expo
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean
 
-      - name: Build installable debug APK
+      - name: Generate and correct Expo SDK 53 autolinking source
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew :app:generateAutolinkingPackageList --no-daemon
+          PACKAGE_LIST="app/build/generated/autolinking/src/main/java/com/facebook/react/PackageList.java"
+          test -f "$PACKAGE_LIST"
+          grep -q 'expo.core.ExpoModulesPackage' "$PACKAGE_LIST"
+          sed -i 's/expo\.core\.ExpoModulesPackage/expo.modules.ExpoModulesPackage/g' "$PACKAGE_LIST"
+          grep -q 'expo.modules.ExpoModulesPackage' "$PACKAGE_LIST"
+
+      - name: Build installable debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon -x :app:generateAutolinkingPackageList
 
       - name: Upload KnowMe APK
         uses: actions/upload-artifact@v4
