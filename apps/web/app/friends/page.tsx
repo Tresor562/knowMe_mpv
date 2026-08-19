@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { AccountBadges, AccountBadgeSet } from '../../components/AccountBadges';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -40,32 +40,62 @@ function ProfileSummary({ user }: { user: UserResult }) {
 }
 
 export default function FriendsPage() {
-  const { loading: sessionLoading } = useSession({ required: true });
+  const { user: sessionUser, loading: sessionLoading } = useSession({ required: true });
   const [results, setResults] = useState<UserResult[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const loadGeneration = useRef(0);
+
+  const invalidateSocialAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setRequests([]);
+    setFriends([]);
+    setResults([]);
+    setBusyId(null);
+  }, []);
 
   const loadSocialData = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setAuthorityFresh(false);
+    setRequests([]);
+    setFriends([]);
+    setMessage('');
+
     try {
       const [incoming, currentFriends] = await Promise.all([
         apiFetch<FriendRequest[]>('/social/friend-requests/incoming'),
         apiFetch<Friend[]>('/social/friends')
       ]);
+      if (generation !== loadGeneration.current) return;
       setRequests(incoming);
       setFriends(currentFriends);
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setAuthorityFresh(false);
       setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
     }
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading) void loadSocialData();
-  }, [loadSocialData, sessionLoading]);
+    invalidateSocialAuthority();
+    if (!sessionLoading && sessionUser) void loadSocialData();
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateSocialAuthority, loadSocialData, sessionLoading, sessionUser?.id]);
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!authorityFresh) {
+      setMessage('Recharge les données sociales avant de rechercher un profil.');
+      return;
+    }
+
     const form = new FormData(event.currentTarget);
     const query = String(form.get('query') ?? '').trim();
 
@@ -78,11 +108,13 @@ export default function FriendsPage() {
         data.length ? `${data.length} profil(s) trouvé(s).` : 'Aucun profil trouvé.'
       );
     } catch (cause) {
+      setResults([]);
       setMessage(cause instanceof Error ? cause.message : 'Recherche impossible.');
     }
   }
 
   async function addFriend(addresseeId: string) {
+    if (!authorityFresh) return;
     setBusyId(addresseeId);
     try {
       await apiFetch('/social/friend-requests', {
@@ -91,6 +123,7 @@ export default function FriendsPage() {
       });
       setMessage('Demande envoyée.');
     } catch (cause) {
+      invalidateSocialAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Envoi impossible.');
     } finally {
       setBusyId(null);
@@ -98,6 +131,7 @@ export default function FriendsPage() {
   }
 
   async function respond(id: string, action: 'accept' | 'decline') {
+    if (!authorityFresh) return;
     setBusyId(id);
     try {
       await apiFetch(`/social/friend-requests/${id}/${action}`, {
@@ -106,6 +140,7 @@ export default function FriendsPage() {
       await loadSocialData();
       setMessage(action === 'accept' ? 'Demande acceptée.' : 'Demande refusée.');
     } catch (cause) {
+      invalidateSocialAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
     } finally {
       setBusyId(null);
@@ -113,12 +148,14 @@ export default function FriendsPage() {
   }
 
   async function removeFriend(friendshipId: string) {
+    if (!authorityFresh) return;
     setBusyId(friendshipId);
     try {
       await apiFetch(`/social/friends/${friendshipId}`, { method: 'DELETE' });
       await loadSocialData();
       setMessage('Relation supprimée.');
     } catch (cause) {
+      invalidateSocialAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Suppression impossible.');
     } finally {
       setBusyId(null);
@@ -148,14 +185,18 @@ export default function FriendsPage() {
           placeholder="Nom, pseudo ou centre d’intérêt..."
           minLength={2}
           required
+          disabled={!authorityFresh}
           style={{ flex: 1 }}
         />
-        <button className="btn btn-primary">Rechercher</button>
+        <button className="btn btn-primary" disabled={!authorityFresh}>Rechercher</button>
       </form>
 
+      {!authorityFresh && !message && (
+        <p style={{ color: 'var(--muted)' }}>Validation des relations sociales…</p>
+      )}
       {message && <p style={{ color: 'var(--muted)' }}>{message}</p>}
 
-      {requests.length > 0 && (
+      {authorityFresh && requests.length > 0 && (
         <section style={{ marginTop: 24 }}>
           <h2>Demandes reçues</h2>
           <div className="grid">
@@ -176,14 +217,14 @@ export default function FriendsPage() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     className="btn btn-primary"
-                    disabled={busyId === id}
+                    disabled={!authorityFresh || busyId === id}
                     onClick={() => void respond(id, 'accept')}
                   >
                     Accepter
                   </button>
                   <button
                     className="btn"
-                    disabled={busyId === id}
+                    disabled={!authorityFresh || busyId === id}
                     onClick={() => void respond(id, 'decline')}
                   >
                     Refuser
@@ -196,9 +237,9 @@ export default function FriendsPage() {
       )}
 
       <section style={{ marginTop: 24 }}>
-        <h2>Mes amis ({friends.length})</h2>
+        <h2>Mes amis{authorityFresh ? ` (${friends.length})` : ''}</h2>
         <div className="grid">
-          {friends.map(({ friendshipId, user }) => (
+          {authorityFresh && friends.map(({ friendshipId, user }) => (
             <article
               className="card"
               key={friendshipId}
@@ -226,14 +267,14 @@ export default function FriendsPage() {
               <ProfileSummary user={user} />
               <button
                 className="btn"
-                disabled={busyId === friendshipId}
+                disabled={!authorityFresh || busyId === friendshipId}
                 onClick={() => void removeFriend(friendshipId)}
               >
                 Retirer
               </button>
             </article>
           ))}
-          {!friends.length && (
+          {authorityFresh && !friends.length && (
             <p style={{ color: 'var(--muted)' }}>Aucun ami pour le moment.</p>
           )}
         </div>
@@ -242,7 +283,7 @@ export default function FriendsPage() {
       <section style={{ marginTop: 24 }}>
         <h2>Résultats</h2>
         <div className="grid">
-          {results.map((user) => (
+          {authorityFresh && results.map((user) => (
             <article
               className="card"
               key={user.id}
@@ -270,7 +311,7 @@ export default function FriendsPage() {
               <ProfileSummary user={user} />
               <button
                 className="btn btn-accent"
-                disabled={busyId === user.id}
+                disabled={!authorityFresh || busyId === user.id}
                 onClick={() => void addFriend(user.id)}
               >
                 {busyId === user.id ? 'Envoi…' : 'Ajouter'}
