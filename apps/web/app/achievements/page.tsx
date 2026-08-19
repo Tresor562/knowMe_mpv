@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
@@ -37,22 +37,46 @@ export default function AchievementsPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const [summary, setSummary] = useState<AchievementSummary | null>(null);
   const [message, setMessage] = useState('');
+  const [authorityFresh, setAuthorityFresh] = useState(false);
   const [saving, setSaving] = useState(false);
+  const loadGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setSummary(null);
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setAuthorityFresh(false);
+    setSummary(null);
+    setMessage('');
+
     try {
-      setSummary(await apiFetch<AchievementSummary>('/achievements/me'));
-      setMessage('');
+      const next = await apiFetch<AchievementSummary>('/achievements/me');
+      if (generation !== loadGeneration.current) return;
+      setSummary(next);
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setSummary(null);
+      setAuthorityFresh(false);
       setMessage(cause instanceof Error ? cause.message : 'Mérites indisponibles.');
     }
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading) void load();
-  }, [load, sessionLoading]);
+    invalidateAuthority();
+    setSaving(false);
+    if (!sessionLoading && user) void load();
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function selectTitle(grantId: string | null) {
+    if (!authorityFresh || !summary || saving) return;
     setSaving(true);
     try {
       const next = await apiFetch<AchievementSummary>('/achievements/title', {
@@ -60,15 +84,17 @@ export default function AchievementsPage() {
         body: JSON.stringify({ grantId })
       });
       setSummary(next);
+      setAuthorityFresh(true);
       setMessage(grantId ? 'Titre affiché mis à jour.' : 'Titre affiché retiré.');
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Sélection impossible.');
     } finally {
       setSaving(false);
     }
   }
 
-  if (sessionLoading || !user || !summary) {
+  if (sessionLoading || !user || !authorityFresh || !summary) {
     return (
       <main className="shell">
         <p>{message || 'Chargement de tes mérites…'}</p>
@@ -118,7 +144,7 @@ export default function AchievementsPage() {
           Vérifié, Premium ou Équipe KnowMe.
         </p>
         {summary.selectedTitle && (
-          <button className="btn" disabled={saving} onClick={() => void selectTitle(null)}>
+          <button className="btn" disabled={!authorityFresh || saving} onClick={() => void selectTitle(null)}>
             Retirer le titre
           </button>
         )}
@@ -161,7 +187,7 @@ export default function AchievementsPage() {
                 <p>{grant.definition.description}</p>
                 <button
                   className={selected ? 'btn' : 'btn btn-primary'}
-                  disabled={saving || selected}
+                  disabled={!authorityFresh || saving || selected}
                   onClick={() => void selectTitle(grant.id)}
                 >
                   {selected ? 'Titre sélectionné' : 'Afficher ce titre'}
