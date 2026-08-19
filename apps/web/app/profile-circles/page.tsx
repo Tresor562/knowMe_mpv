@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
@@ -77,25 +77,57 @@ export default function ProfileCirclesPage() {
   const [requests, setRequests] = useState<Record<string, JoinRequest[]>>({});
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState('');
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const loadGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setEntries([]);
+    setRequests({});
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setLoading(true);
+    setAuthorityFresh(false);
+    setEntries([]);
+    setRequests({});
+    setMessage('');
+
     try {
-      setEntries(await apiFetch<CircleEntry[]>('/profile-circles/me'));
-      setMessage('');
+      const incoming = await apiFetch<CircleEntry[]>('/profile-circles/me');
+      if (generation !== loadGeneration.current) return;
+      setEntries(incoming);
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setEntries([]);
+      setRequests({});
+      setAuthorityFresh(false);
       setMessage(
         cause instanceof Error
           ? cause.message
           : 'Chargement des profils collectifs impossible.'
       );
+    } finally {
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    invalidateAuthority();
+    setLoading(true);
+    setBusy('');
     if (!sessionLoading && user) void load();
-  }, [load, sessionLoading, user]);
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function action(key: string, path: string, body?: unknown) {
+    if (!authorityFresh || busy) return;
     setBusy(key);
     try {
       await apiFetch(path, {
@@ -105,6 +137,7 @@ export default function ProfileCirclesPage() {
       setMessage('Action collective enregistrée.');
       await load();
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
     } finally {
       setBusy('');
@@ -112,11 +145,14 @@ export default function ProfileCirclesPage() {
   }
 
   async function loadRequests(circleId: string) {
+    if (!authorityFresh || busy) return;
+    const authorityGeneration = loadGeneration.current;
     setBusy(`requests:${circleId}`);
     try {
       const value = await apiFetch<JoinRequest[]>(
         `/profile-circles/${circleId}/join-requests`
       );
+      if (!authorityFresh || authorityGeneration !== loadGeneration.current) return;
       setRequests((current) => ({ ...current, [circleId]: value }));
       setMessage(
         value.length
@@ -124,9 +160,11 @@ export default function ProfileCirclesPage() {
           : 'Aucune demande en attente.'
       );
     } catch (cause) {
+      if (authorityGeneration !== loadGeneration.current) return;
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Lecture impossible.');
     } finally {
-      setBusy('');
+      if (authorityGeneration === loadGeneration.current) setBusy('');
     }
   }
 
@@ -135,6 +173,7 @@ export default function ProfileCirclesPage() {
     requestId: string,
     decision: 'APPROVE' | 'DECLINE'
   ) {
+    if (!authorityFresh || busy) return;
     setBusy(`review:${requestId}`);
     try {
       await apiFetch(
@@ -144,13 +183,14 @@ export default function ProfileCirclesPage() {
           body: JSON.stringify({ action: decision })
         }
       );
-      await Promise.all([load(), loadRequests(circleId)]);
+      await load();
       setMessage(
         decision === 'APPROVE'
           ? 'Le membre a rejoint la guilde.'
           : 'La demande a été refusée.'
       );
     } catch (cause) {
+      invalidateAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Décision impossible.');
     } finally {
       setBusy('');
@@ -182,7 +222,9 @@ export default function ProfileCirclesPage() {
         {message && <p role="status" style={{ color: 'var(--mint)' }}>{message}</p>}
       </section>
 
-      {entries.length === 0 && (
+      {loading && <p>Validation des relations…</p>}
+
+      {authorityFresh && !loading && entries.length === 0 && (
         <section className="card" style={{ padding: 24 }}>
           <h2>Aucune relation collective</h2>
           <p style={{ color: 'var(--muted)' }}>
@@ -191,7 +233,7 @@ export default function ProfileCirclesPage() {
         </section>
       )}
 
-      {entries.map((entry) => {
+      {authorityFresh && entries.map((entry) => {
         const circle = entry.circle;
         const circleRequests = requests[circle.id] ?? [];
         const isBusy = busy.includes(circle.id);
@@ -230,7 +272,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.accept && (
                 <button
                   className="btn btn-primary"
-                  disabled={busy === `accept:${circle.id}`}
+                  disabled={!authorityFresh || Boolean(busy)}
                   onClick={() =>
                     void action(
                       `accept:${circle.id}`,
@@ -244,7 +286,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.decline && (
                 <button
                   className="btn"
-                  disabled={busy === `decline:${circle.id}`}
+                  disabled={!authorityFresh || Boolean(busy)}
                   onClick={() =>
                     void action(
                       `decline:${circle.id}`,
@@ -258,7 +300,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.leave && (
                 <button
                   className="btn"
-                  disabled={busy === `leave:${circle.id}`}
+                  disabled={!authorityFresh || Boolean(busy)}
                   onClick={() =>
                     void action(
                       `leave:${circle.id}`,
@@ -272,7 +314,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.manage && circle.status === 'ACTIVE' && (
                 <button
                   className="btn"
-                  disabled={isBusy}
+                  disabled={!authorityFresh || Boolean(busy) || isBusy}
                   onClick={() =>
                     void action(
                       `pause:${circle.id}`,
@@ -287,7 +329,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.manage && circle.status === 'PAUSED' && (
                 <button
                   className="btn btn-primary"
-                  disabled={isBusy}
+                  disabled={!authorityFresh || Boolean(busy) || isBusy}
                   onClick={() =>
                     void action(
                       `resume:${circle.id}`,
@@ -302,7 +344,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.manage && circle.status !== 'ENDED' && (
                 <button
                   className="btn"
-                  disabled={isBusy}
+                  disabled={!authorityFresh || Boolean(busy) || isBusy}
                   onClick={() =>
                     void action(
                       `end:${circle.id}`,
@@ -317,7 +359,7 @@ export default function ProfileCirclesPage() {
               {entry.capabilities.manage && circle.type === 'GUILD' && (
                 <button
                   className="btn"
-                  disabled={busy === `requests:${circle.id}`}
+                  disabled={!authorityFresh || Boolean(busy)}
                   onClick={() => void loadRequests(circle.id)}
                 >
                   Demandes d’adhésion
@@ -341,14 +383,14 @@ export default function ProfileCirclesPage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button
                         className="btn btn-primary"
-                        disabled={busy === `review:${request.id}`}
+                        disabled={!authorityFresh || Boolean(busy)}
                         onClick={() => void review(circle.id, request.id, 'APPROVE')}
                       >
                         Accepter
                       </button>
                       <button
                         className="btn"
-                        disabled={busy === `review:${request.id}`}
+                        disabled={!authorityFresh || Boolean(busy)}
                         onClick={() => void review(circle.id, request.id, 'DECLINE')}
                       >
                         Refuser
