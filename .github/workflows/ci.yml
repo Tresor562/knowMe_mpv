@@ -46,6 +46,7 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
+      NODE_ENV: production
     steps:
       - name: Checkout KMD-059 branch
         uses: actions/checkout@v4
@@ -59,32 +60,45 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: 22
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile=false
 
       - name: Generate Android native project with Expo
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean
 
-      - name: Build installable debug APK
+      - name: Generate and correct Expo SDK 53 autolinking source
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew :app:generateAutolinkingPackageList --no-daemon
+          PACKAGE_LIST="app/build/generated/autolinking/src/main/java/com/facebook/react/PackageList.java"
+          test -f "$PACKAGE_LIST"
+          grep -q 'expo.core.ExpoModulesPackage' "$PACKAGE_LIST"
+          sed -i 's/expo\.core\.ExpoModulesPackage/expo.modules.ExpoModulesPackage/g' "$PACKAGE_LIST"
+          grep -q 'expo.modules.ExpoModulesPackage' "$PACKAGE_LIST"
 
-      - name: Upload KnowMe APK
+      - name: Build standalone release APK with embedded JavaScript bundle
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon -x :app:generateAutolinkingPackageList
+
+      - name: Verify embedded JavaScript bundle exists
+        run: |
+          APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          unzip -l "$APK" | grep -E 'assets/(index\.android\.bundle|.*\.bundle)' >/dev/null
+
+      - name: Upload standalone KnowMe APK
         uses: actions/upload-artifact@v4
         with:
-          name: knowme-kmd-059-android-apk
-          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: knowme-kmd-059-android-release-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
