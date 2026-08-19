@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
@@ -91,28 +91,48 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [notice, setNotice] = useState('');
   const [posting, setPosting] = useState(false);
+  const [authorityFresh, setAuthorityFresh] = useState(false);
+  const loadGeneration = useRef(0);
+
+  const invalidateAuthority = useCallback(() => {
+    loadGeneration.current += 1;
+    setAuthorityFresh(false);
+    setProfile(null);
+  }, []);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    setAuthorityFresh(false);
+    setProfile(null);
+    setNotice('');
+
     try {
       const username = decodeURIComponent(params.username);
-      setProfile(
-        await apiFetch<PublicProfile>(
-          `/profile-experience/public/${encodeURIComponent(username)}`
-        )
+      const incoming = await apiFetch<PublicProfile>(
+        `/profile-experience/public/${encodeURIComponent(username)}`
       );
-      setNotice('');
+      if (generation !== loadGeneration.current) return;
+      setProfile(incoming);
+      setAuthorityFresh(true);
     } catch (cause) {
+      if (generation !== loadGeneration.current) return;
+      setProfile(null);
+      setAuthorityFresh(false);
       setNotice(cause instanceof Error ? cause.message : 'Profil indisponible.');
     }
   }, [params.username]);
 
   useEffect(() => {
+    invalidateAuthority();
     if (!sessionLoading) void load();
-  }, [load, sessionLoading]);
+    return () => {
+      loadGeneration.current += 1;
+    };
+  }, [invalidateAuthority, load, sessionLoading, user?.id]);
 
   async function postToWall(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!profile || !user) return;
+    if (!profile || !user || !authorityFresh || posting) return;
     const form = new FormData(event.currentTarget);
     const text = String(form.get('text') ?? '').trim();
     if (!text) return;
@@ -133,6 +153,7 @@ export default function PublicProfilePage() {
       );
       await load();
     } catch (cause) {
+      invalidateAuthority();
       setNotice(cause instanceof Error ? cause.message : 'Publication impossible.');
     } finally {
       setPosting(false);
@@ -140,7 +161,7 @@ export default function PublicProfilePage() {
   }
 
   async function shareProfile() {
-    if (!profile) return;
+    if (!profile || !authorityFresh) return;
     try {
       if (navigator.share) {
         await navigator.share({
@@ -156,7 +177,7 @@ export default function PublicProfilePage() {
     }
   }
 
-  if (sessionLoading || !profile) {
+  if (sessionLoading || !authorityFresh || !profile) {
     return <main className="shell"><p>{notice || 'Chargement du profil…'}</p></main>;
   }
 
@@ -341,8 +362,8 @@ export default function PublicProfilePage() {
           <h2>Mur du profil</h2>
           {user ? (
             <form className="grid" onSubmit={postToWall} style={{ marginBottom: 20 }}>
-              <textarea className="input" name="text" rows={3} maxLength={1000} placeholder="Laisse un message, un souvenir ou un mot…" required />
-              <button className="btn btn-primary" disabled={posting}>{posting ? 'Envoi…' : 'Publier sur le mur'}</button>
+              <textarea className="input" name="text" rows={3} maxLength={1000} placeholder="Laisse un message, un souvenir ou un mot…" required disabled={posting || !authorityFresh} />
+              <button className="btn btn-primary" disabled={posting || !authorityFresh}>{posting ? 'Envoi…' : 'Publier sur le mur'}</button>
             </form>
           ) : (
             <p style={{ color: 'var(--muted)' }}>Connecte-toi pour participer au mur selon les règles du propriétaire.</p>
