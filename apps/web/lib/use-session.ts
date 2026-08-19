@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, clearSession, getAccessToken } from './api';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './realtime';
 
@@ -45,11 +45,18 @@ export function useSession(options: { required?: boolean } = {}) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const refreshGeneration = useRef(0);
 
   const refresh = useCallback(async () => {
+    const generation = ++refreshGeneration.current;
+
+    setLoading(true);
+    setUser(null);
+    setError('');
+
     if (!getAccessToken()) {
       disconnectRealtimeSocket();
-      setUser(null);
+      if (generation !== refreshGeneration.current) return;
       setLoading(false);
       if (options.required && typeof window !== 'undefined') {
         window.location.replace('/login');
@@ -59,10 +66,11 @@ export function useSession(options: { required?: boolean } = {}) {
 
     try {
       const profile = await apiFetch<SessionUser>('/users/me');
+      if (generation !== refreshGeneration.current) return;
       setUser(profile);
-      setError('');
       getRealtimeSocket();
     } catch (cause) {
+      if (generation !== refreshGeneration.current) return;
       disconnectRealtimeSocket();
       clearSession();
       setUser(null);
@@ -71,15 +79,21 @@ export function useSession(options: { required?: boolean } = {}) {
         window.location.replace('/login');
       }
     } finally {
-      setLoading(false);
+      if (generation === refreshGeneration.current) {
+        setLoading(false);
+      }
     }
   }, [options.required]);
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshGeneration.current += 1;
+    };
   }, [refresh]);
 
   const logout = useCallback(async () => {
+    refreshGeneration.current += 1;
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
     } catch {
