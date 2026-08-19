@@ -6,4 +6,4 @@ The generated APK is intended solely for real-device validation of camera/microp
 
 No product authority, API contract, schema, migration, Nexus integration, entitlement, or security boundary is changed by this trigger commit.
 
-Build trigger revision: 2.
+Build trigger revision: 3.
