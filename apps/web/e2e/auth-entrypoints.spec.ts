@@ -54,7 +54,7 @@ test('password recovery request is a usable privacy-safe public entrypoint', asy
   expect(failures).toEqual([]);
 });
 
-test('password reset link requires a token and renders the new-password controls when present', async ({ page }) => {
+test('password reset link requires a token, consumes its fragment and renders the new-password controls', async ({ page }) => {
   const failures = collectPageFailures(page);
 
   let response = await page.goto('/reset-password');
@@ -62,9 +62,10 @@ test('password reset link requires a token and renders the new-password controls
   await expect(page.getByRole('heading', { name: 'Lien de récupération invalide' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Demander un nouveau lien' })).toHaveAttribute('href', '/forgot-password');
 
-  response = await page.goto('/reset-password?token=test-recovery-token-value');
+  response = await page.goto('/reset-password#token=test-recovery-token-value');
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole('heading', { name: 'Nouveau mot de passe' })).toBeVisible();
+  await expect(page).toHaveURL(/\/reset-password$/);
   await expect(page.getByPlaceholder('Nouveau mot de passe')).toBeEditable();
   await expect(page.getByPlaceholder('Confirme le mot de passe')).toBeEditable();
   await expect(page.getByRole('button', { name: 'Réinitialiser le mot de passe' })).toBeEnabled();
