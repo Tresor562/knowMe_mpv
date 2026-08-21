@@ -14,7 +14,8 @@ KnowMe core Web privacy/account controls only. This milestone makes the existing
 - export downloads the server-authoritative JSON response locally and does not persist it in Web application storage;
 - deletion requires the literal confirmation `SUPPRIMER` in addition to the server-required password;
 - after successful deletion, the Web client clears access/refresh credentials and the trusted-device token before redirecting to login;
-- the Web client does not reinterpret, omit, broaden, or synthesize account-export fields: export authority remains server-side.
+- the Web client does not reinterpret, omit, broaden, or synthesize account-export fields: export authority remains server-side;
+- the data-rights surface authenticates the session without opening an unnecessary realtime socket, keeping export/deletion controls usable even when realtime messaging is unavailable.
 
 ## Existing server authority reused
 
@@ -28,6 +29,7 @@ KnowMe core Web privacy/account controls only. This milestone makes the existing
 - complete monorepo build;
 - complete unit suite;
 - Chromium Web E2E including the authenticated data-rights page and its disabled/enabled destructive-action gates;
+- browser validation must not depend on a live realtime server for this privacy-only surface; expected global appearance synchronization is isolated explicitly rather than suppressing arbitrary console errors;
 - complete PostgreSQL API E2E suite, preserving existing export/deletion/security coverage;
 - focused review confirming no sensitive token or exported payload is persisted by the new Web flow;
 - no unresolved security/review blocker.
@@ -38,7 +40,7 @@ None. KMD-164 introduces no schema or persistence change.
 
 ## Rollback
 
-Remove `/account/data-rights`, remove the dashboard entry, and remove the KMD-164 browser assertion. Existing API export/deletion/security behavior remains unchanged, so no database rollback is required.
+Remove `/account/data-rights`, remove the dashboard entry, revert the optional `realtime` session hook parameter, and remove the KMD-164 browser assertion. Existing API export/deletion/security behavior remains unchanged, so no database rollback is required.
 
 ## Explicit non-claims
 
