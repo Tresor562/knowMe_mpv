@@ -29,7 +29,7 @@ export type HttpRequestLog = {
   durationMs: number;
 };
 
-export function resolveRequestId(value: HeaderValue, generate = randomUUID): string {
+export function resolveRequestId(value: HeaderValue, generate: () => string = randomUUID): string {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (candidate && REQUEST_ID_PATTERN.test(candidate)) return candidate;
   return generate();
