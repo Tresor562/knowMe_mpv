@@ -11,7 +11,12 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get('token') ?? '');
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const recovered = new URLSearchParams(hash).get('token') ?? '';
+    setToken(recovered);
+    if (window.location.hash) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
