@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-function collectPageFailures(page: Parameters<Parameters<typeof test>[1]>[0]['page']) {
+function collectPageFailures(page: Page) {
   const failures: string[] = [];
   page.on('pageerror', (error) => failures.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
