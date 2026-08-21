@@ -41,11 +41,12 @@ export type SessionUser = {
   premium?: PremiumBadge | null;
 };
 
-export function useSession(options: { required?: boolean } = {}) {
+export function useSession(options: { required?: boolean; realtime?: boolean } = {}) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const refreshGeneration = useRef(0);
+  const realtimeEnabled = options.realtime !== false;
 
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
@@ -68,7 +69,9 @@ export function useSession(options: { required?: boolean } = {}) {
       const profile = await apiFetch<SessionUser>('/users/me');
       if (generation !== refreshGeneration.current) return;
       setUser(profile);
-      getRealtimeSocket();
+      if (realtimeEnabled) {
+        getRealtimeSocket();
+      }
     } catch (cause) {
       if (generation !== refreshGeneration.current) return;
       disconnectRealtimeSocket();
@@ -83,7 +86,7 @@ export function useSession(options: { required?: boolean } = {}) {
         setLoading(false);
       }
     }
-  }, [options.required]);
+  }, [options.required, realtimeEnabled]);
 
   useEffect(() => {
     void refresh();
