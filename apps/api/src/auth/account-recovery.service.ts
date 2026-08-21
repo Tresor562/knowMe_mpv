@@ -1,5 +1,6 @@
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -163,7 +164,7 @@ export class AccountRecoveryService {
     return createHash('sha256').update(passwordHash).digest('base64url');
   }
 
-  private async writeAudit(action: string, userId: string, context: SecurityContext, metadata?: Record<string, unknown>) {
+  private async writeAudit(action: string, userId: string, context: SecurityContext, metadata?: Prisma.InputJsonValue) {
     await this.prisma.auditLog.create({
       data: {
         action,
