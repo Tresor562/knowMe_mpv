@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getAccessToken } from '../lib/api';
 import {
   APPEARANCE_EVENT,
   AppearanceResponse,
@@ -20,6 +20,8 @@ export function ThemeRuntime() {
     applyStored();
 
     const synchronize = async () => {
+      if (!getAccessToken()) return;
+
       try {
         const response = await apiFetch<AppearanceResponse>('/appearance');
         saveLocalAppearance(response);
