@@ -33,7 +33,7 @@ function downloadJson(payload: AccountExport) {
 }
 
 export default function AccountDataRightsPage() {
-  const { user, loading } = useSession({ required: true });
+  const { user, loading } = useSession({ required: true, realtime: false });
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [confirmation, setConfirmation] = useState('');
