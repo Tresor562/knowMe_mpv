@@ -9,6 +9,12 @@ function validEnv() {
     JWT_SECRET: 'j'.repeat(64),
     NEXT_PUBLIC_API_URL: 'https://api.knowme.example',
     STICKER_TOKEN_ACTIVE_SECRET: 's'.repeat(64),
+    ACCOUNT_RECOVERY_ENABLED: 'true',
+    ACCOUNT_RECOVERY_SECRET: 'r'.repeat(64),
+    ACCOUNT_RECOVERY_EMAIL_ENDPOINT: 'https://api.mail.example/v1/send',
+    ACCOUNT_RECOVERY_EMAIL_API_KEY: 'm'.repeat(32),
+    ACCOUNT_RECOVERY_EMAIL_FROM: 'KnowMe <security@knowme.example>',
+    WEB_URL: 'https://knowme.example',
     CALL_REQUIRE_TURN_IN_PRODUCTION: 'true',
     CALL_TURN_SECRET: 't'.repeat(64),
     CALL_TURN_URLS_JSON: JSON.stringify(['turns:turn.example.com:5349?transport=tcp']),
@@ -37,6 +43,30 @@ test('fails closed on local endpoints and weak secrets', () => {
   assert.ok(result.errors.some((error) => error.includes('JWT_SECRET')));
   assert.ok(result.errors.some((error) => error.includes('NEXT_PUBLIC_API_URL')));
   assert.ok(result.errors.some((error) => error.includes('STICKER_TOKEN_ACTIVE_SECRET')));
+});
+
+test('requires a distinct hardened account recovery secret and HTTPS delivery configuration', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_SECRET = env.JWT_SECRET;
+  env.ACCOUNT_RECOVERY_EMAIL_ENDPOINT = 'http://localhost:3001/send';
+  env.ACCOUNT_RECOVERY_EMAIL_API_KEY = 'short';
+  env.ACCOUNT_RECOVERY_EMAIL_FROM = '';
+  env.WEB_URL = 'http://localhost:3000';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('distinct from JWT_SECRET')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_ENDPOINT')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_API_KEY')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM')));
+  assert.ok(result.errors.some((error) => error.includes('WEB_URL')));
+});
+
+test('does not permit disabling account recovery for a market release', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_ENABLED = 'false';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_ENABLED')));
 });
 
 test('requires TURN when production calls require relaying', () => {
