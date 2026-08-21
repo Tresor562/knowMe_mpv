@@ -6,11 +6,12 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test",
+    "test": "turbo test && node --test scripts/release-preflight.test.mjs",
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",
-    "check:project": "node scripts/check-project.mjs"
+    "check:project": "node scripts/check-project.mjs",
+    "check:release": "node scripts/release-preflight.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
