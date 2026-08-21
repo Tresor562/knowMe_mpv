@@ -62,6 +62,7 @@ test('password reset link requires a token, consumes its fragment and renders th
   await expect(page.getByRole('heading', { name: 'Lien de récupération invalide' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Demander un nouveau lien' })).toHaveAttribute('href', '/forgot-password');
 
+  await page.goto('/login');
   response = await page.goto('/reset-password#token=test-recovery-token-value');
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole('heading', { name: 'Nouveau mot de passe' })).toBeVisible();
