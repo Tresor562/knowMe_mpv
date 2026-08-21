@@ -6,6 +6,9 @@ function collectPageFailures(page: Page) {
   page.on('console', (message) => {
     if (message.type() === 'error') failures.push(`console: ${message.text()}`);
   });
+  page.on('requestfailed', (request) => {
+    failures.push(`requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
+  });
   return failures;
 }
 
@@ -70,5 +73,66 @@ test('password reset link requires a token, consumes its fragment and renders th
   await expect(page.getByPlaceholder('Nouveau mot de passe')).toBeEditable();
   await expect(page.getByPlaceholder('Confirme le mot de passe')).toBeEditable();
   await expect(page.getByRole('button', { name: 'Réinitialiser le mot de passe' })).toBeEnabled();
+  expect(failures).toEqual([]);
+});
+
+test('authenticated account data rights page keeps export and deletion behind explicit fresh proof', async ({ page }) => {
+  const failures = collectPageFailures(page);
+
+  await page.addInitScript(() => {
+    window.localStorage.setItem('knowme_token', 'browser-release-gate-token');
+  });
+  await page.route('**/users/me**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'user-release-gate',
+        email: 'release@example.test',
+        username: 'releasegate',
+        displayName: 'Release Gate'
+      })
+    });
+  });
+  await page.route('**/appearance**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        preference: {
+          effectiveThemeKey: 'system'
+        }
+      })
+    });
+  });
+  await page.route('**/i18n/preferences**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        locale: 'fr',
+        direction: 'ltr',
+        source: 'user',
+        version: 1,
+        persisted: true,
+        updatedAt: '2026-08-21T00:00:00.000Z'
+      })
+    });
+  });
+
+  const response = await page.goto('/account/data-rights');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Tes données KnowMe' })).toBeVisible();
+  await expect(page.getByPlaceholder('Mot de passe actuel')).toBeEditable();
+  await expect(page.getByPlaceholder('Code 2FA (si activé)')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Télécharger mon export' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Supprimer définitivement mon compte' })).toBeDisabled();
+
+  await page.getByPlaceholder('Mot de passe actuel').fill('valid-password');
+  await expect(page.getByRole('button', { name: 'Télécharger mon export' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Supprimer définitivement mon compte' })).toBeDisabled();
+  await page.getByPlaceholder('SUPPRIMER').fill('SUPPRIMER');
+  await expect(page.getByRole('button', { name: 'Supprimer définitivement mon compte' })).toBeEnabled();
+  await expect(page.getByRole('link', { name: '← Retour au tableau de bord' })).toHaveAttribute('href', '/dashboard');
   expect(failures).toEqual([]);
 });
