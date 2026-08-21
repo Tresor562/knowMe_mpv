@@ -21,7 +21,7 @@ describe('AccountRecoveryService', () => {
     const prisma = {
       user: {
         findUnique: jest.fn(),
-        update: jest.fn().mockResolvedValue({})
+        updateMany: jest.fn().mockResolvedValue({ count: 1 })
       },
       authSession: {
         updateMany: jest.fn().mockResolvedValue({ count: 2 })
@@ -32,8 +32,10 @@ describe('AccountRecoveryService', () => {
       auditLog: {
         create: jest.fn().mockResolvedValue({})
       },
-      $transaction: jest.fn().mockImplementation(async (operations: Promise<unknown>[]) => Promise.all(operations))
+      $transaction: jest.fn()
     };
+    prisma.$transaction.mockImplementation(async (operation: (tx: typeof prisma) => Promise<unknown>) => operation(prisma));
+
     const config = {
       get: jest.fn((key: string) => configValues[key])
     };
@@ -90,13 +92,34 @@ describe('AccountRecoveryService', () => {
 
     prisma.user.findUnique.mockResolvedValue(user);
     await expect(service.reset(resetToken, 'a-new-password-123')).resolves.toEqual({ reset: true });
-    expect(prisma.user.update).toHaveBeenCalled();
+    expect(prisma.user.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: user.id, passwordHash: user.passwordHash })
+    }));
     expect(prisma.authSession.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ userId: user.id, revokedAt: null })
     }));
     expect(prisma.trustedDevice.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ userId: user.id, revokedAt: null })
     }));
+  });
+
+  it('fails closed if another reset consumed the password state first', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValue(user);
+    let resetToken = '';
+    jest.spyOn(global, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { html: string };
+      const match = body.html.match(/token=([^"&<]+)/);
+      resetToken = decodeURIComponent(match?.[1] ?? '');
+      return new Response('', { status: 202 });
+    });
+    await service.request(user.email);
+
+    prisma.user.findUnique.mockResolvedValue(user);
+    prisma.user.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.reset(resetToken, 'a-new-password-123')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
+    expect(prisma.trustedDevice.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects a tampered reset token', async () => {
