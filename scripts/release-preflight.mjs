@@ -78,6 +78,26 @@ export function validateProductionEnvironment(env = process.env) {
   for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
   requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
 
+  const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
+  if (recoveryEnabled) {
+    requireSecret(env, 'ACCOUNT_RECOVERY_SECRET', 32, errors);
+    if (
+      nonEmpty(env.ACCOUNT_RECOVERY_SECRET) &&
+      nonEmpty(env.JWT_SECRET) &&
+      env.ACCOUNT_RECOVERY_SECRET.trim() === env.JWT_SECRET.trim()
+    ) {
+      errors.push('ACCOUNT_RECOVERY_SECRET must be distinct from JWT_SECRET.');
+    }
+    requireHttps(env, 'ACCOUNT_RECOVERY_EMAIL_ENDPOINT', errors);
+    requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
+    if (!nonEmpty(env.ACCOUNT_RECOVERY_EMAIL_FROM)) {
+      errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must be set to a verified sender identity.');
+    }
+    requireHttps(env, 'WEB_URL', errors);
+  } else {
+    errors.push('ACCOUNT_RECOVERY_ENABLED must not be disabled for a market release.');
+  }
+
   const requireTurn = parseBoolean(env.CALL_REQUIRE_TURN_IN_PRODUCTION, true);
   if (requireTurn) {
     requireSecret(env, 'CALL_TURN_SECRET', 32, errors);

@@ -19,6 +19,7 @@ test('login renders as a usable public entrypoint without browser errors', async
   await expect(page.getByPlaceholder('Mot de passe')).toBeEditable();
   await expect(page.getByRole('button', { name: 'Entrer dans KnowMe' })).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Créer mon profil' })).toHaveAttribute('href', '/register');
+  await expect(page.getByRole('link', { name: 'Mot de passe oublié ?' })).toHaveAttribute('href', '/forgot-password');
   expect(failures).toEqual([]);
 });
 
@@ -37,5 +38,37 @@ test('registration renders as a usable public entrypoint and links back to login
   await page.getByRole('link', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
+  expect(failures).toEqual([]);
+});
+
+test('password recovery request is a usable privacy-safe public entrypoint', async ({ page }) => {
+  const failures = collectPageFailures(page);
+
+  const response = await page.goto('/forgot-password');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Mot de passe oublié' })).toBeVisible();
+  await expect(page.getByPlaceholder('Adresse e-mail')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Recevoir un lien de récupération' })).toBeEnabled();
+  await expect(page.getByText(/la réponse sera la même qu’un compte existe ou non/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Retour à la connexion' })).toHaveAttribute('href', '/login');
+  expect(failures).toEqual([]);
+});
+
+test('password reset link requires a token, consumes its fragment and renders the new-password controls', async ({ page }) => {
+  const failures = collectPageFailures(page);
+
+  let response = await page.goto('/reset-password');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Lien de récupération invalide' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Demander un nouveau lien' })).toHaveAttribute('href', '/forgot-password');
+
+  await page.goto('/login');
+  response = await page.goto('/reset-password#token=test-recovery-token-value');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Nouveau mot de passe' })).toBeVisible();
+  await expect(page).toHaveURL(/\/reset-password$/);
+  await expect(page.getByPlaceholder('Nouveau mot de passe')).toBeEditable();
+  await expect(page.getByPlaceholder('Confirme le mot de passe')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Réinitialiser le mot de passe' })).toBeEnabled();
   expect(failures).toEqual([]);
 });

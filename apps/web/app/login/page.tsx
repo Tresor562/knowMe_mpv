@@ -114,6 +114,9 @@ export default function LoginPage() {
           </div>
           <input className="input" name="identifier" placeholder="Email ou pseudo" autoComplete="username" required />
           <input className="input" name="password" type="password" placeholder="Mot de passe" autoComplete="current-password" minLength={8} required />
+          <p style={{margin:0,textAlign:'right'}}>
+            <Link href="/forgot-password" style={{color:'var(--mint)'}}>Mot de passe oublié ?</Link>
+          </p>
           <button className="btn btn-primary" disabled={submitting}>
             {submitting ? 'Vérification...' : 'Entrer dans KnowMe'}
           </button>
