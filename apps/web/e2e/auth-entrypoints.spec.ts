@@ -91,6 +91,9 @@ test('authenticated account data rights page keeps export and deletion behind ex
       })
     });
   });
+  await page.route('**/appearance', async (route) => {
+    await route.fulfill({ status: 204, body: '' });
+  });
 
   const response = await page.goto('/account/data-rights');
   expect(response?.ok()).toBeTruthy();
