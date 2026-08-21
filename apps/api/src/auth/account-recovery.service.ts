@@ -20,22 +20,24 @@ export class AccountRecoveryService {
   ) {}
 
   async request(emailInput: string, context: SecurityContext = {}) {
-    const email = emailInput.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email } });
-
-    // Always return the same public result to prevent account enumeration.
-    if (!user || user.isSuspended) {
-      return { accepted: true };
-    }
-
     const secret = this.config.get<string>('ACCOUNT_RECOVERY_SECRET');
     const endpoint = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_ENDPOINT');
     const apiKey = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_API_KEY');
     const from = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
     const webUrl = this.config.get<string>('WEB_URL');
 
+    // Configuration availability is account-independent, so a failure cannot
+    // be used to infer whether a submitted address exists.
     if (!secret || secret.length < 32 || !endpoint || !apiKey || !from || !webUrl) {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
+    }
+
+    const email = emailInput.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // Always return the same public result to prevent account enumeration.
+    if (!user || user.isSuspended) {
+      return { accepted: true };
     }
 
     const payload: RecoveryPayload = {
@@ -49,25 +51,32 @@ export class AccountRecoveryService {
     const token = `${encoded}.${signature}`;
     const resetUrl = `${webUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from,
-        to: [user.email],
-        subject: 'Réinitialise ton mot de passe KnowMe',
-        html: `<p>Une réinitialisation de mot de passe a été demandée pour ton compte KnowMe.</p><p><a href="${this.escapeHtml(resetUrl)}">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans 15 minutes. Si tu n’es pas à l’origine de cette demande, ignore cet e-mail.</p>`
-      })
-    });
-
-    if (!response.ok) {
-      await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
-        providerStatus: response.status
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from,
+          to: [user.email],
+          subject: 'Réinitialise ton mot de passe KnowMe',
+          html: `<p>Une réinitialisation de mot de passe a été demandée pour ton compte KnowMe.</p><p><a href="${this.escapeHtml(resetUrl)}">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans 15 minutes. Si tu n’es pas à l’origine de cette demande, ignore cet e-mail.</p>`
+        })
       });
-      throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
+
+      if (!response.ok) {
+        await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
+          providerStatus: response.status
+        });
+        return { accepted: true };
+      }
+    } catch {
+      await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
+        providerStatus: 'NETWORK_ERROR'
+      });
+      return { accepted: true };
     }
 
     await this.writeAudit('ACCOUNT_RECOVERY_REQUESTED', user.id, context);
@@ -148,7 +157,6 @@ export class AccountRecoveryService {
   private async writeAudit(action: string, userId: string, context: SecurityContext, metadata?: Record<string, unknown>) {
     await this.prisma.auditLog.create({
       data: {
-        actorId: userId,
         action,
         entity: 'ACCOUNT',
         entityId: userId,
