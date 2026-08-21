@@ -31,6 +31,23 @@ Le load balancer ou l'orchestrateur doit utiliser `/health/ready` pour retirer d
 
 La configuration réelle des probes dans l'hébergeur reste une preuve de déploiement externe et ne doit pas être considérée comme réalisée tant qu'elle n'a pas été vérifiée dans l'environnement cible.
 
+## Observabilité HTTP
+
+KMD-167 ajoute une base de logs HTTP structurés sur la sortie standard de l'API. Chaque requête terminée produit une ligne JSON contenant uniquement :
+
+- `event=http_request_completed` ;
+- `requestId` ;
+- méthode HTTP ;
+- chemin sans query string ;
+- code HTTP ;
+- durée en millisecondes.
+
+Le middleware accepte un `x-request-id` client uniquement s'il respecte un format borné et sûr ; sinon un UUID serveur est généré. Le même identifiant est renvoyé dans `x-request-id` afin de corréler un incident client avec les logs serveur.
+
+Les query strings, corps, cookies, en-têtes d'authentification, tokens et données utilisateur ne sont pas écrits par ce logger. Un collecteur de logs externe doit préserver cette politique de minimisation, chiffrer les données au repos et appliquer une rétention adaptée.
+
+La collecte centralisée, les dashboards, alertes, métriques d'infrastructure et objectifs SLO restent des preuves d'exploitation externes : KMD-167 ne prétend pas les avoir configurés dans l'hébergeur.
+
 ## Sauvegarde et reprise PostgreSQL
 
 KMD-165 fournit un chemin opérable pour créer et vérifier des sauvegardes PostgreSQL sans stocker les credentials dans les manifests.
@@ -87,8 +104,8 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
 - planification distante et rétention des sauvegardes PostgreSQL ;
 - exercice réel de restauration avec RPO/RTO mesurés ;
-- logs centralisés ;
-- supervision ;
+- collecte centralisée des logs structurés ;
+- dashboards, alertes et supervision externe ;
 - tests E2E ;
 - politique de confidentialité ;
 - conditions d’utilisation ;
