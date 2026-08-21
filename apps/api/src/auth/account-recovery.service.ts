@@ -26,8 +26,6 @@ export class AccountRecoveryService {
     const from = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
     const webUrl = this.config.get<string>('WEB_URL');
 
-    // Configuration availability is account-independent, so a failure cannot
-    // be used to infer whether a submitted address exists.
     if (!secret || secret.length < 32 || !endpoint || !apiKey || !from || !webUrl) {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
     }
@@ -35,7 +33,6 @@ export class AccountRecoveryService {
     const email = emailInput.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    // Always return the same public result to prevent account enumeration.
     if (!user || user.isSuspended) {
       return { accepted: true };
     }
@@ -103,20 +100,31 @@ export class AccountRecoveryService {
 
     const now = new Date();
     const passwordHash = await argon2.hash(nextPassword);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
+    const consumed = await this.prisma.$transaction(async (tx) => {
+      const passwordUpdate = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          passwordHash: user.passwordHash
+        },
         data: { passwordHash }
-      }),
-      this.prisma.authSession.updateMany({
+      });
+
+      if (passwordUpdate.count !== 1) return false;
+
+      await tx.authSession.updateMany({
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: now }
-      }),
-      this.prisma.trustedDevice.updateMany({
+      });
+      await tx.trustedDevice.updateMany({
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: now }
-      })
-    ]);
+      });
+      return true;
+    });
+
+    if (!consumed) {
+      throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
+    }
 
     await this.writeAudit('ACCOUNT_PASSWORD_RESET', user.id, context, {
       sessionsRevoked: true,
