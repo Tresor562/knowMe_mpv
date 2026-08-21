@@ -46,7 +46,7 @@ export class AccountRecoveryService {
     const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
     const signature = this.sign(encoded, secret);
     const token = `${encoded}.${signature}`;
-    const resetUrl = `${webUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+    const resetUrl = `${webUrl.replace(/\/$/, '')}/reset-password#token=${encodeURIComponent(token)}`;
 
     try {
       const response = await fetch(endpoint, {
@@ -60,7 +60,8 @@ export class AccountRecoveryService {
           to: [user.email],
           subject: 'Réinitialise ton mot de passe KnowMe',
           html: `<p>Une réinitialisation de mot de passe a été demandée pour ton compte KnowMe.</p><p><a href="${this.escapeHtml(resetUrl)}">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans 15 minutes. Si tu n’es pas à l’origine de cette demande, ignore cet e-mail.</p>`
-        })
+        }),
+        signal: AbortSignal.timeout(8_000)
       });
 
       if (!response.ok) {
