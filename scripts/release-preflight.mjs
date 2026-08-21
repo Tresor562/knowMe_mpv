@@ -1,0 +1,128 @@
+#!/usr/bin/env node
+
+const HTTPS_URL_KEYS = ['NEXT_PUBLIC_API_URL'];
+
+function nonEmpty(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function parseBoolean(value, fallback = false) {
+  if (!nonEmpty(value)) return fallback;
+  return String(value).trim().toLowerCase() === 'true';
+}
+
+function parseJsonArray(value, key, errors) {
+  if (!nonEmpty(value)) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      errors.push(`${key} must be a JSON array.`);
+      return [];
+    }
+    return parsed;
+  } catch {
+    errors.push(`${key} must contain valid JSON.`);
+    return [];
+  }
+}
+
+function requireSecret(env, key, minLength, errors) {
+  const value = env[key];
+  if (!nonEmpty(value) || value.trim().length < minLength) {
+    errors.push(`${key} must be set to at least ${minLength} characters.`);
+  }
+}
+
+function requireHttps(env, key, errors) {
+  const value = env[key];
+  if (!nonEmpty(value)) {
+    errors.push(`${key} must be set.`);
+    return;
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') errors.push(`${key} must use HTTPS in production.`);
+    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname)) {
+      errors.push(`${key} must not point to a local host in production.`);
+    }
+  } catch {
+    errors.push(`${key} must be a valid URL.`);
+  }
+}
+
+export function validateProductionEnvironment(env = process.env) {
+  const errors = [];
+  const warnings = [];
+
+  if (env.NODE_ENV !== 'production') {
+    errors.push('NODE_ENV must be exactly "production" for a production release preflight.');
+  }
+
+  if (!nonEmpty(env.DATABASE_URL)) {
+    errors.push('DATABASE_URL must be set.');
+  } else {
+    try {
+      const databaseUrl = new URL(env.DATABASE_URL);
+      if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol)) {
+        errors.push('DATABASE_URL must use PostgreSQL.');
+      }
+      if (['localhost', '127.0.0.1', '0.0.0.0'].includes(databaseUrl.hostname)) {
+        errors.push('DATABASE_URL must not point to a local host in production.');
+      }
+    } catch {
+      errors.push('DATABASE_URL must be a valid PostgreSQL URL.');
+    }
+  }
+
+  requireSecret(env, 'JWT_SECRET', 32, errors);
+  for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
+  requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
+
+  const requireTurn = parseBoolean(env.CALL_REQUIRE_TURN_IN_PRODUCTION, true);
+  if (requireTurn) {
+    requireSecret(env, 'CALL_TURN_SECRET', 32, errors);
+    const turnUrls = parseJsonArray(env.CALL_TURN_URLS_JSON, 'CALL_TURN_URLS_JSON', errors);
+    if (turnUrls.length === 0) errors.push('CALL_TURN_URLS_JSON must contain at least one TURN endpoint.');
+    for (const item of turnUrls) {
+      if (typeof item !== 'string' || !/^turns?:/i.test(item)) {
+        errors.push('CALL_TURN_URLS_JSON may contain only turn: or turns: URLs.');
+        break;
+      }
+    }
+  }
+
+  const nexusEnabled = parseBoolean(env.NEXUS_INTEGRATION_ENABLED, false);
+  if (nexusEnabled) {
+    requireSecret(env, 'NEXUS_KNOWME_SHARED_SECRET', 32, errors);
+    requireHttps(env, 'NEXUS_SERVER_URL', errors);
+  }
+
+  const webCatalog = parseJsonArray(env.PAYMENTS_WEB_CATALOG_JSON, 'PAYMENTS_WEB_CATALOG_JSON', errors);
+  const storeCatalog = parseJsonArray(env.PAYMENTS_STORE_CATALOG_JSON, 'PAYMENTS_STORE_CATALOG_JSON', errors);
+  if (webCatalog.length > 0 || storeCatalog.length > 0) {
+    requireSecret(env, 'PAYMENTS_DATA_ENCRYPTION_KEY', 32, errors);
+    requireSecret(env, 'PAYMENTS_FRAUD_HASH_SALT', 32, errors);
+    if (webCatalog.length > 0) {
+      requireHttps(env, 'PAYMENTS_PUBLIC_API_URL', errors);
+      requireHttps(env, 'PAYMENTS_RETURN_URL', errors);
+    }
+  } else {
+    warnings.push('No payment catalog is configured; monetization must remain disabled for this release.');
+  }
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+function runCli() {
+  const result = validateProductionEnvironment(process.env);
+  for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
+  if (!result.ok) {
+    for (const error of result.errors) console.error(`ERROR: ${error}`);
+    console.error(`Production release preflight failed with ${result.errors.length} error(s).`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log('Production release preflight passed.');
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) runCli();
