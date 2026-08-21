@@ -19,6 +19,18 @@ pnpm db:migrate
 pnpm dev
 ```
 
+## Sondes de santé de production
+
+KMD-166 sépare la vie du processus de sa capacité réelle à recevoir du trafic :
+
+- `GET /health` : compatibilité historique, sans dépendance externe ;
+- `GET /health/live` : liveness du processus, sans requête PostgreSQL ;
+- `GET /health/ready` : readiness avec un `SELECT 1` PostgreSQL minimal via Prisma.
+
+Le load balancer ou l'orchestrateur doit utiliser `/health/ready` pour retirer du trafic une instance qui ne peut plus joindre PostgreSQL. `/health/live` ne doit servir qu'à décider si le processus lui-même doit être redémarré. Une panne PostgreSQL produit un `503` de readiness sans renvoyer le message d'exception, l'URL de connexion ou des credentials.
+
+La configuration réelle des probes dans l'hébergeur reste une preuve de déploiement externe et ne doit pas être considérée comme réalisée tant qu'elle n'a pas été vérifiée dans l'environnement cible.
+
 ## Sauvegarde et reprise PostgreSQL
 
 KMD-165 fournit un chemin opérable pour créer et vérifier des sauvegardes PostgreSQL sans stocker les credentials dans les manifests.
@@ -72,6 +84,7 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 - HTTPS obligatoire ;
 - rate limiting ;
 - rotation des secrets ;
+- configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
 - planification distante et rétention des sauvegardes PostgreSQL ;
 - exercice réel de restauration avec RPO/RTO mesurés ;
 - logs centralisés ;
