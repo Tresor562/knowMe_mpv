@@ -19,6 +19,29 @@ pnpm db:migrate
 pnpm dev
 ```
 
+## Sauvegarde et reprise PostgreSQL
+
+KMD-165 fournit un chemin opérable pour créer et vérifier des sauvegardes PostgreSQL sans stocker les credentials dans les manifests.
+
+Créer une sauvegarde :
+
+```bash
+pnpm db:backup
+```
+
+Un chemin sécurisé explicite peut être fourni avec `--output`. Le dump est créé au format PostgreSQL custom, limité localement à l'utilisateur courant et accompagné d'un manifeste SHA-256. Les dumps contiennent des données sensibles : le stockage de destination doit les chiffrer au repos et les exclure des logs, artefacts publics et dépôts Git.
+
+Tester une restauration dans un environnement isolé :
+
+```bash
+export RESTORE_DATABASE_URL='postgresql://.../knowme_restore'
+pnpm db:restore -- --file /secure/path/knowme.dump --confirm RESTORE_KNOWME
+```
+
+La restauration refuse un dump sans manifeste valide ou dont le SHA-256 ne correspond plus. Elle utilise `pg_restore --exit-on-error --clean --if-exists`; elle doit donc être traitée comme destructive. Après restauration, exécuter les vérifications Prisma, build/tests et contrôles fonctionnels avant toute remise en trafic.
+
+La procédure détaillée, les preuves encore externes et le rollback sont documentés dans `docs/roadmap/KMD_165_DELIVERY.md`.
+
 ## Stickers signés
 
 En production, les stickers utilisent une clé HMAC dédiée et ne doivent pas dépendre de `JWT_SECRET`.
@@ -42,17 +65,18 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 
 ## Avant une mise en production
 
-À ajouter ou renforcer :
+À ajouter, vérifier ou renforcer selon l'environnement réel :
 
 - stockage objet pour les médias ;
 - serveur TURN pour WebRTC ;
 - HTTPS obligatoire ;
 - rate limiting ;
 - rotation des secrets ;
-- sauvegardes PostgreSQL ;
+- planification distante et rétention des sauvegardes PostgreSQL ;
+- exercice réel de restauration avec RPO/RTO mesurés ;
 - logs centralisés ;
 - supervision ;
 - tests E2E ;
 - politique de confidentialité ;
 - conditions d’utilisation ;
-- mécanisme de suppression de compte et export des données.
+- validation réelle des parcours de suppression de compte et export des données.
