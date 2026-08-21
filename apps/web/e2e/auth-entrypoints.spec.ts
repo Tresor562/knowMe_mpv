@@ -6,6 +6,9 @@ function collectPageFailures(page: Page) {
   page.on('console', (message) => {
     if (message.type() === 'error') failures.push(`console: ${message.text()}`);
   });
+  page.on('requestfailed', (request) => {
+    failures.push(`requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
+  });
   return failures;
 }
 
@@ -99,6 +102,20 @@ test('authenticated account data rights page keeps export and deletion behind ex
         preference: {
           effectiveThemeKey: 'system'
         }
+      })
+    });
+  });
+  await page.route('**/i18n/preferences**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        locale: 'fr',
+        direction: 'ltr',
+        source: 'user',
+        version: 1,
+        persisted: true,
+        updatedAt: '2026-08-21T00:00:00.000Z'
       })
     });
   });
