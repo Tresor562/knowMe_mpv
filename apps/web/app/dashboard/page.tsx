@@ -42,7 +42,8 @@ export default function Dashboard() {
     ['📝 Brouillons', 'Retrouve les messages que tu prépares sans les avoir envoyés.', '/drafts'],
     ['🔔 Notifications', `${notificationCount} notification(s) non lue(s).`, '/notifications'],
     ['👥 Connexions', 'Recherche des amis et agrandis ton cercle.', '/friends'],
-    ['🪙 KnowCoins', `${user.knowCoins ?? 0} KnowCoins disponibles.`, '/profile']
+    ['🪙 KnowCoins', `${user.knowCoins ?? 0} KnowCoins disponibles.`, '/profile'],
+    ['🛡️ Mes données', 'Exporte tes données ou gère la suppression de ton compte avec une vérification renforcée.', '/account/data-rights']
   ];
 
   return (
