@@ -1,19 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 
 export default function ResetPasswordPage() {
-  const searchParams = useSearchParams();
-  const token = useMemo(() => searchParams.get('token') ?? '', [searchParams]);
+  const [token, setToken] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
+  useEffect(() => {
+    setToken(new URLSearchParams(window.location.search).get('token') ?? '');
+  }, []);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!token) return;
     setSubmitting(true);
     setMessage('');
     const form = new FormData(event.currentTarget);
@@ -38,6 +41,16 @@ export default function ResetPasswordPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (token === null) {
+    return (
+      <main className="shell" style={{display:'grid',placeItems:'center'}}>
+        <section className="card" aria-busy="true" style={{width:'min(100%,430px)',padding:28}}>
+          <p style={{color:'var(--muted)'}}>Vérification du lien de récupération…</p>
+        </section>
+      </main>
+    );
   }
 
   if (!token) {
