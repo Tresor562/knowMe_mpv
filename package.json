@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",
-    "check:project": "node scripts/check-project.mjs"
+    "check:project": "node scripts/check-project.mjs",
+    "check:release": "node scripts/release-preflight.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
