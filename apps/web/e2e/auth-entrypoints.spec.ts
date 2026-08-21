@@ -79,7 +79,7 @@ test('authenticated account data rights page keeps export and deletion behind ex
   await page.addInitScript(() => {
     window.localStorage.setItem('knowme_token', 'browser-release-gate-token');
   });
-  await page.route('**/users/me', async (route) => {
+  await page.route('**/users/me**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -91,8 +91,16 @@ test('authenticated account data rights page keeps export and deletion behind ex
       })
     });
   });
-  await page.route('**/appearance', async (route) => {
-    await route.fulfill({ status: 204, body: '' });
+  await page.route('**/appearance**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        preference: {
+          effectiveThemeKey: 'system'
+        }
+      })
+    });
   });
 
   const response = await page.goto('/account/data-rights');
