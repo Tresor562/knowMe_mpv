@@ -67,15 +67,66 @@ export function validateMobileStoreConfig(config) {
   return { ok: errors.length === 0, errors, warnings };
 }
 
-async function runCli() {
-  const configUrl = new URL('../apps/mobile/app.json', import.meta.url);
-  const config = JSON.parse(await readFile(fileURLToPath(configUrl), 'utf8'));
-  const result = validateMobileStoreConfig(config);
+export function validateMobileProductionBuildConfig(config) {
+  const errors = [];
+  const warnings = [];
+  const cli = config?.cli;
+  const production = config?.build?.production;
 
-  for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
-  if (!result.ok) {
-    for (const error of result.errors) console.error(`ERROR: ${error}`);
-    console.error(`Mobile store preflight failed with ${result.errors.length} error(s).`);
+  if (!production || typeof production !== 'object') {
+    return {
+      ok: false,
+      errors: ['apps/mobile/eas.json must define build.production for store releases.'],
+      warnings,
+    };
+  }
+
+  if (production.developmentClient === true) {
+    errors.push('build.production.developmentClient must not be enabled for a store release.');
+  }
+  if (production.distribution !== 'store') {
+    errors.push('build.production.distribution must be "store".');
+  }
+  if (production.android?.buildType !== 'app-bundle') {
+    errors.push('build.production.android.buildType must be "app-bundle" for Google Play distribution.');
+  }
+  if (production.ios?.simulator !== false) {
+    errors.push('build.production.ios.simulator must be false for App Store distribution.');
+  }
+  if (production.autoIncrement !== true) {
+    errors.push('build.production.autoIncrement must be true to preserve forward-only store build numbering.');
+  }
+
+  if (cli?.appVersionSource !== 'remote') {
+    errors.push('cli.appVersionSource must be "remote" so EAS owns monotonic store build identifiers.');
+  }
+
+  const submitProduction = config?.submit?.production;
+  if (!submitProduction || typeof submitProduction !== 'object' || Array.isArray(submitProduction)) {
+    errors.push('submit.production must exist as an object for the production submission workflow.');
+  }
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+async function runCli() {
+  const appConfigUrl = new URL('../apps/mobile/app.json', import.meta.url);
+  const easConfigUrl = new URL('../apps/mobile/eas.json', import.meta.url);
+  const [appConfig, easConfig] = await Promise.all([
+    readFile(fileURLToPath(appConfigUrl), 'utf8').then(JSON.parse),
+    readFile(fileURLToPath(easConfigUrl), 'utf8').then(JSON.parse),
+  ]);
+  const results = [
+    validateMobileStoreConfig(appConfig),
+    validateMobileProductionBuildConfig(easConfig),
+  ];
+  const warnings = results.flatMap((result) => result.warnings);
+  const errors = results.flatMap((result) => result.errors);
+
+  for (const warning of warnings) console.warn(`WARN: ${warning}`);
+  if (errors.length > 0) {
+    for (const error of errors) console.error(`ERROR: ${error}`);
+    console.error(`Mobile store preflight failed with ${errors.length} error(s).`);
     process.exitCode = 1;
     return;
   }
@@ -84,7 +135,7 @@ async function runCli() {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   runCli().catch((error) => {
-    console.error('ERROR: Mobile store preflight could not read the Expo configuration.');
+    console.error('ERROR: Mobile store preflight could not read the Expo/EAS configuration.');
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
