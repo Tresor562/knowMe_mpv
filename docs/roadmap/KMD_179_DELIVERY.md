@@ -2,22 +2,33 @@
 
 ## Goal
 
-Make production schema changes follow the committed Prisma migration history instead of relying on `prisma db push`, and make CI prove that the migration chain can bootstrap a clean PostgreSQL database.
+Make production schema changes follow a complete committed Prisma migration history instead of relying on `prisma db push`, and prove in CI that a clean PostgreSQL database can be created from that history.
+
+## Defect found during validation
+
+The first clean migration-deploy run exposed an incomplete pre-release migration history. The repository contained later incremental migrations, but no committed migration creating the original core tables. KMD-066 therefore failed on a clean database because `User` and `Message` did not exist.
+
+Earlier development and KMD validation had relied on `prisma db push`, which allowed the running schema to exist without a complete bootstrap history. KMD-179 treats that as a release blocker rather than hiding it with another `db push`.
 
 ## Delivered
 
 - Added `@knowme/api prisma:migrate:deploy` using `prisma migrate deploy --schema prisma`.
 - Added root `pnpm db:migrate:deploy` for deployment jobs.
-- Replaced the CI schema bootstrap step from `prisma:push` to `db:migrate:deploy` on a clean PostgreSQL 16 service.
-- Documented development-vs-production migration responsibilities, backup prerequisites, concurrency boundaries and rollback expectations.
+- Replaced the incomplete pre-release incremental history with `20260801000000_kmd_179_release_baseline`, generated from the current Prisma datamodel before any production deployment has been claimed.
+- The baseline contains the complete schema expected by the current application, including the core account, messaging and later KMD tables.
+- CI now applies committed migrations to an empty PostgreSQL 16 database before build and test suites.
+- The temporary baseline-generation workflow was removed after the baseline was committed; the final CI gate is read-only.
+- Production migration sequencing, backup prerequisites and rollback boundaries are documented.
 
-## Release boundary
+## Existing environment boundary
 
-This KMD does not claim that any production database was migrated. It only supplies and validates the production-safe command path in repository CI. The actual deployment runner, provider maintenance window, backup freshness and production migration execution remain external evidence.
+The release baseline is intended to establish a trustworthy migration starting point before market release. It must not be blindly applied to an existing database whose schema was previously created by `db push`, because its tables may already exist. Any such environment needs a reviewed schema-equivalence and migration-history reconciliation procedure first.
+
+No existing environment or production database is claimed to have completed that transition in KMD-179.
 
 ## Validation
 
-The PR must remain draft until the exact head passes:
+The final PR head must pass:
 
 1. dependency installation;
 2. Prisma client generation;
@@ -27,10 +38,12 @@ The PR must remain draft until the exact head passes:
 6. Chromium Web E2E;
 7. PostgreSQL API E2E.
 
-A failure in step 3 is a release blocker and must not be bypassed with `prisma db push`.
+A migration failure is a release blocker and must not be bypassed with `prisma db push`.
+
+## Release boundary
+
+This KMD does not claim a production migration, deployment, provider maintenance window, backup verification or migration of an existing database. Those remain deployment evidence to collect on the target infrastructure.
 
 ## Rollback
 
-Code rollback: revert KMD-179 to restore the previous scripts/CI. Do not use that rollback to justify `db push` in production.
-
-Schema rollback: Prisma migrations are forward-applied. If a production schema change must be corrected, prefer a new corrective migration. Use database restoration only when the incident procedure explicitly calls for it and a verified backup exists. Never assume reverting application code reverses an already-applied database migration.
+Before deployment, reverting KMD-179 can restore the previous repository state for investigation. After a database has actually been migrated, an application-code revert must never be assumed to reverse the database schema. Schema corrections require an explicit migration or a verified incident-recovery procedure.
