@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kmd-179-baseline-sql
-          path: apps/api/kmd-179-baseline.sql
+          path: kmd-179-baseline.sql
           retention-days: 1
       - run: pnpm db:migrate:deploy
       - run: pnpm build
