@@ -19,6 +19,16 @@ pnpm db:migrate
 pnpm dev
 ```
 
+## CORS de production
+
+KMD-171 impose une allowlist explicite pour les navigateurs lorsque `NODE_ENV=production`. La configuration doit contenir uniquement les origines Web réellement servies par KnowMe :
+
+```env
+CORS_ALLOWED_ORIGINS_JSON='["https://knowme.example","https://www.knowme.example"]'
+```
+
+Les wildcards, HTTP, localhost, credentials dans l'URL, chemins, query strings et fragments sont refusés pour une release marché. Les requêtes sans header `Origin` restent possibles pour les applications natives, probes et appels serveur-à-serveur. Après déploiement, vérifier depuis chaque domaine Web réel que l'origine autorisée reçoit les bons headers CORS et qu'une origine étrangère ne les reçoit pas.
+
 ## Sondes de santé de production
 
 KMD-166 sépare la vie du processus de sa capacité réelle à recevoir du trafic :
@@ -99,6 +109,7 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 - stockage objet pour les médias ;
 - serveur TURN pour WebRTC ;
 - HTTPS obligatoire ;
+- vérifier la valeur réelle de `CORS_ALLOWED_ORIGINS_JSON` et les headers CORS sur les domaines de production ;
 - rate limiting ;
 - rotation des secrets ;
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
