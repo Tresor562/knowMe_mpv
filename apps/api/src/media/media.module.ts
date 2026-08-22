@@ -3,10 +3,11 @@ import { MediaDownloadPreferenceController } from './media-download-preference.c
 import { MediaDownloadPreferenceService } from './media-download-preference.service';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
+import { MediaStorageService } from './media-storage.service';
 
 @Module({
   controllers: [MediaController, MediaDownloadPreferenceController],
-  providers: [MediaService, MediaDownloadPreferenceService],
-  exports: [MediaService, MediaDownloadPreferenceService]
+  providers: [MediaStorageService, MediaService, MediaDownloadPreferenceService],
+  exports: [MediaStorageService, MediaService, MediaDownloadPreferenceService]
 })
 export class MediaModule {}
