@@ -89,6 +89,7 @@ export class AccountService {
       mediaDownloads,
       creatorFoundation,
       gamePlatform,
+      gameFavorites,
       tournaments,
       affinityPreference,
       socialMatchmaking,
@@ -151,6 +152,11 @@ export class AccountService {
       this.mediaDownloads.exportForAccount(userId),
       this.creators.exportForAccount(userId),
       this.games.exportForAccount(userId),
+      this.prisma.gameFavorite.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { definitionKey: 'asc' }],
+        select: { definitionKey: true, createdAt: true }
+      }),
       this.tournaments.exportForAccount(userId),
       this.affinityPolicy.exportForAccount(userId),
       this.socialMatchmaking.exportForAccount(userId),
@@ -216,8 +222,10 @@ export class AccountService {
       tournaments.memberships.length > 0 ||
       tournaments.tournaments.length > 0 ||
       tournaments.authoredEvents.length > 0;
+    const hasGameFavoriteData = gameFavorites.length > 0;
     const hasGameData =
       hasTournamentData ||
+      hasGameFavoriteData ||
       gamePlatform.memberships.length > 0 ||
       gamePlatform.authoredActions.length > 0;
     const hasAffinityData =
@@ -272,31 +280,33 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasShortLinkData
-        ? 19
-        : hasTournamentData
-          ? 17
-          : hasSocialConnectionData
-            ? 16
-            : hasSocialMatchmakingData
-              ? 15
-              : hasAffinityData
-                ? 14
-                : hasGameData
-                  ? 13
-                  : hasCreatorData
-                    ? 12
-                    : hasMediaDownloadData
-                      ? 11
-                      : hasLocalizationData
-                        ? 10
-                        : hasNotificationCenterData
-                          ? 9
-                          : hasSocialGiftData
-                            ? 8
-                            : hasAppearanceData
-                              ? 7
-                              : 6,
+      formatVersion: hasGameFavoriteData
+        ? 20
+        : hasShortLinkData
+          ? 19
+          : hasTournamentData
+            ? 17
+            : hasSocialConnectionData
+              ? 16
+              : hasSocialMatchmakingData
+                ? 15
+                : hasAffinityData
+                  ? 14
+                  : hasGameData
+                    ? 13
+                    : hasCreatorData
+                      ? 12
+                      : hasMediaDownloadData
+                        ? 11
+                        : hasLocalizationData
+                          ? 10
+                          : hasNotificationCenterData
+                            ? 9
+                            : hasSocialGiftData
+                              ? 8
+                              : hasAppearanceData
+                                ? 7
+                                : 6,
       account: safeUser,
       security,
       privacy,
@@ -304,6 +314,7 @@ export class AccountService {
         ? {
             gamePlatform: {
               ...gamePlatform,
+              favorites: gameFavorites,
               affinityPreference,
               ...(hasTournamentData ? { tournaments } : {})
             }
