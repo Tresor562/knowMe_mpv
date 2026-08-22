@@ -36,7 +36,7 @@ jobs:
       - run: pnpm install --frozen-lockfile=false
       - run: pnpm --filter @knowme/api prisma:generate
       - name: Generate current-schema baseline SQL for KMD-179 repair
-        run: pnpm --filter @knowme/api exec prisma migrate diff --from-empty --to-schema prisma --script > kmd-179-baseline.sql
+        run: pnpm --filter @knowme/api exec prisma migrate diff --from-empty --to-schema-datamodel prisma --script > kmd-179-baseline.sql
       - name: Upload KMD-179 baseline SQL
         uses: actions/upload-artifact@v4
         with:
