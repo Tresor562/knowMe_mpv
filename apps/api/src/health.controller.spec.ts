@@ -1,10 +1,20 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { recordRuntimeHttpMetric, resetRuntimeHttpMetricsForTests } from './common/http-observability';
-import { HealthController } from './health.controller';
+import { hasMetricsAccess, HealthController } from './health.controller';
 import { PrismaService } from './prisma/prisma.service';
 
 describe('HealthController', () => {
-  beforeEach(() => resetRuntimeHttpMetricsForTests());
+  const originalMetricsToken = process.env.METRICS_BEARER_TOKEN;
+
+  beforeEach(() => {
+    resetRuntimeHttpMetricsForTests();
+    process.env.METRICS_BEARER_TOKEN = 'm'.repeat(64);
+  });
+
+  afterAll(() => {
+    if (originalMetricsToken === undefined) delete process.env.METRICS_BEARER_TOKEN;
+    else process.env.METRICS_BEARER_TOKEN = originalMetricsToken;
+  });
 
   const makeController = () => {
     const prisma = {
@@ -37,12 +47,22 @@ describe('HealthController', () => {
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
-  it('exposes only aggregate runtime metrics without touching PostgreSQL', () => {
+  it('accepts only the exact configured bearer token', () => {
+    const token = 'x'.repeat(64);
+
+    expect(hasMetricsAccess(`Bearer ${token}`, token)).toBe(true);
+    expect(hasMetricsAccess(`Bearer ${'y'.repeat(64)}`, token)).toBe(false);
+    expect(hasMetricsAccess(token, token)).toBe(false);
+    expect(hasMetricsAccess(undefined, token)).toBe(false);
+    expect(hasMetricsAccess(`Bearer ${token}`, 'short')).toBe(false);
+  });
+
+  it('exposes only aggregate runtime metrics to an authorized collector without touching PostgreSQL', () => {
     const { controller, queryRaw } = makeController();
     recordRuntimeHttpMetric(200, 50);
     recordRuntimeHttpMetric(503, 900);
 
-    const result = controller.getMetrics();
+    const result = controller.getMetrics(`Bearer ${process.env.METRICS_BEARER_TOKEN}`);
 
     expect(result.service).toBe('knowme-api');
     expect(result.uptimeSeconds).toEqual(expect.any(Number));
@@ -55,7 +75,26 @@ describe('HealthController', () => {
     });
     expect(JSON.stringify(result)).not.toContain('requestId');
     expect(JSON.stringify(result)).not.toContain('path');
+    expect(JSON.stringify(result)).not.toContain(process.env.METRICS_BEARER_TOKEN);
     expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing or invalid metrics credentials without returning metric data', () => {
+    const { controller } = makeController();
+    recordRuntimeHttpMetric(500, 1200);
+
+    expect(() => controller.getMetrics()).toThrow(UnauthorizedException);
+    expect(() => controller.getMetrics('Bearer wrong-token')).toThrow(UnauthorizedException);
+  });
+
+  it('fails the metrics endpoint closed when its server secret is missing or weak', () => {
+    const { controller } = makeController();
+
+    delete process.env.METRICS_BEARER_TOKEN;
+    expect(() => controller.getMetrics('Bearer anything')).toThrow(ServiceUnavailableException);
+
+    process.env.METRICS_BEARER_TOKEN = 'short';
+    expect(() => controller.getMetrics('Bearer short')).toThrow(ServiceUnavailableException);
   });
 
   it('reports ready only when PostgreSQL answers', async () => {
