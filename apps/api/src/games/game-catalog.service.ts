@@ -35,6 +35,13 @@ const CATEGORIES: GameCenterCategory[] = [
   'words'
 ];
 
+const TERMINAL_SESSION_STATUSES = new Set([
+  'COMPLETED',
+  'ABANDONED',
+  'CANCELLED',
+  'EXPIRED'
+]);
+
 @Injectable()
 export class GameCatalogService {
   constructor(
@@ -107,6 +114,96 @@ export class GameCatalogService {
     });
   }
 
+  async library(userId: string) {
+    const [favorites, memberships] = await Promise.all([
+      this.listFavorites(userId),
+      this.prisma.gameParticipant.findMany({
+        where: { userId },
+        orderBy: [{ updatedAt: 'desc' }, { sessionId: 'asc' }],
+        take: 80,
+        select: {
+          sessionId: true,
+          position: true,
+          status: true,
+          lastSeenAt: true,
+          updatedAt: true
+        }
+      })
+    ]);
+    if (!memberships.length) {
+      return { favorites, continuePlaying: [], invitations: [], recent: [] };
+    }
+
+    const membershipBySession = new Map(
+      memberships.map((membership) => [membership.sessionId, membership])
+    );
+    const sessions = await this.prisma.gameSession.findMany({
+      where: { id: { in: [...membershipBySession.keys()] } },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        definitionId: true,
+        definitionKey: true,
+        definitionVersion: true,
+        status: true,
+        sequence: true,
+        currentTurnPosition: true,
+        expiresAt: true,
+        startedAt: true,
+        completedAt: true,
+        updatedAt: true
+      }
+    });
+    const definitionIds = [...new Set(sessions.map((session) => session.definitionId))];
+    const definitions = definitionIds.length
+      ? await this.prisma.gameDefinition.findMany({
+          where: { id: { in: definitionIds } },
+          select: { id: true, name: true, description: true }
+        })
+      : [];
+    const definitionById = new Map(definitions.map((definition) => [definition.id, definition]));
+    const now = Date.now();
+
+    const cards = sessions.flatMap((session) => {
+      const membership = membershipBySession.get(session.id);
+      if (!membership) return [];
+      const definition = definitionById.get(session.definitionId);
+      const status =
+        ['WAITING', 'ACTIVE'].includes(session.status) && session.expiresAt.getTime() <= now
+          ? 'EXPIRED'
+          : session.status;
+      return [{
+        sessionId: session.id,
+        game: {
+          key: session.definitionKey,
+          version: session.definitionVersion,
+          name: definition?.name ?? session.definitionKey,
+          description: definition?.description ?? ''
+        },
+        status,
+        sequence: session.sequence,
+        participantStatus: membership.status,
+        yourTurn:
+          status === 'ACTIVE' &&
+          membership.status === 'JOINED' &&
+          session.currentTurnPosition === membership.position,
+        lastSeenAt: membership.lastSeenAt,
+        updatedAt: session.updatedAt,
+        expiresAt: session.expiresAt,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt
+      }];
+    });
+
+    return {
+      favorites,
+      continuePlaying: cards.filter((card) => card.participantStatus === 'JOINED' && ['WAITING', 'ACTIVE'].includes(card.status)).slice(0, 20),
+      invitations: cards.filter((card) => card.participantStatus === 'INVITED' && card.status === 'WAITING').slice(0, 20),
+      recent: cards.filter((card) => card.participantStatus !== 'INVITED' && TERMINAL_SESSION_STATUSES.has(card.status)).slice(0, 20)
+    };
+  }
+
   async addFavorite(userId: string, definitionKey: string) {
     const key = definitionKey.trim();
     const catalog = await this.catalog();
@@ -124,15 +221,12 @@ export class GameCatalogService {
       create: { userId, definitionKey: key },
       select: { definitionKey: true, createdAt: true }
     });
-
     return { ...game, favoritedAt: favorite.createdAt };
   }
 
   async removeFavorite(userId: string, definitionKey: string) {
     const key = definitionKey.trim();
-    await this.prisma.gameFavorite.deleteMany({
-      where: { userId, definitionKey: key }
-    });
+    await this.prisma.gameFavorite.deleteMany({ where: { userId, definitionKey: key } });
     return { removed: true, definitionKey: key };
   }
 }

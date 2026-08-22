@@ -26,6 +26,12 @@ export class GameCatalogController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('library')
+  library(@Req() req: { user: { userId: string } }) {
+    return this.catalogService.library(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':key/favorite')
   favorite(
     @Req() req: { user: { userId: string } },
