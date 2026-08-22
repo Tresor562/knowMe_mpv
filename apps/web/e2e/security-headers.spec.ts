@@ -19,7 +19,7 @@ test('production web responses expose the privacy-safe security baseline', async
     }
 
     expect(headers['permissions-policy']).toBe(
-      'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+      'camera=(self), microphone=(self), geolocation=(), payment=(), usb=()'
     );
     expect(headers['strict-transport-security']).toBe(
       'max-age=31536000; includeSubDomains'
