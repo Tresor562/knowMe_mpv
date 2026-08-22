@@ -116,6 +116,14 @@ Rotation sans casser les messages encore valides :
 
 Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clés précédentes servent uniquement à la lecture ; toutes les nouvelles signatures utilisent la clé active.
 
+## Isolation des secrets de production
+
+KMD-177 fait échouer `pnpm check:release` lorsqu'une même valeur est réutilisée entre plusieurs frontières de confiance serveur (JWT, métriques, stockage média, stickers, récupération de compte, fournisseur email, TURN, Nexus ou sécurité des paiements lorsqu'ils sont configurés).
+
+Le message d'erreur ne doit contenir que les noms des variables en conflit, jamais la valeur du secret. Générer chaque credential indépendamment et les stocker dans le gestionnaire de secrets de la plateforme cible. Ne pas dériver plusieurs credentials depuis une valeur maîtresse commune simplement pour simplifier l'exploitation.
+
+Ce contrôle ne remplace pas une vraie procédure de rotation. La configuration du gestionnaire de secrets, la révocation des anciennes valeurs, l'IAM minimal et une rotation réellement exécutée restent des preuves externes à valider dans l'environnement de production.
+
 ## Avant une mise en production
 
 À ajouter, vérifier ou renforcer selon l'environnement réel :
@@ -126,7 +134,8 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 - vérifier la valeur réelle de `CORS_ALLOWED_ORIGINS_JSON` et les headers CORS sur les domaines de production ;
 - vérifier les en-têtes KMD-172 et HSTS sur le domaine API réellement déployé ;
 - rate limiting ;
-- rotation des secrets ;
+- exécuter `pnpm check:release` avec les secrets de production et vérifier leur isolation KMD-177 ;
+- rotation réelle des secrets dans le gestionnaire de secrets de l'hébergeur ;
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
 - planification distante et rétention des sauvegardes PostgreSQL ;
 - exercice réel de restauration avec RPO/RTO mesurés ;
