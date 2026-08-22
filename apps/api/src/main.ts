@@ -7,6 +7,7 @@ import { createSecurityHeadersMiddleware } from './common/security-headers';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
   app.enableCors(createCorsOptions());
   app.use(createSecurityHeadersMiddleware());
   app.use(createHttpObservabilityMiddleware());
