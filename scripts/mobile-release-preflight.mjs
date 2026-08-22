@@ -87,6 +87,9 @@ export function validateMobileProductionBuildConfig(config) {
   if (production.distribution !== 'store') {
     errors.push('build.production.distribution must be "store".');
   }
+  if (production.environment !== 'production') {
+    errors.push('build.production.environment must be "production" so store builds consume only the EAS production environment.');
+  }
   if (production.android?.buildType !== 'app-bundle') {
     errors.push('build.production.android.buildType must be "app-bundle" for Google Play distribution.');
   }
