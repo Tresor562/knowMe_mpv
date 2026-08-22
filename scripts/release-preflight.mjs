@@ -2,6 +2,18 @@
 
 const HTTPS_URL_KEYS = ['NEXT_PUBLIC_API_URL'];
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+const ISOLATED_SECRET_KEYS = [
+  'JWT_SECRET',
+  'METRICS_BEARER_TOKEN',
+  'MEDIA_S3_SECRET_ACCESS_KEY',
+  'STICKER_TOKEN_ACTIVE_SECRET',
+  'ACCOUNT_RECOVERY_SECRET',
+  'ACCOUNT_RECOVERY_EMAIL_API_KEY',
+  'CALL_TURN_SECRET',
+  'NEXUS_KNOWME_SHARED_SECRET',
+  'PAYMENTS_DATA_ENCRYPTION_KEY',
+  'PAYMENTS_FRAUD_HASH_SALT'
+];
 
 function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
@@ -31,6 +43,20 @@ function requireSecret(env, key, minLength, errors) {
   const value = env[key];
   if (!nonEmpty(value) || value.trim().length < minLength) {
     errors.push(`${key} must be set to at least ${minLength} characters.`);
+  }
+}
+
+function validateSecretIsolation(env, errors) {
+  const ownersBySecret = new Map();
+  for (const key of ISOLATED_SECRET_KEYS) {
+    if (!nonEmpty(env[key])) continue;
+    const normalized = env[key].trim();
+    const previous = ownersBySecret.get(normalized);
+    if (previous) {
+      errors.push(`${key} must be distinct from ${previous}; production secrets may not be reused across trust boundaries.`);
+      continue;
+    }
+    ownersBySecret.set(normalized, key);
   }
 }
 
@@ -141,13 +167,6 @@ export function validateProductionEnvironment(env = process.env) {
   const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
   if (recoveryEnabled) {
     requireSecret(env, 'ACCOUNT_RECOVERY_SECRET', 32, errors);
-    if (
-      nonEmpty(env.ACCOUNT_RECOVERY_SECRET) &&
-      nonEmpty(env.JWT_SECRET) &&
-      env.ACCOUNT_RECOVERY_SECRET.trim() === env.JWT_SECRET.trim()
-    ) {
-      errors.push('ACCOUNT_RECOVERY_SECRET must be distinct from JWT_SECRET.');
-    }
     requireHttps(env, 'ACCOUNT_RECOVERY_EMAIL_ENDPOINT', errors);
     requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
     if (!nonEmpty(env.ACCOUNT_RECOVERY_EMAIL_FROM)) {
@@ -189,6 +208,8 @@ export function validateProductionEnvironment(env = process.env) {
   } else {
     warnings.push('No payment catalog is configured; monetization must remain disabled for this release.');
   }
+
+  validateSecretIsolation(env, errors);
 
   return { ok: errors.length === 0, errors, warnings };
 }
