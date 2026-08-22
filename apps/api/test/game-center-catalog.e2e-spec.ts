@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request = require('supertest');
 import { AppModule } from '../src/app.module';
 
- describe('KnowMe Game Center V2 catalog (e2e)', () => {
+describe('KnowMe Game Center V2 catalog (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -34,7 +34,7 @@ import { AppModule } from '../src/app.module';
     );
   });
 
-  it('filters catalog search and categories without requiring authentication', async () => {
+  it('filters catalog search and exposes localization-ready categories without authentication', async () => {
     const filtered = await request(app.getHttpServer())
       .get('/games/center')
       .query({ q: 'pulse', category: 'instant' })
@@ -46,7 +46,11 @@ import { AppModule } from '../src/app.module';
       .get('/games/categories')
       .expect(200);
     expect(categories.body).toContainEqual(
-      expect.objectContaining({ key: 'instant', label: 'Instant', gameCount: expect.any(Number) })
+      expect.objectContaining({
+        key: 'instant',
+        nameKey: 'games.category.instant',
+        gameCount: expect.any(Number)
+      })
     );
   });
 
