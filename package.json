@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",
+    "db:migrate:deploy": "pnpm --filter @knowme/api prisma:migrate:deploy",
     "db:backup": "node scripts/postgres-backup.mjs",
     "db:restore": "node scripts/postgres-restore.mjs",
     "check:project": "node scripts/check-project.mjs",
