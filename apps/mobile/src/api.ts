@@ -3,7 +3,47 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:4000';
+const DEVELOPMENT_API_URL = 'http://10.0.2.2:4000';
+
+export function resolveApiUrl(rawValue: string | undefined, isDevelopment: boolean) {
+  const candidate = rawValue?.trim();
+  if (!candidate) {
+    if (isDevelopment) return DEVELOPMENT_API_URL;
+    throw new Error('KnowMe mobile production requires EXPO_PUBLIC_API_URL.');
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new Error('EXPO_PUBLIC_API_URL must be a valid absolute URL.');
+  }
+
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('EXPO_PUBLIC_API_URL must not contain credentials, query parameters, or fragments.');
+  }
+
+  if (!isDevelopment) {
+    const host = parsed.hostname.toLowerCase();
+    const localHost = host === 'localhost'
+      || host === '127.0.0.1'
+      || host === '0.0.0.0'
+      || host === '::1'
+      || host === '10.0.2.2';
+    if (parsed.protocol !== 'https:') {
+      throw new Error('EXPO_PUBLIC_API_URL must use HTTPS in production.');
+    }
+    if (localHost) {
+      throw new Error('EXPO_PUBLIC_API_URL must not target a local host in production.');
+    }
+  } else if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('EXPO_PUBLIC_API_URL must use HTTP or HTTPS.');
+  }
+
+  return candidate.replace(/\/+$/, '');
+}
+
+export const API_URL = resolveApiUrl(process.env.EXPO_PUBLIC_API_URL, __DEV__);
 const ACCESS_KEY = 'knowme_access_token';
 const REFRESH_KEY = 'knowme_refresh_token';
 const TRUSTED_DEVICE_KEY = 'knowme_trusted_device_token';
