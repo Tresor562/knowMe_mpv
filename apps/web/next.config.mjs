@@ -4,6 +4,8 @@ function resolvePublicApiSources() {
 
   try {
     const url = new URL(raw);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return [];
+
     const sources = [url.origin];
     if (url.protocol === 'https:') sources.push(`wss://${url.host}`);
     if (url.protocol === 'http:') sources.push(`ws://${url.host}`);
