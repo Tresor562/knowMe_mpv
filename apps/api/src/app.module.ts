@@ -28,6 +28,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { GamePlatformModule } from './games/game-platform.module';
 import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
+import { GuestPlayModule } from './guest-play/guest-play.module';
 import { HealthController } from './health.controller';
 import { I18nModule } from './i18n/i18n.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
@@ -99,6 +100,7 @@ import { WalletModule } from './wallet/wallet.module';
     CommunitiesModule,
     CreatorsModule,
     GamePlatformModule,
+    GuestPlayModule,
     SocialMatchmakingModule,
     KnowMeSecretModule,
     AppearanceModule,
