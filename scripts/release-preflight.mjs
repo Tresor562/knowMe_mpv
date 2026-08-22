@@ -51,6 +51,14 @@ function requireHttps(env, key, errors) {
   }
 }
 
+function validateBoundedInteger(env, key, fallback, min, max, errors) {
+  const raw = nonEmpty(env[key]) ? env[key].trim() : String(fallback);
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    errors.push(`${key} must be an integer between ${min} and ${max}.`);
+  }
+}
+
 function validateCorsOrigins(env, errors) {
   const values = parseJsonArray(env.CORS_ALLOWED_ORIGINS_JSON, 'CORS_ALLOWED_ORIGINS_JSON', errors);
   if (values.length === 0) {
@@ -95,6 +103,8 @@ function validateMediaStorage(env, errors) {
   if (!nonEmpty(env.MEDIA_S3_REGION)) errors.push('MEDIA_S3_REGION must be set.');
   if (!nonEmpty(env.MEDIA_S3_ACCESS_KEY_ID)) errors.push('MEDIA_S3_ACCESS_KEY_ID must be set.');
   requireSecret(env, 'MEDIA_S3_SECRET_ACCESS_KEY', 32, errors);
+  validateBoundedInteger(env, 'MEDIA_S3_TIMEOUT_MS', 30000, 1000, 60000, errors);
+  validateBoundedInteger(env, 'MEDIA_S3_MAX_ATTEMPTS', 3, 1, 5, errors);
 }
 
 export function validateProductionEnvironment(env = process.env) {
