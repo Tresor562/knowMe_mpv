@@ -16,6 +16,8 @@ function validEnv() {
     MEDIA_S3_REGION: 'us-east-1',
     MEDIA_S3_ACCESS_KEY_ID: 'knowme-media-service',
     MEDIA_S3_SECRET_ACCESS_KEY: 'x'.repeat(64),
+    MEDIA_S3_TIMEOUT_MS: '30000',
+    MEDIA_S3_MAX_ATTEMPTS: '3',
     STICKER_TOKEN_ACTIVE_SECRET: 's'.repeat(64),
     ACCOUNT_RECOVERY_ENABLED: 'true',
     ACCOUNT_RECOVERY_SECRET: 'r'.repeat(64),
@@ -99,6 +101,16 @@ test('requires private S3-compatible media storage for a market release', () => 
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_ENDPOINT')));
   assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_SECRET_ACCESS_KEY')));
+});
+
+test('requires bounded private media timeout and retry settings', () => {
+  const env = validEnv();
+  env.MEDIA_S3_TIMEOUT_MS = '250';
+  env.MEDIA_S3_MAX_ATTEMPTS = '10';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_TIMEOUT_MS')));
+  assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_MAX_ATTEMPTS')));
 });
 
 test('requires a distinct hardened account recovery secret and HTTPS delivery configuration', () => {
