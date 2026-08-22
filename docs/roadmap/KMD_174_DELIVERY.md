@@ -18,6 +18,8 @@ No current audited requirement was found for arbitrary third-party scripts, wild
 - Ignores malformed or non-HTTP(S) public API values when building CSP sources instead of serializing arbitrary schemes into the policy.
 - Keeps `unsafe-inline` only where the current Next.js runtime requires inline bootstrap/style content; `unsafe-eval` and wildcard sources are not allowed.
 - Extends Playwright security-header tests to gate the enforced CSP on `/login` and `/register` and retain the attacker-controlled query-string non-reflection regression.
+- Configures CI builds with the explicit test API origin `http://localhost:4000`, so the production-built browser bundle and its CSP exercise the same API origin instead of relying on the application's local fallback.
+- Asserts in Chromium that the CI CSP contains only the configured test API HTTP origin and its matching WebSocket origin in addition to the same-origin baseline.
 
 ## Security and privacy boundaries
 
@@ -25,6 +27,7 @@ No current audited requirement was found for arbitrary third-party scripts, wild
 - `frame-ancestors 'none'` reinforces the existing anti-framing baseline.
 - `object-src 'none'` disables legacy plugin/object execution.
 - `connect-src` is restricted to same-origin plus the configured KnowMe API and its corresponding WebSocket transport.
+- The explicit localhost source is CI-only configuration; production release preflight still requires a real HTTPS public API endpoint and production CSP derives from that value.
 - This policy does not grant microphone/camera access and does not weaken KMD-059 explicit browser/OS consent.
 - This repository policy is not proof that public DNS, TLS, CDN/proxy behavior, payment-provider redirects, media CDN configuration or every real production page has been physically validated.
 
@@ -39,6 +42,8 @@ Before merge, the exact branch head must pass:
 5. Chromium Web E2E including the CSP regression suite;
 6. PostgreSQL API E2E.
 
+The first KMD-174 CI attempt passed build and 297 unit tests but failed the authenticated account-data-rights Chromium scenario because the new production CSP correctly blocked the bundle's implicit `http://localhost:4000` fallback before Playwright routing could satisfy the request. The correction does not broaden production policy: CI now supplies its API origin explicitly at build time and Chromium asserts that exact source.
+
 Any CSP violation exposed by the existing critical Web flows must be fixed by explicitly auditing the required source; wildcard sources or `unsafe-eval` must not be added as a shortcut.
 
 ## Follow-up hardening
@@ -47,4 +52,4 @@ A future nonce/hash-based script policy can remove `unsafe-inline` after the Nex
 
 ## Rollback
 
-Revert the KMD-174 merge. This removes the production CSP and its added Playwright assertions. There is no database schema or migration rollback.
+Revert the KMD-174 merge. This removes the production CSP, its added Playwright assertions and the explicit CI Web API origin. There is no database schema or migration rollback.
