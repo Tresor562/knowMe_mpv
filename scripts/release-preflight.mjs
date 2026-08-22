@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const HTTPS_URL_KEYS = ['NEXT_PUBLIC_API_URL'];
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
@@ -42,11 +43,45 @@ function requireHttps(env, key, errors) {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:') errors.push(`${key} must use HTTPS in production.`);
-    if (['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname)) {
+    if (LOCAL_HOSTS.has(url.hostname)) {
       errors.push(`${key} must not point to a local host in production.`);
     }
   } catch {
     errors.push(`${key} must be a valid URL.`);
+  }
+}
+
+function validateCorsOrigins(env, errors) {
+  const values = parseJsonArray(env.CORS_ALLOWED_ORIGINS_JSON, 'CORS_ALLOWED_ORIGINS_JSON', errors);
+  if (values.length === 0) {
+    errors.push('CORS_ALLOWED_ORIGINS_JSON must contain at least one production Web origin.');
+    return;
+  }
+
+  for (const item of values) {
+    if (typeof item !== 'string' || !item.trim()) {
+      errors.push('CORS_ALLOWED_ORIGINS_JSON may contain only non-empty origin strings.');
+      continue;
+    }
+    const raw = item.trim();
+    if (raw.includes('*')) {
+      errors.push('CORS_ALLOWED_ORIGINS_JSON must not contain wildcard origins.');
+      continue;
+    }
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== 'https:') {
+        errors.push(`CORS origin must use HTTPS in production: ${raw}`);
+      }
+      if (LOCAL_HOSTS.has(url.hostname)) {
+        errors.push(`CORS origin must not use a local host in production: ${raw}`);
+      }
+      if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+        errors.push(`CORS origin must not include credentials, a path, query, or fragment: ${raw}`);
+      }
+    } catch {
+      errors.push(`CORS_ALLOWED_ORIGINS_JSON contains an invalid URL: ${raw}`);
+    }
   }
 }
 
@@ -66,7 +101,7 @@ export function validateProductionEnvironment(env = process.env) {
       if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol)) {
         errors.push('DATABASE_URL must use PostgreSQL.');
       }
-      if (['localhost', '127.0.0.1', '0.0.0.0'].includes(databaseUrl.hostname)) {
+      if (LOCAL_HOSTS.has(databaseUrl.hostname)) {
         errors.push('DATABASE_URL must not point to a local host in production.');
       }
     } catch {
@@ -77,6 +112,7 @@ export function validateProductionEnvironment(env = process.env) {
   requireSecret(env, 'JWT_SECRET', 32, errors);
   requireSecret(env, 'METRICS_BEARER_TOKEN', 32, errors);
   for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
+  validateCorsOrigins(env, errors);
   requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
 
   const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
