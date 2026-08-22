@@ -8,6 +8,7 @@ Harden the production Next.js frontend with a privacy-safe response-header basel
 
 - Added a Next.js response-header policy for all Web routes.
 - Added `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-DNS-Prefetch-Control: off`, `Cross-Origin-Opener-Policy: same-origin`, and a restrictive `Permissions-Policy`.
+- Camera and microphone are limited to the same-origin Web application so the existing explicit-consent call flow can still request them; geolocation, payment and USB are denied.
 - Added HSTS for production builds.
 - Added Chromium/Playwright coverage against the production Next.js server for login and registration entrypoints.
 - Added a regression test proving query-string data is not reflected into security headers.
@@ -15,7 +16,8 @@ Harden the production Next.js frontend with a privacy-safe response-header basel
 ## Security and privacy boundaries
 
 - Header values are static and never include URLs, query strings, tokens, cookies, user IDs, account data or Authorization values.
-- `Permissions-Policy` denies camera and microphone to the Web document by default. Any future Web call flow that requires those capabilities must deliberately reconcile this browser policy with explicit user consent and real-device validation before release; this KMD does not claim that hardware calling is validated under the new deployment header.
+- `Permissions-Policy` does not grant camera or microphone access by itself. It only allows the same-origin document to request those capabilities; operating-system/browser permission and KnowMe's explicit user-triggered KMD-059 flow remain mandatory.
+- Cross-origin frames cannot inherit camera or microphone through this policy.
 - No Content-Security-Policy is introduced here. A production Web CSP must be designed from an audited list of scripts, styles, images, media, API/WebSocket origins and Next.js runtime requirements; using an unsafe or guessed CSP would create false security or regressions.
 - HSTS emission in repository code is not proof that the public Web domain, subdomains, CDN, proxy, DNS or TLS are correctly configured.
 
