@@ -9,6 +9,9 @@ function validEnv() {
     JWT_SECRET: 'j'.repeat(64),
     METRICS_BEARER_TOKEN: 'o'.repeat(64),
     NEXT_PUBLIC_API_URL: 'https://api.knowme.example',
+    PUBLIC_PRIVACY_POLICY_URL: 'https://knowme.example/privacy',
+    PUBLIC_TERMS_URL: 'https://knowme.example/terms',
+    PUBLIC_ACCOUNT_DELETION_URL: 'https://knowme.example/account/data-rights',
     CORS_ALLOWED_ORIGINS_JSON: JSON.stringify(['https://knowme.example']),
     MEDIA_STORAGE_DRIVER: 's3',
     MEDIA_S3_ENDPOINT: 'https://objects.example.com',
@@ -55,6 +58,28 @@ test('fails closed on local endpoints and weak secrets', () => {
   assert.ok(result.errors.some((error) => error.includes('METRICS_BEARER_TOKEN')));
   assert.ok(result.errors.some((error) => error.includes('NEXT_PUBLIC_API_URL')));
   assert.ok(result.errors.some((error) => error.includes('STICKER_TOKEN_ACTIVE_SECRET')));
+});
+
+test('requires public HTTPS privacy, terms and account-deletion resources for a market release', () => {
+  const missing = validEnv();
+  delete missing.PUBLIC_PRIVACY_POLICY_URL;
+  delete missing.PUBLIC_TERMS_URL;
+  delete missing.PUBLIC_ACCOUNT_DELETION_URL;
+  let result = validateProductionEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_PRIVACY_POLICY_URL')));
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_TERMS_URL')));
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_ACCOUNT_DELETION_URL')));
+
+  const unsafe = validEnv();
+  unsafe.PUBLIC_PRIVACY_POLICY_URL = 'http://knowme.example/privacy';
+  unsafe.PUBLIC_TERMS_URL = 'https://localhost:3000/terms';
+  unsafe.PUBLIC_ACCOUNT_DELETION_URL = 'not-a-url';
+  result = validateProductionEnvironment(unsafe);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_PRIVACY_POLICY_URL') && error.includes('HTTPS')));
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_TERMS_URL') && error.includes('local host')));
+  assert.ok(result.errors.some((error) => error.includes('PUBLIC_ACCOUNT_DELETION_URL') && error.includes('valid URL')));
 });
 
 test('requires metrics collection credentials for a market release', () => {
