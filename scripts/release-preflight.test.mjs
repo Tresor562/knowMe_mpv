@@ -9,6 +9,7 @@ function validEnv() {
     JWT_SECRET: 'j'.repeat(64),
     METRICS_BEARER_TOKEN: 'o'.repeat(64),
     NEXT_PUBLIC_API_URL: 'https://api.knowme.example',
+    CORS_ALLOWED_ORIGINS_JSON: JSON.stringify(['https://knowme.example']),
     STICKER_TOKEN_ACTIVE_SECRET: 's'.repeat(64),
     ACCOUNT_RECOVERY_ENABLED: 'true',
     ACCOUNT_RECOVERY_SECRET: 'r'.repeat(64),
@@ -54,6 +55,28 @@ test('requires metrics collection credentials for a market release', () => {
   const result = validateProductionEnvironment(env);
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('METRICS_BEARER_TOKEN')));
+});
+
+test('requires an exact HTTPS CORS allowlist for a market release', () => {
+  const missing = validEnv();
+  delete missing.CORS_ALLOWED_ORIGINS_JSON;
+  let result = validateProductionEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('CORS_ALLOWED_ORIGINS_JSON')));
+
+  const unsafe = validEnv();
+  unsafe.CORS_ALLOWED_ORIGINS_JSON = JSON.stringify([
+    '*',
+    'http://knowme.example',
+    'https://localhost:3000',
+    'https://knowme.example/app?token=secret',
+  ]);
+  result = validateProductionEnvironment(unsafe);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('wildcard')));
+  assert.ok(result.errors.some((error) => error.includes('HTTPS')));
+  assert.ok(result.errors.some((error) => error.includes('local host')));
+  assert.ok(result.errors.some((error) => error.includes('path, query, or fragment')));
 });
 
 test('requires a distinct hardened account recovery secret and HTTPS delivery configuration', () => {
