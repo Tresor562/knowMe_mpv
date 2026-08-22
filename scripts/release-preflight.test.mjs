@@ -7,6 +7,7 @@ function validEnv() {
     NODE_ENV: 'production',
     DATABASE_URL: 'postgresql://knowme:secret@db.example.com:5432/knowme?schema=public',
     JWT_SECRET: 'j'.repeat(64),
+    METRICS_BEARER_TOKEN: 'o'.repeat(64),
     NEXT_PUBLIC_API_URL: 'https://api.knowme.example',
     STICKER_TOKEN_ACTIVE_SECRET: 's'.repeat(64),
     ACCOUNT_RECOVERY_ENABLED: 'true',
@@ -35,14 +36,24 @@ test('fails closed on local endpoints and weak secrets', () => {
   const env = validEnv();
   env.DATABASE_URL = 'postgresql://knowme:knowme@localhost:5432/knowme';
   env.JWT_SECRET = 'weak';
+  env.METRICS_BEARER_TOKEN = 'short';
   env.NEXT_PUBLIC_API_URL = 'http://localhost:4000';
   env.STICKER_TOKEN_ACTIVE_SECRET = 'short';
   const result = validateProductionEnvironment(env);
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('DATABASE_URL')));
   assert.ok(result.errors.some((error) => error.includes('JWT_SECRET')));
+  assert.ok(result.errors.some((error) => error.includes('METRICS_BEARER_TOKEN')));
   assert.ok(result.errors.some((error) => error.includes('NEXT_PUBLIC_API_URL')));
   assert.ok(result.errors.some((error) => error.includes('STICKER_TOKEN_ACTIVE_SECRET')));
+});
+
+test('requires metrics collection credentials for a market release', () => {
+  const env = validEnv();
+  delete env.METRICS_BEARER_TOKEN;
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('METRICS_BEARER_TOKEN')));
 });
 
 test('requires a distinct hardened account recovery secret and HTTPS delivery configuration', () => {
