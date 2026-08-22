@@ -18,6 +18,8 @@ function expectCspBaseline(csp: string | undefined, path: string) {
   expect(csp).toContain("script-src 'self' 'unsafe-inline'");
   expect(csp).toContain("style-src 'self' 'unsafe-inline'");
   expect(csp).toContain("connect-src 'self'");
+  expect(csp).toContain('http://localhost:4000');
+  expect(csp).toContain('ws://localhost:4000');
   expect(csp).toContain("worker-src 'self' blob:");
   expect(csp).not.toContain("'unsafe-eval'");
   expect(csp).not.toContain('*');
