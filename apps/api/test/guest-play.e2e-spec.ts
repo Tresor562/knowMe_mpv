@@ -152,7 +152,7 @@ describe('Guest identity baseline (e2e)', () => {
 
     const registered = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: CONVERSION_EMAIL, password: 'KnowMeTest123!' })
+      .send({ identifier: CONVERSION_EMAIL, password: 'KnowMeTest123!' })
       .expect(201);
 
     await request(app.getHttpServer())
