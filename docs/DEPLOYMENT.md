@@ -58,6 +58,20 @@ Les query strings, corps, cookies, en-têtes d'authentification, tokens et donn�
 
 La collecte centralisée, les dashboards, alertes, métriques d'infrastructure et objectifs SLO restent des preuves d'exploitation externes : KMD-167 ne prétend pas les avoir configurés dans l'hébergeur.
 
+## En-têtes de sécurité API
+
+KMD-172 ajoute une défense HTTP de base sur toutes les réponses API :
+
+- `Content-Security-Policy: default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'` ;
+- `Referrer-Policy: no-referrer` ;
+- `X-Content-Type-Options: nosniff` ;
+- `X-Frame-Options: DENY` ;
+- `X-DNS-Prefetch-Control: off` ;
+- `Permissions-Policy` désactive caméra, microphone, géolocalisation, paiement et USB sur les documents API ;
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` uniquement lorsque `NODE_ENV=production`.
+
+Ces valeurs sont statiques : elles ne reflètent jamais l'URL, les query strings, l'Authorization ou d'autres données de requête. La CSP concerne l'API JSON et ne remplace pas une politique CSP adaptée au frontend Web. HSTS ne doit être considéré comme effectif qu'après vérification que le domaine de production et tous les sous-domaines concernés sont servis exclusivement en HTTPS.
+
 ## Sauvegarde et reprise PostgreSQL
 
 KMD-165 fournit un chemin opérable pour créer et vérifier des sauvegardes PostgreSQL sans stocker les credentials dans les manifests.
@@ -110,6 +124,7 @@ Ne jamais réutiliser un identifiant de clé avec un secret différent. Les clé
 - serveur TURN pour WebRTC ;
 - HTTPS obligatoire ;
 - vérifier la valeur réelle de `CORS_ALLOWED_ORIGINS_JSON` et les headers CORS sur les domaines de production ;
+- vérifier les en-têtes KMD-172 et HSTS sur le domaine API réellement déployé ;
 - rate limiting ;
 - rotation des secrets ;
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
