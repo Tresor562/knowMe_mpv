@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 const HTTPS_URL_KEYS = ['NEXT_PUBLIC_API_URL'];
+const MARKET_PUBLIC_URL_KEYS = [
+  'PUBLIC_PRIVACY_POLICY_URL',
+  'PUBLIC_TERMS_URL',
+  'PUBLIC_ACCOUNT_DELETION_URL',
+];
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 const ISOLATED_SECRET_KEYS = [
   'JWT_SECRET',
@@ -160,6 +165,7 @@ export function validateProductionEnvironment(env = process.env) {
   requireSecret(env, 'JWT_SECRET', 32, errors);
   requireSecret(env, 'METRICS_BEARER_TOKEN', 32, errors);
   for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
+  for (const key of MARKET_PUBLIC_URL_KEYS) requireHttps(env, key, errors);
   validateCorsOrigins(env, errors);
   validateMediaStorage(env, errors);
   requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
