@@ -36,6 +36,8 @@ jobs:
       - run: pnpm install --frozen-lockfile=false
       - run: pnpm --filter @knowme/api prisma:generate
       - run: pnpm db:migrate:deploy
+      - name: Verify committed migrations match Prisma datamodel
+        run: pnpm --filter @knowme/api exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma --exit-code
       - run: pnpm build
       - run: pnpm test
       - run: pnpm --filter @knowme/web exec playwright install --with-deps chromium
