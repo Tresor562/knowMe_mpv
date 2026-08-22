@@ -4,6 +4,8 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+const CONVERSION_EMAIL = 'guest-convert@knowme.test';
+
 describe('Guest identity baseline (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -16,14 +18,16 @@ describe('Guest identity baseline (e2e)', () => {
 
     prisma = app.get(PrismaService);
     await prisma.guestIdentity.deleteMany();
+    await prisma.user.deleteMany({ where: { email: CONVERSION_EMAIL } });
   });
 
   afterAll(async () => {
     await prisma.guestIdentity.deleteMany();
+    await prisma.user.deleteMany({ where: { email: CONVERSION_EMAIL } });
     await app.close();
   });
 
-  it('publishes a privacy-minimized guest policy without claiming gameplay support', async () => {
+  it('publishes a privacy-minimized guest policy without claiming gameplay transfer', async () => {
     const response = await request(app.getHttpServer())
       .get('/guest/policy')
       .expect(200);
@@ -33,7 +37,8 @@ describe('Guest identity baseline (e2e)', () => {
       storesContacts: false,
       requiresAccount: false,
       supportsGameplay: false,
-      conversionEnabled: false
+      conversionEnabled: true,
+      conversionTransfersGameplayData: false
     }));
   });
 
@@ -81,6 +86,79 @@ describe('Guest identity baseline (e2e)', () => {
     await request(app.getHttpServer())
       .get('/guest/session')
       .set('authorization', `Bearer ${token}`)
+      .expect(401);
+  });
+
+  it('converts one active guest to one authenticated account and invalidates the guest credential', async () => {
+    const creation = await request(app.getHttpServer())
+      .post('/guest/sessions')
+      .send({
+        publicAlias: 'Convert Me',
+        locale: 'fr-BJ',
+        consentVersion: '2026-08-22',
+        ageGateState: 'ADULT'
+      })
+      .expect(201);
+    const guestToken = creation.body.token as string;
+    const guestId = creation.body.guest.id as string;
+
+    const registered = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: CONVERSION_EMAIL,
+        username: 'guest_convert',
+        displayName: 'Converted Guest',
+        password: 'KnowMeTest123!'
+      })
+      .expect(201);
+    const accessToken = registered.body.accessToken as string;
+    const userId = registered.body.user.id as string;
+
+    const converted = await request(app.getHttpServer())
+      .post('/guest/convert')
+      .set('authorization', `Bearer ${accessToken}`)
+      .set('x-knowme-guest-token', guestToken)
+      .expect(201);
+
+    expect(converted.body).toEqual({
+      converted: true,
+      transferred: { gameplayData: false, scores: 0, achievements: 0, preferences: 0 }
+    });
+
+    const stored = await prisma.guestIdentity.findUniqueOrThrow({ where: { id: guestId } });
+    expect(stored.status).toBe('CONVERTED');
+    expect(stored.convertedUserId).toBe(userId);
+    expect(stored.convertedAt).toBeInstanceOf(Date);
+
+    await request(app.getHttpServer())
+      .get('/guest/session')
+      .set('authorization', `Bearer ${guestToken}`)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/guest/convert')
+      .set('authorization', `Bearer ${accessToken}`)
+      .set('x-knowme-guest-token', guestToken)
+      .expect(401);
+  });
+
+  it('requires account authentication and a valid guest credential for conversion', async () => {
+    const guestToken = `kg_${'Z'.repeat(43)}`;
+
+    await request(app.getHttpServer())
+      .post('/guest/convert')
+      .set('x-knowme-guest-token', guestToken)
+      .expect(401);
+
+    const registered = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: CONVERSION_EMAIL, password: 'KnowMeTest123!' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/guest/convert')
+      .set('authorization', `Bearer ${registered.body.accessToken as string}`)
+      .set('x-knowme-guest-token', 'kg_short')
       .expect(401);
   });
 
