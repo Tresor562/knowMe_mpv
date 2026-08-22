@@ -6,7 +6,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/postgres-backup.test.mjs",
+    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/mobile-release-preflight.test.mjs scripts/postgres-backup.test.mjs",
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",
@@ -14,7 +14,7 @@
     "db:backup": "node scripts/postgres-backup.mjs",
     "db:restore": "node scripts/postgres-restore.mjs",
     "check:project": "node scripts/check-project.mjs",
-    "check:release": "node scripts/release-preflight.mjs"
+    "check:release": "node scripts/release-preflight.mjs && node scripts/mobile-release-preflight.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
