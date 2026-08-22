@@ -13,6 +13,7 @@
     "db:migrate:deploy": "pnpm --filter @knowme/api prisma:migrate:deploy",
     "db:backup": "node scripts/postgres-backup.mjs",
     "db:restore": "node scripts/postgres-restore.mjs",
+    "guest:purge": "pnpm --filter @knowme/api guest:purge",
     "check:project": "node scripts/check-project.mjs",
     "check:release": "node scripts/release-preflight.mjs && node scripts/mobile-release-preflight.mjs"
   },
