@@ -1,4 +1,5 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { getRuntimeHttpMetricsSnapshot } from './common/http-observability';
 import { PrismaService } from './prisma/prisma.service';
 
 @Controller('health')
@@ -13,6 +14,15 @@ export class HealthController {
   @Get('live')
   getLiveness() {
     return this.livePayload();
+  }
+
+  @Get('metrics')
+  getMetrics() {
+    return {
+      service: 'knowme-api',
+      uptimeSeconds: Math.floor(process.uptime()),
+      http: getRuntimeHttpMetricsSnapshot()
+    };
   }
 
   @Get('ready')
