@@ -5,7 +5,7 @@ const baseSecurityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'off' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+    value: 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=()'
   },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' }
 ];
