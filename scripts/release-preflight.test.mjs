@@ -122,11 +122,40 @@ test('requires a distinct hardened account recovery secret and HTTPS delivery co
   env.WEB_URL = 'http://localhost:3000';
   const result = validateProductionEnvironment(env);
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.includes('distinct from JWT_SECRET')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_SECRET') && error.includes('JWT_SECRET')));
   assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_ENDPOINT')));
   assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_API_KEY')));
   assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM')));
   assert.ok(result.errors.some((error) => error.includes('WEB_URL')));
+});
+
+test('rejects reuse of production secrets across trust boundaries without leaking the secret value', () => {
+  const env = validEnv();
+  const reusedSecret = 'shared-secret-value-that-must-never-appear-in-errors-1234567890';
+  env.JWT_SECRET = reusedSecret;
+  env.METRICS_BEARER_TOKEN = reusedSecret;
+  env.CALL_TURN_SECRET = reusedSecret;
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('METRICS_BEARER_TOKEN') && error.includes('JWT_SECRET')));
+  assert.ok(result.errors.some((error) => error.includes('CALL_TURN_SECRET') && error.includes('JWT_SECRET')));
+  assert.equal(result.errors.some((error) => error.includes(reusedSecret)), false);
+});
+
+test('checks optional integration secrets when those trust boundaries are configured', () => {
+  const env = validEnv();
+  env.NEXUS_INTEGRATION_ENABLED = 'true';
+  env.NEXUS_SERVER_URL = 'https://nexus.example.com';
+  env.NEXUS_KNOWME_SHARED_SECRET = env.STICKER_TOKEN_ACTIVE_SECRET;
+  env.PAYMENTS_WEB_CATALOG_JSON = JSON.stringify([{ productKey: 'premium_monthly' }]);
+  env.PAYMENTS_DATA_ENCRYPTION_KEY = 'p'.repeat(64);
+  env.PAYMENTS_FRAUD_HASH_SALT = env.PAYMENTS_DATA_ENCRYPTION_KEY;
+  env.PAYMENTS_PUBLIC_API_URL = 'https://payments.example.com';
+  env.PAYMENTS_RETURN_URL = 'https://knowme.example/billing/return';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('NEXUS_KNOWME_SHARED_SECRET') && error.includes('STICKER_TOKEN_ACTIVE_SECRET')));
+  assert.ok(result.errors.some((error) => error.includes('PAYMENTS_FRAUD_HASH_SALT') && error.includes('PAYMENTS_DATA_ENCRYPTION_KEY')));
 });
 
 test('does not permit disabling account recovery for a market release', () => {
