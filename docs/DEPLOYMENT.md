@@ -6,7 +6,7 @@
 2. Définir un `JWT_SECRET` long et aléatoire.
 3. Configurer PostgreSQL.
 4. Installer les dépendances avec `pnpm install`.
-5. Exécuter les migrations Prisma.
+5. Exécuter les migrations Prisma de production avec `pnpm db:migrate:deploy`.
 6. Construire avec `pnpm build`.
 
 ## Développement local
@@ -18,6 +18,18 @@ pnpm db:generate
 pnpm db:migrate
 pnpm dev
 ```
+
+## Migrations PostgreSQL de production
+
+KMD-179 sépare explicitement la création de migrations en développement de leur application en production.
+
+- `pnpm db:migrate` utilise `prisma migrate dev` et reste réservé au développement pour créer/ajuster des migrations.
+- `pnpm db:migrate:deploy` utilise `prisma migrate deploy` et constitue l'unique commande de migration documentée pour une release ou un redéploiement de production.
+- `prisma db push` ne doit pas être utilisé comme mécanisme de déploiement de schéma en production : il contourne l'historique de migrations et n'offre pas le même audit de séquence.
+
+La CI KMD-179 applique désormais les migrations enregistrées sur une base PostgreSQL 16 vide avant le build et les suites de tests. Une migration manquante, invalide ou incompatible avec un bootstrap propre doit donc bloquer la PR.
+
+Avant une migration de production : créer/vérifier une sauvegarde récupérable, lire le SQL de toute migration destructive, planifier les opérations longues, puis exécuter `pnpm db:migrate:deploy` une seule fois depuis un job de déploiement contrôlé. Ne pas lancer plusieurs runners de migration concurrents. Un rollback de code ne rembobine pas automatiquement le schéma : toute correction de schéma doit passer par une nouvelle migration corrective ou par une restauration explicitement validée lorsque cela est nécessaire.
 
 ## CORS de production
 
@@ -135,6 +147,7 @@ Ce contrôle ne remplace pas une vraie procédure de rotation. La configuration 
 - vérifier les en-têtes KMD-172 et HSTS sur le domaine API réellement déployé ;
 - rate limiting ;
 - exécuter `pnpm check:release` avec les secrets de production et vérifier leur isolation KMD-177 ;
+- exécuter `pnpm db:migrate:deploy` dans un job contrôlé après sauvegarde et avant remise en trafic ;
 - rotation réelle des secrets dans le gestionnaire de secrets de l'hébergeur ;
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
 - planification distante et rétention des sauvegardes PostgreSQL ;
