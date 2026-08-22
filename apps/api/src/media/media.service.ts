@@ -4,15 +4,14 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
   UnauthorizedException
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
-import { basename, join } from 'path';
+import { basename } from 'path';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUploadSessionDto, GrantMediaAccessDto } from './dto/media.dto';
+import { MediaStorageService } from './media-storage.service';
 
 const SUPPORTED_MIME = new Set([
   'image/jpeg',
@@ -35,18 +34,14 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 @Injectable()
-export class MediaService implements OnModuleInit {
-  private readonly storageRoot = join(process.cwd(), 'private-media');
+export class MediaService {
   private readonly accountQuota = Number(process.env.MEDIA_ACCOUNT_QUOTA_BYTES ?? 500 * 1024 * 1024);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly storage: MediaStorageService
   ) {}
-
-  async onModuleInit() {
-    await mkdir(this.storageRoot, { recursive: true });
-  }
 
   async createUploadSession(userId: string, dto: CreateUploadSessionDto) {
     const allowedMime = [...new Set(dto.allowedMime.map((value) => value.toLowerCase()))];
@@ -120,7 +115,6 @@ export class MediaService implements OnModuleInit {
     const scan = this.scan(file.buffer);
     const status = scan.verdict === 'CLEAN' ? 'AVAILABLE' : 'QUARANTINED';
     const storageKey = `${randomUUID()}${EXTENSIONS[detectedMime]}`;
-    const storagePath = this.resolveStoragePath(storageKey);
     const consumedAt = new Date();
 
     const consumed = await this.prisma.mediaUploadSession.updateMany({
@@ -137,7 +131,7 @@ export class MediaService implements OnModuleInit {
     }
 
     try {
-      await writeFile(storagePath, file.buffer, { flag: 'wx' });
+      await this.storage.put(storageKey, file.buffer, detectedMime);
       const asset = await this.prisma.mediaAsset.create({
         data: {
           ownerId: userId,
@@ -166,12 +160,13 @@ export class MediaService implements OnModuleInit {
           detectedMime,
           size: asset.size,
           status,
-          scannerVerdict: scan.verdict
+          scannerVerdict: scan.verdict,
+          storageDriver: this.storage.storageDriver()
         }
       });
       return this.publicAsset(asset);
     } catch (error) {
-      await rm(storagePath, { force: true }).catch(() => undefined);
+      await this.storage.delete(storageKey).catch(() => undefined);
       throw error;
     }
   }
@@ -228,7 +223,7 @@ export class MediaService implements OnModuleInit {
       data: { usedAt: new Date() }
     });
     return {
-      buffer: await readFile(this.resolveStoragePath(asset.storageKey)),
+      buffer: await this.storage.get(asset.storageKey),
       mimeType: asset.detectedMime,
       fileName: asset.originalName
     };
@@ -278,7 +273,7 @@ export class MediaService implements OnModuleInit {
         data: { status: 'DELETED', deletedAt: new Date() }
       })
     ]);
-    await rm(this.resolveStoragePath(asset.storageKey), { force: true });
+    await this.storage.delete(asset.storageKey);
     await this.audit.record({
       actorId: userId,
       action: 'MEDIA_DELETE',
@@ -306,7 +301,7 @@ export class MediaService implements OnModuleInit {
       this.prisma.mediaUploadSession.deleteMany({ where: { ownerId: userId } })
     ]);
     await Promise.all(
-      assets.map((asset) => rm(this.resolveStoragePath(asset.storageKey), { force: true }))
+      assets.map((asset) => this.storage.delete(asset.storageKey).catch(() => undefined))
     );
   }
 
@@ -388,12 +383,6 @@ export class MediaService implements OnModuleInit {
   private publicAsset<T extends { storageKey: string }>(asset: T) {
     const { storageKey, ...safe } = asset;
     return safe;
-  }
-
-  private resolveStoragePath(storageKey: string) {
-    const safe = basename(storageKey);
-    if (safe !== storageKey) throw new BadRequestException('Clé de stockage invalide.');
-    return join(this.storageRoot, safe);
   }
 
   private safeName(value: string) {
