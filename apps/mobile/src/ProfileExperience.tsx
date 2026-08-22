@@ -14,6 +14,7 @@ import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
 import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
+import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
@@ -215,6 +216,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       <AvatarStudioExperience />
       <PaymentsExperience />
       <SocialGiftsExperience />
+      <MobileGameCenterExperience />
       <GamePlatformExperience />
       <SecurityExperience onSessionClosed={onAccountDeleted} />
       <PrivacyExperience />
