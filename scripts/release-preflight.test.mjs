@@ -10,6 +10,12 @@ function validEnv() {
     METRICS_BEARER_TOKEN: 'o'.repeat(64),
     NEXT_PUBLIC_API_URL: 'https://api.knowme.example',
     CORS_ALLOWED_ORIGINS_JSON: JSON.stringify(['https://knowme.example']),
+    MEDIA_STORAGE_DRIVER: 's3',
+    MEDIA_S3_ENDPOINT: 'https://objects.example.com',
+    MEDIA_S3_BUCKET: 'knowme-private-media',
+    MEDIA_S3_REGION: 'us-east-1',
+    MEDIA_S3_ACCESS_KEY_ID: 'knowme-media-service',
+    MEDIA_S3_SECRET_ACCESS_KEY: 'x'.repeat(64),
     STICKER_TOKEN_ACTIVE_SECRET: 's'.repeat(64),
     ACCOUNT_RECOVERY_ENABLED: 'true',
     ACCOUNT_RECOVERY_SECRET: 'r'.repeat(64),
@@ -77,6 +83,22 @@ test('requires an exact HTTPS CORS allowlist for a market release', () => {
   assert.ok(result.errors.some((error) => error.includes('HTTPS')));
   assert.ok(result.errors.some((error) => error.includes('local host')));
   assert.ok(result.errors.some((error) => error.includes('path, query, or fragment')));
+});
+
+test('requires private S3-compatible media storage for a market release', () => {
+  const local = validEnv();
+  local.MEDIA_STORAGE_DRIVER = 'local';
+  let result = validateProductionEnvironment(local);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('MEDIA_STORAGE_DRIVER')));
+
+  const unsafe = validEnv();
+  unsafe.MEDIA_S3_ENDPOINT = 'http://localhost:9000';
+  unsafe.MEDIA_S3_SECRET_ACCESS_KEY = 'short';
+  result = validateProductionEnvironment(unsafe);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_ENDPOINT')));
+  assert.ok(result.errors.some((error) => error.includes('MEDIA_S3_SECRET_ACCESS_KEY')));
 });
 
 test('requires a distinct hardened account recovery secret and HTTPS delivery configuration', () => {

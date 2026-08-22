@@ -85,6 +85,18 @@ function validateCorsOrigins(env, errors) {
   }
 }
 
+function validateMediaStorage(env, errors) {
+  if (env.MEDIA_STORAGE_DRIVER !== 's3') {
+    errors.push('MEDIA_STORAGE_DRIVER must be "s3" for a market release; local API disk is not durable production media storage.');
+    return;
+  }
+  requireHttps(env, 'MEDIA_S3_ENDPOINT', errors);
+  if (!nonEmpty(env.MEDIA_S3_BUCKET)) errors.push('MEDIA_S3_BUCKET must be set.');
+  if (!nonEmpty(env.MEDIA_S3_REGION)) errors.push('MEDIA_S3_REGION must be set.');
+  if (!nonEmpty(env.MEDIA_S3_ACCESS_KEY_ID)) errors.push('MEDIA_S3_ACCESS_KEY_ID must be set.');
+  requireSecret(env, 'MEDIA_S3_SECRET_ACCESS_KEY', 32, errors);
+}
+
 export function validateProductionEnvironment(env = process.env) {
   const errors = [];
   const warnings = [];
@@ -113,6 +125,7 @@ export function validateProductionEnvironment(env = process.env) {
   requireSecret(env, 'METRICS_BEARER_TOKEN', 32, errors);
   for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
   validateCorsOrigins(env, errors);
+  validateMediaStorage(env, errors);
   requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
 
   const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
