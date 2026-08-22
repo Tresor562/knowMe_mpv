@@ -76,6 +76,27 @@ describe('KnowMe Game Center favorites (e2e)', () => {
     expect(bobFavorites.body).toEqual([]);
   });
 
+  it('includes favorites in the authenticated account export without exposing another account', async () => {
+    const aliceExport = await request(app.getHttpServer())
+      .get('/account/export')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .expect(200);
+
+    expect(aliceExport.body.formatVersion).toBeGreaterThanOrEqual(20);
+    expect(aliceExport.body.gamePlatform?.favorites).toEqual([
+      expect.objectContaining({
+        definitionKey: 'pulse-duel',
+        createdAt: expect.any(String)
+      })
+    ]);
+
+    const bobExport = await request(app.getHttpServer())
+      .get('/account/export')
+      .set('Authorization', `Bearer ${bobToken}`)
+      .expect(200);
+    expect(bobExport.body.gamePlatform?.favorites ?? []).toEqual([]);
+  });
+
   it('fails closed for unavailable games and removes favorites idempotently', async () => {
     await request(app.getHttpServer())
       .post('/games/not-a-real-game/favorite')
