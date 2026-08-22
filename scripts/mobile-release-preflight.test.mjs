@@ -33,6 +33,7 @@ function validEasConfig() {
       production: {
         autoIncrement: true,
         distribution: 'store',
+        environment: 'production',
         android: {
           buildType: 'app-bundle',
         },
@@ -105,10 +106,11 @@ test('accepts an explicit production profile that produces store binaries', () =
   assert.deepEqual(result.errors, []);
 });
 
-test('rejects internal, development-client, APK, or simulator production outputs', () => {
+test('rejects internal, development-client, APK, simulator, or non-production-environment outputs', () => {
   const config = validEasConfig();
   config.build.production.developmentClient = true;
   config.build.production.distribution = 'internal';
+  config.build.production.environment = 'preview';
   config.build.production.android.buildType = 'apk';
   config.build.production.ios.simulator = true;
 
@@ -116,6 +118,7 @@ test('rejects internal, development-client, APK, or simulator production outputs
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('developmentClient')));
   assert.ok(result.errors.some((error) => error.includes('distribution')));
+  assert.ok(result.errors.some((error) => error.includes('environment')));
   assert.ok(result.errors.some((error) => error.includes('app-bundle')));
   assert.ok(result.errors.some((error) => error.includes('simulator')));
 });
