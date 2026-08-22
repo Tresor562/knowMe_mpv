@@ -75,6 +75,7 @@ export function validateProductionEnvironment(env = process.env) {
   }
 
   requireSecret(env, 'JWT_SECRET', 32, errors);
+  requireSecret(env, 'METRICS_BEARER_TOKEN', 32, errors);
   for (const key of HTTPS_URL_KEYS) requireHttps(env, key, errors);
   requireSecret(env, 'STICKER_TOKEN_ACTIVE_SECRET', 32, errors);
 
