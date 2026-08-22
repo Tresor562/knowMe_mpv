@@ -1,8 +1,11 @@
 import { ServiceUnavailableException } from '@nestjs/common';
+import { recordRuntimeHttpMetric, resetRuntimeHttpMetricsForTests } from './common/http-observability';
 import { HealthController } from './health.controller';
 import { PrismaService } from './prisma/prisma.service';
 
 describe('HealthController', () => {
+  beforeEach(() => resetRuntimeHttpMetricsForTests());
+
   const makeController = () => {
     const prisma = {
       $queryRaw: jest.fn()
@@ -31,6 +34,27 @@ describe('HealthController', () => {
 
     expect(result.status).toBe('ok');
     expect(result.checks).toEqual({ process: 'up' });
+    expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('exposes only aggregate runtime metrics without touching PostgreSQL', () => {
+    const { controller, queryRaw } = makeController();
+    recordRuntimeHttpMetric(200, 50);
+    recordRuntimeHttpMetric(503, 900);
+
+    const result = controller.getMetrics();
+
+    expect(result.service).toBe('knowme-api');
+    expect(result.uptimeSeconds).toEqual(expect.any(Number));
+    expect(result.http.requests).toEqual({
+      total: 2,
+      success2xx: 1,
+      clientError4xx: 0,
+      serverError5xx: 1,
+      other: 0
+    });
+    expect(JSON.stringify(result)).not.toContain('requestId');
+    expect(JSON.stringify(result)).not.toContain('path');
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
