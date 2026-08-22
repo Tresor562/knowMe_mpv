@@ -12,6 +12,8 @@ type S3Config = {
   accessKeyId: string;
   secretAccessKey: string;
   sessionToken?: string;
+  timeoutMs: number;
+  maxAttempts: number;
 };
 
 @Injectable()
@@ -93,8 +95,25 @@ export class MediaStorageService implements OnModuleInit {
       region,
       accessKeyId,
       secretAccessKey,
-      sessionToken: env.MEDIA_S3_SESSION_TOKEN?.trim() || undefined
+      sessionToken: env.MEDIA_S3_SESSION_TOKEN?.trim() || undefined,
+      timeoutMs: this.parseBoundedInteger(env.MEDIA_S3_TIMEOUT_MS, 30_000, 1_000, 60_000, 'MEDIA_S3_TIMEOUT_MS'),
+      maxAttempts: this.parseBoundedInteger(env.MEDIA_S3_MAX_ATTEMPTS, 3, 1, 5, 'MEDIA_S3_MAX_ATTEMPTS')
     };
+  }
+
+  private parseBoundedInteger(
+    value: string | undefined,
+    fallback: number,
+    min: number,
+    max: number,
+    name: string
+  ) {
+    if (!value?.trim()) return fallback;
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+      throw new Error(`${name} must be an integer between ${min} and ${max}.`);
+    }
+    return parsed;
   }
 
   private async s3Request(
@@ -103,6 +122,35 @@ export class MediaStorageService implements OnModuleInit {
     body?: Buffer,
     contentType?: string,
     allowNotFound = false
+  ) {
+    if (!this.s3) throw new Error('S3 media storage is not configured.');
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= this.s3.maxAttempts; attempt += 1) {
+      try {
+        const response = await this.s3RequestAttempt(method, key, body, contentType);
+        if (allowNotFound && response.status === 404) return response;
+        if (response.ok) return response;
+
+        const error = new Error(`Private object storage request failed with HTTP ${response.status}.`);
+        if (!this.isRetryableStatus(response.status) || attempt === this.s3.maxAttempts) throw error;
+        lastError = error;
+      } catch (error) {
+        if (!this.isRetryableNetworkError(error) || attempt === this.s3.maxAttempts) throw error;
+        lastError = error;
+      }
+
+      await this.retryDelay(attempt);
+    }
+
+    throw lastError instanceof Error ? lastError : new Error('Private object storage request failed.');
+  }
+
+  private async s3RequestAttempt(
+    method: 'GET' | 'PUT' | 'DELETE',
+    key: string,
+    body?: Buffer,
+    contentType?: string
   ) {
     if (!this.s3) throw new Error('S3 media storage is not configured.');
     const url = this.objectUrl(this.s3, key);
@@ -139,17 +187,26 @@ export class MediaStorageService implements OnModuleInit {
     const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
     headers.authorization = `AWS4-HMAC-SHA256 Credential=${this.s3.accessKeyId}/${scope}, SignedHeaders=${signedHeaderNames.join(';')}, Signature=${signature}`;
 
-    const response = await fetch(url, {
+    return fetch(url, {
       method,
       headers,
       body: body ? new Uint8Array(body) : undefined,
-      signal: AbortSignal.timeout(30_000)
+      signal: AbortSignal.timeout(this.s3.timeoutMs)
     });
-    if (allowNotFound && response.status === 404) return response;
-    if (!response.ok) {
-      throw new Error(`Private object storage request failed with HTTP ${response.status}.`);
-    }
-    return response;
+  }
+
+  private isRetryableStatus(status: number) {
+    return status === 408 || status === 425 || status === 429 || status >= 500;
+  }
+
+  private isRetryableNetworkError(error: unknown) {
+    if (!(error instanceof Error)) return false;
+    return error.name === 'AbortError' || error.name === 'TimeoutError' || error instanceof TypeError;
+  }
+
+  private async retryDelay(attempt: number) {
+    const delayMs = Math.min(100 * 2 ** (attempt - 1), 1_000);
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
   }
 
   private objectUrl(config: S3Config, key: string) {
