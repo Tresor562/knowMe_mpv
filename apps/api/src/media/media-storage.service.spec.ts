@@ -10,6 +10,8 @@ function configureS3() {
   process.env.MEDIA_S3_REGION = 'us-east-1';
   process.env.MEDIA_S3_ACCESS_KEY_ID = 'knowme-media-service';
   process.env.MEDIA_S3_SECRET_ACCESS_KEY = 'secret-value-that-is-long-and-never-public';
+  process.env.MEDIA_S3_TIMEOUT_MS = '30000';
+  process.env.MEDIA_S3_MAX_ATTEMPTS = '3';
   delete process.env.MEDIA_S3_SESSION_TOKEN;
 }
 
@@ -55,6 +57,47 @@ describe('MediaStorageService', () => {
     const storage = new MediaStorageService();
 
     await expect(storage.get('asset-123.webp')).resolves.toEqual(Buffer.from('stored-object'));
+  });
+
+  it('retries bounded transient storage failures and then succeeds', async () => {
+    configureS3();
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(new Response('', { status: 200 }));
+    const storage = new MediaStorageService();
+
+    await expect(storage.put('asset-retry.webp', Buffer.from('private-media'), 'image/webp')).resolves.toBeUndefined();
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry permanent authorization failures', async () => {
+    configureS3();
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('', { status: 403 }));
+    const storage = new MediaStorageService();
+
+    await expect(storage.get('asset-denied.webp')).rejects.toThrow('HTTP 403');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after the configured maximum number of transient attempts', async () => {
+    configureS3();
+    process.env.MEDIA_S3_MAX_ATTEMPTS = '2';
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('', { status: 503 }));
+    const storage = new MediaStorageService();
+
+    await expect(storage.delete('asset-failing.webp')).rejects.toThrow('HTTP 503');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects unsafe retry and timeout configuration', () => {
+    configureS3();
+    process.env.MEDIA_S3_MAX_ATTEMPTS = '99';
+    expect(() => new MediaStorageService()).toThrow('MEDIA_S3_MAX_ATTEMPTS');
+
+    configureS3();
+    process.env.MEDIA_S3_TIMEOUT_MS = '100';
+    expect(() => new MediaStorageService()).toThrow('MEDIA_S3_TIMEOUT_MS');
   });
 
   it('rejects traversal and nested keys before any storage request', async () => {
