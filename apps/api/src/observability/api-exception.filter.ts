@@ -42,6 +42,11 @@ type ErrorResponse = {
   json(body: unknown): void;
 };
 
+export function safeExceptionPath(request: Pick<ErrorRequest, 'originalUrl' | 'url'>): string {
+  const raw = request.originalUrl || request.url || '/';
+  return raw.split('?', 1)[0] || '/';
+}
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   constructor(private readonly context: RequestContextService) {}
@@ -62,6 +67,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const parsed = this.parse(raw, status);
     const requestId =
       this.context.requestId ?? request.requestId ?? 'request-id-unavailable';
+    const path = safeExceptionPath(request);
 
     response.setHeader('x-request-id', requestId);
     response.status(status).json({
@@ -71,7 +77,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       details: parsed.details,
       requestId,
       timestamp: new Date().toISOString(),
-      path: request.originalUrl || request.url
+      path
     });
 
     if (status >= 500) {
@@ -82,7 +88,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
           event: 'api.exception',
           requestId,
           method: request.method,
-          path: request.originalUrl || request.url,
+          path,
           code: parsed.code,
           errorName: error?.name,
           stack: process.env.NODE_ENV === 'production' ? undefined : error?.stack
