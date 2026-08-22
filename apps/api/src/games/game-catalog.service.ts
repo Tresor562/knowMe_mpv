@@ -25,14 +25,14 @@ const METADATA: Record<string, CatalogMetadata> = {
   }
 };
 
-const CATEGORY_LABELS: Record<GameCenterCategory, string> = {
-  instant: 'Instant',
-  social: 'Social',
-  brain: 'Brain',
-  trivia: 'Trivia',
-  strategy: 'Strategy',
-  words: 'Words'
-};
+const CATEGORIES: GameCenterCategory[] = [
+  'instant',
+  'social',
+  'brain',
+  'trivia',
+  'strategy',
+  'words'
+];
 
 @Injectable()
 export class GameCatalogService {
@@ -45,9 +45,9 @@ export class GameCatalogService {
 
     return definitions
       .map((definition) => {
-        const metadata = METADATA[definition.key] ?? {
-          categories: ['social'] as GameCenterCategory[],
-          modes: definition.minPlayers <= 1 ? ['solo'] as const : ['multiplayer'] as const,
+        const metadata: CatalogMetadata = METADATA[definition.key] ?? {
+          categories: [],
+          modes: definition.minPlayers <= 1 ? ['solo'] : ['multiplayer'],
           estimatedMinutes: 5,
           guestEligible: false
         };
@@ -79,9 +79,9 @@ export class GameCatalogService {
 
   async categories() {
     const catalog = await this.catalog();
-    return (Object.keys(CATEGORY_LABELS) as GameCenterCategory[]).map((key) => ({
+    return CATEGORIES.map((key) => ({
       key,
-      label: CATEGORY_LABELS[key],
+      nameKey: `games.category.${key}`,
       gameCount: catalog.filter((game) => game.categories.includes(key)).length
     }));
   }
