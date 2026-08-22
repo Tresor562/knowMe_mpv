@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { GameEngineRegistry } from './game-engine.registry';
 
 export type GameCenterCategory = 'instant' | 'social' | 'brain' | 'trivia' | 'strategy' | 'words';
@@ -36,7 +37,10 @@ const CATEGORIES: GameCenterCategory[] = [
 
 @Injectable()
 export class GameCatalogService {
-  constructor(private readonly registry: GameEngineRegistry) {}
+  constructor(
+    private readonly registry: GameEngineRegistry,
+    private readonly prisma: PrismaService
+  ) {}
 
   async catalog(query?: string, category?: string) {
     const normalizedQuery = query?.trim().toLocaleLowerCase() ?? '';
@@ -84,5 +88,51 @@ export class GameCatalogService {
       nameKey: `games.category.${key}`,
       gameCount: catalog.filter((game) => game.categories.includes(key)).length
     }));
+  }
+
+  async listFavorites(userId: string) {
+    const [favorites, catalog] = await Promise.all([
+      this.prisma.gameFavorite.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { definitionKey: 'asc' }],
+        select: { definitionKey: true, createdAt: true }
+      }),
+      this.catalog()
+    ]);
+    const byKey = new Map(catalog.map((game) => [game.key, game]));
+
+    return favorites.flatMap((favorite) => {
+      const game = byKey.get(favorite.definitionKey);
+      return game ? [{ ...game, favoritedAt: favorite.createdAt }] : [];
+    });
+  }
+
+  async addFavorite(userId: string, definitionKey: string) {
+    const key = definitionKey.trim();
+    const catalog = await this.catalog();
+    const game = catalog.find((candidate) => candidate.key === key);
+    if (!game) {
+      throw new NotFoundException({
+        code: 'GAME_NOT_AVAILABLE',
+        message: 'This game is not available in the public catalog.'
+      });
+    }
+
+    const favorite = await this.prisma.gameFavorite.upsert({
+      where: { userId_definitionKey: { userId, definitionKey: key } },
+      update: {},
+      create: { userId, definitionKey: key },
+      select: { definitionKey: true, createdAt: true }
+    });
+
+    return { ...game, favoritedAt: favorite.createdAt };
+  }
+
+  async removeFavorite(userId: string, definitionKey: string) {
+    const key = definitionKey.trim();
+    await this.prisma.gameFavorite.deleteMany({
+      where: { userId, definitionKey: key }
+    });
+    return { removed: true, definitionKey: key };
   }
 }

@@ -12,6 +12,7 @@ export class GameAccountLifecycleService {
   constructor(private readonly affinityPolicy: AffinityGamePolicyService) {}
 
   async prepareDeletion(userId: string, tx: Prisma.TransactionClient) {
+    await tx.gameFavorite.deleteMany({ where: { userId } });
     await this.affinityPolicy.deleteForAccount(userId, tx);
     const memberships = await tx.gameParticipant.findMany({
       where: { userId },

@@ -40,6 +40,16 @@ model GameDefinition {
   @@index([status, key, version])
 }
 
+model GameFavorite {
+  userId        String
+  definitionKey String
+  createdAt     DateTime @default(now())
+
+  @@id([userId, definitionKey])
+  @@index([userId, createdAt])
+  @@index([definitionKey, createdAt])
+}
+
 model GameSession {
   id                  String            @id @default(cuid())
   definitionId        String
