@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "expo start",
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/game-center-model.test.ts"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
