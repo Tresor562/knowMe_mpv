@@ -1,0 +1,31 @@
+enum GuestAgeGateState {
+  UNKNOWN
+  ADULT
+  MINOR_ALLOWED
+}
+
+enum GuestIdentityStatus {
+  ACTIVE
+  REVOKED
+  CONVERTED
+  BLOCKED
+}
+
+model GuestIdentity {
+  id              String              @id @default(cuid())
+  publicAlias     String?
+  tokenHash       String              @unique
+  locale          String
+  consentVersion  String
+  ageGateState    GuestAgeGateState
+  status          GuestIdentityStatus @default(ACTIVE)
+  createdAt       DateTime            @default(now())
+  lastSeenAt      DateTime            @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  convertedUserId String?
+  convertedAt     DateTime?
+
+  @@index([status, expiresAt])
+  @@index([convertedUserId])
+}
