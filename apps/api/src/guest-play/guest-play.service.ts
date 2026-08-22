@@ -17,6 +17,12 @@ export function extractGuestBearerToken(authorization?: string) {
   return match?.[1] ?? null;
 }
 
+export function extractGuestToken(token?: string) {
+  if (!token) return null;
+  const normalized = token.trim();
+  return /^kg_[A-Za-z0-9_-]{43}$/.test(normalized) ? normalized : null;
+}
+
 @Injectable()
 export class GuestPlayService {
   constructor(private readonly prisma: PrismaService) {}
@@ -28,7 +34,8 @@ export class GuestPlayService {
       storesContacts: false,
       requiresAccount: false,
       supportsGameplay: false,
-      conversionEnabled: false
+      conversionEnabled: true,
+      conversionTransfersGameplayData: false
     } as const;
   }
 
@@ -86,6 +93,51 @@ export class GuestPlayService {
     });
 
     return { revoked: true } as const;
+  }
+
+  async convertToUser(rawGuestToken: string | undefined, userId: string) {
+    const token = extractGuestToken(rawGuestToken);
+    if (!token) throw this.invalidGuestSession();
+
+    const now = new Date();
+    const tokenHash = hashGuestToken(token);
+
+    const converted = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true }
+      });
+      if (!user) return false;
+
+      const updated = await tx.guestIdentity.updateMany({
+        where: {
+          tokenHash,
+          status: GuestIdentityStatus.ACTIVE,
+          convertedUserId: null,
+          expiresAt: { gt: now }
+        },
+        data: {
+          status: GuestIdentityStatus.CONVERTED,
+          convertedUserId: userId,
+          convertedAt: now,
+          lastSeenAt: now
+        }
+      });
+
+      return updated.count === 1;
+    });
+
+    if (!converted) throw this.invalidGuestSession();
+
+    return {
+      converted: true,
+      transferred: {
+        gameplayData: false,
+        scores: 0,
+        achievements: 0,
+        preferences: 0
+      }
+    } as const;
   }
 
   private async activeGuest(token: string) {
