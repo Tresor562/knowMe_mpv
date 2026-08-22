@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateMobileStoreConfig } from './mobile-release-preflight.mjs';
+import {
+  validateMobileProductionBuildConfig,
+  validateMobileStoreConfig,
+} from './mobile-release-preflight.mjs';
 
 function validConfig() {
   return {
@@ -17,6 +20,29 @@ function validConfig() {
         package: 'com.knowme.app',
         versionCode: 1,
       },
+    },
+  };
+}
+
+function validEasConfig() {
+  return {
+    cli: {
+      appVersionSource: 'remote',
+    },
+    build: {
+      production: {
+        autoIncrement: true,
+        distribution: 'store',
+        android: {
+          buildType: 'app-bundle',
+        },
+        ios: {
+          simulator: false,
+        },
+      },
+    },
+    submit: {
+      production: {},
     },
   };
 }
@@ -71,4 +97,44 @@ test('requires stable app naming and deep-link scheme metadata', () => {
   assert.ok(result.errors.some((error) => error.includes('expo.name')));
   assert.ok(result.errors.some((error) => error.includes('expo.slug')));
   assert.ok(result.errors.some((error) => error.includes('expo.scheme')));
+});
+
+test('accepts an explicit production profile that produces store binaries', () => {
+  const result = validateMobileProductionBuildConfig(validEasConfig());
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test('rejects internal, development-client, APK, or simulator production outputs', () => {
+  const config = validEasConfig();
+  config.build.production.developmentClient = true;
+  config.build.production.distribution = 'internal';
+  config.build.production.android.buildType = 'apk';
+  config.build.production.ios.simulator = true;
+
+  const result = validateMobileProductionBuildConfig(config);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('developmentClient')));
+  assert.ok(result.errors.some((error) => error.includes('distribution')));
+  assert.ok(result.errors.some((error) => error.includes('app-bundle')));
+  assert.ok(result.errors.some((error) => error.includes('simulator')));
+});
+
+test('requires forward-only remote versioning and a production submit profile', () => {
+  const config = validEasConfig();
+  config.cli.appVersionSource = 'local';
+  config.build.production.autoIncrement = false;
+  delete config.submit.production;
+
+  const result = validateMobileProductionBuildConfig(config);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('appVersionSource')));
+  assert.ok(result.errors.some((error) => error.includes('autoIncrement')));
+  assert.ok(result.errors.some((error) => error.includes('submit.production')));
+});
+
+test('rejects a missing production build profile', () => {
+  const result = validateMobileProductionBuildConfig({ build: {} });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('build.production')));
 });
