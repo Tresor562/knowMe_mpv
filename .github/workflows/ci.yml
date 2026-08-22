@@ -35,7 +35,7 @@ jobs:
           node-version: 22
       - run: pnpm install --frozen-lockfile=false
       - run: pnpm --filter @knowme/api prisma:generate
-      - run: pnpm --filter @knowme/api prisma:push
+      - run: pnpm db:migrate:deploy
       - run: pnpm build
       - run: pnpm test
       - run: pnpm --filter @knowme/web exec playwright install --with-deps chromium
