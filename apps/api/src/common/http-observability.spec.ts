@@ -1,11 +1,16 @@
 import {
   createHttpObservabilityMiddleware,
+  getRuntimeHttpMetricsSnapshot,
+  recordRuntimeHttpMetric,
+  resetRuntimeHttpMetricsForTests,
   resolveRequestId,
   safeRequestPath,
   type HttpRequestLog
 } from './http-observability';
 
 describe('http observability', () => {
+  beforeEach(() => resetRuntimeHttpMetricsForTests());
+
   it('accepts a bounded safe request id and regenerates invalid values', () => {
     expect(resolveRequestId('req-123', () => 'generated')).toBe('req-123');
     expect(resolveRequestId('contains spaces', () => 'generated')).toBe('generated');
@@ -42,12 +47,13 @@ describe('http observability', () => {
     };
     const times = [100, 137];
     const next = jest.fn();
+    const observe = jest.fn();
 
-    createHttpObservabilityMiddleware((entry) => logs.push(entry), () => times.shift() ?? 137)(
-      request,
-      response,
-      next
-    );
+    createHttpObservabilityMiddleware(
+      (entry) => logs.push(entry),
+      () => times.shift() ?? 137,
+      observe
+    )(request, response, next);
     listeners.get('finish')?.();
 
     expect(next).toHaveBeenCalledTimes(1);
@@ -62,8 +68,49 @@ describe('http observability', () => {
         durationMs: 37
       }
     ]);
+    expect(observe).toHaveBeenCalledWith(201, 37);
     expect(JSON.stringify(logs)).not.toContain('password');
     expect(JSON.stringify(logs)).not.toContain('Bearer secret');
     expect(JSON.stringify(logs)).not.toContain('do-not-log');
+  });
+
+  it('keeps aggregate metrics low-cardinality and free of request identity', () => {
+    recordRuntimeHttpMetric(200, 75);
+    recordRuntimeHttpMetric(404, 275);
+    recordRuntimeHttpMetric(503, 1600);
+    recordRuntimeHttpMetric(101, 5);
+
+    const snapshot = getRuntimeHttpMetricsSnapshot();
+
+    expect(snapshot.requests).toEqual({
+      total: 4,
+      success2xx: 1,
+      clientError4xx: 1,
+      serverError5xx: 1,
+      other: 1
+    });
+    expect(snapshot.latencyMs).toMatchObject({ count: 4, sum: 1955, max: 1600 });
+    expect(snapshot.latencyMs.buckets).toEqual({
+      le_100: 2,
+      le_250: 2,
+      le_500: 3,
+      le_1000: 3,
+      le_2500: 4,
+      le_5000: 4
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('path');
+    expect(JSON.stringify(snapshot)).not.toContain('requestId');
+    expect(JSON.stringify(snapshot)).not.toContain('method');
+  });
+
+  it('sanitizes non-finite and negative durations before aggregation', () => {
+    recordRuntimeHttpMetric(200, Number.POSITIVE_INFINITY);
+    recordRuntimeHttpMetric(200, -20);
+
+    expect(getRuntimeHttpMetricsSnapshot().latencyMs).toMatchObject({
+      count: 2,
+      sum: 0,
+      max: 0
+    });
   });
 });
