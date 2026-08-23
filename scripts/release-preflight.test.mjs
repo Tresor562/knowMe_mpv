@@ -28,6 +28,10 @@ function validEnv() {
     ACCOUNT_RECOVERY_EMAIL_API_KEY: 'm'.repeat(32),
     ACCOUNT_RECOVERY_EMAIL_FROM: 'KnowMe <security@knowme.example>',
     WEB_URL: 'https://knowme.example',
+    ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS: '30',
+    ACCOUNT_RECOVERY_RETENTION_MAINTENANCE_ENABLED: 'true',
+    ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS: '3600000',
+    ACCOUNT_RECOVERY_RETENTION_BATCH_SIZE: '500',
     CALL_REQUIRE_TURN_IN_PRODUCTION: 'true',
     CALL_TURN_SECRET: 't'.repeat(64),
     CALL_TURN_URLS_JSON: JSON.stringify(['turns:turn.example.com:5349?transport=tcp']),
@@ -152,6 +156,26 @@ test('requires a distinct hardened account recovery secret and HTTPS delivery co
   assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_API_KEY')));
   assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM')));
   assert.ok(result.errors.some((error) => error.includes('WEB_URL')));
+});
+
+test('requires an explicit bounded account-recovery attempt retention policy and enabled purge maintenance', () => {
+  const missing = validEnv();
+  delete missing.ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS;
+  let result = validateProductionEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS') && error.includes('explicitly set')));
+
+  const unsafe = validEnv();
+  unsafe.ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS = '0';
+  unsafe.ACCOUNT_RECOVERY_RETENTION_MAINTENANCE_ENABLED = 'false';
+  unsafe.ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS = '1000';
+  unsafe.ACCOUNT_RECOVERY_RETENTION_BATCH_SIZE = '10000';
+  result = validateProductionEnvironment(unsafe);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_RETENTION_MAINTENANCE_ENABLED')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_RETENTION_BATCH_SIZE')));
 });
 
 test('rejects malformed recovery delivery URLs and sender identities before market release', () => {

@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { SecurityModule } from '../security/security.module';
+import { AccountRecoveryRetentionService } from './account-recovery-retention.service';
 import { AccountRecoveryService } from './account-recovery.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -19,7 +20,7 @@ import { JwtStrategy } from './jwt.strategy';
     })
   ],
   controllers: [AuthController],
-  providers: [AuthService, AccountRecoveryService, JwtStrategy],
+  providers: [AuthService, AccountRecoveryService, AccountRecoveryRetentionService, JwtStrategy],
   exports: [JwtModule, AuthService]
 })
 export class AuthModule {}

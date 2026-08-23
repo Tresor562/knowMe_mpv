@@ -135,6 +135,17 @@ function validateBoundedInteger(env, key, fallback, min, max, errors) {
   }
 }
 
+function validateRequiredBoundedInteger(env, key, min, max, errors) {
+  if (!nonEmpty(env[key])) {
+    errors.push(`${key} must be explicitly set to an integer between ${min} and ${max}.`);
+    return;
+  }
+  const parsed = Number(env[key].trim());
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    errors.push(`${key} must be an integer between ${min} and ${max}.`);
+  }
+}
+
 function validateCorsOrigins(env, errors) {
   const values = parseJsonArray(env.CORS_ALLOWED_ORIGINS_JSON, 'CORS_ALLOWED_ORIGINS_JSON', errors);
   if (values.length === 0) {
@@ -222,6 +233,12 @@ export function validateProductionEnvironment(env = process.env) {
     requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
     validateRecoverySender(env, errors);
     validateRecoveryWebUrl(env, errors);
+    validateRequiredBoundedInteger(env, 'ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS', 1, 3650, errors);
+    if (!parseBoolean(env.ACCOUNT_RECOVERY_RETENTION_MAINTENANCE_ENABLED, true)) {
+      errors.push('ACCOUNT_RECOVERY_RETENTION_MAINTENANCE_ENABLED must not be disabled for a market release.');
+    }
+    validateBoundedInteger(env, 'ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS', 3600000, 60000, 86400000, errors);
+    validateBoundedInteger(env, 'ACCOUNT_RECOVERY_RETENTION_BATCH_SIZE', 500, 1, 5000, errors);
   } else {
     errors.push('ACCOUNT_RECOVERY_ENABLED must not be disabled for a market release.');
   }
