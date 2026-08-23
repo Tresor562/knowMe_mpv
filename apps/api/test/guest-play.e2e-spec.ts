@@ -27,7 +27,7 @@ describe('Guest identity baseline (e2e)', () => {
     await app.close();
   });
 
-  it('publishes a privacy-minimized guest policy without claiming gameplay transfer', async () => {
+  it('publishes a privacy-minimized guest policy with bounded gameplay but no account transfer claim', async () => {
     const response = await request(app.getHttpServer())
       .get('/guest/policy')
       .expect(200);
@@ -36,7 +36,7 @@ describe('Guest identity baseline (e2e)', () => {
       storesRealIdentity: false,
       storesContacts: false,
       requiresAccount: false,
-      supportsGameplay: false,
+      supportsGameplay: true,
       conversionEnabled: true,
       conversionTransfersGameplayData: false
     }));
@@ -87,6 +87,145 @@ describe('Guest identity baseline (e2e)', () => {
       .get('/guest/session')
       .set('authorization', `Bearer ${token}`)
       .expect(401);
+  });
+
+  it('plays Quick Math end-to-end with server state, idempotent actions and guest isolation', async () => {
+    const creation = await request(app.getHttpServer())
+      .post('/guest/sessions')
+      .send({
+        publicAlias: 'Math Guest',
+        locale: 'fr-BJ',
+        consentVersion: '2026-08-22',
+        ageGateState: 'ADULT'
+      })
+      .expect(201);
+    const token = creation.body.token as string;
+    const guestId = creation.body.guest.id as string;
+
+    const created = await request(app.getHttpServer())
+      .post('/guest/games/quick-math/sessions')
+      .set('authorization', `Bearer ${token}`)
+      .send({ idempotencyKey: 'guest:create:math:0001' })
+      .expect(201);
+
+    expect(created.body).toEqual(expect.objectContaining({
+      status: 'ACTIVE',
+      sequence: 0,
+      replayed: false,
+      serverAuthoritative: true,
+      economicStake: null,
+      accountRequired: false,
+      game: expect.objectContaining({ key: 'quick-math', version: 1 }),
+      state: expect.objectContaining({ phase: 'READY', round: 0, score: 0 })
+    }));
+    expect(created.body).not.toHaveProperty('seed');
+    expect(JSON.stringify(created.body)).not.toContain('tokenHash');
+
+    const sessionId = created.body.id as string;
+    const storedSession = await prisma.guestGameSession.findUniqueOrThrow({
+      where: { id: sessionId }
+    });
+    expect(storedSession.guestId).toBe(guestId);
+    expect(storedSession.seed).toMatch(/^[a-f0-9]{64}$/);
+    expect(storedSession.expiresAt.getTime()).toBeLessThanOrEqual(
+      new Date(creation.body.guest.expiresAt as string).getTime()
+    );
+
+    const started = await request(app.getHttpServer())
+      .post(`/guest/games/sessions/${sessionId}/actions`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        actionType: 'START',
+        payload: {},
+        expectedSequence: 0,
+        idempotencyKey: 'guest:start:math:0001'
+      })
+      .expect(201);
+    expect(started.body.sequence).toBe(1);
+    expect(started.body.state).toEqual(expect.objectContaining({ phase: 'ACTIVE', round: 1 }));
+    expect(started.body.state.question).toEqual(expect.objectContaining({
+      left: expect.any(Number),
+      right: expect.any(Number),
+      operator: expect.stringMatching(/^[+-]$/)
+    }));
+
+    const replayedStart = await request(app.getHttpServer())
+      .post(`/guest/games/sessions/${sessionId}/actions`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        actionType: 'START',
+        payload: {},
+        expectedSequence: 0,
+        idempotencyKey: 'guest:start:math:0001'
+      })
+      .expect(201);
+    expect(replayedStart.body.replayed).toBe(true);
+    expect(replayedStart.body.sequence).toBe(1);
+
+    let current = started.body;
+    for (let round = 1; round <= 5; round += 1) {
+      const question = current.state.question as {
+        left: number;
+        right: number;
+        operator: '+' | '-';
+      };
+      const answer = question.operator === '+'
+        ? question.left + question.right
+        : question.left - question.right;
+      const response = await request(app.getHttpServer())
+        .post(`/guest/games/sessions/${sessionId}/actions`)
+        .set('authorization', `Bearer ${token}`)
+        .send({
+          actionType: 'ANSWER',
+          payload: { answer },
+          expectedSequence: current.sequence as number,
+          idempotencyKey: `guest:answer:${round}:0001`
+        })
+        .expect(201);
+      current = response.body;
+    }
+
+    expect(current).toEqual(expect.objectContaining({
+      status: 'COMPLETED',
+      sequence: 6,
+      currentTurnPosition: null,
+      result: {
+        outcome: 'COMPLETED',
+        score: 5,
+        correctAnswers: 5,
+        rounds: 5
+      },
+      state: expect.objectContaining({
+        phase: 'COMPLETED',
+        score: 5,
+        completed: true,
+        question: null
+      })
+    }));
+
+    const persistedActions = await prisma.guestGameAction.count({
+      where: { sessionId, guestId }
+    });
+    expect(persistedActions).toBe(6);
+
+    const stranger = await request(app.getHttpServer())
+      .post('/guest/sessions')
+      .send({
+        locale: 'fr-BJ',
+        consentVersion: '2026-08-22',
+        ageGateState: 'ADULT'
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .get(`/guest/games/sessions/${sessionId}`)
+      .set('authorization', `Bearer ${stranger.body.token as string}`)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .post('/guest/games/pulse-duel/sessions')
+      .set('authorization', `Bearer ${token}`)
+      .send({ idempotencyKey: 'guest:create:pulse:0001' })
+      .expect(404);
   });
 
   it('converts one active guest to one authenticated account and invalidates the guest credential', async () => {

@@ -36,6 +36,7 @@ import { TournamentService } from './tournament.service';
     GameSessionMaintenanceService
   ],
   exports: [
+    GameEngineRegistry,
     AffinityGamePolicyService,
     GameCatalogService,
     GamePlatformService,
