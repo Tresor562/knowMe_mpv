@@ -14,7 +14,7 @@ export function guestGameplayStoragePolicy() {
     authoritativeStateRequired: true,
     idempotencyReceiptRequired: true,
     cascadeDeleteWithGuestIdentity: true,
-    publicGameplayEnabledByThisKmd: false
+    publicGameplayEnabledByThisKmd: true
   } as const;
 }
 
