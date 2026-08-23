@@ -67,7 +67,27 @@ type ApiErrorPayload = {
   requestId?: string;
 };
 
+type SessionPresenceListener = (present: boolean) => void;
+
 let refreshPromise: Promise<string | null> | null = null;
+const sessionPresenceListeners = new Set<SessionPresenceListener>();
+
+function publishSessionPresence(present: boolean) {
+  for (const listener of sessionPresenceListeners) {
+    try {
+      listener(present);
+    } catch {
+      // Session persistence must not fail because a UI observer failed.
+    }
+  }
+}
+
+export function subscribeToSessionPresence(listener: SessionPresenceListener) {
+  sessionPresenceListeners.add(listener);
+  return () => {
+    sessionPresenceListeners.delete(listener);
+  };
+}
 
 async function secureGet(key: string) {
   if (Platform.OS === 'web') return AsyncStorage.getItem(key);
@@ -133,10 +153,12 @@ export async function saveSession(tokens: SessionTokens) {
   if (tokens.trustedDeviceToken) {
     await saveTrustedDeviceToken(tokens.trustedDeviceToken);
   }
+  publishSessionPresence(true);
 }
 
 export async function clearSession() {
   await Promise.all([secureDelete(ACCESS_KEY), secureDelete(REFRESH_KEY)]);
+  publishSessionPresence(false);
 }
 
 export async function hasSession() {
