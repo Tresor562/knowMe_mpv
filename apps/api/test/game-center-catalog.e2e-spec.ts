@@ -29,12 +29,21 @@ describe('KnowMe Game Center V2 catalog (e2e)', () => {
           authoritativeServer: true,
           replayAvailable: true,
           economicStakeAllowed: false
+        }),
+        expect.objectContaining({
+          key: 'quick-math',
+          categories: expect.arrayContaining(['instant', 'brain']),
+          modes: ['solo'],
+          guestEligible: false,
+          authoritativeServer: true,
+          replayAvailable: true,
+          economicStakeAllowed: false
         })
       ])
     );
   });
 
-  it('publishes an unauthenticated guest-safe catalog that fails closed until a game is reviewed', async () => {
+  it('publishes an unauthenticated guest-safe catalog that stays closed until guest session/actions are exposed', async () => {
     const response = await request(app.getHttpServer())
       .get('/games/guest')
       .expect(200);
