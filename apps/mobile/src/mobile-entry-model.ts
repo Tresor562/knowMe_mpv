@@ -1,4 +1,4 @@
-export type MobileEntryMode = 'choice' | 'account' | 'guest';
+export type MobileEntryMode = 'choice' | 'account' | 'guest' | 'recovery';
 
 export function resolveInitialMobileEntry(hasAccountSession: boolean): MobileEntryMode {
   return hasAccountSession ? 'account' : 'choice';
@@ -6,7 +6,7 @@ export function resolveInitialMobileEntry(hasAccountSession: boolean): MobileEnt
 
 export function selectMobileEntry(
   current: MobileEntryMode,
-  selection: 'account' | 'guest' | 'choice'
+  selection: 'account' | 'guest' | 'recovery' | 'choice'
 ): MobileEntryMode {
   if (current === 'account' && selection === 'choice') {
     return 'account';
