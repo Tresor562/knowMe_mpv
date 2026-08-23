@@ -11,6 +11,13 @@ enum GuestIdentityStatus {
   BLOCKED
 }
 
+enum GuestGameSessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  EXPIRED
+}
+
 model GuestIdentity {
   id              String              @id @default(cuid())
   publicAlias     String?
@@ -26,6 +33,77 @@ model GuestIdentity {
   convertedUserId String?
   convertedAt     DateTime?
 
+  gameSessions       GuestGameSession[]
+  gameActions        GuestGameAction[]
+  gameActionReceipts GuestGameActionReceipt[]
+
   @@index([status, expiresAt])
   @@index([convertedUserId])
+}
+
+model GuestGameSession {
+  id                  String                 @id @default(cuid())
+  guestId             String
+  definitionKey       String
+  definitionVersion   Int
+  creationKey         String
+  status              GuestGameSessionStatus @default(ACTIVE)
+  seed                String
+  initialState        Json
+  state               Json
+  stateHash           String
+  sequence            Int                    @default(0)
+  currentTurnPosition Int?
+  result              Json?
+  expiresAt           DateTime
+  completedAt         DateTime?
+  abandonedAt         DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  guest    GuestIdentity            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  actions  GuestGameAction[]
+  receipts GuestGameActionReceipt[]
+
+  @@unique([guestId, creationKey])
+  @@index([guestId, status, updatedAt])
+  @@index([status, expiresAt])
+  @@index([definitionKey, definitionVersion, createdAt])
+}
+
+model GuestGameAction {
+  id              String   @id @default(cuid())
+  sessionId       String
+  guestId         String
+  sequence        Int
+  idempotencyKey  String
+  actionType      String
+  payload         Json
+  stateHashBefore String
+  stateHashAfter  String
+  createdAt       DateTime @default(now())
+
+  session GuestGameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  guest   GuestIdentity    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sequence])
+  @@unique([sessionId, guestId, idempotencyKey])
+  @@index([guestId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model GuestGameActionReceipt {
+  sessionId      String
+  guestId        String
+  idempotencyKey String
+  sequence       Int
+  response       Json
+  createdAt      DateTime @default(now())
+
+  session GuestGameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  guest   GuestIdentity    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, guestId, idempotencyKey])
+  @@index([guestId, createdAt])
+  @@index([createdAt])
 }
