@@ -48,7 +48,24 @@ describe('Account recovery (e2e)', () => {
     expect(deliveredToken).toBe('');
   });
 
-  it('resets a known account, revokes the old session and makes the recovery link single-use', async () => {
+  it('rejects oversized recovery inputs before account lookup or password hashing', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/password-recovery')
+      .send({ email: `${'a'.repeat(245)}@knowme.test` })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset')
+      .send({ token: 'x'.repeat(4097), password: 'NewKnowMePassword456!' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset')
+      .send({ token: 'x'.repeat(64), password: 'p'.repeat(129) })
+      .expect(400);
+  });
+
+  it('resets a known account, rejects non-canonical tokens, revokes the old session and makes the recovery link single-use', async () => {
     const registration = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -69,6 +86,11 @@ describe('Account recovery (e2e)', () => {
       .expect({ accepted: true });
 
     expect(deliveredToken.length).toBeGreaterThan(32);
+
+    await request(app.getHttpServer())
+      .post('/auth/password-reset')
+      .send({ token: `${deliveredToken}.unexpected`, password: 'NewKnowMePassword456!' })
+      .expect(401);
 
     await request(app.getHttpServer())
       .post('/auth/password-reset')

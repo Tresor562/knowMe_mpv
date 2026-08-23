@@ -136,7 +136,12 @@ export class AccountRecoveryService {
   }
 
   private verify(token: string, secret: string): RecoveryPayload {
-    const [encoded, suppliedSignature] = token.split('.');
+    const segments = token.split('.');
+    if (segments.length !== 2) {
+      throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
+    }
+
+    const [encoded, suppliedSignature] = segments;
     if (!encoded || !suppliedSignature) {
       throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
     }
@@ -148,12 +153,35 @@ export class AccountRecoveryService {
     }
 
     try {
-      const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as RecoveryPayload;
-      if (!payload.sub || !payload.exp || !payload.nonce || !payload.pwd) throw new Error('invalid');
-      return payload;
+      const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as unknown;
+      if (!this.isRecoveryPayload(parsed)) throw new Error('invalid');
+      return parsed;
     } catch {
       throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
     }
+  }
+
+  private isRecoveryPayload(value: unknown): value is RecoveryPayload {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+    const payload = value as Record<string, unknown>;
+    const keys = Object.keys(payload).sort();
+    if (keys.join(',') !== 'exp,nonce,pwd,sub') return false;
+
+    return (
+      typeof payload.sub === 'string' &&
+      payload.sub.length > 0 &&
+      payload.sub.length <= 128 &&
+      typeof payload.exp === 'number' &&
+      Number.isSafeInteger(payload.exp) &&
+      payload.exp > 0 &&
+      typeof payload.nonce === 'string' &&
+      payload.nonce.length >= 32 &&
+      payload.nonce.length <= 128 &&
+      typeof payload.pwd === 'string' &&
+      payload.pwd.length >= 32 &&
+      payload.pwd.length <= 128
+    );
   }
 
   private sign(value: string, secret: string) {

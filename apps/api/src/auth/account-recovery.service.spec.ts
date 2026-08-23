@@ -45,6 +45,19 @@ describe('AccountRecoveryService', () => {
     };
   }
 
+  async function issueToken(service: AccountRecoveryService, prisma: ReturnType<typeof setup>['prisma']) {
+    prisma.user.findUnique.mockResolvedValue(user);
+    let resetToken = '';
+    jest.spyOn(global, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { html: string };
+      const match = body.html.match(/token=([^"&<]+)/);
+      resetToken = decodeURIComponent(match?.[1] ?? '');
+      return new Response('', { status: 202 });
+    });
+    await service.request(user.email);
+    return resetToken;
+  }
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -78,16 +91,7 @@ describe('AccountRecoveryService', () => {
 
   it('resets a password once and revokes sessions plus trusted devices', async () => {
     const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValue(user);
-    let resetToken = '';
-    jest.spyOn(global, 'fetch').mockImplementation(async (_input, init) => {
-      const body = JSON.parse(String(init?.body)) as { html: string };
-      const match = body.html.match(/token=([^"&<]+)/);
-      resetToken = decodeURIComponent(match?.[1] ?? '');
-      return new Response('', { status: 202 });
-    });
-
-    await service.request(user.email, { ipAddress: '127.0.0.1' });
+    const resetToken = await issueToken(service, prisma);
     expect(resetToken.length).toBeGreaterThan(32);
 
     prisma.user.findUnique.mockResolvedValue(user);
@@ -105,21 +109,22 @@ describe('AccountRecoveryService', () => {
 
   it('fails closed if another reset consumed the password state first', async () => {
     const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValue(user);
-    let resetToken = '';
-    jest.spyOn(global, 'fetch').mockImplementation(async (_input, init) => {
-      const body = JSON.parse(String(init?.body)) as { html: string };
-      const match = body.html.match(/token=([^"&<]+)/);
-      resetToken = decodeURIComponent(match?.[1] ?? '');
-      return new Response('', { status: 202 });
-    });
-    await service.request(user.email);
+    const resetToken = await issueToken(service, prisma);
 
     prisma.user.findUnique.mockResolvedValue(user);
     prisma.user.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.reset(resetToken, 'a-new-password-123')).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
     expect(prisma.trustedDevice.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects an otherwise valid token with an extra segment', async () => {
+    const { prisma, service } = setup();
+    const resetToken = await issueToken(service, prisma);
+
+    await expect(service.reset(`${resetToken}.unexpected`, 'a-new-password-123'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects a tampered reset token', async () => {
