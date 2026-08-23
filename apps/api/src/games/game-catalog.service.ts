@@ -28,9 +28,7 @@ const METADATA: Record<string, CatalogMetadata> = {
     categories: ['instant', 'brain'],
     modes: ['solo'],
     estimatedMinutes: 2,
-    // KMD-196 qualifies the deterministic engine, but Guest Play stays closed
-    // until the dedicated guest session/action API is implemented and tested.
-    guestEligible: false
+    guestEligible: true
   }
 };
 
