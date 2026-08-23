@@ -33,7 +33,7 @@ export class GuestPlayService {
       storesRealIdentity: false,
       storesContacts: false,
       requiresAccount: false,
-      supportsGameplay: false,
+      supportsGameplay: true,
       conversionEnabled: true,
       conversionTransfersGameplayData: false
     } as const;
@@ -75,6 +75,23 @@ export class GuestPlayService {
     });
 
     return this.publicProjection(touched);
+  }
+
+  async gameplayIdentityFromAuthorization(authorization?: string) {
+    const token = extractGuestBearerToken(authorization);
+    if (!token) throw this.invalidGuestSession();
+
+    const guest = await this.activeGuest(token);
+    return this.prisma.guestIdentity.update({
+      where: { id: guest.id },
+      data: { lastSeenAt: new Date() },
+      select: {
+        id: true,
+        status: true,
+        expiresAt: true,
+        convertedUserId: true
+      }
+    });
   }
 
   async revokeFromAuthorization(authorization?: string) {
