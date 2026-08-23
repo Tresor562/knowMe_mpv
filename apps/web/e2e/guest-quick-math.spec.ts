@@ -51,9 +51,24 @@ function sessionBody(sequence: number, round: number, completed = false) {
   };
 }
 
+function guestIdentityBody() {
+  return {
+    id: 'guest-1',
+    publicAlias: null,
+    locale: 'fr',
+    consentVersion: '2026-08-22',
+    ageGateState: 'ADULT',
+    status: 'ACTIVE',
+    createdAt: '2026-08-23T20:00:00.000Z',
+    lastSeenAt: '2026-08-23T20:01:00.000Z',
+    expiresAt: '2026-08-24T20:00:00.000Z'
+  };
+}
+
 async function mockGuestCreationAndGame(page: Page) {
   const authorizationHeaders: string[] = [];
   let actionCount = 0;
+  let revokeCount = 0;
 
   await page.route('http://localhost:4000/guest/sessions', async (route) => {
     expect(route.request().method()).toBe('POST');
@@ -70,18 +85,19 @@ async function mockGuestCreationAndGame(page: Page) {
       contentType: 'application/json',
       body: JSON.stringify({
         token: guestToken,
-        guest: {
-          id: 'guest-1',
-          publicAlias: 'Browser Guest',
-          locale: 'fr',
-          consentVersion: '2026-08-22',
-          ageGateState: 'ADULT',
-          status: 'ACTIVE',
-          createdAt: '2026-08-23T20:00:00.000Z',
-          lastSeenAt: '2026-08-23T20:00:00.000Z',
-          expiresAt: '2026-08-24T20:00:00.000Z'
-        }
+        guest: { ...guestIdentityBody(), publicAlias: 'Browser Guest' }
       })
+    });
+  });
+
+  await page.route('http://localhost:4000/guest/session', async (route) => {
+    expect(route.request().method()).toBe('DELETE');
+    expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
+    revokeCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ revoked: true })
     });
   });
 
@@ -141,10 +157,14 @@ async function mockGuestCreationAndGame(page: Page) {
     });
   });
 
-  return { authorizationHeaders, getActionCount: () => actionCount };
+  return {
+    authorizationHeaders,
+    getActionCount: () => actionCount,
+    getRevokeCount: () => revokeCount
+  };
 }
 
-test('Quick Math delivers value before account creation through an explicit Guest flow', async ({ page }) => {
+test('Quick Math delivers value before account creation and can explicitly revoke the Guest identity', async ({ page }) => {
   const failures = collectPageFailures(page);
   const mocked = await mockGuestCreationAndGame(page);
 
@@ -174,6 +194,16 @@ test('Quick Math delivers value before account creation through an explicit Gues
   await expect(page.getByText('PARTIE TERMINÉE')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Score : 5/5' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', '/register');
+
+  await page.getByRole('button', { name: 'Terminer et effacer la session invitée' }).click();
+  await expect(page.getByRole('status')).toContainText('Session invitée terminée');
+  await expect(page.getByLabel(/Pseudo temporaire/)).toBeVisible();
+  const stored = await page.evaluate(() => ({
+    guest: window.localStorage.getItem('knowme_guest_token'),
+    game: window.localStorage.getItem('knowme_guest_quick_math_session')
+  }));
+  expect(stored).toEqual({ guest: null, game: null });
+  expect(mocked.getRevokeCount()).toBe(1);
   expect(mocked.getActionCount()).toBe(6);
   expect(mocked.authorizationHeaders.length).toBeGreaterThan(0);
   expect(mocked.authorizationHeaders.every((value) => value === `Bearer ${guestToken}`)).toBe(true);
@@ -192,17 +222,7 @@ test('Quick Math resumes a valid temporary Guest session after a browser refresh
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        id: 'guest-1',
-        publicAlias: null,
-        locale: 'fr',
-        consentVersion: '2026-08-22',
-        ageGateState: 'ADULT',
-        status: 'ACTIVE',
-        createdAt: '2026-08-23T20:00:00.000Z',
-        lastSeenAt: '2026-08-23T20:01:00.000Z',
-        expiresAt: '2026-08-24T20:00:00.000Z'
-      })
+      body: JSON.stringify(guestIdentityBody())
     });
   });
   await page.route('http://localhost:4000/guest/games/sessions/guest-game-1', async (route) => {
@@ -220,4 +240,37 @@ test('Quick Math resumes a valid temporary Guest session after a browser refresh
   await expect(page.getByLabel('Calcul actuel')).toContainText('2 + 2 = ?');
   await expect(page.getByLabel(/Pseudo temporaire/)).toHaveCount(0);
   expect(failures).toEqual([]);
+});
+
+test('a transient revocation failure keeps the Guest credential so the user can retry', async ({ page }) => {
+  await page.addInitScript(({ token }) => {
+    window.localStorage.setItem('knowme_guest_token', token);
+  }, { token: guestToken });
+
+  await page.route('http://localhost:4000/guest/session', async (route) => {
+    expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(guestIdentityBody())
+      });
+      return;
+    }
+
+    expect(route.request().method()).toBe('DELETE');
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Revocation temporarily unavailable' })
+    });
+  });
+
+  const response = await page.goto('/play/quick-math');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByText('Session invitée active sur cet appareil.')).toBeVisible();
+  await page.getByRole('button', { name: 'Terminer et effacer la session invitée' }).click();
+  await expect(page.getByRole('status')).toContainText('Revocation temporarily unavailable');
+  expect(await page.evaluate(() => window.localStorage.getItem('knowme_guest_token'))).toBe(guestToken);
+  await expect(page.getByText('Session invitée active sur cet appareil.')).toBeVisible();
 });

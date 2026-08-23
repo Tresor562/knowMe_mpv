@@ -13,6 +13,7 @@ import {
   GuestQuickMathSession,
   resumeGuestIdentity,
   resumeQuickMathSession,
+  revokeGuestSession,
   submitQuickMathAction
 } from '../../../lib/guest-play';
 
@@ -116,6 +117,29 @@ export default function QuickMathInstantPage() {
       setAnswer('');
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Impossible d’envoyer cette réponse.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function endGuestSession() {
+    setBusy(true);
+    setMessage('');
+    try {
+      await revokeGuestSession();
+      setGuestStatus('none');
+      setSession(null);
+      setAlias('');
+      setAgeGateState('');
+      setConsent(false);
+      setAnswer('');
+      setMessage('Session invitée terminée et credential local effacé.');
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : 'Impossible de terminer la session invitée. Réessaie lorsque le réseau est disponible.'
+      );
     } finally {
       setBusy(false);
     }
@@ -274,6 +298,18 @@ export default function QuickMathInstantPage() {
             <Link className="btn" href="/register">Créer un compte</Link>
             <Link className="btn" href="/games/center">Découvrir d’autres jeux</Link>
           </div>
+        </section>
+      ) : null}
+
+      {guestStatus === 'active' ? (
+        <section className="card" style={{ padding: 18, display: 'grid', gap: 10, marginTop: 16 }}>
+          <strong>Contrôle de la session invitée</strong>
+          <p style={{ color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+            KnowMe demande d’abord au serveur de révoquer cette identité temporaire. Si le réseau ou le serveur échoue, le credential local est conservé pour permettre une nouvelle tentative au lieu de masquer une révocation non confirmée.
+          </p>
+          <button className="btn" disabled={busy} onClick={() => void endGuestSession()}>
+            Terminer et effacer la session invitée
+          </button>
         </section>
       ) : null}
     </main>

@@ -22,6 +22,7 @@ import {
   GuestQuickMathSession,
   resumeGuestIdentity,
   resumeQuickMathSession,
+  revokeGuestSession,
   submitQuickMathAction
 } from './guest-play';
 
@@ -120,14 +121,25 @@ export function GuestQuickMathExperience({ onBack }: Props) {
   }
 
   async function resetGuest() {
-    await clearGuestSession();
-    setGuest(null);
-    setSession(null);
-    setAlias('');
-    setAgeGateState(null);
-    setTemporaryConfirmed(false);
-    setAnswer('');
+    setBusy(true);
     setError('');
+    try {
+      await revokeGuestSession();
+      setGuest(null);
+      setSession(null);
+      setAlias('');
+      setAgeGateState(null);
+      setTemporaryConfirmed(false);
+      setAnswer('');
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Impossible de terminer la session invitée. Réessaie lorsque le réseau est disponible.'
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) {
@@ -242,9 +254,12 @@ export function GuestQuickMathExperience({ onBack }: Props) {
 
         {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
         {guest ? (
-          <Pressable disabled={busy} onPress={() => void resetGuest()} style={[styles.secondary, { borderColor: colors.border }]}>
-            <Text style={{ color: colors.muted }}>Effacer cette session invitée de cet appareil</Text>
-          </Pressable>
+          <View style={styles.revokeBlock}>
+            <Text style={[styles.copy, { color: colors.muted }]}>Terminer la session demande d’abord au serveur de la révoquer. En cas d’échec réseau, le credential reste sur cet appareil pour pouvoir réessayer.</Text>
+            <Pressable disabled={busy} onPress={() => void resetGuest()} style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}>
+              <Text style={{ color: colors.muted }}>Terminer et effacer la session invitée</Text>
+            </Pressable>
+          </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -269,6 +284,7 @@ const styles = StyleSheet.create({
   primary: { borderRadius: 16, paddingVertical: 14, alignItems: 'center' },
   primaryText: { fontWeight: '900' },
   secondary: { borderWidth: 1, borderRadius: 16, padding: 13, alignItems: 'center' },
+  revokeBlock: { gap: 8 },
   disabled: { opacity: 0.45 },
   scoreRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   score: { fontSize: 24, fontWeight: '900' },

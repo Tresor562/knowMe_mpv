@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { API_URL } from './api';
+import { shouldClearGuestCredentialAfterRevocationFailure } from './guest-revocation-model';
 import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
 const GUEST_TOKEN_KEY = 'knowme_guest_token';
@@ -196,6 +197,31 @@ export async function createGuestIdentity(input: {
 
 export function resumeGuestIdentity() {
   return guestRequest<GuestIdentity>('/guest/session');
+}
+
+export async function revokeGuestSession() {
+  const token = await getGuestToken();
+  if (!token) {
+    await clearGuestSession();
+    return { revoked: false, alreadyInactive: true } as const;
+  }
+
+  try {
+    const result = await guestRequest<{ revoked: true }>(
+      '/guest/session',
+      { method: 'DELETE' },
+      token
+    );
+    await clearGuestSession();
+    return result;
+  } catch (cause) {
+    const status = (cause as { status?: number }).status;
+    if (shouldClearGuestCredentialAfterRevocationFailure(status)) {
+      await clearGuestSession();
+      return { revoked: false, alreadyInactive: true } as const;
+    }
+    throw cause;
+  }
 }
 
 export async function createQuickMathSession() {
