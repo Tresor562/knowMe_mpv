@@ -7,6 +7,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SecurityContext } from '../security/security.service';
 
 type RecoveryPayload = {
+  v: 1;
+  aud: string;
   sub: string;
   exp: number;
   nonce: string;
@@ -31,6 +33,7 @@ export class AccountRecoveryService {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
     }
 
+    const audience = this.recoveryAudience(webUrl);
     const email = emailInput.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -39,6 +42,8 @@ export class AccountRecoveryService {
     }
 
     const payload: RecoveryPayload = {
+      v: 1,
+      aud: audience,
       sub: user.id,
       exp: Date.now() + 15 * 60 * 1000,
       nonce: randomBytes(24).toString('base64url'),
@@ -47,7 +52,7 @@ export class AccountRecoveryService {
     const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
     const signature = this.sign(encoded, secret);
     const token = `${encoded}.${signature}`;
-    const resetUrl = `${webUrl.replace(/\/$/, '')}/reset-password#token=${encodeURIComponent(token)}`;
+    const resetUrl = `${audience}/reset-password#token=${encodeURIComponent(token)}`;
 
     try {
       const response = await fetch(endpoint, {
@@ -84,11 +89,12 @@ export class AccountRecoveryService {
 
   async reset(token: string, nextPassword: string, context: SecurityContext = {}) {
     const secret = this.config.get<string>('ACCOUNT_RECOVERY_SECRET');
-    if (!secret || secret.length < 32) {
+    const webUrl = this.config.get<string>('WEB_URL');
+    if (!secret || secret.length < 32 || !webUrl) {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
     }
 
-    const payload = this.verify(token, secret);
+    const payload = this.verify(token, secret, this.recoveryAudience(webUrl));
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
 
     if (
@@ -135,7 +141,7 @@ export class AccountRecoveryService {
     return { reset: true };
   }
 
-  private verify(token: string, secret: string): RecoveryPayload {
+  private verify(token: string, secret: string, expectedAudience: string): RecoveryPayload {
     const segments = token.split('.');
     if (segments.length !== 2) {
       throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
@@ -154,21 +160,25 @@ export class AccountRecoveryService {
 
     try {
       const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as unknown;
-      if (!this.isRecoveryPayload(parsed)) throw new Error('invalid');
+      if (!this.isRecoveryPayload(parsed, expectedAudience)) throw new Error('invalid');
       return parsed;
     } catch {
       throw new UnauthorizedException('Lien de récupération invalide ou expiré.');
     }
   }
 
-  private isRecoveryPayload(value: unknown): value is RecoveryPayload {
+  private isRecoveryPayload(value: unknown, expectedAudience: string): value is RecoveryPayload {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 
     const payload = value as Record<string, unknown>;
     const keys = Object.keys(payload).sort();
-    if (keys.join(',') !== 'exp,nonce,pwd,sub') return false;
+    if (keys.join(',') !== 'aud,exp,nonce,pwd,sub,v') return false;
 
     return (
+      payload.v === 1 &&
+      typeof payload.aud === 'string' &&
+      payload.aud === expectedAudience &&
+      payload.aud.length <= 2048 &&
       typeof payload.sub === 'string' &&
       payload.sub.length > 0 &&
       payload.sub.length <= 128 &&
@@ -182,6 +192,10 @@ export class AccountRecoveryService {
       payload.pwd.length >= 32 &&
       payload.pwd.length <= 128
     );
+  }
+
+  private recoveryAudience(webUrl: string) {
+    return webUrl.replace(/\/$/, '');
   }
 
   private sign(value: string, secret: string) {
