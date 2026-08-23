@@ -1,6 +1,8 @@
+import '../compat/nest-too-many-requests';
 import {
+  HttpException,
+  HttpStatus,
   ServiceUnavailableException,
-  TooManyRequestsException,
   UnauthorizedException
 } from '@nestjs/common';
 import { AccountRecoveryService } from './account-recovery.service';
@@ -104,8 +106,10 @@ describe('AccountRecoveryService', () => {
     const { prisma, service } = setup();
     prisma.auditLog.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
 
-    await expect(service.request('alice@example.com', { ipAddress: '203.0.113.9' }))
-      .rejects.toBeInstanceOf(TooManyRequestsException);
+    const error = await service.request('alice@example.com', { ipAddress: '203.0.113.9' })
+      .catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
