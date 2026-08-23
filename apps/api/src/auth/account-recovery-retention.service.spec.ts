@@ -67,6 +67,14 @@ describe('AccountRecoveryRetentionService', () => {
         createdAt: { lt: expectedCutoff }
       }
     });
+    expect(service.getMaintenanceSnapshot()).toEqual({
+      configured: true,
+      enabled: true,
+      lastAttemptAt: now,
+      lastSuccessAt: now,
+      lastFailureAt: null,
+      lastDeleted: 2
+    });
   });
 
   it('never broadens deletion to unrelated audit actions', async () => {
@@ -98,5 +106,13 @@ describe('AccountRecoveryRetentionService', () => {
     });
     disabled.service.onModuleInit();
     expect(intervalSpy).not.toHaveBeenCalled();
+    expect(disabled.service.getMaintenanceSnapshot()).toEqual({
+      configured: true,
+      enabled: false,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastFailureAt: null,
+      lastDeleted: 0
+    });
   });
 });
