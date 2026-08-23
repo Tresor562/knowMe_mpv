@@ -14,10 +14,12 @@ test('unauthenticated users receive value-before-registration choices', () => {
   assert.equal(resolveInitialMobileEntry(false), 'choice');
   assert.equal(selectMobileEntry('choice', 'guest'), 'guest');
   assert.equal(selectMobileEntry('choice', 'account'), 'account');
+  assert.equal(selectMobileEntry('choice', 'recovery'), 'recovery');
 });
 
-test('guest users can return to the public choice screen', () => {
+test('guest and recovery users can return to the public choice screen', () => {
   assert.equal(selectMobileEntry('guest', 'choice'), 'choice');
+  assert.equal(selectMobileEntry('recovery', 'choice'), 'choice');
 });
 
 test('account mode cannot be silently downgraded to the unauthenticated choice', () => {
@@ -28,13 +30,15 @@ test('explicit account session loss returns account mode to the public choice', 
   assert.equal(reconcileMobileEntrySession('account', false), 'choice');
 });
 
-test('session reconciliation does not interrupt guest or public choice modes', () => {
+test('session reconciliation does not interrupt guest, recovery or public choice modes', () => {
   assert.equal(reconcileMobileEntrySession('guest', false), 'guest');
+  assert.equal(reconcileMobileEntrySession('recovery', false), 'recovery');
   assert.equal(reconcileMobileEntrySession('choice', false), 'choice');
 });
 
 test('session presence alone does not silently replace a user-selected mode', () => {
   assert.equal(reconcileMobileEntrySession('choice', true), 'choice');
   assert.equal(reconcileMobileEntrySession('guest', true), 'guest');
+  assert.equal(reconcileMobileEntrySession('recovery', true), 'recovery');
   assert.equal(reconcileMobileEntrySession('account', true), 'account');
 });
