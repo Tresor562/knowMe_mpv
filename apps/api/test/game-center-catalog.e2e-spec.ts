@@ -34,7 +34,7 @@ describe('KnowMe Game Center V2 catalog (e2e)', () => {
           key: 'quick-math',
           categories: expect.arrayContaining(['instant', 'brain']),
           modes: ['solo'],
-          guestEligible: false,
+          guestEligible: true,
           authoritativeServer: true,
           replayAvailable: true,
           economicStakeAllowed: false
@@ -43,14 +43,20 @@ describe('KnowMe Game Center V2 catalog (e2e)', () => {
     );
   });
 
-  it('publishes an unauthenticated guest-safe catalog that stays closed until guest session/actions are exposed', async () => {
+  it('publishes an unauthenticated guest catalog allowlisting only Quick Math', async () => {
     const response = await request(app.getHttpServer())
       .get('/games/guest')
       .expect(200);
-    expect(response.body).toEqual({
-      playEnabled: false,
-      games: []
-    });
+    expect(response.body.playEnabled).toBe(true);
+    expect(response.body.games).toEqual([
+      expect.objectContaining({
+        key: 'quick-math',
+        guestEligible: true,
+        modes: ['solo'],
+        authoritativeServer: true,
+        economicStakeAllowed: false
+      })
+    ]);
   });
 
   it('filters catalog search and exposes localization-ready categories without authentication', async () => {
