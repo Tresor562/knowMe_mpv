@@ -167,6 +167,30 @@ export function resumeGuestIdentity() {
   return guestRequest<GuestIdentity>('/guest/session');
 }
 
+export async function revokeGuestSession() {
+  const token = getGuestToken();
+  if (!token) {
+    clearGuestSession();
+    return { revoked: false, alreadyInactive: true } as const;
+  }
+
+  try {
+    const result = await guestRequest<{ revoked: true }>(
+      '/guest/session',
+      { method: 'DELETE' },
+      token
+    );
+    clearGuestSession();
+    return result;
+  } catch (cause) {
+    if ((cause as { status?: number }).status === 401) {
+      clearGuestSession();
+      return { revoked: false, alreadyInactive: true } as const;
+    }
+    throw cause;
+  }
+}
+
 export async function createQuickMathSession() {
   const idempotencyKey = `web:quick-math:${crypto.randomUUID()}`;
   const session = await guestRequest<GuestQuickMathSession>('/guest/games/quick-math/sessions', {
