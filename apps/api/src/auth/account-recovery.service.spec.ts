@@ -1,4 +1,10 @@
-import { ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import '../compat/nest-too-many-requests';
+import {
+  HttpException,
+  HttpStatus,
+  ServiceUnavailableException,
+  UnauthorizedException
+} from '@nestjs/common';
 import { AccountRecoveryService } from './account-recovery.service';
 
 describe('AccountRecoveryService', () => {
@@ -30,8 +36,10 @@ describe('AccountRecoveryService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 })
       },
       auditLog: {
-        create: jest.fn().mockResolvedValue({})
+        create: jest.fn().mockResolvedValue({}),
+        count: jest.fn().mockResolvedValue(1)
       },
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $transaction: jest.fn()
     };
     prisma.$transaction.mockImplementation(async (operation: (tx: typeof prisma) => Promise<unknown>) => operation(prisma));
@@ -69,6 +77,40 @@ describe('AccountRecoveryService', () => {
 
     await expect(service.request('nobody@example.com')).resolves.toEqual({ accepted: true });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('records a pseudonymous shared recovery budget before account lookup', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.request('Nobody@Example.com', {
+      ipAddress: '203.0.113.8',
+      userAgent: 'KnowMe-Test'
+    })).resolves.toEqual({ accepted: true });
+
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'ACCOUNT_RECOVERY_ATTEMPT',
+        entity: 'ACCOUNT_RECOVERY',
+        ipAddress: '203.0.113.8',
+        userAgent: 'KnowMe-Test'
+      })
+    });
+    const attempt = prisma.auditLog.create.mock.calls[0]?.[0]?.data as { entityId?: string };
+    expect(attempt.entityId).toBeTruthy();
+    expect(attempt.entityId).not.toContain('nobody@example.com');
+  });
+
+  it('fails closed on the shared e-mail budget before account lookup', async () => {
+    const { prisma, service } = setup();
+    prisma.auditLog.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
+
+    const error = await service.request('alice@example.com', { ipAddress: '203.0.113.9' })
+      .catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
   it('fails account-independently when recovery infrastructure is not configured', async () => {

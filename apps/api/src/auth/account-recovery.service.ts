@@ -1,4 +1,9 @@
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  TooManyRequestsException,
+  UnauthorizedException
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -14,6 +19,10 @@ type RecoveryPayload = {
   nonce: string;
   pwd: string;
 };
+
+const RECOVERY_BUDGET_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_EMAIL_BUDGET = 3;
+const RECOVERY_IP_BUDGET = 12;
 
 @Injectable()
 export class AccountRecoveryService {
@@ -35,6 +44,7 @@ export class AccountRecoveryService {
 
     const audience = this.recoveryAudience(webUrl);
     const email = emailInput.trim().toLowerCase();
+    await this.consumeRecoveryRequestBudget(email, secret, context);
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     if (!user || user.isSuspended) {
@@ -139,6 +149,61 @@ export class AccountRecoveryService {
       trustedDevicesRevoked: true
     });
     return { reset: true };
+  }
+
+  private async consumeRecoveryRequestBudget(email: string, secret: string, context: SecurityContext) {
+    const targetFingerprint = createHmac('sha256', secret)
+      .update(`account-recovery:${email}`)
+      .digest('base64url');
+    const lockKeys = [this.advisoryLockKey(`email:${targetFingerprint}`)];
+    if (context.ipAddress) lockKeys.push(this.advisoryLockKey(`ip:${context.ipAddress}`));
+    const orderedLockKeys = [...new Set(lockKeys)].sort((a, b) => a - b);
+    const since = new Date(Date.now() - RECOVERY_BUDGET_WINDOW_MS);
+
+    const counts = await this.prisma.$transaction(async (tx) => {
+      for (const lockKey of orderedLockKeys) {
+        await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: 'ACCOUNT_RECOVERY_ATTEMPT',
+          entity: 'ACCOUNT_RECOVERY',
+          entityId: targetFingerprint,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent
+        }
+      });
+
+      const emailCount = await tx.auditLog.count({
+        where: {
+          action: 'ACCOUNT_RECOVERY_ATTEMPT',
+          entity: 'ACCOUNT_RECOVERY',
+          entityId: targetFingerprint,
+          createdAt: { gte: since }
+        }
+      });
+      const ipCount = context.ipAddress
+        ? await tx.auditLog.count({
+          where: {
+            action: 'ACCOUNT_RECOVERY_ATTEMPT',
+            entity: 'ACCOUNT_RECOVERY',
+            ipAddress: context.ipAddress,
+            createdAt: { gte: since }
+          }
+        })
+        : 0;
+
+      return { emailCount, ipCount };
+    });
+
+    if (counts.emailCount > RECOVERY_EMAIL_BUDGET || counts.ipCount > RECOVERY_IP_BUDGET) {
+      throw new TooManyRequestsException('Trop de demandes de récupération. Réessaie plus tard.');
+    }
+  }
+
+  private advisoryLockKey(value: string) {
+    return createHash('sha256').update(value).digest().readInt32BE(0);
   }
 
   private verify(token: string, secret: string, expectedAudience: string): RecoveryPayload {

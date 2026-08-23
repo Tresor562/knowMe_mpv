@@ -30,6 +30,7 @@ describe('Account recovery (e2e)', () => {
 
     prisma = app.get(PrismaService);
     await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
+    await prisma.auditLog.deleteMany({ where: { action: 'ACCOUNT_RECOVERY_ATTEMPT' } });
   });
 
   afterAll(async () => {
@@ -37,7 +38,7 @@ describe('Account recovery (e2e)', () => {
     await app.close();
   });
 
-  it('keeps unknown addresses private', async () => {
+  it('keeps unknown addresses private while recording only a pseudonymous shared-budget target', async () => {
     deliveredToken = '';
     await request(app.getHttpServer())
       .post('/auth/password-recovery')
@@ -46,6 +47,16 @@ describe('Account recovery (e2e)', () => {
       .expect({ accepted: true });
 
     expect(deliveredToken).toBe('');
+    const attempt = await prisma.auditLog.findFirst({
+      where: {
+        action: 'ACCOUNT_RECOVERY_ATTEMPT',
+        entity: 'ACCOUNT_RECOVERY'
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    expect(attempt?.entityId).toBeTruthy();
+    expect(attempt?.entityId).not.toContain('unknown@knowme.test');
+    expect(JSON.stringify(attempt?.metadata ?? null)).not.toContain('unknown@knowme.test');
   });
 
   it('rejects oversized recovery inputs before account lookup or password hashing', async () => {
