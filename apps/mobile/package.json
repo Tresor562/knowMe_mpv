@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "expo start",
     "build": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/game-center-model.test.ts"
+    "test": "node --experimental-strip-types --test src/game-center-model.test.ts src/guest-quick-math-model.test.ts"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
