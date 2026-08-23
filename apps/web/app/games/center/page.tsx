@@ -198,7 +198,12 @@ export default function GameCenterPage() {
               {game.categories.map((item) => <small key={item}>#{item}</small>)}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link className="btn btn-primary" href={`/games?game=${game.key}`}>Ouvrir</Link>
+              <Link
+                className="btn btn-primary"
+                href={game.guestEligible ? `/play/${game.key}` : `/games?game=${game.key}`}
+              >
+                {game.guestEligible ? 'Jouer maintenant' : 'Ouvrir'}
+              </Link>
               {authenticated ? (
                 <button className="btn" disabled={busyKey === game.key} onClick={() => void toggleFavorite(game)}>
                   {favoriteKeys.has(game.key) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
