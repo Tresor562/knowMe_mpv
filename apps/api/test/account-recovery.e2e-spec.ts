@@ -65,7 +65,7 @@ describe('Account recovery (e2e)', () => {
       .expect(400);
   });
 
-  it('resets a known account, rejects non-canonical tokens, revokes the old session and makes the recovery link single-use', async () => {
+  it('resets a known account, keeps the token deployment-bound, rejects non-canonical tokens, revokes the old session and makes the recovery link single-use', async () => {
     const registration = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -86,6 +86,9 @@ describe('Account recovery (e2e)', () => {
       .expect({ accepted: true });
 
     expect(deliveredToken.length).toBeGreaterThan(32);
+    const [encoded] = deliveredToken.split('.');
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as { v: number; aud: string };
+    expect(payload).toEqual(expect.objectContaining({ v: 1, aud: 'https://knowme.test' }));
 
     await request(app.getHttpServer())
       .post('/auth/password-reset')
