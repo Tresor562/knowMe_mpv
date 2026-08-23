@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -8,7 +8,12 @@ const DEFAULT_BATCH_SIZE = 500;
 
 @Injectable()
 export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(AccountRecoveryRetentionService.name);
   private timer?: NodeJS.Timeout;
+  private lastAttemptAt: Date | null = null;
+  private lastSuccessAt: Date | null = null;
+  private lastFailureAt: Date | null = null;
+  private lastDeleted = 0;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -27,7 +32,7 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
     );
 
     this.timer = setInterval(() => {
-      void this.purgeExpiredBatch().catch(() => undefined);
+      void this.runScheduledPurge();
     }, intervalMs);
     this.timer.unref?.();
   }
@@ -36,7 +41,19 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
     if (this.timer) clearInterval(this.timer);
   }
 
+  getMaintenanceSnapshot() {
+    return {
+      configured: this.retentionDays() !== null,
+      enabled: this.maintenanceEnabled(),
+      lastAttemptAt: this.lastAttemptAt,
+      lastSuccessAt: this.lastSuccessAt,
+      lastFailureAt: this.lastFailureAt,
+      lastDeleted: this.lastDeleted
+    };
+  }
+
   async purgeExpiredBatch(now = new Date()) {
+    this.lastAttemptAt = now;
     const retentionDays = this.retentionDays();
     if (retentionDays === null) {
       return { configured: false, deleted: 0, cutoff: null as Date | null };
@@ -61,6 +78,8 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
     });
 
     if (candidates.length === 0) {
+      this.lastSuccessAt = now;
+      this.lastDeleted = 0;
       return { configured: true, deleted: 0, cutoff };
     }
 
@@ -73,7 +92,23 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
       }
     });
 
+    this.lastSuccessAt = now;
+    this.lastDeleted = result.count;
     return { configured: true, deleted: result.count, cutoff };
+  }
+
+  private async runScheduledPurge() {
+    const now = new Date();
+    try {
+      const result = await this.purgeExpiredBatch(now);
+      if (result.configured && result.deleted > 0) {
+        this.logger.log(`Purged ${result.deleted} expired account-recovery audit record(s).`);
+      }
+    } catch (error) {
+      this.lastFailureAt = now;
+      const message = error instanceof Error ? error.message : 'Unknown retention maintenance failure';
+      this.logger.error(`Account-recovery retention maintenance failed: ${message}`);
+    }
   }
 
   private maintenanceEnabled() {
