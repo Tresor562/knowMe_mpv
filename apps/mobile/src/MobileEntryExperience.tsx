@@ -8,10 +8,15 @@ import {
   View
 } from 'react-native';
 import App from '../App';
-import { hasSession } from './api';
+import { hasSession, subscribeToSessionPresence } from './api';
 import { AppearanceProvider, useAppearance } from './AppearanceProvider';
 import { GuestQuickMathExperience } from './GuestQuickMathExperience';
-import { MobileEntryMode, resolveInitialMobileEntry, selectMobileEntry } from './mobile-entry-model';
+import {
+  MobileEntryMode,
+  reconcileMobileEntrySession,
+  resolveInitialMobileEntry,
+  selectMobileEntry
+} from './mobile-entry-model';
 
 function PublicChoice({ onAccount, onGuest }: { onAccount: () => void; onGuest: () => void }) {
   const { colors } = useAppearance();
@@ -53,6 +58,12 @@ function EntryContent() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    return subscribeToSessionPresence((present) => {
+      setMode((current) => reconcileMobileEntrySession(current, present));
+    });
   }, []);
 
   if (loading) {
