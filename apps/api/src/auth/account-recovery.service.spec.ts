@@ -89,6 +89,28 @@ describe('AccountRecoveryService', () => {
     }));
   });
 
+  it('binds issued tokens to the configured KnowMe web audience', async () => {
+    const issuer = setup();
+    const resetToken = await issueToken(issuer.service, issuer.prisma);
+    const [encoded] = resetToken.split('.');
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as { v: number; aud: string };
+
+    expect(payload).toEqual(expect.objectContaining({
+      v: 1,
+      aud: 'https://knowme.example.test'
+    }));
+  });
+
+  it('rejects a correctly signed recovery token when the deployment audience changes', async () => {
+    const issuer = setup();
+    const resetToken = await issueToken(issuer.service, issuer.prisma);
+    const otherDeployment = setup({ WEB_URL: 'https://other.knowme.example.test' });
+
+    await expect(otherDeployment.service.reset(resetToken, 'a-new-password-123'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(otherDeployment.prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
   it('resets a password once and revokes sessions plus trusted devices', async () => {
     const { prisma, service } = setup();
     const resetToken = await issueToken(service, prisma);
