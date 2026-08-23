@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { GameEngineRegistry } from '../games/game-engine.registry';
 import { SubmitGameActionDto } from '../games/dto/submit-game-action.dto';
+import { GameEngineRegistry } from '../games/game-engine.registry';
 import { sha256Json } from '../games/game-platform.domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGuestGameSessionDto } from './guest-game.dto';
@@ -71,8 +71,6 @@ export class GuestGameplayService {
     const initialState = engine.createInitialState(1);
     const seed = randomBytes(32).toString('hex');
     const stateHash = sha256Json(initialState);
-    const now = new Date();
-    const expiresAt = guestGameSessionExpiry(guest.expiresAt, now);
 
     let sessionId: string;
     try {
