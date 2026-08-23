@@ -65,11 +65,11 @@ function validateSecretIsolation(env, errors) {
   }
 }
 
-function requireHttps(env, key, errors) {
+function parseHttpsUrl(env, key, errors) {
   const value = env[key];
   if (!nonEmpty(value)) {
     errors.push(`${key} must be set.`);
-    return;
+    return null;
   }
   try {
     const url = new URL(value);
@@ -77,8 +77,53 @@ function requireHttps(env, key, errors) {
     if (LOCAL_HOSTS.has(url.hostname)) {
       errors.push(`${key} must not point to a local host in production.`);
     }
+    return url;
   } catch {
     errors.push(`${key} must be a valid URL.`);
+    return null;
+  }
+}
+
+function requireHttps(env, key, errors) {
+  parseHttpsUrl(env, key, errors);
+}
+
+function validateRecoveryEndpoint(env, errors) {
+  const url = parseHttpsUrl(env, 'ACCOUNT_RECOVERY_EMAIL_ENDPOINT', errors);
+  if (!url) return;
+  if (url.username || url.password) {
+    errors.push('ACCOUNT_RECOVERY_EMAIL_ENDPOINT must not embed credentials; use ACCOUNT_RECOVERY_EMAIL_API_KEY instead.');
+  }
+  if (url.search || url.hash) {
+    errors.push('ACCOUNT_RECOVERY_EMAIL_ENDPOINT must not include a query string or fragment.');
+  }
+}
+
+function validateRecoveryWebUrl(env, errors) {
+  const url = parseHttpsUrl(env, 'WEB_URL', errors);
+  if (!url) return;
+  if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    errors.push('WEB_URL must be an HTTPS origin only, without credentials, path, query, or fragment.');
+  }
+}
+
+function validateRecoverySender(env, errors) {
+  const value = env.ACCOUNT_RECOVERY_EMAIL_FROM;
+  if (!nonEmpty(value)) {
+    errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must be set to a verified sender identity.');
+    return;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length > 320 || /[\r\n]/.test(trimmed)) {
+    errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must be a single bounded sender identity.');
+    return;
+  }
+
+  const angleMatch = trimmed.match(/^([^<>]*)<([^<>]+)>$/);
+  const address = (angleMatch ? angleMatch[2] : trimmed).trim();
+  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) {
+    errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must contain a syntactically valid email address.');
   }
 }
 
@@ -173,12 +218,10 @@ export function validateProductionEnvironment(env = process.env) {
   const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
   if (recoveryEnabled) {
     requireSecret(env, 'ACCOUNT_RECOVERY_SECRET', 32, errors);
-    requireHttps(env, 'ACCOUNT_RECOVERY_EMAIL_ENDPOINT', errors);
+    validateRecoveryEndpoint(env, errors);
     requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
-    if (!nonEmpty(env.ACCOUNT_RECOVERY_EMAIL_FROM)) {
-      errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must be set to a verified sender identity.');
-    }
-    requireHttps(env, 'WEB_URL', errors);
+    validateRecoverySender(env, errors);
+    validateRecoveryWebUrl(env, errors);
   } else {
     errors.push('ACCOUNT_RECOVERY_ENABLED must not be disabled for a market release.');
   }
