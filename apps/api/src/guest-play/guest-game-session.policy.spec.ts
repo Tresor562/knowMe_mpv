@@ -16,7 +16,7 @@ describe('guest gameplay persistence policy', () => {
       authoritativeStateRequired: true,
       idempotencyReceiptRequired: true,
       cascadeDeleteWithGuestIdentity: true,
-      publicGameplayEnabledByThisKmd: false
+      publicGameplayEnabledByThisKmd: true
     });
   });
 
