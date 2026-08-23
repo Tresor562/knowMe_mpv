@@ -34,6 +34,16 @@ describe('KnowMe Game Center V2 catalog (e2e)', () => {
     );
   });
 
+  it('publishes an unauthenticated guest-safe catalog that fails closed until a game is reviewed', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/games/guest')
+      .expect(200);
+    expect(response.body).toEqual({
+      playEnabled: false,
+      games: []
+    });
+  });
+
   it('filters catalog search and exposes localization-ready categories without authentication', async () => {
     const filtered = await request(app.getHttpServer())
       .get('/games/center')

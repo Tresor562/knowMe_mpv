@@ -88,6 +88,14 @@ export class GameCatalogService {
       });
   }
 
+  async guestCatalog() {
+    const catalog = await this.catalog();
+    return {
+      playEnabled: catalog.some((game) => game.guestEligible),
+      games: catalog.filter((game) => game.guestEligible)
+    };
+  }
+
   async categories() {
     const catalog = await this.catalog();
     return CATEGORIES.map((key) => ({

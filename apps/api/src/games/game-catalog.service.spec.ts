@@ -14,8 +14,8 @@ describe('GameCatalogService', () => {
     }
   ];
 
-  function createService() {
-    const registry = { listActive: jest.fn().mockResolvedValue(activeDefinitions) };
+  function createService(definitions = activeDefinitions) {
+    const registry = { listActive: jest.fn().mockResolvedValue(definitions) };
     const gameFavorite = {
       findMany: jest.fn().mockResolvedValue([]),
       upsert: jest.fn().mockResolvedValue({
@@ -31,6 +31,38 @@ describe('GameCatalogService', () => {
     const service = new GameCatalogService(registry as never, prisma as never);
     return { service, registry, gameFavorite, gameParticipant, gameSession, gameDefinition };
   }
+
+  it('keeps guest play fail-closed until a game is explicitly marked guest eligible', async () => {
+    const { service } = createService();
+    await expect(service.guestCatalog()).resolves.toEqual({
+      playEnabled: false,
+      games: []
+    });
+  });
+
+  it('does not infer guest eligibility for an unknown solo game', async () => {
+    const { service } = createService([
+      {
+        id: 'definition-solo',
+        key: 'future-solo',
+        version: 1,
+        name: 'Future Solo',
+        description: 'Not reviewed for guest play yet',
+        minPlayers: 1,
+        maxPlayers: 1
+      }
+    ]);
+    const catalog = await service.catalog();
+    expect(catalog[0]).toEqual(expect.objectContaining({
+      key: 'future-solo',
+      modes: ['solo'],
+      guestEligible: false
+    }));
+    await expect(service.guestCatalog()).resolves.toEqual({
+      playEnabled: false,
+      games: []
+    });
+  });
 
   it('stores a favorite idempotently only for an active public game', async () => {
     const { service, gameFavorite } = createService();
