@@ -9,11 +9,13 @@ import {
   TextInput,
   View
 } from 'react-native';
+import {
+  GENERIC_ACCOUNT_RECOVERY_MESSAGE,
+  isRecoveryEmailReady,
+  normalizeRecoveryEmail
+} from './account-recovery-model';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
-
-const GENERIC_RECOVERY_MESSAGE =
-  'Si un compte correspond à cette adresse, un lien de récupération sera envoyé. Vérifie aussi les courriers indésirables.';
 
 type Props = {
   onBack: () => void;
@@ -27,8 +29,8 @@ export function AccountRecoveryExperience({ onBack }: Props) {
   const [error, setError] = useState('');
 
   async function submit() {
-    const normalized = email.trim();
-    if (!normalized.includes('@')) return;
+    const normalized = normalizeRecoveryEmail(email);
+    if (!isRecoveryEmailReady(normalized)) return;
 
     setBusy(true);
     setMessage('');
@@ -38,13 +40,15 @@ export function AccountRecoveryExperience({ onBack }: Props) {
         method: 'POST',
         body: JSON.stringify({ email: normalized })
       });
-      setMessage(GENERIC_RECOVERY_MESSAGE);
+      setMessage(GENERIC_ACCOUNT_RECOVERY_MESSAGE);
     } catch {
       setError('La récupération de compte est temporairement indisponible. Réessaie plus tard.');
     } finally {
       setBusy(false);
     }
   }
+
+  const ready = isRecoveryEmailReady(email);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
@@ -85,12 +89,12 @@ export function AccountRecoveryExperience({ onBack }: Props) {
 
           <Pressable
             accessibilityRole="button"
-            disabled={busy || !email.trim().includes('@')}
+            disabled={busy || !ready}
             onPress={() => void submit()}
             style={[
               styles.primary,
               { backgroundColor: colors.accent },
-              (busy || !email.trim().includes('@')) && styles.disabled
+              (busy || !ready) && styles.disabled
             ]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
