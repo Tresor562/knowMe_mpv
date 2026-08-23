@@ -14,6 +14,11 @@ export class GameCatalogController {
     return this.catalogService.catalog(query, category);
   }
 
+  @Get('guest')
+  guestCatalog() {
+    return this.catalogService.guestCatalog();
+  }
+
   @Get('categories')
   categories() {
     return this.catalogService.categories();
