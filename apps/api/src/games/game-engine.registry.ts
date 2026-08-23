@@ -11,6 +11,7 @@ import {
   PulseDuelEngine,
   gameDefinitionChecksum
 } from './game-platform.domain';
+import { QUICK_MATH_DEFINITION, QuickMathEngine } from './quick-math.engine';
 
 @Injectable()
 export class GameEngineRegistry implements OnModuleInit {
@@ -19,8 +20,10 @@ export class GameEngineRegistry implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {
     const pulseDuel = new PulseDuelEngine();
     const affinityMirror = new AffinityMirrorEngine();
+    const quickMath = new QuickMathEngine();
     this.engines.set(pulseDuel.engineKey, pulseDuel);
     this.engines.set(affinityMirror.engineKey, affinityMirror);
+    this.engines.set(quickMath.engineKey, quickMath);
   }
 
   async onModuleInit() {
@@ -28,7 +31,11 @@ export class GameEngineRegistry implements OnModuleInit {
   }
 
   async syncCatalog() {
-    for (const definition of [...BUILTIN_GAME_CATALOG, AFFINITY_GAME_DEFINITION]) {
+    for (const definition of [
+      ...BUILTIN_GAME_CATALOG,
+      AFFINITY_GAME_DEFINITION,
+      QUICK_MATH_DEFINITION
+    ]) {
       const checksum = gameDefinitionChecksum(definition);
       const existing = await this.prisma.gameDefinition.findUnique({
         where: { key_version: { key: definition.key, version: definition.version } }

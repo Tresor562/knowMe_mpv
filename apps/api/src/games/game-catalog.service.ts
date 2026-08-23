@@ -23,6 +23,14 @@ const METADATA: Record<string, CatalogMetadata> = {
     modes: ['multiplayer'],
     estimatedMinutes: 6,
     guestEligible: false
+  },
+  'quick-math': {
+    categories: ['instant', 'brain'],
+    modes: ['solo'],
+    estimatedMinutes: 2,
+    // KMD-196 qualifies the deterministic engine, but Guest Play stays closed
+    // until the dedicated guest session/action API is implemented and tested.
+    guestEligible: false
   }
 };
 
