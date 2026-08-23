@@ -33,7 +33,11 @@ PostgreSQL advisory locks are derived from separate e-mail/IP namespaces, dedupl
 
 ## Migration
 
-No Prisma schema migration. KMD-207 reuses the existing `AuditLog` table and its operational retention policy. No new table or column is introduced.
+No Prisma schema migration. KMD-207 reuses the existing `AuditLog` table. No new table or column is introduced.
+
+## Retention boundary
+
+KMD-207 does not claim that a dedicated retention/purge policy for `ACCOUNT_RECOVERY_ATTEMPT` rows already exists. These rows contain a keyed target fingerprint plus ordinary security context such as IP/user-agent when available, and their production retention period must be explicitly reconciled with KnowMe's audit/privacy retention policy before market release.
 
 ## Deliberate boundaries
 
@@ -54,4 +58,4 @@ Before merge, the exact head must pass:
 
 ## Rollback
 
-Revert the KMD-207 merge commit. No database rollback is required. Historical `ACCOUNT_RECOVERY_ATTEMPT` audit rows may remain until normal audit retention removes them; they contain only keyed target fingerprints plus ordinary security context, not plaintext recovery e-mails.
+Revert the KMD-207 merge commit. No database rollback is required. Historical `ACCOUNT_RECOVERY_ATTEMPT` audit rows may remain after rollback until an explicitly approved audit/privacy retention process removes them; they contain keyed target fingerprints plus ordinary security context, not plaintext recovery e-mails.
