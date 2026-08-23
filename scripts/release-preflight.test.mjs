@@ -154,6 +154,28 @@ test('requires a distinct hardened account recovery secret and HTTPS delivery co
   assert.ok(result.errors.some((error) => error.includes('WEB_URL')));
 });
 
+test('rejects malformed recovery delivery URLs and sender identities before market release', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_EMAIL_ENDPOINT = 'https://user:pass@api.mail.example/v1/send?apiKey=secret#fragment';
+  env.ACCOUNT_RECOVERY_EMAIL_FROM = 'KnowMe Security <not-an-email>';
+  env.WEB_URL = 'https://knowme.example/reset-base?token=placeholder#fragment';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_ENDPOINT') && error.includes('credentials')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_ENDPOINT') && error.includes('query string or fragment')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM') && error.includes('valid email address')));
+  assert.ok(result.errors.some((error) => error.includes('WEB_URL') && error.includes('origin only')));
+  assert.equal(result.errors.some((error) => error.includes('apiKey=secret')), false);
+});
+
+test('rejects CRLF sender injection in account recovery configuration', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_EMAIL_FROM = 'KnowMe <security@knowme.example>\r\nBcc: attacker@example.com';
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM') && error.includes('single bounded sender identity')));
+});
+
 test('rejects reuse of production secrets across trust boundaries without leaking the secret value', () => {
   const env = validEnv();
   const reusedSecret = 'shared-secret-value-that-must-never-appear-in-errors-1234567890';
