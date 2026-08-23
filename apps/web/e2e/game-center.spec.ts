@@ -24,6 +24,12 @@ const catalog = [
     minPlayers: 2, maxPlayers: 2, categories: ['social'], modes: ['multiplayer'],
     estimatedMinutes: 6, guestEligible: false, authoritativeServer: true,
     replayAvailable: true, economicStakeAllowed: false
+  },
+  {
+    key: 'quick-math', version: 1, name: 'Quick Math', description: 'Five quick calculations',
+    minPlayers: 1, maxPlayers: 1, categories: ['instant', 'brain'], modes: ['solo'],
+    estimatedMinutes: 2, guestEligible: true, authoritativeServer: true,
+    replayAvailable: true, economicStakeAllowed: false
   }
 ];
 
@@ -41,6 +47,8 @@ test('Game Center provides value before account creation', async ({ page }) => {
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole('heading', { name: 'Joue à ta façon' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Pulse Duel' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Quick Math' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Jouer maintenant' })).toHaveAttribute('href', '/play/quick-math');
   await expect(page.getByRole('link', { name: 'Se connecter pour sauvegarder' })).toHaveAttribute('href', '/login');
   await expect(page.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', '/register');
   await expect(page.getByRole('button', { name: /favoris/i })).toHaveCount(0);
@@ -48,6 +56,7 @@ test('Game Center provides value before account creation', async ({ page }) => {
   await page.getByLabel('Rechercher un jeu').fill('affinity');
   await expect(page.getByRole('heading', { name: 'Affinity Mirror' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Pulse Duel' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Quick Math' })).toHaveCount(0);
   expect(failures).toEqual([]);
 });
 
