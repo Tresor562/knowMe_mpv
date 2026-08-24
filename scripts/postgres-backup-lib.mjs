@@ -1,9 +1,10 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
 const POSTGRES_PROTOCOLS = new Set(['postgres:', 'postgresql:']);
 const SHA256_RE = /^[a-f0-9]{64}$/i;
+const MANIFEST_SIGNATURE_ALGORITHM = 'hmac-sha256';
 
 export function requirePostgresUrl(value, label = 'DATABASE_URL') {
   if (!value || !String(value).trim()) {
@@ -159,15 +160,79 @@ export function sha256File(path) {
   return hash.digest('hex');
 }
 
-export function manifestForBackup({ filePath, sha256, createdAt = new Date() }) {
-  return {
-    schemaVersion: 1,
+export function requireBackupManifestSigningKey(value) {
+  if (!value || typeof value !== 'string' || value.length < 32) {
+    throw new Error('KNOWME_BACKUP_MANIFEST_SIGNING_KEY must contain at least 32 characters');
+  }
+  return value;
+}
+
+function manifestSignaturePayload(manifest) {
+  return JSON.stringify({
+    schemaVersion: manifest.schemaVersion,
+    file: manifest.file,
+    sha256: manifest.sha256,
+    createdAt: manifest.createdAt,
+    format: manifest.format,
+    containsSecrets: manifest.containsSecrets,
+  });
+}
+
+function signManifestPayload(manifest, signingKey) {
+  return createHmac('sha256', requireBackupManifestSigningKey(signingKey))
+    .update(manifestSignaturePayload(manifest))
+    .digest('hex');
+}
+
+export function manifestForBackup({ filePath, sha256, createdAt = new Date(), signingKey }) {
+  const manifest = {
+    schemaVersion: 2,
     file: basename(filePath),
     sha256,
     createdAt: createdAt.toISOString(),
     format: 'postgresql-custom',
     containsSecrets: true,
   };
+
+  return {
+    ...manifest,
+    signature: {
+      algorithm: MANIFEST_SIGNATURE_ALGORITHM,
+      value: signManifestPayload(manifest, signingKey),
+    },
+  };
+}
+
+export function verifyBackupManifestAuthenticity(
+  manifest,
+  signingKey,
+  { allowUnsignedLegacy = false } = {},
+) {
+  if (manifest?.schemaVersion === 1) {
+    if (allowUnsignedLegacy === true) return manifest;
+    throw new Error(
+      'Unsigned legacy backup manifest refused; use the explicit legacy restore override only for a trusted historical backup',
+    );
+  }
+
+  if (manifest?.schemaVersion !== 2) {
+    throw new Error('Backup manifest does not match the supported signed schema');
+  }
+  if (
+    !manifest.signature ||
+    manifest.signature.algorithm !== MANIFEST_SIGNATURE_ALGORITHM ||
+    typeof manifest.signature.value !== 'string' ||
+    !SHA256_RE.test(manifest.signature.value)
+  ) {
+    throw new Error('Backup manifest signature is invalid');
+  }
+
+  const expected = Buffer.from(signManifestPayload(manifest, signingKey), 'hex');
+  const actual = Buffer.from(manifest.signature.value, 'hex');
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    throw new Error('Backup manifest authenticity check failed');
+  }
+  return manifest;
 }
 
 export function validateBackupManifest(
@@ -175,7 +240,7 @@ export function validateBackupManifest(
   dumpPath,
   { now = new Date(), maxAgeHours = null, maxFutureSkewMinutes = 5 } = {},
 ) {
-  if (!manifest || manifest.schemaVersion !== 1) {
+  if (!manifest || ![1, 2].includes(manifest.schemaVersion)) {
     throw new Error('Backup manifest does not match the supported schema');
   }
   if (manifest.format !== 'postgresql-custom' || manifest.containsSecrets !== true) {
