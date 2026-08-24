@@ -6,6 +6,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
 const DEFAULT_BATCH_SIZE = 500;
 
+export type AccountRecoveryRetentionReadiness =
+  | 'UNCONFIGURED'
+  | 'DISABLED'
+  | 'AWAITING_FIRST_RUN'
+  | 'HEALTHY'
+  | 'FAILING'
+  | 'STALE';
+
 @Injectable()
 export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AccountRecoveryRetentionService.name);
@@ -24,16 +32,9 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
     if (!this.maintenanceEnabled()) return;
     if (this.retentionDays() === null) return;
 
-    const intervalMs = this.boundedInteger(
-      this.config.get<string>('ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS'),
-      DEFAULT_INTERVAL_MS,
-      60_000,
-      DAY_MS
-    );
-
     this.timer = setInterval(() => {
       void this.runScheduledPurge();
-    }, intervalMs);
+    }, this.intervalMs());
     this.timer.unref?.();
   }
 
@@ -41,10 +42,22 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
     if (this.timer) clearInterval(this.timer);
   }
 
-  getMaintenanceSnapshot() {
+  getMaintenanceSnapshot(now = new Date()) {
+    const configured = this.retentionDays() !== null;
+    const enabled = this.maintenanceEnabled();
+    const intervalMs = this.intervalMs();
+    const readiness = this.readiness(configured, enabled, intervalMs, now);
+    const nextExpectedRunAt =
+      configured && enabled && this.lastAttemptAt
+        ? new Date(this.lastAttemptAt.getTime() + intervalMs)
+        : null;
+
     return {
-      configured: this.retentionDays() !== null,
-      enabled: this.maintenanceEnabled(),
+      configured,
+      enabled,
+      readiness,
+      intervalMs,
+      nextExpectedRunAt,
       lastAttemptAt: this.lastAttemptAt,
       lastSuccessAt: this.lastSuccessAt,
       lastFailureAt: this.lastFailureAt,
@@ -109,6 +122,31 @@ export class AccountRecoveryRetentionService implements OnModuleInit, OnModuleDe
       const message = error instanceof Error ? error.message : 'Unknown retention maintenance failure';
       this.logger.error(`Account-recovery retention maintenance failed: ${message}`);
     }
+  }
+
+  private readiness(
+    configured: boolean,
+    enabled: boolean,
+    intervalMs: number,
+    now: Date
+  ): AccountRecoveryRetentionReadiness {
+    if (!configured) return 'UNCONFIGURED';
+    if (!enabled) return 'DISABLED';
+    if (this.lastFailureAt && (!this.lastSuccessAt || this.lastFailureAt > this.lastSuccessAt)) {
+      return 'FAILING';
+    }
+    if (!this.lastAttemptAt) return 'AWAITING_FIRST_RUN';
+    if (now.getTime() - this.lastAttemptAt.getTime() > intervalMs * 2) return 'STALE';
+    return 'HEALTHY';
+  }
+
+  private intervalMs() {
+    return this.boundedInteger(
+      this.config.get<string>('ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS'),
+      DEFAULT_INTERVAL_MS,
+      60_000,
+      DAY_MS
+    );
   }
 
   private maintenanceEnabled() {
