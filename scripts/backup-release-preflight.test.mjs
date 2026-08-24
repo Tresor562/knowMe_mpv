@@ -7,6 +7,7 @@ function validEnv() {
     KNOWME_BACKUP_MANIFEST_SIGNING_KEY: 'backup-signing-key-0123456789abcdef-01',
     KNOWME_BACKUP_RETENTION_DAYS: '30',
     KNOWME_BACKUP_KEEP_MINIMUM: '3',
+    KNOWME_BACKUP_MAX_AGE_HOURS: '24',
     JWT_SECRET: 'j'.repeat(64),
     METRICS_BEARER_TOKEN: 'm'.repeat(64),
     MEDIA_S3_SECRET_ACCESS_KEY: 's'.repeat(64),
@@ -20,7 +21,7 @@ function validEnv() {
   };
 }
 
-test('accepts dedicated backup authenticity and explicit retention policy', () => {
+test('accepts dedicated backup authenticity, retention and freshness policy', () => {
   const result = validateBackupReleaseEnvironment(validEnv());
   assert.deepEqual(result, { ok: true, errors: [] });
 });
@@ -71,14 +72,31 @@ test('requires an explicit bounded minimum backup count for market release', () 
   }
 });
 
-test('accepts retention policy boundary values', () => {
-  for (const [retentionDays, keepMinimum] of [
-    ['1', '1'],
-    ['3650', '1000'],
+test('requires an explicit bounded backup maximum age for market release', () => {
+  const missing = validEnv();
+  delete missing.KNOWME_BACKUP_MAX_AGE_HOURS;
+  let result = validateBackupReleaseEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_MAX_AGE_HOURS')));
+
+  for (const value of ['0', '8761', '24.5', '-1', 'later']) {
+    const env = validEnv();
+    env.KNOWME_BACKUP_MAX_AGE_HOURS = value;
+    result = validateBackupReleaseEnvironment(env);
+    assert.equal(result.ok, false, `expected max age ${value} to fail`);
+    assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_MAX_AGE_HOURS')));
+  }
+});
+
+test('accepts documented backup policy boundary values', () => {
+  for (const [retentionDays, keepMinimum, maxAgeHours] of [
+    ['1', '1', '1'],
+    ['3650', '1000', '8760'],
   ]) {
     const env = validEnv();
     env.KNOWME_BACKUP_RETENTION_DAYS = retentionDays;
     env.KNOWME_BACKUP_KEEP_MINIMUM = keepMinimum;
+    env.KNOWME_BACKUP_MAX_AGE_HOURS = maxAgeHours;
     assert.deepEqual(validateBackupReleaseEnvironment(env), { ok: true, errors: [] });
   }
 });
