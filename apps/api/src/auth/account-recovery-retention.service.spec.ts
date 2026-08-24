@@ -67,9 +67,12 @@ describe('AccountRecoveryRetentionService', () => {
         createdAt: { lt: expectedCutoff }
       }
     });
-    expect(service.getMaintenanceSnapshot()).toEqual({
+    expect(service.getMaintenanceSnapshot(now)).toEqual({
       configured: true,
       enabled: true,
+      readiness: 'HEALTHY',
+      intervalMs: 3_600_000,
+      nextExpectedRunAt: new Date('2026-08-23T01:00:00.000Z'),
       lastAttemptAt: now,
       lastSuccessAt: now,
       lastFailureAt: null,
@@ -92,13 +95,20 @@ describe('AccountRecoveryRetentionService', () => {
     }));
   });
 
-  it('does not schedule maintenance when the duration is missing or maintenance is disabled', () => {
+  it('reports disabled and unconfigured readiness without scheduling maintenance', () => {
     jest.useFakeTimers();
     const intervalSpy = jest.spyOn(global, 'setInterval');
+    const now = new Date('2026-08-23T00:00:00.000Z');
 
     const missing = setup();
     missing.service.onModuleInit();
     expect(intervalSpy).not.toHaveBeenCalled();
+    expect(missing.service.getMaintenanceSnapshot(now)).toEqual(expect.objectContaining({
+      configured: false,
+      enabled: true,
+      readiness: 'UNCONFIGURED',
+      nextExpectedRunAt: null
+    }));
 
     const disabled = setup({
       ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS: '30',
@@ -106,13 +116,37 @@ describe('AccountRecoveryRetentionService', () => {
     });
     disabled.service.onModuleInit();
     expect(intervalSpy).not.toHaveBeenCalled();
-    expect(disabled.service.getMaintenanceSnapshot()).toEqual({
+    expect(disabled.service.getMaintenanceSnapshot(now)).toEqual({
       configured: true,
       enabled: false,
+      readiness: 'DISABLED',
+      intervalMs: 3_600_000,
+      nextExpectedRunAt: null,
       lastAttemptAt: null,
       lastSuccessAt: null,
       lastFailureAt: null,
       lastDeleted: 0
     });
+  });
+
+  it('reports awaiting-first-run then stale when scheduled maintenance has not advanced in time', async () => {
+    const { service } = setup({
+      ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS: '30',
+      ACCOUNT_RECOVERY_RETENTION_INTERVAL_MS: '60000'
+    });
+    const first = new Date('2026-08-23T00:00:00.000Z');
+
+    expect(service.getMaintenanceSnapshot(first)).toEqual(expect.objectContaining({
+      readiness: 'AWAITING_FIRST_RUN',
+      intervalMs: 60_000,
+      nextExpectedRunAt: null
+    }));
+
+    await service.purgeExpiredBatch(first);
+
+    expect(service.getMaintenanceSnapshot(new Date('2026-08-23T00:02:00.001Z'))).toEqual(expect.objectContaining({
+      readiness: 'STALE',
+      nextExpectedRunAt: new Date('2026-08-23T00:01:00.000Z')
+    }));
   });
 });
