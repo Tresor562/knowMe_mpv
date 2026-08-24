@@ -5,6 +5,8 @@ import { validateBackupReleaseEnvironment } from './backup-release-preflight.mjs
 function validEnv() {
   return {
     KNOWME_BACKUP_MANIFEST_SIGNING_KEY: 'backup-signing-key-0123456789abcdef-01',
+    KNOWME_BACKUP_RETENTION_DAYS: '30',
+    KNOWME_BACKUP_KEEP_MINIMUM: '3',
     JWT_SECRET: 'j'.repeat(64),
     METRICS_BEARER_TOKEN: 'm'.repeat(64),
     MEDIA_S3_SECRET_ACCESS_KEY: 's'.repeat(64),
@@ -18,7 +20,7 @@ function validEnv() {
   };
 }
 
-test('accepts a dedicated backup manifest signing key', () => {
+test('accepts dedicated backup authenticity and explicit retention policy', () => {
   const result = validateBackupReleaseEnvironment(validEnv());
   assert.deepEqual(result, { ok: true, errors: [] });
 });
@@ -35,6 +37,50 @@ test('requires backup authenticity for a market release', () => {
   result = validateBackupReleaseEnvironment(short);
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('at least 32')));
+});
+
+test('requires an explicit bounded retention window for market release', () => {
+  const missing = validEnv();
+  delete missing.KNOWME_BACKUP_RETENTION_DAYS;
+  let result = validateBackupReleaseEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_RETENTION_DAYS')));
+
+  for (const value of ['0', '3651', '30.5', '-1', 'not-a-number']) {
+    const env = validEnv();
+    env.KNOWME_BACKUP_RETENTION_DAYS = value;
+    result = validateBackupReleaseEnvironment(env);
+    assert.equal(result.ok, false, `expected retention ${value} to fail`);
+    assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_RETENTION_DAYS')));
+  }
+});
+
+test('requires an explicit bounded minimum backup count for market release', () => {
+  const missing = validEnv();
+  delete missing.KNOWME_BACKUP_KEEP_MINIMUM;
+  let result = validateBackupReleaseEnvironment(missing);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_KEEP_MINIMUM')));
+
+  for (const value of ['0', '1001', '3.5', '-1', 'none']) {
+    const env = validEnv();
+    env.KNOWME_BACKUP_KEEP_MINIMUM = value;
+    result = validateBackupReleaseEnvironment(env);
+    assert.equal(result.ok, false, `expected keep-minimum ${value} to fail`);
+    assert.ok(result.errors.some((error) => error.includes('KNOWME_BACKUP_KEEP_MINIMUM')));
+  }
+});
+
+test('accepts retention policy boundary values', () => {
+  for (const [retentionDays, keepMinimum] of [
+    ['1', '1'],
+    ['3650', '1000'],
+  ]) {
+    const env = validEnv();
+    env.KNOWME_BACKUP_RETENTION_DAYS = retentionDays;
+    env.KNOWME_BACKUP_KEEP_MINIMUM = keepMinimum;
+    assert.deepEqual(validateBackupReleaseEnvironment(env), { ok: true, errors: [] });
+  }
 });
 
 test('rejects reuse of another production trust-boundary secret', () => {

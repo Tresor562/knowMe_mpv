@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 const MIN_SIGNING_KEY_LENGTH = 32;
+const MIN_RETENTION_DAYS = 1;
+const MAX_RETENTION_DAYS = 3650;
+const MIN_KEEP_MINIMUM = 1;
+const MAX_KEEP_MINIMUM = 1000;
 const OTHER_SECRET_KEYS = [
   'JWT_SECRET',
   'METRICS_BEARER_TOKEN',
@@ -18,6 +22,28 @@ function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function parseRequiredBoundedInteger(env, key, min, max, errors) {
+  const raw = env[key];
+  if (!nonEmpty(raw)) {
+    errors.push(`${key} must be explicitly configured for a market release.`);
+    return null;
+  }
+
+  const normalized = raw.trim();
+  if (!/^\d+$/.test(normalized)) {
+    errors.push(`${key} must be an integer between ${min} and ${max}.`);
+    return null;
+  }
+
+  const value = Number(normalized);
+  if (!Number.isSafeInteger(value) || value < min || value > max) {
+    errors.push(`${key} must be an integer between ${min} and ${max}.`);
+    return null;
+  }
+
+  return value;
+}
+
 export function validateBackupReleaseEnvironment(env = process.env) {
   const errors = [];
   const key = env.KNOWME_BACKUP_MANIFEST_SIGNING_KEY;
@@ -26,17 +52,31 @@ export function validateBackupReleaseEnvironment(env = process.env) {
     errors.push(
       `KNOWME_BACKUP_MANIFEST_SIGNING_KEY must be set to at least ${MIN_SIGNING_KEY_LENGTH} characters for a market release.`,
     );
-    return { ok: false, errors };
-  }
-
-  for (const otherKey of OTHER_SECRET_KEYS) {
-    if (!nonEmpty(env[otherKey])) continue;
-    if (env[otherKey] === key) {
-      errors.push(
-        `KNOWME_BACKUP_MANIFEST_SIGNING_KEY must be distinct from ${otherKey}; backup authenticity requires a dedicated trust boundary.`,
-      );
+  } else {
+    for (const otherKey of OTHER_SECRET_KEYS) {
+      if (!nonEmpty(env[otherKey])) continue;
+      if (env[otherKey] === key) {
+        errors.push(
+          `KNOWME_BACKUP_MANIFEST_SIGNING_KEY must be distinct from ${otherKey}; backup authenticity requires a dedicated trust boundary.`,
+        );
+      }
     }
   }
+
+  parseRequiredBoundedInteger(
+    env,
+    'KNOWME_BACKUP_RETENTION_DAYS',
+    MIN_RETENTION_DAYS,
+    MAX_RETENTION_DAYS,
+    errors,
+  );
+  parseRequiredBoundedInteger(
+    env,
+    'KNOWME_BACKUP_KEEP_MINIMUM',
+    MIN_KEEP_MINIMUM,
+    MAX_KEEP_MINIMUM,
+    errors,
+  );
 
   return { ok: errors.length === 0, errors };
 }
