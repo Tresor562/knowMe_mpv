@@ -16,12 +16,19 @@ describe('Health probe throttle isolation (e2e)', () => {
     await app.close();
   });
 
-  it('keeps liveness available beyond the default global request quota', async () => {
-    const responses = await Promise.all(
-      Array.from({ length: 130 }, () => request(app.getHttpServer()).get('/health/live')),
-    );
-
-    expect(responses.every((response) => response.status === 200)).toBe(true);
-    expect(responses.every((response) => response.body?.status === 'ok')).toBe(true);
-  });
+  it(
+    'keeps liveness available beyond the default global request quota',
+    async () => {
+      // The release invariant is that health probes stay available after more
+      // than the default quota has been consumed. Concurrency is deliberately
+      // avoided here: a burst of 130 sockets tests transport pressure rather
+      // than throttler exemption and made the CI gate unnecessarily noisy.
+      for (let attempt = 1; attempt <= 130; attempt += 1) {
+        const response = await request(app.getHttpServer()).get('/health/live');
+        expect({ attempt, status: response.status }).toEqual({ attempt, status: 200 });
+        expect(response.body?.status).toBe('ok');
+      }
+    },
+    30_000,
+  );
 });
