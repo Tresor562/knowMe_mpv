@@ -6,7 +6,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/mobile-release-preflight.test.mjs scripts/postgres-backup.test.mjs scripts/postgres-cli-secret-isolation.test.mjs scripts/postgres-backup-authenticity.test.mjs scripts/backup-release-preflight.test.mjs scripts/postgres-backup-retention.test.mjs",
+    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/mobile-release-preflight.test.mjs scripts/postgres-backup.test.mjs scripts/postgres-cli-secret-isolation.test.mjs scripts/postgres-backup-authenticity.test.mjs scripts/backup-release-preflight.test.mjs scripts/postgres-backup-retention.test.mjs scripts/postgres-backup-readiness.test.mjs",
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",
@@ -14,6 +14,7 @@
     "db:backup": "node scripts/postgres-backup.mjs",
     "db:restore": "node scripts/postgres-restore.mjs",
     "db:backup:prune": "node scripts/postgres-backup-prune.mjs",
+    "db:backup:verify": "node scripts/postgres-backup-verify.mjs",
     "guest:purge": "pnpm --filter @knowme/api guest:purge",
     "check:project": "node scripts/check-project.mjs",
     "check:release": "node scripts/release-preflight.mjs && node scripts/mobile-release-preflight.mjs && node scripts/backup-release-preflight.mjs"
