@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -139,6 +139,31 @@ test('fails closed when a manifest is missing or no longer authentic', () => {
           now: NOW,
         }),
       /no matching manifest/,
+    );
+  } finally {
+    fx.cleanup();
+  }
+});
+
+test('refuses symbolic-link backup artifacts rather than following them', () => {
+  const fx = fixture();
+  try {
+    const realDump = addBackup(fx.directory, 'real', 40);
+    const linkedDump = join(fx.directory, 'linked.dump');
+    const linkedManifest = `${linkedDump}.manifest.json`;
+    symlinkSync(realDump, linkedDump);
+    symlinkSync(`${realDump}.manifest.json`, linkedManifest);
+
+    assert.throws(
+      () =>
+        buildBackupRetentionPlan({
+          directory: fx.directory,
+          signingKey: SIGNING_KEY,
+          retentionDays: 30,
+          keepMinimum: 1,
+          now: NOW,
+        }),
+      /must not be a symbolic link/,
     );
   } finally {
     fx.cleanup();
