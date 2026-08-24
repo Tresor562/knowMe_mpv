@@ -25,7 +25,39 @@ export function requirePostgresUrl(value, label = 'DATABASE_URL') {
     throw new Error(`${label} must include a host and database name`);
   }
 
+  if (parsed.searchParams.has('sslpassword')) {
+    throw new Error(`${label} must not embed sslpassword in the URL query string`);
+  }
+
   return String(value);
+}
+
+function decodeUrlCredential(value, label) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new Error(`${label} contains invalid percent-encoding`);
+  }
+}
+
+export function postgresCliConnection(value, label = 'DATABASE_URL') {
+  const parsed = new URL(requirePostgresUrl(value, label));
+  const env = {};
+
+  if (parsed.username) {
+    env.PGUSER = decodeUrlCredential(parsed.username, `${label} username`);
+  }
+  if (parsed.password) {
+    env.PGPASSWORD = decodeUrlCredential(parsed.password, `${label} password`);
+  }
+
+  parsed.username = '';
+  parsed.password = '';
+
+  return {
+    url: parsed.toString(),
+    env,
+  };
 }
 
 function postgresTargetIdentity(value, label) {
@@ -68,7 +100,7 @@ export function requireDumpPath(value) {
 }
 
 export function buildBackupArgs(databaseUrl, outputPath) {
-  requirePostgresUrl(databaseUrl);
+  const connection = postgresCliConnection(databaseUrl);
   const file = requireDumpPath(outputPath);
   return [
     '--format=custom',
@@ -76,12 +108,12 @@ export function buildBackupArgs(databaseUrl, outputPath) {
     '--no-privileges',
     '--compress=9',
     `--file=${file}`,
-    databaseUrl,
+    connection.url,
   ];
 }
 
 export function buildRestoreArgs(databaseUrl, dumpPath) {
-  requirePostgresUrl(databaseUrl, 'RESTORE_DATABASE_URL');
+  const connection = postgresCliConnection(databaseUrl, 'RESTORE_DATABASE_URL');
   const file = requireDumpPath(dumpPath);
   return [
     '--clean',
@@ -89,7 +121,7 @@ export function buildRestoreArgs(databaseUrl, dumpPath) {
     '--no-owner',
     '--no-privileges',
     '--exit-on-error',
-    `--dbname=${databaseUrl}`,
+    `--dbname=${connection.url}`,
     file,
   ];
 }
