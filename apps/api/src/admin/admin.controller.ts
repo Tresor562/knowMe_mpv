@@ -2,18 +2,28 @@ import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nes
 import { PERMISSIONS } from '../access-control/access-control.catalog';
 import { RequirePermissions } from '../access-control/permissions.decorator';
 import { PermissionsGuard } from '../access-control/permissions.guard';
+import { AccountRecoveryRetentionService } from '../auth/account-recovery-retention.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly accountRecoveryRetention: AccountRecoveryRetentionService
+  ) {}
 
   @RequirePermissions(PERMISSIONS.DASHBOARD_READ)
   @Get('dashboard')
   dashboard() {
     return this.admin.dashboard();
+  }
+
+  @RequirePermissions(PERMISSIONS.AUDIT_READ)
+  @Get('operations/account-recovery-retention')
+  accountRecoveryRetentionStatus() {
+    return this.accountRecoveryRetention.getMaintenanceSnapshot();
   }
 
   @RequirePermissions(PERMISSIONS.REPORTS_READ)
