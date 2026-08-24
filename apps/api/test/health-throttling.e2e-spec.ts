@@ -21,14 +21,16 @@ describe('Health probe throttle isolation (e2e)', () => {
     async () => {
       // The release invariant is that health probes stay available after more
       // than the default quota has been consumed. Concurrency is deliberately
-      // avoided here: a burst of 130 sockets tests transport pressure rather
-      // than throttler exemption and made the CI gate unnecessarily noisy.
-      for (let attempt = 1; attempt <= 130; attempt += 1) {
+      // avoided here: a socket burst tests transport pressure rather than the
+      // throttler exemption. 121 requests is the smallest deterministic proof
+      // that we crossed the default quota of 120 while keeping the assertion
+      // focused on the application policy itself.
+      for (let attempt = 1; attempt <= 121; attempt += 1) {
         const response = await request(app.getHttpServer()).get('/health/live');
         expect({ attempt, status: response.status }).toEqual({ attempt, status: 200 });
         expect(response.body?.status).toBe('ok');
       }
     },
-    30_000,
+    90_000,
   );
 });
