@@ -8,6 +8,7 @@ import {
   buildBackupArgs,
   cleanupBackupArtifacts,
   manifestForBackup,
+  postgresCliConnection,
   requireDumpPath,
   requirePostgresUrl,
   sha256File,
@@ -32,10 +33,11 @@ try {
   mkdirSync(dirname(output), { recursive: true, mode: 0o700 });
   assertBackupDestinationAvailable(output);
 
+  const connection = postgresCliConnection(databaseUrl);
   backupStarted = true;
   const result = spawnSync('pg_dump', buildBackupArgs(databaseUrl, output), {
     stdio: 'inherit',
-    env: process.env,
+    env: { ...process.env, ...connection.env },
   });
 
   if (result.error) throw result.error;

@@ -5,6 +5,7 @@ import {
   assertRestoreConfirmation,
   assertRestoreTargetIsolation,
   buildRestoreArgs,
+  postgresCliConnection,
   requireDumpPath,
   requirePostgresUrl,
   sha256File,
@@ -57,9 +58,10 @@ try {
     throw new Error('Backup integrity check failed: SHA-256 mismatch');
   }
 
+  const connection = postgresCliConnection(databaseUrl, 'RESTORE_DATABASE_URL');
   const result = spawnSync('pg_restore', buildRestoreArgs(databaseUrl, dumpPath), {
     stdio: 'inherit',
-    env: process.env,
+    env: { ...process.env, ...connection.env },
   });
 
   if (result.error) throw result.error;
