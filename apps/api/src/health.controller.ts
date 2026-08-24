@@ -24,13 +24,13 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  @SkipThrottle()
+  @SkipThrottle({ default: true })
   getHealth() {
     return this.livePayload();
   }
 
   @Get('live')
-  @SkipThrottle()
+  @SkipThrottle({ default: true })
   getLiveness() {
     return this.livePayload();
   }
@@ -59,7 +59,7 @@ export class HealthController {
   }
 
   @Get('ready')
-  @SkipThrottle()
+  @SkipThrottle({ default: true })
   async getReadiness() {
     const timestamp = new Date().toISOString();
 
