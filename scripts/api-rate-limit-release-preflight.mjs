@@ -43,7 +43,11 @@ function requireSupportedInstanceCount(env, errors) {
   }
 
   const parsed = Number(normalized);
-  if (!Number.isSafeInteger(parsed) || parsed !== SUPPORTED_PROCESS_LOCAL_INSTANCE_COUNT) {
+  if (
+    !Number.isSafeInteger(parsed) ||
+    normalized !== String(parsed) ||
+    parsed !== SUPPORTED_PROCESS_LOCAL_INSTANCE_COUNT
+  ) {
     errors.push(
       'API_INSTANCE_COUNT must be 1 while rate limiting uses process-local storage; configure a validated shared/edge limiter before horizontal scaling.',
     );
