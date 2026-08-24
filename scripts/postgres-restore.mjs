@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import {
   assertRestoreConfirmation,
+  assertRestoreTargetIsolation,
   buildRestoreArgs,
   requireDumpPath,
   requirePostgresUrl,
@@ -34,6 +35,11 @@ try {
   const databaseUrl = requirePostgresUrl(
     process.env.RESTORE_DATABASE_URL,
     'RESTORE_DATABASE_URL',
+  );
+  assertRestoreTargetIsolation(
+    databaseUrl,
+    process.env.DATABASE_URL,
+    argValue('--allow-primary-restore'),
   );
 
   const manifestPath = `${dumpPath}.manifest.json`;
