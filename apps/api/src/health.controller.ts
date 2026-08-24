@@ -1,4 +1,5 @@
 import { Headers, Controller, Get, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { timingSafeEqual } from 'node:crypto';
 import { getRuntimeHttpMetricsSnapshot } from './common/http-observability';
 import { PrismaService } from './prisma/prisma.service';
@@ -23,11 +24,13 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
+  @SkipThrottle({ default: true })
   getHealth() {
     return this.livePayload();
   }
 
   @Get('live')
+  @SkipThrottle({ default: true })
   getLiveness() {
     return this.livePayload();
   }
@@ -56,6 +59,7 @@ export class HealthController {
   }
 
   @Get('ready')
+  @SkipThrottle({ default: true })
   async getReadiness() {
     const timestamp = new Date().toISOString();
 

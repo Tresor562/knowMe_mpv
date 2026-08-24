@@ -67,11 +67,12 @@ import { StreaksModule } from './streaks/streaks.module';
 import { UsersModule } from './users/users.module';
 import { VerificationModule } from './verification/verification.module';
 import { WalletModule } from './wallet/wallet.module';
+import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    ThrottlerModule.forRoot([createApiRateLimitPolicy()]),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads'
