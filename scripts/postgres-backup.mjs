@@ -9,6 +9,7 @@ import {
   cleanupBackupArtifacts,
   manifestForBackup,
   postgresCliConnection,
+  requireBackupManifestSigningKey,
   requireDumpPath,
   requirePostgresUrl,
   sha256File,
@@ -24,6 +25,9 @@ let backupStarted = false;
 
 try {
   const databaseUrl = requirePostgresUrl(process.env.DATABASE_URL);
+  const signingKey = requireBackupManifestSigningKey(
+    process.env.KNOWME_BACKUP_MANIFEST_SIGNING_KEY,
+  );
   output = requireDumpPath(
     argValue('--output') ||
       process.env.KNOWME_BACKUP_PATH ||
@@ -47,7 +51,7 @@ try {
 
   chmodSync(output, 0o600);
   const sha256 = sha256File(output);
-  const manifest = manifestForBackup({ filePath: output, sha256 });
+  const manifest = manifestForBackup({ filePath: output, sha256, signingKey });
   const manifestPath = backupManifestPath(output);
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, {
     mode: 0o600,
