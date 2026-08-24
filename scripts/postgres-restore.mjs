@@ -7,6 +7,7 @@ import {
   requireDumpPath,
   requirePostgresUrl,
   sha256File,
+  validateBackupManifest,
 } from './postgres-backup-lib.mjs';
 
 function argValue(name) {
@@ -14,10 +15,21 @@ function argValue(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function optionalPositiveNumber(name) {
+  const value = argValue(name);
+  if (value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive number`);
+  }
+  return parsed;
+}
+
 try {
   const dumpPath = requireDumpPath(argValue('--file'));
   const confirmation = argValue('--confirm');
   assertRestoreConfirmation(confirmation);
+  const maxAgeHours = optionalPositiveNumber('--max-age-hours');
 
   const databaseUrl = requirePostgresUrl(
     process.env.RESTORE_DATABASE_URL,
@@ -32,9 +44,7 @@ try {
     throw new Error(`Backup manifest is missing or invalid: ${manifestPath}`);
   }
 
-  if (!manifest || manifest.schemaVersion !== 1 || typeof manifest.sha256 !== 'string') {
-    throw new Error('Backup manifest does not match the supported schema');
-  }
+  validateBackupManifest(manifest, dumpPath, { maxAgeHours });
 
   const actualSha256 = sha256File(dumpPath);
   if (actualSha256 !== manifest.sha256) {
