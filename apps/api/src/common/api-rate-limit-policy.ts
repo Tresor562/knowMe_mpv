@@ -4,6 +4,7 @@ export const MIN_API_RATE_LIMIT_TTL_MS = 1_000;
 export const MAX_API_RATE_LIMIT_TTL_MS = 3_600_000;
 export const MIN_API_RATE_LIMIT_LIMIT = 1;
 export const MAX_API_RATE_LIMIT_LIMIT = 100_000;
+export const SUPPORTED_PROCESS_LOCAL_API_INSTANCE_COUNT = 1;
 
 function parseBoundedInteger(
   raw: string | undefined,
@@ -32,8 +33,38 @@ function parseBoundedInteger(
   return parsed;
 }
 
+function assertSupportedProcessLocalTopology(env: NodeJS.ProcessEnv) {
+  if (env.NODE_ENV !== 'production') return;
+
+  const raw = env.API_INSTANCE_COUNT;
+  if (raw === undefined || raw.trim() === '') {
+    throw new Error(
+      'API_INSTANCE_COUNT must be explicitly configured in production while rate limiting uses process-local storage',
+    );
+  }
+
+  const normalized = raw.trim();
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(
+      'API_INSTANCE_COUNT must be the canonical integer 1 while rate limiting uses process-local storage',
+    );
+  }
+
+  const parsed = Number(normalized);
+  if (
+    !Number.isSafeInteger(parsed) ||
+    normalized !== String(parsed) ||
+    parsed !== SUPPORTED_PROCESS_LOCAL_API_INSTANCE_COUNT
+  ) {
+    throw new Error(
+      'API_INSTANCE_COUNT must be 1 while rate limiting uses process-local storage; configure a validated shared or edge limiter before horizontal scaling',
+    );
+  }
+}
+
 export function createApiRateLimitPolicy(env: NodeJS.ProcessEnv = process.env) {
   const requireExplicit = env.NODE_ENV === 'production';
+  assertSupportedProcessLocalTopology(env);
   return {
     ttl: parseBoundedInteger(
       env.API_RATE_LIMIT_TTL_MS,
