@@ -52,13 +52,11 @@ export function buildBackupRetentionPlan({
 
   const dirents = readdirSync(root, { withFileTypes: true });
   const dumpNames = new Set(
-    dirents
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.dump'))
-      .map((entry) => entry.name),
+    dirents.filter((entry) => entry.name.endsWith('.dump')).map((entry) => entry.name),
   );
   const manifestNames = new Set(
     dirents
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.dump.manifest.json'))
+      .filter((entry) => entry.name.endsWith('.dump.manifest.json'))
       .map((entry) => entry.name),
   );
 
