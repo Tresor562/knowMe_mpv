@@ -4,6 +4,7 @@ const MIN_TTL_MS = 1_000;
 const MAX_TTL_MS = 3_600_000;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100_000;
+const SUPPORTED_PROCESS_LOCAL_INSTANCE_COUNT = 1;
 
 function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
@@ -26,10 +27,34 @@ function requireBoundedInteger(env, key, min, max, errors) {
   }
 }
 
+function requireSupportedInstanceCount(env, errors) {
+  const raw = env.API_INSTANCE_COUNT;
+  if (!nonEmpty(raw)) {
+    errors.push(
+      'API_INSTANCE_COUNT must be explicitly configured for a market release because the current throttler store is process-local.',
+    );
+    return;
+  }
+
+  const normalized = raw.trim();
+  if (!/^\d+$/.test(normalized)) {
+    errors.push('API_INSTANCE_COUNT must be the canonical integer 1 while rate limiting uses process-local storage.');
+    return;
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isSafeInteger(parsed) || parsed !== SUPPORTED_PROCESS_LOCAL_INSTANCE_COUNT) {
+    errors.push(
+      'API_INSTANCE_COUNT must be 1 while rate limiting uses process-local storage; configure a validated shared/edge limiter before horizontal scaling.',
+    );
+  }
+}
+
 export function validateApiRateLimitReleaseEnvironment(env = process.env) {
   const errors = [];
   requireBoundedInteger(env, 'API_RATE_LIMIT_TTL_MS', MIN_TTL_MS, MAX_TTL_MS, errors);
   requireBoundedInteger(env, 'API_RATE_LIMIT_LIMIT', MIN_LIMIT, MAX_LIMIT, errors);
+  requireSupportedInstanceCount(env, errors);
   return { ok: errors.length === 0, errors };
 }
 
