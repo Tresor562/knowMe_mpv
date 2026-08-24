@@ -28,6 +28,32 @@ export function requirePostgresUrl(value, label = 'DATABASE_URL') {
   return String(value);
 }
 
+function postgresTargetIdentity(value, label) {
+  const parsed = new URL(requirePostgresUrl(value, label));
+  const port = parsed.port || '5432';
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+  return `${parsed.hostname.toLowerCase()}:${port}/${database}`;
+}
+
+export function assertRestoreTargetIsolation(
+  restoreDatabaseUrl,
+  primaryDatabaseUrl,
+  allowPrimaryRestore,
+) {
+  requirePostgresUrl(restoreDatabaseUrl, 'RESTORE_DATABASE_URL');
+  if (!primaryDatabaseUrl || !String(primaryDatabaseUrl).trim()) return;
+
+  const restoreTarget = postgresTargetIdentity(restoreDatabaseUrl, 'RESTORE_DATABASE_URL');
+  const primaryTarget = postgresTargetIdentity(primaryDatabaseUrl, 'DATABASE_URL');
+  if (restoreTarget !== primaryTarget) return;
+
+  if (allowPrimaryRestore !== 'RESTORE_PRIMARY_KNOWME') {
+    throw new Error(
+      'Restore target matches DATABASE_URL; isolated restore refused. Pass --allow-primary-restore RESTORE_PRIMARY_KNOWME only for a deliberate primary-database recovery.',
+    );
+  }
+}
+
 export function requireDumpPath(value) {
   if (!value || !String(value).trim()) {
     throw new Error('A .dump file path is required');
