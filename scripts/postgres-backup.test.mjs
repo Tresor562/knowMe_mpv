@@ -18,6 +18,18 @@ import {
   validateBackupManifest,
 } from './postgres-backup-lib.mjs';
 
+const SIGNING_KEY = 'test-backup-manifest-signing-key-0001';
+
+function signedManifest(overrides = {}) {
+  return manifestForBackup({
+    filePath: '/secure/knowme.dump',
+    sha256: 'a'.repeat(64),
+    createdAt: new Date('2026-08-24T00:00:00.000Z'),
+    signingKey: SIGNING_KEY,
+    ...overrides,
+  });
+}
+
 test('requires a concrete PostgreSQL URL', () => {
   assert.throws(() => requirePostgresUrl(''), /required/);
   assert.throws(() => requirePostgresUrl('https://example.com/db'), /postgres/);
@@ -135,30 +147,26 @@ test('database credentials are never exposed by redaction helper', () => {
   assert.ok(redacted.includes('db.example.com'));
 });
 
-test('backup manifests contain integrity metadata but no database URL', () => {
-  const manifest = manifestForBackup({
-    filePath: '/secure/knowme.dump',
-    sha256: 'a'.repeat(64),
+test('backup manifests contain signed integrity metadata but no database URL', () => {
+  const manifest = signedManifest({
+    sha256: 'b'.repeat(64),
     createdAt: new Date('2026-08-21T20:00:00.000Z'),
   });
 
-  assert.deepEqual(manifest, {
-    schemaVersion: 1,
-    file: 'knowme.dump',
-    sha256: 'a'.repeat(64),
-    createdAt: '2026-08-21T20:00:00.000Z',
-    format: 'postgresql-custom',
-    containsSecrets: true,
-  });
+  assert.equal(manifest.schemaVersion, 2);
+  assert.equal(manifest.file, 'knowme.dump');
+  assert.equal(manifest.sha256, 'b'.repeat(64));
+  assert.equal(manifest.createdAt, '2026-08-21T20:00:00.000Z');
+  assert.equal(manifest.format, 'postgresql-custom');
+  assert.equal(manifest.containsSecrets, true);
+  assert.equal(manifest.signature.algorithm, 'hmac-sha256');
+  assert.match(manifest.signature.value, /^[a-f0-9]{64}$/);
   assert.ok(!JSON.stringify(manifest).includes('postgresql://'));
+  assert.ok(!JSON.stringify(manifest).includes(SIGNING_KEY));
 });
 
 test('restore manifest validation binds metadata to the selected dump', () => {
-  const manifest = manifestForBackup({
-    filePath: '/secure/knowme.dump',
-    sha256: 'b'.repeat(64),
-    createdAt: new Date('2026-08-24T00:00:00.000Z'),
-  });
+  const manifest = signedManifest({ sha256: 'c'.repeat(64) });
 
   assert.equal(
     validateBackupManifest(manifest, '/restore/knowme.dump', {
@@ -177,14 +185,10 @@ test('restore manifest validation binds metadata to the selected dump', () => {
 });
 
 test('restore manifest validation rejects unsupported or invalid metadata', () => {
-  const manifest = manifestForBackup({
-    filePath: '/secure/knowme.dump',
-    sha256: 'c'.repeat(64),
-    createdAt: new Date('2026-08-24T00:00:00.000Z'),
-  });
+  const manifest = signedManifest({ sha256: 'd'.repeat(64) });
 
   assert.throws(
-    () => validateBackupManifest({ ...manifest, schemaVersion: 2 }, '/restore/knowme.dump'),
+    () => validateBackupManifest({ ...manifest, schemaVersion: 3 }, '/restore/knowme.dump'),
     /supported schema/,
   );
   assert.throws(
@@ -198,9 +202,8 @@ test('restore manifest validation rejects unsupported or invalid metadata', () =
 });
 
 test('restore manifest validation can enforce freshness without pretending external backup proof', () => {
-  const manifest = manifestForBackup({
-    filePath: '/secure/knowme.dump',
-    sha256: 'd'.repeat(64),
+  const manifest = signedManifest({
+    sha256: 'e'.repeat(64),
     createdAt: new Date('2026-08-23T00:00:00.000Z'),
   });
 

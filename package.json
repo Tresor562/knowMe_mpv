@@ -6,7 +6,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/mobile-release-preflight.test.mjs scripts/postgres-backup.test.mjs",
+    "test": "turbo test && node --test scripts/release-preflight.test.mjs scripts/mobile-release-preflight.test.mjs scripts/postgres-backup.test.mjs scripts/postgres-cli-secret-isolation.test.mjs scripts/postgres-backup-authenticity.test.mjs",
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @knowme/api prisma:generate",
     "db:migrate": "pnpm --filter @knowme/api prisma:migrate",

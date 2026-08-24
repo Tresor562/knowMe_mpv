@@ -6,10 +6,12 @@ import {
   assertRestoreTargetIsolation,
   buildRestoreArgs,
   postgresCliConnection,
+  requireBackupManifestSigningKey,
   requireDumpPath,
   requirePostgresUrl,
   sha256File,
   validateBackupManifest,
+  verifyBackupManifestAuthenticity,
 } from './postgres-backup-lib.mjs';
 
 function argValue(name) {
@@ -32,6 +34,8 @@ try {
   const confirmation = argValue('--confirm');
   assertRestoreConfirmation(confirmation);
   const maxAgeHours = optionalPositiveNumber('--max-age-hours');
+  const allowUnsignedLegacy =
+    argValue('--allow-unsigned-legacy') === 'RESTORE_UNSIGNED_KNOWME';
 
   const databaseUrl = requirePostgresUrl(
     process.env.RESTORE_DATABASE_URL,
@@ -52,6 +56,14 @@ try {
   }
 
   validateBackupManifest(manifest, dumpPath, { maxAgeHours });
+  if (manifest.schemaVersion === 1 && allowUnsignedLegacy) {
+    verifyBackupManifestAuthenticity(manifest, undefined, { allowUnsignedLegacy: true });
+  } else {
+    const signingKey = requireBackupManifestSigningKey(
+      process.env.KNOWME_BACKUP_MANIFEST_SIGNING_KEY,
+    );
+    verifyBackupManifestAuthenticity(manifest, signingKey);
+  }
 
   const actualSha256 = sha256File(dumpPath);
   if (actualSha256 !== manifest.sha256) {
