@@ -37,7 +37,7 @@ describe('Account recovery retention operations status (e2e)', () => {
       .expect(201);
   }
 
-  it('keeps retention status private and permission-gated', async () => {
+  it('keeps retention readiness private, permission-gated and bounded', async () => {
     await request(app.getHttpServer())
       .get('/admin/operations/account-recovery-retention')
       .expect(401);
@@ -63,6 +63,9 @@ describe('Account recovery retention operations status (e2e)', () => {
     expect(response.body).toEqual({
       configured: expect.any(Boolean),
       enabled: expect.any(Boolean),
+      readiness: expect.stringMatching(/^(UNCONFIGURED|DISABLED|AWAITING_FIRST_RUN|HEALTHY|FAILING|STALE)$/),
+      intervalMs: expect.any(Number),
+      nextExpectedRunAt: null,
       lastAttemptAt: null,
       lastSuccessAt: null,
       lastFailureAt: null,
@@ -71,10 +74,13 @@ describe('Account recovery retention operations status (e2e)', () => {
     expect(Object.keys(response.body).sort()).toEqual([
       'configured',
       'enabled',
+      'intervalMs',
       'lastAttemptAt',
       'lastDeleted',
       'lastFailureAt',
-      'lastSuccessAt'
+      'lastSuccessAt',
+      'nextExpectedRunAt',
+      'readiness'
     ]);
   });
 });
