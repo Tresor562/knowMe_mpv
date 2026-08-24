@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
 const POSTGRES_PROTOCOLS = new Set(['postgres:', 'postgresql:']);
@@ -65,6 +65,26 @@ export function requireDumpPath(value) {
   }
 
   return path;
+}
+
+export function backupManifestPath(dumpPath) {
+  return `${requireDumpPath(dumpPath)}.manifest.json`;
+}
+
+export function assertBackupDestinationAvailable(dumpPath) {
+  const dump = requireDumpPath(dumpPath);
+  const manifest = backupManifestPath(dump);
+  if (existsSync(dump) || existsSync(manifest)) {
+    throw new Error('Backup destination already exists; choose a new output path');
+  }
+  return { dump, manifest };
+}
+
+export function cleanupBackupArtifacts(dumpPath) {
+  const dump = requireDumpPath(dumpPath);
+  const manifest = backupManifestPath(dump);
+  rmSync(dump, { force: true });
+  rmSync(manifest, { force: true });
 }
 
 export function buildBackupArgs(databaseUrl, outputPath) {
