@@ -5,6 +5,8 @@ const MIN_RETENTION_DAYS = 1;
 const MAX_RETENTION_DAYS = 3650;
 const MIN_KEEP_MINIMUM = 1;
 const MAX_KEEP_MINIMUM = 1000;
+const MIN_MAX_AGE_HOURS = 1;
+const MAX_MAX_AGE_HOURS = 8760;
 const OTHER_SECRET_KEYS = [
   'JWT_SECRET',
   'METRICS_BEARER_TOKEN',
@@ -75,6 +77,13 @@ export function validateBackupReleaseEnvironment(env = process.env) {
     'KNOWME_BACKUP_KEEP_MINIMUM',
     MIN_KEEP_MINIMUM,
     MAX_KEEP_MINIMUM,
+    errors,
+  );
+  parseRequiredBoundedInteger(
+    env,
+    'KNOWME_BACKUP_MAX_AGE_HOURS',
+    MIN_MAX_AGE_HOURS,
+    MAX_MAX_AGE_HOURS,
     errors,
   );
 
