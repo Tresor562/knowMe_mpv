@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import {
+  assertBackupDestinationAvailable,
   assertRestoreConfirmation,
   assertRestoreTargetIsolation,
+  backupManifestPath,
   buildBackupArgs,
   buildRestoreArgs,
+  cleanupBackupArtifacts,
   manifestForBackup,
   redactPostgresUrl,
   requireDumpPath,
@@ -32,6 +38,41 @@ test('backup command uses custom format and strips ownership semantics', () => {
   assert.ok(args.includes('--no-privileges'));
   assert.ok(args.includes('--compress=9'));
   assert.ok(args.includes('--file=/tmp/knowme.dump'));
+});
+
+test('backup destination refuses overwrite of dump or manifest', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'knowme-backup-'));
+  const dump = join(directory, 'knowme.dump');
+  const manifest = backupManifestPath(dump);
+
+  try {
+    assert.deepEqual(assertBackupDestinationAvailable(dump), { dump, manifest });
+
+    writeFileSync(dump, 'existing');
+    assert.throws(() => assertBackupDestinationAvailable(dump), /already exists/);
+    rmSync(dump);
+
+    writeFileSync(manifest, '{}');
+    assert.throws(() => assertBackupDestinationAvailable(dump), /already exists/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('backup cleanup removes partial dump and orphan manifest idempotently', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'knowme-backup-cleanup-'));
+  const dump = join(directory, 'knowme.dump');
+  const manifest = backupManifestPath(dump);
+
+  try {
+    writeFileSync(dump, 'partial sensitive data');
+    writeFileSync(manifest, '{"partial":true}');
+    cleanupBackupArtifacts(dump);
+    assert.doesNotThrow(() => assertBackupDestinationAvailable(dump));
+    assert.doesNotThrow(() => cleanupBackupArtifacts(dump));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('restore is destructive-by-design but guarded and exit-on-error', () => {
