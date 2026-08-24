@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   assertRestoreConfirmation,
+  assertRestoreTargetIsolation,
   buildBackupArgs,
   buildRestoreArgs,
   manifestForBackup,
@@ -46,6 +47,39 @@ test('restore is destructive-by-design but guarded and exit-on-error', () => {
   assert.ok(args.includes('--exit-on-error'));
   assert.ok(args.includes('--no-owner'));
   assert.ok(args.includes('--no-privileges'));
+});
+
+test('restore target isolation refuses the configured primary database by default', () => {
+  assert.doesNotThrow(() =>
+    assertRestoreTargetIsolation(
+      'postgresql://restore:secret@restore.example.com/knowme_restore',
+      'postgresql://app:secret@db.example.com/knowme',
+    ),
+  );
+  assert.throws(
+    () =>
+      assertRestoreTargetIsolation(
+        'postgresql://restore:other@DB.EXAMPLE.COM:5432/knowme?sslmode=require',
+        'postgres://app:secret@db.example.com/knowme',
+      ),
+    /matches DATABASE_URL/,
+  );
+  assert.doesNotThrow(() =>
+    assertRestoreTargetIsolation(
+      'postgresql://restore:other@db.example.com/knowme',
+      'postgresql://app:secret@db.example.com:5432/knowme',
+      'RESTORE_PRIMARY_KNOWME',
+    ),
+  );
+  assert.throws(
+    () =>
+      assertRestoreTargetIsolation(
+        'postgresql://restore:other@db.example.com/knowme',
+        'postgresql://app:secret@db.example.com/knowme',
+        'yes',
+      ),
+    /RESTORE_PRIMARY_KNOWME/,
+  );
 });
 
 test('dump paths must use the custom-format extension', () => {
