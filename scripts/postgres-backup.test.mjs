@@ -8,6 +8,7 @@ import {
   redactPostgresUrl,
   requireDumpPath,
   requirePostgresUrl,
+  validateBackupManifest,
 } from './postgres-backup-lib.mjs';
 
 test('requires a concrete PostgreSQL URL', () => {
@@ -75,4 +76,80 @@ test('backup manifests contain integrity metadata but no database URL', () => {
     containsSecrets: true,
   });
   assert.ok(!JSON.stringify(manifest).includes('postgresql://'));
+});
+
+test('restore manifest validation binds metadata to the selected dump', () => {
+  const manifest = manifestForBackup({
+    filePath: '/secure/knowme.dump',
+    sha256: 'b'.repeat(64),
+    createdAt: new Date('2026-08-24T00:00:00.000Z'),
+  });
+
+  assert.equal(
+    validateBackupManifest(manifest, '/restore/knowme.dump', {
+      now: new Date('2026-08-24T01:00:00.000Z'),
+    }),
+    manifest,
+  );
+  assert.throws(
+    () => validateBackupManifest({ ...manifest, file: 'other.dump' }, '/restore/knowme.dump'),
+    /file name/,
+  );
+  assert.throws(
+    () => validateBackupManifest({ ...manifest, sha256: 'not-a-sha' }, '/restore/knowme.dump'),
+    /SHA-256/,
+  );
+});
+
+test('restore manifest validation rejects unsupported or invalid metadata', () => {
+  const manifest = manifestForBackup({
+    filePath: '/secure/knowme.dump',
+    sha256: 'c'.repeat(64),
+    createdAt: new Date('2026-08-24T00:00:00.000Z'),
+  });
+
+  assert.throws(
+    () => validateBackupManifest({ ...manifest, schemaVersion: 2 }, '/restore/knowme.dump'),
+    /supported schema/,
+  );
+  assert.throws(
+    () => validateBackupManifest({ ...manifest, format: 'plain' }, '/restore/knowme.dump'),
+    /custom dump/,
+  );
+  assert.throws(
+    () => validateBackupManifest({ ...manifest, createdAt: 'invalid' }, '/restore/knowme.dump'),
+    /createdAt/,
+  );
+});
+
+test('restore manifest validation can enforce freshness without pretending external backup proof', () => {
+  const manifest = manifestForBackup({
+    filePath: '/secure/knowme.dump',
+    sha256: 'd'.repeat(64),
+    createdAt: new Date('2026-08-23T00:00:00.000Z'),
+  });
+
+  assert.doesNotThrow(() =>
+    validateBackupManifest(manifest, '/restore/knowme.dump', {
+      now: new Date('2026-08-24T00:00:00.000Z'),
+      maxAgeHours: 24,
+    }),
+  );
+  assert.throws(
+    () =>
+      validateBackupManifest(manifest, '/restore/knowme.dump', {
+        now: new Date('2026-08-24T01:00:00.000Z'),
+        maxAgeHours: 24,
+      }),
+    /older than the allowed 24 hour/,
+  );
+  assert.throws(
+    () =>
+      validateBackupManifest(
+        { ...manifest, createdAt: '2026-08-24T00:10:01.000Z' },
+        '/restore/knowme.dump',
+        { now: new Date('2026-08-24T00:00:00.000Z'), maxFutureSkewMinutes: 10 },
+      ),
+    /future/,
+  );
 });

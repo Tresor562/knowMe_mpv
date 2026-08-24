@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
 const POSTGRES_PROTOCOLS = new Set(['postgres:', 'postgresql:']);
+const SHA256_RE = /^[a-f0-9]{64}$/i;
 
 export function requirePostgresUrl(value, label = 'DATABASE_URL') {
   if (!value || !String(value).trim()) {
@@ -89,6 +90,50 @@ export function manifestForBackup({ filePath, sha256, createdAt = new Date() }) 
     format: 'postgresql-custom',
     containsSecrets: true,
   };
+}
+
+export function validateBackupManifest(
+  manifest,
+  dumpPath,
+  { now = new Date(), maxAgeHours = null, maxFutureSkewMinutes = 5 } = {},
+) {
+  if (!manifest || manifest.schemaVersion !== 1) {
+    throw new Error('Backup manifest does not match the supported schema');
+  }
+  if (manifest.format !== 'postgresql-custom' || manifest.containsSecrets !== true) {
+    throw new Error('Backup manifest does not describe a supported PostgreSQL custom dump');
+  }
+  if (manifest.file !== basename(requireDumpPath(dumpPath))) {
+    throw new Error('Backup manifest file name does not match the selected dump');
+  }
+  if (typeof manifest.sha256 !== 'string' || !SHA256_RE.test(manifest.sha256)) {
+    throw new Error('Backup manifest SHA-256 is invalid');
+  }
+
+  const createdAt = new Date(manifest.createdAt);
+  if (!manifest.createdAt || Number.isNaN(createdAt.getTime())) {
+    throw new Error('Backup manifest createdAt is invalid');
+  }
+
+  const currentTime = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (!Number.isFinite(currentTime)) throw new Error('Restore clock is invalid');
+  const futureLimit = currentTime + maxFutureSkewMinutes * 60_000;
+  if (createdAt.getTime() > futureLimit) {
+    throw new Error('Backup manifest createdAt is unexpectedly in the future');
+  }
+
+  if (maxAgeHours !== null) {
+    const parsedMaxAgeHours = Number(maxAgeHours);
+    if (!Number.isFinite(parsedMaxAgeHours) || parsedMaxAgeHours <= 0) {
+      throw new Error('Restore maximum backup age must be a positive number of hours');
+    }
+    const ageMs = currentTime - createdAt.getTime();
+    if (ageMs > parsedMaxAgeHours * 60 * 60_000) {
+      throw new Error(`Backup is older than the allowed ${parsedMaxAgeHours} hour restore window`);
+    }
+  }
+
+  return manifest;
 }
 
 export function assertRestoreConfirmation(value) {

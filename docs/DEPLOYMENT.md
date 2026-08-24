@@ -103,9 +103,17 @@ export RESTORE_DATABASE_URL='postgresql://.../knowme_restore'
 pnpm db:restore -- --file /secure/path/knowme.dump --confirm RESTORE_KNOWME
 ```
 
+KMD-212 durcit la restauration avant l'appel à `pg_restore` : le manifeste doit correspondre au schéma supporté, déclarer un dump custom, référencer exactement le nom du fichier choisi, contenir un SHA-256 canonique et une date de création valide. Une date anormalement future est refusée. Pour un exercice RPO contrôlé, l'opérateur peut aussi imposer l'âge maximal acceptable du dump :
+
+```bash
+pnpm db:restore -- --file /secure/path/knowme.dump --confirm RESTORE_KNOWME --max-age-hours 24
+```
+
+Ce paramètre vérifie uniquement la fraîcheur déclarée et l'intégrité locale du dump sélectionné. Il ne prouve pas qu'une sauvegarde distante est réellement planifiée, chiffrée, répliquée ou restaurable dans l'infrastructure de production.
+
 La restauration refuse un dump sans manifeste valide ou dont le SHA-256 ne correspond plus. Elle utilise `pg_restore --exit-on-error --clean --if-exists`; elle doit donc être traitée comme destructive. Après restauration, exécuter les vérifications Prisma, build/tests et contrôles fonctionnels avant toute remise en trafic.
 
-La procédure détaillée, les preuves encore externes et le rollback sont documentés dans `docs/roadmap/KMD_165_DELIVERY.md`.
+La procédure détaillée, les preuves encore externes et le rollback sont documentés dans `docs/roadmap/KMD_165_DELIVERY.md` et `docs/roadmap/KMD_212_DELIVERY.md`.
 
 ## Stickers signés
 
@@ -152,6 +160,7 @@ Ce contrôle ne remplace pas une vraie procédure de rotation. La configuration 
 - configuration réelle des probes `/health/live` et `/health/ready` dans l'hébergeur ;
 - planification distante et rétention des sauvegardes PostgreSQL ;
 - exercice réel de restauration avec RPO/RTO mesurés ;
+- lors de l'exercice de restauration, imposer si approprié `--max-age-hours` selon le RPO attendu ;
 - collecte centralisée des logs structurés ;
 - dashboards, alertes et supervision externe ;
 - tests E2E ;
