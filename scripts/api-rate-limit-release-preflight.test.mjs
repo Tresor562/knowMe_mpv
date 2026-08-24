@@ -6,10 +6,11 @@ function validEnv() {
   return {
     API_RATE_LIMIT_TTL_MS: '60000',
     API_RATE_LIMIT_LIMIT: '120',
+    API_INSTANCE_COUNT: '1',
   };
 }
 
-test('accepts explicit bounded API rate-limit policy', () => {
+test('accepts explicit bounded API rate-limit policy for one API instance', () => {
   assert.deepEqual(validateApiRateLimitReleaseEnvironment(validEnv()), {
     ok: true,
     errors: [],
@@ -23,6 +24,26 @@ test('requires both API rate-limit values for market release', () => {
     const result = validateApiRateLimitReleaseEnvironment(env);
     assert.equal(result.ok, false);
     assert.ok(result.errors.some((error) => error.includes(key)));
+  }
+});
+
+test('requires explicit API instance count for market release', () => {
+  const env = validEnv();
+  delete env.API_INSTANCE_COUNT;
+  const result = validateApiRateLimitReleaseEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('API_INSTANCE_COUNT')));
+  assert.ok(result.errors.some((error) => error.includes('process-local')));
+});
+
+test('rejects horizontal scaling while throttling storage is process-local', () => {
+  for (const API_INSTANCE_COUNT of ['0', '2', '3', '10', '-1', '1.5', '01', 'many']) {
+    const result = validateApiRateLimitReleaseEnvironment({
+      ...validEnv(),
+      API_INSTANCE_COUNT,
+    });
+    assert.equal(result.ok, false, `expected API_INSTANCE_COUNT=${API_INSTANCE_COUNT} to fail`);
+    assert.ok(result.errors.some((error) => error.includes('API_INSTANCE_COUNT')));
   }
 });
 
@@ -41,7 +62,7 @@ test('rejects non-canonical or out-of-range API rate-limit values', () => {
   }
 });
 
-test('accepts documented lower and upper bounds', () => {
+test('accepts documented lower and upper rate-limit bounds with one API instance', () => {
   for (const [ttl, limit] of [
     ['1000', '1'],
     ['3600000', '100000'],
@@ -50,6 +71,7 @@ test('accepts documented lower and upper bounds', () => {
       validateApiRateLimitReleaseEnvironment({
         API_RATE_LIMIT_TTL_MS: ttl,
         API_RATE_LIMIT_LIMIT: limit,
+        API_INSTANCE_COUNT: '1',
       }),
       { ok: true, errors: [] },
     );
