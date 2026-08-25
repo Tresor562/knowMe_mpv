@@ -70,6 +70,6 @@ export class AdminController {
     @Param('id') id: string,
     @Body() body: { suspended: boolean }
   ) {
-    return this.admin.suspendUser(req.user.userId, id, Boolean(suspended));
+    return this.admin.suspendUser(req.user.userId, id, Boolean(body.suspended));
   }
 }
