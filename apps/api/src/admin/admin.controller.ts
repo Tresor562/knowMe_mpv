@@ -5,13 +5,15 @@ import { PermissionsGuard } from '../access-control/permissions.guard';
 import { AccountRecoveryRetentionService } from '../auth/account-recovery-retention.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
+import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly admin: AdminService,
-    private readonly accountRecoveryRetention: AccountRecoveryRetentionService
+    private readonly accountRecoveryRetention: AccountRecoveryRetentionService,
+    private readonly mediaQuarantineOps: MediaQuarantineOpsService
   ) {}
 
   @RequirePermissions(PERMISSIONS.DASHBOARD_READ)
@@ -24,6 +26,12 @@ export class AdminController {
   @Get('operations/account-recovery-retention')
   accountRecoveryRetentionStatus() {
     return this.accountRecoveryRetention.getMaintenanceSnapshot();
+  }
+
+  @RequirePermissions(PERMISSIONS.AUDIT_READ)
+  @Get('operations/media-quarantine')
+  mediaQuarantineStatus() {
+    return this.mediaQuarantineOps.getSnapshot();
   }
 
   @RequirePermissions(PERMISSIONS.REPORTS_READ)
@@ -62,6 +70,6 @@ export class AdminController {
     @Param('id') id: string,
     @Body() body: { suspended: boolean }
   ) {
-    return this.admin.suspendUser(req.user.userId, id, Boolean(body.suspended));
+    return this.admin.suspendUser(req.user.userId, id, Boolean(suspended));
   }
 }
