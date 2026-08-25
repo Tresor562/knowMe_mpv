@@ -148,7 +148,9 @@ export class MediaService {
           conversationId: session.conversationId,
           status,
           scannerVerdict: scan.verdict,
-          scannerReference: scan.reference
+          scannerReference: scan.reference,
+          scannerAttemptCount: 1,
+          scannerLastAttemptAt: consumedAt
         }
       });
       await this.audit.record({
