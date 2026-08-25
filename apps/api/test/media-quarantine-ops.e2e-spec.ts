@@ -14,6 +14,7 @@ describe('Media quarantine operations status (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
     prisma = app.get(PrismaService);
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "MediaAsset" CASCADE');
     await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
   });
 
@@ -49,16 +50,86 @@ describe('Media quarantine operations status (e2e)', () => {
       data: { role: 'ADMIN' }
     });
 
+    const oldestQuarantinedAt = new Date('2026-08-01T00:00:00.000Z');
+    await prisma.mediaAsset.createMany({
+      data: [
+        {
+          ownerId: operator.body.user.id,
+          storageKey: 'ops/quarantine/infected',
+          originalName: 'infected.png',
+          declaredMime: 'image/png',
+          detectedMime: 'image/png',
+          size: 128,
+          sha256: 'a'.repeat(64),
+          purpose: 'POST',
+          status: 'QUARANTINED',
+          scannerVerdict: 'INFECTED',
+          createdAt: oldestQuarantinedAt
+        },
+        {
+          ownerId: operator.body.user.id,
+          storageKey: 'ops/quarantine/unavailable',
+          originalName: 'unavailable.png',
+          declaredMime: 'image/png',
+          detectedMime: 'image/png',
+          size: 256,
+          sha256: 'b'.repeat(64),
+          purpose: 'POST',
+          status: 'QUARANTINED',
+          scannerVerdict: 'UNAVAILABLE',
+          createdAt: new Date('2026-08-02T00:00:00.000Z')
+        },
+        {
+          ownerId: operator.body.user.id,
+          storageKey: 'ops/quarantine/other',
+          originalName: 'other.png',
+          declaredMime: 'image/png',
+          detectedMime: 'image/png',
+          size: 512,
+          sha256: 'c'.repeat(64),
+          purpose: 'POST',
+          status: 'QUARANTINED',
+          scannerVerdict: 'PENDING',
+          createdAt: new Date('2026-08-03T00:00:00.000Z')
+        },
+        {
+          ownerId: operator.body.user.id,
+          storageKey: 'ops/available',
+          originalName: 'available.png',
+          declaredMime: 'image/png',
+          detectedMime: 'image/png',
+          size: 1024,
+          sha256: 'd'.repeat(64),
+          purpose: 'POST',
+          status: 'AVAILABLE',
+          scannerVerdict: 'CLEAN'
+        },
+        {
+          ownerId: operator.body.user.id,
+          storageKey: 'ops/quarantine/deleted',
+          originalName: 'deleted.png',
+          declaredMime: 'image/png',
+          detectedMime: 'image/png',
+          size: 2048,
+          sha256: 'e'.repeat(64),
+          purpose: 'POST',
+          status: 'QUARANTINED',
+          scannerVerdict: 'INFECTED',
+          deletedAt: new Date('2026-08-04T00:00:00.000Z')
+        }
+      ]
+    });
+
     const response = await request(app.getHttpServer())
       .get('/admin/operations/media-quarantine')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(response.body).toEqual({
-      quarantined: expect.any(Number),
-      infected: expect.any(Number),
-      unavailable: expect.any(Number),
-      oldestQuarantinedAt: null
+      quarantined: 3,
+      infected: 1,
+      unavailable: 1,
+      oldestQuarantinedAt: oldestQuarantinedAt.toISOString()
     });
     expect(Object.keys(response.body).sort()).toEqual([
       'infected',
