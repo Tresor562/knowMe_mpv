@@ -34,7 +34,12 @@ describe('MediaQuarantineOpsService', () => {
       $transaction: jest.fn(async (queries: Promise<unknown>[]) => Promise.all(queries))
     };
 
-    const service = new MediaQuarantineOpsService(prisma as never);
+    const service = new MediaQuarantineOpsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never
+    );
 
     await expect(service.getSnapshot()).resolves.toEqual({
       readiness: 'BLOCKED_INFECTED',
@@ -60,7 +65,12 @@ describe('MediaQuarantineOpsService', () => {
       $transaction: jest.fn(async (queries: Promise<unknown>[]) => Promise.all(queries))
     };
 
-    const service = new MediaQuarantineOpsService(prisma as never);
+    const service = new MediaQuarantineOpsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never
+    );
 
     await expect(service.getSnapshot()).resolves.toEqual({
       readiness: 'CLEAR',

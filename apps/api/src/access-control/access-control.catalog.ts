@@ -16,6 +16,7 @@ export const PERMISSIONS = {
   PURCHASES_MANAGE: 'purchases.manage',
   VERIFICATION_MANAGE: 'verification.manage',
   PRIVACY_MANAGE: 'privacy.manage',
+  MEDIA_QUARANTINE_MANAGE: 'media.quarantine.manage',
   COSMETICS_MANAGE: 'cosmetics.manage',
   CONCEPT_K_MANAGE: 'concept_k.manage',
   RBAC_MANAGE: 'rbac.manage'
@@ -39,6 +40,7 @@ export const PERMISSION_CATALOG = [
   [PERMISSIONS.PURCHASES_MANAGE, 'Gérer les produits et examiner les achats vérifiés.'],
   [PERMISSIONS.VERIFICATION_MANAGE, 'Examiner et révoquer les identités vérifiées.'],
   [PERMISSIONS.PRIVACY_MANAGE, 'Publier les politiques et exécuter les règles de conservation.'],
+  [PERMISSIONS.MEDIA_QUARANTINE_MANAGE, 'Relancer de façon contrôlée l’analyse des médias en quarantaine.'],
   [PERMISSIONS.COSMETICS_MANAGE, 'Publier et attribuer les objets cosmétiques purement visuels.'],
   [PERMISSIONS.CONCEPT_K_MANAGE, 'Gérer les personnages, assets et rollouts Concept K.'],
   [PERMISSIONS.RBAC_MANAGE, 'Attribuer et révoquer les rôles d’accès.']
