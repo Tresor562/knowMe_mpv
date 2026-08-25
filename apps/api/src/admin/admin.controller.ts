@@ -47,7 +47,7 @@ export class AdminController {
   @RequirePermissions(PERMISSIONS.AUDIT_READ)
   @Get('operations/media-quarantine-retention')
   mediaQuarantineRetentionStatus() {
-    return this.mediaQuarantineRetentionWorker.getSnapshot();
+    return this.mediaQuarantineRetentionWorker.getOperationalSnapshot();
   }
 
   @RequirePermissions(PERMISSIONS.MEDIA_QUARANTINE_MANAGE)

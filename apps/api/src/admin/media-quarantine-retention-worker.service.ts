@@ -8,6 +8,7 @@ const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 const BATCH_SIZE = 25;
 const PURGE_RETRY_BASE_MS = 5 * 60 * 1000;
 const PURGE_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
+const MAX_BACKOFF_ATTEMPT = 10;
 
 type PurgeCandidate = {
   id: string;
@@ -80,6 +81,82 @@ export class MediaQuarantineRetentionWorkerService implements OnModuleInit, OnMo
       lastSuccessAt: this.lastSuccessAt?.toISOString() ?? null,
       lastFailureAt: this.lastFailureAt?.toISOString() ?? null,
       lastResult: this.lastResult
+    };
+  }
+
+  async getOperationalSnapshot(now = new Date()) {
+    const snapshot = this.getSnapshot(now);
+    const policy = this.retentionPolicy();
+    if (!policy) {
+      return {
+        ...snapshot,
+        backlog: {
+          expiredQuarantined: 0,
+          retryDue: 0,
+          retryScheduled: 0,
+          maxBackoffRetries: 0,
+          nextScheduledRetryAt: null
+        }
+      };
+    }
+
+    const infectedCutoff = this.cutoff(now, policy.infectedDays);
+    const unavailableCutoff = this.cutoff(now, policy.unavailableDays);
+    const [expiredQuarantined, retryDue, retryScheduled, maxBackoffRetries, nextScheduledRetry] = await Promise.all([
+      this.prisma.mediaAsset.count({
+        where: {
+          deletedAt: null,
+          status: 'QUARANTINED',
+          OR: [
+            { scannerVerdict: 'INFECTED', createdAt: { lte: infectedCutoff } },
+            { scannerVerdict: 'UNAVAILABLE', createdAt: { lte: unavailableCutoff } }
+          ]
+        }
+      }),
+      this.prisma.mediaAsset.count({
+        where: {
+          deletedAt: null,
+          status: 'PURGING',
+          OR: [
+            { retentionPurgeNextAttemptAt: null },
+            { retentionPurgeNextAttemptAt: { lte: now } }
+          ]
+        }
+      }),
+      this.prisma.mediaAsset.count({
+        where: {
+          deletedAt: null,
+          status: 'PURGING',
+          retentionPurgeNextAttemptAt: { gt: now }
+        }
+      }),
+      this.prisma.mediaAsset.count({
+        where: {
+          deletedAt: null,
+          status: 'PURGING',
+          retentionPurgeAttemptCount: { gte: MAX_BACKOFF_ATTEMPT }
+        }
+      }),
+      this.prisma.mediaAsset.findFirst({
+        where: {
+          deletedAt: null,
+          status: 'PURGING',
+          retentionPurgeNextAttemptAt: { gt: now }
+        },
+        orderBy: [{ retentionPurgeNextAttemptAt: 'asc' }, { id: 'asc' }],
+        select: { retentionPurgeNextAttemptAt: true }
+      })
+    ]);
+
+    return {
+      ...snapshot,
+      backlog: {
+        expiredQuarantined,
+        retryDue,
+        retryScheduled,
+        maxBackoffRetries,
+        nextScheduledRetryAt: nextScheduledRetry?.retentionPurgeNextAttemptAt?.toISOString() ?? null
+      }
     };
   }
 
