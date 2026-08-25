@@ -6,6 +6,7 @@ import { AccountRecoveryRetentionService } from '../auth/account-recovery-retent
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
+import { classifyMediaQuarantineRetentionReadiness } from './media-quarantine-retention-readiness';
 import { MediaQuarantineRetentionWorkerService } from './media-quarantine-retention-worker.service';
 import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-worker.service';
 
@@ -46,8 +47,12 @@ export class AdminController {
 
   @RequirePermissions(PERMISSIONS.AUDIT_READ)
   @Get('operations/media-quarantine-retention')
-  mediaQuarantineRetentionStatus() {
-    return this.mediaQuarantineRetentionWorker.getOperationalSnapshot();
+  async mediaQuarantineRetentionStatus() {
+    const snapshot = await this.mediaQuarantineRetentionWorker.getOperationalSnapshot();
+    return {
+      ...snapshot,
+      purgeReadiness: classifyMediaQuarantineRetentionReadiness(snapshot.readiness, snapshot.backlog)
+    };
   }
 
   @RequirePermissions(PERMISSIONS.MEDIA_QUARANTINE_MANAGE)

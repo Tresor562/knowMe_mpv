@@ -70,6 +70,7 @@ describe('Media quarantine operations status (e2e)', () => {
       enabled: false,
       running: false,
       readiness: 'DISABLED',
+      purgeReadiness: 'DISABLED',
       intervalMs: 300000,
       batchSize: 25,
       infectedRetentionDays: null,
