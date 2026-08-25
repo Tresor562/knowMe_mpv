@@ -56,7 +56,11 @@ export class MediaQuarantineOpsService {
     };
   }
 
-  async rescanUnavailable(actorId: string, assetId: string) {
+  async rescanUnavailable(
+    actorId: string | null,
+    assetId: string,
+    source: 'MANUAL' | 'AUTOMATIC' = 'MANUAL'
+  ) {
     const asset = await this.prisma.mediaAsset.findFirst({
       where: {
         id: assetId,
@@ -85,7 +89,7 @@ export class MediaQuarantineOpsService {
         entity: 'MediaAsset',
         entityId: asset.id,
         targetAccountId: asset.ownerId,
-        metadata: { reason: 'STORAGE_INTEGRITY_MISMATCH' }
+        metadata: { reason: 'STORAGE_INTEGRITY_MISMATCH', source }
       });
       throw new ConflictException('L’intégrité du média stocké ne peut pas être confirmée.');
     }
@@ -121,7 +125,8 @@ export class MediaQuarantineOpsService {
       metadata: {
         previousVerdict: 'UNAVAILABLE',
         scannerVerdict: result.verdict,
-        status
+        status,
+        source
       }
     });
 
