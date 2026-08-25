@@ -79,10 +79,56 @@ describe('MediaQuarantineRetryWorkerService', () => {
     expect(quarantine.rescanUnavailable).toHaveBeenCalledTimes(1);
   });
 
-  it('uses conservative bounded defaults for malformed interval and batch settings', async () => {
+  it('uses conservative bounded defaults for malformed interval and batch settings outside production', async () => {
     const { service, prisma } = setup({ MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '01', MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '1000' });
     prisma.mediaAsset.findMany.mockResolvedValue([]);
     await service.processEligibleBatch(now);
     expect(prisma.mediaAsset.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 40 }));
+  });
+
+  it('fails closed at production startup when retry enablement is missing or non-canonical', () => {
+    expect(() => setup({
+      NODE_ENV: 'production',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '60000',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '10'
+    }).service.onModuleInit()).toThrow('MEDIA_QUARANTINE_RETRY_ENABLED');
+
+    expect(() => setup({
+      NODE_ENV: 'production',
+      MEDIA_QUARANTINE_RETRY_ENABLED: 'TRUE',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '60000',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '10'
+    }).service.onModuleInit()).toThrow('MEDIA_QUARANTINE_RETRY_ENABLED');
+  });
+
+  it('fails closed at production startup when interval or batch settings are invalid', () => {
+    expect(() => setup({
+      NODE_ENV: 'production',
+      MEDIA_QUARANTINE_RETRY_ENABLED: 'false',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '01',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '10'
+    }).service.onModuleInit()).toThrow('MEDIA_QUARANTINE_RETRY_INTERVAL_MS');
+
+    expect(() => setup({
+      NODE_ENV: 'production',
+      MEDIA_QUARANTINE_RETRY_ENABLED: 'false',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '60000',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '101'
+    }).service.onModuleInit()).toThrow('MEDIA_QUARANTINE_RETRY_BATCH_SIZE');
+  });
+
+  it('accepts explicit bounded production retry settings', () => {
+    const { service } = setup({
+      NODE_ENV: 'production',
+      MEDIA_QUARANTINE_RETRY_ENABLED: 'false',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '60000',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '10'
+    });
+    expect(() => service.onModuleInit()).not.toThrow();
+    expect(service.getSnapshot(now)).toEqual(expect.objectContaining({
+      enabled: false,
+      intervalMs: 60_000,
+      batchSize: 10
+    }));
   });
 });
