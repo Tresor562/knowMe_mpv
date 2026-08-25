@@ -19,6 +19,38 @@ describe('MediaQuarantineRetentionWorkerService', () => {
     return { service, prisma, storage, audit };
   }
 
+  it('reports DISABLED outside production when no retention policy is configured', () => {
+    const { service } = setup({ NODE_ENV: 'test' });
+    expect(service.getSnapshot(now)).toEqual({
+      enabled: false,
+      running: false,
+      readiness: 'DISABLED',
+      intervalMs: 300000,
+      batchSize: 25,
+      infectedRetentionDays: null,
+      unavailableRetentionDays: null,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastFailureAt: null,
+      lastResult: null
+    });
+  });
+
+  it('reports AWAITING_FIRST_RUN for a configured worker before its first pass', () => {
+    const { service } = setup({
+      NODE_ENV: 'test',
+      MEDIA_QUARANTINE_INFECTED_RETENTION_DAYS: '30',
+      MEDIA_QUARANTINE_UNAVAILABLE_RETENTION_DAYS: '7'
+    });
+    expect(service.getSnapshot(now)).toEqual(expect.objectContaining({
+      enabled: true,
+      running: false,
+      readiness: 'AWAITING_FIRST_RUN',
+      infectedRetentionDays: 30,
+      unavailableRetentionDays: 7
+    }));
+  });
+
   it('does nothing outside production when no retention policy is configured', async () => {
     const { service, prisma } = setup({ NODE_ENV: 'test' });
     await expect(service.processExpiredBatch(now)).resolves.toEqual({ considered: 0, purged: 0, failed: 0 });
@@ -31,6 +63,7 @@ describe('MediaQuarantineRetentionWorkerService', () => {
       MEDIA_QUARANTINE_INFECTED_RETENTION_DAYS: '30'
     });
     await expect(service.processExpiredBatch(now)).rejects.toThrow('retention policy must be fully configured');
+    expect(() => service.getSnapshot(now)).toThrow('retention policy must be fully configured');
   });
 
   it('rejects non-canonical retention values', async () => {

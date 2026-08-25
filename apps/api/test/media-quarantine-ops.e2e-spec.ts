@@ -36,6 +36,7 @@ describe('Media quarantine operations status (e2e)', () => {
 
   it('keeps quarantine telemetry private and rescan separately permission-gated', async () => {
     await request(app.getHttpServer()).get('/admin/operations/media-quarantine').expect(401);
+    await request(app.getHttpServer()).get('/admin/operations/media-quarantine-retention').expect(401);
     await request(app.getHttpServer())
       .post('/admin/operations/media-quarantine/unknown/rescan')
       .expect(401);
@@ -48,6 +49,10 @@ describe('Media quarantine operations status (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
     await request(app.getHttpServer())
+      .get('/admin/operations/media-quarantine-retention')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+    await request(app.getHttpServer())
       .post('/admin/operations/media-quarantine/unknown/rescan')
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
@@ -55,6 +60,24 @@ describe('Media quarantine operations status (e2e)', () => {
     await prisma.user.update({
       where: { id: operator.body.user.id },
       data: { role: 'ADMIN' }
+    });
+
+    const retention = await request(app.getHttpServer())
+      .get('/admin/operations/media-quarantine-retention')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(retention.body).toEqual({
+      enabled: false,
+      running: false,
+      readiness: 'DISABLED',
+      intervalMs: 300000,
+      batchSize: 25,
+      infectedRetentionDays: null,
+      unavailableRetentionDays: null,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastFailureAt: null,
+      lastResult: null
     });
 
     const oldestQuarantinedAt = new Date('2026-08-01T00:00:00.000Z');
