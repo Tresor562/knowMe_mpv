@@ -34,14 +34,21 @@ describe('Media quarantine operations status (e2e)', () => {
       .expect(201);
   }
 
-  it('keeps quarantine telemetry private, permission-gated and aggregate-only', async () => {
+  it('keeps quarantine telemetry private and rescan separately permission-gated', async () => {
     await request(app.getHttpServer()).get('/admin/operations/media-quarantine').expect(401);
+    await request(app.getHttpServer())
+      .post('/admin/operations/media-quarantine/unknown/rescan')
+      .expect(401);
 
     const operator = await register('operator');
     const token = operator.body.accessToken as string;
 
     await request(app.getHttpServer())
       .get('/admin/operations/media-quarantine')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .post('/admin/operations/media-quarantine/unknown/rescan')
       .set('Authorization', `Bearer ${token}`)
       .expect(403);
 
@@ -139,5 +146,15 @@ describe('Media quarantine operations status (e2e)', () => {
       'readiness',
       'unavailable'
     ]);
+
+    const infected = await prisma.mediaAsset.findUnique({
+      where: { storageKey: 'ops/quarantine/infected' },
+      select: { id: true }
+    });
+    expect(infected).not.toBeNull();
+    await request(app.getHttpServer())
+      .post(`/admin/operations/media-quarantine/${infected!.id}/rescan`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 });
