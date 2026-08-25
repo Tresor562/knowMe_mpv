@@ -26,7 +26,11 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
   ) {}
 
   onModuleInit() {
-    if (!this.enabled()) return;
+    const enabled = this.enabled();
+    // Validate the complete production policy at startup even when retries are disabled.
+    this.intervalMs();
+    this.batchSize();
+    if (!enabled) return;
     this.timer = setInterval(() => {
       void this.runScheduledBatch();
     }, this.intervalMs());
@@ -131,11 +135,19 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
   }
 
   private enabled() {
-    return this.config.get<string>('MEDIA_QUARANTINE_RETRY_ENABLED')?.trim().toLowerCase() === 'true';
+    const raw = this.config.get<string>('MEDIA_QUARANTINE_RETRY_ENABLED');
+    if (this.isProduction()) {
+      if (raw !== 'true' && raw !== 'false') {
+        throw new Error('MEDIA_QUARANTINE_RETRY_ENABLED must be explicitly set to canonical true or false in production.');
+      }
+      return raw === 'true';
+    }
+    return raw?.trim().toLowerCase() === 'true';
   }
 
   private intervalMs() {
     return this.boundedInteger(
+      'MEDIA_QUARANTINE_RETRY_INTERVAL_MS',
       this.config.get<string>('MEDIA_QUARANTINE_RETRY_INTERVAL_MS'),
       DEFAULT_INTERVAL_MS,
       60_000,
@@ -145,6 +157,7 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
 
   private batchSize() {
     return this.boundedInteger(
+      'MEDIA_QUARANTINE_RETRY_BATCH_SIZE',
       this.config.get<string>('MEDIA_QUARANTINE_RETRY_BATCH_SIZE'),
       DEFAULT_BATCH_SIZE,
       1,
@@ -152,12 +165,24 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
     );
   }
 
-  private boundedInteger(raw: string | undefined, fallback: number, min: number, max: number) {
-    if (typeof raw !== 'string' || raw.trim() === '') return fallback;
+  private boundedInteger(name: string, raw: string | undefined, fallback: number, min: number, max: number) {
+    if (typeof raw !== 'string' || raw.trim() === '') {
+      if (this.isProduction()) throw new Error(`${name} is required in production.`);
+      return fallback;
+    }
     const normalized = raw.trim();
     const parsed = Number(normalized);
-    if (!Number.isInteger(parsed) || parsed < min || parsed > max) return fallback;
-    if (String(parsed) !== normalized) return fallback;
+    const valid = Number.isSafeInteger(parsed) && parsed >= min && parsed <= max && String(parsed) === normalized;
+    if (!valid) {
+      if (this.isProduction()) {
+        throw new Error(`${name} must be a canonical integer between ${min} and ${max} in production.`);
+      }
+      return fallback;
+    }
     return parsed;
+  }
+
+  private isProduction() {
+    return this.config.get<string>('NODE_ENV') === 'production';
   }
 }
