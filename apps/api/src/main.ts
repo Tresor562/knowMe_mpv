@@ -5,6 +5,7 @@ import { createCorsOptions } from './common/cors-policy';
 import { configureGracefulShutdown } from './common/graceful-shutdown';
 import { createHttpObservabilityMiddleware } from './common/http-observability';
 import { createSecurityHeadersMiddleware } from './common/security-headers';
+import { createProductionHttpsGuard } from './common/transport-security';
 import { createTrustedProxySetting } from './common/trusted-proxy-policy';
 
 async function bootstrap() {
@@ -12,6 +13,7 @@ async function bootstrap() {
   const express = app.getHttpAdapter().getInstance() as { set(name: string, value: unknown): void };
   express.set('trust proxy', createTrustedProxySetting());
   configureGracefulShutdown(app);
+  app.use(createProductionHttpsGuard());
   app.enableCors(createCorsOptions());
   app.use(createSecurityHeadersMiddleware());
   app.use(createHttpObservabilityMiddleware());
