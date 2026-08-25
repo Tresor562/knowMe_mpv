@@ -362,8 +362,8 @@ export class MediaService {
     if (buffer.toString('ascii').includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE')) {
       return { verdict: 'INFECTED', reference: 'LOCAL:EICAR' };
     }
-    if (process.env.NODE_ENV === 'production' && process.env.MEDIA_SCANNER_MODE === 'disabled') {
-      return { verdict: 'UNAVAILABLE', reference: 'SCANNER_DISABLED' };
+    if (process.env.NODE_ENV === 'production') {
+      return { verdict: 'UNAVAILABLE', reference: 'EXTERNAL_SCANNER_REQUIRED' };
     }
     return { verdict: 'CLEAN', reference: 'LOCAL_SIGNATURE_V1' };
   }
