@@ -5,6 +5,7 @@ import { MediaModule } from '../media/media.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
+import { MediaQuarantineRetentionWorkerService } from './media-quarantine-retention-worker.service';
 import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-worker.service';
 
 @Module({
@@ -13,6 +14,7 @@ import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-work
   providers: [
     AdminService,
     MediaQuarantineOpsService,
+    MediaQuarantineRetentionWorkerService,
     MediaQuarantineRetryWorkerService,
     RolesGuard
   ]
