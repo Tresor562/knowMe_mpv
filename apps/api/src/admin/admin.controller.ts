@@ -6,6 +6,7 @@ import { AccountRecoveryRetentionService } from '../auth/account-recovery-retent
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
+import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-worker.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('admin')
@@ -13,7 +14,8 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly accountRecoveryRetention: AccountRecoveryRetentionService,
-    private readonly mediaQuarantineOps: MediaQuarantineOpsService
+    private readonly mediaQuarantineOps: MediaQuarantineOpsService,
+    private readonly mediaQuarantineRetryWorker: MediaQuarantineRetryWorkerService
   ) {}
 
   @RequirePermissions(PERMISSIONS.DASHBOARD_READ)
@@ -32,6 +34,12 @@ export class AdminController {
   @Get('operations/media-quarantine')
   mediaQuarantineStatus() {
     return this.mediaQuarantineOps.getSnapshot();
+  }
+
+  @RequirePermissions(PERMISSIONS.AUDIT_READ)
+  @Get('operations/media-quarantine-retry')
+  mediaQuarantineRetryStatus() {
+    return this.mediaQuarantineRetryWorker.getSnapshot();
   }
 
   @RequirePermissions(PERMISSIONS.MEDIA_QUARANTINE_MANAGE)

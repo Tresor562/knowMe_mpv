@@ -11,6 +11,38 @@ describe('MediaQuarantineRetryWorkerService', () => {
     return { service, prisma, quarantine };
   }
 
+  it('reports a bounded disabled snapshot without exposing asset data', () => {
+    const { service } = setup();
+    expect(service.getSnapshot(now)).toEqual({
+      enabled: false,
+      running: false,
+      readiness: 'DISABLED',
+      intervalMs: 60_000,
+      batchSize: 10,
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastFailureAt: null,
+      lastResult: null
+    });
+  });
+
+  it('reports awaiting-first-run when automatic retry is enabled but has not run yet', () => {
+    const { service } = setup({
+      MEDIA_QUARANTINE_RETRY_ENABLED: 'true',
+      MEDIA_QUARANTINE_RETRY_INTERVAL_MS: '120000',
+      MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '4'
+    });
+    expect(service.getSnapshot(now)).toEqual(expect.objectContaining({
+      enabled: true,
+      running: false,
+      readiness: 'AWAITING_FIRST_RUN',
+      intervalMs: 120_000,
+      batchSize: 4,
+      lastAttemptAt: null,
+      lastResult: null
+    }));
+  });
+
   it('processes only policy-eligible assets and uses a null system actor', async () => {
     const { service, prisma, quarantine } = setup({ MEDIA_QUARANTINE_RETRY_BATCH_SIZE: '2' });
     prisma.mediaAsset.findMany.mockResolvedValue([
