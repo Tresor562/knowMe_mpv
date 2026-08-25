@@ -34,7 +34,7 @@ describe('MediaQuarantineOpsService rescan', () => {
     return { service, prisma, storage, scanner, audit };
   }
 
-  it('releases only an unavailable quarantined asset after a clean rescan', async () => {
+  it('releases only an unavailable quarantined asset after a clean rescan and records the attempt', async () => {
     const { service, prisma, scanner, audit } = setup();
 
     await expect(service.rescanUnavailable('admin-1', 'asset-1')).resolves.toEqual({
@@ -50,7 +50,12 @@ describe('MediaQuarantineOpsService rescan', () => {
         scannerVerdict: 'UNAVAILABLE',
         deletedAt: null
       }),
-      data: expect.objectContaining({ status: 'AVAILABLE', scannerVerdict: 'CLEAN' })
+      data: expect.objectContaining({
+        status: 'AVAILABLE',
+        scannerVerdict: 'CLEAN',
+        scannerAttemptCount: { increment: 1 },
+        scannerLastAttemptAt: expect.any(Date)
+      })
     }));
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 'admin-1',
@@ -59,7 +64,7 @@ describe('MediaQuarantineOpsService rescan', () => {
     }));
   });
 
-  it('keeps an infected rescan quarantined', async () => {
+  it('keeps an infected rescan quarantined while recording the attempt', async () => {
     const { service, prisma, scanner } = setup();
     scanner.scan.mockResolvedValueOnce({ verdict: 'INFECTED', reference: 'provider:infected' });
 
@@ -69,11 +74,16 @@ describe('MediaQuarantineOpsService rescan', () => {
       scannerVerdict: 'INFECTED'
     });
     expect(prisma.mediaAsset.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'QUARANTINED', scannerVerdict: 'INFECTED' })
+      data: expect.objectContaining({
+        status: 'QUARANTINED',
+        scannerVerdict: 'INFECTED',
+        scannerAttemptCount: { increment: 1 },
+        scannerLastAttemptAt: expect.any(Date)
+      })
     }));
   });
 
-  it('keeps a scanner outage quarantined', async () => {
+  it('keeps a scanner outage quarantined while recording the failed attempt', async () => {
     const { service, prisma, scanner } = setup();
     scanner.scan.mockResolvedValueOnce({
       verdict: 'UNAVAILABLE',
@@ -86,7 +96,12 @@ describe('MediaQuarantineOpsService rescan', () => {
       scannerVerdict: 'UNAVAILABLE'
     });
     expect(prisma.mediaAsset.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'QUARANTINED', scannerVerdict: 'UNAVAILABLE' })
+      data: expect.objectContaining({
+        status: 'QUARANTINED',
+        scannerVerdict: 'UNAVAILABLE',
+        scannerAttemptCount: { increment: 1 },
+        scannerLastAttemptAt: expect.any(Date)
+      })
     }));
   });
 
