@@ -126,6 +126,7 @@ describe('Media quarantine operations status (e2e)', () => {
       .expect(200);
 
     expect(response.body).toEqual({
+      readiness: 'BLOCKED_INFECTED',
       quarantined: 3,
       infected: 1,
       unavailable: 1,
@@ -135,6 +136,7 @@ describe('Media quarantine operations status (e2e)', () => {
       'infected',
       'oldestQuarantinedAt',
       'quarantined',
+      'readiness',
       'unavailable'
     ]);
   });
