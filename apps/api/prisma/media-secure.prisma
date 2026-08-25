@@ -15,34 +15,38 @@ model MediaUploadSession {
 }
 
 model MediaAsset {
-  id                   String    @id @default(cuid())
-  ownerId              String
-  storageKey           String    @unique
-  originalName         String
-  declaredMime         String
-  detectedMime         String
-  size                 Int
-  sha256               String
-  purpose              String
-  visibility           String    @default("PRIVATE")
-  conversationId       String?
-  status               String    @default("AVAILABLE")
-  scannerVerdict       String
-  scannerReference     String?
-  scannerAttemptCount  Int       @default(1)
-  scannerLastAttemptAt DateTime?
-  width                Int?
-  height               Int?
-  metadata             Json?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  deletedAt            DateTime?
+  id                          String    @id @default(cuid())
+  ownerId                     String
+  storageKey                  String    @unique
+  originalName                String
+  declaredMime                String
+  detectedMime                String
+  size                        Int
+  sha256                      String
+  purpose                     String
+  visibility                  String    @default("PRIVATE")
+  conversationId              String?
+  status                      String    @default("AVAILABLE")
+  scannerVerdict              String
+  scannerReference            String?
+  scannerAttemptCount         Int       @default(1)
+  scannerLastAttemptAt        DateTime?
+  retentionPurgeAttemptCount  Int       @default(0)
+  retentionPurgeLastAttemptAt DateTime?
+  retentionPurgeNextAttemptAt DateTime?
+  width                       Int?
+  height                      Int?
+  metadata                    Json?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  deletedAt                   DateTime?
 
   grants MediaAccessGrant[]
 
   @@index([ownerId, status, createdAt])
   @@index([conversationId, status, createdAt])
   @@index([status, scannerVerdict, scannerLastAttemptAt])
+  @@index([status, retentionPurgeNextAttemptAt, createdAt])
   @@index([sha256])
 }
 
