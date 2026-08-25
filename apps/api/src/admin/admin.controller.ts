@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { PERMISSIONS } from '../access-control/access-control.catalog';
 import { RequirePermissions } from '../access-control/permissions.decorator';
 import { PermissionsGuard } from '../access-control/permissions.guard';
@@ -32,6 +32,15 @@ export class AdminController {
   @Get('operations/media-quarantine')
   mediaQuarantineStatus() {
     return this.mediaQuarantineOps.getSnapshot();
+  }
+
+  @RequirePermissions(PERMISSIONS.MEDIA_QUARANTINE_MANAGE)
+  @Post('operations/media-quarantine/:id/rescan')
+  rescanMediaQuarantine(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    return this.mediaQuarantineOps.rescanUnavailable(req.user.userId, id);
   }
 
   @RequirePermissions(PERMISSIONS.REPORTS_READ)
