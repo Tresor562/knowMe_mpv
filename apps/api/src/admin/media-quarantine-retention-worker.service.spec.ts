@@ -8,6 +8,8 @@ describe('MediaQuarantineRetentionWorkerService', () => {
     const prisma = {
       mediaAsset: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
+        count: jest.fn(),
         updateMany: jest.fn(),
         deleteMany: jest.fn()
       }
@@ -54,6 +56,46 @@ describe('MediaQuarantineRetentionWorkerService', () => {
       lastFailureAt: null,
       lastResult: null
     });
+  });
+
+  it('reports zero backlog without querying data when retention is disabled', async () => {
+    const { service, prisma } = setup({ NODE_ENV: 'test' });
+    await expect(service.getOperationalSnapshot(now)).resolves.toEqual(expect.objectContaining({
+      readiness: 'DISABLED',
+      backlog: {
+        expiredQuarantined: 0,
+        retryDue: 0,
+        retryScheduled: 0,
+        maxBackoffRetries: 0,
+        nextScheduledRetryAt: null
+      }
+    }));
+    expect(prisma.mediaAsset.count).not.toHaveBeenCalled();
+  });
+
+  it('reports bounded persisted purge backlog telemetry for operators', async () => {
+    const { service, prisma } = setup(configured);
+    prisma.mediaAsset.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(1);
+    prisma.mediaAsset.findFirst.mockResolvedValue({
+      retentionPurgeNextAttemptAt: new Date('2026-08-25T13:00:00.000Z')
+    });
+
+    await expect(service.getOperationalSnapshot(now)).resolves.toEqual(expect.objectContaining({
+      readiness: 'AWAITING_FIRST_RUN',
+      backlog: {
+        expiredQuarantined: 2,
+        retryDue: 1,
+        retryScheduled: 3,
+        maxBackoffRetries: 1,
+        nextScheduledRetryAt: '2026-08-25T13:00:00.000Z'
+      }
+    }));
+    expect(prisma.mediaAsset.count).toHaveBeenCalledTimes(4);
+    expect(prisma.mediaAsset.findFirst).toHaveBeenCalledTimes(1);
   });
 
   it('reports AWAITING_FIRST_RUN for a configured worker before its first pass', () => {
