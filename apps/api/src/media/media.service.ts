@@ -11,6 +11,7 @@ import { basename } from 'path';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUploadSessionDto, GrantMediaAccessDto } from './dto/media.dto';
+import { ExternalMediaScannerService } from './external-media-scanner.service';
 import { MediaStorageService } from './media-storage.service';
 
 const SUPPORTED_MIME = new Set([
@@ -40,7 +41,8 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly storage: MediaStorageService
+    private readonly storage: MediaStorageService,
+    private readonly externalScanner: ExternalMediaScannerService
   ) {}
 
   async createUploadSession(userId: string, dto: CreateUploadSessionDto) {
@@ -112,7 +114,7 @@ export class MediaService {
     }
 
     await this.assertQuota(userId, file.size);
-    const scan = this.scan(file.buffer);
+    const scan = await this.scan(file.buffer, detectedMime);
     const status = scan.verdict === 'CLEAN' ? 'AVAILABLE' : 'QUARANTINED';
     const storageKey = `${randomUUID()}${EXTENSIONS[detectedMime]}`;
     const consumedAt = new Date();
@@ -358,14 +360,14 @@ export class MediaService {
     }
   }
 
-  private scan(buffer: Buffer) {
+  private async scan(buffer: Buffer, mimeType: string) {
     if (buffer.toString('ascii').includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE')) {
-      return { verdict: 'INFECTED', reference: 'LOCAL:EICAR' };
+      return { verdict: 'INFECTED' as const, reference: 'LOCAL:EICAR' };
     }
     if (process.env.NODE_ENV === 'production') {
-      return { verdict: 'UNAVAILABLE', reference: 'EXTERNAL_SCANNER_REQUIRED' };
+      return this.externalScanner.scan(buffer, { mimeType });
     }
-    return { verdict: 'CLEAN', reference: 'LOCAL_SIGNATURE_V1' };
+    return { verdict: 'CLEAN' as const, reference: 'LOCAL_SIGNATURE_V1' };
   }
 
   private detectMime(buffer: Buffer) {
