@@ -77,7 +77,14 @@ describe('Media quarantine operations status (e2e)', () => {
       lastAttemptAt: null,
       lastSuccessAt: null,
       lastFailureAt: null,
-      lastResult: null
+      lastResult: null,
+      backlog: {
+        expiredQuarantined: 0,
+        retryDue: 0,
+        retryScheduled: 0,
+        maxBackoffRetries: 0,
+        nextScheduledRetryAt: null
+      }
     });
 
     const oldestQuarantinedAt = new Date('2026-08-01T00:00:00.000Z');
