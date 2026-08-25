@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 const BATCH_SIZE = 25;
+const PURGE_RETRY_BASE_MS = 5 * 60 * 1000;
+const PURGE_RETRY_MAX_MS = 24 * 60 * 60 * 1000;
 
 type PurgeCandidate = {
   id: string;
@@ -14,6 +16,8 @@ type PurgeCandidate = {
   scannerVerdict: string;
   status: string;
   createdAt: Date;
+  retentionPurgeAttemptCount: number;
+  retentionPurgeNextAttemptAt: Date | null;
 };
 
 type RetentionBatchResult = { considered: number; purged: number; failed: number };
@@ -89,10 +93,25 @@ export class MediaQuarantineRetentionWorkerService implements OnModuleInit, OnMo
       where: {
         deletedAt: null,
         scannerVerdict: { in: ['INFECTED', 'UNAVAILABLE'] },
-        status: { in: ['QUARANTINED', 'PURGING'] },
-        OR: [
-          { scannerVerdict: 'INFECTED', createdAt: { lte: infectedCutoff } },
-          { scannerVerdict: 'UNAVAILABLE', createdAt: { lte: unavailableCutoff } }
+        AND: [
+          {
+            OR: [
+              { scannerVerdict: 'INFECTED', createdAt: { lte: infectedCutoff } },
+              { scannerVerdict: 'UNAVAILABLE', createdAt: { lte: unavailableCutoff } }
+            ]
+          },
+          {
+            OR: [
+              { status: 'QUARANTINED' },
+              {
+                status: 'PURGING',
+                OR: [
+                  { retentionPurgeNextAttemptAt: null },
+                  { retentionPurgeNextAttemptAt: { lte: now } }
+                ]
+              }
+            ]
+          }
         ]
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -103,7 +122,9 @@ export class MediaQuarantineRetentionWorkerService implements OnModuleInit, OnMo
         storageKey: true,
         scannerVerdict: true,
         status: true,
-        createdAt: true
+        createdAt: true,
+        retentionPurgeAttemptCount: true,
+        retentionPurgeNextAttemptAt: true
       }
     });
 
@@ -111,7 +132,7 @@ export class MediaQuarantineRetentionWorkerService implements OnModuleInit, OnMo
     let failed = 0;
     for (const candidate of candidates) {
       try {
-        const claimed = await this.claim(candidate, infectedCutoff, unavailableCutoff);
+        const claimed = await this.claim(candidate, infectedCutoff, unavailableCutoff, now);
         if (!claimed) continue;
 
         await this.storage.delete(candidate.storageKey);
@@ -149,20 +170,46 @@ export class MediaQuarantineRetentionWorkerService implements OnModuleInit, OnMo
     return { considered: candidates.length, purged, failed };
   }
 
-  private async claim(candidate: PurgeCandidate, infectedCutoff: Date, unavailableCutoff: Date) {
-    if (candidate.status === 'PURGING') return true;
+  private async claim(candidate: PurgeCandidate, infectedCutoff: Date, unavailableCutoff: Date, now: Date) {
     const cutoff = candidate.scannerVerdict === 'INFECTED' ? infectedCutoff : unavailableCutoff;
+    const nextAttemptNumber = candidate.retentionPurgeAttemptCount + 1;
+    const nextAttemptAt = new Date(now.getTime() + this.retryDelayMs(nextAttemptNumber));
+
+    const where = candidate.status === 'PURGING'
+      ? {
+          id: candidate.id,
+          status: 'PURGING',
+          scannerVerdict: candidate.scannerVerdict,
+          deletedAt: null,
+          createdAt: { lte: cutoff },
+          OR: [
+            { retentionPurgeNextAttemptAt: null },
+            { retentionPurgeNextAttemptAt: { lte: now } }
+          ]
+        }
+      : {
+          id: candidate.id,
+          status: 'QUARANTINED',
+          scannerVerdict: candidate.scannerVerdict,
+          deletedAt: null,
+          createdAt: { lte: cutoff }
+        };
+
     const claimed = await this.prisma.mediaAsset.updateMany({
-      where: {
-        id: candidate.id,
-        status: 'QUARANTINED',
-        scannerVerdict: candidate.scannerVerdict,
-        deletedAt: null,
-        createdAt: { lte: cutoff }
-      },
-      data: { status: 'PURGING' }
+      where,
+      data: {
+        status: 'PURGING',
+        retentionPurgeAttemptCount: { increment: 1 },
+        retentionPurgeLastAttemptAt: now,
+        retentionPurgeNextAttemptAt: nextAttemptAt
+      }
     });
     return claimed.count === 1;
+  }
+
+  private retryDelayMs(attemptNumber: number) {
+    const exponent = Math.max(0, Math.min(attemptNumber - 1, 16));
+    return Math.min(PURGE_RETRY_BASE_MS * 2 ** exponent, PURGE_RETRY_MAX_MS);
   }
 
   private async runScheduledBatch() {
