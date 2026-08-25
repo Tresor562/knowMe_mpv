@@ -4,6 +4,7 @@ import { RolesGuard } from '../common/roles.guard';
 import { MediaModule } from '../media/media.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { MediaPurgeAlertService } from './media-purge-alert.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
 import { MediaQuarantineRetentionWorkerService } from './media-quarantine-retention-worker.service';
 import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-worker.service';
@@ -13,6 +14,7 @@ import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-work
   controllers: [AdminController],
   providers: [
     AdminService,
+    MediaPurgeAlertService,
     MediaQuarantineOpsService,
     MediaQuarantineRetentionWorkerService,
     MediaQuarantineRetryWorkerService,
