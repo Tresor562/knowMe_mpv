@@ -7,11 +7,17 @@ import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
 const DEFAULT_INTERVAL_MS = 60_000;
 const DEFAULT_BATCH_SIZE = 10;
 
+type RetryBatchResult = { attempted: number; succeeded: number; failed: number };
+
 @Injectable()
 export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MediaQuarantineRetryWorkerService.name);
   private timer?: NodeJS.Timeout;
   private running = false;
+  private lastAttemptAt: Date | null = null;
+  private lastSuccessAt: Date | null = null;
+  private lastFailureAt: Date | null = null;
+  private lastResult: RetryBatchResult | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -29,6 +35,33 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
 
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
+  }
+
+  getSnapshot(now = new Date()) {
+    const enabled = this.enabled();
+    const intervalMs = this.intervalMs();
+    const stale = enabled && this.lastAttemptAt !== null && now.getTime() - this.lastAttemptAt.getTime() > intervalMs * 2;
+    const readiness = !enabled
+      ? 'DISABLED'
+      : this.lastAttemptAt === null
+        ? 'AWAITING_FIRST_RUN'
+        : stale
+          ? 'STALE'
+          : this.lastFailureAt && (!this.lastSuccessAt || this.lastFailureAt > this.lastSuccessAt)
+            ? 'FAILING'
+            : 'HEALTHY';
+
+    return {
+      enabled,
+      running: this.running,
+      readiness,
+      intervalMs,
+      batchSize: this.batchSize(),
+      lastAttemptAt: this.lastAttemptAt?.toISOString() ?? null,
+      lastSuccessAt: this.lastSuccessAt?.toISOString() ?? null,
+      lastFailureAt: this.lastFailureAt?.toISOString() ?? null,
+      lastResult: this.lastResult
+    };
   }
 
   async processEligibleBatch(now = new Date()) {
@@ -77,8 +110,21 @@ export class MediaQuarantineRetryWorkerService implements OnModuleInit, OnModule
   private async runScheduledBatch() {
     if (this.running) return;
     this.running = true;
+    const attemptedAt = new Date();
+    this.lastAttemptAt = attemptedAt;
     try {
-      await this.processEligibleBatch(new Date());
+      const result = await this.processEligibleBatch(attemptedAt);
+      this.lastResult = result;
+      if (result.failed > 0) {
+        this.lastFailureAt = new Date();
+      } else {
+        this.lastSuccessAt = new Date();
+      }
+    } catch (error) {
+      this.lastFailureAt = new Date();
+      this.lastResult = null;
+      const message = error instanceof Error ? error.message : 'Unknown automatic media quarantine retry batch failure';
+      this.logger.error(`Automatic media quarantine retry batch failed: ${message}`);
     } finally {
       this.running = false;
     }
