@@ -1,6 +1,24 @@
-import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
+import {
+  classifyMediaQuarantineReadiness,
+  MediaQuarantineOpsService
+} from './media-quarantine-ops.service';
 
 describe('MediaQuarantineOpsService', () => {
+  it('classifies quarantine state conservatively', () => {
+    expect(
+      classifyMediaQuarantineReadiness({ quarantined: 3, infected: 1, unavailable: 1 })
+    ).toBe('BLOCKED_INFECTED');
+    expect(
+      classifyMediaQuarantineReadiness({ quarantined: 2, infected: 0, unavailable: 1 })
+    ).toBe('BLOCKED_SCANNER_UNAVAILABLE');
+    expect(
+      classifyMediaQuarantineReadiness({ quarantined: 1, infected: 0, unavailable: 0 })
+    ).toBe('PENDING_QUARANTINE');
+    expect(
+      classifyMediaQuarantineReadiness({ quarantined: 0, infected: 0, unavailable: 0 })
+    ).toBe('CLEAR');
+  });
+
   it('returns only bounded aggregate quarantine state', async () => {
     const oldest = new Date('2026-08-25T05:00:00.000Z');
     const mediaAsset = {
@@ -19,6 +37,7 @@ describe('MediaQuarantineOpsService', () => {
     const service = new MediaQuarantineOpsService(prisma as never);
 
     await expect(service.getSnapshot()).resolves.toEqual({
+      readiness: 'BLOCKED_INFECTED',
       quarantined: 7,
       infected: 2,
       unavailable: 5,
@@ -32,7 +51,7 @@ describe('MediaQuarantineOpsService', () => {
     });
   });
 
-  it('returns a null oldest timestamp for an empty quarantine', async () => {
+  it('returns a clear state and null oldest timestamp for an empty quarantine', async () => {
     const prisma = {
       mediaAsset: {
         count: jest.fn().mockResolvedValue(0),
@@ -44,6 +63,7 @@ describe('MediaQuarantineOpsService', () => {
     const service = new MediaQuarantineOpsService(prisma as never);
 
     await expect(service.getSnapshot()).resolves.toEqual({
+      readiness: 'CLEAR',
       quarantined: 0,
       infected: 0,
       unavailable: 0,
