@@ -92,6 +92,7 @@ export class MediaQuarantineOpsService {
 
     const result = await this.scanner.scan(buffer, { mimeType: asset.detectedMime });
     const status = result.verdict === 'CLEAN' ? 'AVAILABLE' : 'QUARANTINED';
+    const attemptedAt = new Date();
     const updated = await this.prisma.mediaAsset.updateMany({
       where: {
         id: asset.id,
@@ -102,7 +103,9 @@ export class MediaQuarantineOpsService {
       data: {
         status,
         scannerVerdict: result.verdict,
-        scannerReference: result.reference
+        scannerReference: result.reference,
+        scannerAttemptCount: { increment: 1 },
+        scannerLastAttemptAt: attemptedAt
       }
     });
     if (updated.count !== 1) {
