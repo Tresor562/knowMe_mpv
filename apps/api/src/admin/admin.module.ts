@@ -5,6 +5,7 @@ import { MediaModule } from '../media/media.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { MediaPurgeAlertService } from './media-purge-alert.service';
+import { MediaPurgeAlertWorkerService } from './media-purge-alert-worker.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
 import { MediaQuarantineRetentionWorkerService } from './media-quarantine-retention-worker.service';
 import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-worker.service';
@@ -15,6 +16,7 @@ import { MediaQuarantineRetryWorkerService } from './media-quarantine-retry-work
   providers: [
     AdminService,
     MediaPurgeAlertService,
+    MediaPurgeAlertWorkerService,
     MediaQuarantineOpsService,
     MediaQuarantineRetentionWorkerService,
     MediaQuarantineRetryWorkerService,
