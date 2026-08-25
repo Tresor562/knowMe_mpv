@@ -18,6 +18,7 @@ import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateUploadSessionDto, GrantMediaAccessDto } from './dto/media.dto';
 import { MediaService } from './media.service';
+import { resolveMediaUploadMaxBytes } from './media-upload-policy';
 
 @UseGuards(JwtAuthGuard)
 @Controller('media')
@@ -36,7 +37,7 @@ export class MediaController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 25 * 1024 * 1024, files: 1 }
+      limits: { fileSize: resolveMediaUploadMaxBytes(), files: 1 }
     })
   )
   completeUpload(
