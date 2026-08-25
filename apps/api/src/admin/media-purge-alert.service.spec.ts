@@ -67,7 +67,7 @@ describe('MediaPurgeAlertService', () => {
   });
 
   it('delivers only the bounded aggregate payload', async () => {
-    const fetchSpy = jest.fn().mockResolvedValue(new Response('', { status: 204 }));
+    const fetchSpy = jest.fn().mockResolvedValue(new Response(null, { status: 204 }));
     global.fetch = fetchSpy as unknown as typeof fetch;
 
     await expect(new MediaPurgeAlertService().notify(payload)).resolves.toBe('DELIVERED');
