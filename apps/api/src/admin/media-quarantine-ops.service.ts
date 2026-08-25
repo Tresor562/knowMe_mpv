@@ -1,6 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+export type MediaQuarantineReadiness =
+  | 'BLOCKED_INFECTED'
+  | 'BLOCKED_SCANNER_UNAVAILABLE'
+  | 'PENDING_QUARANTINE'
+  | 'CLEAR';
+
+export function classifyMediaQuarantineReadiness(input: {
+  quarantined: number;
+  infected: number;
+  unavailable: number;
+}): MediaQuarantineReadiness {
+  if (input.infected > 0) {
+    return 'BLOCKED_INFECTED';
+  }
+  if (input.unavailable > 0) {
+    return 'BLOCKED_SCANNER_UNAVAILABLE';
+  }
+  if (input.quarantined > 0) {
+    return 'PENDING_QUARANTINE';
+  }
+  return 'CLEAR';
+}
+
 @Injectable()
 export class MediaQuarantineOpsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -24,6 +47,7 @@ export class MediaQuarantineOpsService {
     ]);
 
     return {
+      readiness: classifyMediaQuarantineReadiness({ quarantined, infected, unavailable }),
       quarantined,
       infected,
       unavailable,
