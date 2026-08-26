@@ -51,19 +51,11 @@ describe('Media purge alert operations status (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(response.body).toEqual({
+    expect(response.body).toEqual(expect.objectContaining({
       running: expect.any(Boolean),
       pollIntervalMs: 300000,
-      reminderIntervalMs: 3600000,
-      lastObservedReadiness: expect.toBeOneOf
-        ? expect.toBeOneOf([null, 'DISABLED', 'CLEAR', 'ACTION_REQUIRED', 'BLOCKED_WORKER', 'BLOCKED_MAX_BACKOFF'])
-        : response.body.lastObservedReadiness,
-      lastPollAt: response.body.lastPollAt,
-      lastAlertAttemptAt: response.body.lastAlertAttemptAt,
-      lastDeliveredAt: response.body.lastDeliveredAt,
-      lastFailureAt: response.body.lastFailureAt,
-      lastResult: response.body.lastResult
-    });
+      reminderIntervalMs: 3600000
+    }));
     expect(Object.keys(response.body).sort()).toEqual([
       'lastAlertAttemptAt',
       'lastDeliveredAt',
@@ -83,5 +75,9 @@ describe('Media purge alert operations status (e2e)', () => {
       response.body.lastObservedReadiness === null || typeof response.body.lastObservedReadiness === 'string'
     ).toBe(true);
     expect(response.body.lastResult === null || typeof response.body.lastResult === 'string').toBe(true);
+
+    const serialized = JSON.stringify(response.body);
+    expect(serialized).not.toContain('MEDIA_PURGE_ALERT_WEBHOOK_URL');
+    expect(serialized).not.toContain('MEDIA_PURGE_ALERT_WEBHOOK_TOKEN');
   });
 });
