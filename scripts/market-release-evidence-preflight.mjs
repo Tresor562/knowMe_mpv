@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
 
 const COMMON_EVIDENCE = [
@@ -36,11 +37,18 @@ function canonicalUtcTimestamp(value) {
   return timestamp;
 }
 
+function canonicalReleaseVersion(value) {
+  return typeof value === 'string' && value === value.trim() && RELEASE_VERSION.test(value) ? value : null;
+}
+
 export function requiredEvidenceForScope(scope) {
   return scope === 'FULL' ? [...COMMON_EVIDENCE, ...FULL_EVIDENCE] : [...COMMON_EVIDENCE];
 }
 
-export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = new Date() } = {}) {
+export function validateMarketReleaseEvidence(
+  manifest,
+  { expectedCommit, expectedReleaseVersion, now = new Date() } = {},
+) {
   const errors = [];
   const warnings = [];
 
@@ -48,8 +56,9 @@ export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = 
     return { ok: false, errors: ['Release evidence manifest must be a JSON object.'], warnings };
   }
 
-  if (manifest.schemaVersion !== 1) errors.push('schemaVersion must equal 1.');
+  if (manifest.schemaVersion !== 2) errors.push('schemaVersion must equal 2.');
   if (!SCOPES.has(manifest.scope)) errors.push('scope must be WEB_V1 or FULL.');
+  if (manifest.environment !== 'PRODUCTION') errors.push('environment must equal PRODUCTION.');
 
   const normalizedExpectedCommit = nonEmpty(expectedCommit) ? expectedCommit.trim() : '';
   if (!SHA40.test(normalizedExpectedCommit)) {
@@ -60,6 +69,21 @@ export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = 
     errors.push('releaseCommit must be a lowercase 40-character Git commit SHA.');
   } else if (SHA40.test(normalizedExpectedCommit) && manifest.releaseCommit.trim() !== normalizedExpectedCommit) {
     errors.push('releaseCommit does not match the commit being released.');
+  }
+
+  const normalizedExpectedReleaseVersion = canonicalReleaseVersion(expectedReleaseVersion);
+  if (normalizedExpectedReleaseVersion === null) {
+    errors.push('expected release version must be an explicit canonical SemVer version.');
+  }
+
+  const manifestReleaseVersion = canonicalReleaseVersion(manifest.releaseVersion);
+  if (manifestReleaseVersion === null) {
+    errors.push('releaseVersion must be a canonical SemVer version without build metadata.');
+  } else if (
+    normalizedExpectedReleaseVersion !== null &&
+    manifestReleaseVersion !== normalizedExpectedReleaseVersion
+  ) {
+    errors.push('releaseVersion does not match the version being released.');
   }
 
   if (!Array.isArray(manifest.evidence)) {
@@ -147,9 +171,18 @@ async function runCli() {
     return;
   }
 
+  const expectedReleaseVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
+  if (canonicalReleaseVersion(expectedReleaseVersion) === null) {
+    console.error(
+      'ERROR: Bind market readiness to the exact release version with --version <semver> or KNOWME_RELEASE_VERSION.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const raw = await readFile(file, 'utf8');
   const manifest = JSON.parse(raw);
-  const result = validateMarketReleaseEvidence(manifest, { expectedCommit });
+  const result = validateMarketReleaseEvidence(manifest, { expectedCommit, expectedReleaseVersion });
 
   for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
   if (!result.ok) {
@@ -159,7 +192,9 @@ async function runCli() {
     return;
   }
 
-  console.log(`Market release evidence preflight passed for ${manifest.scope} at ${manifest.releaseCommit}.`);
+  console.log(
+    `Market release evidence preflight passed for ${manifest.scope} ${manifest.releaseVersion} at ${manifest.releaseCommit}.`,
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
