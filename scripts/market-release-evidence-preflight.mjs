@@ -9,6 +9,25 @@ const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z
 const SIGNING_KEY_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
 const MIN_SIGNING_KEY_LENGTH = 32;
+const MANIFEST_FIELDS = new Set([
+  'schemaVersion',
+  'scope',
+  'environment',
+  'releaseCommit',
+  'releaseVersion',
+  'signingKeyId',
+  'evidence',
+  'manifestHmacSha256',
+]);
+const EVIDENCE_FIELDS = new Set([
+  'id',
+  'status',
+  'verifiedAt',
+  'validUntil',
+  'verifier',
+  'evidenceRef',
+  'evidenceSha256',
+]);
 
 const COMMON_EVIDENCE = [
   'production_tls_domain',
@@ -49,11 +68,7 @@ function canonicalSigningKeyId(value) {
 }
 
 function validSigningKey(value) {
-  return (
-    typeof value === 'string' &&
-    value === value.trim() &&
-    value.length >= MIN_SIGNING_KEY_LENGTH
-  );
+  return typeof value === 'string' && value === value.trim() && value.length >= MIN_SIGNING_KEY_LENGTH;
 }
 
 function canonicalJson(value) {
@@ -68,6 +83,10 @@ function canonicalJson(value) {
 function unsignedManifest(manifest) {
   const { manifestHmacSha256: _signature, ...unsigned } = manifest;
   return unsigned;
+}
+
+function unknownFields(value, allowed) {
+  return Object.keys(value).filter((key) => !allowed.has(key));
 }
 
 export function computeMarketReleaseEvidenceHmac(manifest, signingKey) {
@@ -100,6 +119,11 @@ export function validateMarketReleaseEvidence(
     return { ok: false, errors: ['Release evidence manifest must be a JSON object.'], warnings };
   }
 
+  const unknownManifestFields = unknownFields(manifest, MANIFEST_FIELDS);
+  if (unknownManifestFields.length > 0) {
+    errors.push(`Unknown release evidence manifest field(s): ${unknownManifestFields.sort().join(', ')}.`);
+  }
+
   if (manifest.schemaVersion !== 4) errors.push('schemaVersion must equal 4.');
   if (!SCOPES.has(manifest.scope)) errors.push('scope must be WEB_V1 or FULL.');
   if (manifest.environment !== 'PRODUCTION') errors.push('environment must equal PRODUCTION.');
@@ -111,10 +135,7 @@ export function validateMarketReleaseEvidence(
   const manifestSigningKeyId = canonicalSigningKeyId(manifest.signingKeyId);
   if (manifestSigningKeyId === null) {
     errors.push('signingKeyId must be a canonical lowercase identifier of at most 64 characters.');
-  } else if (
-    normalizedExpectedSigningKeyId !== null &&
-    manifestSigningKeyId !== normalizedExpectedSigningKeyId
-  ) {
+  } else if (normalizedExpectedSigningKeyId !== null && manifestSigningKeyId !== normalizedExpectedSigningKeyId) {
     errors.push('signingKeyId does not match the release evidence signing key identity.');
   }
 
@@ -143,10 +164,7 @@ export function validateMarketReleaseEvidence(
   const manifestReleaseVersion = canonicalReleaseVersion(manifest.releaseVersion);
   if (manifestReleaseVersion === null) {
     errors.push('releaseVersion must be a canonical SemVer version without build metadata.');
-  } else if (
-    normalizedExpectedReleaseVersion !== null &&
-    manifestReleaseVersion !== normalizedExpectedReleaseVersion
-  ) {
+  } else if (normalizedExpectedReleaseVersion !== null && manifestReleaseVersion !== normalizedExpectedReleaseVersion) {
     errors.push('releaseVersion does not match the version being released.');
   }
 
@@ -155,6 +173,7 @@ export function validateMarketReleaseEvidence(
     return { ok: false, errors, warnings };
   }
 
+  const requiredIds = SCOPES.has(manifest.scope) ? new Set(requiredEvidenceForScope(manifest.scope)) : new Set();
   const byId = new Map();
   for (const item of manifest.evidence) {
     if (!item || typeof item !== 'object' || Array.isArray(item) || !nonEmpty(item.id)) {
@@ -162,6 +181,13 @@ export function validateMarketReleaseEvidence(
       continue;
     }
     const id = item.id.trim();
+    const unknownEvidenceFields = unknownFields(item, EVIDENCE_FIELDS);
+    if (unknownEvidenceFields.length > 0) {
+      errors.push(`${id} contains unknown field(s): ${unknownEvidenceFields.sort().join(', ')}.`);
+    }
+    if (SCOPES.has(manifest.scope) && !requiredIds.has(id)) {
+      errors.push(`Unexpected release evidence id for ${manifest.scope}: ${id}.`);
+    }
     if (byId.has(id)) {
       errors.push(`Duplicate evidence id: ${id}.`);
       continue;
@@ -228,36 +254,28 @@ async function runCli() {
 
   const expectedCommit = readArg('--commit') ?? process.env.GITHUB_SHA ?? process.env.KNOWME_RELEASE_COMMIT;
   if (!nonEmpty(expectedCommit) || !SHA40.test(expectedCommit.trim())) {
-    console.error(
-      'ERROR: Bind market readiness to the exact release commit with --commit <sha>, GITHUB_SHA, or KNOWME_RELEASE_COMMIT.',
-    );
+    console.error('ERROR: Bind market readiness to the exact release commit with --commit <sha>, GITHUB_SHA, or KNOWME_RELEASE_COMMIT.');
     process.exitCode = 1;
     return;
   }
 
   const expectedReleaseVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
   if (canonicalReleaseVersion(expectedReleaseVersion) === null) {
-    console.error(
-      'ERROR: Bind market readiness to the exact release version with --version <semver> or KNOWME_RELEASE_VERSION.',
-    );
+    console.error('ERROR: Bind market readiness to the exact release version with --version <semver> or KNOWME_RELEASE_VERSION.');
     process.exitCode = 1;
     return;
   }
 
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
   if (canonicalSigningKeyId(expectedSigningKeyId) === null) {
-    console.error(
-      'ERROR: KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID must be an explicit canonical lowercase key identifier.',
-    );
+    console.error('ERROR: KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID must be an explicit canonical lowercase key identifier.');
     process.exitCode = 1;
     return;
   }
 
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
   if (!validSigningKey(signingKey)) {
-    console.error(
-      `ERROR: KNOWME_RELEASE_EVIDENCE_SIGNING_KEY must be an explicit canonical secret of at least ${MIN_SIGNING_KEY_LENGTH} characters.`,
-    );
+    console.error(`ERROR: KNOWME_RELEASE_EVIDENCE_SIGNING_KEY must be an explicit canonical secret of at least ${MIN_SIGNING_KEY_LENGTH} characters.`);
     process.exitCode = 1;
     return;
   }
@@ -279,9 +297,7 @@ async function runCli() {
     return;
   }
 
-  console.log(
-    `Market release evidence preflight passed for ${manifest.scope} ${manifest.releaseVersion} at ${manifest.releaseCommit} using signing key ${manifest.signingKeyId}.`,
-  );
+  console.log(`Market release evidence preflight passed for ${manifest.scope} ${manifest.releaseVersion} at ${manifest.releaseCommit} using signing key ${manifest.signingKeyId}.`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
