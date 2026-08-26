@@ -75,6 +75,7 @@ export class MediaPurgeAlertWorkerService implements OnModuleInit, OnModuleDestr
     try {
       const snapshot = await this.retention.getOperationalSnapshot(now);
       const readiness = classifyMediaQuarantineRetentionReadiness(snapshot.readiness, snapshot.backlog);
+      const previousReadiness = this.lastReadiness;
       this.lastReadiness = readiness;
       if (!ALERTABLE.has(readiness)) {
         this.lastDeliveredAt = null;
@@ -82,7 +83,7 @@ export class MediaPurgeAlertWorkerService implements OnModuleInit, OnModuleDestr
         return this.lastResult;
       }
 
-      const transitioned = readiness !== this.lastReadinessBeforeCurrentPoll(snapshot.readiness, snapshot.backlog);
+      const transitioned = readiness !== previousReadiness;
       const reminderDue = !this.lastDeliveredAt || now.getTime() - this.lastDeliveredAt.getTime() >= ALERT_REMINDER_INTERVAL_MS;
       if (!transitioned && !reminderDue) {
         this.lastResult = 'SKIPPED_DEDUPLICATED';
@@ -113,9 +114,5 @@ export class MediaPurgeAlertWorkerService implements OnModuleInit, OnModuleDestr
     } finally {
       this.running = false;
     }
-  }
-
-  private lastReadinessBeforeCurrentPoll(_retentionReadiness: string, _backlog: unknown) {
-    return this.lastReadiness;
   }
 }
