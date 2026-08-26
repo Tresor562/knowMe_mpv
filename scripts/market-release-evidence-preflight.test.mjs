@@ -13,6 +13,7 @@ function item(id) {
     validUntil: '2026-08-27T01:30:00.000Z',
     verifier: 'release-reviewer',
     evidenceRef: `evidence://${id}`,
+    evidenceSha256: 'b'.repeat(64),
   };
 }
 
@@ -137,6 +138,30 @@ test('rejects a non-canonical validity deadline', () => {
   const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
   assert.equal(result.ok, false);
   assert.ok(result.errors.includes(`${target.id}.validUntil must be a canonical ISO-8601 UTC timestamp.`));
+});
+
+test('requires a SHA-256 digest for every retained evidence artifact', () => {
+  const value = manifest();
+  const target = value.evidence[0];
+  delete target.evidenceSha256;
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes(`${target.id}.evidenceSha256 must be a lowercase 64-character SHA-256 digest.`));
+});
+
+test('rejects malformed or non-canonical evidence digests', () => {
+  for (const digest of ['ABC', 'A'.repeat(64), 'a'.repeat(63), ` ${'a'.repeat(64)} `]) {
+    const value = manifest();
+    const target = value.evidence[0];
+    target.evidenceSha256 = digest;
+    const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+    if (digest === ` ${'a'.repeat(64)} `) {
+      assert.equal(result.ok, true);
+    } else {
+      assert.equal(result.ok, false);
+      assert.ok(result.errors.includes(`${target.id}.evidenceSha256 must be a lowercase 64-character SHA-256 digest.`));
+    }
+  }
 });
 
 test('rejects unknown scope and non-canonical commit ids', () => {
