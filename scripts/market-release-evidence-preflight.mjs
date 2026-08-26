@@ -7,8 +7,12 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SIGNING_KEY_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
 const MIN_SIGNING_KEY_LENGTH = 32;
+const MAX_VERIFIER_LENGTH = 128;
+const MIN_EVIDENCE_REF_LENGTH = 8;
+const MAX_EVIDENCE_REF_LENGTH = 2048;
 const MANIFEST_FIELDS = new Set([
   'schemaVersion',
   'scope',
@@ -65,6 +69,32 @@ function canonicalReleaseVersion(value) {
 
 function canonicalSigningKeyId(value) {
   return typeof value === 'string' && value === value.trim() && SIGNING_KEY_ID.test(value) ? value : null;
+}
+
+function canonicalVerifier(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return null;
+  if (value.length < 1 || value.length > MAX_VERIFIER_LENGTH || CONTROL_CHARACTERS.test(value)) return null;
+  return value;
+}
+
+function canonicalEvidenceRef(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return null;
+  if (
+    value.length < MIN_EVIDENCE_REF_LENGTH ||
+    value.length > MAX_EVIDENCE_REF_LENGTH ||
+    CONTROL_CHARACTERS.test(value)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (!parsed.protocol || parsed.username || parsed.password) return null;
+  } catch {
+    return null;
+  }
+
+  return value;
 }
 
 function validSigningKey(value) {
@@ -203,9 +233,11 @@ export function validateMarketReleaseEvidence(
         continue;
       }
       if (item.status !== 'VERIFIED') errors.push(`${id}.status must equal VERIFIED.`);
-      if (!nonEmpty(item.verifier)) errors.push(`${id}.verifier must identify the reviewer or responsible operator.`);
-      if (!nonEmpty(item.evidenceRef) || item.evidenceRef.trim().length < 8) {
-        errors.push(`${id}.evidenceRef must point to retained release evidence.`);
+      if (canonicalVerifier(item.verifier) === null) {
+        errors.push(`${id}.verifier must be canonical, non-empty, free of control characters, and at most ${MAX_VERIFIER_LENGTH} characters.`);
+      }
+      if (canonicalEvidenceRef(item.evidenceRef) === null) {
+        errors.push(`${id}.evidenceRef must be a canonical absolute URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without embedded credentials or control characters.`);
       }
       if (
         !nonEmpty(item.evidenceSha256) ||
