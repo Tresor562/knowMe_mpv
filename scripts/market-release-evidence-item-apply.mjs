@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+
+import { readFile, writeFile } from 'node:fs/promises';
+
+const SHA40 = /^[0-9a-f]{40}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
+const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const ZERO_HMAC = '0'.repeat(64);
+const ITEM_KEYS = ['id', 'status', 'verifiedAt', 'validUntil', 'verifier', 'evidenceRef', 'evidenceSha256'];
+
+function canonicalTimestamp(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
+}
+
+function exactKeys(value, expected) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  return keys.length === expected.length && keys.every((key, index) => key === [...expected].sort()[index]);
+}
+
+export function applyProductionDeploymentSmokeEvidenceItem(
+  manifest,
+  item,
+  { expectedCommit, expectedVersion, now = new Date() } = {},
+) {
+  const errors = [];
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) errors.push('manifest must be a JSON object.');
+  if (!item || typeof item !== 'object' || Array.isArray(item)) errors.push('item must be a JSON object.');
+  if (!SHA40.test(expectedCommit ?? '')) errors.push('expectedCommit must be a lowercase 40-character Git SHA.');
+  if (!RELEASE_VERSION.test(expectedVersion ?? '')) errors.push('expectedVersion must be a canonical SemVer without build metadata.');
+  const nowMs = now instanceof Date && !Number.isNaN(now.getTime()) ? now.getTime() : NaN;
+  if (!Number.isFinite(nowMs)) errors.push('now must be a valid Date.');
+
+  if (manifest && typeof manifest === 'object' && !Array.isArray(manifest)) {
+    if (manifest.schemaVersion !== 4) errors.push('manifest schemaVersion must be 4.');
+    if (manifest.releaseCommit !== expectedCommit) errors.push('manifest releaseCommit does not match expectedCommit.');
+    if (manifest.releaseVersion !== expectedVersion) errors.push('manifest releaseVersion does not match expectedVersion.');
+    if (manifest.manifestHmacSha256 !== ZERO_HMAC) errors.push('manifest must be unsigned before applying an evidence item.');
+    if (!Array.isArray(manifest.evidence)) errors.push('manifest evidence must be an array.');
+  }
+
+  if (item && typeof item === 'object' && !Array.isArray(item)) {
+    if (!exactKeys(item, ITEM_KEYS)) errors.push('item must contain exactly the bounded release evidence fields.');
+    if (item.id !== 'production_deployment_smoke') errors.push('item id must be production_deployment_smoke.');
+    if (item.status !== 'VERIFIED') errors.push('item status must be VERIFIED.');
+    if (!SHA256.test(item.evidenceSha256 ?? '')) errors.push('item evidenceSha256 must be a lowercase SHA-256 digest.');
+    const verifiedAtMs = canonicalTimestamp(item.verifiedAt);
+    const validUntilMs = canonicalTimestamp(item.validUntil);
+    if (verifiedAtMs === null) errors.push('item verifiedAt must be a canonical UTC timestamp.');
+    if (validUntilMs === null) errors.push('item validUntil must be a canonical UTC timestamp.');
+    if (verifiedAtMs !== null && Number.isFinite(nowMs) && verifiedAtMs > nowMs + 5 * 60_000) errors.push('item verifiedAt must not be in the future.');
+    if (validUntilMs !== null && Number.isFinite(nowMs) && validUntilMs <= nowMs) errors.push('item validUntil must still be in the future.');
+    if (verifiedAtMs !== null && validUntilMs !== null && validUntilMs <= verifiedAtMs) errors.push('item validUntil must be later than verifiedAt.');
+  }
+
+  if (errors.length === 0) {
+    const matches = manifest.evidence
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry?.id === 'production_deployment_smoke');
+    if (matches.length !== 1) errors.push('manifest must contain exactly one production_deployment_smoke slot.');
+    else {
+      const current = matches[0].entry;
+      if (current.status !== 'PENDING') errors.push('production_deployment_smoke slot must still be PENDING before apply.');
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  const output = structuredClone(manifest);
+  const index = output.evidence.findIndex((entry) => entry.id === 'production_deployment_smoke');
+  output.evidence[index] = structuredClone(item);
+  output.manifestHmacSha256 = ZERO_HMAC;
+  return { ok: true, manifest: output };
+}
+
+function readArg(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+async function runCli() {
+  const manifestPath = readArg('--manifest');
+  const itemPath = readArg('--item');
+  const outputPath = readArg('--output');
+  if (!manifestPath || !itemPath || !outputPath) {
+    throw new Error('Provide --manifest <file>, --item <file>, and --output <file>.');
+  }
+  const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
+  const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const item = JSON.parse(await readFile(itemPath, 'utf8'));
+  const result = applyProductionDeploymentSmokeEvidenceItem(manifest, item, { expectedCommit, expectedVersion });
+  if (!result.ok) throw new Error(result.errors.join(' '));
+  await writeFile(outputPath, `${JSON.stringify(result.manifest, null, 2)}\n`, {
+    encoding: 'utf8',
+    flag: 'wx',
+    mode: 0o600,
+  });
+  console.log(`Applied production_deployment_smoke evidence to unsigned manifest at ${outputPath}.`);
+  console.log('The resulting manifest is intentionally unsigned and must still pass release:evidence:sign and check:market-ready.');
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runCli().catch((error) => {
+    console.error('ERROR: Release evidence item apply failed.');
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
