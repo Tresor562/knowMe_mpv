@@ -5,15 +5,23 @@ import { PrismaService } from './prisma/prisma.service';
 
 describe('HealthController', () => {
   const originalMetricsToken = process.env.METRICS_BEARER_TOKEN;
+  const originalReleaseCommit = process.env.KNOWME_RELEASE_COMMIT;
+  const originalReleaseVersion = process.env.KNOWME_RELEASE_VERSION;
 
   beforeEach(() => {
     resetRuntimeHttpMetricsForTests();
     process.env.METRICS_BEARER_TOKEN = 'm'.repeat(64);
+    delete process.env.KNOWME_RELEASE_COMMIT;
+    delete process.env.KNOWME_RELEASE_VERSION;
   });
 
   afterAll(() => {
     if (originalMetricsToken === undefined) delete process.env.METRICS_BEARER_TOKEN;
     else process.env.METRICS_BEARER_TOKEN = originalMetricsToken;
+    if (originalReleaseCommit === undefined) delete process.env.KNOWME_RELEASE_COMMIT;
+    else process.env.KNOWME_RELEASE_COMMIT = originalReleaseCommit;
+    if (originalReleaseVersion === undefined) delete process.env.KNOWME_RELEASE_VERSION;
+    else process.env.KNOWME_RELEASE_VERSION = originalReleaseVersion;
   });
 
   const makeController = () => {
@@ -34,6 +42,7 @@ describe('HealthController', () => {
     expect(result.status).toBe('ok');
     expect(result.service).toBe('knowme-api');
     expect(result.timestamp).toBeDefined();
+    expect(result.release).toEqual({ commit: null, version: null });
     expect(result.checks).toEqual({ process: 'up' });
     expect(queryRaw).not.toHaveBeenCalled();
   });
@@ -45,6 +54,17 @@ describe('HealthController', () => {
     expect(result.status).toBe('ok');
     expect(result.checks).toEqual({ process: 'up' });
     expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('exposes the exact configured runtime release identity without extra metadata', () => {
+    process.env.KNOWME_RELEASE_COMMIT = 'a'.repeat(40);
+    process.env.KNOWME_RELEASE_VERSION = '1.0.0-rc.1';
+    const { controller } = makeController();
+
+    expect(controller.getLiveness().release).toEqual({
+      commit: 'a'.repeat(40),
+      version: '1.0.0-rc.1'
+    });
   });
 
   it('accepts only the exact configured bearer token', () => {
@@ -104,6 +124,7 @@ describe('HealthController', () => {
     await expect(controller.getReadiness()).resolves.toMatchObject({
       status: 'ready',
       service: 'knowme-api',
+      release: { commit: null, version: null },
       checks: { database: 'up' }
     });
     expect(queryRaw).toHaveBeenCalledTimes(1);
@@ -125,6 +146,7 @@ describe('HealthController', () => {
     expect(response).toMatchObject({
       status: 'not_ready',
       service: 'knowme-api',
+      release: { commit: null, version: null },
       checks: { database: 'down' }
     });
     expect(JSON.stringify(response)).not.toContain('secret');

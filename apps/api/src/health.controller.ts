@@ -2,6 +2,7 @@ import { Headers, Controller, Get, ServiceUnavailableException, UnauthorizedExce
 import { SkipThrottle } from '@nestjs/throttler';
 import { timingSafeEqual } from 'node:crypto';
 import { getRuntimeHttpMetricsSnapshot } from './common/http-observability';
+import { resolveRuntimeReleaseIdentity } from './common/release-identity';
 import { PrismaService } from './prisma/prisma.service';
 
 const METRICS_TOKEN_MIN_LENGTH = 32;
@@ -70,6 +71,7 @@ export class HealthController {
         status: 'ready',
         service: 'knowme-api',
         timestamp,
+        release: resolveRuntimeReleaseIdentity(),
         checks: { database: 'up' }
       };
     } catch {
@@ -77,6 +79,7 @@ export class HealthController {
         status: 'not_ready',
         service: 'knowme-api',
         timestamp,
+        release: resolveRuntimeReleaseIdentity(),
         checks: { database: 'down' }
       });
     }
@@ -87,6 +90,7 @@ export class HealthController {
       status: 'ok',
       service: 'knowme-api',
       timestamp: new Date().toISOString(),
+      release: resolveRuntimeReleaseIdentity(),
       checks: { process: 'up' }
     };
   }
