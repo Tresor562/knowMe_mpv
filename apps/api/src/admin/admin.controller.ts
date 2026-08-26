@@ -5,6 +5,7 @@ import { PermissionsGuard } from '../access-control/permissions.guard';
 import { AccountRecoveryRetentionService } from '../auth/account-recovery-retention.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
+import { MediaPurgeAlertWorkerService } from './media-purge-alert-worker.service';
 import { MediaQuarantineOpsService } from './media-quarantine-ops.service';
 import { classifyMediaQuarantineRetentionReadiness } from './media-quarantine-retention-readiness';
 import { MediaQuarantineRetentionWorkerService } from './media-quarantine-retention-worker.service';
@@ -18,7 +19,8 @@ export class AdminController {
     private readonly accountRecoveryRetention: AccountRecoveryRetentionService,
     private readonly mediaQuarantineOps: MediaQuarantineOpsService,
     private readonly mediaQuarantineRetryWorker: MediaQuarantineRetryWorkerService,
-    private readonly mediaQuarantineRetentionWorker: MediaQuarantineRetentionWorkerService
+    private readonly mediaQuarantineRetentionWorker: MediaQuarantineRetentionWorkerService,
+    private readonly mediaPurgeAlertWorker: MediaPurgeAlertWorkerService
   ) {}
 
   @RequirePermissions(PERMISSIONS.DASHBOARD_READ)
@@ -53,6 +55,12 @@ export class AdminController {
       ...snapshot,
       purgeReadiness: classifyMediaQuarantineRetentionReadiness(snapshot.readiness, snapshot.backlog)
     };
+  }
+
+  @RequirePermissions(PERMISSIONS.AUDIT_READ)
+  @Get('operations/media-quarantine-alert')
+  mediaQuarantineAlertStatus() {
+    return this.mediaPurgeAlertWorker.getSnapshot();
   }
 
   @RequirePermissions(PERMISSIONS.MEDIA_QUARANTINE_MANAGE)
