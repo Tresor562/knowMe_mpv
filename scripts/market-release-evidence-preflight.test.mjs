@@ -59,6 +59,28 @@ test('binds evidence to the exact release commit', () => {
   assert.ok(result.errors.includes('releaseCommit does not match the commit being released.'));
 });
 
+test('fails closed when the expected release commit is missing', () => {
+  const result = validateMarketReleaseEvidence(manifest(), { now });
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'),
+  );
+});
+
+test('rejects a malformed or non-canonical expected release commit', () => {
+  for (const expectedCommit of ['ABC', 'A'.repeat(40), 'a'.repeat(39), ` ${commit} `]) {
+    const result = validateMarketReleaseEvidence(manifest(), { expectedCommit, now });
+    if (expectedCommit === ` ${commit} `) {
+      assert.equal(result.ok, true);
+    } else {
+      assert.equal(result.ok, false);
+      assert.ok(
+        result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'),
+      );
+    }
+  }
+});
+
 test('rejects duplicate evidence ids', () => {
   const value = manifest();
   value.evidence.push(item('production_tls_domain'));
@@ -84,7 +106,7 @@ test('rejects unknown scope and non-canonical commit ids', () => {
   const value = manifest();
   value.scope = 'MOBILE_ONLY';
   value.releaseCommit = 'ABC';
-  const result = validateMarketReleaseEvidence(value, { now });
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('scope must be')));
   assert.ok(result.errors.some((error) => error.includes('releaseCommit')));
