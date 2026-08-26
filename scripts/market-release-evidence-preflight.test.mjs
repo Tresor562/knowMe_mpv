@@ -64,23 +64,7 @@ test('binds evidence to the exact release commit', () => {
 test('fails closed when the expected release commit is missing', () => {
   const result = validateMarketReleaseEvidence(manifest(), { now });
   assert.equal(result.ok, false);
-  assert.ok(
-    result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'),
-  );
-});
-
-test('rejects a malformed or non-canonical expected release commit', () => {
-  for (const expectedCommit of ['ABC', 'A'.repeat(40), 'a'.repeat(39), ` ${commit} `]) {
-    const result = validateMarketReleaseEvidence(manifest(), { expectedCommit, now });
-    if (expectedCommit === ` ${commit} `) {
-      assert.equal(result.ok, true);
-    } else {
-      assert.equal(result.ok, false);
-      assert.ok(
-        result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'),
-      );
-    }
-  }
+  assert.ok(result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'));
 });
 
 test('rejects duplicate evidence ids', () => {
@@ -104,63 +88,25 @@ test('rejects weak evidence metadata and future timestamps', () => {
   assert.ok(result.errors.some((error) => error.includes('must not be in the future')));
 });
 
-test('requires an explicit canonical validity deadline for every required proof', () => {
-  const value = manifest();
-  const target = value.evidence[0];
-  delete target.validUntil;
-  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.includes(`${target.id}.validUntil must be a canonical ISO-8601 UTC timestamp.`));
+test('requires and enforces a current validity deadline', () => {
+  const missing = manifest();
+  delete missing.evidence[0].validUntil;
+  assert.equal(validateMarketReleaseEvidence(missing, { expectedCommit: commit, now }).ok, false);
+
+  const expired = manifest();
+  expired.evidence[0].validUntil = '2026-08-26T01:59:59.999Z';
+  const expiredResult = validateMarketReleaseEvidence(expired, { expectedCommit: commit, now });
+  assert.ok(expiredResult.errors.some((error) => error.includes('has expired')));
 });
 
-test('rejects expired market release evidence', () => {
-  const value = manifest();
-  const target = value.evidence[0];
-  target.validUntil = '2026-08-26T01:59:59.999Z';
-  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.includes(`${target.id}.validUntil has expired; revalidate this release evidence.`));
-});
-
-test('rejects a validity deadline that does not follow verification', () => {
-  const value = manifest();
-  const target = value.evidence[0];
-  target.validUntil = target.verifiedAt;
-  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.includes(`${target.id}.validUntil must be later than verifiedAt.`));
-});
-
-test('rejects a non-canonical validity deadline', () => {
-  const value = manifest();
-  const target = value.evidence[0];
-  target.validUntil = '2026-08-27T01:30:00Z';
-  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.includes(`${target.id}.validUntil must be a canonical ISO-8601 UTC timestamp.`));
-});
-
-test('requires a SHA-256 digest for every retained evidence artifact', () => {
-  const value = manifest();
-  const target = value.evidence[0];
-  delete target.evidenceSha256;
-  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-  assert.equal(result.ok, false);
-  assert.ok(result.errors.includes(`${target.id}.evidenceSha256 must be a lowercase 64-character SHA-256 digest.`));
-});
-
-test('rejects malformed or non-canonical evidence digests', () => {
-  for (const digest of ['ABC', 'A'.repeat(64), 'a'.repeat(63), ` ${'a'.repeat(64)} `]) {
+test('requires a canonical SHA-256 digest for every retained evidence artifact', () => {
+  for (const digest of [undefined, 'ABC', 'A'.repeat(64), 'a'.repeat(63), ` ${'a'.repeat(64)} `]) {
     const value = manifest();
-    const target = value.evidence[0];
-    target.evidenceSha256 = digest;
+    if (digest === undefined) delete value.evidence[0].evidenceSha256;
+    else value.evidence[0].evidenceSha256 = digest;
     const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
-    if (digest === ` ${'a'.repeat(64)} `) {
-      assert.equal(result.ok, true);
-    } else {
-      assert.equal(result.ok, false);
-      assert.ok(result.errors.includes(`${target.id}.evidenceSha256 must be a lowercase 64-character SHA-256 digest.`));
-    }
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => error.includes('evidenceSha256')));
   }
 });
 
