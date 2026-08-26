@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "scope": "WEB_V1",
   "environment": "PRODUCTION",
   "releaseCommit": "0000000000000000000000000000000000000000",
@@ -13,5 +13,6 @@
     { "id": "data_export_delete_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
     { "id": "moderation_support_incident_ops", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
     { "id": "antimalware_provider_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" }
-  ]
+  ],
+  "manifestHmacSha256": "0000000000000000000000000000000000000000000000000000000000000000"
 }

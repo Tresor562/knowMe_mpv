@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { requiredEvidenceForScope, validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
+import {
+  computeMarketReleaseEvidenceHmac,
+  requiredEvidenceForScope,
+  validateMarketReleaseEvidence,
+} from './market-release-evidence-preflight.mjs';
 
 const commit = 'a'.repeat(40);
 const releaseVersion = '1.0.0-rc.1';
+const signingKey = 'release-evidence-signing-key-0000001';
 const now = new Date('2026-08-26T02:00:00.000Z');
 
 function item(id) {
@@ -19,26 +24,29 @@ function item(id) {
 }
 
 function manifest(scope = 'WEB_V1') {
-  return {
-    schemaVersion: 2,
+  const value = {
+    schemaVersion: 3,
     scope,
     environment: 'PRODUCTION',
     releaseCommit: commit,
     releaseVersion,
     evidence: requiredEvidenceForScope(scope).map(item),
   };
+  value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
+  return value;
 }
 
 function validate(value, options = {}) {
   return validateMarketReleaseEvidence(value, {
     expectedCommit: commit,
     expectedReleaseVersion: releaseVersion,
+    signingKey,
     now,
     ...options,
   });
 }
 
-test('accepts a complete WEB_V1 evidence manifest', () => {
+test('accepts a complete authenticated WEB_V1 evidence manifest', () => {
   const result = validate(manifest());
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
@@ -74,7 +82,11 @@ test('binds evidence to the exact release commit', () => {
 });
 
 test('fails closed when the expected release commit is missing', () => {
-  const result = validateMarketReleaseEvidence(manifest(), { expectedReleaseVersion: releaseVersion, now });
+  const result = validateMarketReleaseEvidence(manifest(), {
+    expectedReleaseVersion: releaseVersion,
+    signingKey,
+    now,
+  });
   assert.equal(result.ok, false);
   assert.ok(result.errors.includes('expected release commit must be an explicit lowercase 40-character Git commit SHA.'));
 });
@@ -95,7 +107,12 @@ test('binds evidence to an explicit production release version', () => {
 
 test('fails closed when the expected release version is missing or non-canonical', () => {
   for (const expectedReleaseVersion of [undefined, '01.0.0', '1.0', '1.0.0+build.1', ' 1.0.0 ']) {
-    const result = validateMarketReleaseEvidence(manifest(), { expectedCommit: commit, expectedReleaseVersion, now });
+    const result = validateMarketReleaseEvidence(manifest(), {
+      expectedCommit: commit,
+      expectedReleaseVersion,
+      signingKey,
+      now,
+    });
     assert.equal(result.ok, false);
     assert.ok(result.errors.includes('expected release version must be an explicit canonical SemVer version.'));
   }
@@ -154,9 +171,9 @@ test('requires a canonical SHA-256 digest for every retained evidence artifact',
   }
 });
 
-test('rejects unknown scope, old schema and non-canonical commit ids', () => {
+test('rejects old schema, unknown scope and non-canonical commit ids', () => {
   const value = manifest();
-  value.schemaVersion = 1;
+  value.schemaVersion = 2;
   value.scope = 'MOBILE_ONLY';
   value.releaseCommit = 'ABC';
   const result = validate(value);
@@ -164,4 +181,58 @@ test('rejects unknown scope, old schema and non-canonical commit ids', () => {
   assert.ok(result.errors.some((error) => error.includes('schemaVersion')));
   assert.ok(result.errors.some((error) => error.includes('scope must be')));
   assert.ok(result.errors.some((error) => error.includes('releaseCommit')));
+});
+
+test('fails closed when the release evidence signing key is missing, weak, or non-canonical', () => {
+  for (const candidate of [undefined, 'short', ` ${signingKey}`, `${signingKey} `]) {
+    const result = validateMarketReleaseEvidence(manifest(), {
+      expectedCommit: commit,
+      expectedReleaseVersion: releaseVersion,
+      signingKey: candidate,
+      now,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => error.includes('release evidence signing key')));
+  }
+});
+
+test('rejects a missing or malformed manifest HMAC', () => {
+  const missing = manifest();
+  delete missing.manifestHmacSha256;
+  assert.equal(validate(missing).ok, false);
+
+  const uppercase = manifest();
+  uppercase.manifestHmacSha256 = uppercase.manifestHmacSha256.toUpperCase();
+  assert.equal(validate(uppercase).ok, false);
+});
+
+test('detects tampering with signed release evidence metadata', () => {
+  for (const mutate of [
+    (value) => {
+      value.evidence[0].status = 'PENDING';
+    },
+    (value) => {
+      value.evidence[0].verifier = 'different-reviewer';
+    },
+    (value) => {
+      value.evidence[0].validUntil = '2026-08-28T01:30:00.000Z';
+    },
+    (value) => {
+      value.releaseVersion = '1.0.1';
+    },
+  ]) {
+    const value = manifest();
+    mutate(value);
+    const result = validate(value);
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => error.includes('manifestHmacSha256')));
+  }
+});
+
+test('accepts a manifest only after it is re-signed with the dedicated key', () => {
+  const value = manifest();
+  value.evidence[0].evidenceRef = 'evidence://production_tls_domain/revalidated';
+  assert.equal(validate(value).ok, false);
+  value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
+  assert.equal(validate(value).ok, true);
 });
