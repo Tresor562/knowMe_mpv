@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 
 const SHA40 = /^[0-9a-f]{40}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
 
 const COMMON_EVIDENCE = [
@@ -91,6 +92,13 @@ export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = 
       if (!nonEmpty(item.verifier)) errors.push(`${id}.verifier must identify the reviewer or responsible operator.`);
       if (!nonEmpty(item.evidenceRef) || item.evidenceRef.trim().length < 8) {
         errors.push(`${id}.evidenceRef must point to retained release evidence.`);
+      }
+      if (
+        !nonEmpty(item.evidenceSha256) ||
+        item.evidenceSha256 !== item.evidenceSha256.trim() ||
+        !SHA256.test(item.evidenceSha256)
+      ) {
+        errors.push(`${id}.evidenceSha256 must be a lowercase 64-character SHA-256 digest.`);
       }
 
       const verifiedAt = canonicalUtcTimestamp(item.verifiedAt);
