@@ -9,6 +9,7 @@ const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z
 const SIGNING_KEY_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
+const ALLOWED_EVIDENCE_PROTOCOLS = new Set(['https:', 'evidence:']);
 const MIN_SIGNING_KEY_LENGTH = 32;
 const MAX_VERIFIER_LENGTH = 128;
 const MIN_EVIDENCE_REF_LENGTH = 8;
@@ -89,7 +90,9 @@ function canonicalEvidenceRef(value) {
 
   try {
     const parsed = new URL(value);
-    if (!parsed.protocol || parsed.username || parsed.password) return null;
+    if (!ALLOWED_EVIDENCE_PROTOCOLS.has(parsed.protocol)) return null;
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+    if (!parsed.hostname) return null;
   } catch {
     return null;
   }
@@ -237,7 +240,7 @@ export function validateMarketReleaseEvidence(
         errors.push(`${id}.verifier must be canonical, non-empty, free of control characters, and at most ${MAX_VERIFIER_LENGTH} characters.`);
       }
       if (canonicalEvidenceRef(item.evidenceRef) === null) {
-        errors.push(`${id}.evidenceRef must be a canonical absolute URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without embedded credentials or control characters.`);
+        errors.push(`${id}.evidenceRef must be a canonical credential-free HTTPS or evidence URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without query, fragment, or control characters.`);
       }
       if (
         !nonEmpty(item.evidenceSha256) ||

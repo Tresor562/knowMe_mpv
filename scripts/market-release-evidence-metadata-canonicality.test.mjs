@@ -83,7 +83,7 @@ test('rejects relative evidence references', () => {
   value.evidence[0].evidenceRef = './evidence/report.pdf';
   const result = validate(value);
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical absolute URI')));
+  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical credential-free HTTPS or evidence URI')));
 });
 
 test('rejects evidence references with embedded credentials', () => {
@@ -91,7 +91,7 @@ test('rejects evidence references with embedded credentials', () => {
   value.evidence[0].evidenceRef = 'https://user:secret@example.com/report';
   const result = validate(value);
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical absolute URI')));
+  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical credential-free HTTPS or evidence URI')));
 });
 
 test('rejects evidence references with hidden whitespace or control characters', () => {
@@ -109,5 +109,5 @@ test('rejects oversized evidence references', () => {
   value.evidence[0].evidenceRef = `https://example.com/${'a'.repeat(2030)}`;
   const result = validate(value);
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical absolute URI')));
+  assert.ok(result.errors.some((error) => error.includes('.evidenceRef must be a canonical credential-free HTTPS or evidence URI')));
 });
