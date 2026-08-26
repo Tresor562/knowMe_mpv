@@ -17,6 +17,7 @@ describe('MediaPurgeAlertService', () => {
   };
 
   beforeEach(() => {
+    process.env.NODE_ENV = 'test';
     process.env.MEDIA_PURGE_ALERT_WEBHOOK_URL = 'https://ops.example.test/hooks/media-purge';
     process.env.MEDIA_PURGE_ALERT_WEBHOOK_TOKEN = 'media-purge-alert-token-with-32-characters';
     process.env.MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS = '1000';
@@ -26,6 +27,44 @@ describe('MediaPurgeAlertService', () => {
     global.fetch = originalFetch;
     process.env = { ...originalEnv };
     jest.restoreAllMocks();
+  });
+
+  it('accepts valid alert configuration during production startup', () => {
+    process.env.NODE_ENV = 'production';
+    expect(() => new MediaPurgeAlertService().onModuleInit()).not.toThrow();
+  });
+
+  it('fails production startup when alert configuration is missing', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.MEDIA_PURGE_ALERT_WEBHOOK_URL;
+
+    expect(() => new MediaPurgeAlertService().onModuleInit()).toThrow(
+      /Invalid production media purge alert configuration/
+    );
+  });
+
+  it.each([
+    ['http://ops.example.test/hooks/media-purge', 'media-purge-alert-token-with-32-characters', '1000'],
+    ['https://user:pass@ops.example.test/hooks/media-purge', 'media-purge-alert-token-with-32-characters', '1000'],
+    ['https://ops.example.test/hooks/media-purge?secret=x', 'media-purge-alert-token-with-32-characters', '1000'],
+    ['https://ops.example.test/hooks/media-purge', 'short', '1000'],
+    ['https://ops.example.test/hooks/media-purge', 'media-purge-alert-token-with-32-characters', '01000'],
+    ['https://ops.example.test/hooks/media-purge', 'media-purge-alert-token-with-32-characters', '499'],
+    ['https://ops.example.test/hooks/media-purge', 'media-purge-alert-token-with-32-characters', '10001']
+  ])('fails production startup for unsafe alert configuration', (url, token, timeout) => {
+    process.env.NODE_ENV = 'production';
+    process.env.MEDIA_PURGE_ALERT_WEBHOOK_URL = url;
+    process.env.MEDIA_PURGE_ALERT_WEBHOOK_TOKEN = token;
+    process.env.MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS = timeout;
+
+    expect(() => new MediaPurgeAlertService().onModuleInit()).toThrow(
+      /Invalid production media purge alert configuration/
+    );
+  });
+
+  it('does not require production alert configuration outside production', () => {
+    delete process.env.MEDIA_PURGE_ALERT_WEBHOOK_URL;
+    expect(() => new MediaPurgeAlertService().onModuleInit()).not.toThrow();
   });
 
   it('skips non-alertable readiness states without network access', async () => {

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { MediaQuarantineRetentionReadiness } from './media-quarantine-retention-readiness';
 
 export type MediaPurgeAlertBacklog = {
@@ -35,7 +35,15 @@ const ALERTABLE_READINESS = new Set<MediaQuarantineRetentionReadiness>([
 ]);
 
 @Injectable()
-export class MediaPurgeAlertService {
+export class MediaPurgeAlertService implements OnModuleInit {
+  onModuleInit(): void {
+    if (process.env.NODE_ENV === 'production' && !this.readConfig()) {
+      throw new Error(
+        'Invalid production media purge alert configuration. Check MEDIA_PURGE_ALERT_WEBHOOK_URL, MEDIA_PURGE_ALERT_WEBHOOK_TOKEN, and MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS.'
+      );
+    }
+  }
+
   async notify(payload: MediaPurgeAlertPayload): Promise<MediaPurgeAlertDelivery> {
     if (!ALERTABLE_READINESS.has(payload.readiness)) return 'SKIPPED_NOT_CONFIGURED';
 
