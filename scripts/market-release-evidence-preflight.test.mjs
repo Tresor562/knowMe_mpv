@@ -10,6 +10,7 @@ function item(id) {
     id,
     status: 'VERIFIED',
     verifiedAt: '2026-08-26T01:30:00.000Z',
+    validUntil: '2026-08-27T01:30:00.000Z',
     verifier: 'release-reviewer',
     evidenceRef: `evidence://${id}`,
   };
@@ -100,6 +101,42 @@ test('rejects weak evidence metadata and future timestamps', () => {
   assert.ok(result.errors.some((error) => error.includes('.verifier')));
   assert.ok(result.errors.some((error) => error.includes('.evidenceRef')));
   assert.ok(result.errors.some((error) => error.includes('must not be in the future')));
+});
+
+test('requires an explicit canonical validity deadline for every required proof', () => {
+  const value = manifest();
+  const target = value.evidence[0];
+  delete target.validUntil;
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes(`${target.id}.validUntil must be a canonical ISO-8601 UTC timestamp.`));
+});
+
+test('rejects expired market release evidence', () => {
+  const value = manifest();
+  const target = value.evidence[0];
+  target.validUntil = '2026-08-26T01:59:59.999Z';
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes(`${target.id}.validUntil has expired; revalidate this release evidence.`));
+});
+
+test('rejects a validity deadline that does not follow verification', () => {
+  const value = manifest();
+  const target = value.evidence[0];
+  target.validUntil = target.verifiedAt;
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes(`${target.id}.validUntil must be later than verifiedAt.`));
+});
+
+test('rejects a non-canonical validity deadline', () => {
+  const value = manifest();
+  const target = value.evidence[0];
+  target.validUntil = '2026-08-27T01:30:00Z';
+  const result = validateMarketReleaseEvidence(value, { expectedCommit: commit, now });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.includes(`${target.id}.validUntil must be a canonical ISO-8601 UTC timestamp.`));
 });
 
 test('rejects unknown scope and non-canonical commit ids', () => {

@@ -27,6 +27,14 @@ function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function canonicalUtcTimestamp(value) {
+  if (!nonEmpty(value)) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  if (new Date(timestamp).toISOString() !== value) return null;
+  return timestamp;
+}
+
 export function requiredEvidenceForScope(scope) {
   return scope === 'FULL' ? [...COMMON_EVIDENCE, ...FULL_EVIDENCE] : [...COMMON_EVIDENCE];
 }
@@ -84,14 +92,23 @@ export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = 
       if (!nonEmpty(item.evidenceRef) || item.evidenceRef.trim().length < 8) {
         errors.push(`${id}.evidenceRef must point to retained release evidence.`);
       }
-      if (!nonEmpty(item.verifiedAt)) {
-        errors.push(`${id}.verifiedAt must be an ISO-8601 timestamp.`);
+
+      const verifiedAt = canonicalUtcTimestamp(item.verifiedAt);
+      if (verifiedAt === null) {
+        errors.push(`${id}.verifiedAt must be a canonical ISO-8601 UTC timestamp.`);
+      } else if (verifiedAt > now.getTime() + 5 * 60_000) {
+        errors.push(`${id}.verifiedAt must not be in the future.`);
+      }
+
+      const validUntil = canonicalUtcTimestamp(item.validUntil);
+      if (validUntil === null) {
+        errors.push(`${id}.validUntil must be a canonical ISO-8601 UTC timestamp.`);
       } else {
-        const timestamp = Date.parse(item.verifiedAt);
-        if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== item.verifiedAt) {
-          errors.push(`${id}.verifiedAt must be a canonical ISO-8601 UTC timestamp.`);
-        } else if (timestamp > now.getTime() + 5 * 60_000) {
-          errors.push(`${id}.verifiedAt must not be in the future.`);
+        if (verifiedAt !== null && validUntil <= verifiedAt) {
+          errors.push(`${id}.validUntil must be later than verifiedAt.`);
+        }
+        if (validUntil <= now.getTime()) {
+          errors.push(`${id}.validUntil has expired; revalidate this release evidence.`);
         }
       }
     }
