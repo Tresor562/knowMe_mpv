@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const SCOPES = new Set(['WEB_V1', 'FULL']);
+const MIN_SIGNING_KEY_LENGTH = 32;
 
 const COMMON_EVIDENCE = [
   'production_tls_domain',
@@ -41,13 +43,50 @@ function canonicalReleaseVersion(value) {
   return typeof value === 'string' && value === value.trim() && RELEASE_VERSION.test(value) ? value : null;
 }
 
+function validSigningKey(value) {
+  return (
+    typeof value === 'string' &&
+    value === value.trim() &&
+    value.length >= MIN_SIGNING_KEY_LENGTH
+  );
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((entry) => canonicalJson(entry)).join(',')}]`;
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+    .join(',')}}`;
+}
+
+function unsignedManifest(manifest) {
+  const { manifestHmacSha256: _signature, ...unsigned } = manifest;
+  return unsigned;
+}
+
+export function computeMarketReleaseEvidenceHmac(manifest, signingKey) {
+  if (!validSigningKey(signingKey)) {
+    throw new Error(`Release evidence signing key must be at least ${MIN_SIGNING_KEY_LENGTH} canonical characters.`);
+  }
+  return createHmac('sha256', signingKey).update(canonicalJson(unsignedManifest(manifest)), 'utf8').digest('hex');
+}
+
+function signatureMatches(manifest, signingKey) {
+  if (!nonEmpty(manifest.manifestHmacSha256) || !SHA256.test(manifest.manifestHmacSha256)) return false;
+  const expected = computeMarketReleaseEvidenceHmac(manifest, signingKey);
+  const actualBuffer = Buffer.from(manifest.manifestHmacSha256, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
 export function requiredEvidenceForScope(scope) {
   return scope === 'FULL' ? [...COMMON_EVIDENCE, ...FULL_EVIDENCE] : [...COMMON_EVIDENCE];
 }
 
 export function validateMarketReleaseEvidence(
   manifest,
-  { expectedCommit, expectedReleaseVersion, now = new Date() } = {},
+  { expectedCommit, expectedReleaseVersion, signingKey, now = new Date() } = {},
 ) {
   const errors = [];
   const warnings = [];
@@ -56,9 +95,15 @@ export function validateMarketReleaseEvidence(
     return { ok: false, errors: ['Release evidence manifest must be a JSON object.'], warnings };
   }
 
-  if (manifest.schemaVersion !== 2) errors.push('schemaVersion must equal 2.');
+  if (manifest.schemaVersion !== 3) errors.push('schemaVersion must equal 3.');
   if (!SCOPES.has(manifest.scope)) errors.push('scope must be WEB_V1 or FULL.');
   if (manifest.environment !== 'PRODUCTION') errors.push('environment must equal PRODUCTION.');
+
+  if (!validSigningKey(signingKey)) {
+    errors.push(`release evidence signing key must be an explicit canonical secret of at least ${MIN_SIGNING_KEY_LENGTH} characters.`);
+  } else if (!signatureMatches(manifest, signingKey)) {
+    errors.push('manifestHmacSha256 is missing, malformed, or does not authenticate this release evidence manifest.');
+  }
 
   const normalizedExpectedCommit = nonEmpty(expectedCommit) ? expectedCommit.trim() : '';
   if (!SHA40.test(normalizedExpectedCommit)) {
@@ -180,9 +225,22 @@ async function runCli() {
     return;
   }
 
+  const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
+  if (!validSigningKey(signingKey)) {
+    console.error(
+      `ERROR: KNOWME_RELEASE_EVIDENCE_SIGNING_KEY must be an explicit canonical secret of at least ${MIN_SIGNING_KEY_LENGTH} characters.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const raw = await readFile(file, 'utf8');
   const manifest = JSON.parse(raw);
-  const result = validateMarketReleaseEvidence(manifest, { expectedCommit, expectedReleaseVersion });
+  const result = validateMarketReleaseEvidence(manifest, {
+    expectedCommit,
+    expectedReleaseVersion,
+    signingKey,
+  });
 
   for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
   if (!result.ok) {
