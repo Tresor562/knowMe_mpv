@@ -4,7 +4,6 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const SHA40 = /^[0-9a-f]{40}$/;
-const SHA256 = /^[0-9a-f]{64}$/;
 const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
@@ -30,9 +29,21 @@ export function sha256Buffer(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function parseArtifactBytes(artifactBytes) {
+  if (!Buffer.isBuffer(artifactBytes)) return { artifact: null, error: 'artifactBytes must be the exact persisted Buffer.' };
+  try {
+    const artifact = JSON.parse(artifactBytes.toString('utf8'));
+    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+      return { artifact: null, error: 'Persisted smoke evidence must decode to a JSON object.' };
+    }
+    return { artifact, error: null };
+  } catch {
+    return { artifact: null, error: 'Persisted smoke evidence must be valid JSON.' };
+  }
+}
+
 export function buildProductionDeploymentSmokeEvidenceItem({
   artifactBytes,
-  artifact,
   expectedCommit,
   expectedVersion,
   verifier,
@@ -41,8 +52,10 @@ export function buildProductionDeploymentSmokeEvidenceItem({
   now = new Date(),
 } = {}) {
   const errors = [];
-  if (!Buffer.isBuffer(artifactBytes)) errors.push('artifactBytes must be the exact persisted Buffer.');
-  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) errors.push('artifact must be a JSON object.');
+  const parsed = parseArtifactBytes(artifactBytes);
+  if (parsed.error) errors.push(parsed.error);
+  const artifact = parsed.artifact;
+
   if (!SHA40.test(expectedCommit ?? '')) errors.push('expectedCommit must be a lowercase 40-character Git SHA.');
   if (!RELEASE_VERSION.test(expectedVersion ?? '')) errors.push('expectedVersion must be a canonical SemVer without build metadata.');
   if (typeof verifier !== 'string' || verifier !== verifier.trim() || verifier.length < 1 || verifier.length > 128 || CONTROL_CHARACTERS.test(verifier)) {
@@ -55,7 +68,7 @@ export function buildProductionDeploymentSmokeEvidenceItem({
   if (!Number.isFinite(nowMs)) errors.push('now must be a valid Date.');
   if (validUntilMs === null) errors.push('validUntil must be a canonical ISO-8601 UTC timestamp.');
 
-  if (artifact && typeof artifact === 'object') {
+  if (artifact) {
     if (artifact.schemaVersion !== 1 || artifact.type !== 'knowme-production-smoke-evidence') errors.push('artifact schema/type is not KMD-265 production smoke evidence.');
     if (artifact.release?.commit !== expectedCommit) errors.push('artifact release commit does not match expectedCommit.');
     if (artifact.release?.version !== expectedVersion) errors.push('artifact release version does not match expectedVersion.');
@@ -94,10 +107,8 @@ async function runCli() {
   const outputPath = readArg('--output');
   if (!artifactPath || !outputPath) throw new Error('Provide --artifact <file> and --output <file>.');
   const artifactBytes = await readFile(artifactPath);
-  const artifact = JSON.parse(artifactBytes.toString('utf8'));
   const result = buildProductionDeploymentSmokeEvidenceItem({
     artifactBytes,
-    artifact,
     expectedCommit: readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA,
     expectedVersion: readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION,
     verifier: readArg('--verifier'),
