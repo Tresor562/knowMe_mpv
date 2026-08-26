@@ -62,6 +62,14 @@ test('rejects malformed manifest slot sets before applying anything', () => {
   assert.match(result.errors.join(' '), /exactly one evidence slot/);
 });
 
+test('rejects mutation of an already signed manifest', () => {
+  const source = manifest();
+  source.manifestHmacSha256 = 'c'.repeat(64);
+  const result = applyMarketReleaseEvidenceBatch(source, requiredEvidenceForScope('WEB_V1').map(item), { expectedCommit: commit, expectedVersion: version, now });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /must be unsigned/);
+});
+
 test('preserves FULL scope boundaries', () => {
   const source = manifest('FULL');
   const result = applyMarketReleaseEvidenceBatch(source, requiredEvidenceForScope('FULL').map(item), { expectedCommit: commit, expectedVersion: version, now });
