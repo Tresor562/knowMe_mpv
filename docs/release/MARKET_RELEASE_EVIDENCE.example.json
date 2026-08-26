@@ -1,7 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "scope": "WEB_V1",
+  "environment": "PRODUCTION",
   "releaseCommit": "0000000000000000000000000000000000000000",
+  "releaseVersion": "0.0.0-rc.0",
   "evidence": [
     { "id": "production_tls_domain", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
     { "id": "production_deployment_smoke", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
