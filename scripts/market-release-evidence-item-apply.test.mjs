@@ -1,64 +1,103 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyProductionDeploymentSmokeEvidenceItem } from './market-release-evidence-item-apply.mjs';
+import {
+  applyMarketReleaseEvidenceItem,
+  applyProductionDeploymentSmokeEvidenceItem,
+} from './market-release-evidence-item-apply.mjs';
 
 const commit = 'a'.repeat(40);
 const now = new Date('2026-08-26T20:00:00.000Z');
 const pending = (id) => ({ id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: '', evidenceRef: '', evidenceSha256: '' });
 
-function manifest() {
+function manifest(scope = 'WEB_V1') {
+  const common = [
+    'production_tls_domain',
+    'production_deployment_smoke',
+    'backup_restore_drill',
+    'external_monitoring_alerting',
+    'privacy_terms_legal_review',
+    'data_export_delete_validation',
+    'moderation_support_incident_ops',
+    'antimalware_provider_validation',
+  ];
+  const full = ['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission'];
   return {
     schemaVersion: 4,
-    scope: 'WEB_V1',
+    scope,
     environment: 'PRODUCTION',
     releaseCommit: commit,
     releaseVersion: '1.0.0-rc.1',
     signingKeyId: 'release-key-1',
-    evidence: [pending('production_tls_domain'), pending('production_deployment_smoke'), pending('backup_restore_drill')],
+    evidence: [...common, ...(scope === 'FULL' ? full : [])].map(pending),
     manifestHmacSha256: '0'.repeat(64),
   };
 }
 
-function item() {
+function item(id = 'production_deployment_smoke') {
   return {
-    id: 'production_deployment_smoke',
+    id,
     status: 'VERIFIED',
     verifiedAt: '2026-08-26T19:55:00.000Z',
     validUntil: '2026-09-02T19:55:00.000Z',
     verifier: 'release-operator',
-    evidenceRef: 'evidence://release/production-smoke.json',
+    evidenceRef: `evidence://release/${id}.json`,
     evidenceSha256: 'b'.repeat(64),
   };
 }
 
-test('applies only the production deployment smoke slot and keeps manifest unsigned', () => {
+function apply(source, evidenceItem) {
+  return applyMarketReleaseEvidenceItem(source, evidenceItem, {
+    expectedCommit: commit,
+    expectedVersion: '1.0.0-rc.1',
+    now,
+  });
+}
+
+test('applies a common WEB_V1 evidence item and keeps manifest unsigned', () => {
   const source = manifest();
-  const result = applyProductionDeploymentSmokeEvidenceItem(source, item(), {
+  const evidenceItem = item('backup_restore_drill');
+  const result = apply(source, evidenceItem);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.manifest.evidence.find((entry) => entry.id === evidenceItem.id), evidenceItem);
+  assert.equal(result.manifest.manifestHmacSha256, '0'.repeat(64));
+  assert.equal(source.evidence.find((entry) => entry.id === evidenceItem.id).status, 'PENDING');
+});
+
+test('applies FULL-only evidence only when the manifest scope requires it', () => {
+  const physical = item('ios_physical_validation');
+  assert.equal(apply(manifest('WEB_V1'), physical).ok, false);
+  assert.equal(apply(manifest('FULL'), physical).ok, true);
+});
+
+test('preserves the KMD-267 production smoke compatibility wrapper', () => {
+  const source = manifest();
+  const smoke = item();
+  const result = applyProductionDeploymentSmokeEvidenceItem(source, smoke, {
     expectedCommit: commit,
     expectedVersion: '1.0.0-rc.1',
     now,
   });
   assert.equal(result.ok, true);
-  assert.deepEqual(result.manifest.evidence[0], source.evidence[0]);
-  assert.deepEqual(result.manifest.evidence[1], item());
-  assert.equal(result.manifest.manifestHmacSha256, '0'.repeat(64));
-  assert.equal(source.evidence[1].status, 'PENDING');
+
+  const wrong = applyProductionDeploymentSmokeEvidenceItem(source, item('backup_restore_drill'), {
+    expectedCommit: commit,
+    expectedVersion: '1.0.0-rc.1',
+    now,
+  });
+  assert.equal(wrong.ok, false);
+  assert.match(wrong.errors.join(' '), /production_deployment_smoke/);
 });
 
 test('rejects a previously signed manifest', () => {
   const source = manifest();
   source.manifestHmacSha256 = 'c'.repeat(64);
-  const result = applyProductionDeploymentSmokeEvidenceItem(source, item(), {
-    expectedCommit: commit,
-    expectedVersion: '1.0.0-rc.1',
-    now,
-  });
+  const result = apply(source, item('production_tls_domain'));
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /unsigned/);
 });
 
 test('rejects commit and version mismatches', () => {
-  const wrongCommit = applyProductionDeploymentSmokeEvidenceItem(manifest(), item(), {
+  const wrongCommit = applyMarketReleaseEvidenceItem(manifest(), item(), {
     expectedCommit: 'd'.repeat(40),
     expectedVersion: '1.0.0-rc.1',
     now,
@@ -66,7 +105,7 @@ test('rejects commit and version mismatches', () => {
   assert.equal(wrongCommit.ok, false);
   assert.match(wrongCommit.errors.join(' '), /releaseCommit/);
 
-  const wrongVersion = applyProductionDeploymentSmokeEvidenceItem(manifest(), item(), {
+  const wrongVersion = applyMarketReleaseEvidenceItem(manifest(), item(), {
     expectedCommit: commit,
     expectedVersion: '1.0.1',
     now,
@@ -75,19 +114,23 @@ test('rejects commit and version mismatches', () => {
   assert.match(wrongVersion.errors.join(' '), /releaseVersion/);
 });
 
-test('rejects the wrong item id, extra fields, stale validity, or non-pending slot', () => {
-  const wrongId = { ...item(), id: 'backup_restore_drill' };
-  assert.equal(applyProductionDeploymentSmokeEvidenceItem(manifest(), wrongId, { expectedCommit: commit, expectedVersion: '1.0.0-rc.1', now }).ok, false);
+test('rejects unknown IDs, extra fields, stale validity, duplicate slots, or non-pending slots', () => {
+  assert.equal(apply(manifest(), item('not_a_release_evidence_id')).ok, false);
 
-  const extra = { ...item(), unexpected: true };
-  assert.equal(applyProductionDeploymentSmokeEvidenceItem(manifest(), extra, { expectedCommit: commit, expectedVersion: '1.0.0-rc.1', now }).ok, false);
+  const extra = { ...item('backup_restore_drill'), unexpected: true };
+  assert.equal(apply(manifest(), extra).ok, false);
 
-  const stale = { ...item(), validUntil: '2026-08-26T19:59:59.000Z' };
-  assert.equal(applyProductionDeploymentSmokeEvidenceItem(manifest(), stale, { expectedCommit: commit, expectedVersion: '1.0.0-rc.1', now }).ok, false);
+  const stale = { ...item('backup_restore_drill'), validUntil: '2026-08-26T19:59:59.000Z' };
+  assert.equal(apply(manifest(), stale).ok, false);
+
+  const duplicate = manifest();
+  duplicate.evidence.push(pending('backup_restore_drill'));
+  assert.equal(apply(duplicate, item('backup_restore_drill')).ok, false);
 
   const alreadyApplied = manifest();
-  alreadyApplied.evidence[1] = item();
-  const result = applyProductionDeploymentSmokeEvidenceItem(alreadyApplied, item(), { expectedCommit: commit, expectedVersion: '1.0.0-rc.1', now });
+  const index = alreadyApplied.evidence.findIndex((entry) => entry.id === 'backup_restore_drill');
+  alreadyApplied.evidence[index] = item('backup_restore_drill');
+  const result = apply(alreadyApplied, item('backup_restore_drill'));
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /PENDING/);
 });
