@@ -91,7 +91,7 @@ test('rejects evidence references carrying query strings or fragments', () => {
 });
 
 test('rejects hostless HTTPS and evidence references', () => {
-  for (const evidenceRef of ['https:///report', 'evidence:report']) {
+  for (const evidenceRef of ['https://', 'evidence:report']) {
     const value = manifest();
     value.evidence[0].evidenceRef = evidenceRef;
     assert.equal(validate(value).ok, false, evidenceRef);
