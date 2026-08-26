@@ -42,9 +42,14 @@ export function validateMarketReleaseEvidence(manifest, { expectedCommit, now = 
   if (manifest.schemaVersion !== 1) errors.push('schemaVersion must equal 1.');
   if (!SCOPES.has(manifest.scope)) errors.push('scope must be WEB_V1 or FULL.');
 
+  const normalizedExpectedCommit = nonEmpty(expectedCommit) ? expectedCommit.trim() : '';
+  if (!SHA40.test(normalizedExpectedCommit)) {
+    errors.push('expected release commit must be an explicit lowercase 40-character Git commit SHA.');
+  }
+
   if (!nonEmpty(manifest.releaseCommit) || !SHA40.test(manifest.releaseCommit.trim())) {
     errors.push('releaseCommit must be a lowercase 40-character Git commit SHA.');
-  } else if (expectedCommit && manifest.releaseCommit.trim() !== expectedCommit.trim()) {
+  } else if (SHA40.test(normalizedExpectedCommit) && manifest.releaseCommit.trim() !== normalizedExpectedCommit) {
     errors.push('releaseCommit does not match the commit being released.');
   }
 
@@ -108,9 +113,17 @@ async function runCli() {
     return;
   }
 
+  const expectedCommit = readArg('--commit') ?? process.env.GITHUB_SHA ?? process.env.KNOWME_RELEASE_COMMIT;
+  if (!nonEmpty(expectedCommit) || !SHA40.test(expectedCommit.trim())) {
+    console.error(
+      'ERROR: Bind market readiness to the exact release commit with --commit <sha>, GITHUB_SHA, or KNOWME_RELEASE_COMMIT.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const raw = await readFile(file, 'utf8');
   const manifest = JSON.parse(raw);
-  const expectedCommit = process.env.GITHUB_SHA || process.env.KNOWME_RELEASE_COMMIT;
   const result = validateMarketReleaseEvidence(manifest, { expectedCommit });
 
   for (const warning of result.warnings) console.warn(`WARN: ${warning}`);
