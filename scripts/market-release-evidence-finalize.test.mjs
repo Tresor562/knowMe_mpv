@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { finalizeMarketReleaseEvidence } from './market-release-evidence-finalize.mjs';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+  finalizeMarketReleaseEvidence,
+  writeFinalizedMarketReleaseEvidence,
+} from './market-release-evidence-finalize.mjs';
 import { requiredEvidenceForScope, validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
 
 const commit = 'a'.repeat(40);
@@ -69,6 +75,40 @@ test('atomically applies, signs, revalidates, and hashes WEB_V1 evidence', () =>
     now,
   });
   assert.equal(validation.ok, true);
+});
+
+test('reserves and writes signed manifest plus digest as a pair', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd271-'));
+  try {
+    const result = finalize();
+    assert.equal(result.ok, true);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    await writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 });
+    assert.deepEqual(await readFile(outputPath), result.bytes);
+    assert.equal(await readFile(digestPath, 'utf8'), `${result.sha256}  ${outputPath}\n`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('does not leave a new manifest when digest reservation fails', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd271-'));
+  try {
+    const result = finalize();
+    assert.equal(result.ok, true);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    await writeFile(digestPath, 'existing\n', 'utf8');
+    await assert.rejects(
+      writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 }),
+      /EEXIST/,
+    );
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+    assert.equal(await readFile(digestPath, 'utf8'), 'existing\n');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('fails before signing when one pending item is missing', () => {
