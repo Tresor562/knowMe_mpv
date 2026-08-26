@@ -22,10 +22,33 @@ describe('MediaPurgeAlertWorkerService', () => {
     return { service, retention, alerts };
   }
 
+  it('starts with a bounded, privacy-safe empty snapshot', () => {
+    const { service } = setup();
+    expect(service.getSnapshot()).toEqual({
+      running: false,
+      pollIntervalMs: 300000,
+      reminderIntervalMs: 3600000,
+      lastObservedReadiness: null,
+      lastPollAt: null,
+      lastAlertAttemptAt: null,
+      lastDeliveredAt: null,
+      lastFailureAt: null,
+      lastResult: null
+    });
+  });
+
   it('does not alert a clear retention state', async () => {
     const { service, alerts } = setup('HEALTHY');
     await expect(service.runOnce(now)).resolves.toBe('SKIPPED_NOT_ALERTABLE');
     expect(alerts.notify).not.toHaveBeenCalled();
+    expect(service.getSnapshot()).toEqual(expect.objectContaining({
+      lastObservedReadiness: 'CLEAR',
+      lastPollAt: now.toISOString(),
+      lastAlertAttemptAt: null,
+      lastDeliveredAt: null,
+      lastFailureAt: null,
+      lastResult: 'SKIPPED_NOT_ALERTABLE'
+    }));
   });
 
   it('delivers an aggregate alert for action-required backlog', async () => {
@@ -43,13 +66,28 @@ describe('MediaPurgeAlertWorkerService', () => {
         nextScheduledRetryAt: null
       }
     });
+    expect(service.getSnapshot()).toEqual(expect.objectContaining({
+      lastObservedReadiness: 'ACTION_REQUIRED',
+      lastPollAt: now.toISOString(),
+      lastAlertAttemptAt: now.toISOString(),
+      lastDeliveredAt: now.toISOString(),
+      lastFailureAt: null,
+      lastResult: 'DELIVERED'
+    }));
   });
 
   it('deduplicates repeated alerts for the same state inside one hour', async () => {
     const { service, alerts } = setup('FAILING');
     await expect(service.runOnce(now)).resolves.toBe('DELIVERED');
-    await expect(service.runOnce(new Date(now.getTime() + 30 * 60 * 1000))).resolves.toBe('SKIPPED_DEDUPLICATED');
+    const secondPoll = new Date(now.getTime() + 30 * 60 * 1000);
+    await expect(service.runOnce(secondPoll)).resolves.toBe('SKIPPED_DEDUPLICATED');
     expect(alerts.notify).toHaveBeenCalledTimes(1);
+    expect(service.getSnapshot()).toEqual(expect.objectContaining({
+      lastPollAt: secondPoll.toISOString(),
+      lastAlertAttemptAt: now.toISOString(),
+      lastDeliveredAt: now.toISOString(),
+      lastResult: 'SKIPPED_DEDUPLICATED'
+    }));
   });
 
   it('sends a reminder after one hour while the blocking state persists', async () => {
@@ -76,11 +114,25 @@ describe('MediaPurgeAlertWorkerService', () => {
     expect(alerts.notify).toHaveBeenLastCalledWith(expect.objectContaining({ readiness: 'BLOCKED_MAX_BACKOFF' }));
   });
 
-  it('retries on the next poll when delivery fails instead of suppressing the incident', async () => {
+  it('records a failed delivery and retries on the next poll', async () => {
     const { service, alerts } = setup('FAILING');
     alerts.notify.mockResolvedValueOnce('FAILED').mockResolvedValueOnce('DELIVERED');
     await expect(service.runOnce(now)).resolves.toBe('FAILED');
-    await expect(service.runOnce(new Date(now.getTime() + 5 * 60 * 1000))).resolves.toBe('DELIVERED');
+    expect(service.getSnapshot()).toEqual(expect.objectContaining({
+      lastAlertAttemptAt: now.toISOString(),
+      lastDeliveredAt: null,
+      lastFailureAt: now.toISOString(),
+      lastResult: 'FAILED'
+    }));
+
+    const retryAt = new Date(now.getTime() + 5 * 60 * 1000);
+    await expect(service.runOnce(retryAt)).resolves.toBe('DELIVERED');
     expect(alerts.notify).toHaveBeenCalledTimes(2);
+    expect(service.getSnapshot()).toEqual(expect.objectContaining({
+      lastAlertAttemptAt: retryAt.toISOString(),
+      lastDeliveredAt: retryAt.toISOString(),
+      lastFailureAt: now.toISOString(),
+      lastResult: 'DELIVERED'
+    }));
   });
 });
