@@ -23,7 +23,6 @@ const bytes = Buffer.from(`${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
 function build(overrides = {}) {
   return buildProductionDeploymentSmokeEvidenceItem({
     artifactBytes: bytes,
-    artifact,
     expectedCommit: commit,
     expectedVersion: version,
     verifier: 'release-operator',
@@ -53,8 +52,14 @@ test('rejects release identity mismatches', () => {
   assert.equal(build({ expectedVersion: '1.0.1' }).ok, false);
 });
 
-test('rejects failed or incomplete smoke checks', () => {
-  assert.equal(build({ artifact: { ...artifact, checks: { ...artifact.checks, metricsSurface: { passed: false } } } }).ok, false);
+test('validates the same exact bytes that are hashed', () => {
+  const failedArtifact = {
+    ...artifact,
+    checks: { ...artifact.checks, metricsSurface: { passed: false } },
+  };
+  const failedBytes = Buffer.from(`${JSON.stringify(failedArtifact, null, 2)}\n`, 'utf8');
+  assert.equal(build({ artifactBytes: failedBytes }).ok, false);
+  assert.equal(build({ artifactBytes: Buffer.from('{invalid-json', 'utf8') }).ok, false);
 });
 
 test('rejects unsafe evidence references and stale validity', () => {
