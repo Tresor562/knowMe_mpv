@@ -3,13 +3,13 @@
   "scope": "WEB_V1",
   "releaseCommit": "0000000000000000000000000000000000000000",
   "evidence": [
-    { "id": "production_tls_domain", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "production_deployment_smoke", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "backup_restore_drill", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "external_monitoring_alerting", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "privacy_terms_legal_review", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "data_export_delete_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "moderation_support_incident_ops", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" },
-    { "id": "antimalware_provider_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "" }
+    { "id": "production_tls_domain", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "production_deployment_smoke", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "backup_restore_drill", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "external_monitoring_alerting", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "privacy_terms_legal_review", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "data_export_delete_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "moderation_support_incident_ops", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" },
+    { "id": "antimalware_provider_validation", "status": "PENDING", "verifiedAt": null, "validUntil": null, "verifier": "", "evidenceRef": "", "evidenceSha256": "" }
   ]
 }
