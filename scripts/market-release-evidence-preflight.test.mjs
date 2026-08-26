@@ -9,6 +9,7 @@ import {
 const commit = 'a'.repeat(40);
 const releaseVersion = '1.0.0-rc.1';
 const signingKey = 'release-evidence-signing-key-0000001';
+const signingKeyId = 'release-evidence-2026-08';
 const now = new Date('2026-08-26T02:00:00.000Z');
 
 function item(id) {
@@ -25,11 +26,12 @@ function item(id) {
 
 function manifest(scope = 'WEB_V1') {
   const value = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     scope,
     environment: 'PRODUCTION',
     releaseCommit: commit,
     releaseVersion,
+    signingKeyId,
     evidence: requiredEvidenceForScope(scope).map(item),
   };
   value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
@@ -40,6 +42,7 @@ function validate(value, options = {}) {
   return validateMarketReleaseEvidence(value, {
     expectedCommit: commit,
     expectedReleaseVersion: releaseVersion,
+    expectedSigningKeyId: signingKeyId,
     signingKey,
     now,
     ...options,
@@ -84,6 +87,7 @@ test('binds evidence to the exact release commit', () => {
 test('fails closed when the expected release commit is missing', () => {
   const result = validateMarketReleaseEvidence(manifest(), {
     expectedReleaseVersion: releaseVersion,
+    expectedSigningKeyId: signingKeyId,
     signingKey,
     now,
   });
@@ -110,6 +114,7 @@ test('fails closed when the expected release version is missing or non-canonical
     const result = validateMarketReleaseEvidence(manifest(), {
       expectedCommit: commit,
       expectedReleaseVersion,
+      expectedSigningKeyId: signingKeyId,
       signingKey,
       now,
     });
@@ -126,6 +131,38 @@ test('rejects non-canonical manifest release versions', () => {
     assert.equal(result.ok, false);
     assert.ok(result.errors.some((error) => error.includes('releaseVersion')));
   }
+});
+
+test('binds the manifest to the expected signing key identity', () => {
+  const wrongExpectedId = validate(manifest(), { expectedSigningKeyId: 'release-evidence-2026-09' });
+  assert.equal(wrongExpectedId.ok, false);
+  assert.ok(wrongExpectedId.errors.includes('signingKeyId does not match the release evidence signing key identity.'));
+
+  const tampered = manifest();
+  tampered.signingKeyId = 'release-evidence-2026-09';
+  const tamperedResult = validate(tampered, { expectedSigningKeyId: 'release-evidence-2026-09' });
+  assert.equal(tamperedResult.ok, false);
+  assert.ok(tamperedResult.errors.some((error) => error.includes('manifestHmacSha256')));
+});
+
+test('fails closed when signing key identity is missing or non-canonical', () => {
+  for (const expectedSigningKeyId of [undefined, '', 'Release-Key', ' release-key', 'release key', 'a'.repeat(65)]) {
+    const result = validateMarketReleaseEvidence(manifest(), {
+      expectedCommit: commit,
+      expectedReleaseVersion: releaseVersion,
+      expectedSigningKeyId,
+      signingKey,
+      now,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.some((error) => error.includes('expected signing key id')));
+  }
+
+  const missing = manifest();
+  delete missing.signingKeyId;
+  const missingResult = validate(missing);
+  assert.equal(missingResult.ok, false);
+  assert.ok(missingResult.errors.some((error) => error.includes('signingKeyId')));
 });
 
 test('rejects duplicate evidence ids', () => {
@@ -173,7 +210,7 @@ test('requires a canonical SHA-256 digest for every retained evidence artifact',
 
 test('rejects old schema, unknown scope and non-canonical commit ids', () => {
   const value = manifest();
-  value.schemaVersion = 2;
+  value.schemaVersion = 3;
   value.scope = 'MOBILE_ONLY';
   value.releaseCommit = 'ABC';
   const result = validate(value);
@@ -188,6 +225,7 @@ test('fails closed when the release evidence signing key is missing, weak, or no
     const result = validateMarketReleaseEvidence(manifest(), {
       expectedCommit: commit,
       expectedReleaseVersion: releaseVersion,
+      expectedSigningKeyId: signingKeyId,
       signingKey: candidate,
       now,
     });
@@ -219,6 +257,9 @@ test('detects tampering with signed release evidence metadata', () => {
     },
     (value) => {
       value.releaseVersion = '1.0.1';
+    },
+    (value) => {
+      value.signingKeyId = 'release-evidence-2026-09';
     },
   ]) {
     const value = manifest();
