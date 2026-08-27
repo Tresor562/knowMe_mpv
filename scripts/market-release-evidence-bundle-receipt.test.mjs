@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
@@ -110,18 +110,23 @@ test('receipt binds the exact digest record bytes', () => {
   assert.equal(second.ok, false);
 });
 
-test('writes receipt exclusively and never overwrites an existing artifact', async () => {
+test('writes receipt exclusively and preserves an existing artifact on overwrite attempts', async () => {
   const result = build();
   assert.equal(result.ok, true);
-  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd273-'));
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd279-'));
   const output = join(dir, 'verification-receipt.json');
-  await writeMarketReleaseEvidenceBundleReceipt({ outputPath: output, bytes: result.bytes });
-  const stored = await readFile(output);
-  assert.deepEqual(stored, result.bytes);
-  await assert.rejects(
-    writeMarketReleaseEvidenceBundleReceipt({ outputPath: output, bytes: result.bytes }),
-    /EEXIST/,
-  );
+  try {
+    await writeMarketReleaseEvidenceBundleReceipt({ outputPath: output, bytes: result.bytes });
+    const originalBytes = await readFile(output);
+    assert.deepEqual(originalBytes, result.bytes);
+    await assert.rejects(
+      writeMarketReleaseEvidenceBundleReceipt({ outputPath: output, bytes: Buffer.from('replacement') }),
+      /EEXIST/,
+    );
+    assert.deepEqual(await readFile(output), originalBytes);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('rejects control characters in the receipt output path', async () => {
