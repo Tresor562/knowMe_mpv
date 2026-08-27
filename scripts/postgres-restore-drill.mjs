@@ -2,12 +2,11 @@
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { basename, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { open, readFile } from 'node:fs/promises';
+import { open, readFile, rm } from 'node:fs/promises';
 import {
   assertRestoreTargetIsolation,
-  manifestForBackup,
   postgresCliConnection,
   requireBackupManifestSigningKey,
   requireDumpPath,
@@ -101,29 +100,22 @@ function sha256Bytes(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-async function writeExclusiveEvidence(outputPath, bytes) {
+async function reserveEvidenceOutput(outputPath) {
+  if (typeof outputPath !== 'string' || !outputPath.trim()) {
+    throw new Error('Restore drill evidence output path is required');
+  }
   const path = resolve(outputPath);
   if (!path.endsWith('.json')) throw new Error('Restore drill evidence output must use the .json extension');
-
   const handle = await open(path, 'wx', 0o600);
-  let created = true;
+  return { path, handle };
+}
+
+async function cleanupReservation(reservation) {
+  if (!reservation) return;
   try {
-    await handle.writeFile(bytes);
-    await handle.sync();
-  } catch (error) {
-    try {
-      await handle.close();
-    } finally {
-      if (created) {
-        const { rm } = await import('node:fs/promises');
-        await rm(path, { force: true });
-      }
-    }
-    throw error;
-  }
-  await handle.close();
-  created = false;
-  return path;
+    await reservation.handle.close();
+  } catch {}
+  await rm(reservation.path, { force: true });
 }
 
 export async function runPostgresRestoreDrill({
@@ -156,59 +148,68 @@ export async function runPostgresRestoreDrill({
     throw new Error('Backup integrity check failed before restore drill');
   }
 
-  const restoreResult = spawn(
-    process.execPath,
-    [
-      RESTORE_SCRIPT_PATH,
-      '--file',
-      dump,
-      '--confirm',
-      'RESTORE_KNOWME',
-      '--max-age-hours',
-      String(maxAge),
-    ],
-    {
-      encoding: 'utf8',
-      env: { ...env },
-    },
-  );
-  if (restoreResult.error) throw restoreResult.error;
-  if (restoreResult.status !== 0) {
-    throw new Error(`Restore drill pg_restore phase failed with exit code ${restoreResult.status}`);
+  const reservation = await reserveEvidenceOutput(outputPath);
+  let completed = false;
+  try {
+    const restoreResult = spawn(
+      process.execPath,
+      [
+        RESTORE_SCRIPT_PATH,
+        '--file',
+        dump,
+        '--confirm',
+        'RESTORE_KNOWME',
+        '--max-age-hours',
+        String(maxAge),
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...env },
+      },
+    );
+    if (restoreResult.error) throw restoreResult.error;
+    if (restoreResult.status !== 0) {
+      throw new Error(`Restore drill pg_restore phase failed with exit code ${restoreResult.status}`);
+    }
+
+    const connection = postgresCliConnection(restoreDatabaseUrl, 'RESTORE_DATABASE_URL');
+    const checkResult = spawn(
+      'psql',
+      [
+        connection.url,
+        '--no-psqlrc',
+        '--set=ON_ERROR_STOP=1',
+        '--tuples-only',
+        '--no-align',
+        '--command',
+        CHECK_SQL,
+      ],
+      {
+        encoding: 'utf8',
+        env: { ...env, ...connection.env },
+      },
+    );
+    if (checkResult.error) throw checkResult.error;
+    if (checkResult.status !== 0) {
+      throw new Error(`Restore drill PostgreSQL integrity phase failed with exit code ${checkResult.status}`);
+    }
+
+    const checks = parseRestoreDrillCheckOutput(checkResult.stdout);
+    const evidence = buildRestoreDrillEvidence({ manifest, checks, maxAgeHours: maxAge, observedAt: now });
+    const bytes = Buffer.from(`${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+    await reservation.handle.writeFile(bytes);
+    await reservation.handle.sync();
+    await reservation.handle.close();
+    completed = true;
+
+    return {
+      outputPath: reservation.path,
+      sha256: sha256Bytes(bytes),
+      evidence,
+    };
+  } finally {
+    if (!completed) await cleanupReservation(reservation);
   }
-
-  const connection = postgresCliConnection(restoreDatabaseUrl, 'RESTORE_DATABASE_URL');
-  const checkResult = spawn(
-    'psql',
-    [
-      connection.url,
-      '--no-psqlrc',
-      '--set=ON_ERROR_STOP=1',
-      '--tuples-only',
-      '--no-align',
-      '--command',
-      CHECK_SQL,
-    ],
-    {
-      encoding: 'utf8',
-      env: { ...env, ...connection.env },
-    },
-  );
-  if (checkResult.error) throw checkResult.error;
-  if (checkResult.status !== 0) {
-    throw new Error(`Restore drill PostgreSQL integrity phase failed with exit code ${checkResult.status}`);
-  }
-
-  const checks = parseRestoreDrillCheckOutput(checkResult.stdout);
-  const evidence = buildRestoreDrillEvidence({ manifest, checks, maxAgeHours: maxAge, observedAt: now });
-  const bytes = Buffer.from(`${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
-  const writtenPath = await writeExclusiveEvidence(outputPath, bytes);
-
-  return {
-    outputPath: writtenPath,
-    sha256: sha256Bytes(bytes),
-    evidence,
-  };
 }
 
 function argValue(name) {
