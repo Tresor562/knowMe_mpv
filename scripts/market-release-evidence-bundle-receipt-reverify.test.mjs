@@ -20,12 +20,12 @@ function pending(id) {
 function item(id) {
   return { id, status: 'VERIFIED', verifiedAt: '2026-08-27T03:00:00.000Z', validUntil: '2026-09-03T03:00:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: artifactSha };
 }
-function fixture() {
+function fixture(receiptNow = now) {
   const source = { schemaVersion: 4, scope: 'WEB_V1', environment: 'PRODUCTION', releaseCommit: commit, releaseVersion: version, signingKeyId, evidence: requiredEvidenceForScope('WEB_V1').map(pending), manifestHmacSha256: '0'.repeat(64) };
-  const finalized = finalizeMarketReleaseEvidence(source, requiredEvidenceForScope('WEB_V1').map(item), { expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now });
+  const finalized = finalizeMarketReleaseEvidence(source, requiredEvidenceForScope('WEB_V1').map(item), { expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now: receiptNow });
   assert.equal(finalized.ok, true);
   const digestText = `${finalized.sha256}  ${manifestPath}\n`;
-  const receipt = buildMarketReleaseEvidenceBundleReceipt({ manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now });
+  const receipt = buildMarketReleaseEvidenceBundleReceipt({ manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now: receiptNow });
   assert.equal(receipt.ok, true);
   return { finalized, digestText, receipt };
 }
@@ -39,6 +39,29 @@ test('reverifies an authenticated receipt against the exact retained bundle', ()
   assert.equal(result.ok, true);
   assert.match(result.receiptSha256, /^[0-9a-f]{64}$/);
   assert.match(result.manifestSha256, /^[0-9a-f]{64}$/);
+});
+
+test('accepts a receipt exactly at the configured freshness boundary', () => {
+  const receiptNow = new Date('2026-08-27T02:30:00.000Z');
+  const { finalized, digestText, receipt } = fixture(receiptNow);
+  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 1 });
+  assert.equal(result.ok, true);
+});
+
+test('rejects an authentic receipt older than the configured freshness window', () => {
+  const receiptNow = new Date('2026-08-27T02:29:59.999Z');
+  const { finalized, digestText, receipt } = fixture(receiptNow);
+  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 1 });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /older than the allowed 1 hour freshness window/);
+});
+
+test('rejects non-canonical or out-of-range freshness values', () => {
+  for (const maxAgeHours of ['01', '0', '8761', 0, 8761, 1.5]) {
+    const result = verify({ maxAgeHours });
+    assert.equal(result.ok, false, String(maxAgeHours));
+    assert.match(result.errors.join(' '), /Receipt maximum age hours/);
+  }
 });
 
 test('rejects a different retained manifest path even when the bundle bytes are valid', () => {
