@@ -18,7 +18,7 @@ function pending(id) {
   return { id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: null, evidenceRef: null, evidenceSha256: null };
 }
 function item(id) {
-  return { id, status: 'VERIFIED', verifiedAt: '2026-08-27T03:00:00.000Z', validUntil: '2026-09-03T03:00:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: artifactSha };
+  return { id, status: 'VERIFIED', verifiedAt: '2026-08-27T01:00:00.000Z', validUntil: '2026-09-03T03:00:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: artifactSha };
 }
 function fixture(receiptNow = now) {
   const source = { schemaVersion: 4, scope: 'WEB_V1', environment: 'PRODUCTION', releaseCommit: commit, releaseVersion: version, signingKeyId, evidence: requiredEvidenceForScope('WEB_V1').map(pending), manifestHmacSha256: '0'.repeat(64) };
