@@ -176,13 +176,13 @@ export async function runPostgresRestoreDrill({
     const checkResult = spawn(
       'psql',
       [
-        connection.url,
         '--no-psqlrc',
         '--set=ON_ERROR_STOP=1',
         '--tuples-only',
         '--no-align',
         '--command',
         CHECK_SQL,
+        connection.url,
       ],
       {
         encoding: 'utf8',
