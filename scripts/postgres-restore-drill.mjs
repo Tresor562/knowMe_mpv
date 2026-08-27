@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { performance } from 'node:perf_hooks';
 import { open, readFile, rm } from 'node:fs/promises';
 import {
   assertRestoreTargetIsolation,
@@ -19,6 +20,7 @@ import {
 const RESTORE_DRILL_CONFIRMATION = 'RESTORE_DRILL_KNOWME';
 const RESTORE_SCRIPT_PATH = fileURLToPath(new URL('./postgres-restore.mjs', import.meta.url));
 const MAX_DRILL_AGE_HOURS = 8760;
+const MAX_DRILL_RTO_SECONDS = 86400;
 const CHECK_SQL = `SELECT json_build_object(
   'databaseReachable', true,
   'prismaMigrationsTable', to_regclass('public._prisma_migrations') IS NOT NULL,
@@ -38,6 +40,10 @@ function canonicalPositiveInteger(raw, label, max = Number.MAX_SAFE_INTEGER) {
 
 export function resolveRestoreDrillMaxAgeHours(raw) {
   return canonicalPositiveInteger(raw, 'Restore drill max age hours', MAX_DRILL_AGE_HOURS);
+}
+
+export function resolveRestoreDrillMaxRtoSeconds(raw) {
+  return canonicalPositiveInteger(raw, 'Restore drill max RTO seconds', MAX_DRILL_RTO_SECONDS);
 }
 
 export function assertRestoreDrillConfirmation(value) {
@@ -71,12 +77,59 @@ export function parseRestoreDrillCheckOutput(stdout) {
   };
 }
 
-export function buildRestoreDrillEvidence({ manifest, checks, maxAgeHours, observedAt = new Date() }) {
+export function buildRestoreDrillRecoveryMetrics({
+  manifest,
+  startedAt,
+  completedAt,
+  durationMs,
+  maxRpoHours,
+  maxRtoSeconds,
+}) {
+  const started = startedAt instanceof Date ? startedAt : new Date(startedAt);
+  const completed = completedAt instanceof Date ? completedAt : new Date(completedAt);
+  const backupCreatedAt = new Date(manifest.createdAt);
+  if ([started, completed, backupCreatedAt].some((date) => Number.isNaN(date.getTime()))) {
+    throw new Error('Restore drill recovery timestamps are invalid');
+  }
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    throw new Error('Restore drill duration is invalid');
+  }
+
+  const recoveryPointAgeSeconds = (started.getTime() - backupCreatedAt.getTime()) / 1000;
+  if (!Number.isFinite(recoveryPointAgeSeconds) || recoveryPointAgeSeconds < 0) {
+    throw new Error('Restore drill backup timestamp is in the future');
+  }
+
+  const maxRpoSeconds = maxRpoHours * 3600;
+  if (recoveryPointAgeSeconds > maxRpoSeconds) {
+    throw new Error(
+      `Restore drill RPO policy failed: backup age ${recoveryPointAgeSeconds.toFixed(3)}s exceeds ${maxRpoSeconds}s`,
+    );
+  }
+  if (durationMs > maxRtoSeconds * 1000) {
+    throw new Error(
+      `Restore drill RTO policy failed: duration ${durationMs.toFixed(3)}ms exceeds ${maxRtoSeconds * 1000}ms`,
+    );
+  }
+
+  return {
+    startedAt: started.toISOString(),
+    completedAt: completed.toISOString(),
+    recoveryPointAgeSeconds,
+    restoreDurationMs: durationMs,
+    policy: {
+      maxRpoHours,
+      maxRtoSeconds,
+    },
+  };
+}
+
+export function buildRestoreDrillEvidence({ manifest, checks, recovery, observedAt = new Date() }) {
   const observed = observedAt instanceof Date ? observedAt : new Date(observedAt);
   if (Number.isNaN(observed.getTime())) throw new Error('Restore drill observation time is invalid');
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: 'knowme-postgres-restore-drill',
     status: 'PASSED',
     observedAt: observed.toISOString(),
@@ -88,11 +141,11 @@ export function buildRestoreDrillEvidence({ manifest, checks, maxAgeHours, obser
     },
     restore: {
       isolatedTarget: true,
-      maxAgeHours,
       checks,
+      recovery,
     },
     proofBoundary:
-      'This artifact proves this automated isolated restore drill completed and its bounded PostgreSQL schema checks passed. It does not prove remote backup durability, production failover, business-data correctness, or an achieved RPO/RTO outside this run.',
+      'This artifact proves this automated isolated restore drill completed, passed bounded PostgreSQL schema checks, and met the configured RPO/RTO thresholds during this run. It does not prove remote backup durability, production failover, business-data correctness, or future RPO/RTO performance.',
   };
 }
 
@@ -122,14 +175,18 @@ export async function runPostgresRestoreDrill({
   dumpPath,
   outputPath,
   maxAgeHours,
+  maxRtoSeconds,
   confirmation,
   env = process.env,
   spawn = spawnSync,
   now = new Date(),
+  monotonicNow = () => performance.now(),
+  completedAt = () => new Date(),
 }) {
   assertRestoreDrillConfirmation(confirmation);
   const dump = requireDumpPath(dumpPath);
   const maxAge = resolveRestoreDrillMaxAgeHours(String(maxAgeHours));
+  const maxRto = resolveRestoreDrillMaxRtoSeconds(String(maxRtoSeconds));
   const restoreDatabaseUrl = requirePostgresUrl(env.RESTORE_DATABASE_URL, 'RESTORE_DATABASE_URL');
   assertRestoreTargetIsolation(restoreDatabaseUrl, env.DATABASE_URL, undefined);
 
@@ -150,6 +207,7 @@ export async function runPostgresRestoreDrill({
 
   const reservation = await reserveEvidenceOutput(outputPath);
   let completed = false;
+  const startedMonotonic = monotonicNow();
   try {
     const restoreResult = spawn(
       process.execPath,
@@ -195,7 +253,17 @@ export async function runPostgresRestoreDrill({
     }
 
     const checks = parseRestoreDrillCheckOutput(checkResult.stdout);
-    const evidence = buildRestoreDrillEvidence({ manifest, checks, maxAgeHours: maxAge, observedAt: now });
+    const finishedMonotonic = monotonicNow();
+    const finishedAt = completedAt();
+    const recovery = buildRestoreDrillRecoveryMetrics({
+      manifest,
+      startedAt: now,
+      completedAt: finishedAt,
+      durationMs: finishedMonotonic - startedMonotonic,
+      maxRpoHours: maxAge,
+      maxRtoSeconds: maxRto,
+    });
+    const evidence = buildRestoreDrillEvidence({ manifest, checks, recovery, observedAt: finishedAt });
     const bytes = Buffer.from(`${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
     await reservation.handle.writeFile(bytes);
     await reservation.handle.sync();
@@ -222,11 +290,15 @@ async function runCli() {
     dumpPath: argValue('--file'),
     outputPath: argValue('--output'),
     maxAgeHours: argValue('--max-age-hours'),
+    maxRtoSeconds: argValue('--max-rto-seconds'),
     confirmation: argValue('--confirm'),
   });
 
   console.log(`Restore drill evidence written: ${result.outputPath}`);
   console.log(`Restore drill evidence SHA-256: ${result.sha256}`);
+  console.log(
+    `Restore drill recovery metrics: RPO=${result.evidence.restore.recovery.recoveryPointAgeSeconds}s, RTO=${result.evidence.restore.recovery.restoreDurationMs}ms`,
+  );
   console.log('The drill used an isolated RESTORE_DATABASE_URL and passed bounded PostgreSQL schema checks.');
 }
 
