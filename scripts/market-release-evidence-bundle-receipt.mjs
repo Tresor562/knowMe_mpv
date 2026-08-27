@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { open, readFile, unlink } from 'node:fs/promises';
 import { verifyMarketReleaseEvidenceBundle } from './market-release-evidence-bundle-verify.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+const SHA256 = /^[0-9a-f]{64}$/;
+const MIN_SIGNING_KEY_LENGTH = 32;
+const RECEIPT_HMAC_DOMAIN = 'knowme-market-release-bundle-verification-receipt-v2\n';
 
 function canonicalArtifactPath(value) {
   return (
@@ -18,6 +21,37 @@ function canonicalArtifactPath(value) {
 
 function canonicalIsoInstant(value) {
   return value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : null;
+}
+
+function validSigningKey(value) {
+  return typeof value === 'string' && value === value.trim() && value.length >= MIN_SIGNING_KEY_LENGTH;
+}
+
+function receiptPayload(receipt) {
+  return {
+    schemaVersion: 2,
+    kind: 'knowme-market-release-bundle-verification',
+    verifiedAt: receipt.verifiedAt,
+    releaseCommit: receipt.releaseCommit,
+    releaseVersion: receipt.releaseVersion,
+    scope: receipt.scope,
+    signingKeyId: receipt.signingKeyId,
+    manifestPath: receipt.manifestPath,
+    manifestSha256: receipt.manifestSha256,
+    digestPath: receipt.digestPath,
+    digestSha256: receipt.digestSha256,
+    proofBoundary: receipt.proofBoundary,
+  };
+}
+
+export function computeMarketReleaseEvidenceBundleReceiptHmac(receipt, signingKey) {
+  if (!validSigningKey(signingKey)) {
+    throw new Error(`Release evidence signing key must be at least ${MIN_SIGNING_KEY_LENGTH} canonical characters.`);
+  }
+  return createHmac('sha256', signingKey)
+    .update(RECEIPT_HMAC_DOMAIN)
+    .update(JSON.stringify(receiptPayload(receipt)))
+    .digest('hex');
 }
 
 export function buildMarketReleaseEvidenceBundleReceipt({
@@ -40,6 +74,9 @@ export function buildMarketReleaseEvidenceBundleReceipt({
   }
   const verifiedAt = canonicalIsoInstant(now);
   if (!verifiedAt) errors.push('Verification receipt timestamp must be a valid instant.');
+  if (!validSigningKey(signingKey)) {
+    errors.push(`Release evidence signing key must be at least ${MIN_SIGNING_KEY_LENGTH} canonical characters.`);
+  }
   if (errors.length > 0) return { ok: false, errors };
 
   const verification = verifyMarketReleaseEvidenceBundle({
@@ -56,7 +93,7 @@ export function buildMarketReleaseEvidenceBundleReceipt({
 
   const digestSha256 = createHash('sha256').update(Buffer.from(digestText, 'utf8')).digest('hex');
   const receipt = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: 'knowme-market-release-bundle-verification',
     verifiedAt,
     releaseCommit: verification.manifest.releaseCommit,
@@ -69,7 +106,12 @@ export function buildMarketReleaseEvidenceBundleReceipt({
     digestSha256,
     proofBoundary:
       'Bundle integrity, authenticity, release identity, and manifest completeness verified; external evidence truthfulness remains independently required.',
+    receiptHmacSha256: '0'.repeat(64),
   };
+  receipt.receiptHmacSha256 = computeMarketReleaseEvidenceBundleReceiptHmac(receipt, signingKey);
+  if (!SHA256.test(receipt.receiptHmacSha256)) {
+    return { ok: false, errors: ['Verification receipt HMAC generation failed.'] };
+  }
   const bytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   return { ok: true, errors: [], receipt, bytes, sha256 };
@@ -132,7 +174,7 @@ async function runCli() {
   if (!result.ok) throw new Error(result.errors.join(' '));
 
   await writeMarketReleaseEvidenceBundleReceipt({ outputPath, bytes: result.bytes });
-  console.log(`Wrote verified market release bundle receipt: ${outputPath}`);
+  console.log(`Wrote authenticated market release bundle receipt: ${outputPath}`);
   console.log(`Receipt SHA-256: ${result.sha256}`);
   console.log(result.receipt.proofBoundary);
 }
