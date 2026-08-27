@@ -7,8 +7,21 @@ import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch
 import { signMarketReleaseEvidence } from './market-release-evidence-sign.mjs';
 import { validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
 
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+
 function canonicalBytes(value) {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function assertCanonicalArtifactPath(value, label) {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value !== value.trim() ||
+    CONTROL_CHARACTERS.test(value)
+  ) {
+    throw new Error(`${label} must be a canonical non-empty path without leading/trailing whitespace or control characters.`);
+  }
 }
 
 export function finalizeMarketReleaseEvidence(
@@ -61,7 +74,8 @@ export function finalizeMarketReleaseEvidence(
 }
 
 export async function writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes, sha256 }) {
-  if (!outputPath || !digestPath) throw new Error('Both signed manifest and digest output paths are required.');
+  assertCanonicalArtifactPath(outputPath, 'Signed manifest output path');
+  assertCanonicalArtifactPath(digestPath, 'Digest output path');
   if (outputPath === digestPath) throw new Error('Signed manifest and digest outputs must be different files.');
 
   let outputHandle;
