@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { readFile, writeFile, unlink } from 'node:fs/promises';
+import { open, readFile, unlink } from 'node:fs/promises';
 import { verifyMarketReleaseEvidenceBundle } from './market-release-evidence-bundle-verify.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -83,12 +83,16 @@ export async function writeMarketReleaseEvidenceBundleReceipt({ outputPath, byte
     throw new Error('Verification receipt bytes must be non-empty.');
   }
 
-  let created = false;
+  let handle;
   try {
-    await writeFile(outputPath, bytes, { flag: 'wx', mode: 0o600 });
-    created = true;
+    handle = await open(outputPath, 'wx', 0o600);
+    await handle.writeFile(bytes);
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
   } catch (error) {
-    if (created) await unlink(outputPath).catch(() => {});
+    if (handle) await handle.close().catch(() => {});
+    await unlink(outputPath).catch(() => {});
     throw error;
   }
 }
