@@ -1,13 +1,78 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open } from 'node:fs/promises';
 import {
   reverifyMarketReleaseEvidenceBundleReceipt,
   resolveReceiptFreshnessPolicy,
 } from './market-release-evidence-bundle-receipt-reverify.mjs';
 
+export const RETAINED_RELEASE_ARTIFACT_LIMITS = Object.freeze({
+  manifest: 256 * 1024,
+  receipt: 128 * 1024,
+  digest: 512,
+});
+
 function nonEmpty(value) {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function assertBoundedRegularFile(stat, { label, maxBytes }) {
+  if (!stat.isFile()) {
+    throw new Error(`${label} must be a regular file.`);
+  }
+  if (!Number.isSafeInteger(stat.size) || stat.size < 1 || stat.size > maxBytes) {
+    throw new Error(`${label} must contain between 1 and ${maxBytes} bytes.`);
+  }
+}
+
+export async function readRetainedReleaseArtifact(path, { label, maxBytes, encoding } = {}) {
+  if (!nonEmpty(path)) throw new Error(`${label ?? 'Retained release artifact'} path is required.`);
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new Error('Retained release artifact maxBytes must be a positive safe integer.');
+  }
+
+  const before = await lstat(path);
+  if (before.isSymbolicLink()) {
+    throw new Error(`${label} must not be a symbolic link.`);
+  }
+  assertBoundedRegularFile(before, { label, maxBytes });
+
+  const noFollow = Number.isInteger(constants.O_NOFOLLOW) ? constants.O_NOFOLLOW : 0;
+  let handle;
+  try {
+    handle = await open(path, constants.O_RDONLY | noFollow);
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ELOOP') {
+      throw new Error(`${label} must not be a symbolic link.`);
+    }
+    throw error;
+  }
+
+  try {
+    const opened = await handle.stat();
+    assertBoundedRegularFile(opened, { label, maxBytes });
+    if (before.dev !== opened.dev || before.ino !== opened.ino) {
+      throw new Error(`${label} changed while it was being opened.`);
+    }
+
+    const bytes = await handle.readFile();
+    const after = await handle.stat();
+    assertBoundedRegularFile(after, { label, maxBytes });
+    if (
+      opened.dev !== after.dev ||
+      opened.ino !== after.ino ||
+      opened.size !== after.size ||
+      opened.mtimeMs !== after.mtimeMs ||
+      bytes.length !== after.size
+    ) {
+      throw new Error(`${label} changed while it was being read.`);
+    }
+
+    return encoding ? bytes.toString(encoding) : bytes;
+  } finally {
+    await handle.close();
+  }
 }
 
 export function validateRetainedMarketReleaseBundle({
@@ -80,9 +145,19 @@ async function runCli() {
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
 
   const [receiptBytes, manifestBytes, digestText] = await Promise.all([
-    readFile(receiptPath),
-    readFile(manifestPath),
-    readFile(digestPath, 'utf8'),
+    readRetainedReleaseArtifact(receiptPath, {
+      label: 'Retained market release receipt',
+      maxBytes: RETAINED_RELEASE_ARTIFACT_LIMITS.receipt,
+    }),
+    readRetainedReleaseArtifact(manifestPath, {
+      label: 'Retained market release manifest',
+      maxBytes: RETAINED_RELEASE_ARTIFACT_LIMITS.manifest,
+    }),
+    readRetainedReleaseArtifact(digestPath, {
+      label: 'Retained market release digest',
+      maxBytes: RETAINED_RELEASE_ARTIFACT_LIMITS.digest,
+      encoding: 'utf8',
+    }),
   ]);
 
   const result = validateRetainedMarketReleaseBundle({
@@ -104,7 +179,7 @@ async function runCli() {
   console.log(`Retained market release bundle gate passed for ${result.manifest?.scope ?? 'unknown scope'}.`);
   console.log(`Manifest SHA-256: ${result.manifestSha256}`);
   console.log(`Receipt SHA-256: ${result.receiptSha256}`);
-  console.log('Market readiness is bound to the exact retained signed manifest, digest, authenticated receipt, candidate identity, and configured receipt freshness policy.');
+  console.log('Market readiness is bound to bounded regular retained files plus the exact signed manifest, digest, authenticated receipt, candidate identity, and configured receipt freshness policy.');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
