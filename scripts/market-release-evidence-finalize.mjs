@@ -8,6 +8,7 @@ import { signMarketReleaseEvidence } from './market-release-evidence-sign.mjs';
 import { validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+const SHA256_HEX = /^[a-f0-9]{64}$/;
 
 function canonicalBytes(value) {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -21,6 +22,19 @@ function assertCanonicalArtifactPath(value, label) {
     CONTROL_CHARACTERS.test(value)
   ) {
     throw new Error(`${label} must be a canonical non-empty path without leading/trailing whitespace or control characters.`);
+  }
+}
+
+function assertBundleDigestMatchesBytes(bytes, sha256) {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+    throw new Error('Signed manifest bytes must be a non-empty Buffer.');
+  }
+  if (typeof sha256 !== 'string' || !SHA256_HEX.test(sha256)) {
+    throw new Error('Signed manifest SHA-256 must be a canonical lowercase 64-character digest.');
+  }
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  if (actual !== sha256) {
+    throw new Error('Signed manifest SHA-256 does not match the exact bytes being written.');
   }
 }
 
@@ -77,6 +91,7 @@ export async function writeFinalizedMarketReleaseEvidence({ outputPath, digestPa
   assertCanonicalArtifactPath(outputPath, 'Signed manifest output path');
   assertCanonicalArtifactPath(digestPath, 'Digest output path');
   if (outputPath === digestPath) throw new Error('Signed manifest and digest outputs must be different files.');
+  assertBundleDigestMatchesBytes(bytes, sha256);
 
   let outputHandle;
   let digestHandle;

@@ -92,6 +92,47 @@ test('reserves and writes signed manifest plus digest as a pair', async () => {
   }
 });
 
+test('fails before creating artifacts when supplied digest does not match exact manifest bytes', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd280-'));
+  try {
+    const result = finalize();
+    assert.equal(result.ok, true);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    await assert.rejects(
+      writeFinalizedMarketReleaseEvidence({
+        outputPath,
+        digestPath,
+        bytes: result.bytes,
+        sha256: 'c'.repeat(64),
+      }),
+      /does not match the exact bytes/,
+    );
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+    await assert.rejects(readFile(digestPath), /ENOENT/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('rejects non-canonical bundle digests before creating artifacts', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd280-'));
+  try {
+    const result = finalize();
+    assert.equal(result.ok, true);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    await assert.rejects(
+      writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256.toUpperCase() }),
+      /canonical lowercase 64-character digest/,
+    );
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+    await assert.rejects(readFile(digestPath), /ENOENT/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('does not leave a new manifest when digest reservation fails', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd271-'));
   try {
