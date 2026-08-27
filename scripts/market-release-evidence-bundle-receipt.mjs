@@ -126,15 +126,17 @@ export async function writeMarketReleaseEvidenceBundleReceipt({ outputPath, byte
   }
 
   let handle;
+  let created = false;
   try {
     handle = await open(outputPath, 'wx', 0o600);
+    created = true;
     await handle.writeFile(bytes);
     await handle.sync();
     await handle.close();
     handle = undefined;
   } catch (error) {
     if (handle) await handle.close().catch(() => {});
-    await unlink(outputPath).catch(() => {});
+    if (created) await unlink(outputPath).catch(() => {});
     throw error;
   }
 }
