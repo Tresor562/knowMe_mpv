@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
-import { finalizeMarketReleaseEvidence } from './market-release-evidence-finalize.mjs';
+import {
+  finalizeMarketReleaseEvidence,
+  writeFinalizedMarketReleaseEvidence,
+} from './market-release-evidence-finalize.mjs';
 import {
   parseMarketReleaseEvidenceDigestRecord,
   verifyMarketReleaseEvidenceBundle,
@@ -135,4 +138,17 @@ test('digest parser rejects control characters in the recorded path', () => {
   const parsed = parseMarketReleaseEvidenceDigestRecord(`${sha}  /tmp/release\tfile.json\n`, '/tmp/release\tfile.json');
   assert.equal(parsed.ok, false);
   assert.match(parsed.errors.join(' '), /free of control characters/);
+});
+
+test('finalizer refuses paths that could inject extra digest-record lines', async () => {
+  const result = finalized();
+  await assert.rejects(
+    writeFinalizedMarketReleaseEvidence({
+      outputPath: '/tmp/release-evidence.signed.json\nforged',
+      digestPath: '/tmp/release-evidence.signed.sha256',
+      bytes: result.bytes,
+      sha256: result.sha256,
+    }),
+    /control characters/,
+  );
 });
