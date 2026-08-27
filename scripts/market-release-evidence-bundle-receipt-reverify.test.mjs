@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 import { finalizeMarketReleaseEvidence } from './market-release-evidence-finalize.mjs';
 import { buildMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt.mjs';
-import { reverifyMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt-reverify.mjs';
+import {
+  reverifyMarketReleaseEvidenceBundleReceipt,
+  resolveReceiptFreshnessPolicy,
+} from './market-release-evidence-bundle-receipt-reverify.mjs';
 
 const commit = 'a'.repeat(40);
 const version = '1.0.0-rc.1';
@@ -31,7 +34,7 @@ function fixture(receiptNow = now) {
 }
 function verify(overrides = {}) {
   const { finalized, digestText, receipt } = fixture();
-  return reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, ...overrides });
+  return reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 24, ...overrides });
 }
 
 test('reverifies an authenticated receipt against the exact retained bundle', () => {
@@ -39,6 +42,12 @@ test('reverifies an authenticated receipt against the exact retained bundle', ()
   assert.equal(result.ok, true);
   assert.match(result.receiptSha256, /^[0-9a-f]{64}$/);
   assert.match(result.manifestSha256, /^[0-9a-f]{64}$/);
+});
+
+test('requires a freshness policy even for direct library callers', () => {
+  const result = verify({ maxAgeHours: undefined });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /Receipt maximum age hours/);
 });
 
 test('accepts a receipt exactly at the configured freshness boundary', () => {
@@ -64,6 +73,19 @@ test('rejects non-canonical or out-of-range freshness values', () => {
   }
 });
 
+test('binds CLI overrides to the configured release freshness policy', () => {
+  assert.equal(resolveReceiptFreshnessPolicy({ configuredMaxAgeHours: '24' }), 24);
+  assert.equal(resolveReceiptFreshnessPolicy({ configuredMaxAgeHours: '24', requestedMaxAgeHours: '24' }), 24);
+  assert.throws(
+    () => resolveReceiptFreshnessPolicy({ configuredMaxAgeHours: '24', requestedMaxAgeHours: '48' }),
+    /must match the configured release policy/,
+  );
+  assert.throws(
+    () => resolveReceiptFreshnessPolicy({ configuredMaxAgeHours: undefined, requestedMaxAgeHours: '24' }),
+    /KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS must be configured/,
+  );
+});
+
 test('rejects a different retained manifest path even when the bundle bytes are valid', () => {
   const result = verify({ manifestPath: '/tmp/copied-release-evidence.signed.json' });
   assert.equal(result.ok, false);
@@ -79,7 +101,7 @@ test('rejects a different retained digest path', () => {
 test('rejects changed digest bytes even if the receipt itself is authentic', () => {
   const { finalized, receipt } = fixture();
   const changedDigest = `${finalized.sha256}  ${manifestPath}\r\n`;
-  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText: changedDigest, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now });
+  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: finalized.bytes, digestText: changedDigest, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 24 });
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /digest|LF line endings/);
 });
@@ -88,6 +110,6 @@ test('rejects changed manifest bytes', () => {
   const { finalized, digestText, receipt } = fixture();
   const changed = Buffer.from(finalized.bytes);
   changed[changed.length - 2] = changed[changed.length - 2] === 32 ? 33 : 32;
-  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: changed, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now });
+  const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: changed, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 24 });
   assert.equal(result.ok, false);
 });

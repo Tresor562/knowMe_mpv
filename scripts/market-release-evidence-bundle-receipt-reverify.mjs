@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 import { verifyMarketReleaseEvidenceBundle } from './market-release-evidence-bundle-verify.mjs';
 import { verifyMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt-verify.mjs';
 
-const MAX_RECEIPT_AGE_HOURS = 8760;
+export const MAX_RECEIPT_AGE_HOURS = 8760;
 
-function parseCanonicalPositiveInteger(value, label) {
+export function parseCanonicalReceiptMaxAgeHours(value, label = 'Receipt maximum age hours') {
   if (typeof value === 'number') {
     if (!Number.isSafeInteger(value) || value < 1 || value > MAX_RECEIPT_AGE_HOURS) {
       throw new Error(`${label} must be an integer between 1 and ${MAX_RECEIPT_AGE_HOURS}.`);
@@ -22,6 +22,25 @@ function parseCanonicalPositiveInteger(value, label) {
     throw new Error(`${label} must be between 1 and ${MAX_RECEIPT_AGE_HOURS}.`);
   }
   return parsed;
+}
+
+export function resolveReceiptFreshnessPolicy({ configuredMaxAgeHours, requestedMaxAgeHours }) {
+  if (configuredMaxAgeHours === undefined || configuredMaxAgeHours === null || configuredMaxAgeHours === '') {
+    throw new Error('KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS must be configured before receipt reverification.');
+  }
+  const configured = parseCanonicalReceiptMaxAgeHours(
+    configuredMaxAgeHours,
+    'KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS',
+  );
+  if (requestedMaxAgeHours === undefined) return configured;
+
+  const requested = parseCanonicalReceiptMaxAgeHours(requestedMaxAgeHours, 'Requested receipt maximum age hours');
+  if (requested !== configured) {
+    throw new Error(
+      `Requested receipt maximum age hours must match the configured release policy (${configured}).`,
+    );
+  }
+  return configured;
 }
 
 export function reverifyMarketReleaseEvidenceBundleReceipt({
@@ -39,12 +58,10 @@ export function reverifyMarketReleaseEvidenceBundleReceipt({
 }) {
   const errors = [];
   let boundedMaxAgeHours;
-  if (maxAgeHours !== undefined) {
-    try {
-      boundedMaxAgeHours = parseCanonicalPositiveInteger(maxAgeHours, 'Receipt maximum age hours');
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
+  try {
+    boundedMaxAgeHours = parseCanonicalReceiptMaxAgeHours(maxAgeHours);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
   }
 
   const receiptVerification = verifyMarketReleaseEvidenceBundleReceipt({
@@ -115,15 +132,14 @@ async function runCli() {
   const receiptPath = readArg('--receipt');
   const manifestPath = readArg('--manifest');
   const digestPath = readArg('--digest');
-  const maxAgeHoursRaw = readArg('--max-age-hours');
   if (!receiptPath || !manifestPath || !digestPath) {
     throw new Error('Provide --receipt <verification-receipt.json> --manifest <signed-manifest.json> --digest <sha256-file>.');
   }
-  if (!maxAgeHoursRaw) {
-    throw new Error('Provide --max-age-hours <hours> to bound how old a retained verification receipt may be.');
-  }
-  const maxAgeHours = parseCanonicalPositiveInteger(maxAgeHoursRaw, 'Receipt maximum age hours');
 
+  const maxAgeHours = resolveReceiptFreshnessPolicy({
+    configuredMaxAgeHours: process.env.KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS,
+    requestedMaxAgeHours: readArg('--max-age-hours'),
+  });
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
@@ -149,7 +165,7 @@ async function runCli() {
   console.log(`Reverified authenticated release receipt against exact bundle: ${receiptPath}`);
   console.log(`Receipt SHA-256: ${result.receiptSha256}`);
   console.log(`Manifest SHA-256: ${result.manifestSha256}`);
-  console.log(`Receipt freshness window: ${maxAgeHours} hour(s).`);
+  console.log(`Receipt freshness window: ${maxAgeHours} hour(s), bound to KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS.`);
   console.log('This verifies retained receipt-to-bundle integrity, authenticity, and bounded receipt freshness only; external evidence truthfulness remains independently required.');
 }
 
