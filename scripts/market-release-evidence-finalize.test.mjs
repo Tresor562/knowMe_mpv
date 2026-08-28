@@ -17,12 +17,7 @@ const signingKey = 'k'.repeat(48);
 const now = new Date('2026-08-26T22:30:00.000Z');
 const zero = '0'.repeat(64);
 const artifactSha = 'b'.repeat(64);
-const manualReleaseBoundIds = new Set([
-  'ios_physical_validation',
-  'android_physical_validation',
-  'ios_store_submission',
-  'android_store_submission',
-]);
+const manualReleaseBoundIds = new Set(['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission']);
 
 function pending(id) {
   return { id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: null, evidenceRef: null, evidenceSha256: null };
@@ -38,9 +33,7 @@ function item(id) {
     evidenceRef: `evidence://release/${id}.json`,
     evidenceSha256: artifactSha,
   };
-  return manualReleaseBoundIds.has(id)
-    ? { ...evidence, releaseCommit: commit, releaseVersion: version }
-    : evidence;
+  return manualReleaseBoundIds.has(id) ? { ...evidence, releaseCommit: commit, releaseVersion: version } : evidence;
 }
 
 function manifest(scope = 'WEB_V1') {
@@ -75,7 +68,6 @@ test('atomically applies, signs, revalidates, and hashes WEB_V1 evidence', () =>
   assert.notEqual(result.manifest.manifestHmacSha256, zero);
   assert.equal(result.manifest.evidence.every((entry) => entry.status === 'VERIFIED'), true);
   assert.equal(createHash('sha256').update(result.bytes).digest('hex'), result.sha256);
-
   const validation = validateMarketReleaseEvidence(result.manifest, {
     expectedCommit: commit,
     expectedReleaseVersion: version,
@@ -108,15 +100,7 @@ test('fails before creating artifacts when supplied digest does not match exact 
     assert.equal(result.ok, true);
     const outputPath = join(dir, 'release-evidence.signed.json');
     const digestPath = join(dir, 'release-evidence.signed.sha256');
-    await assert.rejects(
-      writeFinalizedMarketReleaseEvidence({
-        outputPath,
-        digestPath,
-        bytes: result.bytes,
-        sha256: 'c'.repeat(64),
-      }),
-      /does not match the exact bytes/,
-    );
+    await assert.rejects(writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: 'c'.repeat(64) }), /does not match the exact bytes/);
     await assert.rejects(readFile(outputPath), /ENOENT/);
     await assert.rejects(readFile(digestPath), /ENOENT/);
   } finally {
@@ -131,10 +115,7 @@ test('rejects non-canonical bundle digests before creating artifacts', async () 
     assert.equal(result.ok, true);
     const outputPath = join(dir, 'release-evidence.signed.json');
     const digestPath = join(dir, 'release-evidence.signed.sha256');
-    await assert.rejects(
-      writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256.toUpperCase() }),
-      /canonical lowercase 64-character digest/,
-    );
+    await assert.rejects(writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256.toUpperCase() }), /canonical lowercase 64-character digest/);
     await assert.rejects(readFile(outputPath), /ENOENT/);
     await assert.rejects(readFile(digestPath), /ENOENT/);
   } finally {
@@ -150,10 +131,7 @@ test('does not leave a new manifest when digest reservation fails', async () => 
     const outputPath = join(dir, 'release-evidence.signed.json');
     const digestPath = join(dir, 'release-evidence.signed.sha256');
     await writeFile(digestPath, 'existing\n', 'utf8');
-    await assert.rejects(
-      writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 }),
-      /EEXIST/,
-    );
+    await assert.rejects(writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 }), /EEXIST/);
     await assert.rejects(readFile(outputPath), /ENOENT/);
     assert.equal(await readFile(digestPath, 'utf8'), 'existing\n');
   } finally {
@@ -162,8 +140,7 @@ test('does not leave a new manifest when digest reservation fails', async () => 
 });
 
 test('fails before signing when one pending item is missing', () => {
-  const items = requiredEvidenceForScope('WEB_V1').slice(1).map(item);
-  const result = finalize(manifest(), items);
+  const result = finalize(manifest(), requiredEvidenceForScope('WEB_V1').slice(1).map(item));
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /missing evidence items/);
 });
@@ -192,13 +169,20 @@ test('fails closed with a weak signing key', () => {
   assert.match(result.errors.join(' '), /signing key must be at least/);
 });
 
-test('preserves FULL scope and signs all release-bound required evidence', () => {
+test('FULL finalize fails closed before signing without reviewed manual authorizations', () => {
   const source = manifest('FULL');
   const result = finalize(source, requiredEvidenceForScope('FULL').map(item));
-  assert.equal(result.ok, true);
-  assert.equal(result.manifest.evidence.length, requiredEvidenceForScope('FULL').length);
-  assert.equal(result.manifest.evidence.every((entry) => entry.status === 'VERIFIED'), true);
-  assert.equal(result.manifest.evidence.every((entry) => !('releaseCommit' in entry) && !('releaseVersion' in entry)), true);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
+  assert.equal(source.evidence.every((entry) => entry.status === 'PENDING'), true);
+});
+
+test('FULL finalize rejects forged manual authorization maps', () => {
+  const authorizations = new Map();
+  for (const id of manualReleaseBoundIds) authorizations.set(id, { evidenceId: id, releaseCommit: commit, releaseVersion: version });
+  const result = finalize(manifest('FULL'), requiredEvidenceForScope('FULL').map(item), { manualAuthorizations: authorizations });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
 });
 
 test('FULL finalize rejects legacy manual evidence without serialized release binding', () => {
