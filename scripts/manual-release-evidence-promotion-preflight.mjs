@@ -9,6 +9,7 @@ const MANUAL_IDS = new Set([
   'ios_store_submission',
   'android_store_submission',
 ]);
+const issuedAuthorizations = new WeakSet();
 
 function exactJson(value) {
   return JSON.stringify(value);
@@ -52,6 +53,32 @@ export function preflightManualReleaseEvidencePromotion(
     };
   }
 
+  const authorization = Object.freeze({
+    evidenceId: item.id,
+    releaseCommit: expectedCommit,
+    releaseVersion: expectedVersion,
+    itemJson: exactJson(item),
+  });
+  issuedAuthorizations.add(authorization);
+  return { ok: true, authorization };
+}
+
+export function validateManualReleaseEvidencePromotionAuthorization(
+  authorization,
+  item,
+  { expectedCommit, expectedVersion } = {},
+) {
+  if (!authorization || typeof authorization !== 'object' || !issuedAuthorizations.has(authorization)) {
+    return { ok: false, errors: ['manual evidence requires an authorization minted by the reviewed promotion preflight in this process.'] };
+  }
+  if (
+    authorization.evidenceId !== item?.id ||
+    authorization.releaseCommit !== expectedCommit ||
+    authorization.releaseVersion !== expectedVersion ||
+    authorization.itemJson !== exactJson(item)
+  ) {
+    return { ok: false, errors: ['manual promotion authorization does not match the exact evidence item and target release.'] };
+  }
   return { ok: true };
 }
 
