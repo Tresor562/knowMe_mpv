@@ -105,6 +105,30 @@ test('rejects replay of serialized manual evidence into a different release', ()
   assert.match(missingBinding.errors.join(' '), /releaseCommit and releaseVersion/);
 });
 
+test('rejects non-canonical verifier and evidence references before manifest mutation', () => {
+  const leadingSpaceVerifier = { ...item('backup_restore_drill'), verifier: ' release-operator' };
+  const verifierResult = apply(manifest(), leadingSpaceVerifier);
+  assert.equal(verifierResult.ok, false);
+  assert.match(verifierResult.errors.join(' '), /verifier must be canonical/);
+
+  const controlVerifier = { ...item('backup_restore_drill'), verifier: 'release\noperator' };
+  assert.equal(apply(manifest(), controlVerifier).ok, false);
+
+  const credentialRef = { ...item('backup_restore_drill'), evidenceRef: 'https://user:secret@example.com/evidence.json' };
+  const credentialResult = apply(manifest(), credentialRef);
+  assert.equal(credentialResult.ok, false);
+  assert.match(credentialResult.errors.join(' '), /credential-free HTTPS or evidence URI/);
+
+  const queryRef = { ...item('backup_restore_drill'), evidenceRef: 'https://example.com/evidence.json?token=secret' };
+  assert.equal(apply(manifest(), queryRef).ok, false);
+
+  const fragmentRef = { ...item('backup_restore_drill'), evidenceRef: 'evidence://release/backup.json#fragment' };
+  assert.equal(apply(manifest(), fragmentRef).ok, false);
+
+  const unsupportedRef = { ...item('backup_restore_drill'), evidenceRef: 'file:///tmp/evidence.json' };
+  assert.equal(apply(manifest(), unsupportedRef).ok, false);
+});
+
 test('preserves the KMD-267 production smoke compatibility wrapper', () => {
   const source = manifest();
   const smoke = item();
