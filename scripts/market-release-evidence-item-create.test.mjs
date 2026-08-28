@@ -9,6 +9,8 @@ import {
 const now = new Date('2026-08-26T21:30:00.000Z');
 const bytes = Buffer.from('external-proof-bytes\n', 'utf8');
 const worksheetBytes = Buffer.from('{"schemaVersion":1,"kind":"manual-release-evidence-worksheet"}\n', 'utf8');
+const releaseCommit = '0123456789abcdef0123456789abcdef01234567';
+const releaseVersion = '1.2.3';
 const baseOptions = {
   id: 'backup_restore_drill',
   scope: 'WEB_V1',
@@ -16,6 +18,8 @@ const baseOptions = {
   evidenceRef: 'evidence://release/backup-restore-drill.json',
   verifiedAt: '2026-08-26T21:25:00.000Z',
   validUntil: '2026-09-02T21:25:00.000Z',
+  expectedCommit: releaseCommit,
+  expectedVersion: releaseVersion,
   now,
 };
 
@@ -27,8 +31,8 @@ function reviewReceipt(id, evidenceRef = `evidence://release/${id}.json`) {
     certifiesExternalValidation: false,
     generatedForScope: 'FULL',
     environment: 'PRODUCTION',
-    releaseCommit: '0123456789abcdef0123456789abcdef01234567',
-    releaseVersion: '1.2.3',
+    releaseCommit,
+    releaseVersion,
     evidenceId: id,
     reviewer: 'release-operator',
     reviewedAt: '2026-08-26T21:20:00.000Z',
@@ -151,6 +155,47 @@ test('generic creation requires an exact KMD-309 review receipt and worksheet fo
   });
   assert.equal(webOnly.ok, false);
   assert.match(webOnly.errors.join(' '), /requires scope FULL/);
+});
+
+test('generic promotion rejects cross-release reuse and missing target release metadata', () => {
+  const id = 'ios_store_submission';
+  const evidenceRef = `evidence://release/${id}.json`;
+  const options = {
+    ...baseOptions,
+    id,
+    scope: 'FULL',
+    evidenceRef,
+    worksheetBytes,
+    reviewReceipt: reviewReceipt(id, evidenceRef),
+  };
+
+  const wrongCommit = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    expectedCommit: 'fedcba9876543210fedcba9876543210fedcba98',
+  });
+  assert.equal(wrongCommit.ok, false);
+  assert.match(wrongCommit.errors.join(' '), /target release commit/);
+
+  const wrongVersion = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    expectedVersion: '1.2.4',
+  });
+  assert.equal(wrongVersion.ok, false);
+  assert.match(wrongVersion.errors.join(' '), /target release version/);
+
+  const missingCommit = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    expectedCommit: undefined,
+  });
+  assert.equal(missingCommit.ok, false);
+  assert.match(missingCommit.errors.join(' '), /expectedCommit/);
+
+  const missingVersion = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    expectedVersion: undefined,
+  });
+  assert.equal(missingVersion.ok, false);
+  assert.match(missingVersion.errors.join(' '), /expectedVersion/);
 });
 
 test('generic promotion rejects receipt/artifact, worksheet, evidence id, URI, reviewer, and decision drift', () => {
