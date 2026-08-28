@@ -5,66 +5,108 @@ import { assessMarketReleaseEvidenceReadiness } from './market-release-evidence-
 
 const ACTIONS = Object.freeze({
   production_tls_domain: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm release:tls-domain:smoke:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'Release engineering / platform',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:tls-domain:smoke' },
+      { phase: 'BIND', command: 'pnpm release:tls-domain:smoke:evidence:bind' },
+    ],
   },
   production_deployment_smoke: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm release:smoke:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'Release engineering / platform',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:smoke' },
+      { phase: 'BIND', command: 'pnpm release:smoke:evidence:bind' },
+    ],
   },
   backup_restore_drill: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm db:restore:drill:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'Database / operations',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm db:restore:drill' },
+      { phase: 'BIND', command: 'pnpm db:restore:drill:evidence:bind' },
+    ],
   },
   external_monitoring_alerting: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm release:monitoring:smoke:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'SRE / on-call',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:monitoring:smoke' },
+      { phase: 'BIND', command: 'pnpm release:monitoring:smoke:evidence:bind' },
+    ],
   },
   privacy_terms_legal_review: {
-    kind: 'AUTOMATED_BINDER_AFTER_HUMAN_REVIEW',
-    command: 'pnpm release:privacy-legal:evidence:bind',
+    kind: 'HUMAN_REVIEW_THEN_BIND',
     responsibility: 'Privacy / legal owner',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'HUMAN_REVIEW', command: null },
+      { phase: 'BUILD_ARTIFACT', command: 'pnpm release:privacy-legal:artifact' },
+      { phase: 'BIND', command: 'pnpm release:privacy-legal:evidence:bind' },
+    ],
   },
   data_export_delete_validation: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm release:data-lifecycle:smoke:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'Backend / privacy engineering',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:data-lifecycle:smoke' },
+      { phase: 'BIND', command: 'pnpm release:data-lifecycle:smoke:evidence:bind' },
+    ],
   },
   moderation_support_incident_ops: {
-    kind: 'AUTOMATED_BINDER_AFTER_REAL_DRILL',
-    command: 'pnpm release:moderation-ops:evidence:bind',
+    kind: 'REAL_DRILL_THEN_BIND',
     responsibility: 'Trust & safety / support operations',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'REAL_DRILL', command: null },
+      { phase: 'BUILD_ARTIFACT', command: 'pnpm release:moderation-ops:drill' },
+      { phase: 'BIND', command: 'pnpm release:moderation-ops:evidence:bind' },
+    ],
   },
   antimalware_provider_validation: {
-    kind: 'AUTOMATED_BINDER',
-    command: 'pnpm release:antimalware:smoke:evidence:bind',
+    kind: 'AUTOMATED_WORKFLOW',
     responsibility: 'Security / platform',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:antimalware:smoke' },
+      { phase: 'BIND', command: 'pnpm release:antimalware:smoke:evidence:bind' },
+    ],
   },
   ios_physical_validation: {
     kind: 'MANUAL_EXTERNAL_EVIDENCE',
-    command: null,
     responsibility: 'Mobile QA on supported physical iOS devices',
+    requiresRealWorldValidation: true,
+    steps: [{ phase: 'MANUAL_EXTERNAL_VALIDATION', command: null }],
   },
   android_physical_validation: {
     kind: 'MANUAL_EXTERNAL_EVIDENCE',
-    command: null,
     responsibility: 'Mobile QA on supported physical Android devices',
+    requiresRealWorldValidation: true,
+    steps: [{ phase: 'MANUAL_EXTERNAL_VALIDATION', command: null }],
   },
   ios_store_submission: {
     kind: 'MANUAL_EXTERNAL_EVIDENCE',
-    command: null,
     responsibility: 'App Store release owner',
+    requiresRealWorldValidation: true,
+    steps: [{ phase: 'MANUAL_EXTERNAL_SUBMISSION', command: null }],
   },
   android_store_submission: {
     kind: 'MANUAL_EXTERNAL_EVIDENCE',
-    command: null,
     responsibility: 'Google Play release owner',
+    requiresRealWorldValidation: true,
+    steps: [{ phase: 'MANUAL_EXTERNAL_SUBMISSION', command: null }],
   },
 });
+
+function firstExecutableCommand(steps) {
+  return steps.find((step) => typeof step.command === 'string')?.command ?? null;
+}
 
 export function buildMarketReleaseEvidenceActionPlan(manifest, options = {}) {
   const readiness = assessMarketReleaseEvidenceReadiness(manifest, options);
@@ -77,18 +119,19 @@ export function buildMarketReleaseEvidenceActionPlan(manifest, options = {}) {
         id: entry.id,
         state: entry.state,
         ...action,
+        command: firstExecutableCommand(action.steps),
       };
     });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     scope: readiness.scope,
     complete: readiness.complete,
     blockingCount: readiness.blockingCount,
     actions,
     nextAction: actions[0] ?? null,
     proofBoundary:
-      'Planning only. Commands prepare or bind evidence but never replace real external, legal, operational, physical-device, or store validation.',
+      'Planning only. Commands validate, prepare or bind evidence but never replace real external, legal, operational, physical-device, or store validation.',
   };
 }
 
