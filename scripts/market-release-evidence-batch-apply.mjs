@@ -7,10 +7,15 @@ import { requiredEvidenceForScope } from './market-release-evidence-preflight.mj
 
 const ZERO_HMAC = '0'.repeat(64);
 
-export function applyMarketReleaseEvidenceBatch(manifest, items, { expectedCommit, expectedVersion, now = new Date() } = {}) {
+export function applyMarketReleaseEvidenceBatch(
+  manifest,
+  items,
+  { expectedCommit, expectedVersion, now = new Date(), manualAuthorizations = new Map() } = {},
+) {
   const errors = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return { ok: false, errors: ['manifest must be a JSON object.'] };
   if (!Array.isArray(items)) return { ok: false, errors: ['items must be an array.'] };
+  if (!(manualAuthorizations instanceof Map)) return { ok: false, errors: ['manualAuthorizations must be a Map keyed by evidence id.'] };
   if (manifest.scope !== 'WEB_V1' && manifest.scope !== 'FULL') return { ok: false, errors: ['manifest scope must be WEB_V1 or FULL.'] };
   if (!Array.isArray(manifest.evidence)) return { ok: false, errors: ['manifest evidence must be an array.'] };
   if (manifest.manifestHmacSha256 !== ZERO_HMAC) return { ok: false, errors: ['manifest must be unsigned before batch apply.'] };
@@ -37,7 +42,12 @@ export function applyMarketReleaseEvidenceBatch(manifest, items, { expectedCommi
 
   let output = structuredClone(manifest);
   for (const item of [...items].sort((a, b) => a.id.localeCompare(b.id))) {
-    const result = applyMarketReleaseEvidenceItem(output, item, { expectedCommit, expectedVersion, now });
+    const result = applyMarketReleaseEvidenceItem(output, item, {
+      expectedCommit,
+      expectedVersion,
+      now,
+      manualAuthorization: manualAuthorizations.get(item.id),
+    });
     if (!result.ok) return { ok: false, errors: result.errors.map((error) => `${item.id}: ${error}`) };
     output = result.manifest;
   }
