@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createGenericMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
-import { preflightManualReleaseEvidencePromotion } from './manual-release-evidence-promotion-preflight.mjs';
+import {
+  preflightManualReleaseEvidencePromotion,
+  validateManualReleaseEvidencePromotionAuthorization,
+} from './manual-release-evidence-promotion-preflight.mjs';
 
 const now = new Date('2026-08-28T19:45:00.000Z');
 const artifactBytes = Buffer.from('real-retained-proof\n', 'utf8');
@@ -68,8 +71,56 @@ function preflight(item, overrides = {}) {
   );
 }
 
-test('accepts the exact item reconstructed from the reviewed chain', () => {
-  assert.equal(preflight(createItem()).ok, true);
+test('accepts the exact item reconstructed from the reviewed chain and mints a process-local authorization', () => {
+  const item = createItem();
+  const result = preflight(item);
+  assert.equal(result.ok, true);
+  assert.equal(Object.isFrozen(result.authorization), true);
+  assert.equal(
+    validateManualReleaseEvidencePromotionAuthorization(result.authorization, item, {
+      expectedCommit,
+      expectedVersion,
+    }).ok,
+    true,
+  );
+});
+
+test('rejects forged, copied, item-drifted, and release-drifted authorizations', () => {
+  const item = createItem();
+  const result = preflight(item);
+  assert.equal(result.ok, true);
+
+  const forged = {
+    evidenceId: id,
+    releaseCommit: expectedCommit,
+    releaseVersion: expectedVersion,
+    itemJson: JSON.stringify(item),
+  };
+  assert.equal(
+    validateManualReleaseEvidencePromotionAuthorization(forged, item, { expectedCommit, expectedVersion }).ok,
+    false,
+  );
+  assert.equal(
+    validateManualReleaseEvidencePromotionAuthorization({ ...result.authorization }, item, {
+      expectedCommit,
+      expectedVersion,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    validateManualReleaseEvidencePromotionAuthorization(result.authorization, { ...item, verifier: 'other-reviewer' }, {
+      expectedCommit,
+      expectedVersion,
+    }).ok,
+    false,
+  );
+  assert.equal(
+    validateManualReleaseEvidencePromotionAuthorization(result.authorization, item, {
+      expectedCommit: 'c'.repeat(40),
+      expectedVersion,
+    }).ok,
+    false,
+  );
 });
 
 test('rejects item metadata tampering after reviewed promotion', () => {
