@@ -185,7 +185,7 @@ test('FULL finalize rejects forged manual authorization maps', () => {
   assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
 });
 
-test('FULL finalize rejects legacy manual evidence without serialized release binding', () => {
+test('FULL finalize rejects legacy manual evidence before signing or lower-level release-binding checks', () => {
   const source = manifest('FULL');
   const items = requiredEvidenceForScope('FULL').map(item);
   const manual = items.find((entry) => manualReleaseBoundIds.has(entry.id));
@@ -193,5 +193,6 @@ test('FULL finalize rejects legacy manual evidence without serialized release bi
   delete manual.releaseVersion;
   const result = finalize(source, items);
   assert.equal(result.ok, false);
-  assert.match(result.errors.join(' '), /manual physical\/store evidence item|releaseCommit|releaseVersion/);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
+  assert.equal(source.evidence.every((entry) => entry.status === 'PENDING'), true);
 });
