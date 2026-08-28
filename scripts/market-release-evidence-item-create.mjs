@@ -63,14 +63,14 @@ function canonicalEvidenceRef(value) {
 }
 
 function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {}) {
-  const { id, verifier, evidenceRef } = options;
+  const { id, verifier, evidenceRef, worksheetBytes } = options;
   const errors = [];
 
   if (!reviewReceipt || typeof reviewReceipt !== 'object' || Array.isArray(reviewReceipt)) {
-    return { ok: false, errors: ['reviewReceipt must be a parsed KMD-307 manual evidence review receipt.'] };
+    return { ok: false, errors: ['reviewReceipt must be a parsed KMD-309 manual evidence review receipt.'] };
   }
 
-  if (reviewReceipt.schemaVersion !== 1) errors.push('reviewReceipt.schemaVersion must be 1.');
+  if (reviewReceipt.schemaVersion !== 2) errors.push('reviewReceipt.schemaVersion must be 2.');
   if (reviewReceipt.receiptType !== 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW') {
     errors.push('reviewReceipt.receiptType is invalid.');
   }
@@ -108,19 +108,35 @@ function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {})
     errors.push('reviewReceipt.releaseVersion must be canonical SemVer without build metadata.');
   }
 
+  const reviewedWorksheet = reviewReceipt.reviewedWorksheet;
+  if (!reviewedWorksheet || typeof reviewedWorksheet !== 'object' || Array.isArray(reviewedWorksheet)) {
+    errors.push('reviewReceipt.reviewedWorksheet must be present.');
+  } else if (!SHA256.test(reviewedWorksheet.sha256 ?? '')) {
+    errors.push('reviewReceipt.reviewedWorksheet.sha256 must be a canonical lowercase SHA-256.');
+  }
+
+  if (!Buffer.isBuffer(worksheetBytes) && !(worksheetBytes instanceof Uint8Array)) {
+    errors.push('worksheetBytes must contain the exact worksheet bytes reviewed by KMD-309.');
+  } else if (reviewedWorksheet && SHA256.test(reviewedWorksheet.sha256 ?? '')) {
+    const worksheetSha256 = createHash('sha256').update(worksheetBytes).digest('hex');
+    if (worksheetSha256 !== reviewedWorksheet.sha256) {
+      errors.push('worksheet SHA-256 must exactly match the worksheet reviewed by KMD-309.');
+    }
+  }
+
   const retainedProof = reviewReceipt.retainedProof;
   if (!retainedProof || typeof retainedProof !== 'object' || Array.isArray(retainedProof)) {
     errors.push('reviewReceipt.retainedProof must be present.');
   } else {
     if (retainedProof.uri !== evidenceRef || canonicalEvidenceRef(retainedProof.uri) === null) {
-      errors.push('evidenceRef must exactly match the canonical retained-proof URI reviewed by KMD-307.');
+      errors.push('evidenceRef must exactly match the canonical retained-proof URI reviewed by KMD-309.');
     }
     const artifactSha256 =
       Buffer.isBuffer(artifactBytes) || artifactBytes instanceof Uint8Array
         ? createHash('sha256').update(artifactBytes).digest('hex')
         : null;
     if (!SHA256.test(retainedProof.sha256 ?? '') || retainedProof.sha256 !== artifactSha256) {
-      errors.push('artifact SHA-256 must exactly match the retained proof reviewed by KMD-307.');
+      errors.push('artifact SHA-256 must exactly match the retained proof reviewed by KMD-309.');
     }
   }
 
@@ -226,6 +242,7 @@ function readArg(name) {
 
 async function runCli() {
   const artifactPath = readArg('--artifact');
+  const worksheetPath = readArg('--worksheet');
   const reviewReceiptPath = readArg('--review-receipt');
   const outputPath = readArg('--output');
   const id = readArg('--id');
@@ -235,12 +252,13 @@ async function runCli() {
   const verifiedAt = readArg('--verified-at');
   const validUntil = readArg('--valid-until');
 
-  if (!artifactPath || !reviewReceiptPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil) {
-    throw new Error('Provide --artifact, --review-receipt, --output, --id, --scope, --verifier, --ref, --verified-at, and --valid-until.');
+  if (!artifactPath || !worksheetPath || !reviewReceiptPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil) {
+    throw new Error('Provide --artifact, --worksheet, --review-receipt, --output, --id, --scope, --verifier, --ref, --verified-at, and --valid-until.');
   }
 
-  const [artifactBytes, reviewReceiptRaw] = await Promise.all([
+  const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
     readFile(artifactPath),
+    readFile(worksheetPath),
     readFile(reviewReceiptPath, 'utf8'),
   ]);
   const reviewReceipt = JSON.parse(reviewReceiptRaw);
@@ -251,6 +269,7 @@ async function runCli() {
     evidenceRef,
     verifiedAt,
     validUntil,
+    worksheetBytes,
     reviewReceipt,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
@@ -262,7 +281,7 @@ async function runCli() {
   });
   console.log(`Created VERIFIED ${id} evidence item at ${outputPath}.`);
   console.log(`SHA-256: ${result.item.evidenceSha256}`);
-  console.log('Promotion required a KMD-307 human-review receipt bound to the exact retained proof.');
+  console.log('Promotion required a KMD-309 human-review receipt plus the exact reviewed worksheet and retained proof bytes.');
   console.log('This item still must be applied to the unsigned release manifest, signed, and pass check:market-ready.');
 }
 
