@@ -22,6 +22,8 @@ Affected evidence IDs:
 
 `release:evidence:item:apply` now requires those fields for the four manual evidence IDs and rejects the item when either field is missing, malformed, or differs from the target manifest release.
 
+Batch application and finalization reuse that same fail-closed item application path. FULL batch/finalize inputs therefore must carry the release binding on each physical/store evidence item; they do not receive a compatibility exception.
+
 The two binding fields are transport-only. After a successful equality check they are stripped before the evidence item is inserted into the schema-v4 market manifest. This preserves the existing signed manifest schema while still preventing a serialized item produced for release A from being replayed into release B.
 
 Common evidence items produced by dedicated semantic binders retain their existing exact seven-field contract and cannot acquire these transport-only fields.
@@ -33,13 +35,17 @@ Regression coverage verifies that:
 - generic manual evidence creation serializes the exact release commit and version;
 - low-level semantic evidence items remain unchanged;
 - FULL manual evidence applies when the serialized release binding exactly matches the target release;
+- FULL batch application and finalization accept correctly release-bound manual items and strip the transport-only fields before manifest persistence/signing;
+- batch/finalize reject legacy manual items missing the serialized binding;
 - an item bound to another commit is rejected;
 - an item bound to another version is rejected;
 - an unbound legacy manual item is rejected rather than silently accepted;
 - the transport-only fields are removed before insertion into the schema-v4 manifest;
 - existing common evidence and production-smoke compatibility behavior remains unchanged.
 
-The modified item-create and item-apply test suites are already part of the repository root `pnpm test` quality gate.
+The item-create, item-apply, batch-apply, and finalize test suites are part of the repository root `pnpm test` quality gate.
+
+CI run #1094 exposed stale FULL test fixtures in the batch/finalize suites: those fixtures still constructed the four manual items with the pre-KMD-311 seven-field shape. The production enforcement behaved correctly and rejected them. The fixtures were updated to carry the required release binding, with explicit regression tests proving that legacy unbound manual items remain rejected. No runtime enforcement was weakened to make the tests pass.
 
 ## Migration
 
