@@ -18,6 +18,29 @@ const baseOptions = {
   now,
 };
 
+function reviewReceipt(id, evidenceRef = `evidence://release/${id}.json`) {
+  return {
+    schemaVersion: 1,
+    receiptType: 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW',
+    reviewDecision: 'APPROVED_FOR_EVIDENCE_PIPELINE',
+    certifiesExternalValidation: false,
+    generatedForScope: 'FULL',
+    environment: 'PRODUCTION',
+    releaseCommit: '0123456789abcdef0123456789abcdef01234567',
+    releaseVersion: '1.2.3',
+    evidenceId: id,
+    reviewer: 'release-operator',
+    reviewedAt: '2026-08-26T21:20:00.000Z',
+    retainedProof: {
+      uri: evidenceRef,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    },
+    validationOccurredAt: '2026-08-26T21:00:00.000Z',
+    accountableActorOrRole: 'mobile-qa-lead',
+    attestationCount: 5,
+  };
+}
+
 test('creates a bounded VERIFIED item from the exact artifact bytes for semantic binders', () => {
   const result = createMarketReleaseEvidenceItem(bytes, baseOptions);
   assert.equal(result.ok, true);
@@ -77,22 +100,33 @@ test('generic creation refuses common market criteria that have semantic binders
   }
 });
 
-test('generic creation remains available only for FULL external physical/store evidence', () => {
+test('generic creation requires an exact KMD-307 review receipt for FULL external physical/store evidence', () => {
   for (const id of [
     'ios_physical_validation',
     'android_physical_validation',
     'ios_store_submission',
     'android_store_submission',
   ]) {
+    const evidenceRef = `evidence://release/${id}.json`;
     const result = createGenericMarketReleaseEvidenceItem(bytes, {
       ...baseOptions,
       id,
       scope: 'FULL',
-      evidenceRef: `evidence://release/${id}.json`,
+      evidenceRef,
+      reviewReceipt: reviewReceipt(id, evidenceRef),
     });
     assert.equal(result.ok, true, id);
     assert.equal(result.item.id, id);
   }
+
+  const missingReceipt = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...baseOptions,
+    id: 'ios_physical_validation',
+    scope: 'FULL',
+    evidenceRef: 'evidence://release/ios_physical_validation.json',
+  });
+  assert.equal(missingReceipt.ok, false);
+  assert.match(missingReceipt.errors.join(' '), /reviewReceipt/);
 
   const webOnly = createGenericMarketReleaseEvidenceItem(bytes, {
     ...baseOptions,
@@ -101,6 +135,53 @@ test('generic creation remains available only for FULL external physical/store e
   });
   assert.equal(webOnly.ok, false);
   assert.match(webOnly.errors.join(' '), /requires scope FULL/);
+});
+
+test('generic promotion rejects receipt/artifact, evidence id, URI, reviewer, and decision drift', () => {
+  const id = 'android_physical_validation';
+  const evidenceRef = `evidence://release/${id}.json`;
+  const options = {
+    ...baseOptions,
+    id,
+    scope: 'FULL',
+    evidenceRef,
+    reviewReceipt: reviewReceipt(id, evidenceRef),
+  };
+
+  const wrongBytes = createGenericMarketReleaseEvidenceItem(Buffer.from('different-proof'), options);
+  assert.equal(wrongBytes.ok, false);
+  assert.match(wrongBytes.errors.join(' '), /SHA-256/);
+
+  const wrongIdReceipt = { ...reviewReceipt(id, evidenceRef), evidenceId: 'ios_physical_validation' };
+  const wrongId = createGenericMarketReleaseEvidenceItem(bytes, { ...options, reviewReceipt: wrongIdReceipt });
+  assert.equal(wrongId.ok, false);
+  assert.match(wrongId.errors.join(' '), /evidenceId/);
+
+  const wrongUriReceipt = {
+    ...reviewReceipt(id, evidenceRef),
+    retainedProof: { ...reviewReceipt(id, evidenceRef).retainedProof, uri: 'evidence://release/other.json' },
+  };
+  const wrongUri = createGenericMarketReleaseEvidenceItem(bytes, { ...options, reviewReceipt: wrongUriReceipt });
+  assert.equal(wrongUri.ok, false);
+  assert.match(wrongUri.errors.join(' '), /evidenceRef/);
+
+  const wrongReviewer = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    verifier: 'different-reviewer',
+  });
+  assert.equal(wrongReviewer.ok, false);
+  assert.match(wrongReviewer.errors.join(' '), /human reviewer/);
+
+  const wrongDecisionReceipt = {
+    ...reviewReceipt(id, evidenceRef),
+    reviewDecision: 'REJECTED',
+  };
+  const wrongDecision = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    reviewReceipt: wrongDecisionReceipt,
+  });
+  assert.equal(wrongDecision.ok, false);
+  assert.match(wrongDecision.errors.join(' '), /reviewDecision/);
 });
 
 test('rejects unsafe or non-canonical verifier and evidence references', () => {
