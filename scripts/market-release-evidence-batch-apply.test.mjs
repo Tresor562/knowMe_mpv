@@ -20,9 +20,7 @@ function pending(id) {
 }
 function item(id) {
   const evidence = { id, status: 'VERIFIED', verifiedAt: '2026-08-26T22:25:00.000Z', validUntil: '2026-09-02T22:25:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: sha };
-  return manualReleaseBoundIds.has(id)
-    ? { ...evidence, releaseCommit: commit, releaseVersion: version }
-    : evidence;
+  return manualReleaseBoundIds.has(id) ? { ...evidence, releaseCommit: commit, releaseVersion: version } : evidence;
 }
 function manifest(scope = 'WEB_V1') {
   return { schemaVersion: 4, scope, environment: 'PRODUCTION', releaseCommit: commit, releaseVersion: version, signingKeyId: 'release-key-1', evidence: requiredEvidenceForScope(scope).map(pending), manifestHmacSha256: zero };
@@ -79,12 +77,25 @@ test('rejects mutation of an already signed manifest', () => {
   assert.match(result.errors.join(' '), /must be unsigned/);
 });
 
-test('preserves FULL scope boundaries with release-bound manual evidence', () => {
+test('FULL batch fails closed when manual evidence has no reviewed process-local authorization', () => {
   const source = manifest('FULL');
   const result = applyMarketReleaseEvidenceBatch(source, requiredEvidenceForScope('FULL').map(item), { expectedCommit: commit, expectedVersion: version, now });
-  assert.equal(result.ok, true);
-  assert.equal(result.manifest.evidence.length, requiredEvidenceForScope('FULL').length);
-  assert.equal(result.manifest.evidence.every((entry) => !('releaseCommit' in entry) && !('releaseVersion' in entry)), true);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
+  assert.equal(source.evidence.every((entry) => entry.status === 'PENDING'), true);
+});
+
+test('FULL batch rejects forged manual authorization maps', () => {
+  const authorizations = new Map();
+  for (const id of manualReleaseBoundIds) authorizations.set(id, { evidenceId: id, releaseCommit: commit, releaseVersion: version });
+  const result = applyMarketReleaseEvidenceBatch(manifest('FULL'), requiredEvidenceForScope('FULL').map(item), {
+    expectedCommit: commit,
+    expectedVersion: version,
+    now,
+    manualAuthorizations: authorizations,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
 });
 
 test('FULL batch rejects legacy manual evidence without serialized release binding', () => {
