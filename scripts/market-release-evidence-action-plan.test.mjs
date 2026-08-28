@@ -14,7 +14,7 @@ function manifest(scope = 'WEB_V1') {
 
 test('WEB_V1 exposes the complete validate or prepare then bind sequence for every blocker', () => {
   const plan = buildMarketReleaseEvidenceActionPlan(manifest(), { now: new Date('2026-08-28T00:00:00.000Z') });
-  assert.equal(plan.schemaVersion, 2);
+  assert.equal(plan.schemaVersion, 3);
   assert.equal(plan.complete, false);
   assert.equal(plan.actions.length, 8);
 
@@ -39,33 +39,69 @@ test('WEB_V1 exposes the complete validate or prepare then bind sequence for eve
   }
 });
 
-test('privacy/legal cannot start with a binder before human review and artifact construction', () => {
+test('privacy/legal cannot start with a binder before documented human review', () => {
   const plan = buildMarketReleaseEvidenceActionPlan(manifest());
   const action = plan.actions.find((entry) => entry.id === 'privacy_terms_legal_review');
   assert.ok(action);
   assert.equal(action.kind, 'HUMAN_REVIEW_THEN_BIND');
-  assert.deepEqual(action.steps, [
-    { phase: 'HUMAN_REVIEW', command: null },
-    { phase: 'BUILD_ARTIFACT', command: 'pnpm release:privacy-legal:artifact' },
-    { phase: 'BIND', command: 'pnpm release:privacy-legal:evidence:bind' },
-  ]);
+  assert.deepEqual(action.steps.map((step) => step.phase), ['HUMAN_REVIEW', 'BUILD_ARTIFACT', 'BIND']);
+  assert.equal(action.steps[0].command, null);
+  assert.equal(action.steps[0].proofRequirements.length >= 5, true);
+  assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('reviewer')), true);
+  assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('privacy policy')), true);
+  assert.equal(action.steps[1].command, 'pnpm release:privacy-legal:artifact');
+  assert.equal(action.steps[2].command, 'pnpm release:privacy-legal:evidence:bind');
   assert.equal(action.command, 'pnpm release:privacy-legal:artifact');
 });
 
-test('moderation/support cannot start with a binder before a real drill and artifact construction', () => {
+test('moderation/support requires retained real-drill proof before artifact construction', () => {
   const plan = buildMarketReleaseEvidenceActionPlan(manifest());
   const action = plan.actions.find((entry) => entry.id === 'moderation_support_incident_ops');
   assert.ok(action);
   assert.equal(action.kind, 'REAL_DRILL_THEN_BIND');
-  assert.deepEqual(action.steps, [
-    { phase: 'REAL_DRILL', command: null },
-    { phase: 'BUILD_ARTIFACT', command: 'pnpm release:moderation-ops:drill' },
-    { phase: 'BIND', command: 'pnpm release:moderation-ops:evidence:bind' },
-  ]);
+  assert.deepEqual(action.steps.map((step) => step.phase), ['REAL_DRILL', 'BUILD_ARTIFACT', 'BIND']);
+  assert.equal(action.steps[0].command, null);
+  assert.equal(action.steps[0].proofRequirements.length >= 5, true);
+  assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('scenario')), true);
+  assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('response timing')), true);
+  assert.equal(action.steps[1].command, 'pnpm release:moderation-ops:drill');
+  assert.equal(action.steps[2].command, 'pnpm release:moderation-ops:evidence:bind');
   assert.equal(action.command, 'pnpm release:moderation-ops:drill');
 });
 
-test('FULL identifies physical-device and store evidence as manual external work with no executable path', () => {
+test('FULL physical-device gates stay manual and require release-bound retained device proof', () => {
+  const plan = buildMarketReleaseEvidenceActionPlan(manifest('FULL'));
+  const physical = plan.actions.filter((action) => ['ios_physical_validation', 'android_physical_validation'].includes(action.id));
+  assert.equal(physical.length, 2);
+  for (const action of physical) {
+    assert.equal(action.kind, 'MANUAL_EXTERNAL_EVIDENCE');
+    assert.equal(action.command, null);
+    assert.equal(action.steps.length, 1);
+    assert.equal(action.steps[0].command, null);
+    assert.equal(action.steps[0].proofRequirements.length >= 6, true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('release version/build and commit')), true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('physical device')), true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('stable digest')), true);
+  }
+});
+
+test('FULL store gates stay manual and require real submission identifiers/status evidence', () => {
+  const plan = buildMarketReleaseEvidenceActionPlan(manifest('FULL'));
+  const store = plan.actions.filter((action) => ['ios_store_submission', 'android_store_submission'].includes(action.id));
+  assert.equal(store.length, 2);
+  for (const action of store) {
+    assert.equal(action.kind, 'MANUAL_EXTERNAL_EVIDENCE');
+    assert.equal(action.command, null);
+    assert.equal(action.steps.length, 1);
+    assert.equal(action.steps[0].command, null);
+    assert.equal(action.steps[0].proofRequirements.length >= 5, true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('submission')), true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('status')), true);
+    assert.equal(action.steps[0].proofRequirements.some((entry) => entry.includes('redacted')), true);
+  }
+});
+
+test('FULL identifies exactly four physical-device/store gates as manual external work', () => {
   const plan = buildMarketReleaseEvidenceActionPlan(manifest('FULL'));
   const manual = plan.actions.filter((action) => action.kind === 'MANUAL_EXTERNAL_EVIDENCE');
   assert.deepEqual(
