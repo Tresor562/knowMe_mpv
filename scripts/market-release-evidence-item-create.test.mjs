@@ -61,6 +61,8 @@ test('creates a bounded VERIFIED item from the exact artifact bytes for semantic
     evidenceRef: baseOptions.evidenceRef,
     evidenceSha256: createHash('sha256').update(bytes).digest('hex'),
   });
+  assert.equal('releaseCommit' in result.item, false);
+  assert.equal('releaseVersion' in result.item, false);
 });
 
 test('hashes exact bytes instead of normalized text', () => {
@@ -126,6 +128,8 @@ test('generic creation requires an exact KMD-309 review receipt and worksheet fo
     });
     assert.equal(result.ok, true, id);
     assert.equal(result.item.id, id);
+    assert.equal(result.item.releaseCommit, releaseCommit);
+    assert.equal(result.item.releaseVersion, releaseVersion);
   }
 
   const missingReceipt = createGenericMarketReleaseEvidenceItem(bytes, {
