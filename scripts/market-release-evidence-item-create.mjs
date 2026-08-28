@@ -11,6 +11,24 @@ const MIN_EVIDENCE_REF_LENGTH = 8;
 const MAX_EVIDENCE_REF_LENGTH = 2048;
 const ALLOWED_EVIDENCE_PROTOCOLS = new Set(['https:', 'evidence:']);
 
+const SEMANTICALLY_BOUND_EVIDENCE_IDS = new Set([
+  'production_tls_domain',
+  'production_deployment_smoke',
+  'backup_restore_drill',
+  'external_monitoring_alerting',
+  'privacy_terms_legal_review',
+  'data_export_delete_validation',
+  'moderation_support_incident_ops',
+  'antimalware_provider_validation',
+]);
+
+const GENERIC_EXTERNAL_EVIDENCE_IDS = new Set([
+  'ios_physical_validation',
+  'android_physical_validation',
+  'ios_store_submission',
+  'android_store_submission',
+]);
+
 function canonicalTimestamp(value) {
   if (typeof value !== 'string' || value !== value.trim()) return null;
   const parsed = Date.parse(value);
@@ -44,6 +62,9 @@ function canonicalEvidenceRef(value) {
   return value;
 }
 
+// Low-level item constructor used by the dedicated semantic binders after they have
+// validated the retained artifact contract. Operator-facing generic creation must
+// use createGenericMarketReleaseEvidenceItem() below.
 export function createMarketReleaseEvidenceItem(
   artifactBytes,
   {
@@ -106,6 +127,28 @@ export function createMarketReleaseEvidenceItem(
   };
 }
 
+export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = {}) {
+  const { id, scope } = options;
+  const errors = [];
+
+  if (typeof id === 'string' && SEMANTICALLY_BOUND_EVIDENCE_IDS.has(id)) {
+    errors.push(
+      `${id} must be created through its dedicated semantic evidence binder; generic VERIFIED item creation is disabled for this criterion.`,
+    );
+  }
+
+  if (typeof id === 'string' && !GENERIC_EXTERNAL_EVIDENCE_IDS.has(id)) {
+    errors.push('Generic evidence item creation is limited to FULL-scope physical-device and store-submission evidence.');
+  }
+
+  if (scope !== 'FULL') {
+    errors.push('Generic evidence item creation requires scope FULL.');
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return createMarketReleaseEvidenceItem(artifactBytes, options);
+}
+
 function readArg(name) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -126,7 +169,7 @@ async function runCli() {
   }
 
   const artifactBytes = await readFile(artifactPath);
-  const result = createMarketReleaseEvidenceItem(artifactBytes, {
+  const result = createGenericMarketReleaseEvidenceItem(artifactBytes, {
     id,
     scope,
     verifier,
