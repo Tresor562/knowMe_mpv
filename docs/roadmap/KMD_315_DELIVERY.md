@@ -28,9 +28,15 @@ WEB_V1/common evidence behavior is unchanged.
 - authorization reuse after item drift is rejected;
 - exact reviewed authorization succeeds at item apply and transport-only release fields remain stripped before manifest persistence;
 - FULL batch/finalize reject absent and forged authorization maps before mutation/signing;
-- legacy manual evidence without release binding remains rejected.
+- legacy manual evidence without release binding remains rejected before mutation or signing.
 
 All modified suites remain part of the repository root `pnpm test` gate.
+
+### CI regression found and corrected
+
+CI run #1106 on head `522cbbacab10ff928d2c16a87824b12eff55a55d` passed dependency installation, production dependency audit, Prisma generation, migration deployment/drift verification and the full monorepo build. Package-level tests also passed, including all 97 API suites / 498 API tests.
+
+The root script suite then reported exactly two failures: the legacy FULL batch and finalize tests still expected the older KMD-311 `releaseCommit`/`releaseVersion` rejection. KMD-315 correctly rejects those same unauthenticated manual items earlier at the stronger reviewed-promotion authorization gate. The runtime security check was therefore preserved; only the stale assertions were updated to require the new authorization failure and to verify that the source manifest remains unmodified. Web Playwright and API E2E were skipped by that failed run and must pass on the replacement head before merge.
 
 ## Migration
 
