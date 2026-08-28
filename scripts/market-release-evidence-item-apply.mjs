@@ -2,6 +2,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
+import { validateManualReleaseEvidencePromotionAuthorization } from './manual-release-evidence-promotion-preflight.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -65,7 +66,7 @@ function exactKeys(value, expected) {
 export function applyMarketReleaseEvidenceItem(
   manifest,
   item,
-  { expectedCommit, expectedVersion, now = new Date() } = {},
+  { expectedCommit, expectedVersion, now = new Date(), manualPromotionAuthorization } = {},
 ) {
   const errors = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) errors.push('manifest must be a JSON object.');
@@ -116,6 +117,12 @@ export function applyMarketReleaseEvidenceItem(
       } else if (item.releaseVersion !== expectedVersion) {
         errors.push('manual evidence item releaseVersion does not match the target release version.');
       }
+      const authorization = validateManualReleaseEvidencePromotionAuthorization(
+        manualPromotionAuthorization,
+        item,
+        { expectedCommit, expectedVersion },
+      );
+      if (!authorization.ok) errors.push(...authorization.errors);
     }
     const verifiedAtMs = canonicalTimestamp(item.verifiedAt);
     const validUntilMs = canonicalTimestamp(item.validUntil);
