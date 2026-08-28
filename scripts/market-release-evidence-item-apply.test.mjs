@@ -6,7 +6,9 @@ import {
 } from './market-release-evidence-item-apply.mjs';
 
 const commit = 'a'.repeat(40);
+const version = '1.0.0-rc.1';
 const now = new Date('2026-08-26T20:00:00.000Z');
+const manualIds = new Set(['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission']);
 const pending = (id) => ({ id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: '', evidenceRef: '', evidenceSha256: '' });
 
 function manifest(scope = 'WEB_V1') {
@@ -26,7 +28,7 @@ function manifest(scope = 'WEB_V1') {
     scope,
     environment: 'PRODUCTION',
     releaseCommit: commit,
-    releaseVersion: '1.0.0-rc.1',
+    releaseVersion: version,
     signingKeyId: 'release-key-1',
     evidence: [...common, ...(scope === 'FULL' ? full : [])].map(pending),
     manifestHmacSha256: '0'.repeat(64),
@@ -34,7 +36,7 @@ function manifest(scope = 'WEB_V1') {
 }
 
 function item(id = 'production_deployment_smoke') {
-  return {
+  const base = {
     id,
     status: 'VERIFIED',
     verifiedAt: '2026-08-26T19:55:00.000Z',
@@ -43,12 +45,13 @@ function item(id = 'production_deployment_smoke') {
     evidenceRef: `evidence://release/${id}.json`,
     evidenceSha256: 'b'.repeat(64),
   };
+  return manualIds.has(id) ? { ...base, releaseCommit: commit, releaseVersion: version } : base;
 }
 
 function apply(source, evidenceItem) {
   return applyMarketReleaseEvidenceItem(source, evidenceItem, {
     expectedCommit: commit,
-    expectedVersion: '1.0.0-rc.1',
+    expectedVersion: version,
     now,
   });
 }
@@ -63,10 +66,43 @@ test('applies a common WEB_V1 evidence item and keeps manifest unsigned', () => 
   assert.equal(source.evidence.find((entry) => entry.id === evidenceItem.id).status, 'PENDING');
 });
 
-test('applies FULL-only evidence only when the manifest scope requires it', () => {
+test('applies FULL-only manual evidence only when release binding matches and strips transport-only binding from manifest', () => {
   const physical = item('ios_physical_validation');
   assert.equal(apply(manifest('WEB_V1'), physical).ok, false);
-  assert.equal(apply(manifest('FULL'), physical).ok, true);
+  const result = apply(manifest('FULL'), physical);
+  assert.equal(result.ok, true);
+  const applied = result.manifest.evidence.find((entry) => entry.id === physical.id);
+  assert.equal(applied.status, 'VERIFIED');
+  assert.equal('releaseCommit' in applied, false);
+  assert.equal('releaseVersion' in applied, false);
+});
+
+test('rejects replay of serialized manual evidence into a different release', () => {
+  const physical = item('android_physical_validation');
+  const wrongCommit = applyMarketReleaseEvidenceItem(manifest('FULL'), physical, {
+    expectedCommit: 'd'.repeat(40),
+    expectedVersion: version,
+    now,
+  });
+  assert.equal(wrongCommit.ok, false);
+  assert.match(wrongCommit.errors.join(' '), /releaseCommit/);
+
+  const sourceWithNewVersion = manifest('FULL');
+  sourceWithNewVersion.releaseVersion = '1.0.1';
+  const wrongVersion = applyMarketReleaseEvidenceItem(sourceWithNewVersion, physical, {
+    expectedCommit: commit,
+    expectedVersion: '1.0.1',
+    now,
+  });
+  assert.equal(wrongVersion.ok, false);
+  assert.match(wrongVersion.errors.join(' '), /manual evidence item releaseVersion/);
+
+  const unbound = { ...physical };
+  delete unbound.releaseCommit;
+  delete unbound.releaseVersion;
+  const missingBinding = apply(manifest('FULL'), unbound);
+  assert.equal(missingBinding.ok, false);
+  assert.match(missingBinding.errors.join(' '), /releaseCommit and releaseVersion/);
 });
 
 test('preserves the KMD-267 production smoke compatibility wrapper', () => {
@@ -74,14 +110,14 @@ test('preserves the KMD-267 production smoke compatibility wrapper', () => {
   const smoke = item();
   const result = applyProductionDeploymentSmokeEvidenceItem(source, smoke, {
     expectedCommit: commit,
-    expectedVersion: '1.0.0-rc.1',
+    expectedVersion: version,
     now,
   });
   assert.equal(result.ok, true);
 
   const wrong = applyProductionDeploymentSmokeEvidenceItem(source, item('backup_restore_drill'), {
     expectedCommit: commit,
-    expectedVersion: '1.0.0-rc.1',
+    expectedVersion: version,
     now,
   });
   assert.equal(wrong.ok, false);
@@ -99,7 +135,7 @@ test('rejects a previously signed manifest', () => {
 test('rejects commit and version mismatches', () => {
   const wrongCommit = applyMarketReleaseEvidenceItem(manifest(), item(), {
     expectedCommit: 'd'.repeat(40),
-    expectedVersion: '1.0.0-rc.1',
+    expectedVersion: version,
     now,
   });
   assert.equal(wrongCommit.ok, false);

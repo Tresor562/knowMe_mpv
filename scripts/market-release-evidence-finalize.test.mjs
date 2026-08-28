@@ -17,13 +17,19 @@ const signingKey = 'k'.repeat(48);
 const now = new Date('2026-08-26T22:30:00.000Z');
 const zero = '0'.repeat(64);
 const artifactSha = 'b'.repeat(64);
+const manualReleaseBoundIds = new Set([
+  'ios_physical_validation',
+  'android_physical_validation',
+  'ios_store_submission',
+  'android_store_submission',
+]);
 
 function pending(id) {
   return { id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: null, evidenceRef: null, evidenceSha256: null };
 }
 
 function item(id) {
-  return {
+  const evidence = {
     id,
     status: 'VERIFIED',
     verifiedAt: '2026-08-26T22:25:00.000Z',
@@ -32,6 +38,9 @@ function item(id) {
     evidenceRef: `evidence://release/${id}.json`,
     evidenceSha256: artifactSha,
   };
+  return manualReleaseBoundIds.has(id)
+    ? { ...evidence, releaseCommit: commit, releaseVersion: version }
+    : evidence;
 }
 
 function manifest(scope = 'WEB_V1') {
@@ -183,10 +192,22 @@ test('fails closed with a weak signing key', () => {
   assert.match(result.errors.join(' '), /signing key must be at least/);
 });
 
-test('preserves FULL scope and signs all required evidence', () => {
+test('preserves FULL scope and signs all release-bound required evidence', () => {
   const source = manifest('FULL');
   const result = finalize(source, requiredEvidenceForScope('FULL').map(item));
   assert.equal(result.ok, true);
   assert.equal(result.manifest.evidence.length, requiredEvidenceForScope('FULL').length);
   assert.equal(result.manifest.evidence.every((entry) => entry.status === 'VERIFIED'), true);
+  assert.equal(result.manifest.evidence.every((entry) => !('releaseCommit' in entry) && !('releaseVersion' in entry)), true);
+});
+
+test('FULL finalize rejects legacy manual evidence without serialized release binding', () => {
+  const source = manifest('FULL');
+  const items = requiredEvidenceForScope('FULL').map(item);
+  const manual = items.find((entry) => manualReleaseBoundIds.has(entry.id));
+  delete manual.releaseCommit;
+  delete manual.releaseVersion;
+  const result = finalize(source, items);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /manual physical\/store evidence item|releaseCommit|releaseVersion/);
 });

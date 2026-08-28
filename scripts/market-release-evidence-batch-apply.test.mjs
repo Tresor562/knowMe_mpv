@@ -8,12 +8,21 @@ const version = '1.0.0-rc.1';
 const now = new Date('2026-08-26T22:30:00.000Z');
 const zero = '0'.repeat(64);
 const sha = 'b'.repeat(64);
+const manualReleaseBoundIds = new Set([
+  'ios_physical_validation',
+  'android_physical_validation',
+  'ios_store_submission',
+  'android_store_submission',
+]);
 
 function pending(id) {
   return { id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: null, evidenceRef: null, evidenceSha256: null };
 }
 function item(id) {
-  return { id, status: 'VERIFIED', verifiedAt: '2026-08-26T22:25:00.000Z', validUntil: '2026-09-02T22:25:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: sha };
+  const evidence = { id, status: 'VERIFIED', verifiedAt: '2026-08-26T22:25:00.000Z', validUntil: '2026-09-02T22:25:00.000Z', verifier: 'release-operator', evidenceRef: `evidence://release/${id}.json`, evidenceSha256: sha };
+  return manualReleaseBoundIds.has(id)
+    ? { ...evidence, releaseCommit: commit, releaseVersion: version }
+    : evidence;
 }
 function manifest(scope = 'WEB_V1') {
   return { schemaVersion: 4, scope, environment: 'PRODUCTION', releaseCommit: commit, releaseVersion: version, signingKeyId: 'release-key-1', evidence: requiredEvidenceForScope(scope).map(pending), manifestHmacSha256: zero };
@@ -70,9 +79,21 @@ test('rejects mutation of an already signed manifest', () => {
   assert.match(result.errors.join(' '), /must be unsigned/);
 });
 
-test('preserves FULL scope boundaries', () => {
+test('preserves FULL scope boundaries with release-bound manual evidence', () => {
   const source = manifest('FULL');
   const result = applyMarketReleaseEvidenceBatch(source, requiredEvidenceForScope('FULL').map(item), { expectedCommit: commit, expectedVersion: version, now });
   assert.equal(result.ok, true);
   assert.equal(result.manifest.evidence.length, requiredEvidenceForScope('FULL').length);
+  assert.equal(result.manifest.evidence.every((entry) => !('releaseCommit' in entry) && !('releaseVersion' in entry)), true);
+});
+
+test('FULL batch rejects legacy manual evidence without serialized release binding', () => {
+  const source = manifest('FULL');
+  const items = requiredEvidenceForScope('FULL').map(item);
+  const manual = items.find((entry) => manualReleaseBoundIds.has(entry.id));
+  delete manual.releaseCommit;
+  delete manual.releaseVersion;
+  const result = applyMarketReleaseEvidenceBatch(source, items, { expectedCommit: commit, expectedVersion: version, now });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /manual physical\/store evidence item|releaseCommit|releaseVersion/);
 });
