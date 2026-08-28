@@ -62,6 +62,71 @@ function canonicalEvidenceRef(value) {
   return value;
 }
 
+function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {}) {
+  const { id, verifier, evidenceRef } = options;
+  const errors = [];
+
+  if (!reviewReceipt || typeof reviewReceipt !== 'object' || Array.isArray(reviewReceipt)) {
+    return { ok: false, errors: ['reviewReceipt must be a parsed KMD-307 manual evidence review receipt.'] };
+  }
+
+  if (reviewReceipt.schemaVersion !== 1) errors.push('reviewReceipt.schemaVersion must be 1.');
+  if (reviewReceipt.receiptType !== 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW') {
+    errors.push('reviewReceipt.receiptType is invalid.');
+  }
+  if (reviewReceipt.reviewDecision !== 'APPROVED_FOR_EVIDENCE_PIPELINE') {
+    errors.push('reviewReceipt.reviewDecision must approve evidence pipeline promotion.');
+  }
+  if (reviewReceipt.certifiesExternalValidation !== false) {
+    errors.push('reviewReceipt must preserve certifiesExternalValidation=false.');
+  }
+  if (reviewReceipt.generatedForScope !== 'FULL' || reviewReceipt.environment !== 'PRODUCTION') {
+    errors.push('reviewReceipt must be bound to FULL / PRODUCTION.');
+  }
+  if (reviewReceipt.evidenceId !== id) errors.push('reviewReceipt.evidenceId must match the requested evidence id.');
+  if (canonicalVerifier(reviewReceipt.reviewer) === null) errors.push('reviewReceipt.reviewer must be canonical.');
+  if (reviewReceipt.reviewer !== verifier) {
+    errors.push('verifier must exactly match the human reviewer recorded by the review receipt.');
+  }
+  if (canonicalTimestamp(reviewReceipt.reviewedAt) === null) errors.push('reviewReceipt.reviewedAt must be canonical UTC.');
+  if (canonicalTimestamp(reviewReceipt.validationOccurredAt) === null) {
+    errors.push('reviewReceipt.validationOccurredAt must be canonical UTC.');
+  }
+  if (canonicalVerifier(reviewReceipt.accountableActorOrRole) === null) {
+    errors.push('reviewReceipt.accountableActorOrRole must be canonical.');
+  }
+  if (!Number.isInteger(reviewReceipt.attestationCount) || reviewReceipt.attestationCount <= 0) {
+    errors.push('reviewReceipt.attestationCount must be a positive integer.');
+  }
+  if (typeof reviewReceipt.releaseCommit !== 'string' || !/^[0-9a-f]{40}$/.test(reviewReceipt.releaseCommit)) {
+    errors.push('reviewReceipt.releaseCommit must be a canonical lowercase 40-character Git commit.');
+  }
+  if (
+    typeof reviewReceipt.releaseVersion !== 'string' ||
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(reviewReceipt.releaseVersion)
+  ) {
+    errors.push('reviewReceipt.releaseVersion must be canonical SemVer without build metadata.');
+  }
+
+  const retainedProof = reviewReceipt.retainedProof;
+  if (!retainedProof || typeof retainedProof !== 'object' || Array.isArray(retainedProof)) {
+    errors.push('reviewReceipt.retainedProof must be present.');
+  } else {
+    if (retainedProof.uri !== evidenceRef || canonicalEvidenceRef(retainedProof.uri) === null) {
+      errors.push('evidenceRef must exactly match the canonical retained-proof URI reviewed by KMD-307.');
+    }
+    const artifactSha256 =
+      Buffer.isBuffer(artifactBytes) || artifactBytes instanceof Uint8Array
+        ? createHash('sha256').update(artifactBytes).digest('hex')
+        : null;
+    if (!SHA256.test(retainedProof.sha256 ?? '') || retainedProof.sha256 !== artifactSha256) {
+      errors.push('artifact SHA-256 must exactly match the retained proof reviewed by KMD-307.');
+    }
+  }
+
+  return errors.length > 0 ? { ok: false, errors } : { ok: true };
+}
+
 // Low-level item constructor used by the dedicated semantic binders after they have
 // validated the retained artifact contract. Operator-facing generic creation must
 // use createGenericMarketReleaseEvidenceItem() below.
@@ -128,7 +193,7 @@ export function createMarketReleaseEvidenceItem(
 }
 
 export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = {}) {
-  const { id, scope } = options;
+  const { id, scope, reviewReceipt } = options;
   const errors = [];
 
   if (typeof id === 'string' && SEMANTICALLY_BOUND_EVIDENCE_IDS.has(id)) {
@@ -145,6 +210,11 @@ export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = 
     errors.push('Generic evidence item creation requires scope FULL.');
   }
 
+  if (errors.length === 0) {
+    const receiptValidation = validateManualReviewReceipt(reviewReceipt, artifactBytes, options);
+    if (!receiptValidation.ok) errors.push(...receiptValidation.errors);
+  }
+
   if (errors.length > 0) return { ok: false, errors };
   return createMarketReleaseEvidenceItem(artifactBytes, options);
 }
@@ -156,6 +226,7 @@ function readArg(name) {
 
 async function runCli() {
   const artifactPath = readArg('--artifact');
+  const reviewReceiptPath = readArg('--review-receipt');
   const outputPath = readArg('--output');
   const id = readArg('--id');
   const scope = readArg('--scope');
@@ -164,11 +235,15 @@ async function runCli() {
   const verifiedAt = readArg('--verified-at');
   const validUntil = readArg('--valid-until');
 
-  if (!artifactPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil) {
-    throw new Error('Provide --artifact, --output, --id, --scope, --verifier, --ref, --verified-at, and --valid-until.');
+  if (!artifactPath || !reviewReceiptPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil) {
+    throw new Error('Provide --artifact, --review-receipt, --output, --id, --scope, --verifier, --ref, --verified-at, and --valid-until.');
   }
 
-  const artifactBytes = await readFile(artifactPath);
+  const [artifactBytes, reviewReceiptRaw] = await Promise.all([
+    readFile(artifactPath),
+    readFile(reviewReceiptPath, 'utf8'),
+  ]);
+  const reviewReceipt = JSON.parse(reviewReceiptRaw);
   const result = createGenericMarketReleaseEvidenceItem(artifactBytes, {
     id,
     scope,
@@ -176,6 +251,7 @@ async function runCli() {
     evidenceRef,
     verifiedAt,
     validUntil,
+    reviewReceipt,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
 
@@ -186,6 +262,7 @@ async function runCli() {
   });
   console.log(`Created VERIFIED ${id} evidence item at ${outputPath}.`);
   console.log(`SHA-256: ${result.item.evidenceSha256}`);
+  console.log('Promotion required a KMD-307 human-review receipt bound to the exact retained proof.');
   console.log('This item still must be applied to the unsigned release manifest, signed, and pass check:market-ready.');
 }
 
