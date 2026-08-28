@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
+import {
+  createGenericMarketReleaseEvidenceItem,
+  createMarketReleaseEvidenceItem,
+} from './market-release-evidence-item-create.mjs';
 
 const now = new Date('2026-08-26T21:30:00.000Z');
 const bytes = Buffer.from('external-proof-bytes\n', 'utf8');
@@ -15,7 +18,7 @@ const baseOptions = {
   now,
 };
 
-test('creates a bounded VERIFIED item from the exact artifact bytes', () => {
+test('creates a bounded VERIFIED item from the exact artifact bytes for semantic binders', () => {
   const result = createMarketReleaseEvidenceItem(bytes, baseOptions);
   assert.equal(result.ok, true);
   assert.deepEqual(result.item, {
@@ -37,7 +40,7 @@ test('hashes exact bytes instead of normalized text', () => {
   assert.notEqual(lf.item.evidenceSha256, crlf.item.evidenceSha256);
 });
 
-test('enforces scope and rejects FULL-only evidence from WEB_V1', () => {
+test('enforces scope and rejects FULL-only evidence from WEB_V1 at the low-level constructor', () => {
   const rejected = createMarketReleaseEvidenceItem(bytes, {
     ...baseOptions,
     id: 'ios_physical_validation',
@@ -51,6 +54,53 @@ test('enforces scope and rejects FULL-only evidence from WEB_V1', () => {
     scope: 'FULL',
   });
   assert.equal(accepted.ok, true);
+});
+
+test('generic creation refuses common market criteria that have semantic binders', () => {
+  for (const id of [
+    'production_tls_domain',
+    'production_deployment_smoke',
+    'backup_restore_drill',
+    'external_monitoring_alerting',
+    'privacy_terms_legal_review',
+    'data_export_delete_validation',
+    'moderation_support_incident_ops',
+    'antimalware_provider_validation',
+  ]) {
+    const result = createGenericMarketReleaseEvidenceItem(bytes, {
+      ...baseOptions,
+      id,
+      scope: 'FULL',
+    });
+    assert.equal(result.ok, false, id);
+    assert.match(result.errors.join(' '), /dedicated semantic evidence binder/);
+  }
+});
+
+test('generic creation remains available only for FULL external physical/store evidence', () => {
+  for (const id of [
+    'ios_physical_validation',
+    'android_physical_validation',
+    'ios_store_submission',
+    'android_store_submission',
+  ]) {
+    const result = createGenericMarketReleaseEvidenceItem(bytes, {
+      ...baseOptions,
+      id,
+      scope: 'FULL',
+      evidenceRef: `evidence://release/${id}.json`,
+    });
+    assert.equal(result.ok, true, id);
+    assert.equal(result.item.id, id);
+  }
+
+  const webOnly = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...baseOptions,
+    id: 'ios_physical_validation',
+    scope: 'WEB_V1',
+  });
+  assert.equal(webOnly.ok, false);
+  assert.match(webOnly.errors.join(' '), /requires scope FULL/);
 });
 
 test('rejects unsafe or non-canonical verifier and evidence references', () => {
