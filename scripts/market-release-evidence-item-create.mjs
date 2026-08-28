@@ -222,7 +222,7 @@ export function createMarketReleaseEvidenceItem(
 }
 
 export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = {}) {
-  const { id, scope, reviewReceipt } = options;
+  const { id, scope, reviewReceipt, expectedCommit, expectedVersion } = options;
   const errors = [];
 
   if (typeof id === 'string' && SEMANTICALLY_BOUND_EVIDENCE_IDS.has(id)) {
@@ -245,7 +245,21 @@ export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = 
   }
 
   if (errors.length > 0) return { ok: false, errors };
-  return createMarketReleaseEvidenceItem(artifactBytes, options);
+  const created = createMarketReleaseEvidenceItem(artifactBytes, options);
+  if (!created.ok) return created;
+
+  // KMD-311: keep the release binding on the serialized manual evidence item itself.
+  // Without these fields, an item that was correctly created for release A could be
+  // replayed later into release B after the review receipt and worksheet are no longer
+  // present at the apply step.
+  return {
+    ok: true,
+    item: {
+      ...created.item,
+      releaseCommit: expectedCommit,
+      releaseVersion: expectedVersion,
+    },
+  };
 }
 
 function readArg(name) {
