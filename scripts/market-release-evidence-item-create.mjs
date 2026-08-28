@@ -4,7 +4,9 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 
+const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const MAX_VERIFIER_LENGTH = 128;
 const MIN_EVIDENCE_REF_LENGTH = 8;
@@ -63,11 +65,18 @@ function canonicalEvidenceRef(value) {
 }
 
 function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {}) {
-  const { id, verifier, evidenceRef, worksheetBytes } = options;
+  const { id, verifier, evidenceRef, worksheetBytes, expectedCommit, expectedVersion } = options;
   const errors = [];
 
   if (!reviewReceipt || typeof reviewReceipt !== 'object' || Array.isArray(reviewReceipt)) {
     return { ok: false, errors: ['reviewReceipt must be a parsed KMD-309 manual evidence review receipt.'] };
+  }
+
+  if (!SHA40.test(expectedCommit ?? '')) {
+    errors.push('expectedCommit must be a canonical lowercase 40-character Git commit for manual evidence promotion.');
+  }
+  if (!RELEASE_VERSION.test(expectedVersion ?? '')) {
+    errors.push('expectedVersion must be canonical SemVer without build metadata for manual evidence promotion.');
   }
 
   if (reviewReceipt.schemaVersion !== 2) errors.push('reviewReceipt.schemaVersion must be 2.');
@@ -98,14 +107,18 @@ function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {})
   if (!Number.isInteger(reviewReceipt.attestationCount) || reviewReceipt.attestationCount <= 0) {
     errors.push('reviewReceipt.attestationCount must be a positive integer.');
   }
-  if (typeof reviewReceipt.releaseCommit !== 'string' || !/^[0-9a-f]{40}$/.test(reviewReceipt.releaseCommit)) {
+  if (typeof reviewReceipt.releaseCommit !== 'string' || !SHA40.test(reviewReceipt.releaseCommit)) {
     errors.push('reviewReceipt.releaseCommit must be a canonical lowercase 40-character Git commit.');
+  } else if (SHA40.test(expectedCommit ?? '') && reviewReceipt.releaseCommit !== expectedCommit) {
+    errors.push('reviewReceipt.releaseCommit must exactly match the target release commit.');
   }
   if (
     typeof reviewReceipt.releaseVersion !== 'string' ||
-    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(reviewReceipt.releaseVersion)
+    !RELEASE_VERSION.test(reviewReceipt.releaseVersion)
   ) {
     errors.push('reviewReceipt.releaseVersion must be canonical SemVer without build metadata.');
+  } else if (RELEASE_VERSION.test(expectedVersion ?? '') && reviewReceipt.releaseVersion !== expectedVersion) {
+    errors.push('reviewReceipt.releaseVersion must exactly match the target release version.');
   }
 
   const reviewedWorksheet = reviewReceipt.reviewedWorksheet;
@@ -251,9 +264,11 @@ async function runCli() {
   const evidenceRef = readArg('--ref');
   const verifiedAt = readArg('--verified-at');
   const validUntil = readArg('--valid-until');
+  const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
+  const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
 
-  if (!artifactPath || !worksheetPath || !reviewReceiptPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil) {
-    throw new Error('Provide --artifact, --worksheet, --review-receipt, --output, --id, --scope, --verifier, --ref, --verified-at, and --valid-until.');
+  if (!artifactPath || !worksheetPath || !reviewReceiptPath || !outputPath || !id || !scope || !verifier || !evidenceRef || !verifiedAt || !validUntil || !expectedCommit || !expectedVersion) {
+    throw new Error('Provide --artifact, --worksheet, --review-receipt, --output, --id, --scope, --verifier, --ref, --verified-at, --valid-until, --commit, and --version (release metadata may also come from canonical environment variables).');
   }
 
   const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
@@ -271,6 +286,8 @@ async function runCli() {
     validUntil,
     worksheetBytes,
     reviewReceipt,
+    expectedCommit,
+    expectedVersion,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
 
@@ -281,7 +298,8 @@ async function runCli() {
   });
   console.log(`Created VERIFIED ${id} evidence item at ${outputPath}.`);
   console.log(`SHA-256: ${result.item.evidenceSha256}`);
-  console.log('Promotion required a KMD-309 human-review receipt plus the exact reviewed worksheet and retained proof bytes.');
+  console.log(`Release binding: ${expectedCommit} / ${expectedVersion}`);
+  console.log('Promotion required a KMD-309 human-review receipt plus the exact reviewed worksheet and retained proof bytes, all bound to the target release.');
   console.log('This item still must be applied to the unsigned release manifest, signed, and pass check:market-ready.');
 }
 
