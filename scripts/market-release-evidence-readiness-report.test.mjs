@@ -67,9 +67,41 @@ test('classifies missing, pending, expired and malformed expiry independently', 
 test('fails closed on duplicate required evidence ids', () => {
   const evidence = WEB_IDS.map((id) => item(id));
   evidence.push(item('production_tls_domain'));
-  const report = assessMarketReleaseEvidenceReadiness({ scope: 'WEB_V1', evidence }, { now: NOW });
-  assert.equal(report.complete, false);
-  assert.equal(report.evidence[0].state, 'INVALID_DUPLICATE');
+  assert.throws(
+    () => assessMarketReleaseEvidenceReadiness({ scope: 'WEB_V1', evidence }, { now: NOW }),
+    /Duplicate release evidence id: production_tls_domain/,
+  );
+});
+
+test('fails closed on malformed, noncanonical, unexpected and invalid-status entries', () => {
+  assert.throws(
+    () => assessMarketReleaseEvidenceReadiness({ scope: 'WEB_V1', evidence: [null] }, { now: NOW }),
+    /evidence\[0\] must be an object/,
+  );
+  assert.throws(
+    () =>
+      assessMarketReleaseEvidenceReadiness(
+        { scope: 'WEB_V1', evidence: [item(' production_tls_domain')] },
+        { now: NOW },
+      ),
+    /id must be a canonical non-empty string/,
+  );
+  assert.throws(
+    () =>
+      assessMarketReleaseEvidenceReadiness(
+        { scope: 'WEB_V1', evidence: [item('ios_physical_validation')] },
+        { now: NOW },
+      ),
+    /Unexpected release evidence id for readiness scope: ios_physical_validation/,
+  );
+  assert.throws(
+    () =>
+      assessMarketReleaseEvidenceReadiness(
+        { scope: 'WEB_V1', evidence: [item('production_tls_domain', { status: 'DONE' })] },
+        { now: NOW },
+      ),
+    /status must equal PENDING or VERIFIED/,
+  );
 });
 
 test('FULL includes physical-device and store evidence', () => {

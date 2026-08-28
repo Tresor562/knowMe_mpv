@@ -4,12 +4,39 @@ import { readFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 
 const SCOPES = new Set(['WEB_V1', 'FULL']);
+const EVIDENCE_STATUSES = new Set(['PENDING', 'VERIFIED']);
 
 function canonicalUtcTimestamp(value) {
   if (typeof value !== 'string' || value !== value.trim() || value.length === 0) return null;
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return null;
   return new Date(timestamp).toISOString() === value ? timestamp : null;
+}
+
+function validateReadinessEvidenceEntries(evidence, required) {
+  const requiredIds = new Set(required);
+  const entries = new Map();
+
+  for (const [index, item] of evidence.entries()) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error(`evidence[${index}] must be an object.`);
+    }
+    if (typeof item.id !== 'string' || item.id.length === 0 || item.id !== item.id.trim()) {
+      throw new Error(`evidence[${index}].id must be a canonical non-empty string.`);
+    }
+    if (!requiredIds.has(item.id)) {
+      throw new Error(`Unexpected release evidence id for readiness scope: ${item.id}.`);
+    }
+    if (entries.has(item.id)) {
+      throw new Error(`Duplicate release evidence id: ${item.id}.`);
+    }
+    if (!EVIDENCE_STATUSES.has(item.status)) {
+      throw new Error(`${item.id}.status must equal PENDING or VERIFIED.`);
+    }
+    entries.set(item.id, item);
+  }
+
+  return entries;
 }
 
 export function assessMarketReleaseEvidenceReadiness(manifest, { now = new Date() } = {}) {
@@ -24,22 +51,12 @@ export function assessMarketReleaseEvidenceReadiness(manifest, { now = new Date(
   }
 
   const required = requiredEvidenceForScope(manifest.scope);
-  const entries = new Map();
-  const duplicateIds = new Set();
-
-  for (const item of manifest.evidence) {
-    if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string') continue;
-    const id = item.id.trim();
-    if (!id) continue;
-    if (entries.has(id)) duplicateIds.add(id);
-    else entries.set(id, item);
-  }
+  const entries = validateReadinessEvidenceEntries(manifest.evidence, required);
 
   const details = required.map((id) => {
-    if (duplicateIds.has(id)) return { id, state: 'INVALID_DUPLICATE' };
     const item = entries.get(id);
     if (!item) return { id, state: 'MISSING' };
-    if (item.status !== 'VERIFIED') return { id, state: 'PENDING' };
+    if (item.status === 'PENDING') return { id, state: 'PENDING' };
 
     const validUntil = canonicalUtcTimestamp(item.validUntil);
     if (validUntil === null) return { id, state: 'INVALID_EXPIRY' };
