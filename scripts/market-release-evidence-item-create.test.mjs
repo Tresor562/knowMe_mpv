@@ -8,6 +8,7 @@ import {
 
 const now = new Date('2026-08-26T21:30:00.000Z');
 const bytes = Buffer.from('external-proof-bytes\n', 'utf8');
+const worksheetBytes = Buffer.from('{"schemaVersion":1,"kind":"manual-release-evidence-worksheet"}\n', 'utf8');
 const baseOptions = {
   id: 'backup_restore_drill',
   scope: 'WEB_V1',
@@ -20,7 +21,7 @@ const baseOptions = {
 
 function reviewReceipt(id, evidenceRef = `evidence://release/${id}.json`) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     receiptType: 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW',
     reviewDecision: 'APPROVED_FOR_EVIDENCE_PIPELINE',
     certifiesExternalValidation: false,
@@ -31,6 +32,9 @@ function reviewReceipt(id, evidenceRef = `evidence://release/${id}.json`) {
     evidenceId: id,
     reviewer: 'release-operator',
     reviewedAt: '2026-08-26T21:20:00.000Z',
+    reviewedWorksheet: {
+      sha256: createHash('sha256').update(worksheetBytes).digest('hex'),
+    },
     retainedProof: {
       uri: evidenceRef,
       sha256: createHash('sha256').update(bytes).digest('hex'),
@@ -100,7 +104,7 @@ test('generic creation refuses common market criteria that have semantic binders
   }
 });
 
-test('generic creation requires an exact KMD-307 review receipt for FULL external physical/store evidence', () => {
+test('generic creation requires an exact KMD-309 review receipt and worksheet for FULL external physical/store evidence', () => {
   for (const id of [
     'ios_physical_validation',
     'android_physical_validation',
@@ -113,6 +117,7 @@ test('generic creation requires an exact KMD-307 review receipt for FULL externa
       id,
       scope: 'FULL',
       evidenceRef,
+      worksheetBytes,
       reviewReceipt: reviewReceipt(id, evidenceRef),
     });
     assert.equal(result.ok, true, id);
@@ -124,9 +129,20 @@ test('generic creation requires an exact KMD-307 review receipt for FULL externa
     id: 'ios_physical_validation',
     scope: 'FULL',
     evidenceRef: 'evidence://release/ios_physical_validation.json',
+    worksheetBytes,
   });
   assert.equal(missingReceipt.ok, false);
   assert.match(missingReceipt.errors.join(' '), /reviewReceipt/);
+
+  const missingWorksheet = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...baseOptions,
+    id: 'ios_physical_validation',
+    scope: 'FULL',
+    evidenceRef: 'evidence://release/ios_physical_validation.json',
+    reviewReceipt: reviewReceipt('ios_physical_validation'),
+  });
+  assert.equal(missingWorksheet.ok, false);
+  assert.match(missingWorksheet.errors.join(' '), /worksheetBytes/);
 
   const webOnly = createGenericMarketReleaseEvidenceItem(bytes, {
     ...baseOptions,
@@ -137,7 +153,7 @@ test('generic creation requires an exact KMD-307 review receipt for FULL externa
   assert.match(webOnly.errors.join(' '), /requires scope FULL/);
 });
 
-test('generic promotion rejects receipt/artifact, evidence id, URI, reviewer, and decision drift', () => {
+test('generic promotion rejects receipt/artifact, worksheet, evidence id, URI, reviewer, and decision drift', () => {
   const id = 'android_physical_validation';
   const evidenceRef = `evidence://release/${id}.json`;
   const options = {
@@ -145,12 +161,20 @@ test('generic promotion rejects receipt/artifact, evidence id, URI, reviewer, an
     id,
     scope: 'FULL',
     evidenceRef,
+    worksheetBytes,
     reviewReceipt: reviewReceipt(id, evidenceRef),
   };
 
   const wrongBytes = createGenericMarketReleaseEvidenceItem(Buffer.from('different-proof'), options);
   assert.equal(wrongBytes.ok, false);
   assert.match(wrongBytes.errors.join(' '), /SHA-256/);
+
+  const wrongWorksheet = createGenericMarketReleaseEvidenceItem(bytes, {
+    ...options,
+    worksheetBytes: Buffer.from('{"changed":true}\n', 'utf8'),
+  });
+  assert.equal(wrongWorksheet.ok, false);
+  assert.match(wrongWorksheet.errors.join(' '), /worksheet SHA-256/);
 
   const wrongIdReceipt = { ...reviewReceipt(id, evidenceRef), evidenceId: 'ios_physical_validation' };
   const wrongId = createGenericMarketReleaseEvidenceItem(bytes, { ...options, reviewReceipt: wrongIdReceipt });

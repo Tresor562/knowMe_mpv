@@ -29,10 +29,20 @@ function canonicalTimestamp(value) {
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
 }
 
+function canonicalWorksheetBytes(value) {
+  if (!Buffer.isBuffer(value) && !(value instanceof Uint8Array)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value).toString('utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createManualEvidenceReviewReceipt(
   worksheet,
   artifactBytes,
-  { id, reviewer, reviewedAt, now = new Date() } = {},
+  { id, reviewer, reviewedAt, worksheetBytes, now = new Date() } = {},
 ) {
   const errors = [];
   const preflight = preflightManualReleaseEvidenceWorksheet(worksheet, { now });
@@ -43,6 +53,14 @@ export function createManualEvidenceReviewReceipt(
   if (!Buffer.isBuffer(artifactBytes) && !(artifactBytes instanceof Uint8Array)) {
     errors.push('artifactBytes must be a Buffer or Uint8Array.');
   }
+
+  const parsedWorksheetBytes = canonicalWorksheetBytes(worksheetBytes);
+  if (parsedWorksheetBytes === null) {
+    errors.push('worksheetBytes must contain the exact UTF-8 JSON worksheet bytes reviewed by the human reviewer.');
+  } else if (JSON.stringify(parsedWorksheetBytes) !== JSON.stringify(worksheet)) {
+    errors.push('worksheetBytes must decode to the exact worksheet object that passed preflight.');
+  }
+
   if (typeof id !== 'string' || !MANUAL_EVIDENCE_IDS.has(id)) {
     errors.push('id must be one of the canonical manual FULL-release evidence ids.');
   }
@@ -73,10 +91,12 @@ export function createManualEvidenceReviewReceipt(
 
   if (errors.length > 0) return { ok: false, errors };
 
+  const worksheetSha256 = createHash('sha256').update(worksheetBytes).digest('hex');
+
   return {
     ok: true,
     receipt: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       receiptType: 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW',
       reviewDecision: 'APPROVED_FOR_EVIDENCE_PIPELINE',
       certifiesExternalValidation: false,
@@ -87,6 +107,9 @@ export function createManualEvidenceReviewReceipt(
       evidenceId: id,
       reviewer,
       reviewedAt,
+      reviewedWorksheet: {
+        sha256: worksheetSha256,
+      },
       retainedProof: {
         uri: entry.retainedProof.uri,
         sha256: artifactSha256,
@@ -115,15 +138,16 @@ async function runCli() {
     throw new Error('Provide --worksheet, --artifact, --output, --id, --reviewer, and --reviewed-at.');
   }
 
-  const [worksheetRaw, artifactBytes] = await Promise.all([
-    readFile(worksheetPath, 'utf8'),
+  const [worksheetBytes, artifactBytes] = await Promise.all([
+    readFile(worksheetPath),
     readFile(artifactPath),
   ]);
-  const worksheet = JSON.parse(worksheetRaw);
+  const worksheet = JSON.parse(worksheetBytes.toString('utf8'));
   const result = createManualEvidenceReviewReceipt(worksheet, artifactBytes, {
     id,
     reviewer,
     reviewedAt,
+    worksheetBytes,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
 
@@ -133,6 +157,7 @@ async function runCli() {
     mode: 0o600,
   });
   console.log(`Created human-review receipt for ${id} at ${outputPath}.`);
+  console.log(`Reviewed worksheet SHA-256: ${result.receipt.reviewedWorksheet.sha256}`);
   console.log('This receipt records review traceability only; it does not prove the external validation or create VERIFIED market evidence.');
 }
 

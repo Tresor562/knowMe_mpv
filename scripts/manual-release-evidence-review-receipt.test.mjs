@@ -35,15 +35,23 @@ function completedWorksheet() {
   return worksheet;
 }
 
-test('creates a release-bound review receipt only after worksheet preflight and digest match', () => {
-  const result = createManualEvidenceReviewReceipt(completedWorksheet(), ARTIFACT, {
+function exactWorksheetBytes(worksheet) {
+  return Buffer.from(`${JSON.stringify(worksheet, null, 2)}\n`, 'utf8');
+}
+
+test('creates a release-bound review receipt only after worksheet preflight and exact worksheet/artifact digest match', () => {
+  const worksheet = completedWorksheet();
+  const worksheetBytes = exactWorksheetBytes(worksheet);
+  const result = createManualEvidenceReviewReceipt(worksheet, ARTIFACT, {
     id: 'ios_physical_validation',
     reviewer: 'Independent Release Reviewer',
     reviewedAt: REVIEWED_AT,
+    worksheetBytes,
     now: NOW,
   });
 
   assert.equal(result.ok, true);
+  assert.equal(result.receipt.schemaVersion, 2);
   assert.equal(result.receipt.receiptType, 'MANUAL_RELEASE_EVIDENCE_HUMAN_REVIEW');
   assert.equal(result.receipt.reviewDecision, 'APPROVED_FOR_EVIDENCE_PIPELINE');
   assert.equal(result.receipt.certifiesExternalValidation, false);
@@ -51,19 +59,40 @@ test('creates a release-bound review receipt only after worksheet preflight and 
   assert.equal(result.receipt.releaseVersion, RELEASE_VERSION);
   assert.equal(result.receipt.evidenceId, 'ios_physical_validation');
   assert.equal(result.receipt.retainedProof.sha256, SHA);
+  assert.equal(
+    result.receipt.reviewedWorksheet.sha256,
+    createHash('sha256').update(worksheetBytes).digest('hex'),
+  );
   assert.equal(result.receipt.reviewer, 'Independent Release Reviewer');
   assert.ok(result.receipt.attestationCount > 0);
 });
 
 test('rejects artifact bytes that do not match retained proof digest', () => {
-  const result = createManualEvidenceReviewReceipt(completedWorksheet(), Buffer.from('different'), {
+  const worksheet = completedWorksheet();
+  const result = createManualEvidenceReviewReceipt(worksheet, Buffer.from('different'), {
     id: 'android_physical_validation',
     reviewer: 'Release Reviewer',
     reviewedAt: REVIEWED_AT,
+    worksheetBytes: exactWorksheetBytes(worksheet),
     now: NOW,
   });
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /artifact SHA-256 does not match/);
+});
+
+test('rejects worksheet bytes that do not decode to the preflighted worksheet', () => {
+  const worksheet = completedWorksheet();
+  const changed = structuredClone(worksheet);
+  changed.evidence[0].validation.notes = 'Changed after review preparation.';
+  const result = createManualEvidenceReviewReceipt(worksheet, ARTIFACT, {
+    id: 'ios_physical_validation',
+    reviewer: 'Release Reviewer',
+    reviewedAt: REVIEWED_AT,
+    worksheetBytes: exactWorksheetBytes(changed),
+    now: NOW,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(' '), /exact worksheet object/);
 });
 
 test('rejects worksheets that have not passed the manual evidence preflight', () => {
@@ -73,6 +102,7 @@ test('rejects worksheets that have not passed the manual evidence preflight', ()
     id: 'ios_physical_validation',
     reviewer: 'Release Reviewer',
     reviewedAt: REVIEWED_AT,
+    worksheetBytes: exactWorksheetBytes(worksheet),
     now: NOW,
   });
   assert.equal(result.ok, false);
@@ -81,10 +111,12 @@ test('rejects worksheets that have not passed the manual evidence preflight', ()
 
 test('rejects unknown evidence ids, non-canonical reviewers, and future review timestamps', () => {
   const worksheet = completedWorksheet();
+  const worksheetBytes = exactWorksheetBytes(worksheet);
   const unknown = createManualEvidenceReviewReceipt(worksheet, ARTIFACT, {
     id: 'production_tls_domain',
     reviewer: 'Release Reviewer',
     reviewedAt: REVIEWED_AT,
+    worksheetBytes,
     now: NOW,
   });
   assert.equal(unknown.ok, false);
@@ -94,6 +126,7 @@ test('rejects unknown evidence ids, non-canonical reviewers, and future review t
     id: 'ios_store_submission',
     reviewer: ' reviewer ',
     reviewedAt: REVIEWED_AT,
+    worksheetBytes,
     now: NOW,
   });
   assert.equal(reviewer.ok, false);
@@ -103,6 +136,7 @@ test('rejects unknown evidence ids, non-canonical reviewers, and future review t
     id: 'android_store_submission',
     reviewer: 'Release Reviewer',
     reviewedAt: '2026-08-28T13:00:00.000Z',
+    worksheetBytes,
     now: NOW,
   });
   assert.equal(future.ok, false);
