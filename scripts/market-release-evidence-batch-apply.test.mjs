@@ -98,7 +98,7 @@ test('FULL batch rejects forged manual authorization maps', () => {
   assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
 });
 
-test('FULL batch rejects legacy manual evidence without serialized release binding', () => {
+test('FULL batch rejects legacy manual evidence before lower-level release-binding checks', () => {
   const source = manifest('FULL');
   const items = requiredEvidenceForScope('FULL').map(item);
   const manual = items.find((entry) => manualReleaseBoundIds.has(entry.id));
@@ -106,5 +106,6 @@ test('FULL batch rejects legacy manual evidence without serialized release bindi
   delete manual.releaseVersion;
   const result = applyMarketReleaseEvidenceBatch(source, items, { expectedCommit: commit, expectedVersion: version, now });
   assert.equal(result.ok, false);
-  assert.match(result.errors.join(' '), /manual physical\/store evidence item|releaseCommit|releaseVersion/);
+  assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
+  assert.equal(source.evidence.every((entry) => entry.status === 'PENDING'), true);
 });
