@@ -8,6 +8,13 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const ZERO_HMAC = '0'.repeat(64);
 const ITEM_KEYS = ['id', 'status', 'verifiedAt', 'validUntil', 'verifier', 'evidenceRef', 'evidenceSha256'];
+const RELEASE_BOUND_ITEM_KEYS = [...ITEM_KEYS, 'releaseCommit', 'releaseVersion'];
+const MANUAL_RELEASE_BOUND_IDS = new Set([
+  'ios_physical_validation',
+  'android_physical_validation',
+  'ios_store_submission',
+  'android_store_submission',
+]);
 
 function canonicalTimestamp(value) {
   if (typeof value !== 'string' || value !== value.trim()) return null;
@@ -47,10 +54,30 @@ export function applyMarketReleaseEvidenceItem(
   }
 
   if (item && typeof item === 'object' && !Array.isArray(item)) {
-    if (!exactKeys(item, ITEM_KEYS)) errors.push('item must contain exactly the bounded release evidence fields.');
+    const isReleaseBoundManualEvidence = MANUAL_RELEASE_BOUND_IDS.has(item.id);
+    const expectedKeys = isReleaseBoundManualEvidence ? RELEASE_BOUND_ITEM_KEYS : ITEM_KEYS;
+    if (!exactKeys(item, expectedKeys)) {
+      errors.push(
+        isReleaseBoundManualEvidence
+          ? 'manual physical/store evidence item must contain exactly the bounded evidence fields plus releaseCommit and releaseVersion.'
+          : 'item must contain exactly the bounded release evidence fields.',
+      );
+    }
     if (typeof item.id !== 'string' || !allowedIds.includes(item.id)) errors.push('item id must be required by the manifest scope.');
     if (item.status !== 'VERIFIED') errors.push('item status must be VERIFIED.');
     if (!SHA256.test(item.evidenceSha256 ?? '')) errors.push('item evidenceSha256 must be a lowercase SHA-256 digest.');
+    if (isReleaseBoundManualEvidence) {
+      if (!SHA40.test(item.releaseCommit ?? '')) {
+        errors.push('manual evidence item releaseCommit must be a canonical lowercase 40-character Git SHA.');
+      } else if (item.releaseCommit !== expectedCommit) {
+        errors.push('manual evidence item releaseCommit does not match the target release commit.');
+      }
+      if (!RELEASE_VERSION.test(item.releaseVersion ?? '')) {
+        errors.push('manual evidence item releaseVersion must be canonical SemVer without build metadata.');
+      } else if (item.releaseVersion !== expectedVersion) {
+        errors.push('manual evidence item releaseVersion does not match the target release version.');
+      }
+    }
     const verifiedAtMs = canonicalTimestamp(item.verifiedAt);
     const validUntilMs = canonicalTimestamp(item.validUntil);
     if (verifiedAtMs === null) errors.push('item verifiedAt must be a canonical UTC timestamp.');
