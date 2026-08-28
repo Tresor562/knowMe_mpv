@@ -7,6 +7,11 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const RELEASE_VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const ZERO_HMAC = '0'.repeat(64);
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+const ALLOWED_EVIDENCE_PROTOCOLS = new Set(['https:', 'evidence:']);
+const MAX_VERIFIER_LENGTH = 128;
+const MIN_EVIDENCE_REF_LENGTH = 8;
+const MAX_EVIDENCE_REF_LENGTH = 2048;
 const ITEM_KEYS = ['id', 'status', 'verifiedAt', 'validUntil', 'verifier', 'evidenceRef', 'evidenceSha256'];
 const RELEASE_BOUND_ITEM_KEYS = [...ITEM_KEYS, 'releaseCommit', 'releaseVersion'];
 const MANUAL_RELEASE_BOUND_IDS = new Set([
@@ -20,6 +25,34 @@ function canonicalTimestamp(value) {
   if (typeof value !== 'string' || value !== value.trim()) return null;
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : null;
+}
+
+function canonicalVerifier(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return null;
+  if (value.length < 1 || value.length > MAX_VERIFIER_LENGTH || CONTROL_CHARACTERS.test(value)) return null;
+  return value;
+}
+
+function canonicalEvidenceRef(value) {
+  if (typeof value !== 'string' || value !== value.trim()) return null;
+  if (
+    value.length < MIN_EVIDENCE_REF_LENGTH ||
+    value.length > MAX_EVIDENCE_REF_LENGTH ||
+    CONTROL_CHARACTERS.test(value)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (!ALLOWED_EVIDENCE_PROTOCOLS.has(parsed.protocol)) return null;
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+    if (!parsed.hostname) return null;
+  } catch {
+    return null;
+  }
+
+  return value;
 }
 
 function exactKeys(value, expected) {
@@ -65,6 +98,12 @@ export function applyMarketReleaseEvidenceItem(
     }
     if (typeof item.id !== 'string' || !allowedIds.includes(item.id)) errors.push('item id must be required by the manifest scope.');
     if (item.status !== 'VERIFIED') errors.push('item status must be VERIFIED.');
+    if (canonicalVerifier(item.verifier) === null) {
+      errors.push(`item verifier must be canonical, non-empty, free of control characters, and at most ${MAX_VERIFIER_LENGTH} characters.`);
+    }
+    if (canonicalEvidenceRef(item.evidenceRef) === null) {
+      errors.push(`item evidenceRef must be a canonical credential-free HTTPS or evidence URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without query, fragment, or control characters.`);
+    }
     if (!SHA256.test(item.evidenceSha256 ?? '')) errors.push('item evidenceSha256 must be a lowercase SHA-256 digest.');
     if (isReleaseBoundManualEvidence) {
       if (!SHA40.test(item.releaseCommit ?? '')) {
