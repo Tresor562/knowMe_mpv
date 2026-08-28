@@ -2,6 +2,10 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
+import {
+  preflightManualReleaseEvidencePromotion,
+  validateManualReleaseEvidencePromotionAuthorization,
+} from './manual-release-evidence-promotion-preflight.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -35,14 +39,7 @@ function canonicalVerifier(value) {
 
 function canonicalEvidenceRef(value) {
   if (typeof value !== 'string' || value !== value.trim()) return null;
-  if (
-    value.length < MIN_EVIDENCE_REF_LENGTH ||
-    value.length > MAX_EVIDENCE_REF_LENGTH ||
-    CONTROL_CHARACTERS.test(value)
-  ) {
-    return null;
-  }
-
+  if (value.length < MIN_EVIDENCE_REF_LENGTH || value.length > MAX_EVIDENCE_REF_LENGTH || CONTROL_CHARACTERS.test(value)) return null;
   try {
     const parsed = new URL(value);
     if (!ALLOWED_EVIDENCE_PROTOCOLS.has(parsed.protocol)) return null;
@@ -51,7 +48,6 @@ function canonicalEvidenceRef(value) {
   } catch {
     return null;
   }
-
   return value;
 }
 
@@ -65,7 +61,7 @@ function exactKeys(value, expected) {
 export function applyMarketReleaseEvidenceItem(
   manifest,
   item,
-  { expectedCommit, expectedVersion, now = new Date() } = {},
+  { expectedCommit, expectedVersion, now = new Date(), manualAuthorization } = {},
 ) {
   const errors = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) errors.push('manifest must be a JSON object.');
@@ -90,32 +86,27 @@ export function applyMarketReleaseEvidenceItem(
     const isReleaseBoundManualEvidence = MANUAL_RELEASE_BOUND_IDS.has(item.id);
     const expectedKeys = isReleaseBoundManualEvidence ? RELEASE_BOUND_ITEM_KEYS : ITEM_KEYS;
     if (!exactKeys(item, expectedKeys)) {
-      errors.push(
-        isReleaseBoundManualEvidence
-          ? 'manual physical/store evidence item must contain exactly the bounded evidence fields plus releaseCommit and releaseVersion.'
-          : 'item must contain exactly the bounded release evidence fields.',
-      );
+      errors.push(isReleaseBoundManualEvidence
+        ? 'manual physical/store evidence item must contain exactly the bounded evidence fields plus releaseCommit and releaseVersion.'
+        : 'item must contain exactly the bounded release evidence fields.');
     }
     if (typeof item.id !== 'string' || !allowedIds.includes(item.id)) errors.push('item id must be required by the manifest scope.');
     if (item.status !== 'VERIFIED') errors.push('item status must be VERIFIED.');
-    if (canonicalVerifier(item.verifier) === null) {
-      errors.push(`item verifier must be canonical, non-empty, free of control characters, and at most ${MAX_VERIFIER_LENGTH} characters.`);
-    }
-    if (canonicalEvidenceRef(item.evidenceRef) === null) {
-      errors.push(`item evidenceRef must be a canonical credential-free HTTPS or evidence URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without query, fragment, or control characters.`);
-    }
+    if (canonicalVerifier(item.verifier) === null) errors.push(`item verifier must be canonical, non-empty, free of control characters, and at most ${MAX_VERIFIER_LENGTH} characters.`);
+    if (canonicalEvidenceRef(item.evidenceRef) === null) errors.push(`item evidenceRef must be a canonical credential-free HTTPS or evidence URI of ${MIN_EVIDENCE_REF_LENGTH}-${MAX_EVIDENCE_REF_LENGTH} characters without query, fragment, or control characters.`);
     if (!SHA256.test(item.evidenceSha256 ?? '')) errors.push('item evidenceSha256 must be a lowercase SHA-256 digest.');
     if (isReleaseBoundManualEvidence) {
-      if (!SHA40.test(item.releaseCommit ?? '')) {
-        errors.push('manual evidence item releaseCommit must be a canonical lowercase 40-character Git SHA.');
-      } else if (item.releaseCommit !== expectedCommit) {
-        errors.push('manual evidence item releaseCommit does not match the target release commit.');
-      }
-      if (!RELEASE_VERSION.test(item.releaseVersion ?? '')) {
-        errors.push('manual evidence item releaseVersion must be canonical SemVer without build metadata.');
-      } else if (item.releaseVersion !== expectedVersion) {
-        errors.push('manual evidence item releaseVersion does not match the target release version.');
-      }
+      if (!SHA40.test(item.releaseCommit ?? '')) errors.push('manual evidence item releaseCommit must be a canonical lowercase 40-character Git SHA.');
+      else if (item.releaseCommit !== expectedCommit) errors.push('manual evidence item releaseCommit does not match the target release commit.');
+      if (!RELEASE_VERSION.test(item.releaseVersion ?? '')) errors.push('manual evidence item releaseVersion must be canonical SemVer without build metadata.');
+      else if (item.releaseVersion !== expectedVersion) errors.push('manual evidence item releaseVersion does not match the target release version.');
+
+      const authorizationResult = validateManualReleaseEvidencePromotionAuthorization(
+        manualAuthorization,
+        item,
+        { expectedCommit, expectedVersion },
+      );
+      if (!authorizationResult.ok) errors.push(...authorizationResult.errors);
     }
     const verifiedAtMs = canonicalTimestamp(item.verifiedAt);
     const validUntilMs = canonicalTimestamp(item.validUntil);
@@ -147,9 +138,7 @@ export function applyMarketReleaseEvidenceItem(
 }
 
 export function applyProductionDeploymentSmokeEvidenceItem(manifest, item, options) {
-  if (item?.id !== 'production_deployment_smoke') {
-    return { ok: false, errors: ['item id must be production_deployment_smoke.'] };
-  }
+  if (item?.id !== 'production_deployment_smoke') return { ok: false, errors: ['item id must be production_deployment_smoke.'] };
   return applyMarketReleaseEvidenceItem(manifest, item, options);
 }
 
@@ -162,20 +151,39 @@ async function runCli() {
   const manifestPath = readArg('--manifest');
   const itemPath = readArg('--item');
   const outputPath = readArg('--output');
-  if (!manifestPath || !itemPath || !outputPath) {
-    throw new Error('Provide --manifest <file>, --item <file>, and --output <file>.');
-  }
+  if (!manifestPath || !itemPath || !outputPath) throw new Error('Provide --manifest <file>, --item <file>, and --output <file>.');
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const item = JSON.parse(await readFile(itemPath, 'utf8'));
-  const result = applyMarketReleaseEvidenceItem(manifest, item, { expectedCommit, expectedVersion });
+
+  let manualAuthorization;
+  if (MANUAL_RELEASE_BOUND_IDS.has(item.id)) {
+    const artifactPath = readArg('--artifact');
+    const worksheetPath = readArg('--worksheet');
+    const reviewReceiptPath = readArg('--review-receipt');
+    if (!artifactPath || !worksheetPath || !reviewReceiptPath) {
+      throw new Error('Manual physical/store evidence also requires --artifact <file>, --worksheet <file>, and --review-receipt <file>.');
+    }
+    const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
+      readFile(artifactPath),
+      readFile(worksheetPath),
+      readFile(reviewReceiptPath, 'utf8'),
+    ]);
+    const preflight = preflightManualReleaseEvidencePromotion(
+      item,
+      artifactBytes,
+      worksheetBytes,
+      JSON.parse(reviewReceiptRaw),
+      { expectedCommit, expectedVersion },
+    );
+    if (!preflight.ok) throw new Error(preflight.errors.join(' '));
+    manualAuthorization = preflight.authorization;
+  }
+
+  const result = applyMarketReleaseEvidenceItem(manifest, item, { expectedCommit, expectedVersion, manualAuthorization });
   if (!result.ok) throw new Error(result.errors.join(' '));
-  await writeFile(outputPath, `${JSON.stringify(result.manifest, null, 2)}\n`, {
-    encoding: 'utf8',
-    flag: 'wx',
-    mode: 0o600,
-  });
+  await writeFile(outputPath, `${JSON.stringify(result.manifest, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
   console.log(`Applied ${item.id} evidence to unsigned manifest at ${outputPath}.`);
   console.log('The resulting manifest is intentionally unsigned and must still pass release:evidence:sign and check:market-ready.');
 }
