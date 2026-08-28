@@ -97,7 +97,12 @@ export function applyMarketReleaseEvidenceItem(
 
   const output = structuredClone(manifest);
   const index = output.evidence.findIndex((entry) => entry.id === item.id);
-  output.evidence[index] = structuredClone(item);
+  if (MANUAL_RELEASE_BOUND_IDS.has(item.id)) {
+    const { releaseCommit: _releaseCommit, releaseVersion: _releaseVersion, ...manifestItem } = item;
+    output.evidence[index] = structuredClone(manifestItem);
+  } else {
+    output.evidence[index] = structuredClone(item);
+  }
   output.manifestHmacSha256 = ZERO_HMAC;
   return { ok: true, manifest: output };
 }
