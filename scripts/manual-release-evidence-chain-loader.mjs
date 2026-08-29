@@ -1,4 +1,5 @@
-import { lstat, readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { preflightManualReleaseEvidencePromotion } from './manual-release-evidence-promotion-preflight.mjs';
 
@@ -15,12 +16,42 @@ const CHAIN_FILES = Object.freeze({
   reviewReceipt: 'review-receipt.json',
 });
 
+function sameFileIdentity(a, b) {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
 async function readRegularFile(path, label, encoding) {
-  const stats = await lstat(path);
-  if (!stats.isFile() || stats.isSymbolicLink()) {
+  const before = await lstat(path, { bigint: true });
+  if (!before.isFile() || before.isSymbolicLink()) {
     throw new Error(`${label} must be a regular non-symlink file.`);
   }
-  return readFile(path, encoding);
+
+  const noFollow = typeof constants.O_NOFOLLOW === 'number' ? constants.O_NOFOLLOW : 0;
+  let handle;
+  try {
+    handle = await open(path, constants.O_RDONLY | noFollow);
+  } catch (error) {
+    if (error?.code === 'ELOOP') {
+      throw new Error(`${label} must be a regular non-symlink file.`);
+    }
+    throw error;
+  }
+
+  try {
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() || !sameFileIdentity(before, opened)) {
+      throw new Error(`${label} changed while being opened; refusing release evidence.`);
+    }
+
+    const bytes = await handle.readFile(encoding ? { encoding } : undefined);
+    const after = await lstat(path, { bigint: true });
+    if (!after.isFile() || after.isSymbolicLink() || !sameFileIdentity(opened, after)) {
+      throw new Error(`${label} changed while being read; refusing release evidence.`);
+    }
+    return bytes;
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function loadManualReleaseEvidenceAuthorizations(
