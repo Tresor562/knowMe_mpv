@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { preflightManualReleaseEvidenceWorksheet } from './manual-release-evidence-preflight.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const MAX_REVIEWER_LENGTH = 128;
@@ -139,8 +143,12 @@ async function runCli() {
   }
 
   const [worksheetBytes, artifactBytes] = await Promise.all([
-    readFile(worksheetPath),
-    readFile(artifactPath),
+    readRetainedEvidenceFile(worksheetPath, 'manual release evidence worksheet', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.worksheet,
+    }),
+    readRetainedEvidenceFile(artifactPath, 'manual release evidence artifact', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+    }),
   ]);
   const worksheet = JSON.parse(worksheetBytes.toString('utf8'));
   const result = createManualEvidenceReviewReceipt(worksheet, artifactBytes, {
