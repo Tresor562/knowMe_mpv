@@ -157,6 +157,23 @@ test('rejects symlink inputs and malformed legal-review JSON', async () => {
   );
 });
 
+test('preserves the non-empty retained input contract after safe-reader migration', async () => {
+  const fx = await fixture();
+  await writeFile(fx.privacyPolicyPath, Buffer.alloc(0));
+
+  await assert.rejects(
+    buildPrivacyTermsLegalReviewArtifact({
+      privacyPolicyPath: fx.privacyPolicyPath,
+      termsPath: fx.termsPath,
+      consentNoticePath: fx.consentNoticePath,
+      legalReviewRecordPath: fx.legalReviewRecordPath,
+      confirmation: CONFIRMATION,
+      now: NOW,
+    }),
+    /must contain between 1 and 2097152 bytes/,
+  );
+});
+
 test('writes exclusively and preserves a pre-existing artifact', async () => {
   const fx = await fixture();
   const artifact = await buildPrivacyTermsLegalReviewArtifact({
