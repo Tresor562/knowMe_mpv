@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { createMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const TOP_FIELDS = new Set(['schemaVersion','kind','status','observedAt','environment','checks','runbookSha256','incidentRecordSha256','proofBoundary']);
@@ -60,7 +64,9 @@ function arg(name) { const i = process.argv.indexOf(name); return i >= 0 ? proce
 async function runCli() {
   const artifact = arg('--artifact'), output = arg('--output'), scope = arg('--scope'), verifier = arg('--verifier'), evidenceRef = arg('--ref'), validUntil = arg('--valid-until');
   if (!artifact || !output || !scope || !verifier || !evidenceRef || !validUntil) throw new Error('Provide --artifact, --output, --scope, --verifier, --ref, and --valid-until.');
-  const bytes = await readFile(artifact);
+  const bytes = await readRetainedEvidenceFile(artifact, 'moderation/support incident retained artifact', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+  });
   const result = createModerationSupportIncidentOpsEvidenceItem(bytes, { scope, verifier, evidenceRef, validUntil });
   if (!result.ok) throw new Error(result.errors.join(' '));
   await writeFile(output, `${JSON.stringify(result.item, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
