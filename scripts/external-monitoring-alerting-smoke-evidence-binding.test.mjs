@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 import {
   createExternalMonitoringAlertingMarketEvidenceItem,
@@ -7,6 +13,8 @@ import {
 } from './external-monitoring-alerting-smoke-evidence-binding.mjs';
 
 const NOW = new Date('2026-08-27T18:00:00.000Z');
+const VALID_UNTIL = '2026-09-03T17:55:00.000Z';
+const cliPath = fileURLToPath(new URL('./external-monitoring-alerting-smoke-evidence-binding.mjs', import.meta.url));
 
 function artifact(overrides = {}) {
   return {
@@ -25,6 +33,22 @@ function artifact(overrides = {}) {
   };
 }
 
+function bytes() {
+  return Buffer.from(`${JSON.stringify(artifact(), null, 2)}\n`, 'utf8');
+}
+
+function cliArgs(artifactPath, outputPath) {
+  return [
+    cliPath,
+    '--artifact', artifactPath,
+    '--output', outputPath,
+    '--scope', 'WEB_V1',
+    '--verifier', 'release-operator',
+    '--ref', 'evidence://monitoring/2026-08-27',
+    '--valid-until', VALID_UNTIL,
+  ];
+}
+
 test('accepts an exact passed external monitoring artifact', () => {
   assert.deepEqual(validateExternalMonitoringAlertingSmokeArtifact(artifact(), { now: NOW }), {
     ok: true,
@@ -33,12 +57,12 @@ test('accepts an exact passed external monitoring artifact', () => {
 });
 
 test('creates external_monitoring_alerting item from exact retained bytes', () => {
-  const bytes = Buffer.from(JSON.stringify(artifact()));
-  const result = createExternalMonitoringAlertingMarketEvidenceItem(bytes, {
+  const retainedBytes = Buffer.from(JSON.stringify(artifact()));
+  const result = createExternalMonitoringAlertingMarketEvidenceItem(retainedBytes, {
     scope: 'WEB_V1',
     verifier: 'release-operator',
     evidenceRef: 'evidence://monitoring/2026-08-27',
-    validUntil: '2026-09-03T17:55:00.000Z',
+    validUntil: VALID_UNTIL,
     now: NOW,
   });
   assert.equal(result.ok, true);
@@ -84,4 +108,44 @@ test('rejects malformed hashes, origin, provider, future observation, and JSON',
   assert.equal(validateExternalMonitoringAlertingSmokeArtifact(artifact({ providerName: ' Example Monitor ' }), { now: NOW }).ok, false);
   assert.equal(validateExternalMonitoringAlertingSmokeArtifact(artifact({ observedAt: '2026-08-28T18:00:00.000Z' }), { now: NOW }).ok, false);
   assert.equal(createExternalMonitoringAlertingMarketEvidenceItem(Buffer.from('{'), { now: NOW }).ok, false);
+});
+
+test('CLI creates external monitoring evidence from a regular retained artifact', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-monitoring-binding-'));
+  try {
+    const artifactPath = join(dir, 'monitoring.json');
+    const outputPath = join(dir, 'item.json');
+    await writeFile(artifactPath, bytes());
+
+    const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const item = JSON.parse(await readFile(outputPath, 'utf8'));
+    assert.equal(item.id, 'external_monitoring_alerting');
+    assert.equal(item.status, 'VERIFIED');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('CLI rejects a symlinked external monitoring artifact before JSON ingestion', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Symlink creation is not reliably available on Windows CI without elevated privileges.');
+    return;
+  }
+
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-monitoring-binding-symlink-'));
+  try {
+    const targetPath = join(dir, 'monitoring-target.json');
+    const artifactPath = join(dir, 'monitoring-link.json');
+    const outputPath = join(dir, 'item.json');
+    await writeFile(targetPath, bytes());
+    await symlink(targetPath, artifactPath);
+
+    const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /regular non-symlink file/);
+    assert.equal(existsSync(outputPath), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
