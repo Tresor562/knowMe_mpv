@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 import {
   preflightManualReleaseEvidencePromotion,
   validateManualReleaseEvidencePromotionAuthorization,
 } from './manual-release-evidence-promotion-preflight.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -154,8 +158,18 @@ async function runCli() {
   if (!manifestPath || !itemPath || !outputPath) throw new Error('Provide --manifest <file>, --item <file>, and --output <file>.');
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  const item = JSON.parse(await readFile(itemPath, 'utf8'));
+  const [manifestRaw, itemRaw] = await Promise.all([
+    readRetainedEvidenceFile(manifestPath, 'release evidence manifest', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+    }),
+    readRetainedEvidenceFile(itemPath, 'release evidence item', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.item,
+    }),
+  ]);
+  const manifest = JSON.parse(manifestRaw);
+  const item = JSON.parse(itemRaw);
 
   let manualAuthorization;
   if (MANUAL_RELEASE_BOUND_IDS.has(item.id)) {
@@ -166,9 +180,16 @@ async function runCli() {
       throw new Error('Manual physical/store evidence also requires --artifact <file>, --worksheet <file>, and --review-receipt <file>.');
     }
     const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
-      readFile(artifactPath),
-      readFile(worksheetPath),
-      readFile(reviewReceiptPath, 'utf8'),
+      readRetainedEvidenceFile(artifactPath, 'retained manual evidence artifact', {
+        maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+      }),
+      readRetainedEvidenceFile(worksheetPath, 'manual evidence worksheet', {
+        maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.worksheet,
+      }),
+      readRetainedEvidenceFile(reviewReceiptPath, 'manual evidence review receipt', {
+        encoding: 'utf8',
+        maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.reviewReceipt,
+      }),
     ]);
     const preflight = preflightManualReleaseEvidencePromotion(
       item,
