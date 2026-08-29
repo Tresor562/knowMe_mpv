@@ -7,6 +7,8 @@ export const RETAINED_EVIDENCE_FILE_LIMITS = Object.freeze({
   artifact: 256 * 1024 * 1024,
   worksheet: 2 * 1024 * 1024,
   reviewReceipt: 1024 * 1024,
+  bundleReceipt: 2 * 1024 * 1024,
+  digest: 64 * 1024,
 });
 
 const READ_CHUNK_BYTES = 64 * 1024;
