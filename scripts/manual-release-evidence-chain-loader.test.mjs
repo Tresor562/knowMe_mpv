@@ -5,7 +5,10 @@ import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createGenericMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
-import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
+import {
+  loadManualReleaseEvidenceAuthorizations,
+  MANUAL_RELEASE_EVIDENCE_FILE_LIMITS,
+} from './manual-release-evidence-chain-loader.mjs';
 import { validateManualReleaseEvidencePromotionAuthorization } from './manual-release-evidence-promotion-preflight.mjs';
 
 const now = new Date('2026-08-29T00:30:00.000Z');
@@ -61,12 +64,12 @@ async function writeChain(root, overrides = {}) {
   await Promise.all([
     writeFile(join(dir, 'artifact'), overrides.artifactBytes ?? artifactBytes),
     writeFile(join(dir, 'worksheet.json'), overrides.worksheetBytes ?? worksheetBytes),
-    writeFile(join(dir, 'review-receipt.json'), JSON.stringify(overrides.reviewReceipt ?? reviewReceipt())),
+    writeFile(join(dir, 'review-receipt.json'), overrides.reviewReceiptBytes ?? JSON.stringify(overrides.reviewReceipt ?? reviewReceipt())),
   ]);
 }
 
 test('loads a reviewed retained chain and returns the authentic process-local authorization', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd318-'));
   const item = createItem();
   await writeChain(root);
   const authorizations = await loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now });
@@ -76,7 +79,7 @@ test('loads a reviewed retained chain and returns the authentic process-local au
 });
 
 test('fails closed when retained proof bytes drift after human review', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd318-'));
   const item = createItem();
   await writeChain(root, { artifactBytes: Buffer.from('tampered-proof\n') });
   await assert.rejects(
@@ -90,7 +93,7 @@ test('rejects a retained artifact replaced by a symbolic link', async (t) => {
     t.skip('Creating symlinks requires platform privileges that are not guaranteed on Windows CI.');
     return;
   }
-  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd318-'));
   const item = createItem();
   await writeChain(root);
   const external = join(root, 'external-proof');
@@ -101,6 +104,18 @@ test('rejects a retained artifact replaced by a symbolic link', async (t) => {
   await assert.rejects(
     loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now }),
     /regular non-symlink file/,
+  );
+});
+
+test('rejects oversized retained review metadata before JSON parsing or promotion', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd318-'));
+  const item = createItem();
+  await writeChain(root, {
+    reviewReceiptBytes: Buffer.alloc(MANUAL_RELEASE_EVIDENCE_FILE_LIMITS.reviewReceipt + 1, 0x20),
+  });
+  await assert.rejects(
+    loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now }),
+    /review receipt exceeds the maximum retained evidence size/,
   );
 });
 
