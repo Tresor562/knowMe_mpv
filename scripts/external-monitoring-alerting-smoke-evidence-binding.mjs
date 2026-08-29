@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { createMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
 import { canonicalProductionOrigin } from './external-monitoring-alerting-smoke.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -155,7 +159,9 @@ async function runCli() {
     throw new Error('Provide --artifact, --output, --scope, --verifier, --ref, and --valid-until.');
   }
 
-  const artifactBytes = await readFile(artifactPath);
+  const artifactBytes = await readRetainedEvidenceFile(artifactPath, 'external monitoring/alerting retained artifact', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+  });
   const result = createExternalMonitoringAlertingMarketEvidenceItem(artifactBytes, {
     scope,
     verifier,
