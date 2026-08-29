@@ -4,6 +4,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceItem } from './market-release-evidence-item-apply.mjs';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
+import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
 
 const ZERO_HMAC = '0'.repeat(64);
 
@@ -68,15 +69,25 @@ async function runCli() {
   if (!manifestPath || !itemsDir || !outputPath) throw new Error('Provide --manifest <file>, --items-dir <directory>, and --output <file>.');
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
+  const manualChainDir = readArg('--manual-chain-dir');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const entries = (await readdir(itemsDir, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.endsWith('.json')).sort((a, b) => a.name.localeCompare(b.name));
   if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
   const items = [];
   for (const entry of entries) items.push(JSON.parse(await readFile(join(itemsDir, entry.name), 'utf8')));
-  const result = applyMarketReleaseEvidenceBatch(manifest, items, { expectedCommit, expectedVersion });
+  const manualAuthorizations = await loadManualReleaseEvidenceAuthorizations(items, manualChainDir, {
+    expectedCommit,
+    expectedVersion,
+  });
+  const result = applyMarketReleaseEvidenceBatch(manifest, items, {
+    expectedCommit,
+    expectedVersion,
+    manualAuthorizations,
+  });
   if (!result.ok) throw new Error(result.errors.join(' '));
   await writeFile(outputPath, `${JSON.stringify(result.manifest, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
   console.log(`Applied ${items.length} evidence items atomically to unsigned manifest at ${outputPath}.`);
+  console.log('FULL manual evidence was authorized only from retained artifact + worksheet + human-review receipt bytes loaded in this process.');
   console.log('The manifest remains unsigned and must still pass release:evidence:sign and check:market-ready.');
 }
 
