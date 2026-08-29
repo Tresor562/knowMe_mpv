@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { verifyMarketReleaseEvidenceBundle } from './market-release-evidence-bundle-verify.mjs';
 import { verifyMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt-verify.mjs';
+import { readRetainedEvidenceFile, RETAINED_EVIDENCE_FILE_LIMITS } from './retained-evidence-safe-read.mjs';
 
 export const MAX_RECEIPT_AGE_HOURS = 8760;
 
@@ -145,9 +145,16 @@ async function runCli() {
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
   const [receiptBytes, manifestBytes, digestText] = await Promise.all([
-    readFile(receiptPath),
-    readFile(manifestPath),
-    readFile(digestPath, 'utf8'),
+    readRetainedEvidenceFile(receiptPath, 'Verification receipt', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.bundleReceipt,
+    }),
+    readRetainedEvidenceFile(manifestPath, 'Signed release manifest', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+    }),
+    readRetainedEvidenceFile(digestPath, 'Release evidence digest', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.digest,
+    }),
   ]);
   const result = reverifyMarketReleaseEvidenceBundleReceipt({
     receiptBytes,
