@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
 import { createMarketReleaseEvidenceManifest } from './market-release-evidence-init.mjs';
 import { buildMarketReleaseEvidenceActionPlan } from './market-release-evidence-action-plan.mjs';
+import { readRetainedEvidenceFile } from './retained-evidence-safe-read.mjs';
 
 const PNPM_ROOT_SCRIPT = /^pnpm ([a-zA-Z0-9:_-]+)$/;
+const PACKAGE_JSON_MAX_BYTES = 2 * 1024 * 1024;
 
 function fullPendingManifest() {
   const result = createMarketReleaseEvidenceManifest({
@@ -63,7 +64,11 @@ export function validateMarketReleaseEvidencePlanCommandContract(packageJson) {
 
 async function runCli() {
   const packagePath = process.argv[2] ?? 'package.json';
-  const packageJson = JSON.parse(await readFile(packagePath, 'utf8'));
+  const packageJsonText = await readRetainedEvidenceFile(packagePath, 'package.json plan contract input', {
+    encoding: 'utf8',
+    maxBytes: PACKAGE_JSON_MAX_BYTES,
+  });
+  const packageJson = JSON.parse(packageJsonText);
   const result = validateMarketReleaseEvidencePlanCommandContract(packageJson);
   if (!result.ok) throw new Error(result.errors.join('\n'));
   console.log(`Market evidence plan command contract OK (${result.commands.length} executable workflow steps).`);
