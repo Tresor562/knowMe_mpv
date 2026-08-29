@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
 import { createGenericMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const MANUAL_IDS = new Set([
   'ios_physical_validation',
@@ -102,16 +105,40 @@ async function runCli() {
   }
 
   const [itemRaw, artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
-    readFile(itemPath, 'utf8'),
-    readFile(artifactPath),
-    readFile(worksheetPath),
-    readFile(reviewReceiptPath, 'utf8'),
+    readRetainedEvidenceFile(itemPath, 'manual evidence item', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.item,
+    }),
+    readRetainedEvidenceFile(artifactPath, 'retained artifact', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+    }),
+    readRetainedEvidenceFile(worksheetPath, 'manual evidence worksheet', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.worksheet,
+    }),
+    readRetainedEvidenceFile(reviewReceiptPath, 'manual evidence review receipt', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.reviewReceipt,
+    }),
   ]);
+
+  let item;
+  let reviewReceipt;
+  try {
+    item = JSON.parse(itemRaw);
+  } catch {
+    throw new Error('manual evidence item must contain valid JSON.');
+  }
+  try {
+    reviewReceipt = JSON.parse(reviewReceiptRaw);
+  } catch {
+    throw new Error('manual evidence review receipt must contain valid JSON.');
+  }
+
   const result = preflightManualReleaseEvidencePromotion(
-    JSON.parse(itemRaw),
+    item,
     artifactBytes,
     worksheetBytes,
-    JSON.parse(reviewReceiptRaw),
+    reviewReceipt,
     { expectedCommit, expectedVersion },
   );
   if (!result.ok) throw new Error(result.errors.join(' '));
