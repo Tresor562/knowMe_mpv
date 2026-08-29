@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
+import { readRetainedEvidenceFile, RETAINED_EVIDENCE_FILE_LIMITS } from './retained-evidence-safe-read.mjs';
 
 const SCOPES = new Set(['WEB_V1', 'FULL']);
 const EVIDENCE_STATUSES = new Set(['PENDING', 'VERIFIED']);
@@ -98,7 +98,11 @@ async function runCli() {
     throw new Error('Provide --file <manifest.json> or KNOWME_RELEASE_EVIDENCE_FILE.');
   }
 
-  const manifest = JSON.parse(await readFile(file, 'utf8'));
+  const manifestJson = await readRetainedEvidenceFile(file, 'Release evidence manifest', {
+    encoding: 'utf8',
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+  });
+  const manifest = JSON.parse(manifestJson);
   const report = assessMarketReleaseEvidenceReadiness(manifest);
   console.log(JSON.stringify(report, null, 2));
   if (!report.complete) process.exitCode = 2;

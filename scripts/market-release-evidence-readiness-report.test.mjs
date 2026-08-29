@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { assessMarketReleaseEvidenceReadiness } from './market-release-evidence-readiness-report.mjs';
 
@@ -21,6 +25,13 @@ function item(id, overrides = {}) {
     status: 'VERIFIED',
     validUntil: '2026-08-29T03:00:00.000Z',
     ...overrides,
+  };
+}
+
+function cliManifest() {
+  return {
+    scope: 'WEB_V1',
+    evidence: WEB_IDS.map((id) => item(id, { validUntil: '2099-01-01T00:00:00.000Z' })),
   };
 }
 
@@ -124,4 +135,41 @@ test('rejects malformed top-level inputs instead of guessing', () => {
   assert.throws(() => assessMarketReleaseEvidenceReadiness(null), /JSON object/);
   assert.throws(() => assessMarketReleaseEvidenceReadiness({ scope: 'MOBILE', evidence: [] }), /scope/);
   assert.throws(() => assessMarketReleaseEvidenceReadiness({ scope: 'WEB_V1' }), /evidence must be an array/);
+});
+
+test('readiness CLI accepts a regular bounded manifest file', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'knowme-readiness-'));
+  try {
+    const manifestPath = path.join(dir, 'manifest.json');
+    await writeFile(manifestPath, JSON.stringify(cliManifest()));
+    const result = spawnSync(process.execPath, ['scripts/market-release-evidence-readiness-report.mjs', '--file', manifestPath], {
+      cwd: path.resolve('.'),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.complete, true);
+    assert.equal(report.verifiedCount, WEB_IDS.length);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('readiness CLI rejects a symlinked manifest before JSON ingestion', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'knowme-readiness-'));
+  try {
+    const targetPath = path.join(dir, 'target.json');
+    const manifestPath = path.join(dir, 'manifest.json');
+    await writeFile(targetPath, JSON.stringify(cliManifest()));
+    await symlink(targetPath, manifestPath);
+    const result = spawnSync(process.execPath, ['scripts/market-release-evidence-readiness-report.mjs', '--file', manifestPath], {
+      cwd: path.resolve('.'),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /regular non-symlink file/);
+    assert.equal(result.stdout, '');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
