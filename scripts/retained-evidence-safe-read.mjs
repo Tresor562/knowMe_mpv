@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { lstat, open } from 'node:fs/promises';
 
 export const RETAINED_EVIDENCE_FILE_LIMITS = Object.freeze({
+  manifest: 4 * 1024 * 1024,
   item: 2 * 1024 * 1024,
   artifact: 256 * 1024 * 1024,
   worksheet: 2 * 1024 * 1024,
