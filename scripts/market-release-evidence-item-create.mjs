@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -156,9 +160,6 @@ function validateManualReviewReceipt(reviewReceipt, artifactBytes, options = {})
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
 }
 
-// Low-level item constructor used by the dedicated semantic binders after they have
-// validated the retained artifact contract. Operator-facing generic creation must
-// use createGenericMarketReleaseEvidenceItem() below.
 export function createMarketReleaseEvidenceItem(
   artifactBytes,
   {
@@ -248,10 +249,6 @@ export function createGenericMarketReleaseEvidenceItem(artifactBytes, options = 
   const created = createMarketReleaseEvidenceItem(artifactBytes, options);
   if (!created.ok) return created;
 
-  // KMD-311: keep the release binding on the serialized manual evidence item itself.
-  // Without these fields, an item that was correctly created for release A could be
-  // replayed later into release B after the review receipt and worksheet are no longer
-  // present at the apply step.
   return {
     ok: true,
     item: {
@@ -286,11 +283,24 @@ async function runCli() {
   }
 
   const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
-    readFile(artifactPath),
-    readFile(worksheetPath),
-    readFile(reviewReceiptPath, 'utf8'),
+    readRetainedEvidenceFile(artifactPath, 'retained artifact', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+    }),
+    readRetainedEvidenceFile(worksheetPath, 'manual evidence worksheet', {
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.worksheet,
+    }),
+    readRetainedEvidenceFile(reviewReceiptPath, 'manual evidence review receipt', {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.reviewReceipt,
+    }),
   ]);
-  const reviewReceipt = JSON.parse(reviewReceiptRaw);
+
+  let reviewReceipt;
+  try {
+    reviewReceipt = JSON.parse(reviewReceiptRaw);
+  } catch {
+    throw new Error('manual evidence review receipt must contain valid JSON.');
+  }
   const result = createGenericMarketReleaseEvidenceItem(artifactBytes, {
     id,
     scope,
