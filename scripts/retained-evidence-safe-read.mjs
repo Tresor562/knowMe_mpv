@@ -14,6 +14,13 @@ function sameFileIdentity(a, b) {
   return a.dev === b.dev && a.ino === b.ino;
 }
 
+export function sameRetainedEvidenceFileState(a, b) {
+  return sameFileIdentity(a, b)
+    && a.size === b.size
+    && a.mtimeNs === b.mtimeNs
+    && a.ctimeNs === b.ctimeNs;
+}
+
 async function readBounded(handle, maxBytes, encoding) {
   const chunks = [];
   let total = 0;
@@ -57,7 +64,7 @@ export async function readRetainedEvidenceFile(path, label, { encoding, maxBytes
 
   try {
     const opened = await handle.stat({ bigint: true });
-    if (!opened.isFile() || !sameFileIdentity(before, opened)) {
+    if (!opened.isFile() || !sameRetainedEvidenceFileState(before, opened)) {
       throw new Error(`${label} changed while being opened; refusing release evidence.`);
     }
     if (opened.size > BigInt(maxBytes)) {
@@ -74,8 +81,13 @@ export async function readRetainedEvidenceFile(path, label, { encoding, maxBytes
       throw error;
     }
 
+    const descriptorAfter = await handle.stat({ bigint: true });
+    if (!descriptorAfter.isFile() || !sameRetainedEvidenceFileState(opened, descriptorAfter)) {
+      throw new Error(`${label} changed in place while being read; refusing release evidence.`);
+    }
+
     const after = await lstat(path, { bigint: true });
-    if (!after.isFile() || after.isSymbolicLink() || !sameFileIdentity(opened, after)) {
+    if (!after.isFile() || after.isSymbolicLink() || !sameRetainedEvidenceFileState(descriptorAfter, after)) {
       throw new Error(`${label} changed while being read; refusing release evidence.`);
     }
     if (after.size > BigInt(maxBytes)) {
