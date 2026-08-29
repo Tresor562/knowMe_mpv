@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
 import { createManualReleaseEvidenceTemplate } from './manual-release-evidence-template.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
@@ -166,7 +169,10 @@ async function runCli() {
   const file = readArg('--file');
   if (!file) throw new Error('Provide --file <completed-manual-evidence-worksheet.json>.');
 
-  const worksheet = JSON.parse(await readFile(file, 'utf8'));
+  const worksheetBytes = await readRetainedEvidenceFile(file, 'manual release evidence worksheet', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.worksheet,
+  });
+  const worksheet = JSON.parse(worksheetBytes.toString('utf8'));
   const result = preflightManualReleaseEvidenceWorksheet(worksheet);
   if (!result.ok) throw new Error(result.errors.join('\n'));
 
