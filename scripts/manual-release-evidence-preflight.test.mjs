@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { createManualReleaseEvidenceTemplate } from './manual-release-evidence-template.mjs';
 import { preflightManualReleaseEvidenceWorksheet } from './manual-release-evidence-preflight.mjs';
@@ -31,6 +35,28 @@ function completedWorksheet() {
       })),
     })),
   };
+}
+
+function runCli(file) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, ['scripts/manual-release-evidence-preflight.mjs', '--file', file], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('close', (code) => resolve({ code, stdout, stderr }));
+  });
+}
+
+async function cliFixture() {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd330-'));
+  const file = join(dir, 'worksheet.json');
+  await writeFile(file, `${JSON.stringify(completedWorksheet(), null, 2)}\n`, 'utf8');
+  return { dir, file };
 }
 
 test('accepts a complete release-bound worksheet without certifying it', () => {
@@ -100,4 +126,31 @@ test('rejects release metadata that cannot reproduce the canonical KMD-305 templ
   const result = preflightManualReleaseEvidenceWorksheet(worksheet, { now: NOW });
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /releaseVersion/);
+});
+
+test('manual evidence preflight CLI accepts a regular bounded worksheet', async () => {
+  const fixture = await cliFixture();
+  try {
+    const result = await runCli(fixture.file);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /preflight passed/i);
+    assert.match(result.stdout, /Validated 4\/4 completed worksheet entries/);
+  } finally {
+    await rm(fixture.dir, { recursive: true, force: true });
+  }
+});
+
+test('manual evidence preflight CLI rejects a symlinked worksheet before JSON ingestion', async () => {
+  const fixture = await cliFixture();
+  try {
+    const target = join(fixture.dir, 'worksheet-target.json');
+    await writeFile(target, `${JSON.stringify(completedWorksheet(), null, 2)}\n`, 'utf8');
+    await rm(fixture.file);
+    await symlink(target, fixture.file);
+    const result = await runCli(fixture.file);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /regular non-symlink file|worksheet preflight failed/i);
+  } finally {
+    await rm(fixture.dir, { recursive: true, force: true });
+  }
 });
