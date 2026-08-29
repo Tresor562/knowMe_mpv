@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 import { finalizeMarketReleaseEvidence } from './market-release-evidence-finalize.mjs';
 import { buildMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt.mjs';
@@ -112,4 +116,37 @@ test('rejects changed manifest bytes', () => {
   changed[changed.length - 2] = changed[changed.length - 2] === 32 ? 33 : 32;
   const result = reverifyMarketReleaseEvidenceBundleReceipt({ receiptBytes: receipt.bytes, manifestBytes: changed, digestText, manifestPath, digestPath, expectedCommit: commit, expectedVersion: version, expectedSigningKeyId: signingKeyId, signingKey, now, maxAgeHours: 24 });
   assert.equal(result.ok, false);
+});
+
+test('CLI rejects a symlinked verification receipt before parsing retained evidence', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd327-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const target = join(dir, 'receipt-target.json');
+  const receiptLink = join(dir, 'receipt.json');
+  const signedManifest = join(dir, 'manifest.json');
+  const digest = join(dir, 'manifest.sha256');
+  await writeFile(target, '{}');
+  await symlink(target, receiptLink);
+  await writeFile(signedManifest, '{}');
+  await writeFile(digest, `${'0'.repeat(64)}  ${signedManifest}\n`);
+
+  const result = spawnSync(process.execPath, [
+    new URL('./market-release-evidence-bundle-receipt-reverify.mjs', import.meta.url).pathname,
+    '--receipt', receiptLink,
+    '--manifest', signedManifest,
+    '--digest', digest,
+    '--commit', commit,
+    '--version', version,
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KNOWME_RELEASE_RECEIPT_MAX_AGE_HOURS: '168',
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID: signingKeyId,
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY: signingKey,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Verification receipt must be a regular non-symlink file/);
 });
