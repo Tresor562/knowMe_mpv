@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceItem } from './market-release-evidence-item-apply.mjs';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
+import { readRetainedEvidenceFile, RETAINED_EVIDENCE_FILE_LIMITS } from './retained-evidence-safe-read.mjs';
 
 const ZERO_HMAC = '0'.repeat(64);
 
@@ -70,11 +71,21 @@ async function runCli() {
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
   const manualChainDir = readArg('--manual-chain-dir');
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const manifest = JSON.parse(await readRetainedEvidenceFile(manifestPath, 'release evidence manifest', {
+    encoding: 'utf8',
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+  }));
   const entries = (await readdir(itemsDir, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.endsWith('.json')).sort((a, b) => a.name.localeCompare(b.name));
   if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
   const items = [];
-  for (const entry of entries) items.push(JSON.parse(await readFile(join(itemsDir, entry.name), 'utf8')));
+  for (const entry of entries) {
+    const itemPath = join(itemsDir, entry.name);
+    const bytes = await readRetainedEvidenceFile(itemPath, `release evidence batch item ${entry.name}`, {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.item,
+    });
+    items.push(JSON.parse(bytes));
+  }
   const manualAuthorizations = await loadManualReleaseEvidenceAuthorizations(items, manualChainDir, {
     expectedCommit,
     expectedVersion,
