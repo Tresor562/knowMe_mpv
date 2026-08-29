@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { open, readdir, readFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch-apply.mjs';
+import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
 import { signMarketReleaseEvidence } from './market-release-evidence-sign.mjs';
 import { validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
 
@@ -126,16 +127,22 @@ async function runCli() {
 
   const expectedCommit = readArg('--commit') ?? process.env.KNOWME_RELEASE_COMMIT ?? process.env.GITHUB_SHA;
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
+  const manualChainDir = readArg('--manual-chain-dir');
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const items = await readItemsDirectory(itemsDir);
+  const manualAuthorizations = await loadManualReleaseEvidenceAuthorizations(items, manualChainDir, {
+    expectedCommit,
+    expectedVersion,
+  });
 
   const result = finalizeMarketReleaseEvidence(manifest, items, {
     expectedCommit,
     expectedVersion,
     expectedSigningKeyId,
     signingKey,
+    manualAuthorizations,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
   await writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 });
@@ -143,6 +150,7 @@ async function runCli() {
   console.log(`Finalized and signed market release evidence at ${outputPath}.`);
   console.log(`SHA-256: ${result.sha256}`);
   console.log(`Digest record: ${digestPath}`);
+  console.log('FULL manual evidence was authorized only from retained artifact + worksheet + human-review receipt bytes loaded in this process.');
   console.log('This validates manifest integrity and completeness only; external evidence truthfulness still requires retained real-world proof.');
 }
 
