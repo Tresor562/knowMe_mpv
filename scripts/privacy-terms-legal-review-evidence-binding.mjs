@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { createMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const TOP_FIELDS = new Set([
@@ -126,7 +130,9 @@ async function runCli() {
     throw new Error('Provide --artifact, --output, --scope, --verifier, --ref, and --valid-until.');
   }
 
-  const bytes = await readFile(artifact);
+  const bytes = await readRetainedEvidenceFile(artifact, 'privacy/terms legal-review retained artifact', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+  });
   const result = createPrivacyTermsLegalReviewEvidenceItem(bytes, {
     scope,
     verifier,
