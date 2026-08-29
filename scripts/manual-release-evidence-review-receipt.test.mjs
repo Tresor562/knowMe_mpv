@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawn } from 'node:child_process';
 import { createManualReleaseEvidenceTemplate } from './manual-release-evidence-template.mjs';
 import { createManualEvidenceReviewReceipt } from './manual-release-evidence-review-receipt.mjs';
 
@@ -37,6 +41,42 @@ function completedWorksheet() {
 
 function exactWorksheetBytes(worksheet) {
   return Buffer.from(`${JSON.stringify(worksheet, null, 2)}\n`, 'utf8');
+}
+
+function runCli(args) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, ['scripts/manual-release-evidence-review-receipt.mjs', ...args], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('close', (code) => resolve({ code, stdout, stderr }));
+  });
+}
+
+async function cliFixture() {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd328-'));
+  const worksheet = join(dir, 'worksheet.json');
+  const artifact = join(dir, 'artifact.bin');
+  const output = join(dir, 'review-receipt.json');
+  await writeFile(worksheet, exactWorksheetBytes(completedWorksheet()));
+  await writeFile(artifact, ARTIFACT);
+  return { dir, worksheet, artifact, output };
+}
+
+function cliArgs(fixture) {
+  return [
+    '--worksheet', fixture.worksheet,
+    '--artifact', fixture.artifact,
+    '--output', fixture.output,
+    '--id', 'ios_physical_validation',
+    '--reviewer', 'Independent Release Reviewer',
+    '--reviewed-at', REVIEWED_AT,
+  ];
 }
 
 test('creates a release-bound review receipt only after worksheet preflight and exact worksheet/artifact digest match', () => {
@@ -141,4 +181,32 @@ test('rejects unknown evidence ids, non-canonical reviewers, and future review t
   });
   assert.equal(future.ok, false);
   assert.match(future.errors.join(' '), /reviewedAt must not be in the future/);
+});
+
+test('manual review receipt CLI accepts a regular bounded worksheet and artifact', async () => {
+  const fixture = await cliFixture();
+  try {
+    const result = await runCli(cliArgs(fixture));
+    assert.equal(result.code, 0, result.stderr);
+    const receipt = JSON.parse(await readFile(fixture.output, 'utf8'));
+    assert.equal(receipt.evidenceId, 'ios_physical_validation');
+    assert.equal(receipt.retainedProof.sha256, SHA);
+  } finally {
+    await rm(fixture.dir, { recursive: true, force: true });
+  }
+});
+
+test('manual review receipt CLI rejects a symlinked worksheet before JSON ingestion', async () => {
+  const fixture = await cliFixture();
+  try {
+    const target = join(fixture.dir, 'worksheet-target.json');
+    await writeFile(target, exactWorksheetBytes(completedWorksheet()));
+    await rm(fixture.worksheet);
+    await symlink(target, fixture.worksheet);
+    const result = await runCli(cliArgs(fixture));
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /regular non-symlink file|review receipt creation failed/i);
+  } finally {
+    await rm(fixture.dir, { recursive: true, force: true });
+  }
 });
