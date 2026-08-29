@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { open, readdir, readFile, unlink } from 'node:fs/promises';
+import { open, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch-apply.mjs';
 import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
 import { signMarketReleaseEvidence } from './market-release-evidence-sign.mjs';
 import { validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
+import { readRetainedEvidenceFile, RETAINED_EVIDENCE_FILE_LIMITS } from './retained-evidence-safe-read.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const SHA256_HEX = /^[a-f0-9]{64}$/;
@@ -112,7 +113,14 @@ async function readItemsDirectory(itemsDir) {
     .sort((a, b) => a.name.localeCompare(b.name));
   if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
   const items = [];
-  for (const entry of entries) items.push(JSON.parse(await readFile(join(itemsDir, entry.name), 'utf8')));
+  for (const entry of entries) {
+    const itemPath = join(itemsDir, entry.name);
+    const bytes = await readRetainedEvidenceFile(itemPath, `release evidence finalize item ${entry.name}`, {
+      encoding: 'utf8',
+      maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.item,
+    });
+    items.push(JSON.parse(bytes));
+  }
   return items;
 }
 
@@ -130,7 +138,10 @@ async function runCli() {
   const manualChainDir = readArg('--manual-chain-dir');
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const manifest = JSON.parse(await readRetainedEvidenceFile(manifestPath, 'release evidence finalize manifest', {
+    encoding: 'utf8',
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+  }));
   const items = await readItemsDirectory(itemsDir);
   const manualAuthorizations = await loadManualReleaseEvidenceAuthorizations(items, manualChainDir, {
     expectedCommit,

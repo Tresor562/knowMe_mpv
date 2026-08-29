@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -17,6 +19,7 @@ const signingKey = 'k'.repeat(48);
 const now = new Date('2026-08-26T22:30:00.000Z');
 const zero = '0'.repeat(64);
 const artifactSha = 'b'.repeat(64);
+const finalizeCli = fileURLToPath(new URL('./market-release-evidence-finalize.mjs', import.meta.url));
 const manualReleaseBoundIds = new Set(['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission']);
 
 function pending(id) {
@@ -60,6 +63,36 @@ function finalize(source = manifest(), items = requiredEvidenceForScope(source.s
   });
 }
 
+async function writeFinalizeCliFixture(dir) {
+  const manifestPath = join(dir, 'manifest.json');
+  const itemsDir = join(dir, 'items');
+  await mkdir(itemsDir);
+  await writeFile(manifestPath, `${JSON.stringify(manifest(), null, 2)}\n`, 'utf8');
+  for (const evidenceItem of requiredEvidenceForScope('WEB_V1').map(item)) {
+    await writeFile(join(itemsDir, `${evidenceItem.id}.json`), `${JSON.stringify(evidenceItem, null, 2)}\n`, 'utf8');
+  }
+  return { manifestPath, itemsDir };
+}
+
+function runFinalizeCli({ manifestPath, itemsDir, outputPath, digestPath }) {
+  return spawnSync(process.execPath, [
+    finalizeCli,
+    '--manifest', manifestPath,
+    '--items-dir', itemsDir,
+    '--output', outputPath,
+    '--digest-output', digestPath,
+    '--commit', commit,
+    '--version', version,
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID: signingKeyId,
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY: signingKey,
+    },
+  });
+}
+
 test('atomically applies, signs, revalidates, and hashes WEB_V1 evidence', () => {
   const source = manifest();
   const result = finalize(source);
@@ -76,6 +109,40 @@ test('atomically applies, signs, revalidates, and hashes WEB_V1 evidence', () =>
     now,
   });
   assert.equal(validation.ok, true);
+});
+
+test('finalize CLI reads regular manifest and item files through the hardened ingestion path', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd324-'));
+  try {
+    const { manifestPath, itemsDir } = await writeFinalizeCliFixture(dir);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    const result = runFinalizeCli({ manifestPath, itemsDir, outputPath, digestPath });
+    assert.equal(result.status, 0, result.stderr);
+    const signed = JSON.parse(await readFile(outputPath, 'utf8'));
+    assert.equal(signed.evidence.every((entry) => entry.status === 'VERIFIED'), true);
+    assert.match(await readFile(digestPath, 'utf8'), /^[a-f0-9]{64}  /);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('finalize CLI rejects a symlinked manifest before JSON ingestion or artifact creation', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd324-'));
+  try {
+    const { manifestPath, itemsDir } = await writeFinalizeCliFixture(dir);
+    const linkedManifestPath = join(dir, 'manifest-link.json');
+    await symlink(manifestPath, linkedManifestPath);
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    const result = runFinalizeCli({ manifestPath: linkedManifestPath, itemsDir, outputPath, digestPath });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /symlink|regular file/i);
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+    await assert.rejects(readFile(digestPath), /ENOENT/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('reserves and writes signed manifest plus digest as a pair', async () => {
