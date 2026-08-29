@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import {
   readRetainedEvidenceFile,
   RETAINED_EVIDENCE_FILE_LIMITS,
@@ -54,6 +56,41 @@ test('rejects symbolic links instead of following them', async (t) => {
       readRetainedEvidenceFile(linked, 'artifact', { maxBytes: 1024 }),
       /regular non-symlink file/,
     );
+  });
+});
+
+test('standalone promotion CLI rejects a retained artifact symlink before promotion', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('symlink creation is not reliably available without elevated Windows privileges');
+    return;
+  }
+  await withTempDir(async (dir) => {
+    const itemPath = join(dir, 'item.json');
+    const worksheetPath = join(dir, 'worksheet.json');
+    const receiptPath = join(dir, 'review-receipt.json');
+    const realArtifactPath = join(dir, 'artifact-real');
+    const artifactPath = join(dir, 'artifact');
+    await Promise.all([
+      writeFile(itemPath, '{}', 'utf8'),
+      writeFile(worksheetPath, '{}', 'utf8'),
+      writeFile(receiptPath, '{}', 'utf8'),
+      writeFile(realArtifactPath, 'proof', 'utf8'),
+    ]);
+    await symlink(realArtifactPath, artifactPath);
+
+    const script = fileURLToPath(new URL('./manual-release-evidence-promotion-preflight.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [
+      script,
+      '--item', itemPath,
+      '--artifact', artifactPath,
+      '--worksheet', worksheetPath,
+      '--review-receipt', receiptPath,
+      '--commit', 'a'.repeat(40),
+      '--version', '1.0.0-rc.1',
+    ], { encoding: 'utf8' });
+
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /retained artifact must be a regular non-symlink file/);
   });
 });
 
