@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import './retained-evidence-safe-read.test.mjs';
 import { createGenericMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
 import {
   preflightManualReleaseEvidencePromotion,
