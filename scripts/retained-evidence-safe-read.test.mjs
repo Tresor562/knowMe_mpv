@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   readRetainedEvidenceFile,
   RETAINED_EVIDENCE_FILE_LIMITS,
+  sameRetainedEvidenceFileState,
 } from './retained-evidence-safe-read.mjs';
 
 async function withTempDir(run) {
@@ -29,6 +30,32 @@ test('reads a regular file within the configured bound', async () => {
     });
     assert.equal(value, '{"ok":true}\n');
   });
+});
+
+test('rejects retained evidence metadata drift even when file identity is unchanged', () => {
+  const stable = {
+    dev: 7n,
+    ino: 11n,
+    size: 128n,
+    mtimeNs: 1000n,
+    ctimeNs: 1000n,
+  };
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable }), true);
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable, size: 129n }), false);
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable, mtimeNs: 1001n }), false);
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable, ctimeNs: 1001n }), false);
+});
+
+test('rejects retained evidence identity replacement even with matching metadata', () => {
+  const stable = {
+    dev: 7n,
+    ino: 11n,
+    size: 128n,
+    mtimeNs: 1000n,
+    ctimeNs: 1000n,
+  };
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable, ino: 12n }), false);
+  assert.equal(sameRetainedEvidenceFileState(stable, { ...stable, dev: 8n }), false);
 });
 
 test('rejects a retained evidence file above its configured limit', async () => {
