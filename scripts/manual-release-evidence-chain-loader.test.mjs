@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createGenericMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
@@ -66,7 +66,7 @@ async function writeChain(root, overrides = {}) {
 }
 
 test('loads a reviewed retained chain and returns the authentic process-local authorization', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd316-'));
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
   const item = createItem();
   await writeChain(root);
   const authorizations = await loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now });
@@ -76,12 +76,31 @@ test('loads a reviewed retained chain and returns the authentic process-local au
 });
 
 test('fails closed when retained proof bytes drift after human review', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd316-'));
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
   const item = createItem();
   await writeChain(root, { artifactBytes: Buffer.from('tampered-proof\n') });
   await assert.rejects(
     loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now }),
     /ios_physical_validation/,
+  );
+});
+
+test('rejects a retained artifact replaced by a symbolic link', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Creating symlinks requires platform privileges that are not guaranteed on Windows CI.');
+    return;
+  }
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd317-'));
+  const item = createItem();
+  await writeChain(root);
+  const external = join(root, 'external-proof');
+  await writeFile(external, artifactBytes);
+  const artifactPath = join(root, id, 'artifact');
+  await rm(artifactPath);
+  await symlink(external, artifactPath);
+  await assert.rejects(
+    loadManualReleaseEvidenceAuthorizations([item], root, { expectedCommit, expectedVersion, now }),
+    /regular non-symlink file/,
   );
 });
 
