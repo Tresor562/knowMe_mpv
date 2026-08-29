@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { createMarketReleaseEvidenceItem } from './market-release-evidence-item-create.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const TOP_LEVEL_FIELDS = new Set(['schemaVersion','kind','status','observedAt','origin','hostname','port','minValidityDays','tls','proofBoundary']);
@@ -86,7 +90,9 @@ function readArg(name) { const i = process.argv.indexOf(name); return i >= 0 ? p
 async function runCli() {
   const artifactPath=readArg('--artifact'), outputPath=readArg('--output'), scope=readArg('--scope'), verifier=readArg('--verifier'), evidenceRef=readArg('--ref'), validUntil=readArg('--valid-until');
   if (!artifactPath || !outputPath || !scope || !verifier || !evidenceRef || !validUntil) throw new Error('Provide --artifact, --output, --scope, --verifier, --ref, and --valid-until.');
-  const bytes = await readFile(artifactPath);
+  const bytes = await readRetainedEvidenceFile(artifactPath, 'production TLS/domain retained artifact', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.artifact,
+  });
   const result = createProductionTlsDomainMarketEvidenceItem(bytes,{scope,verifier,evidenceRef,validUntil});
   if (!result.ok) throw new Error(result.errors.join(' '));
   await writeFile(outputPath, `${JSON.stringify(result.item,null,2)}\n`, {encoding:'utf8',flag:'wx',mode:0o600});
