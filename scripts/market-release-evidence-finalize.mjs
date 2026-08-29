@@ -15,27 +15,16 @@ function canonicalBytes(value) {
 }
 
 function assertCanonicalArtifactPath(value, label) {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value !== value.trim() ||
-    CONTROL_CHARACTERS.test(value)
-  ) {
+  if (typeof value !== 'string' || value.length === 0 || value !== value.trim() || CONTROL_CHARACTERS.test(value)) {
     throw new Error(`${label} must be a canonical non-empty path without leading/trailing whitespace or control characters.`);
   }
 }
 
 function assertBundleDigestMatchesBytes(bytes, sha256) {
-  if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
-    throw new Error('Signed manifest bytes must be a non-empty Buffer.');
-  }
-  if (typeof sha256 !== 'string' || !SHA256_HEX.test(sha256)) {
-    throw new Error('Signed manifest SHA-256 must be a canonical lowercase 64-character digest.');
-  }
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0) throw new Error('Signed manifest bytes must be a non-empty Buffer.');
+  if (typeof sha256 !== 'string' || !SHA256_HEX.test(sha256)) throw new Error('Signed manifest SHA-256 must be a canonical lowercase 64-character digest.');
   const actual = createHash('sha256').update(bytes).digest('hex');
-  if (actual !== sha256) {
-    throw new Error('Signed manifest SHA-256 does not match the exact bytes being written.');
-  }
+  if (actual !== sha256) throw new Error('Signed manifest SHA-256 does not match the exact bytes being written.');
 }
 
 export function finalizeMarketReleaseEvidence(
@@ -47,16 +36,16 @@ export function finalizeMarketReleaseEvidence(
     expectedSigningKeyId,
     signingKey,
     now = new Date(),
+    manualAuthorizations = new Map(),
   } = {},
 ) {
   const applied = applyMarketReleaseEvidenceBatch(manifest, items, {
     expectedCommit,
     expectedVersion,
     now,
+    manualAuthorizations,
   });
-  if (!applied.ok) {
-    return { ok: false, errors: applied.errors };
-  }
+  if (!applied.ok) return { ok: false, errors: applied.errors };
 
   let signed;
   try {
@@ -78,9 +67,7 @@ export function finalizeMarketReleaseEvidence(
     signingKey,
     now,
   });
-  if (!validation.ok) {
-    return { ok: false, errors: validation.errors };
-  }
+  if (!validation.ok) return { ok: false, errors: validation.errors };
 
   const bytes = canonicalBytes(signed);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
@@ -102,7 +89,6 @@ export async function writeFinalizedMarketReleaseEvidence({ outputPath, digestPa
     outputReserved = true;
     digestHandle = await open(digestPath, 'wx', 0o600);
     digestReserved = true;
-
     await outputHandle.writeFile(bytes);
     await digestHandle.writeFile(`${sha256}  ${outputPath}\n`, 'utf8');
   } catch (error) {
@@ -111,7 +97,6 @@ export async function writeFinalizedMarketReleaseEvidence({ outputPath, digestPa
     if (digestReserved) await unlink(digestPath).catch(() => undefined);
     throw error;
   }
-
   await Promise.all([outputHandle.close(), digestHandle.close()]);
 }
 
@@ -126,9 +111,7 @@ async function readItemsDirectory(itemsDir) {
     .sort((a, b) => a.name.localeCompare(b.name));
   if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
   const items = [];
-  for (const entry of entries) {
-    items.push(JSON.parse(await readFile(join(itemsDir, entry.name), 'utf8')));
-  }
+  for (const entry of entries) items.push(JSON.parse(await readFile(join(itemsDir, entry.name), 'utf8')));
   return items;
 }
 
@@ -155,7 +138,6 @@ async function runCli() {
     signingKey,
   });
   if (!result.ok) throw new Error(result.errors.join(' '));
-
   await writeFinalizedMarketReleaseEvidence({ outputPath, digestPath, bytes: result.bytes, sha256: result.sha256 });
 
   console.log(`Finalized and signed market release evidence at ${outputPath}.`);
