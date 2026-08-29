@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch-apply.mjs';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 
@@ -108,4 +112,69 @@ test('FULL batch rejects legacy manual evidence before lower-level release-bindi
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /authorization minted by the reviewed promotion preflight/);
   assert.equal(source.evidence.every((entry) => entry.status === 'PENDING'), true);
+});
+
+async function writeCliItems(itemsDir) {
+  await mkdir(itemsDir, { recursive: true });
+  const clock = Date.now();
+  for (const id of requiredEvidenceForScope('WEB_V1')) {
+    const value = {
+      id,
+      status: 'VERIFIED',
+      verifiedAt: new Date(clock - 60_000).toISOString(),
+      validUntil: new Date(clock + 86_400_000).toISOString(),
+      verifier: 'release-operator',
+      evidenceRef: `evidence://release/${id}.json`,
+      evidenceSha256: sha,
+    };
+    await writeFile(join(itemsDir, `${id}.json`), `${JSON.stringify(value)}\n`);
+  }
+}
+
+function runBatchCli(manifestPath, itemsDir, outputPath) {
+  return spawnSync(process.execPath, [
+    new URL('./market-release-evidence-batch-apply.mjs', import.meta.url).pathname,
+    '--manifest', manifestPath,
+    '--items-dir', itemsDir,
+    '--output', outputPath,
+    '--commit', commit,
+    '--version', version,
+  ], { encoding: 'utf8' });
+}
+
+test('batch CLI accepts bounded regular manifest and evidence item files', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd323-'));
+  try {
+    const manifestPath = join(dir, 'manifest.json');
+    const itemsDir = join(dir, 'items');
+    const outputPath = join(dir, 'output.json');
+    await writeFile(manifestPath, `${JSON.stringify(manifest())}\n`);
+    await writeCliItems(itemsDir);
+
+    const result = runBatchCli(manifestPath, itemsDir, outputPath);
+    assert.equal(result.status, 0, result.stderr);
+    const applied = JSON.parse(await readFile(outputPath, 'utf8'));
+    assert.equal(applied.evidence.every((entry) => entry.status === 'VERIFIED'), true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('batch CLI rejects a symlinked manifest before JSON ingestion', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd323-'));
+  try {
+    const realManifestPath = join(dir, 'real-manifest.json');
+    const manifestPath = join(dir, 'manifest.json');
+    const itemsDir = join(dir, 'items');
+    const outputPath = join(dir, 'output.json');
+    await writeFile(realManifestPath, `${JSON.stringify(manifest())}\n`);
+    await symlink(realManifestPath, manifestPath);
+    await writeCliItems(itemsDir);
+
+    const result = runBatchCli(manifestPath, itemsDir, outputPath);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /release evidence manifest must be a regular non-symlink file/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
