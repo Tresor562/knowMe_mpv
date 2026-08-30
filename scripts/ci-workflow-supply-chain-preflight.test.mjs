@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const workflowUrl = new URL('../.github/workflows/ci.yml', import.meta.url);
 const SHA_PINNED_ACTION = /^\s*- uses: ([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
+const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a-f]{64}\s*$/m;
 
 test('CI grants only read access to repository contents by default', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
@@ -25,4 +26,10 @@ test('every external GitHub Action in CI is pinned to an immutable commit SHA', 
 test('CI does not reintroduce mutable major-version action tags', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
   assert.doesNotMatch(workflow, /uses:\s+[^\s@]+@v\d+(?:\s|$)/);
+});
+
+test('CI PostgreSQL service is pinned to an immutable image digest', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  assert.match(workflow, DIGEST_PINNED_POSTGRES);
+  assert.doesNotMatch(workflow, /^\s*image:\s+postgres:16-alpine\s*$/m);
 });
