@@ -55,12 +55,32 @@ test('fails closed when main is unprotected or review/status protections are wea
   const result = validateRepositoryGovernance(snapshot);
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /main must be protected/);
-  assert.match(result.errors.join('\n'), /named status check/);
+  assert.match(result.errors.join('\n'), /canonical quality status check/);
   assert.match(result.errors.join('\n'), /approving pull-request review/);
   assert.match(result.errors.join('\n'), /administrators/);
   assert.match(result.errors.join('\n'), /conversation resolution/);
   assert.match(result.errors.join('\n'), /force pushes/);
   assert.match(result.errors.join('\n'), /branch deletion/);
+});
+
+test('rejects a strict but unrelated status check instead of accepting a governance decoy', () => {
+  const snapshot = passingSnapshot();
+  snapshot.protection.required_status_checks.contexts = ['documentation-only'];
+  snapshot.protection.required_status_checks.checks = [{ context: 'noop' }];
+
+  const result = validateRepositoryGovernance(snapshot);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /canonical quality status check/);
+});
+
+test('accepts the canonical quality check from the modern checks collection', () => {
+  const snapshot = passingSnapshot();
+  snapshot.protection.required_status_checks.contexts = [];
+  snapshot.protection.required_status_checks.checks = [{ context: 'quality', app_id: 15368 }];
+
+  const result = validateRepositoryGovernance(snapshot);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
 });
 
 test('rejects repository or default-branch identity drift', () => {
