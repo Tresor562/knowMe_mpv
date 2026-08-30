@@ -2,6 +2,7 @@
 
 const CANONICAL_REPOSITORY = 'Tresor562/knowMe_mpv';
 const CANONICAL_BRANCH = 'main';
+const REQUIRED_STATUS_CHECK = 'quality';
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 function canonicalText(value, { max = 256 } = {}) {
@@ -59,16 +60,19 @@ function enabled(value) {
   return value === true || value?.enabled === true;
 }
 
-function hasRequiredStatusChecks(protection) {
+function requiredStatusCheckContexts(protection) {
   const checks = protection?.required_status_checks;
-  if (!checks || checks.strict !== true) return false;
-  const namedChecks = new Set([
-    ...(Array.isArray(checks.contexts) ? checks.contexts.filter((entry) => typeof entry === 'string' && entry.trim()) : []),
+  if (!checks || checks.strict !== true) return new Set();
+  return new Set([
+    ...(Array.isArray(checks.contexts) ? checks.contexts.filter((entry) => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean) : []),
     ...(Array.isArray(checks.checks)
       ? checks.checks.map((entry) => (typeof entry?.context === 'string' ? entry.context.trim() : '')).filter(Boolean)
       : []),
   ]);
-  return namedChecks.size > 0;
+}
+
+function hasRequiredStatusChecks(protection) {
+  return requiredStatusCheckContexts(protection).has(REQUIRED_STATUS_CHECK);
 }
 
 export function validateRepositoryGovernance(snapshot, {
@@ -98,7 +102,7 @@ export function validateRepositoryGovernance(snapshot, {
     errors.push('Branch protection details are missing or invalid.');
   } else {
     if (!hasRequiredStatusChecks(protection)) {
-      errors.push('Branch protection must require at least one named status check and require branches to be up to date before merging.');
+      errors.push(`Branch protection must require the canonical ${REQUIRED_STATUS_CHECK} status check and require branches to be up to date before merging.`);
     }
     const reviews = protection.required_pull_request_reviews;
     if (!reviews || !Number.isInteger(reviews.required_approving_review_count) || reviews.required_approving_review_count < 1) {
