@@ -46,6 +46,13 @@ test('CI Node runtime is pinned to the audited exact patch version', async () =>
   assert.doesNotMatch(workflow, /^\s*node-version:\s*22\s*$/m);
 });
 
+test('production dependency audit cannot suppress individual advisories', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  assert.match(workflow, /pnpm audit --prod --audit-level=high/);
+  assert.doesNotMatch(workflow, /pnpm audit[^\n]*--ignore\b/);
+  assert.doesNotMatch(workflow, /^\s*--ignore\s+GHSA-/m);
+});
+
 test('CI PostgreSQL service is pinned to an immutable image digest', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
   assert.match(workflow, DIGEST_PINNED_POSTGRES);
