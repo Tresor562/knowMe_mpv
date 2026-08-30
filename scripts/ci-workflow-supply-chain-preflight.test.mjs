@@ -13,6 +13,11 @@ const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
 const PINNED_CI_NODE_VERSION = /^\s*node-version:\s*22\.23\.2\s*$/m;
 const PINNED_CI_RUNNER = /^\s*runs-on:\s*ubuntu-24\.04\s*$/m;
 const PATCHED_IMAGE_SIZE_ALIAS = 'npm:image-size-next@1.2.2';
+const AUDITED_ACTION_PINS = new Map([
+  ['actions/checkout', 'd23441a48e516b6c34aea4fa41551a30e30af803'],
+  ['pnpm/action-setup', '0977fd99725f1db4007ccb2928dbb4e90d06cc86'],
+  ['actions/setup-node', '249970729cb0ef3589644e2896645e5dc5ba9c38'],
+]);
 
 test('CI grants only read access to repository contents by default', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
@@ -35,6 +40,20 @@ test('every external GitHub Action in CI is pinned to an immutable commit SHA', 
     const match = line.match(SHA_PINNED_ACTION);
     assert.ok(match, `External action must be pinned to an exact 40-character commit SHA: ${line.trim()}`);
   }
+});
+
+test('canonical GitHub Actions stay on the reviewed Node 24 runtime commits', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  const actualPins = new Map();
+  for (const line of workflow.split('\n')) {
+    const match = line.match(SHA_PINNED_ACTION);
+    if (match) actualPins.set(match[1], match[2]);
+  }
+
+  for (const [action, expectedSha] of AUDITED_ACTION_PINS) {
+    assert.equal(actualPins.get(action), expectedSha, `${action} must remain on the reviewed Node 24 runtime commit.`);
+  }
+  assert.equal(actualPins.size, AUDITED_ACTION_PINS.size, 'Every external CI action must be explicitly reviewed and pinned.');
 });
 
 test('CI does not reintroduce mutable major-version action tags', async () => {
