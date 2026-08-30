@@ -60,19 +60,13 @@ function enabled(value) {
   return value === true || value?.enabled === true;
 }
 
-function requiredStatusCheckContexts(protection) {
-  const checks = protection?.required_status_checks;
-  if (!checks || checks.strict !== true) return new Set();
-  return new Set([
-    ...(Array.isArray(checks.contexts) ? checks.contexts.filter((entry) => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean) : []),
-    ...(Array.isArray(checks.checks)
-      ? checks.checks.map((entry) => (typeof entry?.context === 'string' ? entry.context.trim() : '')).filter(Boolean)
-      : []),
-  ]);
-}
-
-function hasRequiredStatusChecks(protection) {
-  return requiredStatusCheckContexts(protection).has(REQUIRED_STATUS_CHECK);
+function hasProviderPinnedRequiredStatusCheck(protection) {
+  const required = protection?.required_status_checks;
+  if (!required || required.strict !== true || !Array.isArray(required.checks)) return false;
+  return required.checks.some((entry) => {
+    const context = typeof entry?.context === 'string' ? entry.context.trim() : '';
+    return context === REQUIRED_STATUS_CHECK && Number.isInteger(entry?.app_id) && entry.app_id > 0;
+  });
 }
 
 export function validateRepositoryGovernance(snapshot, {
@@ -101,8 +95,10 @@ export function validateRepositoryGovernance(snapshot, {
   if (!protection || typeof protection !== 'object' || Array.isArray(protection)) {
     errors.push('Branch protection details are missing or invalid.');
   } else {
-    if (!hasRequiredStatusChecks(protection)) {
-      errors.push(`Branch protection must require the canonical ${REQUIRED_STATUS_CHECK} status check and require branches to be up to date before merging.`);
+    if (!hasProviderPinnedRequiredStatusCheck(protection)) {
+      errors.push(
+        `Branch protection must require the canonical ${REQUIRED_STATUS_CHECK} check through GitHub's provider-pinned checks collection with a positive app_id, and require branches to be up to date before merging.`,
+      );
     }
     const reviews = protection.required_pull_request_reviews;
     if (!reviews || !Number.isInteger(reviews.required_approving_review_count) || reviews.required_approving_review_count < 1) {
