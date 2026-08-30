@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { lstat, open, readdir, unlink } from 'node:fs/promises';
+import { open, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch-apply.mjs';
 import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
 import { signMarketReleaseEvidence } from './market-release-evidence-sign.mjs';
 import { validateMarketReleaseEvidence } from './market-release-evidence-preflight.mjs';
 import { readRetainedEvidenceFile, RETAINED_EVIDENCE_FILE_LIMITS } from './retained-evidence-safe-read.mjs';
+import { listStableRetainedEvidenceJsonFiles } from './retained-evidence-safe-directory.mjs';
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const SHA256_HEX = /^[a-f0-9]{64}$/;
@@ -107,26 +108,8 @@ function readArg(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-function sameDirectoryIdentity(before, after) {
-  return before.dev === after.dev && before.ino === after.ino;
-}
-
 async function readItemsDirectory(itemsDir) {
-  const before = await lstat(itemsDir);
-  if (before.isSymbolicLink() || !before.isDirectory()) {
-    throw new Error('items directory must be a real directory and must not be a symlink.');
-  }
-
-  const entries = (await readdir(itemsDir, { withFileTypes: true }))
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const after = await lstat(itemsDir);
-  if (after.isSymbolicLink() || !after.isDirectory() || !sameDirectoryIdentity(before, after)) {
-    throw new Error('items directory changed while evidence items were being enumerated.');
-  }
-  if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
-
+  const entries = await listStableRetainedEvidenceJsonFiles(itemsDir, 'items directory');
   const items = [];
   for (const entry of entries) {
     const itemPath = join(itemsDir, entry.name);
