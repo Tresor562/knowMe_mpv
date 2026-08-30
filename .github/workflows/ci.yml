@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DATABASE_URL: postgresql://knowme:knowme@localhost:5432/knowme_test?schema=public
       JWT_SECRET: ci-only-secret-that-is-long-enough-for-tests
