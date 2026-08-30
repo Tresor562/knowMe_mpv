@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const workflowUrl = new URL('../.github/workflows/ci.yml', import.meta.url);
+const apiDockerfileUrl = new URL('../Dockerfile.api', import.meta.url);
+const webDockerfileUrl = new URL('../Dockerfile.web', import.meta.url);
 const SHA_PINNED_ACTION = /^\s*- uses: ([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
 const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a-f]{64}\s*$/m;
+const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
 
 test('CI grants only read access to repository contents by default', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
@@ -32,4 +35,12 @@ test('CI PostgreSQL service is pinned to an immutable image digest', async () =>
   const workflow = await readFile(workflowUrl, 'utf8');
   assert.match(workflow, DIGEST_PINNED_POSTGRES);
   assert.doesNotMatch(workflow, /^\s*image:\s+postgres:16-alpine\s*$/m);
+});
+
+test('runtime Dockerfiles pin the audited Node image to an immutable digest', async () => {
+  for (const dockerfileUrl of [apiDockerfileUrl, webDockerfileUrl]) {
+    const dockerfile = await readFile(dockerfileUrl, 'utf8');
+    assert.match(dockerfile, DIGEST_PINNED_NODE);
+    assert.doesNotMatch(dockerfile, /^FROM node:22-alpine$/m);
+  }
 });
