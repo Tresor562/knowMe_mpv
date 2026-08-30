@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -315,7 +318,10 @@ async function runCli() {
     return;
   }
 
-  const raw = await readFile(file, 'utf8');
+  const raw = await readRetainedEvidenceFile(file, 'Market release evidence manifest', {
+    encoding: 'utf8',
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+  });
   const manifest = JSON.parse(raw);
   const result = validateMarketReleaseEvidence(manifest, {
     expectedCommit,
