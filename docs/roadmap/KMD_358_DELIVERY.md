@@ -16,6 +16,8 @@ The guard rejects caret, tilde, wildcard, comparator and other floating direct r
 
 The first exact-head CI attempt (#1247) proved the guard and install path, then correctly failed the unsuppressed production dependency audit. That failure exposed stale security baselines rather than a test defect. The branch therefore upgrades Next.js to 15.5.21, Playwright to 1.55.1 and Multer to 2.2.0, and pins the affected transitive `path-to-regexp` and `lodash` paths to reviewed fixed versions 8.4.2 and 4.18.1. No advisory is ignored or suppressed.
 
+A later exact-head run exposed a browser-test compatibility issue after the Next.js upgrade: successful password-reset rendering could coincide with `net::ERR_ABORTED` events from browser-cancelled Next.js RSC/static prefetches during deliberate navigation. The browser-failure collector now ignores only GET requests with the exact `net::ERR_ABORTED` reason when the target is a Next.js `_rsc` request or `/_next/static/` asset. All other failed requests, browser console errors and page errors remain release-blocking; the reset controls, fragment consumption and HTTP success assertions are unchanged.
+
 ## Validation required before merge
 
 - pre-install CI supply-chain policy tests pass;
