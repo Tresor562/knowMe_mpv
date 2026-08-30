@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   fetchRepositoryGovernance,
+  runRepositoryGovernancePreflight,
   validateRepositoryGovernance,
 } from './github-release-governance-preflight.mjs';
 
@@ -115,6 +116,40 @@ test('fetches repository, branch and protection endpoints without following redi
     assert.equal(entry.options.headers.Authorization, 'Bearer test-token');
   }
   assert.equal(result.branchMetadata.protected, true);
+});
+
+test('live market preflight pins the canonical repository and branch', async () => {
+  const requested = [];
+  const payloads = [
+    passingSnapshot().repositoryMetadata,
+    passingSnapshot().branchMetadata,
+    passingSnapshot().protection,
+  ];
+  const fetchImpl = async (url) => {
+    requested.push(url);
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return payloads.shift();
+      },
+    };
+  };
+
+  const result = await runRepositoryGovernancePreflight({ token: 'read-only-token', fetchImpl });
+  assert.equal(result.ok, true);
+  assert.deepEqual(requested, [
+    'https://api.github.com/repos/Tresor562/knowMe_mpv',
+    'https://api.github.com/repos/Tresor562/knowMe_mpv/branches/main',
+    'https://api.github.com/repos/Tresor562/knowMe_mpv/branches/main/protection',
+  ]);
+});
+
+test('live market preflight fails closed without an authenticated governance token', async () => {
+  await assert.rejects(
+    runRepositoryGovernancePreflight({ token: '', fetchImpl: async () => assert.fail('fetch must not run without a token') }),
+    /GITHUB_TOKEN with read access to repository administration settings is required/,
+  );
 });
 
 test('fails closed when GitHub refuses a governance endpoint', async () => {
