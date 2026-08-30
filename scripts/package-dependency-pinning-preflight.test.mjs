@@ -16,6 +16,10 @@ const manifestPaths = [
 const exactSemver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const allowedLocalProtocols = /^(?:workspace:|file:|link:)/;
 const dependencySections = ['dependencies', 'devDependencies', 'optionalDependencies'];
+const auditedSecurityOverrides = {
+  'path-to-regexp': '8.4.2',
+  lodash: '4.18.1',
+};
 
 async function readManifest(path) {
   const url = new URL(`../${path}`, import.meta.url);
@@ -45,4 +49,11 @@ test('all direct registry dependencies are pinned to exact versions', async () =
 test('the package manager version itself stays exact', async () => {
   const root = await readManifest('package.json');
   assert.match(root.packageManager ?? '', /^pnpm@\d+\.\d+\.\d+$/);
+});
+
+test('audited transitive security overrides stay on reviewed fixed versions', async () => {
+  const root = await readManifest('package.json');
+  for (const [name, version] of Object.entries(auditedSecurityOverrides)) {
+    assert.equal(root.pnpm?.overrides?.[name], version, `${name} must remain pinned to the reviewed fixed version.`);
+  }
 });
