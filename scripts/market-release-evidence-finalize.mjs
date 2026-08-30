@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { open, readdir, unlink } from 'node:fs/promises';
+import { lstat, open, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { applyMarketReleaseEvidenceBatch } from './market-release-evidence-batch-apply.mjs';
 import { loadManualReleaseEvidenceAuthorizations } from './manual-release-evidence-chain-loader.mjs';
@@ -107,11 +107,26 @@ function readArg(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function sameDirectoryIdentity(before, after) {
+  return before.dev === after.dev && before.ino === after.ino;
+}
+
 async function readItemsDirectory(itemsDir) {
+  const before = await lstat(itemsDir);
+  if (before.isSymbolicLink() || !before.isDirectory()) {
+    throw new Error('items directory must be a real directory and must not be a symlink.');
+  }
+
   const entries = (await readdir(itemsDir, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const after = await lstat(itemsDir);
+  if (after.isSymbolicLink() || !after.isDirectory() || !sameDirectoryIdentity(before, after)) {
+    throw new Error('items directory changed while evidence items were being enumerated.');
+  }
   if (entries.length === 0) throw new Error('items directory must contain at least one .json evidence item.');
+
   const items = [];
   for (const entry of entries) {
     const itemPath = join(itemsDir, entry.name);
