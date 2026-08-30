@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { manifestForBackup } from './postgres-backup-lib.mjs';
@@ -260,6 +260,43 @@ test('restore drill removes its reserved evidence file when restore or integrity
       }),
       /integrity phase failed/,
     );
+    await assert.rejects(readFile(f.output), /ENOENT/);
+  } finally {
+    await rm(f.dir, { recursive: true, force: true });
+  }
+});
+
+test('restore drill rejects a symlinked backup manifest before any destructive command or evidence reservation', async () => {
+  const f = await fixture();
+  const realManifestPath = join(f.dir, 'real-manifest.json');
+  let calls = 0;
+  try {
+    await writeFile(realManifestPath, await readFile(`${f.dump}.manifest.json`));
+    await rm(`${f.dump}.manifest.json`);
+    await symlink(realManifestPath, `${f.dump}.manifest.json`);
+
+    await assert.rejects(
+      runPostgresRestoreDrill({
+        dumpPath: f.dump,
+        outputPath: f.output,
+        maxAgeHours: '24',
+        maxRtoSeconds: '60',
+        confirmation: 'RESTORE_DRILL_KNOWME',
+        now,
+        spawn: () => {
+          calls += 1;
+          return { status: 0 };
+        },
+        env: {
+          DATABASE_URL: 'postgresql://app:a@db.example.com/knowme',
+          RESTORE_DATABASE_URL: 'postgresql://restore:b@restore.example.com/knowme_restore',
+          KNOWME_BACKUP_MANIFEST_SIGNING_KEY: signingKey,
+        },
+      }),
+      /Backup manifest is missing or invalid/,
+    );
+
+    assert.equal(calls, 0);
     await assert.rejects(readFile(f.output), /ENOENT/);
   } finally {
     await rm(f.dir, { recursive: true, force: true });
