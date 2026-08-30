@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const DEFAULT_REPOSITORY = 'Tresor562/knowMe_mpv';
-const DEFAULT_BRANCH = 'main';
+const CANONICAL_REPOSITORY = 'Tresor562/knowMe_mpv';
+const CANONICAL_BRANCH = 'main';
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 function canonicalText(value, { max = 256 } = {}) {
@@ -35,8 +35,8 @@ async function fetchJson(url, { fetchImpl = globalThis.fetch, token } = {}) {
 }
 
 export async function fetchRepositoryGovernance({
-  repository = DEFAULT_REPOSITORY,
-  branch = DEFAULT_BRANCH,
+  repository = CANONICAL_REPOSITORY,
+  branch = CANONICAL_BRANCH,
   token,
   fetchImpl = globalThis.fetch,
 } = {}) {
@@ -72,8 +72,8 @@ function hasRequiredStatusChecks(protection) {
 }
 
 export function validateRepositoryGovernance(snapshot, {
-  expectedRepository = DEFAULT_REPOSITORY,
-  expectedBranch = DEFAULT_BRANCH,
+  expectedRepository = CANONICAL_REPOSITORY,
+  expectedBranch = CANONICAL_BRANCH,
 } = {}) {
   const errors = [];
   const repository = snapshot?.repositoryMetadata;
@@ -116,13 +116,22 @@ export function validateRepositoryGovernance(snapshot, {
 }
 
 export async function runRepositoryGovernancePreflight({
-  repository = process.env.KNOWME_RELEASE_GITHUB_REPOSITORY ?? DEFAULT_REPOSITORY,
-  branch = process.env.KNOWME_RELEASE_GITHUB_BRANCH ?? DEFAULT_BRANCH,
   token = process.env.GITHUB_TOKEN,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  const snapshot = await fetchRepositoryGovernance({ repository, branch, token, fetchImpl });
-  return validateRepositoryGovernance(snapshot, { expectedRepository: repository, expectedBranch: branch });
+  if (canonicalText(token, { max: 4096 }) === null) {
+    throw new Error('GITHUB_TOKEN with read access to repository administration settings is required for the market-release governance preflight.');
+  }
+  const snapshot = await fetchRepositoryGovernance({
+    repository: CANONICAL_REPOSITORY,
+    branch: CANONICAL_BRANCH,
+    token,
+    fetchImpl,
+  });
+  return validateRepositoryGovernance(snapshot, {
+    expectedRepository: CANONICAL_REPOSITORY,
+    expectedBranch: CANONICAL_BRANCH,
+  });
 }
 
 async function runCli() {
