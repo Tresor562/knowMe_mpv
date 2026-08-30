@@ -7,12 +7,13 @@ These repository-level instructions apply to any coding assistant, agent, or fut
 Before modifying KnowMe:
 
 1. Read `docs/NEXUS_INTEGRATION_CHECKPOINT.md` completely.
-2. Inspect current `main`, open PRs, active branches, and CI live on GitHub.
-3. Determine whether the request belongs to:
+2. Read `docs/roadmap/CURRENT_DELIVERY_CHECKPOINT.md` when present.
+3. Inspect current `main`, open PRs, active branches, and CI live on GitHub.
+4. Determine whether the request belongs to:
    - KnowMe core KMD work;
    - Nexus AI core (which belongs in `Tresor562/Nexus-Ai-`);
    - Nexus × KnowMe integration.
-4. Never mix those streams in one branch.
+5. Never mix those streams in one branch.
 
 ## Canonical repository
 
@@ -24,7 +25,9 @@ Do not substitute `knowMe_secret` for this integration.
 
 ## Current reconciled state
 
-The old 2026-08-07 KMD-057/KMD-058 blocker note is obsolete. Live GitHub state always wins, but at the 2026-08-08 reconciliation:
+The old 2026-08-07 KMD-057/KMD-058 blocker note is obsolete. Live GitHub state always wins. The detailed current KMD boundary now belongs in `docs/roadmap/CURRENT_DELIVERY_CHECKPOINT.md`; historical delivery ledgers must not override live GitHub or that deliberately refreshed checkpoint.
+
+At the 2026-08-08 Nexus reconciliation:
 
 - KMD-057 / PR #101 is merged.
 - The old stacked KMD-058 / PR #102 was closed without merge.
@@ -33,7 +36,7 @@ The old 2026-08-07 KMD-057/KMD-058 blocker note is obsolete. Live GitHub state a
 - Nexus Social private/group integration / PR #106 is merged.
 - Nexus account entitlement integration / PR #107 is merged after build, unit and E2E validation.
 
-Do not recreate these milestones. Inspect `main` and the current checkpoint before starting new work.
+Do not recreate these milestones. Inspect `main`, the current delivery checkpoint, canonical KMD delivery documents, and live CI before starting new work.
 
 ## Who performs the Nexus integration
 
@@ -64,4 +67,4 @@ Nexus must not receive unrestricted direct database access. Integrate it through
 
 ## Rule for future instances
 
-If remembered conversation context conflicts with current GitHub state, current GitHub state plus these repository continuity documents win. Update the checkpoint deliberately when project state changes materially.
+If remembered conversation context conflicts with current GitHub state, current GitHub state plus these repository continuity documents win. Update the current delivery checkpoint deliberately when project state changes materially.
