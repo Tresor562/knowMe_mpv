@@ -1,4 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   computeMarketReleaseEvidenceHmac,
@@ -11,6 +16,7 @@ const releaseVersion = '1.0.0-rc.1';
 const signingKey = 'release-evidence-signing-key-0000001';
 const signingKeyId = 'release-evidence-2026-08';
 const now = new Date('2026-08-26T02:00:00.000Z');
+const cliPath = fileURLToPath(new URL('./market-release-evidence-preflight.mjs', import.meta.url));
 
 function item(id) {
   return {
@@ -36,6 +42,32 @@ function manifest(scope = 'WEB_V1') {
   };
   value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
   return value;
+}
+
+function currentCliManifest() {
+  const value = manifest();
+  const current = Date.now();
+  for (const evidence of value.evidence) {
+    evidence.verifiedAt = new Date(current - 60_000).toISOString();
+    evidence.validUntil = new Date(current + 3_600_000).toISOString();
+  }
+  value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
+  return value;
+}
+
+function runCli(file) {
+  return spawnSync(
+    process.execPath,
+    [cliPath, '--file', file, '--commit', commit, '--version', releaseVersion],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID: signingKeyId,
+        KNOWME_RELEASE_EVIDENCE_SIGNING_KEY: signingKey,
+      },
+    },
+  );
 }
 
 function validate(value, options = {}) {
@@ -276,4 +308,33 @@ test('accepts a manifest only after it is re-signed with the dedicated key', () 
   assert.equal(validate(value).ok, false);
   value.manifestHmacSha256 = computeMarketReleaseEvidenceHmac(value, signingKey);
   assert.equal(validate(value).ok, true);
+});
+
+test('market release evidence preflight CLI accepts a regular bounded retained manifest', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-market-preflight-'));
+  const file = join(dir, 'manifest.json');
+  try {
+    await writeFile(file, `${JSON.stringify(currentCliManifest())}\n`);
+    const result = runCli(file);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Market release evidence preflight passed/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('market release evidence preflight CLI rejects a symlinked retained manifest', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-market-preflight-symlink-'));
+  const target = join(dir, 'target.json');
+  const link = join(dir, 'manifest.json');
+  try {
+    await writeFile(target, `${JSON.stringify(currentCliManifest())}\n`);
+    await symlink(target, link);
+    const result = runCli(link);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /regular non-symlink file/);
+    assert.doesNotMatch(result.stdout, /preflight passed/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
