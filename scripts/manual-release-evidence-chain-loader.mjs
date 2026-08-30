@@ -4,6 +4,10 @@ import {
   readRetainedEvidenceFile,
   RETAINED_EVIDENCE_FILE_LIMITS,
 } from './retained-evidence-safe-read.mjs';
+import {
+  assertRetainedEvidenceDirectoryStable,
+  snapshotRetainedEvidenceDirectory,
+} from './retained-evidence-safe-directory.mjs';
 
 export const MANUAL_RELEASE_EVIDENCE_IDS = new Set([
   'ios_physical_validation',
@@ -38,9 +42,11 @@ export async function loadManualReleaseEvidenceAuthorizations(
   const ids = manualItems.map((item) => item.id);
   if (new Set(ids).size !== ids.length) throw new Error('manual evidence items contain duplicate ids.');
 
+  const chainRootIdentity = await snapshotRetainedEvidenceDirectory(manualChainDir, 'manual release evidence chain directory');
   const authorizations = new Map();
   for (const item of [...manualItems].sort((a, b) => a.id.localeCompare(b.id))) {
     const base = join(manualChainDir, item.id);
+    const itemDirectoryIdentity = await snapshotRetainedEvidenceDirectory(base, `${item.id} manual evidence directory`);
     const [artifactBytes, worksheetBytes, reviewReceiptRaw] = await Promise.all([
       readRetainedEvidenceFile(join(base, CHAIN_FILES.artifact), `${item.id} retained artifact`, {
         maxBytes: MANUAL_RELEASE_EVIDENCE_FILE_LIMITS.artifact,
@@ -53,6 +59,7 @@ export async function loadManualReleaseEvidenceAuthorizations(
         maxBytes: MANUAL_RELEASE_EVIDENCE_FILE_LIMITS.reviewReceipt,
       }),
     ]);
+    await assertRetainedEvidenceDirectoryStable(base, `${item.id} manual evidence directory`, itemDirectoryIdentity);
 
     let reviewReceipt;
     try {
@@ -69,6 +76,11 @@ export async function loadManualReleaseEvidenceAuthorizations(
     if (!result.ok) throw new Error(`${item.id}: ${result.errors.join(' ')}`);
     authorizations.set(item.id, result.authorization);
   }
+  await assertRetainedEvidenceDirectoryStable(
+    manualChainDir,
+    'manual release evidence chain directory',
+    chainRootIdentity,
+  );
 
   return authorizations;
 }
