@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
-import { open, readFile, rm } from 'node:fs/promises';
+import { open, rm } from 'node:fs/promises';
 import {
   assertRestoreTargetIsolation,
   postgresCliConnection,
@@ -16,6 +16,10 @@ import {
   validateBackupManifest,
   verifyBackupManifestAuthenticity,
 } from './postgres-backup-lib.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const RESTORE_DRILL_CONFIRMATION = 'RESTORE_DRILL_KNOWME';
 const RESTORE_SCRIPT_PATH = fileURLToPath(new URL('./postgres-restore.mjs', import.meta.url));
@@ -193,7 +197,12 @@ export async function runPostgresRestoreDrill({
   const manifestPath = `${dump}.manifest.json`;
   let manifest;
   try {
-    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest = JSON.parse(
+      await readRetainedEvidenceFile(manifestPath, 'Backup manifest', {
+        encoding: 'utf8',
+        maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+      }),
+    );
   } catch {
     throw new Error(`Backup manifest is missing or invalid: ${manifestPath}`);
   }
