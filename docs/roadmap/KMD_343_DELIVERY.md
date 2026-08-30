@@ -2,20 +2,21 @@
 
 ## Problem
 
-The market-release evidence finalizer already reads each retained evidence item through the descriptor-bound `readRetainedEvidenceFile()` path, but it still enumerated `--items-dir` directly with `readdir()`. A symlink supplied as the terminal items-directory path could therefore redirect enumeration to a different directory before the hardened per-file reads began.
+The market-release evidence finalizer and batch-apply CLI already read each retained evidence item through the descriptor-bound `readRetainedEvidenceFile()` path, but both still enumerated `--items-dir` directly with `readdir()`. A symlink supplied as the terminal items-directory path could therefore redirect enumeration to a different directory before the hardened per-file reads began.
 
 ## Delivery
 
+- Add a shared retained-evidence directory-listing helper used by both batch apply and finalization.
 - Reject `--items-dir` when the terminal path is a symbolic link or is not a directory.
 - Snapshot the directory device/inode identity before enumeration and verify the same directory identity immediately after enumeration.
 - Fail closed when the directory changes while evidence filenames are being enumerated.
 - Preserve deterministic `.json` filtering and ordering.
 - Preserve the existing descriptor-bound, size-limited read of every evidence item after enumeration.
-- Add CLI regression coverage proving a symlinked items directory is rejected before evidence ingestion or artifact creation.
+- Add CLI regression coverage proving both CLIs reject a symlinked items directory before evidence ingestion or artifact creation.
 
 ## Validation
 
-The repository root test suite already includes `scripts/market-release-evidence-finalize.test.mjs`; KMD-343 extends that suite. Merge only after CI succeeds on the exact PR head SHA and all repository review gates are clear.
+The repository root test suite already includes `scripts/market-release-evidence-batch-apply.test.mjs` and `scripts/market-release-evidence-finalize.test.mjs`; KMD-343 extends both suites. Merge only after CI succeeds on the exact PR head SHA and all repository review gates are clear.
 
 ## Migration
 
