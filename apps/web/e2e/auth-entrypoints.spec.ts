@@ -1,5 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
+function isBenignNextPrefetchAbort(method: string, requestUrl: string, errorText: string) {
+  if (method !== 'GET' || errorText !== 'net::ERR_ABORTED') return false;
+
+  const url = new URL(requestUrl);
+  const isNextRscPrefetch = url.searchParams.has('_rsc');
+  const isNextStaticChunk = url.pathname.startsWith('/_next/static/');
+
+  return isNextRscPrefetch || isNextStaticChunk;
+}
+
 function collectPageFailures(page: Page) {
   const failures: string[] = [];
   page.on('pageerror', (error) => failures.push(`pageerror: ${error.message}`));
@@ -7,7 +17,9 @@ function collectPageFailures(page: Page) {
     if (message.type() === 'error') failures.push(`console: ${message.text()}`);
   });
   page.on('requestfailed', (request) => {
-    failures.push(`requestfailed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
+    const errorText = request.failure()?.errorText ?? 'unknown';
+    if (isBenignNextPrefetchAbort(request.method(), request.url(), errorText)) return;
+    failures.push(`requestfailed: ${request.method()} ${request.url()} (${errorText})`);
   });
   return failures;
 }
