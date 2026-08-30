@@ -57,16 +57,19 @@
     "check:market-ready": "pnpm check:release && pnpm release:governance:preflight && node scripts/release-evidence-signing-key-preflight.mjs && node scripts/release-receipt-freshness-preflight.mjs && node scripts/market-release-evidence-preflight.mjs && node scripts/market-release-evidence-retained-bundle-preflight.mjs"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.5",
-    "typescript": "^5.8.3"
+    "prettier": "3.6.2",
+    "turbo": "2.5.5",
+    "typescript": "5.8.3"
   },
   "pnpm": {
     "overrides": {
       "sharp": ">=0.35.0",
       "postcss": ">=8.5.18",
       "deepmerge-ts": ">=8.0.0",
-      "image-size": "npm:image-size-next@1.2.2"
+      "image-size": "npm:image-size-next@1.2.2",
+      "path-to-regexp": "8.4.2",
+      "lodash": "4.18.1",
+      "multer": "2.2.0"
     }
   }
 }

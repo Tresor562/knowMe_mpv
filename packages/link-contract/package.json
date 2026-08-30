@@ -10,6 +10,6 @@
     "test": "pnpm build && node --test test/index.test.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "5.8.3"
   }
 }
