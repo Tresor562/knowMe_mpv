@@ -40,10 +40,7 @@ jobs:
         run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs
       - run: pnpm install --frozen-lockfile=false
       - name: Audit production dependencies for high and critical advisories
-        run: >-
-          pnpm audit --prod --audit-level=high
-          --ignore GHSA-w3rx-r6r6-pgpr
-          --ignore GHSA-5p2g-fcmc-qvqq
+        run: pnpm audit --prod --audit-level=high
       - run: pnpm --filter @knowme/api prisma:generate
       - run: pnpm db:migrate:deploy
       - name: Verify committed migrations match Prisma datamodel

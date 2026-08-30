@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const workflowUrl = new URL('../.github/workflows/ci.yml', import.meta.url);
+const packageJsonUrl = new URL('../package.json', import.meta.url);
 const apiDockerfileUrl = new URL('../Dockerfile.api', import.meta.url);
 const webDockerfileUrl = new URL('../Dockerfile.web', import.meta.url);
 const composeUrl = new URL('../docker-compose.yml', import.meta.url);
@@ -11,6 +12,7 @@ const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a
 const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
 const PINNED_CI_NODE_VERSION = /^\s*node-version:\s*22\.23\.2\s*$/m;
 const PINNED_CI_RUNNER = /^\s*runs-on:\s*ubuntu-24\.04\s*$/m;
+const PATCHED_IMAGE_SIZE_ALIAS = 'npm:image-size-next@1.2.2';
 
 test('CI grants only read access to repository contents by default', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
@@ -44,6 +46,18 @@ test('CI Node runtime is pinned to the audited exact patch version', async () =>
   const workflow = await readFile(workflowUrl, 'utf8');
   assert.match(workflow, PINNED_CI_NODE_VERSION);
   assert.doesNotMatch(workflow, /^\s*node-version:\s*22\s*$/m);
+});
+
+test('production dependency audit cannot suppress individual advisories', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  assert.match(workflow, /pnpm audit --prod --audit-level=high/);
+  assert.doesNotMatch(workflow, /pnpm audit[^\n]*--ignore\b/);
+  assert.doesNotMatch(workflow, /^\s*--ignore\s+GHSA-/m);
+});
+
+test('Metro image-size dependency is replaced by the reviewed patched compatibility fork', async () => {
+  const packageJson = JSON.parse(await readFile(packageJsonUrl, 'utf8'));
+  assert.equal(packageJson.pnpm?.overrides?.['image-size'], PATCHED_IMAGE_SIZE_ALIAS);
 });
 
 test('CI PostgreSQL service is pinned to an immutable image digest', async () => {
