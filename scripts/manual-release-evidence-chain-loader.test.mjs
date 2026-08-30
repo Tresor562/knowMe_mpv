@@ -107,6 +107,49 @@ test('rejects a retained artifact replaced by a symbolic link', async (t) => {
   );
 });
 
+test('rejects a symlinked manual release evidence chain root before retained file reads', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Creating directory symlinks requires platform privileges that are not guaranteed on Windows CI.');
+    return;
+  }
+  const parent = await mkdtemp(join(tmpdir(), 'knowme-kmd344-root-'));
+  try {
+    const realRoot = join(parent, 'real-chain');
+    const linkedRoot = join(parent, 'chain-link');
+    await mkdir(realRoot);
+    await writeChain(realRoot);
+    await symlink(realRoot, linkedRoot, 'dir');
+    await assert.rejects(
+      loadManualReleaseEvidenceAuthorizations([createItem()], linkedRoot, { expectedCommit, expectedVersion, now }),
+      /manual release evidence chain directory.*symlink|real directory/i,
+    );
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('rejects a symlinked per-evidence manual chain directory before retained file reads', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Creating directory symlinks requires platform privileges that are not guaranteed on Windows CI.');
+    return;
+  }
+  const root = await mkdtemp(join(tmpdir(), 'knowme-kmd344-item-'));
+  const externalRoot = await mkdtemp(join(tmpdir(), 'knowme-kmd344-external-'));
+  try {
+    await writeChain(externalRoot);
+    await symlink(join(externalRoot, id), join(root, id), 'dir');
+    await assert.rejects(
+      loadManualReleaseEvidenceAuthorizations([createItem()], root, { expectedCommit, expectedVersion, now }),
+      /ios_physical_validation manual evidence directory.*symlink|real directory/i,
+    );
+  } finally {
+    await Promise.all([
+      rm(root, { recursive: true, force: true }),
+      rm(externalRoot, { recursive: true, force: true }),
+    ]);
+  }
+});
+
 test('rejects oversized retained review metadata before JSON parsing or promotion', async () => {
   const root = await mkdtemp(join(tmpdir(), 'knowme-kmd318-'));
   const item = createItem();
