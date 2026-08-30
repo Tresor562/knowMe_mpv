@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 import { finalizeMarketReleaseEvidence } from './market-release-evidence-finalize.mjs';
 import { buildMarketReleaseEvidenceBundleReceipt } from './market-release-evidence-bundle-receipt.mjs';
@@ -124,4 +128,30 @@ test('rejects weak signing keys without exposing the key value', () => {
   assert.equal(result.ok, false);
   assert.match(result.errors.join(' '), /at least 32 canonical characters/);
   assert.equal(result.errors.join(' ').includes('short-secret'), false);
+});
+
+test('CLI rejects a symlinked receipt before JSON or HMAC verification', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-bundle-receipt-'));
+  const target = join(dir, 'receipt.json');
+  const link = join(dir, 'receipt-link.json');
+  await writeFile(target, receiptBytes());
+  await symlink(target, link);
+
+  const result = spawnSync(process.execPath, [
+    new URL('./market-release-evidence-bundle-receipt-verify.mjs', import.meta.url).pathname,
+    '--receipt', link,
+    '--commit', commit,
+    '--version', version,
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID: signingKeyId,
+      KNOWME_RELEASE_EVIDENCE_SIGNING_KEY: signingKey,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must be a regular non-symlink file/);
+  assert.doesNotMatch(result.stderr, /HMAC does not match|valid JSON/);
 });
