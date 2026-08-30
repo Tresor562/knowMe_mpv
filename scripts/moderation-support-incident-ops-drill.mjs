@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { lstat, open, readFile, unlink } from 'node:fs/promises';
+import { open, unlink } from 'node:fs/promises';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const CONFIRMATION = 'MODERATION_OPS_DRILL_COMPLETED';
-const MAX_INPUT_BYTES = 2 * 1024 * 1024;
+const MAX_INPUT_BYTES = RETAINED_EVIDENCE_FILE_LIMITS.item;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const CHECK_NAMES = [
   'reportIntake',
@@ -40,12 +44,19 @@ function exactFields(value, expected) {
 
 async function readRegularFile(path, label) {
   if (!canonicalPath(path)) throw new Error(`${label} path must be canonical and free of control characters.`);
-  const info = await lstat(path);
-  if (!info.isFile() || info.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file.`);
-  if (info.size < 1 || info.size > MAX_INPUT_BYTES) {
+  let bytes;
+  try {
+    bytes = await readRetainedEvidenceFile(path, label, { maxBytes: MAX_INPUT_BYTES });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('maximum retained evidence size')) {
+      throw new Error(`${label} must contain between 1 and ${MAX_INPUT_BYTES} bytes.`);
+    }
+    throw error;
+  }
+  if (bytes.length < 1) {
     throw new Error(`${label} must contain between 1 and ${MAX_INPUT_BYTES} bytes.`);
   }
-  return readFile(path);
+  return bytes;
 }
 
 function sha256(bytes) {
