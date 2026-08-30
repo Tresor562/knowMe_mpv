@@ -17,9 +17,9 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-350`.
-- Latest verified merge at reconciliation: `KMD-350`, commit `ccdbe93530d43c5629fee88c06c8d0068168613f`.
-- `KMD-351` is the current CI PostgreSQL image reproducibility candidate on `feat/kmd-351-pin-ci-postgres-image`; it is not complete until exact-head CI and merge gates pass.
+- Live GitHub has progressed through merged `KMD-351`.
+- Latest verified merge at reconciliation: `KMD-351`, commit `38f443cd4d9a2f67443b175e96c87fe4218b7ba4`.
+- `KMD-352` is the current runtime Node container image reproducibility candidate on `feat/kmd-352-pin-runtime-node-images`; it is not complete until exact-head CI and merge gates pass.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section that described `KMD-061` as pending is stale and must not be used to recreate KMD-061 or later merged milestones.
 
 ## Independent historical validation boundary
@@ -42,7 +42,7 @@ At reconciliation time, none of the following may be claimed complete without di
 
 Live GitHub still needs to satisfy the actual governance configuration; code that checks governance does not itself configure branch protection.
 
-The repository also currently lacks a committed `pnpm-lock.yaml`; CI therefore still uses `pnpm install --frozen-lockfile=false`. This is a separate reproducibility gap and must not be represented as solved by KMD-351.
+The repository also currently lacks a committed `pnpm-lock.yaml`; CI and runtime Docker builds therefore still use `pnpm install --frozen-lockfile=false`. This is a separate reproducibility gap and must not be represented as solved by KMD-352.
 
 ## Restart protocol
 
