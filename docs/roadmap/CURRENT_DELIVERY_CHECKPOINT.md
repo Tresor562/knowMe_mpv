@@ -1,6 +1,6 @@
 # KnowMe — Current delivery checkpoint
 
-Last reconciled from live GitHub: 2026-08-30.
+Last reconciled from live GitHub: 2026-08-31.
 
 ## Authority order
 
@@ -17,10 +17,18 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-357`.
-- Latest verified merge at reconciliation: `KMD-357`, commit `f707081faad1953022ea7a68412de5fd9412f193`.
-- `KMD-358` is the current exact-direct-dependency pinning candidate on `feat/kmd-358-pin-direct-js-dependencies`; it is not complete until exact-head CI proves the pre-install package pinning guard, unsuppressed production dependency audit and all existing build/test/E2E merge gates.
+- Live GitHub has progressed through merged `KMD-358`.
+- Latest verified merge at reconciliation: `KMD-358`, commit `1f882a34d7f64901d584178ce5d45457d30ea35f`.
+- `KMD-359` is the current canonical PNPM lockfile/frozen-install candidate on `feat/kmd-359-canonical-pnpm-lockfile` / PR #458.
+- KMD-359 generated a real `pnpm-lock.yaml` with repository-pinned `pnpm@10.13.1` on GitHub Actions. The temporary write-capable bootstrap workflow was removed immediately after generation and must not reach `main`.
+- KMD-359 is not complete until exact-head CI proves frozen install, unsuppressed production dependency audit, Prisma/migration/drift, build, full tests, Web E2E and API E2E, and merge gates pass.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section that described `KMD-061` as pending is stale and must not be used to recreate KMD-061 or later merged milestones.
+
+## Dependency reproducibility baseline
+
+KMD-358 pins every direct registry dependency/devDependency to an exact version. KMD-359 adds a canonical PNPM-generated lockfile and changes canonical CI to `pnpm install --frozen-lockfile`, with a preflight that rejects return to `--frozen-lockfile=false`.
+
+Runtime Dockerfiles still need a separately validated lockfile-aware build transition before any claim that production container dependency installation is frozen. Do not modify them speculatively without proving the workspace/filter build path.
 
 ## Independent historical validation boundary
 
@@ -40,9 +48,7 @@ At reconciliation time, none of the following may be claimed complete without di
 - real production deployment evidence;
 - App Store / Google Play submission, review or publication evidence.
 
-Live GitHub still needs to satisfy the actual governance configuration; code that checks governance does not itself configure branch protection.
-
-The repository also currently lacks a committed `pnpm-lock.yaml`; CI and runtime Docker builds therefore still use `pnpm install --frozen-lockfile=false`. KMD-358 narrows drift by pinning direct registry dependencies exactly, but it is only a compensating control and must never be represented as a substitute for a canonical lockfile. The execution environment used for this reconciliation still cannot reliably resolve `github.com`, so it was not used to fabricate or approximate a lockfile.
+Live GitHub still reports `main` as unprotected. Code that checks governance does not itself configure branch protection.
 
 ## Restart protocol
 
