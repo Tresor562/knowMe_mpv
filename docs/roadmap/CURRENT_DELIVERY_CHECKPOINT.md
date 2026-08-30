@@ -17,9 +17,9 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-348`.
-- Latest verified merge at reconciliation: `KMD-348`, commit `da47d52a710830be09796f6543303dceca1c6a11`.
-- `KMD-349` is the current exact-head quality-provider provenance candidate on `feat/kmd-349-bind-live-quality-check-provider`; it is not complete until exact-head CI and merge gates pass.
+- Live GitHub has progressed through merged `KMD-349`.
+- Latest verified merge at reconciliation: `KMD-349`, commit `c154577b981544cd7f0b06a54a34cb3ac0d2cbfb`.
+- `KMD-350` is the current CI supply-chain hardening candidate on `feat/kmd-350-pin-ci-actions-permissions`; it is not complete until exact-head CI and merge gates pass.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section that described `KMD-061` as pending is stale and must not be used to recreate KMD-061 or later merged milestones.
 
 ## Independent historical validation boundary
