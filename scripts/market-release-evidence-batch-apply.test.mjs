@@ -178,3 +178,23 @@ test('batch CLI rejects a symlinked manifest before JSON ingestion', async () =>
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('batch CLI rejects a symlinked evidence items directory before ingestion or output creation', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd343-'));
+  try {
+    const manifestPath = join(dir, 'manifest.json');
+    const realItemsDir = join(dir, 'items');
+    const itemsDir = join(dir, 'items-link');
+    const outputPath = join(dir, 'output.json');
+    await writeFile(manifestPath, `${JSON.stringify(manifest())}\n`);
+    await writeCliItems(realItemsDir);
+    await symlink(realItemsDir, itemsDir, 'dir');
+
+    const result = runBatchCli(manifestPath, itemsDir, outputPath);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /items directory.*symlink|real directory/i);
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
