@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { computeMarketReleaseEvidenceBundleReceiptHmac } from './market-release-evidence-bundle-receipt.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -129,7 +132,9 @@ async function runCli() {
   const expectedVersion = readArg('--version') ?? process.env.KNOWME_RELEASE_VERSION;
   const expectedSigningKeyId = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY_ID;
   const signingKey = process.env.KNOWME_RELEASE_EVIDENCE_SIGNING_KEY;
-  const receiptBytes = await readFile(receiptPath);
+  const receiptBytes = await readRetainedEvidenceFile(receiptPath, 'market release bundle verification receipt', {
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.bundleReceipt,
+  });
   const result = verifyMarketReleaseEvidenceBundleReceipt({
     receiptBytes,
     expectedCommit,
