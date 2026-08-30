@@ -145,6 +145,24 @@ test('finalize CLI rejects a symlinked manifest before JSON ingestion or artifac
   }
 });
 
+test('finalize CLI rejects a symlinked evidence items directory before reading or artifact creation', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd343-'));
+  try {
+    const { manifestPath, itemsDir } = await writeFinalizeCliFixture(dir);
+    const linkedItemsDir = join(dir, 'items-link');
+    await symlink(itemsDir, linkedItemsDir, 'dir');
+    const outputPath = join(dir, 'release-evidence.signed.json');
+    const digestPath = join(dir, 'release-evidence.signed.sha256');
+    const result = runFinalizeCli({ manifestPath, itemsDir: linkedItemsDir, outputPath, digestPath });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /items directory.*symlink|real directory/i);
+    await assert.rejects(readFile(outputPath), /ENOENT/);
+    await assert.rejects(readFile(digestPath), /ENOENT/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('reserves and writes signed manifest plus digest as a pair', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'knowme-kmd271-'));
   try {
