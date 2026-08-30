@@ -5,7 +5,7 @@ function evaluateOrigin(options: ReturnType<typeof createCorsOptions>, origin?: 
   if (typeof handler !== 'function') throw new Error('Expected a CORS origin callback.');
 
   return new Promise<boolean>((resolve, reject) => {
-    handler(origin, (error, allowed) => {
+    handler(origin ?? '', (error, allowed) => {
       if (error) reject(error);
       else resolve(Boolean(allowed));
     });
