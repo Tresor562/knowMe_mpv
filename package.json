@@ -68,7 +68,8 @@
       "deepmerge-ts": ">=8.0.0",
       "image-size": "npm:image-size-next@1.2.2",
       "path-to-regexp": "8.4.2",
-      "lodash": "4.18.1"
+      "lodash": "4.18.1",
+      "multer": "2.2.0"
     }
   }
 }
