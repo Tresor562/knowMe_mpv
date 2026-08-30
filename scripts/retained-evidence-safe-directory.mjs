@@ -1,9 +1,5 @@
 import { lstat, readdir } from 'node:fs/promises';
 
-function sameDirectoryIdentity(before, after) {
-  return before.dev === after.dev && before.ino === after.ino;
-}
-
 export async function snapshotRetainedEvidenceDirectory(directoryPath, label) {
   const snapshot = await lstat(directoryPath);
   if (snapshot.isSymbolicLink() || !snapshot.isDirectory()) {
