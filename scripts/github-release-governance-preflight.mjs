@@ -52,20 +52,42 @@ export async function fetchRepositoryGovernance({
   const repositoryMetadata = await fetchJson(base, { fetchImpl, token });
   const branchMetadata = await fetchJson(`${base}/branches/${encodedBranch}`, { fetchImpl, token });
   const protection = await fetchJson(`${base}/branches/${encodedBranch}/protection`, { fetchImpl, token });
+  const branchCommitSha = canonicalText(branchMetadata?.commit?.sha, { max: 64 });
+  if (branchCommitSha === null || !/^[0-9a-f]{40}$/i.test(branchCommitSha)) {
+    throw new Error('GitHub branch metadata does not expose a canonical commit SHA for required-check verification.');
+  }
+  const checkRuns = await fetchJson(
+    `${base}/commits/${encodeURIComponent(branchCommitSha)}/check-runs?check_name=${encodeURIComponent(REQUIRED_STATUS_CHECK)}&filter=latest&per_page=100`,
+    { fetchImpl, token },
+  );
 
-  return { repositoryMetadata, branchMetadata, protection };
+  return { repositoryMetadata, branchMetadata, protection, checkRuns };
 }
 
 function enabled(value) {
   return value === true || value?.enabled === true;
 }
 
-function hasProviderPinnedRequiredStatusCheck(protection) {
+function providerPinnedRequiredStatusCheck(protection) {
   const required = protection?.required_status_checks;
-  if (!required || required.strict !== true || !Array.isArray(required.checks)) return false;
-  return required.checks.some((entry) => {
+  if (!required || required.strict !== true || !Array.isArray(required.checks)) return null;
+  const matching = required.checks.filter((entry) => {
     const context = typeof entry?.context === 'string' ? entry.context.trim() : '';
     return context === REQUIRED_STATUS_CHECK && Number.isInteger(entry?.app_id) && entry.app_id > 0;
+  });
+  return matching.length === 1 ? matching[0] : null;
+}
+
+function hasMatchingSuccessfulLiveCheck(checkRuns, { expectedSha, expectedAppId }) {
+  if (!checkRuns || typeof checkRuns !== 'object' || Array.isArray(checkRuns) || !Array.isArray(checkRuns.check_runs)) return false;
+  return checkRuns.check_runs.some((run) => {
+    const name = typeof run?.name === 'string' ? run.name.trim() : '';
+    return name === REQUIRED_STATUS_CHECK
+      && run?.head_sha === expectedSha
+      && run?.status === 'completed'
+      && run?.conclusion === 'success'
+      && Number.isInteger(run?.app?.id)
+      && run.app.id === expectedAppId;
   });
 }
 
@@ -77,6 +99,7 @@ export function validateRepositoryGovernance(snapshot, {
   const repository = snapshot?.repositoryMetadata;
   const branch = snapshot?.branchMetadata;
   const protection = snapshot?.protection;
+  const checkRuns = snapshot?.checkRuns;
 
   if (!repository || typeof repository !== 'object' || Array.isArray(repository)) {
     return { ok: false, errors: ['GitHub repository metadata is missing or invalid.'] };
@@ -85,20 +108,28 @@ export function validateRepositoryGovernance(snapshot, {
   if (repository.default_branch !== expectedBranch) errors.push(`Default branch must be exactly ${expectedBranch}.`);
   if (repository.archived === true || repository.disabled === true) errors.push('Release repository must be active and not archived or disabled.');
 
+  const branchSha = canonicalText(branch?.commit?.sha, { max: 64 });
   if (!branch || typeof branch !== 'object' || Array.isArray(branch)) {
     errors.push('GitHub branch metadata is missing or invalid.');
   } else {
     if (branch.name !== expectedBranch) errors.push(`Validated branch must be exactly ${expectedBranch}.`);
     if (branch.protected !== true) errors.push(`${expectedBranch} must be protected before a market release.`);
+    if (branchSha === null || !/^[0-9a-f]{40}$/i.test(branchSha)) errors.push(`${expectedBranch} must expose its exact commit SHA for required-check verification.`);
   }
 
   if (!protection || typeof protection !== 'object' || Array.isArray(protection)) {
     errors.push('Branch protection details are missing or invalid.');
   } else {
-    if (!hasProviderPinnedRequiredStatusCheck(protection)) {
+    const pinnedCheck = providerPinnedRequiredStatusCheck(protection);
+    if (!pinnedCheck) {
       errors.push(
-        `Branch protection must require the canonical ${REQUIRED_STATUS_CHECK} check through GitHub's provider-pinned checks collection with a positive app_id, and require branches to be up to date before merging.`,
+        `Branch protection must require exactly one canonical ${REQUIRED_STATUS_CHECK} check through GitHub's provider-pinned checks collection with a positive app_id, and require branches to be up to date before merging.`,
       );
+    } else if (branchSha && /^[0-9a-f]{40}$/i.test(branchSha) && !hasMatchingSuccessfulLiveCheck(checkRuns, {
+      expectedSha: branchSha,
+      expectedAppId: pinnedCheck.app_id,
+    })) {
+      errors.push(`The exact ${expectedBranch} head must have a successful ${REQUIRED_STATUS_CHECK} check produced by the same GitHub App pinned in branch protection.`);
     }
     const reviews = protection.required_pull_request_reviews;
     if (!reviews || !Number.isInteger(reviews.required_approving_review_count) || reviews.required_approving_review_count < 1) {
@@ -120,7 +151,7 @@ export async function runRepositoryGovernancePreflight({
   fetchImpl = globalThis.fetch,
 } = {}) {
   if (canonicalText(token, { max: 4096 }) === null) {
-    throw new Error('GITHUB_TOKEN with read access to repository administration settings is required for the market-release governance preflight.');
+    throw new Error('GITHUB_TOKEN with read access to repository administration settings and checks is required for the market-release governance preflight.');
   }
   const snapshot = await fetchRepositoryGovernance({
     repository: CANONICAL_REPOSITORY,

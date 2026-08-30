@@ -17,9 +17,9 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-347`.
-- Latest verified merge at reconciliation: `KMD-347`, commit `6bb62a07b4c88d27ab9967adfee88654a89780f8`.
-- `KMD-348` is the current release-governance provenance candidate on `feat/kmd-348-pin-required-check-provider`; it is not complete until exact-head CI and merge gates pass.
+- Live GitHub has progressed through merged `KMD-348`.
+- Latest verified merge at reconciliation: `KMD-348`, commit `da47d52a710830be09796f6543303dceca1c6a11`.
+- `KMD-349` is the current exact-head quality-provider provenance candidate on `feat/kmd-349-bind-live-quality-check-provider`; it is not complete until exact-head CI and merge gates pass.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section that described `KMD-061` as pending is stale and must not be used to recreate KMD-061 or later merged milestones.
 
 ## Independent historical validation boundary
@@ -32,7 +32,7 @@ Do not merge, recycle or renumber that hardware-validation scope merely to make 
 
 At reconciliation time, none of the following may be claimed complete without direct evidence:
 
-- canonical `main` branch protection satisfying the release-governance guard, including a provider-pinned canonical `quality` required check;
+- canonical `main` branch protection satisfying the release-governance guard, including a provider-pinned canonical `quality` required check whose live exact-head execution comes from that same provider;
 - real legal/privacy review and continuing legal validity;
 - supported-device physical validation on Web/iOS/Android where required;
 - production backup/restore execution evidence;
@@ -40,7 +40,7 @@ At reconciliation time, none of the following may be claimed complete without di
 - real production deployment evidence;
 - App Store / Google Play submission, review or publication evidence.
 
-Live GitHub reported `main` as unprotected after the KMD-346 merge. Code that checks governance does not itself configure branch protection.
+Live GitHub still needs to satisfy the actual governance configuration; code that checks governance does not itself configure branch protection.
 
 ## Restart protocol
 
