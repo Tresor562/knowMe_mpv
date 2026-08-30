@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
 import { assessMarketReleaseEvidenceReadiness } from './market-release-evidence-readiness-report.mjs';
+import {
+  readRetainedEvidenceFile,
+  RETAINED_EVIDENCE_FILE_LIMITS,
+} from './retained-evidence-safe-read.mjs';
 
 const ACTIONS = Object.freeze({
   production_tls_domain: {
@@ -216,7 +219,11 @@ async function runCli() {
     throw new Error('Provide --file <manifest.json> or KNOWME_RELEASE_EVIDENCE_FILE.');
   }
 
-  const manifest = JSON.parse(await readFile(file, 'utf8'));
+  const retainedManifest = await readRetainedEvidenceFile(file, 'Market release evidence manifest', {
+    encoding: 'utf8',
+    maxBytes: RETAINED_EVIDENCE_FILE_LIMITS.manifest,
+  });
+  const manifest = JSON.parse(retainedManifest);
   const plan = buildMarketReleaseEvidenceActionPlan(manifest);
   console.log(JSON.stringify(plan, null, 2));
   if (!plan.complete) process.exitCode = 2;

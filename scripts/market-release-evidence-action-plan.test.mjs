@@ -1,15 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
 import { buildMarketReleaseEvidenceActionPlan } from './market-release-evidence-action-plan.mjs';
 import { requiredEvidenceForScope } from './market-release-evidence-preflight.mjs';
 
 const future = '2099-01-01T00:00:00.000Z';
+const cliPath = fileURLToPath(new URL('./market-release-evidence-action-plan.mjs', import.meta.url));
 
 function manifest(scope = 'WEB_V1') {
   return {
     scope,
     evidence: requiredEvidenceForScope(scope).map((id) => ({ id, status: 'PENDING' })),
   };
+}
+
+function manifestBytes(scope = 'WEB_V1') {
+  return `${JSON.stringify(manifest(scope), null, 2)}\n`;
 }
 
 test('WEB_V1 exposes the complete validate or prepare then bind sequence for every blocker', () => {
@@ -143,4 +154,44 @@ test('complete manifest produces no next action', () => {
   assert.equal(plan.complete, true);
   assert.deepEqual(plan.actions, []);
   assert.equal(plan.nextAction, null);
+});
+
+test('CLI reads a regular bounded retained manifest and emits the action plan', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-action-plan-'));
+  try {
+    const manifestPath = join(dir, 'manifest.json');
+    await writeFile(manifestPath, manifestBytes());
+
+    const result = spawnSync(process.execPath, [cliPath, '--file', manifestPath], { encoding: 'utf8' });
+    assert.equal(result.status, 2, result.stderr);
+    const plan = JSON.parse(result.stdout);
+    assert.equal(plan.scope, 'WEB_V1');
+    assert.equal(plan.complete, false);
+    assert.equal(plan.blockingCount, 8);
+    assert.equal(plan.actions.length, 8);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('CLI rejects a symlinked retained manifest before JSON ingestion', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Symlink creation is not reliably available on Windows CI without elevated privileges.');
+    return;
+  }
+
+  const dir = await mkdtemp(join(tmpdir(), 'knowme-action-plan-symlink-'));
+  try {
+    const targetPath = join(dir, 'manifest-target.json');
+    const manifestPath = join(dir, 'manifest-link.json');
+    await writeFile(targetPath, manifestBytes());
+    await symlink(targetPath, manifestPath);
+
+    const result = spawnSync(process.execPath, [cliPath, '--file', manifestPath], { encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /regular non-symlink file/);
+    assert.equal(result.stdout, '');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
