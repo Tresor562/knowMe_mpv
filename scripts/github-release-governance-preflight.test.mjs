@@ -23,8 +23,8 @@ function passingSnapshot() {
     protection: {
       required_status_checks: {
         strict: true,
-        contexts: ['quality'],
-        checks: [],
+        contexts: [],
+        checks: [{ context: 'quality', app_id: 12345 }],
       },
       required_pull_request_reviews: {
         required_approving_review_count: 1,
@@ -56,7 +56,7 @@ test('fails closed when main is unprotected or review/status protections are wea
   const result = validateRepositoryGovernance(snapshot);
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /main must be protected/);
-  assert.match(result.errors.join('\n'), /canonical quality status check/);
+  assert.match(result.errors.join('\n'), /provider-pinned checks collection/);
   assert.match(result.errors.join('\n'), /approving pull-request review/);
   assert.match(result.errors.join('\n'), /administrators/);
   assert.match(result.errors.join('\n'), /conversation resolution/);
@@ -66,18 +66,44 @@ test('fails closed when main is unprotected or review/status protections are wea
 
 test('rejects a strict but unrelated status check instead of accepting a governance decoy', () => {
   const snapshot = passingSnapshot();
-  snapshot.protection.required_status_checks.contexts = ['documentation-only'];
-  snapshot.protection.required_status_checks.checks = [{ context: 'noop' }];
+  snapshot.protection.required_status_checks.checks = [{ context: 'documentation-only', app_id: 12345 }];
 
   const result = validateRepositoryGovernance(snapshot);
   assert.equal(result.ok, false);
-  assert.match(result.errors.join('\n'), /canonical quality status check/);
+  assert.match(result.errors.join('\n'), /canonical quality check/);
 });
 
-test('accepts the canonical quality check from the modern checks collection', () => {
+test('rejects legacy contexts-only quality because provider provenance is not explicit', () => {
   const snapshot = passingSnapshot();
-  snapshot.protection.required_status_checks.contexts = [];
-  snapshot.protection.required_status_checks.checks = [{ context: 'quality', app_id: 15368 }];
+  snapshot.protection.required_status_checks.contexts = ['quality'];
+  snapshot.protection.required_status_checks.checks = [];
+
+  const result = validateRepositoryGovernance(snapshot);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /provider-pinned checks collection/);
+});
+
+test('rejects quality when any application is explicitly allowed to provide it', () => {
+  const snapshot = passingSnapshot();
+  snapshot.protection.required_status_checks.checks = [{ context: 'quality', app_id: -1 }];
+
+  const result = validateRepositoryGovernance(snapshot);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /positive app_id/);
+});
+
+test('rejects quality without an app id instead of assuming provider provenance', () => {
+  const snapshot = passingSnapshot();
+  snapshot.protection.required_status_checks.checks = [{ context: 'quality' }];
+
+  const result = validateRepositoryGovernance(snapshot);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /positive app_id/);
+});
+
+test('accepts a provider-pinned canonical quality check without hardcoding a vendor app id', () => {
+  const snapshot = passingSnapshot();
+  snapshot.protection.required_status_checks.checks = [{ context: 'quality', app_id: 987654 }];
 
   const result = validateRepositoryGovernance(snapshot);
   assert.equal(result.ok, true);
