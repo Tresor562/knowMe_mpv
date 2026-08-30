@@ -20,7 +20,9 @@ A later exact-head run exposed a browser-test compatibility issue after the Next
 
 The API E2E rerun on head `1513ef1f515f096a3e86e7486cd7000c1723b71d` then exposed a test-harness regression rather than isolated product failures: all 71 API E2E suites timed out in their 5-second setup hooks, with the later teardown errors caused only because `app` was never initialized. The same log repeatedly warned that `ts-jest` was unnecessarily compiling already-built workspace `.js` files even though `allowJs` is disabled. The E2E Jest transform is therefore narrowed from `^.+\\.(t|j)s$` to `^.+\\.ts$`, leaving JavaScript artifacts to Node instead of re-transpiling them in every suite. This is a harness-performance correction; the 5-second Jest timeout has not been weakened or increased, so slow application initialization remains detectable.
 
-The next exact-head investigation compared KMD-358's direct pins against the last green KMD-357 manifest. Because the repository has no lockfile, KMD-357's `ts-jest` range `^29.4.0` resolved the then-current compatible 29.4.x release, while KMD-358 had accidentally frozen the lower bound `29.4.0`. That is a downgrade, not a faithful capture of the green baseline. KMD-358 therefore pins `ts-jest` to `29.4.12`, which was already published before the KMD-357 green run and remains within the original accepted range. CI #1260 is the acceptance run for this correction; no API E2E success is claimed until that exact-head run finishes green.
+The next exact-head investigation compared KMD-358's direct pins against the last green KMD-357 manifest. Because the repository has no lockfile, KMD-357's `ts-jest` range `^29.4.0` resolved a later compatible 29.4.x release, while KMD-358 had accidentally frozen the lower bound `29.4.0`. That is a downgrade, not a faithful capture of the green baseline. KMD-358 therefore pins `ts-jest` to `29.4.12`, which was already published before the KMD-357 green run and remains within the original accepted range.
+
+The API E2E failure persisted after the `ts-jest` correction, so the investigation was extended to the synchronized NestJS runtime/test family. KMD-357 used `^11.1.5` for `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/platform-socket.io`, `@nestjs/websockets` and `@nestjs/testing`. By the time of the green KMD-357 runs, that range admitted NestJS 11.2.3, whereas the first KMD-358 implementation had frozen the old lower bound `11.1.5`. That again constituted a downgrade rather than a faithful exact capture of the baseline range. Those synchronized packages are therefore pinned together at `11.2.3`. The existing 5-second E2E setup timeout remains unchanged; CI must prove whether restoring the range-resolved NestJS line removes the startup regression.
 
 ## Validation required before merge
 
@@ -39,7 +41,7 @@ The next exact-head investigation compared KMD-358's direct pins against the las
 
 No Prisma schema or user-data migration is introduced.
 
-Dependency resolution changes deliberately for direct packages whose previous minimum is no longer security-acceptable. CI is the acceptance boundary for API/build/runtime compatibility.
+Dependency resolution changes deliberately for direct packages whose previous minimum is no longer security-acceptable or whose lower-bound pin was shown not to represent the range used by the last green baseline. CI is the acceptance boundary for API/build/runtime compatibility.
 
 ## Rollback
 
@@ -48,6 +50,8 @@ Revert the KMD-358 merge commit if exact pinning exposes an incompatibility that
 If the narrowed E2E transform itself causes a test-runtime incompatibility, restore the prior transform in isolation and diagnose the affected JavaScript module; do not hide the problem by globally increasing Jest hook timeouts.
 
 If the `ts-jest` alignment causes a regression, revert that pin independently and retain the evidence showing which exact version was tested. Do not restore a floating `^29.4.0` range merely to make CI non-deterministic again.
+
+If the NestJS 11.2.3 synchronization causes a regression, revert the synchronized NestJS family together rather than mixing incompatible framework patch/minor versions. Do not return to the 11.1.5 lower-bound pins solely to preserve exact syntax when those pins no longer represent the last green range resolution.
 
 ## Proof boundary
 
