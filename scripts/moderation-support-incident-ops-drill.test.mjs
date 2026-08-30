@@ -130,6 +130,20 @@ test('rejects symlink inputs and malformed incident JSON', async () => {
   );
 });
 
+test('preserves the non-empty retained-input contract after descriptor-bound reads', async () => {
+  const fx = await fixture();
+  await writeFile(fx.runbookPath, '');
+  await assert.rejects(
+    buildModerationSupportIncidentOpsArtifact({
+      runbookPath: fx.runbookPath,
+      incidentRecordPath: fx.incidentRecordPath,
+      confirmation: CONFIRMATION,
+      now: NOW,
+    }),
+    /Runbook must contain between 1 and 2097152 bytes/,
+  );
+});
+
 test('writes atomically and never overwrites or deletes a pre-existing artifact', async () => {
   const fx = await fixture();
   const artifact = await buildModerationSupportIncidentOpsArtifact({
