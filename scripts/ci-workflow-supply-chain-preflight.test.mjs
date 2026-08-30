@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const workflowUrl = new URL('../.github/workflows/ci.yml', import.meta.url);
 const apiDockerfileUrl = new URL('../Dockerfile.api', import.meta.url);
 const webDockerfileUrl = new URL('../Dockerfile.web', import.meta.url);
+const composeUrl = new URL('../docker-compose.yml', import.meta.url);
 const SHA_PINNED_ACTION = /^\s*- uses: ([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
 const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a-f]{64}\s*$/m;
 const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
@@ -43,4 +44,10 @@ test('runtime Dockerfiles pin the audited Node image to an immutable digest', as
     assert.match(dockerfile, DIGEST_PINNED_NODE);
     assert.doesNotMatch(dockerfile, /^FROM node:22-alpine$/m);
   }
+});
+
+test('docker-compose PostgreSQL service is pinned to the audited immutable digest', async () => {
+  const compose = await readFile(composeUrl, 'utf8');
+  assert.match(compose, DIGEST_PINNED_POSTGRES);
+  assert.doesNotMatch(compose, /^\s*image:\s+postgres:16-alpine\s*$/m);
 });
