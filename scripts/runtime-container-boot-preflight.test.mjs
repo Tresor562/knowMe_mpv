@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const apiDockerfile = await readFile(new URL('../Dockerfile.api', import.meta.url), 'utf8');
 
 test('canonical CI boots both runtime images instead of inspecting metadata only', () => {
   assert.match(workflow, /Boot API runtime container and require healthy status/);
@@ -26,4 +27,9 @@ test('API boot proof uses only CI-scoped runtime configuration', () => {
   assert.match(workflow, /-e DATABASE_URL="\$DATABASE_URL"/);
   assert.match(workflow, /-e JWT_SECRET="\$JWT_SECRET"/);
   assert.match(workflow, /-e PORT=4000/);
+});
+
+test('API image builds workspace runtime dependencies before boot', () => {
+  assert.match(apiDockerfile, /RUN pnpm --filter @knowme\/api\.\.\. build/);
+  assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
 });
