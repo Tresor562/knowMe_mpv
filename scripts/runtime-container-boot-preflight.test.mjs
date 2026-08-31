@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const apiDockerfile = await readFile(new URL('../Dockerfile.api', import.meta.url), 'utf8');
+const apiPackage = await readFile(new URL('../apps/api/package.json', import.meta.url), 'utf8');
+const apiLauncher = await readFile(new URL('../apps/api/src/launcher.ts', import.meta.url), 'utf8');
 const apiMain = await readFile(new URL('../apps/api/src/main.ts', import.meta.url), 'utf8');
 
 test('canonical CI boots both runtime images instead of inspecting metadata only', () => {
@@ -50,6 +52,19 @@ test('API boot proof supplies explicit CI-safe production runtime configuration'
 test('API image builds workspace runtime dependencies before boot', () => {
   assert.match(apiDockerfile, /RUN pnpm --filter @knowme\/api\.\.\. build/);
   assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
+});
+
+test('API runtime starts through a bounded pre-bootstrap launcher', () => {
+  assert.match(apiPackage, /"start": "node dist\/launcher\.js"/);
+  assert.match(apiLauncher, /process\.once\('uncaughtException'/);
+  assert.match(apiLauncher, /process\.once\('unhandledRejection'/);
+  assert.match(apiLauncher, /require\('\.\/main'\)/);
+  assert.match(apiLauncher, /catch \{/);
+  assert.match(apiLauncher, /writeSync\(2, `\[startup\] API entrypoint failed before bootstrap \(\$\{category\}\)\.\\n`\)/);
+  assert.match(apiLauncher, /process\.exit\(1\)/);
+  assert.doesNotMatch(apiLauncher, /catch \([^)]/);
+  assert.doesNotMatch(apiLauncher, /JSON\.stringify/);
+  assert.doesNotMatch(apiLauncher, /\.message|\.stack/);
 });
 
 test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () => {
