@@ -21,6 +21,8 @@ The runtime proof has exposed defects that ordinary build/test gates did not cat
 9. **CI #1360 — deterministic packaging proved; failure moved deeper.** Supply-chain, frozen install, production audit, Prisma generation/migrations/drift, monorepo build/tests, Docker API build, compiled `dist/main.js` readability/syntax/marker, non-root identity and health metadata all passed. The real API boot then failed. The uploaded bounded phase marker was `application-module-load`, proving the image now reaches evaluation of the `AppModule` graph and that the previous packaging defect is fixed.
 10. **Post-#1360 — native runtime dependency isolation.** `AppModule` imports `AuthModule`; `AuthModule` evaluates `AuthService`, which imports native `argon2`. The API also depends on the generated Prisma native/runtime stack. Canonical CI now performs explicit non-root image smoke loads for `argon2` and `PrismaClient` before starting the full graph. This is a permanent production-image compatibility gate, not a bypass: a release image that cannot load its native authentication/data dependencies must fail before merge.
 11. **CI #1364 — native gate quoting defect, not a Prisma failure.** The production image loaded `argon2` successfully (`argon2-ok`). The Prisma smoke command did not reach Prisma at all: the container shell expanded `$disconnect` inside the double-quoted `node -e` program, turning `client.$disconnect()` into invalid JavaScript `client.()`. The command now escapes the dollar sign as `client.\$disconnect()` at the shell layer so Node receives the intended Prisma API call. The repository preflight requires this escaping and rejects the unescaped form, preventing a false native-runtime failure from returning.
+12. **CI #1367 — native runtime dependencies proved; failure isolated to application graph evaluation.** The exact candidate passed supply-chain policy, frozen install, the production advisory threshold, Prisma generation, all six migrations, zero datamodel drift, monorepo build, 97 API suites / 498 API tests, the repository preflight set, API image construction, compiled entrypoint proof, `argon2` load, `PrismaClient` instantiate/disconnect, non-root identity and healthcheck metadata. The real API container still exited `1` before liveness, and its durable startup marker remained `application-module-load`. This proves that neither the compiled entrypoint nor the separately loaded native authentication/data dependencies are the remaining blocker.
+13. **Post-#1367 — bounded repository-local application graph isolation.** Canonical CI now runs the exact production image through `apps/api/scripts/runtime-app-module-load-probe.cjs` before the full boot. The probe wraps CommonJS module loading only for files resolved under `/app/apps/api/dist`, synchronously persists the last repository-local compiled module path before evaluation and requires `dist/app.module.js`. It never serializes a caught exception, stack, environment value, URI or secret. A successful graph load must persist exactly `app-module-load-ok`; a direct exit leaves the last `loading:<repository-local-path>` marker. The repository preflight locks the scope, synchronous persistence, fixed failure text and absence of raw exception/environment logging. The true production boot remains mandatory after this diagnostic gate.
 
 ## Current delivery
 
@@ -29,6 +31,7 @@ The runtime proof has exposed defects that ordinary build/test gates did not cat
 - Compile the API through the dedicated deterministic `tsconfig.build.json` so `src/main.ts` is emitted as canonical `dist/main.js`.
 - Start the API runtime image directly with `node apps/api/dist/main.js` as the non-root runtime user.
 - Before full boot, prove the built image can load `argon2` and instantiate/disconnect `PrismaClient` under the same runtime image/user; preserve the Prisma `$disconnect` method literally through the container shell.
+- Before full boot, require the production application graph in the exact image under the same guarded CI configuration. Persist only the last repository-local compiled module path if graph evaluation terminates early; require `app-module-load-ok` on success.
 - Keep runtime dependency/application-graph loading inside bounded bootstrap phases and never serialize raw startup failures into CI evidence.
 - Launch the exact API image built by canonical CI and require Docker `healthy` within a bounded 60-second window, then directly request `/health/live`.
 - Launch the exact Web image and require the same bounded healthy transition plus direct liveness.
@@ -52,10 +55,11 @@ KMD-363 is complete only when CI for the **exact current PR head** passes:
 5. frozen API image build and deterministic compiled-entrypoint proof;
 6. non-root runtime identity and healthcheck metadata;
 7. native runtime compatibility smoke for `argon2` and `PrismaClient`, including a shell-safe literal `$disconnect` call;
-8. actual API production image boot, healthy transition and direct `/health/live` success;
-9. frozen Web image build, non-root identity, health metadata, actual boot and direct `/health/live` success;
-10. Web E2E and API E2E;
-11. no blocking review or unresolved review thread.
+8. bounded application-graph load probe with `app-module-load-ok` under production guards;
+9. actual API production image boot, healthy transition and direct `/health/live` success;
+10. frozen Web image build, non-root identity, health metadata, actual boot and direct `/health/live` success;
+11. Web E2E and API E2E;
+12. no blocking review or unresolved review thread.
 
 No earlier CI run can validate a newer head.
 
@@ -65,11 +69,11 @@ No Prisma, user-data, public API-contract or client migration is required. KMD-3
 
 ## Rollback
 
-Revert the KMD-363 commits. This restores KMD-362 behavior where CI builds the images and verifies healthcheck metadata without proving that the production commands and native runtime dependencies actually start successfully. No persistent-data rollback is required.
+Revert the KMD-363 commits. This restores KMD-362 behavior where CI builds the images and verifies healthcheck metadata without proving that the production commands, native runtime dependencies and application graph actually start successfully. No persistent-data rollback is required.
 
 ## Operational and proof boundary
 
-A green KMD-363 proves only that the exact images built in GitHub Actions can load their guarded runtime dependencies, start and satisfy their liveness probes in that CI environment while production fail-closed configuration remains enabled.
+A green KMD-363 proves only that the exact images built in GitHub Actions can load their guarded runtime dependencies/application graph, start and satisfy their liveness probes in that CI environment while production fail-closed configuration remains enabled.
 
 It does **not** prove production orchestration, production secrets, production database durability, real object-storage connectivity/durability, production CORS/domain/TLS, network policies, alert delivery, backup restoration, supported-device physical behavior/accessibility, legal/privacy compliance, production deployment, or App Store / Google Play publication.
 
