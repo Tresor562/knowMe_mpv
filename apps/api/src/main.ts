@@ -1,6 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { createCorsOptions } from './common/cors-policy';
 import { configureGracefulShutdown } from './common/graceful-shutdown';
 import { applyHttpServerTimeoutPolicy } from './common/http-server-policy';
@@ -12,6 +11,7 @@ import { createTrustedProxySetting } from './common/trusted-proxy-policy';
 
 type BootstrapPhase =
   | 'release-identity'
+  | 'application-module-load'
   | 'nest-application-create'
   | 'runtime-policy-configuration'
   | 'http-listen'
@@ -22,6 +22,13 @@ let bootstrapPhase: BootstrapPhase = 'release-identity';
 async function bootstrap() {
   bootstrapPhase = 'release-identity';
   resolveRuntimeReleaseIdentity();
+
+  // Load the application graph inside the owned bootstrap promise. AppModule's
+  // decorator evaluates production policies and imports the complete provider
+  // graph; a failure during static module evaluation must therefore reject into
+  // the bounded handler below instead of terminating before bootstrap() exists.
+  bootstrapPhase = 'application-module-load';
+  const { AppModule } = await import('./app.module');
 
   bootstrapPhase = 'nest-application-create';
   // Keep Nest fail-closed while allowing this entrypoint to own the final exit.
