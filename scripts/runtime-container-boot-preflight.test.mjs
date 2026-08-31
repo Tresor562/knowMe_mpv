@@ -39,6 +39,22 @@ test('API boot failures persist bounded runtime diagnostics for later inspection
   assert.match(workflow, /retention-days: 7/);
 });
 
+test('API boot failure diagnostics preserve a bounded startup phase marker', () => {
+  assert.match(workflow, /phase_marker="\$RUNNER_TEMP\/knowme-api-startup-phase"/);
+  assert.match(workflow, /-e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1/);
+  assert.match(workflow, /docker cp "\$name":\/tmp\/knowme-startup-phase "\$phase_marker"/);
+  assert.match(workflow, /--- API startup phase marker ---/);
+  assert.match(apiLauncher, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
+  assert.match(apiLauncher, /writeFileSync\('\/tmp\/knowme-startup-phase', 'launcher-enter'/);
+  assert.match(apiMain, /type StartupTracePhase = 'main-enter' \| BootstrapPhase/);
+  assert.match(apiMain, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
+  assert.match(apiMain, /writeFileSync\('\/tmp\/knowme-startup-phase', phase/);
+  assert.match(apiMain, /persistStartupPhase\('main-enter'\)/);
+  assert.match(apiMain, /function setBootstrapPhase\(phase: BootstrapPhase\): void/);
+  assert.doesNotMatch(apiLauncher, /writeFileSync\([^\n]*(?:process\.env\.(?!KNOWME_STARTUP_PHASE_DIAGNOSTIC)|JSON\.stringify)/);
+  assert.doesNotMatch(apiMain, /writeFileSync\([^\n]*(?:process\.env\.(?!KNOWME_STARTUP_PHASE_DIAGNOSTIC)|JSON\.stringify)/);
+});
+
 test('API boot proof supplies explicit CI-safe production runtime configuration', () => {
   assert.match(workflow, /-e DATABASE_URL="\$DATABASE_URL"/);
   assert.match(workflow, /-e JWT_SECRET="\$JWT_SECRET"/);
@@ -83,7 +99,7 @@ test('API runtime starts through a bounded pre-bootstrap launcher', () => {
 test('API bootstrap owns runtime dependency loading before application graph evaluation', () => {
   assert.match(apiMain, /'runtime-module-load'/);
   assert.doesNotMatch(apiMain, /^import\s/m);
-  assert.match(apiMain, /bootstrapPhase = 'runtime-module-load'/);
+  assert.match(apiMain, /setBootstrapPhase\('runtime-module-load'\)/);
   assert.match(apiMain, /import\('@nestjs\/common'\)/);
   assert.match(apiMain, /import\('@nestjs\/core'\)/);
   assert.match(apiMain, /import\('\.\/common\/cors-policy'\)/);
