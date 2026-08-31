@@ -2,74 +2,84 @@
 
 ## Problem
 
-KMD-362 embedded bounded liveness healthchecks in the API and Web runtime images and canonical CI verified the image metadata. Metadata inspection alone does not prove that the built production command can start successfully, remain running, and reach the declared health endpoint with the runtime environment expected by CI.
+KMD-362 embedded bounded liveness healthchecks in the API and Web runtime images and canonical CI verified their metadata. Metadata inspection alone does not prove that the exact production command starts, remains alive and reaches the declared health endpoint.
 
-A market-ready release process must fail before merge when a production image builds but cannot actually boot.
+KMD-363 therefore makes a production-image boot a merge gate. It deliberately keeps the application in `NODE_ENV=production` and does not weaken production security/configuration guards merely to make CI green.
 
-The first KMD-363 CI run exposed a real packaging regression: `@knowme/api` depends on workspace contract packages whose runtime entrypoints are emitted under `dist/`, while `Dockerfile.api` built only the API package. A clean production image could therefore compile successfully yet start without the compiled runtime artifacts of its workspace dependencies.
+## Failure history and corrections
 
-After fixing the workspace dependency build, CI #1286 still failed before the API could become healthy. The API is deliberately fail-closed in production: its runtime requires an explicit release identity, explicit process-local rate-limit topology/configuration, explicit trusted-proxy hops, and at least one HTTPS non-local CORS origin. The original boot proof supplied only database/JWT/port values. KMD-363 therefore supplies safe CI-scoped values for all of those existing production guards instead of weakening or bypassing them.
+The runtime proof has exposed several real gaps that ordinary build/test gates did not catch:
 
-CI #1292 on head `fdf8a8f585ea6e42c152da0a19182621c446f2e8` narrowed the remaining failure further. Frozen install, production audit, Prisma generation/migrations/drift, the monorepo build, the full unit/preflight suite, the API image build, non-root runtime identity, and healthcheck metadata all passed. The only failing gate was the actual API runtime healthy transition; downstream Web runtime and E2E gates were correctly skipped. The prior cleanup emitted only the package-manager termination line, which was not sufficient evidence to distinguish process exit from a liveness-response or healthcheck-timing failure. The CI boot step therefore now emits bounded diagnostics on failure: Docker state/exit information, Docker healthcheck history/output, a direct runner-side `/health/live` response, and container logs before cleanup. These diagnostics do not weaken, extend, or bypass the healthy-state requirement.
+1. **CI #1283 — workspace packaging.** `Dockerfile.api` built only `@knowme/api` even though runtime workspace contracts publish generated `dist/` entrypoints. The image now builds the full dependency closure with `pnpm --filter @knowme/api... build`.
+2. **CI #1286/#1292 — explicit production configuration.** Runtime startup requires release identity, process-local rate-limit topology/configuration, trusted-proxy hops and an HTTPS non-local CORS origin. The CI boot supplies CI-scoped values instead of bypassing those guards.
+3. **CI #1294 — HTTP server policy.** Production startup also requires explicit request/header/keep-alive timeouts. CI now supplies the canonical repository values `30000` / `15000` / `5000` ms.
+4. **CI #1301 — media storage policy.** Production forbids the default local media driver. The isolated boot proof uses the `s3` driver with a reserved synthetic HTTPS endpoint and dummy CI-only credentials. `/health/live` performs no media operation, so this is configuration validation only and is not evidence of real object-storage connectivity or durability.
+5. **CI #1304 — Nest internal abort.** `NestFactory.create()` could terminate internally before the entrypoint's bounded failure handler ran. It now uses `abortOnError: false`; startup remains fail-closed because the outer handler preserves a non-zero exit status.
+6. **CI #1307 — pre-bootstrap application-module evaluation.** All pre-runtime gates again passed, but the API exited before the bounded handler produced any phase. `AppModule` is a large decorator-driven graph and evaluates policies/imports while the module itself is loaded. A static top-level import therefore occurs before `bootstrap()` owns a promise and can fail outside its catch boundary. KMD-363 now loads `AppModule` dynamically inside a dedicated `application-module-load` phase. Module/decorator/provider-graph load failures therefore reject into the same secret-safe handler rather than occurring before `bootstrap()` exists.
 
-CI #1294 on head `3684a5e3d4082cf8027131c64ed04c92f53a752f` confirmed that packaging, frozen dependency installation, production audit, Prisma migration/drift checks, repository build/tests, API image build, non-root identity and healthcheck metadata all remain green. The API process itself exits with status 1 during application bootstrap before it can answer `/health/live`. Docker diagnostics proved this is a process-start failure rather than a healthcheck timeout, but the application entrypoint did not identify which bootstrap stage failed.
-
-KMD-363 therefore adds a secret-safe startup diagnostic to the API entrypoint. The entrypoint records only a bounded phase identifier (`release-identity`, `nest-application-create`, `runtime-policy-configuration`, or `http-listen`) and emits that phase if bootstrap rejects. It deliberately does not log the caught exception, message, stack, database URI, environment values, or other potentially sensitive runtime details. The process still exits non-zero. A repository preflight locks this behavior so future debugging cannot silently turn startup failures into secret-bearing logs or a successful exit.
-
-Repository inspection after #1294 also identified a concrete production-policy omission in the CI boot environment: `applyHttpServerTimeoutPolicy()` requires `API_REQUEST_TIMEOUT_MS`, `API_HEADERS_TIMEOUT_MS`, and `API_KEEP_ALIVE_TIMEOUT_MS` explicitly whenever `NODE_ENV=production`, while the boot proof supplied none of them. KMD-363 now provides the repository's canonical 30s request / 15s headers / 5s keep-alive values and the preflight requires all three. This changes only the isolated CI runtime configuration; the fail-closed application policy remains unchanged.
-
-CI #1301 on head `e26ea0a9da0f5e4c03cb5459c805db6b98dd8486` passed supply-chain policy, frozen install, production audit, Prisma generation/migrations/drift, repository build/tests, API image build, non-root identity and healthcheck metadata, then failed at the actual API boot. Repository inspection identified another existing production fail-closed guard: `MediaStorageService.onModuleInit()` forbids the default `MEDIA_STORAGE_DRIVER=local` whenever `NODE_ENV=production`. The CI boot proof now configures the `s3` driver with reserved, synthetic HTTPS endpoint/credentials used only to satisfy configuration validation. No media operation is performed by `/health/live`, so KMD-363 does not claim connectivity to or correctness of a real S3 provider. The application production guard remains intact.
-
-CI #1304 on head `dbbdb0f20576b023baf25d9dd81a52188d1833fb` again passed supply-chain policy, frozen install, production audit, Prisma generation/migrations/drift, repository build/tests, API image build, non-root identity and healthcheck metadata, then exited with status 1 before liveness. No bounded bootstrap-phase diagnostic appeared. Repository inspection showed that `NestFactory.create()` still used Nest's default `abortOnError` behavior; Nest can terminate internally during dependency/module initialization before the outer `bootstrap().catch()` owns the failure. KMD-363 now sets `abortOnError: false` only so initialization failures reject back to the existing entrypoint catch. The entrypoint still sets a non-zero process exit code and logs only the bounded phase name, so this improves observability without making startup permissive or exposing the exception.
+The bounded diagnostic reports only a fixed bootstrap phase. It never logs the caught exception, message, stack, database URI, environment values or other potentially sensitive runtime detail.
 
 ## Delivery
 
-- Keep the KMD-362 healthcheck definitions unchanged.
-- After each production image build, canonical CI launches that exact image as a detached container.
-- API boot validation uses the CI PostgreSQL service through host networking.
-- `KNOWME_RELEASE_COMMIT` is bound to the GitHub Actions `GITHUB_SHA`; the synthetic `0.0.0-ci` version is valid SemVer and is explicitly non-production release metadata for this CI boot proof.
-- Process-local rate limiting is explicitly constrained to one CI API instance with the repository defaults (`60000` ms / `120` requests), matching the production fail-closed policy that forbids silent horizontal scaling with process-local limiter state.
-- Trusted proxy hops are explicitly `0` for the direct CI runner/container topology.
-- HTTP request/header/keep-alive timeouts are explicitly `30000` / `15000` / `5000` ms, satisfying the existing production timeout policy with its canonical repository defaults rather than bypassing it.
-- CORS uses the reserved non-routable HTTPS origin `https://ci.invalid`; it exists only to satisfy and exercise the production origin validator and is not a production-domain claim.
-- Media storage uses `MEDIA_STORAGE_DRIVER=s3` plus a reserved synthetic HTTPS endpoint and dummy CI-only credentials. This exercises the production configuration validator without performing or claiming a real object-storage operation.
-- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, HTTP timeout, CORS, HTTPS, media-storage, or other production guards.
-- `NestFactory.create()` uses `abortOnError: false` so bootstrap failures are returned to the entrypoint's bounded secret-safe failure handler instead of being able to terminate inside Nest before diagnostics. The outer handler remains fail-closed and sets a non-zero exit code.
-- Web boot validation launches the exact Web image on its production port.
-- Both checks poll Docker's real container health state for at most 60 seconds.
-- A container that becomes `unhealthy`, exits, or never becomes healthy fails the canonical `quality` job.
-- Once healthy, CI also performs an HTTP request against the declared liveness route from the runner.
-- API failures emit Docker state, exit code/error, healthcheck history, a bounded direct liveness response, and container logs before cleanup so a failing proof is actionable without changing the acceptance criterion.
-- The API entrypoint additionally emits only the bounded bootstrap phase on a rejected startup and never interpolates the caught error into this diagnostic.
-- Cleanup always removes the temporary container.
-- `Dockerfile.api` builds the API dependency closure with `pnpm --filter @knowme/api... build`, so workspace runtime contracts are compiled before the production command starts.
-- A repository preflight prevents later CI edits from silently removing the runtime boot proof, converting it into an unbounded wait, omitting the explicit CI production configuration, switching the boot to development/test mode, regressing the API image to building only the leaf package, restoring Nest's internal-abort startup behavior, or exposing raw bootstrap exceptions for diagnostics.
+- Keep KMD-362 healthcheck definitions unchanged.
+- Build API runtime dependencies with `pnpm --filter @knowme/api... build`.
+- Launch the exact API image built by canonical CI and require Docker `healthy` within a bounded 60-second window.
+- Launch the exact Web image and require the same bounded healthy transition.
+- After Docker reports healthy, request each `/health/live` endpoint directly from the runner.
+- Fail immediately if a container exits or becomes `unhealthy`; fail after the bounded window if it never becomes healthy.
+- Always remove temporary containers.
+- On API failure, emit Docker state/exit information, healthcheck history/output, a bounded direct liveness attempt and container logs before cleanup.
+- Keep the API boot in `NODE_ENV=production`.
+- Supply the CI PostgreSQL connection and JWT secret plus explicit release identity, one-instance process-local rate-limit topology, trusted proxy, HTTP timeout, CORS and media-storage configuration required by existing production guards.
+- Use `NestFactory.create(..., { abortOnError: false })` so Nest initialization errors reject to the entrypoint rather than internally terminating before the bounded handler.
+- Load `AppModule` with `await import('./app.module')` from inside `bootstrap()` during the bounded `application-module-load` phase so evaluation of the application graph is also owned by that failure boundary.
+- Preserve a non-zero process exit on every rejected bootstrap.
+- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, restoring static top-level `AppModule` loading, restoring Nest internal abort behavior, or logging raw bootstrap exceptions.
+
+## CI-scoped production configuration
+
+The runtime proof currently binds:
+
+- `DATABASE_URL` to the GitHub Actions PostgreSQL service;
+- `JWT_SECRET` to CI-only test material;
+- `PORT=4000`;
+- `KNOWME_RELEASE_COMMIT` to the Actions commit identity and `KNOWME_RELEASE_VERSION=0.0.0-ci`;
+- `API_INSTANCE_COUNT=1`;
+- `API_RATE_LIMIT_TTL_MS=60000` and `API_RATE_LIMIT_LIMIT=120`;
+- `TRUSTED_PROXY_HOPS=0` for the direct runner/container topology;
+- `API_REQUEST_TIMEOUT_MS=30000`, `API_HEADERS_TIMEOUT_MS=15000`, `API_KEEP_ALIVE_TIMEOUT_MS=5000`;
+- CORS to the reserved HTTPS origin `https://ci.invalid`;
+- `MEDIA_STORAGE_DRIVER=s3` with `https://s3.ci.invalid` and synthetic CI credentials.
+
+These values exist only to exercise startup under the repository's production validators. They do not represent production secrets, production domains, real S3 connectivity, horizontal-scale validation or a deployment configuration approval.
 
 ## Tests and merge gates
 
-KMD-363 is complete only when CI for the current PR head passes all existing gates plus:
+KMD-363 is complete only when CI for the **exact current PR head** passes all existing gates plus:
 
-1. the runtime-container boot preflight;
-2. the workspace runtime dependency build guard;
-3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, HTTP-timeout, CORS and media-storage guard coverage;
-4. secret-safe bounded bootstrap-phase diagnostics with Nest internal abort disabled but outer non-zero failure preserved;
-5. actual API image boot and healthy transition;
-6. actual Web image boot and healthy transition;
+1. runtime-container boot preflight;
+2. workspace runtime dependency build guard;
+3. explicit CI-scoped production release/rate-limit/trusted-proxy/timeout/CORS/media configuration checks;
+4. bounded application-module-load and Nest bootstrap diagnostics with no raw exception logging;
+5. actual API production image boot and healthy transition;
+6. actual Web production image boot and healthy transition;
 7. direct HTTP success from both `/health/live` endpoints;
-8. all supply-chain, lockfile, audit, Prisma migration/drift, build, unit, Docker identity/metadata, Web E2E and API E2E gates.
+8. supply-chain policy, frozen lockfile install, production audit threshold, Prisma generation/migration/drift, repository build/unit tests, Docker non-root identity/health metadata, Web E2E and API E2E.
 
-No merge is allowed with a blocking review or unresolved review thread.
+No earlier CI run can validate a newer head. No merge is allowed with a blocking review or unresolved review thread.
 
 ## Migration
 
-No Prisma, user-data, API-contract or client migration is required. The runtime packaging, CI environment and startup diagnostic changes only ensure already-declared workspace dependencies are compiled, the existing mandatory production runtime configuration is supplied during the isolated boot proof, and a failed bootstrap identifies a non-sensitive phase.
+No Prisma, user-data, public API-contract or client migration is required. KMD-363 changes runtime packaging, CI boot proof and startup failure ownership only.
 
 ## Rollback
 
-Revert the KMD-363 commits. That restores KMD-362 behavior where CI builds both runtime images and inspects their healthcheck metadata without starting the production containers, restores the prior leaf-only API Docker build, removes the CI-scoped runtime configuration/diagnostics including the explicit Nest bootstrap error routing, and restores the prior API entrypoint behavior. No persistent data rollback is required.
+Revert the KMD-363 commits. This restores KMD-362 behavior where CI builds the images and inspects healthcheck metadata without proving the production commands can boot, restores the previous API packaging/startup behavior, and removes KMD-363 CI-scoped runtime diagnostics/configuration. No persistent-data rollback is required.
 
 ## Operational and proof boundary
 
-KMD-363 is intended to prove that the exact images built in GitHub Actions can boot and satisfy their declared liveness healthchecks in the CI environment while retaining the API's existing production fail-closed guards. Until the current-head CI is green, that proof remains incomplete. The bounded phase diagnostic is debugging evidence only and is not itself proof of a successful production boot. Synthetic CI media-storage configuration proves only startup configuration validation; it does not prove production object-storage connectivity or data durability. It does not prove production orchestration, production secrets, production databases, production CORS domains, network policies, alert delivery, backup restoration, physical-device behavior, legal/privacy compliance, production deployment, or App Store / Google Play publication.
+A green KMD-363 proves only that the exact images built in GitHub Actions can start and satisfy their declared liveness probes in that CI environment while existing production fail-closed configuration guards remain enabled.
 
-Canonical `main` branch protection also remains an external repository-governance requirement and must not be claimed complete until GitHub reports the required protection configuration.
+It does **not** prove production orchestration, production secrets, production database behavior, real object-storage connectivity/durability, production CORS/domain/TLS configuration, network policies, alert delivery, backup restoration, physical-device behavior, accessibility on physical devices, legal/privacy compliance, production deployment, or App Store / Google Play publication.
+
+Canonical `main` branch protection is also an external repository-governance requirement and must not be claimed complete until GitHub reports the required protection configuration.
