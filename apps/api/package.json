@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "start": "node dist/main.js",
+    "start": "node dist/launcher.js",
     "build": "nest build",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
