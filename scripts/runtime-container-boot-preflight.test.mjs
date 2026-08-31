@@ -31,7 +31,8 @@ test('API boot failures persist bounded runtime diagnostics for later inspection
   assert.match(workflow, /diagnostics="\$RUNNER_TEMP\/knowme-api-runtime-diagnostics\.log"/);
   assert.match(workflow, /tee "\$diagnostics"/);
   assert.match(workflow, /name: Upload API runtime diagnostics/);
-  assert.match(workflow, /if: \$\{\{ steps\.api_runtime_boot\.outcome == 'failure' \}\}/);
+  assert.match(workflow, /if: \$\{\{ failure\(\) && steps\.api_runtime_boot\.outcome == 'failure' \}\}/);
+  assert.doesNotMatch(workflow, /name: Upload API runtime diagnostics\n\s+if: \$\{\{ steps\.api_runtime_boot\.outcome == 'failure' \}\}/);
   assert.doesNotMatch(workflow, /name: Upload API runtime diagnostics\n\s+if: failure\(\)/);
   assert.match(workflow, /name: knowme-api-runtime-diagnostics/);
   assert.match(workflow, /if-no-files-found: error/);
