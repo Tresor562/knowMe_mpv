@@ -18,8 +18,9 @@ The runtime proof has exposed several real gaps that ordinary build/test gates d
 6. **CI #1307/#1310 — pre-bootstrap application-module evaluation.** `AppModule` is a large decorator-driven graph and evaluates policies/imports while the module itself is loaded. KMD-363 now loads `AppModule` dynamically inside a dedicated `application-module-load` phase so graph-loading failures are owned by the bounded bootstrap promise.
 7. **CI #1313 — entrypoint boundary gap.** Supply-chain, frozen install, audit, Prisma/migrations/drift, monorepo build, all tests, Docker image build, non-root identity and healthcheck metadata were green, but the API exited before any `main.ts` bootstrap diagnostic was emitted. Because JavaScript evaluates `main.ts` static imports before its body installs `bootstrap().catch()`, KMD-363 now starts production through a minimal `launcher.ts`. The launcher registers bounded `uncaughtException` / `unhandledRejection` guards and requires `main.ts` inside an owned synchronous boundary. It logs only a fixed allowlisted category and never receives, serializes or prints the thrown value.
 8. **CI #1317 — static runtime imports still escaped the bootstrap boundary.** The launcher proved the failure still occurred while evaluating `main.ts` itself. `main.ts` therefore no longer has static runtime imports: Nest and the startup-policy modules are loaded inside a dedicated `runtime-module-load` bootstrap phase. Module-resolution/configuration failures can now reach the existing bounded classifier instead of terminating before `bootstrap().catch()` exists. A preflight locks this property by rejecting new top-level imports in `main.ts`.
+9. **CI #1320 — runtime failure remained isolated but raw job logs were not retrievable through the available repository integration.** Supply-chain, frozen install, production audit, Prisma/migrations/drift, monorepo build/tests, API image build, non-root identity and healthcheck metadata were all green; only the real API boot failed. The failure step now writes the bounded Docker state, health history, direct liveness attempt and container logs to `$RUNNER_TEMP/knowme-api-runtime-diagnostics.log` and uploads that file as a seven-day `knowme-api-runtime-diagnostics` artifact on failure. The artifact action is pinned to an immutable reviewed commit and is covered by the CI supply-chain preflight. This changes observability only: the boot gate remains fail-closed and unchanged.
 
-The bounded diagnostics report only fixed phases/categories and allowlisted configuration-key names. They never log the caught exception, message, stack, database URI, environment values or other potentially sensitive runtime detail.
+The bounded diagnostics report only fixed phases/categories and allowlisted configuration-key names from the application startup boundary. They never intentionally serialize the caught exception, database URI, environment values or other potentially sensitive application runtime detail. Docker state and container logs are retained only as CI diagnostics and must therefore continue to avoid printing secrets from application code.
 
 ## Delivery
 
@@ -32,13 +33,13 @@ The bounded diagnostics report only fixed phases/categories and allowlisted conf
 - After Docker reports healthy, request each `/health/live` endpoint directly from the runner.
 - Fail immediately if a container exits or becomes `unhealthy`; fail after the bounded window if it never becomes healthy.
 - Always remove temporary containers.
-- On API failure, emit Docker state/exit information, healthcheck history/output, a bounded direct liveness attempt and container logs before cleanup.
+- On API failure, emit Docker state/exit information, healthcheck history/output, a bounded direct liveness attempt and container logs before cleanup, persist the same bounded evidence to a runner-temp file and upload it as a short-retention CI artifact.
 - Keep the API boot in `NODE_ENV=production`.
 - Supply the CI PostgreSQL connection and JWT secret plus explicit release identity, one-instance process-local rate-limit topology, trusted proxy, HTTP timeout, CORS and media-storage configuration required by existing production guards.
 - Use `NestFactory.create(..., { abortOnError: false })` so Nest initialization errors reject to the entrypoint rather than internally terminating before the bounded handler.
 - Load `AppModule` with `await import('./app.module')` from inside `bootstrap()` during the bounded `application-module-load` phase so evaluation of the application graph is also owned by that failure boundary.
 - Preserve a non-zero process exit on every rejected bootstrap or pre-bootstrap entrypoint failure.
-- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, bypassing the guarded launcher, restoring top-level runtime imports or static `AppModule` loading, restoring Nest internal abort behavior, or logging raw startup exceptions.
+- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, bypassing the guarded launcher, restoring top-level runtime imports or static `AppModule` loading, restoring Nest internal abort behavior, logging raw startup exceptions, or silently removing failure-diagnostic artifact persistence.
 
 ## CI-scoped production configuration
 
@@ -65,10 +66,11 @@ KMD-363 is complete only when CI for the **exact current PR head** passes all ex
 2. workspace runtime dependency build guard;
 3. explicit CI-scoped production release/rate-limit/trusted-proxy/timeout/CORS/media configuration checks;
 4. bounded pre-bootstrap launcher plus bootstrap-owned runtime/application-module loading and secret-safe diagnostics;
-5. actual API production image boot and healthy transition;
-6. actual Web production image boot and healthy transition;
-7. direct HTTP success from both `/health/live` endpoints;
-8. supply-chain policy, frozen lockfile install, production audit threshold, Prisma generation/migration/drift, repository build/unit tests, Docker non-root identity/health metadata, Web E2E and API E2E.
+5. failure-diagnostic persistence/upload guard with an immutable pinned artifact action;
+6. actual API production image boot and healthy transition;
+7. actual Web production image boot and healthy transition;
+8. direct HTTP success from both `/health/live` endpoints;
+9. supply-chain policy, frozen lockfile install, production audit threshold, Prisma generation/migration/drift, repository build/unit tests, Docker non-root identity/health metadata, Web E2E and API E2E.
 
 No earlier CI run can validate a newer head. No merge is allowed with a blocking review or unresolved review thread.
 
@@ -78,7 +80,7 @@ No Prisma, user-data, public API-contract or client migration is required. KMD-3
 
 ## Rollback
 
-Revert the KMD-363 commits. This restores KMD-362 behavior where CI builds the images and inspects healthcheck metadata without proving the production commands can boot, restores the previous API packaging/startup behavior, and removes KMD-363 CI-scoped runtime diagnostics/configuration. No persistent-data rollback is required.
+Revert the KMD-363 commits. This restores KMD-362 behavior where CI builds the images and inspects healthcheck metadata without proving the production commands can boot, restores the previous API packaging/startup behavior, and removes KMD-363 CI-scoped runtime diagnostics/configuration and artifact persistence. No persistent-data rollback is required.
 
 ## Operational and proof boundary
 
