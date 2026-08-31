@@ -39,6 +39,17 @@ const STARTUP_CONFIGURATION_KEYS = [
 ] as const;
 
 let bootstrapPhase: BootstrapPhase = 'runtime-module-load';
+let bootstrapFailureReported = false;
+
+// Some libraries may terminate the process directly instead of throwing. The
+// normal bootstrap rejection handler cannot observe that path, but the exit
+// event still can. Emit only the bounded phase/category; never inspect or print
+// an exception, stack, URI, environment value or secret from this fallback.
+process.once('exit', (code) => {
+  if (code !== 0 && !bootstrapFailureReported) {
+    process.stderr.write(`[startup] API process exited during ${bootstrapPhase} (unowned-exit).\n`);
+  }
+});
 
 function classifyStartupFailure(failure: unknown): { category: StartupFailureCategory; key?: string } {
   if (!failure || typeof failure !== 'object') return { category: 'runtime' };
@@ -121,6 +132,7 @@ async function bootstrap() {
 bootstrap().catch((failure: unknown) => {
   // Emit only a bounded phase plus an allowlisted category/configuration key.
   // Never copy the original message, stack, URI or environment value into logs.
+  bootstrapFailureReported = true;
   const diagnostic = classifyStartupFailure(failure);
   const suffix = diagnostic.key ? ` (${diagnostic.category}:${diagnostic.key})` : ` (${diagnostic.category})`;
   console.error(`[startup] API bootstrap failed during ${bootstrapPhase}${suffix}.`);
