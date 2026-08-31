@@ -92,13 +92,16 @@ test('API bootstrap owns runtime dependency loading before application graph eva
   assert.match(apiMain, /import\('\.\/common\/trusted-proxy-policy'\)/);
 });
 
-test('API bootstrap reports direct non-zero process exits synchronously with only a bounded phase', () => {
+test('API bootstrap reports all terminal startup diagnostics synchronously with bounded text', () => {
+  assert.match(apiMain, /function writeStartupDiagnostic\(message: string\): void \{/);
+  assert.match(apiMain, /require\('node:fs'\)\.writeSync\(2, `\$\{message\}\\n`\)/);
+  assert.doesNotMatch(apiMain, /process\.stderr\.write\(/);
+  assert.doesNotMatch(apiMain, /console\.error\(/);
+
   assert.match(apiMain, /let bootstrapFailureReported = false/);
   assert.match(apiMain, /process\.once\('exit', \(code\) => \{/);
   assert.match(apiMain, /code !== 0 && !bootstrapFailureReported/);
-  assert.match(apiMain, /require\('node:fs'\)\.writeSync\(/);
-  assert.match(apiMain, /`\[startup\] API process exited during \$\{bootstrapPhase\} \(unowned-exit\)\.\\n`/);
-  assert.doesNotMatch(apiMain, /process\.stderr\.write\(/);
+  assert.match(apiMain, /writeStartupDiagnostic\(`\[startup\] API process exited during \$\{bootstrapPhase\} \(unowned-exit\)\.`\)/);
   assert.match(apiMain, /bootstrapFailureReported = true/);
   assert.doesNotMatch(apiMain, /process\.once\('exit', \((?:error|failure|reason)/);
 });
@@ -116,8 +119,8 @@ test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () =>
   assert.match(apiMain, /STARTUP_CONFIGURATION_KEYS\.find/);
   assert.match(apiMain, /bootstrap\(\)\.catch\(\(failure: unknown\) => \{/);
   assert.match(apiMain, /classifyStartupFailure\(failure\)/);
-  assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}\$\{suffix\}/);
-  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(?:failure\.message|failure\.stack|record\.message)/);
+  assert.match(apiMain, /writeStartupDiagnostic\(`\[startup\] API bootstrap failed during \$\{bootstrapPhase\}\$\{suffix\}\.`\)/);
+  assert.doesNotMatch(apiMain, /writeStartupDiagnostic\([^\n]*(?:failure\.message|failure\.stack|record\.message)/);
   assert.doesNotMatch(apiMain, /JSON\.stringify\(failure\)/);
   assert.match(apiMain, /process\.exitCode = 1/);
 });
