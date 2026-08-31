@@ -15,14 +15,16 @@ The runtime proof has exposed several real gaps that ordinary build/test gates d
 3. **CI #1294 — HTTP server policy.** Production startup also requires explicit request/header/keep-alive timeouts. CI now supplies the canonical repository values `30000` / `15000` / `5000` ms.
 4. **CI #1301 — media storage policy.** Production forbids the default local media driver. The isolated boot proof uses the `s3` driver with a reserved synthetic HTTPS endpoint and dummy CI-only credentials. `/health/live` performs no media operation, so this is configuration validation only and is not evidence of real object-storage connectivity or durability.
 5. **CI #1304 — Nest internal abort.** `NestFactory.create()` could terminate internally before the entrypoint's bounded failure handler ran. It now uses `abortOnError: false`; startup remains fail-closed because the outer handler preserves a non-zero exit status.
-6. **CI #1307 — pre-bootstrap application-module evaluation.** All pre-runtime gates again passed, but the API exited before the bounded handler produced any phase. `AppModule` is a large decorator-driven graph and evaluates policies/imports while the module itself is loaded. A static top-level import therefore occurs before `bootstrap()` owns a promise and can fail outside its catch boundary. KMD-363 now loads `AppModule` dynamically inside a dedicated `application-module-load` phase. Module/decorator/provider-graph load failures therefore reject into the same secret-safe handler rather than occurring before `bootstrap()` exists.
+6. **CI #1307/#1310 — pre-bootstrap application-module evaluation.** `AppModule` is a large decorator-driven graph and evaluates policies/imports while the module itself is loaded. KMD-363 now loads `AppModule` dynamically inside a dedicated `application-module-load` phase so graph-loading failures are owned by the bounded bootstrap promise.
+7. **CI #1313 — entrypoint boundary gap.** Supply-chain, frozen install, audit, Prisma/migrations/drift, monorepo build, all tests, Docker image build, non-root identity and healthcheck metadata were green, but the API exited before any `main.ts` bootstrap diagnostic was emitted. Because JavaScript evaluates `main.ts` static imports before its body installs `bootstrap().catch()`, KMD-363 now starts production through a minimal `launcher.ts`. The launcher registers bounded `uncaughtException` / `unhandledRejection` guards and requires `main.ts` inside an owned synchronous boundary. It logs only a fixed allowlisted category and never receives, serializes or prints the thrown value.
 
-The bounded diagnostic reports only a fixed bootstrap phase. It never logs the caught exception, message, stack, database URI, environment values or other potentially sensitive runtime detail.
+The bounded diagnostics report only fixed phases/categories and allowlisted configuration-key names. They never log the caught exception, message, stack, database URI, environment values or other potentially sensitive runtime detail.
 
 ## Delivery
 
 - Keep KMD-362 healthcheck definitions unchanged.
 - Build API runtime dependencies with `pnpm --filter @knowme/api... build`.
+- Start the API package through `node dist/launcher.js`; the launcher owns failures that occur before `main.ts` can install its normal bootstrap rejection handler.
 - Launch the exact API image built by canonical CI and require Docker `healthy` within a bounded 60-second window.
 - Launch the exact Web image and require the same bounded healthy transition.
 - After Docker reports healthy, request each `/health/live` endpoint directly from the runner.
@@ -33,8 +35,8 @@ The bounded diagnostic reports only a fixed bootstrap phase. It never logs the c
 - Supply the CI PostgreSQL connection and JWT secret plus explicit release identity, one-instance process-local rate-limit topology, trusted proxy, HTTP timeout, CORS and media-storage configuration required by existing production guards.
 - Use `NestFactory.create(..., { abortOnError: false })` so Nest initialization errors reject to the entrypoint rather than internally terminating before the bounded handler.
 - Load `AppModule` with `await import('./app.module')` from inside `bootstrap()` during the bounded `application-module-load` phase so evaluation of the application graph is also owned by that failure boundary.
-- Preserve a non-zero process exit on every rejected bootstrap.
-- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, restoring static top-level `AppModule` loading, restoring Nest internal abort behavior, or logging raw bootstrap exceptions.
+- Preserve a non-zero process exit on every rejected bootstrap or pre-bootstrap entrypoint failure.
+- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, bypassing the guarded launcher, restoring static top-level `AppModule` loading, restoring Nest internal abort behavior, or logging raw startup exceptions.
 
 ## CI-scoped production configuration
 
@@ -60,7 +62,7 @@ KMD-363 is complete only when CI for the **exact current PR head** passes all ex
 1. runtime-container boot preflight;
 2. workspace runtime dependency build guard;
 3. explicit CI-scoped production release/rate-limit/trusted-proxy/timeout/CORS/media configuration checks;
-4. bounded application-module-load and Nest bootstrap diagnostics with no raw exception logging;
+4. bounded pre-bootstrap launcher and application-module/Nest bootstrap diagnostics with no raw exception logging;
 5. actual API production image boot and healthy transition;
 6. actual Web production image boot and healthy transition;
 7. direct HTTP success from both `/health/live` endpoints;
