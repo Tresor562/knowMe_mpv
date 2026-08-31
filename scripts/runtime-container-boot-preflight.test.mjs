@@ -52,12 +52,15 @@ test('API image builds workspace runtime dependencies before boot', () => {
   assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
 });
 
-test('API bootstrap failure diagnostics identify only a bounded phase', () => {
+test('API bootstrap failure diagnostics own module-load and Nest initialization failures', () => {
   assert.match(apiMain, /type BootstrapPhase =/);
   assert.match(apiMain, /'release-identity'/);
+  assert.match(apiMain, /'application-module-load'/);
   assert.match(apiMain, /'nest-application-create'/);
   assert.match(apiMain, /'runtime-policy-configuration'/);
   assert.match(apiMain, /'http-listen'/);
+  assert.doesNotMatch(apiMain, /import \{ AppModule \} from '\.\/app\.module'/);
+  assert.match(apiMain, /bootstrapPhase = 'application-module-load';\s*const \{ AppModule \} = await import\('\.\/app\.module'\);/s);
   assert.match(apiMain, /NestFactory\.create\(AppModule, \{ rawBody: true, abortOnError: false \}\)/);
   assert.match(apiMain, /bootstrap\(\)\.catch\(\(\) => \{/);
   assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}/);
