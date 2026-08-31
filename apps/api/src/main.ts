@@ -17,7 +17,54 @@ type BootstrapPhase =
   | 'http-listen'
   | 'ready';
 
+type StartupFailureCategory = 'module-resolution' | 'configuration' | 'runtime';
+
+const STARTUP_CONFIGURATION_KEYS = [
+  'API_HEADERS_TIMEOUT_MS',
+  'API_INSTANCE_COUNT',
+  'API_KEEP_ALIVE_TIMEOUT_MS',
+  'API_RATE_LIMIT_LIMIT',
+  'API_RATE_LIMIT_TTL_MS',
+  'API_REQUEST_TIMEOUT_MS',
+  'CORS_ALLOWED_ORIGINS_JSON',
+  'MEDIA_ACCOUNT_QUOTA_BYTES',
+  'MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS',
+  'MEDIA_PURGE_ALERT_WEBHOOK_TOKEN',
+  'MEDIA_PURGE_ALERT_WEBHOOK_URL',
+  'MEDIA_QUARANTINE_INFECTED_RETENTION_DAYS',
+  'MEDIA_QUARANTINE_UNAVAILABLE_RETENTION_DAYS',
+  'MEDIA_S3_ACCESS_KEY_ID',
+  'MEDIA_S3_BUCKET',
+  'MEDIA_S3_ENDPOINT',
+  'MEDIA_S3_MAX_ATTEMPTS',
+  'MEDIA_S3_REGION',
+  'MEDIA_S3_SECRET_ACCESS_KEY',
+  'MEDIA_S3_TIMEOUT_MS',
+  'MEDIA_SCANNER_TIMEOUT_MS',
+  'MEDIA_SCANNER_TOKEN',
+  'MEDIA_SCANNER_URL',
+  'MEDIA_STORAGE_DRIVER',
+  'MEDIA_UPLOAD_MAX_BYTES',
+  'TRUSTED_PROXY_HOPS'
+] as const;
+
 let bootstrapPhase: BootstrapPhase = 'release-identity';
+
+function classifyStartupFailure(failure: unknown): { category: StartupFailureCategory; key?: string } {
+  if (!failure || typeof failure !== 'object') return { category: 'runtime' };
+
+  const record = failure as { code?: unknown; message?: unknown };
+  if (record.code === 'MODULE_NOT_FOUND' || record.code === 'ERR_MODULE_NOT_FOUND') {
+    return { category: 'module-resolution' };
+  }
+
+  if (typeof record.message === 'string') {
+    const key = STARTUP_CONFIGURATION_KEYS.find((candidate) => record.message!.includes(candidate));
+    if (key) return { category: 'configuration', key };
+  }
+
+  return { category: 'runtime' };
+}
 
 async function bootstrap() {
   bootstrapPhase = 'release-identity';
@@ -52,10 +99,11 @@ async function bootstrap() {
   bootstrapPhase = 'ready';
 }
 
-bootstrap().catch(() => {
-  // Deliberately emit only the bounded phase name. Startup exceptions may contain
-  // database URIs, infrastructure details or other secrets and must not be copied
-  // into CI/production logs merely to make a failed boot actionable.
-  console.error(`[startup] API bootstrap failed during ${bootstrapPhase}.`);
+bootstrap().catch((failure: unknown) => {
+  // Emit only a bounded phase plus an allowlisted category/configuration key.
+  // Never copy the original message, stack, URI or environment value into logs.
+  const diagnostic = classifyStartupFailure(failure);
+  const suffix = diagnostic.key ? ` (${diagnostic.category}:${diagnostic.key})` : ` (${diagnostic.category})`;
+  console.error(`[startup] API bootstrap failed during ${bootstrapPhase}${suffix}.`);
   process.exitCode = 1;
 });
