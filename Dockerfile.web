@@ -9,6 +9,9 @@ RUN pnpm install --filter @knowme/web... --frozen-lockfile
 
 COPY apps/web apps/web
 RUN pnpm --filter @knowme/web build
+RUN chown -R node:node /app
 
+ENV NODE_ENV=production
+USER node
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@knowme/web", "start"]
