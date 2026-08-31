@@ -16,6 +16,8 @@ CI #1294 on head `3684a5e3d4082cf8027131c64ed04c92f53a752f` confirmed that packa
 
 KMD-363 therefore adds a secret-safe startup diagnostic to the API entrypoint. The entrypoint records only a bounded phase identifier (`release-identity`, `nest-application-create`, `runtime-policy-configuration`, or `http-listen`) and emits that phase if bootstrap rejects. It deliberately does not log the caught exception, message, stack, database URI, environment values, or other potentially sensitive runtime details. The process still exits non-zero. A repository preflight locks this behavior so future debugging cannot silently turn startup failures into secret-bearing logs or a successful exit.
 
+Repository inspection after #1294 also identified a concrete production-policy omission in the CI boot environment: `applyHttpServerTimeoutPolicy()` requires `API_REQUEST_TIMEOUT_MS`, `API_HEADERS_TIMEOUT_MS`, and `API_KEEP_ALIVE_TIMEOUT_MS` explicitly whenever `NODE_ENV=production`, while the boot proof supplied none of them. KMD-363 now provides the repository's canonical 30s request / 15s headers / 5s keep-alive values and the preflight requires all three. This changes only the isolated CI runtime configuration; the fail-closed application policy remains unchanged. Exact-head CI must still prove that this is sufficient before the KMD can merge.
+
 ## Delivery
 
 - Keep the KMD-362 healthcheck definitions unchanged.
@@ -24,8 +26,9 @@ KMD-363 therefore adds a secret-safe startup diagnostic to the API entrypoint. T
 - `KNOWME_RELEASE_COMMIT` is bound to the GitHub Actions `GITHUB_SHA`; the synthetic `0.0.0-ci` version is valid SemVer and is explicitly non-production release metadata for this CI boot proof.
 - Process-local rate limiting is explicitly constrained to one CI API instance with the repository defaults (`60000` ms / `120` requests), matching the production fail-closed policy that forbids silent horizontal scaling with process-local limiter state.
 - Trusted proxy hops are explicitly `0` for the direct CI runner/container topology.
+- HTTP request/header/keep-alive timeouts are explicitly `30000` / `15000` / `5000` ms, satisfying the existing production timeout policy with its canonical repository defaults rather than bypassing it.
 - CORS uses the reserved non-routable HTTPS origin `https://ci.invalid`; it exists only to satisfy and exercise the production origin validator and is not a production-domain claim.
-- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, CORS, HTTPS, or other production guards.
+- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, HTTP timeout, CORS, HTTPS, or other production guards.
 - Web boot validation launches the exact Web image on its production port.
 - Both checks poll Docker's real container health state for at most 60 seconds.
 - A container that becomes `unhealthy`, exits, or never becomes healthy fails the canonical `quality` job.
@@ -42,7 +45,7 @@ KMD-363 is complete only when CI for the current PR head passes all existing gat
 
 1. the runtime-container boot preflight;
 2. the workspace runtime dependency build guard;
-3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, and CORS guard coverage;
+3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, HTTP-timeout and CORS guard coverage;
 4. secret-safe bounded bootstrap-phase diagnostics;
 5. actual API image boot and healthy transition;
 6. actual Web image boot and healthy transition;
