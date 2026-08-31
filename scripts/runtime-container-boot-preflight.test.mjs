@@ -23,12 +23,17 @@ test('runtime boot proof is bounded and fails closed', () => {
   assert.match(workflow, /did not become healthy within 60 seconds/);
 });
 
-test('API boot proof supplies CI-scoped production runtime identity without disabling the guard', () => {
+test('API boot proof supplies explicit CI-safe production runtime configuration', () => {
   assert.match(workflow, /-e DATABASE_URL="\$DATABASE_URL"/);
   assert.match(workflow, /-e JWT_SECRET="\$JWT_SECRET"/);
   assert.match(workflow, /-e PORT=4000/);
   assert.match(workflow, /-e KNOWME_RELEASE_COMMIT="\$GITHUB_SHA"/);
   assert.match(workflow, /-e KNOWME_RELEASE_VERSION=0\.0\.0-ci/);
+  assert.match(workflow, /-e API_INSTANCE_COUNT=1/);
+  assert.match(workflow, /-e API_RATE_LIMIT_TTL_MS=60000/);
+  assert.match(workflow, /-e API_RATE_LIMIT_LIMIT=120/);
+  assert.match(workflow, /-e TRUSTED_PROXY_HOPS=0/);
+  assert.match(workflow, /CORS_ALLOWED_ORIGINS_JSON=\["https:\/\/ci\.invalid"\]/);
   assert.doesNotMatch(workflow, /NODE_ENV=(development|test)/);
 });
 
