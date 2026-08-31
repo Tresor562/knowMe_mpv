@@ -27,10 +27,12 @@ test('runtime boot proof is bounded and fails closed', () => {
 });
 
 test('API boot failures persist bounded runtime diagnostics for later inspection', () => {
+  assert.match(workflow, /id: api_runtime_boot/);
   assert.match(workflow, /diagnostics="\$RUNNER_TEMP\/knowme-api-runtime-diagnostics\.log"/);
   assert.match(workflow, /tee "\$diagnostics"/);
   assert.match(workflow, /name: Upload API runtime diagnostics/);
-  assert.match(workflow, /if: failure\(\)/);
+  assert.match(workflow, /if: \$\{\{ steps\.api_runtime_boot\.outcome == 'failure' \}\}/);
+  assert.doesNotMatch(workflow, /name: Upload API runtime diagnostics\n\s+if: failure\(\)/);
   assert.match(workflow, /name: knowme-api-runtime-diagnostics/);
   assert.match(workflow, /if-no-files-found: error/);
   assert.match(workflow, /retention-days: 7/);
