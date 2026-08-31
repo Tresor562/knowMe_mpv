@@ -6,6 +6,10 @@ const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.me
 const apiDockerfile = await readFile(new URL('../Dockerfile.api', import.meta.url), 'utf8');
 const apiPackage = await readFile(new URL('../apps/api/package.json', import.meta.url), 'utf8');
 const apiMain = await readFile(new URL('../apps/api/src/main.ts', import.meta.url), 'utf8');
+const appModuleProbe = await readFile(
+  new URL('../apps/api/scripts/runtime-app-module-load-probe.cjs', import.meta.url),
+  'utf8'
+);
 
 test('canonical CI boots both runtime images instead of inspecting metadata only', () => {
   assert.match(workflow, /Boot API runtime container and require healthy status/);
@@ -64,6 +68,30 @@ test('API runtime image can load native production dependencies before applicati
   assert.match(workflow, /client\.\\\$disconnect\(\)/);
   assert.doesNotMatch(workflow, /client\.\$disconnect\(\)/);
   assert.match(workflow, /prisma-client-ok/);
+});
+
+test('API application graph probe persists only bounded repository-local module markers', () => {
+  assert.match(workflow, /name: Probe API application graph module loading/);
+  assert.match(workflow, /--entrypoint node/);
+  assert.match(workflow, /runtime-app-module-load-probe\.cjs/);
+  assert.match(workflow, /docker cp "\$name":\/app\/\.knowme-app-module-load-probe "\$marker"/);
+  assert.match(workflow, /grep -Fx 'app-module-load-ok' "\$marker"/);
+  assert.match(workflow, /API application graph probe failed/);
+
+  assert.match(appModuleProbe, /const apiDistRoot = resolve\(__dirname, '\.\.', 'dist'\)/);
+  assert.match(appModuleProbe, /const markerPath = '\/app\/\.knowme-app-module-load-probe'/);
+  assert.match(appModuleProbe, /Module\._load = function boundedApplicationLoadProbe/);
+  assert.match(appModuleProbe, /Module\._resolveFilename\(request, parent, isMain\)/);
+  assert.match(appModuleProbe, /filename\.startsWith\(`\$\{apiDistRoot\}\$\{sep\}`\)/);
+  assert.match(appModuleProbe, /persistMarker\(marker\)/);
+  assert.match(appModuleProbe, /fsyncSync\(fd\)/);
+  assert.match(appModuleProbe, /require\('\.\.\/dist\/app\.module\.js'\)/);
+  assert.match(appModuleProbe, /persistMarker\('app-module-load-ok'\)/);
+  assert.match(appModuleProbe, /catch \{/);
+  assert.doesNotMatch(appModuleProbe, /catch \((?:error|failure|reason|err)\)/);
+  assert.doesNotMatch(appModuleProbe, /console\.(?:log|error)/);
+  assert.doesNotMatch(appModuleProbe, /JSON\.stringify/);
+  assert.doesNotMatch(appModuleProbe, /process\.env/);
 });
 
 test('API boot failure diagnostics preserve only a bounded startup phase marker', () => {
