@@ -39,16 +39,29 @@ test('API boot failures persist bounded runtime diagnostics for later inspection
   assert.match(workflow, /retention-days: 7/);
 });
 
+test('API runtime image contains the current guarded launcher and direct Node command', () => {
+  assert.match(apiDockerfile, /CMD \["node", "apps\/api\/dist\/launcher\.js"\]/);
+  assert.doesNotMatch(apiDockerfile, /CMD \["pnpm"/);
+  assert.match(workflow, /name: Verify API runtime launcher artifact/);
+  assert.match(workflow, /\["node","apps\/api\/dist\/launcher\.js"\]/);
+  assert.match(workflow, /test -r \/app\/apps\/api\/dist\/launcher\.js/);
+  assert.match(workflow, /grep -F "launcher-enter" \/app\/apps\/api\/dist\/launcher\.js/);
+  assert.match(workflow, /node --check \/app\/apps\/api\/dist\/launcher\.js/);
+  assert.match(workflow, /test -w \/app/);
+});
+
 test('API boot failure diagnostics preserve a bounded startup phase marker', () => {
   assert.match(workflow, /phase_marker="\$RUNNER_TEMP\/knowme-api-startup-phase"/);
   assert.match(workflow, /-e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1/);
-  assert.match(workflow, /docker cp "\$name":\/tmp\/knowme-startup-phase "\$phase_marker"/);
+  assert.match(workflow, /API startup diagnostic flag/);
+  assert.match(workflow, /grep -Fx 'KNOWME_STARTUP_PHASE_DIAGNOSTIC=1'/);
+  assert.match(workflow, /docker cp "\$name":\/app\/\.knowme-startup-phase "\$phase_marker"/);
   assert.match(workflow, /--- API startup phase marker ---/);
   assert.match(apiLauncher, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
-  assert.match(apiLauncher, /writeFileSync\('\/tmp\/knowme-startup-phase', 'launcher-enter'/);
+  assert.match(apiLauncher, /writeFileSync\('\/app\/\.knowme-startup-phase', 'launcher-enter'/);
   assert.match(apiMain, /type StartupTracePhase = 'main-enter' \| BootstrapPhase/);
   assert.match(apiMain, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
-  assert.match(apiMain, /writeFileSync\('\/tmp\/knowme-startup-phase', phase/);
+  assert.match(apiMain, /writeFileSync\('\/app\/\.knowme-startup-phase', phase/);
   assert.match(apiMain, /persistStartupPhase\('main-enter'\)/);
   assert.match(apiMain, /function setBootstrapPhase\(phase: BootstrapPhase\): void/);
   assert.doesNotMatch(apiLauncher, /writeFileSync\([^\n]*(?:process\.env\.(?!KNOWME_STARTUP_PHASE_DIAGNOSTIC)|JSON\.stringify)/);
