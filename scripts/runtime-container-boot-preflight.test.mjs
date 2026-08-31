@@ -67,6 +67,18 @@ test('API runtime starts through a bounded pre-bootstrap launcher', () => {
   assert.doesNotMatch(apiLauncher, /\.message|\.stack/);
 });
 
+test('API bootstrap owns runtime dependency loading before application graph evaluation', () => {
+  assert.match(apiMain, /'runtime-module-load'/);
+  assert.doesNotMatch(apiMain, /^import\s/m);
+  assert.match(apiMain, /bootstrapPhase = 'runtime-module-load'/);
+  assert.match(apiMain, /import\('@nestjs\/common'\)/);
+  assert.match(apiMain, /import\('@nestjs\/core'\)/);
+  assert.match(apiMain, /import\('\.\/common\/cors-policy'\)/);
+  assert.match(apiMain, /import\('\.\/common\/release-identity'\)/);
+  assert.match(apiMain, /import\('\.\/common\/transport-security'\)/);
+  assert.match(apiMain, /import\('\.\/common\/trusted-proxy-policy'\)/);
+});
+
 test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () => {
   assert.match(apiMain, /type BootstrapPhase =/);
   assert.match(apiMain, /'application-module-load'/);
