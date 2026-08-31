@@ -51,8 +51,9 @@ jobs:
         run: docker build -f Dockerfile.api -t knowme-api-ci .
       - name: Verify API runtime entrypoint artifact
         run: |
+          set -euo pipefail
           docker inspect --format='{{json .Config.Cmd}}' knowme-api-ci | grep -F '["node","apps/api/dist/main.js"]'
-          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eu; test -r /app/apps/api/dist/main.js; grep -F "main-enter" /app/apps/api/dist/main.js >/dev/null; node --check /app/apps/api/dist/main.js; test -w /app'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eux; id; ls -ld /app /app/apps/api/dist; test -r /app/apps/api/dist/main.js; grep -F "main-enter" /app/apps/api/dist/main.js >/dev/null; node --check /app/apps/api/dist/main.js; mkdir -p /app/.knowme-ci-write-proof; test -w /app/.knowme-ci-write-proof; rmdir /app/.knowme-ci-write-proof'
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
