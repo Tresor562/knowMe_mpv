@@ -34,6 +34,9 @@ test('API boot proof supplies explicit CI-safe production runtime configuration'
   assert.match(workflow, /-e API_RATE_LIMIT_TTL_MS=60000/);
   assert.match(workflow, /-e API_RATE_LIMIT_LIMIT=120/);
   assert.match(workflow, /-e TRUSTED_PROXY_HOPS=0/);
+  assert.match(workflow, /-e API_REQUEST_TIMEOUT_MS=30000/);
+  assert.match(workflow, /-e API_HEADERS_TIMEOUT_MS=15000/);
+  assert.match(workflow, /-e API_KEEP_ALIVE_TIMEOUT_MS=5000/);
   assert.match(workflow, /CORS_ALLOWED_ORIGINS_JSON=\["https:\/\/ci\.invalid"\]/);
   assert.doesNotMatch(workflow, /NODE_ENV=(development|test)/);
 });
