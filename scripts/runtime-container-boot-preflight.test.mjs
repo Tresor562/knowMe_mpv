@@ -44,10 +44,13 @@ test('API runtime image uses and verifies the canonical compiled main entrypoint
   assert.match(apiPackage, /"start": "node dist\/main\.js"/);
   assert.match(workflow, /name: Verify API runtime entrypoint artifact/);
   assert.match(workflow, /\["node","apps\/api\/dist\/main\.js"\]/);
+  assert.match(workflow, /set -eux/);
   assert.match(workflow, /test -r \/app\/apps\/api\/dist\/main\.js/);
   assert.match(workflow, /grep -F "main-enter" \/app\/apps\/api\/dist\/main\.js/);
   assert.match(workflow, /node --check \/app\/apps\/api\/dist\/main\.js/);
-  assert.match(workflow, /test -w \/app/);
+  assert.match(workflow, /mkdir -p \/app\/\.knowme-ci-write-proof/);
+  assert.match(workflow, /test -w \/app\/\.knowme-ci-write-proof/);
+  assert.match(workflow, /rmdir \/app\/\.knowme-ci-write-proof/);
   assert.doesNotMatch(apiDockerfile, /launcher\.js/);
   assert.doesNotMatch(apiPackage, /launcher\.js/);
 });
