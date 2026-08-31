@@ -10,6 +10,9 @@ RUN pnpm install --filter @knowme/api... --frozen-lockfile
 COPY apps/api apps/api
 RUN pnpm --filter @knowme/api prisma:generate
 RUN pnpm --filter @knowme/api build
+RUN chown -R node:node /app
 
+ENV NODE_ENV=production
+USER node
 EXPOSE 4000
 CMD ["pnpm", "--filter", "@knowme/api", "start"]
