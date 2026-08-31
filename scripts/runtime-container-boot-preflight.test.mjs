@@ -5,7 +5,6 @@ import test from 'node:test';
 const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const apiDockerfile = await readFile(new URL('../Dockerfile.api', import.meta.url), 'utf8');
 const apiPackage = await readFile(new URL('../apps/api/package.json', import.meta.url), 'utf8');
-const apiLauncher = await readFile(new URL('../apps/api/src/launcher.ts', import.meta.url), 'utf8');
 const apiMain = await readFile(new URL('../apps/api/src/main.ts', import.meta.url), 'utf8');
 
 test('canonical CI boots both runtime images instead of inspecting metadata only', () => {
@@ -39,32 +38,32 @@ test('API boot failures persist bounded runtime diagnostics for later inspection
   assert.match(workflow, /retention-days: 7/);
 });
 
-test('API runtime image contains the current guarded launcher and direct Node command', () => {
-  assert.match(apiDockerfile, /CMD \["node", "apps\/api\/dist\/launcher\.js"\]/);
+test('API runtime image uses and verifies the canonical compiled main entrypoint', () => {
+  assert.match(apiDockerfile, /CMD \["node", "apps\/api\/dist\/main\.js"\]/);
   assert.doesNotMatch(apiDockerfile, /CMD \["pnpm"/);
-  assert.match(workflow, /name: Verify API runtime launcher artifact/);
-  assert.match(workflow, /\["node","apps\/api\/dist\/launcher\.js"\]/);
-  assert.match(workflow, /test -r \/app\/apps\/api\/dist\/launcher\.js/);
-  assert.match(workflow, /grep -F "launcher-enter" \/app\/apps\/api\/dist\/launcher\.js/);
-  assert.match(workflow, /node --check \/app\/apps\/api\/dist\/launcher\.js/);
+  assert.match(apiPackage, /"start": "node dist\/main\.js"/);
+  assert.match(workflow, /name: Verify API runtime entrypoint artifact/);
+  assert.match(workflow, /\["node","apps\/api\/dist\/main\.js"\]/);
+  assert.match(workflow, /test -r \/app\/apps\/api\/dist\/main\.js/);
+  assert.match(workflow, /grep -F "main-enter" \/app\/apps\/api\/dist\/main\.js/);
+  assert.match(workflow, /node --check \/app\/apps\/api\/dist\/main\.js/);
   assert.match(workflow, /test -w \/app/);
+  assert.doesNotMatch(apiDockerfile, /launcher\.js/);
+  assert.doesNotMatch(apiPackage, /launcher\.js/);
 });
 
-test('API boot failure diagnostics preserve a bounded startup phase marker', () => {
+test('API boot failure diagnostics preserve only a bounded startup phase marker', () => {
   assert.match(workflow, /phase_marker="\$RUNNER_TEMP\/knowme-api-startup-phase"/);
   assert.match(workflow, /-e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1/);
   assert.match(workflow, /API startup diagnostic flag/);
   assert.match(workflow, /grep -Fx 'KNOWME_STARTUP_PHASE_DIAGNOSTIC=1'/);
   assert.match(workflow, /docker cp "\$name":\/app\/\.knowme-startup-phase "\$phase_marker"/);
   assert.match(workflow, /--- API startup phase marker ---/);
-  assert.match(apiLauncher, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
-  assert.match(apiLauncher, /writeFileSync\('\/app\/\.knowme-startup-phase', 'launcher-enter'/);
   assert.match(apiMain, /type StartupTracePhase = 'main-enter' \| BootstrapPhase/);
   assert.match(apiMain, /process\.env\.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1'/);
   assert.match(apiMain, /writeFileSync\('\/app\/\.knowme-startup-phase', phase/);
   assert.match(apiMain, /persistStartupPhase\('main-enter'\)/);
   assert.match(apiMain, /function setBootstrapPhase\(phase: BootstrapPhase\): void/);
-  assert.doesNotMatch(apiLauncher, /writeFileSync\([^\n]*(?:process\.env\.(?!KNOWME_STARTUP_PHASE_DIAGNOSTIC)|JSON\.stringify)/);
   assert.doesNotMatch(apiMain, /writeFileSync\([^\n]*(?:process\.env\.(?!KNOWME_STARTUP_PHASE_DIAGNOSTIC)|JSON\.stringify)/);
 });
 
@@ -96,20 +95,7 @@ test('API image builds workspace runtime dependencies before boot', () => {
   assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
 });
 
-test('API runtime starts through a bounded pre-bootstrap launcher', () => {
-  assert.match(apiPackage, /"start": "node dist\/launcher\.js"/);
-  assert.match(apiLauncher, /process\.once\('uncaughtException'/);
-  assert.match(apiLauncher, /process\.once\('unhandledRejection'/);
-  assert.match(apiLauncher, /require\('\.\/main'\)/);
-  assert.match(apiLauncher, /catch \{/);
-  assert.match(apiLauncher, /writeSync\(2, `\[startup\] API entrypoint failed before bootstrap \(\$\{category\}\)\.\\n`\)/);
-  assert.match(apiLauncher, /process\.exit\(1\)/);
-  assert.doesNotMatch(apiLauncher, /catch \([^)]/);
-  assert.doesNotMatch(apiLauncher, /JSON\.stringify/);
-  assert.doesNotMatch(apiLauncher, /\.message|\.stack/);
-});
-
-test('API bootstrap owns runtime dependency loading before application graph evaluation', () => {
+test('API main owns all runtime dependency loading before application graph evaluation', () => {
   assert.match(apiMain, /'runtime-module-load'/);
   assert.doesNotMatch(apiMain, /^import\s/m);
   assert.match(apiMain, /setBootstrapPhase\('runtime-module-load'\)/);
@@ -126,7 +112,6 @@ test('API bootstrap reports all terminal startup diagnostics synchronously with 
   assert.match(apiMain, /require\('node:fs'\)\.writeSync\(2, `\$\{message\}\\n`\)/);
   assert.doesNotMatch(apiMain, /process\.stderr\.write\(/);
   assert.doesNotMatch(apiMain, /console\.error\(/);
-
   assert.match(apiMain, /let bootstrapFailureReported = false/);
   assert.match(apiMain, /process\.once\('exit', \(code\) => \{/);
   assert.match(apiMain, /code !== 0 && !bootstrapFailureReported/);
