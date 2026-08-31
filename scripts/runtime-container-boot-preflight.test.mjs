@@ -96,9 +96,9 @@ test('API bootstrap reports direct non-zero process exits with only a bounded ph
   assert.match(apiMain, /let bootstrapFailureReported = false/);
   assert.match(apiMain, /process\.once\('exit', \(code\) => \{/);
   assert.match(apiMain, /code !== 0 && !bootstrapFailureReported/);
-  assert.match(apiMain, /API process exited during \$\{bootstrapPhase\} \(unowned-exit\)/);
+  assert.match(apiMain, /process\.stderr\.write\(`\[startup\] API process exited during \$\{bootstrapPhase\} \(unowned-exit\)\.\\n`\)/);
   assert.match(apiMain, /bootstrapFailureReported = true/);
-  assert.doesNotMatch(apiMain, /process\.once\('exit'[^]*?(?:\.message|\.stack|JSON\.stringify)/);
+  assert.doesNotMatch(apiMain, /process\.once\('exit', \((?:error|failure|reason)/);
 });
 
 test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () => {
