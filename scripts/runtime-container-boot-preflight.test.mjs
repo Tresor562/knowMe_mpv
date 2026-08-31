@@ -92,11 +92,13 @@ test('API bootstrap owns runtime dependency loading before application graph eva
   assert.match(apiMain, /import\('\.\/common\/trusted-proxy-policy'\)/);
 });
 
-test('API bootstrap reports direct non-zero process exits with only a bounded phase', () => {
+test('API bootstrap reports direct non-zero process exits synchronously with only a bounded phase', () => {
   assert.match(apiMain, /let bootstrapFailureReported = false/);
   assert.match(apiMain, /process\.once\('exit', \(code\) => \{/);
   assert.match(apiMain, /code !== 0 && !bootstrapFailureReported/);
-  assert.match(apiMain, /process\.stderr\.write\(`\[startup\] API process exited during \$\{bootstrapPhase\} \(unowned-exit\)\.\\n`\)/);
+  assert.match(apiMain, /require\('node:fs'\)\.writeSync\(/);
+  assert.match(apiMain, /`\[startup\] API process exited during \$\{bootstrapPhase\} \(unowned-exit\)\.\\n`/);
+  assert.doesNotMatch(apiMain, /process\.stderr\.write\(/);
   assert.match(apiMain, /bootstrapFailureReported = true/);
   assert.doesNotMatch(apiMain, /process\.once\('exit', \((?:error|failure|reason)/);
 });
