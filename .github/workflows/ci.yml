@@ -59,6 +59,53 @@ jobs:
           set -euo pipefail
           docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "require(\"argon2\"); process.stdout.write(\"argon2-ok\\n\")"'
           docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "const { PrismaClient } = require(\"@prisma/client\"); const client = new PrismaClient(); client.\$disconnect().then(() => process.stdout.write(\"prisma-client-ok\\n\"))"'
+      - name: Probe API application graph module loading
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=knowme-api-app-module-probe-ci
+          marker="$RUNNER_TEMP/knowme-api-app-module-load-probe"
+          dump_probe_marker() {
+            rm -f "$marker"
+            if docker cp "$name":/app/.knowme-app-module-load-probe "$marker" 2>/dev/null; then
+              echo '--- API application graph probe marker ---' >&2
+              cat "$marker" >&2
+            else
+              echo '--- API application graph probe marker ---' >&2
+              echo 'missing' >&2
+            fi
+          }
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker create --name "$name" --network host --entrypoint node \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e PORT=4000 \
+            -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
+            -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e API_INSTANCE_COUNT=1 \
+            -e API_RATE_LIMIT_TTL_MS=60000 \
+            -e API_RATE_LIMIT_LIMIT=120 \
+            -e TRUSTED_PROXY_HOPS=0 \
+            -e API_REQUEST_TIMEOUT_MS=30000 \
+            -e API_HEADERS_TIMEOUT_MS=15000 \
+            -e API_KEEP_ALIVE_TIMEOUT_MS=5000 \
+            -e 'CORS_ALLOWED_ORIGINS_JSON=["https://ci.invalid"]' \
+            -e MEDIA_STORAGE_DRIVER=s3 \
+            -e MEDIA_S3_ENDPOINT=https://s3.ci.invalid \
+            -e MEDIA_S3_BUCKET=knowme-ci-runtime \
+            -e MEDIA_S3_REGION=ci-test-1 \
+            -e MEDIA_S3_ACCESS_KEY_ID=ci-runtime-access-key \
+            -e MEDIA_S3_SECRET_ACCESS_KEY=ci-runtime-secret-key-not-for-production \
+            knowme-api-ci /app/apps/api/scripts/runtime-app-module-load-probe.cjs >/dev/null
+          if docker start -a "$name"; then
+            dump_probe_marker
+            grep -Fx 'app-module-load-ok' "$marker"
+          else
+            status="$(docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}}' "$name")"
+            echo "API application graph probe failed ($status)" >&2
+            dump_probe_marker
+            exit 1
+          fi
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
