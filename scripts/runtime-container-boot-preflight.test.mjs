@@ -61,6 +61,8 @@ test('API runtime image can load native production dependencies before applicati
   assert.match(workflow, /argon2-ok/);
   assert.match(workflow, /const \{ PrismaClient \} = require\(\\"@prisma\/client\\"\)/);
   assert.match(workflow, /new PrismaClient\(\)/);
+  assert.match(workflow, /client\.\\\$disconnect\(\)/);
+  assert.doesNotMatch(workflow, /client\.\$disconnect\(\)/);
   assert.match(workflow, /prisma-client-ok/);
 });
 
