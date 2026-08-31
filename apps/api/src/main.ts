@@ -7,6 +7,7 @@ type BootstrapPhase =
   | 'http-listen'
   | 'ready';
 
+type StartupTracePhase = 'main-enter' | BootstrapPhase;
 type StartupFailureCategory = 'module-resolution' | 'configuration' | 'runtime';
 
 const STARTUP_CONFIGURATION_KEYS = [
@@ -41,12 +42,28 @@ const STARTUP_CONFIGURATION_KEYS = [
 let bootstrapPhase: BootstrapPhase = 'runtime-module-load';
 let bootstrapFailureReported = false;
 
+function persistStartupPhase(phase: StartupTracePhase): void {
+  if (process.env.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1') return;
+  try {
+    require('node:fs').writeFileSync('/tmp/knowme-startup-phase', phase, { encoding: 'utf8', mode: 0o600 });
+  } catch {
+    // CI phase evidence is best-effort and must never alter application startup.
+  }
+}
+
+function setBootstrapPhase(phase: BootstrapPhase): void {
+  bootstrapPhase = phase;
+  persistStartupPhase(phase);
+}
+
 function writeStartupDiagnostic(message: string): void {
   // Runtime startup can end with no active event-loop handles. stderr is pipe-backed
   // in Docker, so console.error/process.stderr.write are not a durable last-chance
   // transport here. Keep this synchronous and pass only already-bounded text.
   require('node:fs').writeSync(2, `${message}\n`);
 }
+
+persistStartupPhase('main-enter');
 
 // Some libraries may terminate the process directly instead of throwing. The
 // normal bootstrap rejection handler cannot observe that path, but the exit
@@ -80,7 +97,7 @@ async function bootstrap() {
   // Own every runtime dependency load inside the bootstrap promise. Keeping these
   // imports static would allow CommonJS module evaluation to fail before the
   // bounded bootstrap().catch() diagnostic below exists.
-  bootstrapPhase = 'runtime-module-load';
+  setBootstrapPhase('runtime-module-load');
   const [
     { ValidationPipe },
     { NestFactory },
@@ -105,23 +122,23 @@ async function bootstrap() {
     import('./common/trusted-proxy-policy')
   ]);
 
-  bootstrapPhase = 'release-identity';
+  setBootstrapPhase('release-identity');
   resolveRuntimeReleaseIdentity();
 
   // Load the application graph inside the owned bootstrap promise. AppModule's
   // decorator evaluates production policies and imports the complete provider
   // graph; a failure during static module evaluation must therefore reject into
   // the bounded handler below instead of terminating before bootstrap() exists.
-  bootstrapPhase = 'application-module-load';
+  setBootstrapPhase('application-module-load');
   const { AppModule } = await import('./app.module');
 
-  bootstrapPhase = 'nest-application-create';
+  setBootstrapPhase('nest-application-create');
   // Keep Nest fail-closed while allowing this entrypoint to own the final exit.
   // With abortOnError=true Nest may terminate the process internally before the
   // bounded, secret-safe bootstrap phase diagnostic below can be emitted.
   const app = await NestFactory.create(AppModule, { rawBody: true, abortOnError: false });
 
-  bootstrapPhase = 'runtime-policy-configuration';
+  setBootstrapPhase('runtime-policy-configuration');
   const express = app.getHttpAdapter().getInstance() as { set(name: string, value: unknown): void };
   express.set('trust proxy', createTrustedProxySetting());
   applyHttpServerTimeoutPolicy(app.getHttpServer());
@@ -132,9 +149,9 @@ async function bootstrap() {
   app.use(createHttpObservabilityMiddleware());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  bootstrapPhase = 'http-listen';
+  setBootstrapPhase('http-listen');
   await app.listen(process.env.PORT ?? 4000);
-  bootstrapPhase = 'ready';
+  setBootstrapPhase('ready');
 }
 
 bootstrap().catch((failure: unknown) => {
