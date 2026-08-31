@@ -23,8 +23,9 @@ If any remembered conversation or historical document conflicts with live GitHub
 - KMD-360 extended frozen dependency installation to both API and Web runtime Docker builds and proved both image builds in exact-head CI before merge.
 - KMD-361 removed UID 0 from final API/Web runtime commands and proved effective non-root runtime identity with `NODE_ENV=production` in exact-head CI before merge.
 - KMD-362 added explicit process-liveness metadata to both runtime images plus the Web liveness route, and exact-head CI proved the image builds, healthcheck metadata, Web E2E and API E2E before merge.
-- `KMD-363` is the current runtime-container boot-proof candidate on `feat/kmd-363-runtime-container-boot-probes`.
+- `KMD-363` is the current runtime-container boot-proof candidate on `feat/kmd-363-runtime-container-boot-probes`, PR #466.
 - KMD-363 is not complete until exact-head CI actually starts both built production images, observes each transition to Docker `healthy`, reaches both liveness endpoints, and passes every existing supply-chain, migration, build, runtime and E2E gate.
+- CI #1324 failed before install because the supply-chain preflight only recognized anonymous `- uses:` action syntax and missed a named step whose `uses:` key appears on the next line. The active branch now audits both YAML forms and scopes runtime-diagnostic upload only to an actual failure of the API boot step, preventing an unrelated earlier failure from creating a misleading secondary artifact error.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section that described `KMD-061` as pending is stale and must not be used to recreate KMD-061 or later merged milestones.
 
 ## Dependency and runtime reproducibility baseline
