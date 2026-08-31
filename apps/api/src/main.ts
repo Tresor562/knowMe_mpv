@@ -45,7 +45,7 @@ let bootstrapFailureReported = false;
 function persistStartupPhase(phase: StartupTracePhase): void {
   if (process.env.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1') return;
   try {
-    require('node:fs').writeFileSync('/tmp/knowme-startup-phase', phase, { encoding: 'utf8', mode: 0o600 });
+    require('node:fs').writeFileSync('/app/.knowme-startup-phase', phase, { encoding: 'utf8', mode: 0o600 });
   } catch {
     // CI phase evidence is best-effort and must never alter application startup.
   }
