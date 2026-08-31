@@ -58,7 +58,17 @@ jobs:
         run: |
           set -euo pipefail
           name=knowme-api-runtime-ci
-          trap 'docker logs "$name" 2>/dev/null || true; docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          dump_runtime_diagnostics() {
+            echo '--- API container state ---' >&2
+            docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
+            echo '--- API healthcheck history ---' >&2
+            docker inspect --format='{{range .State.Health.Log}}{{println .Start "exit=" .ExitCode}}{{println .Output}}{{end}}' "$name" 2>/dev/null || true
+            echo '--- API direct liveness probe ---' >&2
+            curl --include --max-time 3 --silent --show-error http://127.0.0.1:4000/health/live 2>&1 || true
+            echo '--- API container logs ---' >&2
+            docker logs "$name" 2>/dev/null || true
+          }
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
           docker run -d --name "$name" --network host \
             -e DATABASE_URL="$DATABASE_URL" \
             -e JWT_SECRET="$JWT_SECRET" \
@@ -79,11 +89,13 @@ jobs:
             fi
             if [ "$status" = unhealthy ] || [ "$(docker inspect --format='{{.State.Status}}' "$name")" = exited ]; then
               echo "API runtime failed before becoming healthy (health=$status)" >&2
+              dump_runtime_diagnostics
               exit 1
             fi
             sleep 2
           done
           echo "API runtime did not become healthy within 60 seconds" >&2
+          dump_runtime_diagnostics
           exit 1
       - name: Build frozen Web runtime container
         run: docker build -f Dockerfile.web -t knowme-web-ci .
