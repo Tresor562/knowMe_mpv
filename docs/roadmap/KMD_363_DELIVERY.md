@@ -17,6 +17,7 @@ The runtime proof has exposed several real gaps that ordinary build/test gates d
 5. **CI #1304 — Nest internal abort.** `NestFactory.create()` could terminate internally before the entrypoint's bounded failure handler ran. It now uses `abortOnError: false`; startup remains fail-closed because the outer handler preserves a non-zero exit status.
 6. **CI #1307/#1310 — pre-bootstrap application-module evaluation.** `AppModule` is a large decorator-driven graph and evaluates policies/imports while the module itself is loaded. KMD-363 now loads `AppModule` dynamically inside a dedicated `application-module-load` phase so graph-loading failures are owned by the bounded bootstrap promise.
 7. **CI #1313 — entrypoint boundary gap.** Supply-chain, frozen install, audit, Prisma/migrations/drift, monorepo build, all tests, Docker image build, non-root identity and healthcheck metadata were green, but the API exited before any `main.ts` bootstrap diagnostic was emitted. Because JavaScript evaluates `main.ts` static imports before its body installs `bootstrap().catch()`, KMD-363 now starts production through a minimal `launcher.ts`. The launcher registers bounded `uncaughtException` / `unhandledRejection` guards and requires `main.ts` inside an owned synchronous boundary. It logs only a fixed allowlisted category and never receives, serializes or prints the thrown value.
+8. **CI #1317 — static runtime imports still escaped the bootstrap boundary.** The launcher proved the failure still occurred while evaluating `main.ts` itself. `main.ts` therefore no longer has static runtime imports: Nest and the startup-policy modules are loaded inside a dedicated `runtime-module-load` bootstrap phase. Module-resolution/configuration failures can now reach the existing bounded classifier instead of terminating before `bootstrap().catch()` exists. A preflight locks this property by rejecting new top-level imports in `main.ts`.
 
 The bounded diagnostics report only fixed phases/categories and allowlisted configuration-key names. They never log the caught exception, message, stack, database URI, environment values or other potentially sensitive runtime detail.
 
@@ -25,6 +26,7 @@ The bounded diagnostics report only fixed phases/categories and allowlisted conf
 - Keep KMD-362 healthcheck definitions unchanged.
 - Build API runtime dependencies with `pnpm --filter @knowme/api... build`.
 - Start the API package through `node dist/launcher.js`; the launcher owns failures that occur before `main.ts` can install its normal bootstrap rejection handler.
+- Load all `main.ts` runtime dependencies inside the owned `runtime-module-load` bootstrap phase; keep `main.ts` free of top-level imports.
 - Launch the exact API image built by canonical CI and require Docker `healthy` within a bounded 60-second window.
 - Launch the exact Web image and require the same bounded healthy transition.
 - After Docker reports healthy, request each `/health/live` endpoint directly from the runner.
@@ -36,7 +38,7 @@ The bounded diagnostics report only fixed phases/categories and allowlisted conf
 - Use `NestFactory.create(..., { abortOnError: false })` so Nest initialization errors reject to the entrypoint rather than internally terminating before the bounded handler.
 - Load `AppModule` with `await import('./app.module')` from inside `bootstrap()` during the bounded `application-module-load` phase so evaluation of the application graph is also owned by that failure boundary.
 - Preserve a non-zero process exit on every rejected bootstrap or pre-bootstrap entrypoint failure.
-- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, bypassing the guarded launcher, restoring static top-level `AppModule` loading, restoring Nest internal abort behavior, or logging raw startup exceptions.
+- Repository preflight tests prevent removing the boot proof, making the wait unbounded, changing the runtime to development/test, regressing to a leaf-only API build, omitting required CI production configuration, bypassing the guarded launcher, restoring top-level runtime imports or static `AppModule` loading, restoring Nest internal abort behavior, or logging raw startup exceptions.
 
 ## CI-scoped production configuration
 
@@ -62,7 +64,7 @@ KMD-363 is complete only when CI for the **exact current PR head** passes all ex
 1. runtime-container boot preflight;
 2. workspace runtime dependency build guard;
 3. explicit CI-scoped production release/rate-limit/trusted-proxy/timeout/CORS/media configuration checks;
-4. bounded pre-bootstrap launcher and application-module/Nest bootstrap diagnostics with no raw exception logging;
+4. bounded pre-bootstrap launcher plus bootstrap-owned runtime/application-module loading and secret-safe diagnostics;
 5. actual API production image boot and healthy transition;
 6. actual Web production image boot and healthy transition;
 7. direct HTTP success from both `/health/live` endpoints;
