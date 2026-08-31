@@ -16,7 +16,9 @@ CI #1294 on head `3684a5e3d4082cf8027131c64ed04c92f53a752f` confirmed that packa
 
 KMD-363 therefore adds a secret-safe startup diagnostic to the API entrypoint. The entrypoint records only a bounded phase identifier (`release-identity`, `nest-application-create`, `runtime-policy-configuration`, or `http-listen`) and emits that phase if bootstrap rejects. It deliberately does not log the caught exception, message, stack, database URI, environment values, or other potentially sensitive runtime details. The process still exits non-zero. A repository preflight locks this behavior so future debugging cannot silently turn startup failures into secret-bearing logs or a successful exit.
 
-Repository inspection after #1294 also identified a concrete production-policy omission in the CI boot environment: `applyHttpServerTimeoutPolicy()` requires `API_REQUEST_TIMEOUT_MS`, `API_HEADERS_TIMEOUT_MS`, and `API_KEEP_ALIVE_TIMEOUT_MS` explicitly whenever `NODE_ENV=production`, while the boot proof supplied none of them. KMD-363 now provides the repository's canonical 30s request / 15s headers / 5s keep-alive values and the preflight requires all three. This changes only the isolated CI runtime configuration; the fail-closed application policy remains unchanged. Exact-head CI must still prove that this is sufficient before the KMD can merge.
+Repository inspection after #1294 also identified a concrete production-policy omission in the CI boot environment: `applyHttpServerTimeoutPolicy()` requires `API_REQUEST_TIMEOUT_MS`, `API_HEADERS_TIMEOUT_MS`, and `API_KEEP_ALIVE_TIMEOUT_MS` explicitly whenever `NODE_ENV=production`, while the boot proof supplied none of them. KMD-363 now provides the repository's canonical 30s request / 15s headers / 5s keep-alive values and the preflight requires all three. This changes only the isolated CI runtime configuration; the fail-closed application policy remains unchanged.
+
+CI #1301 on head `e26ea0a9da0f5e4c03cb5459c805db6b98dd8486` passed supply-chain policy, frozen install, production audit, Prisma generation/migrations/drift, repository build/tests, API image build, non-root identity and healthcheck metadata, then failed at the actual API boot. Repository inspection identified another existing production fail-closed guard: `MediaStorageService.onModuleInit()` forbids the default `MEDIA_STORAGE_DRIVER=local` whenever `NODE_ENV=production`. The CI boot proof now configures the `s3` driver with reserved, synthetic HTTPS endpoint/credentials used only to satisfy configuration validation. No media operation is performed by `/health/live`, so KMD-363 does not claim connectivity to or correctness of a real S3 provider. The application production guard remains intact.
 
 ## Delivery
 
@@ -28,7 +30,8 @@ Repository inspection after #1294 also identified a concrete production-policy o
 - Trusted proxy hops are explicitly `0` for the direct CI runner/container topology.
 - HTTP request/header/keep-alive timeouts are explicitly `30000` / `15000` / `5000` ms, satisfying the existing production timeout policy with its canonical repository defaults rather than bypassing it.
 - CORS uses the reserved non-routable HTTPS origin `https://ci.invalid`; it exists only to satisfy and exercise the production origin validator and is not a production-domain claim.
-- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, HTTP timeout, CORS, HTTPS, or other production guards.
+- Media storage uses `MEDIA_STORAGE_DRIVER=s3` plus a reserved synthetic HTTPS endpoint and dummy CI-only credentials. This exercises the production configuration validator without performing or claiming a real object-storage operation.
+- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, HTTP timeout, CORS, HTTPS, media-storage, or other production guards.
 - Web boot validation launches the exact Web image on its production port.
 - Both checks poll Docker's real container health state for at most 60 seconds.
 - A container that becomes `unhealthy`, exits, or never becomes healthy fails the canonical `quality` job.
@@ -45,7 +48,7 @@ KMD-363 is complete only when CI for the current PR head passes all existing gat
 
 1. the runtime-container boot preflight;
 2. the workspace runtime dependency build guard;
-3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, HTTP-timeout and CORS guard coverage;
+3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, HTTP-timeout, CORS and media-storage guard coverage;
 4. secret-safe bounded bootstrap-phase diagnostics;
 5. actual API image boot and healthy transition;
 6. actual Web image boot and healthy transition;
@@ -64,6 +67,6 @@ Revert the KMD-363 commits. That restores KMD-362 behavior where CI builds both 
 
 ## Operational and proof boundary
 
-KMD-363 is intended to prove that the exact images built in GitHub Actions can boot and satisfy their declared liveness healthchecks in the CI environment while retaining the API's existing production fail-closed guards. Until the current-head CI is green, that proof remains incomplete. The bounded phase diagnostic is debugging evidence only and is not itself proof of a successful production boot. It does not prove production orchestration, production secrets, production databases, production CORS domains, network policies, alert delivery, backup restoration, physical-device behavior, legal/privacy compliance, production deployment, or App Store / Google Play publication.
+KMD-363 is intended to prove that the exact images built in GitHub Actions can boot and satisfy their declared liveness healthchecks in the CI environment while retaining the API's existing production fail-closed guards. Until the current-head CI is green, that proof remains incomplete. The bounded phase diagnostic is debugging evidence only and is not itself proof of a successful production boot. Synthetic CI media-storage configuration proves only startup configuration validation; it does not prove production object-storage connectivity or data durability. It does not prove production orchestration, production secrets, production databases, production CORS domains, network policies, alert delivery, backup restoration, physical-device behavior, legal/privacy compliance, production deployment, or App Store / Google Play publication.
 
 Canonical `main` branch protection also remains an external repository-governance requirement and must not be claimed complete until GitHub reports the required protection configuration.
