@@ -55,6 +55,15 @@ test('API runtime image uses and verifies the canonical compiled main entrypoint
   assert.doesNotMatch(apiPackage, /launcher\.js/);
 });
 
+test('API runtime image can load native production dependencies before application graph boot', () => {
+  assert.match(workflow, /name: Verify API native runtime dependencies/);
+  assert.match(workflow, /cd \/app\/apps\/api && node -e "require\(\\"argon2\\"\)/);
+  assert.match(workflow, /argon2-ok/);
+  assert.match(workflow, /const \{ PrismaClient \} = require\(\\"@prisma\/client\\"\)/);
+  assert.match(workflow, /new PrismaClient\(\)/);
+  assert.match(workflow, /prisma-client-ok/);
+});
+
 test('API boot failure diagnostics preserve only a bounded startup phase marker', () => {
   assert.match(workflow, /phase_marker="\$RUNNER_TEMP\/knowme-api-startup-phase"/);
   assert.match(workflow, /-e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1/);
