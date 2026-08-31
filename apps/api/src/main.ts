@@ -59,7 +59,8 @@ function classifyStartupFailure(failure: unknown): { category: StartupFailureCat
   }
 
   if (typeof record.message === 'string') {
-    const key = STARTUP_CONFIGURATION_KEYS.find((candidate) => record.message!.includes(candidate));
+    const message = record.message;
+    const key = STARTUP_CONFIGURATION_KEYS.find((candidate) => message.includes(candidate));
     if (key) return { category: 'configuration', key };
   }
 
