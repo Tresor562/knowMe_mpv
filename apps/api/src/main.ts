@@ -24,7 +24,10 @@ async function bootstrap() {
   resolveRuntimeReleaseIdentity();
 
   bootstrapPhase = 'nest-application-create';
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // Keep Nest fail-closed while allowing this entrypoint to own the final exit.
+  // With abortOnError=true Nest may terminate the process internally before the
+  // bounded, secret-safe bootstrap phase diagnostic below can be emitted.
+  const app = await NestFactory.create(AppModule, { rawBody: true, abortOnError: false });
 
   bootstrapPhase = 'runtime-policy-configuration';
   const express = app.getHttpAdapter().getInstance() as { set(name: string, value: unknown): void };
