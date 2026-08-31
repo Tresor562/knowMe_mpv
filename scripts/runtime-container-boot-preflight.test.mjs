@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const apiDockerfile = await readFile(new URL('../Dockerfile.api', import.meta.url), 'utf8');
+const apiMain = await readFile(new URL('../apps/api/src/main.ts', import.meta.url), 'utf8');
 
 test('canonical CI boots both runtime images instead of inspecting metadata only', () => {
   assert.match(workflow, /Boot API runtime container and require healthy status/);
@@ -40,4 +41,17 @@ test('API boot proof supplies explicit CI-safe production runtime configuration'
 test('API image builds workspace runtime dependencies before boot', () => {
   assert.match(apiDockerfile, /RUN pnpm --filter @knowme\/api\.\.\. build/);
   assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
+});
+
+test('API bootstrap failure diagnostics identify only a bounded phase', () => {
+  assert.match(apiMain, /type BootstrapPhase =/);
+  assert.match(apiMain, /'release-identity'/);
+  assert.match(apiMain, /'nest-application-create'/);
+  assert.match(apiMain, /'runtime-policy-configuration'/);
+  assert.match(apiMain, /'http-listen'/);
+  assert.match(apiMain, /bootstrap\(\)\.catch\(\(\) => \{/);
+  assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}/);
+  assert.doesNotMatch(apiMain, /catch\(\(error|err|reason)\)/);
+  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(error|err|reason)/);
+  assert.match(apiMain, /process\.exitCode = 1/);
 });
