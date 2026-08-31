@@ -20,6 +20,7 @@ The runtime proof has exposed defects that ordinary build/test gates did not cat
 8. **CI #1356/#1358 — compiled entrypoint packaging defect.** Build/tests and image construction passed, but `/app/apps/api/dist/main.js` did not exist at the runtime contract path. The root cause was that the base TypeScript project did not define a release-only source root while TypeScript also exists outside `src`. KMD-363 now has `apps/api/tsconfig.build.json` with `rootDir=src`, `outDir=dist`, runtime-only `src/**/*.ts`, test exclusions and no incremental release artifact dependence. `nest-cli.json` explicitly selects that build config and deletes stale `dist` output before compilation.
 9. **CI #1360 — deterministic packaging proved; failure moved deeper.** Supply-chain, frozen install, production audit, Prisma generation/migrations/drift, monorepo build/tests, Docker API build, compiled `dist/main.js` readability/syntax/marker, non-root identity and health metadata all passed. The real API boot then failed. The uploaded bounded phase marker was `application-module-load`, proving the image now reaches evaluation of the `AppModule` graph and that the previous packaging defect is fixed.
 10. **Post-#1360 — native runtime dependency isolation.** `AppModule` imports `AuthModule`; `AuthModule` evaluates `AuthService`, which imports native `argon2`. The API also depends on the generated Prisma native/runtime stack. Canonical CI now performs explicit non-root image smoke loads for `argon2` and `PrismaClient` before starting the full graph. This is a permanent production-image compatibility gate, not a bypass: a release image that cannot load its native authentication/data dependencies must fail before merge.
+11. **CI #1364 — native gate quoting defect, not a Prisma failure.** The production image loaded `argon2` successfully (`argon2-ok`). The Prisma smoke command did not reach Prisma at all: the container shell expanded `$disconnect` inside the double-quoted `node -e` program, turning `client.$disconnect()` into invalid JavaScript `client.()`. The command now escapes the dollar sign as `client.\$disconnect()` at the shell layer so Node receives the intended Prisma API call. The repository preflight requires this escaping and rejects the unescaped form, preventing a false native-runtime failure from returning.
 
 ## Current delivery
 
@@ -27,7 +28,7 @@ The runtime proof has exposed defects that ordinary build/test gates did not cat
 - Build API runtime dependencies with `pnpm --filter @knowme/api... build`.
 - Compile the API through the dedicated deterministic `tsconfig.build.json` so `src/main.ts` is emitted as canonical `dist/main.js`.
 - Start the API runtime image directly with `node apps/api/dist/main.js` as the non-root runtime user.
-- Before full boot, prove the built image can load `argon2` and instantiate/disconnect `PrismaClient` under the same runtime image/user.
+- Before full boot, prove the built image can load `argon2` and instantiate/disconnect `PrismaClient` under the same runtime image/user; preserve the Prisma `$disconnect` method literally through the container shell.
 - Keep runtime dependency/application-graph loading inside bounded bootstrap phases and never serialize raw startup failures into CI evidence.
 - Launch the exact API image built by canonical CI and require Docker `healthy` within a bounded 60-second window, then directly request `/health/live`.
 - Launch the exact Web image and require the same bounded healthy transition plus direct liveness.
@@ -50,7 +51,7 @@ KMD-363 is complete only when CI for the **exact current PR head** passes:
 4. monorepo build and repository unit tests;
 5. frozen API image build and deterministic compiled-entrypoint proof;
 6. non-root runtime identity and healthcheck metadata;
-7. native runtime compatibility smoke for `argon2` and `PrismaClient`;
+7. native runtime compatibility smoke for `argon2` and `PrismaClient`, including a shell-safe literal `$disconnect` call;
 8. actual API production image boot, healthy transition and direct `/health/live` success;
 9. frozen Web image build, non-root identity, health metadata, actual boot and direct `/health/live` success;
 10. Web E2E and API E2E;
