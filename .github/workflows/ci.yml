@@ -60,10 +60,19 @@ jobs:
           set -euo pipefail
           name=knowme-api-runtime-ci
           diagnostics="$RUNNER_TEMP/knowme-api-runtime-diagnostics.log"
+          phase_marker="$RUNNER_TEMP/knowme-api-startup-phase"
           dump_runtime_diagnostics() {
             {
               echo '--- API container state ---'
               docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
+              echo '--- API startup phase marker ---'
+              rm -f "$phase_marker"
+              if docker cp "$name":/tmp/knowme-startup-phase "$phase_marker" 2>/dev/null; then
+                cat "$phase_marker"
+                echo
+              else
+                echo 'missing'
+              fi
               echo '--- API healthcheck history ---'
               docker inspect --format='{{range .State.Health.Log}}{{println .Start "exit=" .ExitCode}}{{println .Output}}{{end}}' "$name" 2>/dev/null || true
               echo '--- API direct liveness probe ---'
@@ -79,6 +88,7 @@ jobs:
             -e PORT=4000 \
             -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
             -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1 \
             -e API_INSTANCE_COUNT=1 \
             -e API_RATE_LIMIT_TTL_MS=60000 \
             -e API_RATE_LIMIT_LIMIT=120 \
