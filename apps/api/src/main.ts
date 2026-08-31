@@ -1,15 +1,5 @@
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { createCorsOptions } from './common/cors-policy';
-import { configureGracefulShutdown } from './common/graceful-shutdown';
-import { applyHttpServerTimeoutPolicy } from './common/http-server-policy';
-import { createHttpObservabilityMiddleware } from './common/http-observability';
-import { resolveRuntimeReleaseIdentity } from './common/release-identity';
-import { createSecurityHeadersMiddleware } from './common/security-headers';
-import { createProductionHttpsGuard } from './common/transport-security';
-import { createTrustedProxySetting } from './common/trusted-proxy-policy';
-
 type BootstrapPhase =
+  | 'runtime-module-load'
   | 'release-identity'
   | 'application-module-load'
   | 'nest-application-create'
@@ -48,7 +38,7 @@ const STARTUP_CONFIGURATION_KEYS = [
   'TRUSTED_PROXY_HOPS'
 ] as const;
 
-let bootstrapPhase: BootstrapPhase = 'release-identity';
+let bootstrapPhase: BootstrapPhase = 'runtime-module-load';
 
 function classifyStartupFailure(failure: unknown): { category: StartupFailureCategory; key?: string } {
   if (!failure || typeof failure !== 'object') return { category: 'runtime' };
@@ -68,6 +58,34 @@ function classifyStartupFailure(failure: unknown): { category: StartupFailureCat
 }
 
 async function bootstrap() {
+  // Own every runtime dependency load inside the bootstrap promise. Keeping these
+  // imports static would allow CommonJS module evaluation to fail before the
+  // bounded bootstrap().catch() diagnostic below exists.
+  bootstrapPhase = 'runtime-module-load';
+  const [
+    { ValidationPipe },
+    { NestFactory },
+    { createCorsOptions },
+    { configureGracefulShutdown },
+    { applyHttpServerTimeoutPolicy },
+    { createHttpObservabilityMiddleware },
+    { resolveRuntimeReleaseIdentity },
+    { createSecurityHeadersMiddleware },
+    { createProductionHttpsGuard },
+    { createTrustedProxySetting }
+  ] = await Promise.all([
+    import('@nestjs/common'),
+    import('@nestjs/core'),
+    import('./common/cors-policy'),
+    import('./common/graceful-shutdown'),
+    import('./common/http-server-policy'),
+    import('./common/http-observability'),
+    import('./common/release-identity'),
+    import('./common/security-headers'),
+    import('./common/transport-security'),
+    import('./common/trusted-proxy-policy')
+  ]);
+
   bootstrapPhase = 'release-identity';
   resolveRuntimeReleaseIdentity();
 
