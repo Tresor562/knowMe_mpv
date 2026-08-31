@@ -58,15 +58,18 @@ jobs:
         run: |
           set -euo pipefail
           name=knowme-api-runtime-ci
+          diagnostics="$RUNNER_TEMP/knowme-api-runtime-diagnostics.log"
           dump_runtime_diagnostics() {
-            echo '--- API container state ---' >&2
-            docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
-            echo '--- API healthcheck history ---' >&2
-            docker inspect --format='{{range .State.Health.Log}}{{println .Start "exit=" .ExitCode}}{{println .Output}}{{end}}' "$name" 2>/dev/null || true
-            echo '--- API direct liveness probe ---' >&2
-            curl --include --max-time 3 --silent --show-error http://127.0.0.1:4000/health/live 2>&1 || true
-            echo '--- API container logs ---' >&2
-            docker logs "$name" 2>/dev/null || true
+            {
+              echo '--- API container state ---'
+              docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
+              echo '--- API healthcheck history ---'
+              docker inspect --format='{{range .State.Health.Log}}{{println .Start "exit=" .ExitCode}}{{println .Output}}{{end}}' "$name" 2>/dev/null || true
+              echo '--- API direct liveness probe ---'
+              curl --include --max-time 3 --silent --show-error http://127.0.0.1:4000/health/live 2>&1 || true
+              echo '--- API container logs ---'
+              docker logs "$name" 2>/dev/null || true
+            } 2>&1 | tee "$diagnostics" >&2
           }
           trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
           docker run -d --name "$name" --network host \
@@ -106,6 +109,14 @@ jobs:
           echo "API runtime did not become healthy within 60 seconds" >&2
           dump_runtime_diagnostics
           exit 1
+      - name: Upload API runtime diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-api-runtime-diagnostics
+          path: ${{ runner.temp }}/knowme-api-runtime-diagnostics.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Build frozen Web runtime container
         run: docker build -f Dockerfile.web -t knowme-web-ci .
       - name: Verify Web runtime container identity
