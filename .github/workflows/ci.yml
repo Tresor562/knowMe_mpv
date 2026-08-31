@@ -49,10 +49,10 @@ jobs:
       - run: pnpm test
       - name: Build frozen API runtime container
         run: docker build -f Dockerfile.api -t knowme-api-ci .
-      - name: Verify API runtime launcher artifact
+      - name: Verify API runtime entrypoint artifact
         run: |
-          docker inspect --format='{{json .Config.Cmd}}' knowme-api-ci | grep -F '["node","apps/api/dist/launcher.js"]'
-          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eu; test -r /app/apps/api/dist/launcher.js; grep -F "launcher-enter" /app/apps/api/dist/launcher.js >/dev/null; node --check /app/apps/api/dist/launcher.js; test -w /app'
+          docker inspect --format='{{json .Config.Cmd}}' knowme-api-ci | grep -F '["node","apps/api/dist/main.js"]'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eu; test -r /app/apps/api/dist/main.js; grep -F "main-enter" /app/apps/api/dist/main.js >/dev/null; node --check /app/apps/api/dist/main.js; test -w /app'
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
