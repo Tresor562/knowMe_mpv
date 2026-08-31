@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 22.23.2
       - name: Verify CI and package supply-chain policy
-        run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs
+        run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs scripts/runtime-container-lockfile-preflight.test.mjs
       - run: pnpm install --frozen-lockfile
       - name: Audit production dependencies for high and critical advisories
         run: pnpm audit --prod --audit-level=high
@@ -47,6 +47,10 @@ jobs:
         run: pnpm --filter @knowme/api exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma --exit-code
       - run: pnpm build
       - run: pnpm test
+      - name: Build frozen API runtime container
+        run: docker build -f Dockerfile.api -t knowme-api-ci .
+      - name: Build frozen Web runtime container
+        run: docker build -f Dockerfile.web -t knowme-web-ci .
       - run: pnpm --filter @knowme/web exec playwright install --with-deps chromium
       - run: pnpm --filter @knowme/web test:e2e
       - run: pnpm --filter @knowme/api test:e2e
