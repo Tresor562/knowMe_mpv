@@ -111,7 +111,7 @@ jobs:
           dump_runtime_diagnostics
           exit 1
       - name: Upload API runtime diagnostics
-        if: ${{ steps.api_runtime_boot.outcome == 'failure' }}
+        if: ${{ failure() && steps.api_runtime_boot.outcome == 'failure' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: knowme-api-runtime-diagnostics
