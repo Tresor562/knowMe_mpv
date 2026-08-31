@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "require(\"argon2\"); process.stdout.write(\"argon2-ok\\n\")"'
-          docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "const { PrismaClient } = require(\"@prisma/client\"); const client = new PrismaClient(); client.$disconnect().then(() => process.stdout.write(\"prisma-client-ok\\n\"))"'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "const { PrismaClient } = require(\"@prisma/client\"); const client = new PrismaClient(); client.\$disconnect().then(() => process.stdout.write(\"prisma-client-ok\\n\"))"'
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
