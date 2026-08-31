@@ -1,8 +1,17 @@
-import { writeSync } from 'node:fs';
+import { writeFileSync, writeSync } from 'node:fs';
 
 type EntrypointFailureCategory = 'module-load' | 'uncaught-exception' | 'unhandled-rejection';
 
 let terminating = false;
+
+function persistEntrypointPhase(): void {
+  if (process.env.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1') return;
+  try {
+    writeFileSync('/tmp/knowme-startup-phase', 'launcher-enter', { encoding: 'utf8', mode: 0o600 });
+  } catch {
+    // Diagnostics must never alter startup ownership or availability.
+  }
+}
 
 function terminateEntrypoint(category: EntrypointFailureCategory): never {
   if (!terminating) {
@@ -15,6 +24,7 @@ function terminateEntrypoint(category: EntrypointFailureCategory): never {
   process.exit(1);
 }
 
+persistEntrypointPhase();
 process.once('uncaughtException', () => terminateEntrypoint('uncaught-exception'));
 process.once('unhandledRejection', () => terminateEntrypoint('unhandled-rejection'));
 
