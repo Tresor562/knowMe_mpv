@@ -65,6 +65,11 @@ jobs:
             -e PORT=4000 \
             -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
             -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e API_INSTANCE_COUNT=1 \
+            -e API_RATE_LIMIT_TTL_MS=60000 \
+            -e API_RATE_LIMIT_LIMIT=120 \
+            -e TRUSTED_PROXY_HOPS=0 \
+            -e 'CORS_ALLOWED_ORIGINS_JSON=["https://ci.invalid"]' \
             knowme-api-ci
           for attempt in $(seq 1 30); do
             status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name")"
