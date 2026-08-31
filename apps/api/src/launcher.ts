@@ -7,7 +7,7 @@ let terminating = false;
 function persistEntrypointPhase(): void {
   if (process.env.KNOWME_STARTUP_PHASE_DIAGNOSTIC !== '1') return;
   try {
-    writeFileSync('/tmp/knowme-startup-phase', 'launcher-enter', { encoding: 'utf8', mode: 0o600 });
+    writeFileSync('/app/.knowme-startup-phase', 'launcher-enter', { encoding: 'utf8', mode: 0o600 });
   } catch {
     // Diagnostics must never alter startup ownership or availability.
   }
