@@ -52,19 +52,21 @@ test('API image builds workspace runtime dependencies before boot', () => {
   assert.doesNotMatch(apiDockerfile, /RUN pnpm --filter @knowme\/api build/);
 });
 
-test('API bootstrap failure diagnostics own module-load and Nest initialization failures', () => {
+test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () => {
   assert.match(apiMain, /type BootstrapPhase =/);
-  assert.match(apiMain, /'release-identity'/);
   assert.match(apiMain, /'application-module-load'/);
-  assert.match(apiMain, /'nest-application-create'/);
-  assert.match(apiMain, /'runtime-policy-configuration'/);
-  assert.match(apiMain, /'http-listen'/);
   assert.doesNotMatch(apiMain, /import \{ AppModule \} from '\.\/app\.module'/);
-  assert.match(apiMain, /bootstrapPhase = 'application-module-load';\s*const \{ AppModule \} = await import\('\.\/app\.module'\);/s);
+  assert.match(apiMain, /await import\('\.\/app\.module'\)/);
   assert.match(apiMain, /NestFactory\.create\(AppModule, \{ rawBody: true, abortOnError: false \}\)/);
-  assert.match(apiMain, /bootstrap\(\)\.catch\(\(\) => \{/);
-  assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}/);
-  assert.doesNotMatch(apiMain, /catch\(\(?(?:error|err|reason)\)?\s*=>/);
-  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(?:error|err|reason)/);
+  assert.match(apiMain, /type StartupFailureCategory = 'module-resolution' \| 'configuration' \| 'runtime'/);
+  assert.match(apiMain, /const STARTUP_CONFIGURATION_KEYS = \[/);
+  assert.match(apiMain, /record\.code === 'MODULE_NOT_FOUND'/);
+  assert.match(apiMain, /record\.code === 'ERR_MODULE_NOT_FOUND'/);
+  assert.match(apiMain, /STARTUP_CONFIGURATION_KEYS\.find/);
+  assert.match(apiMain, /bootstrap\(\)\.catch\(\(failure: unknown\) => \{/);
+  assert.match(apiMain, /classifyStartupFailure\(failure\)/);
+  assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}\$\{suffix\}/);
+  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(?:failure\.message|failure\.stack|record\.message)/);
+  assert.doesNotMatch(apiMain, /JSON\.stringify\(failure\)/);
   assert.match(apiMain, /process\.exitCode = 1/);
 });
