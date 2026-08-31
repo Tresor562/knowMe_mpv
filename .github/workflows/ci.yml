@@ -63,6 +63,8 @@ jobs:
             -e DATABASE_URL="$DATABASE_URL" \
             -e JWT_SECRET="$JWT_SECRET" \
             -e PORT=4000 \
+            -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
+            -e KNOWME_RELEASE_VERSION=0.0.0-ci \
             knowme-api-ci
           for attempt in $(seq 1 30); do
             status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name")"
