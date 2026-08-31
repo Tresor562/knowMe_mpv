@@ -26,6 +26,16 @@ test('runtime boot proof is bounded and fails closed', () => {
   assert.match(workflow, /did not become healthy within 60 seconds/);
 });
 
+test('API boot failures persist bounded runtime diagnostics for later inspection', () => {
+  assert.match(workflow, /diagnostics="\$RUNNER_TEMP\/knowme-api-runtime-diagnostics\.log"/);
+  assert.match(workflow, /tee "\$diagnostics"/);
+  assert.match(workflow, /name: Upload API runtime diagnostics/);
+  assert.match(workflow, /if: failure\(\)/);
+  assert.match(workflow, /name: knowme-api-runtime-diagnostics/);
+  assert.match(workflow, /if-no-files-found: error/);
+  assert.match(workflow, /retention-days: 7/);
+});
+
 test('API boot proof supplies explicit CI-safe production runtime configuration', () => {
   assert.match(workflow, /-e DATABASE_URL="\$DATABASE_URL"/);
   assert.match(workflow, /-e JWT_SECRET="\$JWT_SECRET"/);
