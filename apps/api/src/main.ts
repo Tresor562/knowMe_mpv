@@ -41,6 +41,13 @@ const STARTUP_CONFIGURATION_KEYS = [
 let bootstrapPhase: BootstrapPhase = 'runtime-module-load';
 let bootstrapFailureReported = false;
 
+function writeStartupDiagnostic(message: string): void {
+  // Runtime startup can end with no active event-loop handles. stderr is pipe-backed
+  // in Docker, so console.error/process.stderr.write are not a durable last-chance
+  // transport here. Keep this synchronous and pass only already-bounded text.
+  require('node:fs').writeSync(2, `${message}\n`);
+}
+
 // Some libraries may terminate the process directly instead of throwing. The
 // normal bootstrap rejection handler cannot observe that path, but the exit
 // event still can. Only synchronous I/O is safe in an exit handler; Docker
@@ -48,10 +55,7 @@ let bootstrapFailureReported = false;
 // Emit only the bounded phase/category and never inspect the terminating value.
 process.once('exit', (code) => {
   if (code !== 0 && !bootstrapFailureReported) {
-    require('node:fs').writeSync(
-      2,
-      `[startup] API process exited during ${bootstrapPhase} (unowned-exit).\n`
-    );
+    writeStartupDiagnostic(`[startup] API process exited during ${bootstrapPhase} (unowned-exit).`);
   }
 });
 
@@ -139,6 +143,6 @@ bootstrap().catch((failure: unknown) => {
   bootstrapFailureReported = true;
   const diagnostic = classifyStartupFailure(failure);
   const suffix = diagnostic.key ? ` (${diagnostic.category}:${diagnostic.key})` : ` (${diagnostic.category})`;
-  console.error(`[startup] API bootstrap failed during ${bootstrapPhase}${suffix}.`);
+  writeStartupDiagnostic(`[startup] API bootstrap failed during ${bootstrapPhase}${suffix}.`);
   process.exitCode = 1;
 });
