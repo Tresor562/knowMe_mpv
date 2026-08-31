@@ -8,22 +8,25 @@ A market-ready release process must fail before merge when a production image bu
 
 The first exact-head KMD-363 CI run exposed a real packaging regression: `@knowme/api` depends on workspace contract packages whose runtime entrypoints are emitted under `dist/`, while `Dockerfile.api` built only the API package. A clean production image could therefore compile successfully yet start without the compiled runtime artifacts of its workspace dependencies.
 
-After fixing the workspace dependency build, exact-head CI #1286 still failed before the API could become healthy. The application intentionally calls `resolveRuntimeReleaseIdentity()` before NestJS bootstrap, and production mode fails closed unless both a canonical Git commit SHA and SemVer release identity are supplied. The boot proof had set `NODE_ENV=production` through the image but omitted those mandatory production values. KMD-363 therefore supplies a CI-scoped identity (`GITHUB_SHA` and `0.0.0-ci`) instead of weakening or bypassing the production guard.
+After fixing the workspace dependency build, exact-head CI #1286 still failed before the API could become healthy. The API is deliberately fail-closed in production: its runtime requires an explicit release identity, explicit process-local rate-limit topology/configuration, explicit trusted-proxy hops, and at least one HTTPS non-local CORS origin. The original boot proof supplied only database/JWT/port values. KMD-363 therefore supplies safe CI-scoped values for all of those existing production guards instead of weakening or bypassing them.
 
 ## Delivery
 
 - Keep the KMD-362 healthcheck definitions unchanged.
 - After each production image build, canonical CI now launches that exact image as a detached container.
-- API boot validation uses the CI PostgreSQL service through host networking and passes CI-scoped `DATABASE_URL`, `JWT_SECRET`, `PORT`, `KNOWME_RELEASE_COMMIT`, and `KNOWME_RELEASE_VERSION` values.
+- API boot validation uses the CI PostgreSQL service through host networking.
 - `KNOWME_RELEASE_COMMIT` is bound to the exact GitHub Actions `GITHUB_SHA`; the synthetic `0.0.0-ci` version is valid SemVer and is explicitly non-production release metadata for this CI boot proof.
-- The application remains in `NODE_ENV=production`; KMD-363 does not disable the release-identity fail-closed behavior.
+- Process-local rate limiting is explicitly constrained to one CI API instance with the repository defaults (`60000` ms / `120` requests), matching the production fail-closed policy that forbids silent horizontal scaling with process-local limiter state.
+- Trusted proxy hops are explicitly `0` for the direct CI runner/container topology.
+- CORS uses the reserved non-routable HTTPS origin `https://ci.invalid`; it exists only to satisfy and exercise the production origin validator and is not a production-domain claim.
+- The application remains in `NODE_ENV=production`; KMD-363 does not disable release identity, rate-limit topology, trusted-proxy, CORS, HTTPS, or other production guards.
 - Web boot validation launches the exact Web image on its production port.
 - Both checks poll Docker's real container health state for at most 60 seconds.
 - A container that becomes `unhealthy`, exits, or never becomes healthy fails the canonical `quality` job.
 - Once healthy, CI also performs an HTTP request against the declared liveness route from the runner.
 - Cleanup always removes the temporary container and emits container logs for diagnosis.
-- `Dockerfile.api` now builds the API dependency closure with `pnpm --filter @knowme/api... build`, so workspace runtime contracts are compiled before the production command starts.
-- A repository preflight test prevents later CI edits from silently removing the runtime boot proof, converting it into an unbounded wait, omitting mandatory CI release identity, switching the boot to development/test mode, or regressing the API image to building only the leaf package.
+- `Dockerfile.api` builds the API dependency closure with `pnpm --filter @knowme/api... build`, so workspace runtime contracts are compiled before the production command starts.
+- A repository preflight prevents later CI edits from silently removing the runtime boot proof, converting it into an unbounded wait, omitting the explicit CI production configuration, switching the boot to development/test mode, or regressing the API image to building only the leaf package.
 
 ## Tests and merge gates
 
@@ -31,7 +34,7 @@ KMD-363 is complete only when exact-head CI passes all existing gates plus:
 
 1. the runtime-container boot preflight;
 2. the workspace runtime dependency build guard;
-3. explicit CI-scoped production release-identity guard coverage;
+3. explicit CI-scoped production release identity, rate-limit, trusted-proxy, and CORS guard coverage;
 4. actual API image boot and healthy transition;
 5. actual Web image boot and healthy transition;
 6. direct HTTP success from both `/health/live` endpoints;
@@ -41,14 +44,14 @@ No merge is allowed with a blocking review or unresolved review thread.
 
 ## Migration
 
-No Prisma, user-data, API-contract or client migration is required. The runtime packaging and CI environment changes only ensure already-declared workspace dependencies are compiled and the existing mandatory production release identity is supplied during the isolated boot proof.
+No Prisma, user-data, API-contract or client migration is required. The runtime packaging and CI environment changes only ensure already-declared workspace dependencies are compiled and the existing mandatory production runtime configuration is supplied during the isolated boot proof.
 
 ## Rollback
 
-Revert the KMD-363 commits. That restores KMD-362 behavior where CI builds both runtime images and inspects their healthcheck metadata without starting the production containers, restores the prior leaf-only API Docker build, and removes the CI-scoped runtime identity. No persistent data rollback is required.
+Revert the KMD-363 commits. That restores KMD-362 behavior where CI builds both runtime images and inspects their healthcheck metadata without starting the production containers, restores the prior leaf-only API Docker build, and removes the CI-scoped runtime configuration. No persistent data rollback is required.
 
 ## Operational and proof boundary
 
-KMD-363 proves that the exact images built in GitHub Actions can boot and satisfy their declared liveness healthchecks in the CI environment while retaining the API's production release-identity guard. It does not prove production orchestration, production secrets, production databases, network policies, alert delivery, backup restoration, physical-device behavior, legal/privacy compliance, production deployment, or App Store / Google Play publication.
+KMD-363 proves that the exact images built in GitHub Actions can boot and satisfy their declared liveness healthchecks in the CI environment while retaining the API's existing production fail-closed guards. It does not prove production orchestration, production secrets, production databases, production CORS domains, network policies, alert delivery, backup restoration, physical-device behavior, legal/privacy compliance, production deployment, or App Store / Google Play publication.
 
 Canonical `main` branch protection also remains an external repository-governance requirement and must not be claimed complete until GitHub reports the required protection configuration.
