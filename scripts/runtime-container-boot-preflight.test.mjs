@@ -54,7 +54,7 @@ test('API bootstrap failure diagnostics identify only a bounded phase', () => {
   assert.match(apiMain, /'http-listen'/);
   assert.match(apiMain, /bootstrap\(\)\.catch\(\(\) => \{/);
   assert.match(apiMain, /API bootstrap failed during \$\{bootstrapPhase\}/);
-  assert.doesNotMatch(apiMain, /catch\(\(error|err|reason)\)/);
-  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(error|err|reason)/);
+  assert.doesNotMatch(apiMain, /catch\(\(?(?:error|err|reason)\)?\s*=>/);
+  assert.doesNotMatch(apiMain, /console\.error\([^\n]*(?:error|err|reason)/);
   assert.match(apiMain, /process\.exitCode = 1/);
 });
