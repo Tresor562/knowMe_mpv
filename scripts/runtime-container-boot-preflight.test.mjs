@@ -38,6 +38,12 @@ test('API boot proof supplies explicit CI-safe production runtime configuration'
   assert.match(workflow, /-e API_HEADERS_TIMEOUT_MS=15000/);
   assert.match(workflow, /-e API_KEEP_ALIVE_TIMEOUT_MS=5000/);
   assert.match(workflow, /CORS_ALLOWED_ORIGINS_JSON=\["https:\/\/ci\.invalid"\]/);
+  assert.match(workflow, /-e MEDIA_STORAGE_DRIVER=s3/);
+  assert.match(workflow, /-e MEDIA_S3_ENDPOINT=https:\/\/s3\.ci\.invalid/);
+  assert.match(workflow, /-e MEDIA_S3_BUCKET=knowme-ci-runtime/);
+  assert.match(workflow, /-e MEDIA_S3_REGION=ci-test-1/);
+  assert.match(workflow, /-e MEDIA_S3_ACCESS_KEY_ID=ci-runtime-access-key/);
+  assert.match(workflow, /-e MEDIA_S3_SECRET_ACCESS_KEY=ci-runtime-secret-key-not-for-production/);
   assert.doesNotMatch(workflow, /NODE_ENV=(development|test)/);
 });
 
