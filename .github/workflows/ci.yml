@@ -54,6 +54,7 @@ jobs:
       - name: Verify API runtime healthcheck metadata
         run: docker inspect --format='{{json .Config.Healthcheck.Test}}' knowme-api-ci | grep -F 'http://127.0.0.1:4000/health/live'
       - name: Boot API runtime container and require healthy status
+        id: api_runtime_boot
         shell: bash
         run: |
           set -euo pipefail
@@ -110,7 +111,7 @@ jobs:
           dump_runtime_diagnostics
           exit 1
       - name: Upload API runtime diagnostics
-        if: failure()
+        if: ${{ steps.api_runtime_boot.outcome == 'failure' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: knowme-api-runtime-diagnostics
