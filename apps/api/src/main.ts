@@ -43,11 +43,15 @@ let bootstrapFailureReported = false;
 
 // Some libraries may terminate the process directly instead of throwing. The
 // normal bootstrap rejection handler cannot observe that path, but the exit
-// event still can. Emit only the bounded phase/category; never inspect or print
-// an exception, stack, URI, environment value or secret from this fallback.
+// event still can. Only synchronous I/O is safe in an exit handler; Docker
+// captures stderr through a pipe, so an asynchronous stream write can be lost.
+// Emit only the bounded phase/category and never inspect the terminating value.
 process.once('exit', (code) => {
   if (code !== 0 && !bootstrapFailureReported) {
-    process.stderr.write(`[startup] API process exited during ${bootstrapPhase} (unowned-exit).\n`);
+    require('node:fs').writeSync(
+      2,
+      `[startup] API process exited during ${bootstrapPhase} (unowned-exit).\n`
+    );
   }
 });
 
