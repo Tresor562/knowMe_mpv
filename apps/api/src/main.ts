@@ -10,10 +10,23 @@ import { createSecurityHeadersMiddleware } from './common/security-headers';
 import { createProductionHttpsGuard } from './common/transport-security';
 import { createTrustedProxySetting } from './common/trusted-proxy-policy';
 
+type BootstrapPhase =
+  | 'release-identity'
+  | 'nest-application-create'
+  | 'runtime-policy-configuration'
+  | 'http-listen'
+  | 'ready';
+
+let bootstrapPhase: BootstrapPhase = 'release-identity';
+
 async function bootstrap() {
+  bootstrapPhase = 'release-identity';
   resolveRuntimeReleaseIdentity();
 
+  bootstrapPhase = 'nest-application-create';
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  bootstrapPhase = 'runtime-policy-configuration';
   const express = app.getHttpAdapter().getInstance() as { set(name: string, value: unknown): void };
   express.set('trust proxy', createTrustedProxySetting());
   applyHttpServerTimeoutPolicy(app.getHttpServer());
@@ -23,6 +36,16 @@ async function bootstrap() {
   app.use(createSecurityHeadersMiddleware());
   app.use(createHttpObservabilityMiddleware());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  bootstrapPhase = 'http-listen';
   await app.listen(process.env.PORT ?? 4000);
+  bootstrapPhase = 'ready';
 }
-bootstrap();
+
+bootstrap().catch(() => {
+  // Deliberately emit only the bounded phase name. Startup exceptions may contain
+  // database URIs, infrastructure details or other secrets and must not be copied
+  // into CI/production logs merely to make a failed boot actionable.
+  console.error(`[startup] API bootstrap failed during ${bootstrapPhase}.`);
+  process.exitCode = 1;
+});
