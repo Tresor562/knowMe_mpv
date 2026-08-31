@@ -49,6 +49,10 @@ jobs:
       - run: pnpm test
       - name: Build frozen API runtime container
         run: docker build -f Dockerfile.api -t knowme-api-ci .
+      - name: Verify API runtime launcher artifact
+        run: |
+          docker inspect --format='{{json .Config.Cmd}}' knowme-api-ci | grep -F '["node","apps/api/dist/launcher.js"]'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eu; test -r /app/apps/api/dist/launcher.js; grep -F "launcher-enter" /app/apps/api/dist/launcher.js >/dev/null; node --check /app/apps/api/dist/launcher.js; test -w /app'
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
@@ -65,9 +69,11 @@ jobs:
             {
               echo '--- API container state ---'
               docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
+              echo '--- API startup diagnostic flag ---'
+              docker inspect --format='{{range .Config.Env}}{{println .}}{{end}}' "$name" 2>/dev/null | grep -Fx 'KNOWME_STARTUP_PHASE_DIAGNOSTIC=1' || echo 'missing'
               echo '--- API startup phase marker ---'
               rm -f "$phase_marker"
-              if docker cp "$name":/tmp/knowme-startup-phase "$phase_marker" 2>/dev/null; then
+              if docker cp "$name":/app/.knowme-startup-phase "$phase_marker" 2>/dev/null; then
                 cat "$phase_marker"
                 echo
               else
