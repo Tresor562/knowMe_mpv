@@ -92,6 +92,15 @@ test('API bootstrap owns runtime dependency loading before application graph eva
   assert.match(apiMain, /import\('\.\/common\/trusted-proxy-policy'\)/);
 });
 
+test('API bootstrap reports direct non-zero process exits with only a bounded phase', () => {
+  assert.match(apiMain, /let bootstrapFailureReported = false/);
+  assert.match(apiMain, /process\.once\('exit', \(code\) => \{/);
+  assert.match(apiMain, /code !== 0 && !bootstrapFailureReported/);
+  assert.match(apiMain, /API process exited during \$\{bootstrapPhase\} \(unowned-exit\)/);
+  assert.match(apiMain, /bootstrapFailureReported = true/);
+  assert.doesNotMatch(apiMain, /process\.once\('exit'[^]*?(?:\.message|\.stack|JSON\.stringify)/);
+});
+
 test('API bootstrap diagnostics are bounded, allowlisted and secret-safe', () => {
   assert.match(apiMain, /type BootstrapPhase =/);
   assert.match(apiMain, /'application-module-load'/);
