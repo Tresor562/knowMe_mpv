@@ -7,7 +7,7 @@ const packageJsonUrl = new URL('../package.json', import.meta.url);
 const apiDockerfileUrl = new URL('../Dockerfile.api', import.meta.url);
 const webDockerfileUrl = new URL('../Dockerfile.web', import.meta.url);
 const composeUrl = new URL('../docker-compose.yml', import.meta.url);
-const SHA_PINNED_ACTION = /^\s*- uses: ([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
+const SHA_PINNED_ACTION = /^\s*(?:-\s+)?uses:\s+([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
 const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a-f]{64}\s*$/m;
 const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
 const PINNED_CI_NODE_VERSION = /^\s*node-version:\s*22\.23\.2\s*$/m;
@@ -34,7 +34,7 @@ test('canonical CI runner uses an explicit Ubuntu release family instead of late
 
 test('every external GitHub Action in CI is pinned to an immutable commit SHA', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  const usesLines = workflow.split('\n').filter((line) => /^\s*- uses:/.test(line));
+  const usesLines = workflow.split('\n').filter((line) => /^\s*(?:-\s+)?uses:/.test(line));
 
   assert.ok(usesLines.length > 0, 'CI must keep at least one explicitly audited external action.');
   for (const line of usesLines) {
