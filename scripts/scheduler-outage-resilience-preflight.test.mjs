@@ -40,8 +40,9 @@ test('notification schedulers route both bootstrap and interval execution throug
 
 test('new scheduler-boundary diagnostics do not serialize exception messages', () => {
   for (const source of Object.values(files)) {
-    const boundary = source.match(/private async runScheduled(?:Tick|Cleanup)\(\)[\s\S]*?\n  }/u)?.[0] ?? '';
-    assert.ok(boundary.length > 0);
+    const marker = source.search(/private async runScheduled(?:Tick|Cleanup)\(\)/);
+    assert.ok(marker >= 0);
+    const boundary = source.slice(marker, marker + 600);
     assert.doesNotMatch(boundary, /error\.message|error\.stack|DATABASE_URL/);
     assert.match(boundary, /error\.name/);
   }
