@@ -28,7 +28,9 @@ const MAX_DRILL_RTO_SECONDS = 86400;
 const CHECK_SQL = `SELECT json_build_object(
   'databaseReachable', true,
   'prismaMigrationsTable', to_regclass('public._prisma_migrations') IS NOT NULL,
-  'publicTableCount', (SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public')
+  'publicTableCount', (SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public'),
+  'appliedMigrationCount', (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL),
+  'unfinishedMigrationCount', (SELECT count(*) FROM public._prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL)
 )::text;`;
 
 function canonicalPositiveInteger(raw, label, max = Number.MAX_SAFE_INTEGER) {
@@ -69,7 +71,11 @@ export function parseRestoreDrillCheckOutput(stdout) {
     parsed.databaseReachable !== true ||
     parsed.prismaMigrationsTable !== true ||
     !Number.isInteger(parsed.publicTableCount) ||
-    parsed.publicTableCount < 1
+    parsed.publicTableCount < 1 ||
+    !Number.isInteger(parsed.appliedMigrationCount) ||
+    parsed.appliedMigrationCount < 1 ||
+    !Number.isInteger(parsed.unfinishedMigrationCount) ||
+    parsed.unfinishedMigrationCount !== 0
   ) {
     throw new Error('Restore drill integrity checks did not prove a usable restored schema');
   }
@@ -78,6 +84,8 @@ export function parseRestoreDrillCheckOutput(stdout) {
     databaseReachable: true,
     prismaMigrationsTable: true,
     publicTableCount: parsed.publicTableCount,
+    appliedMigrationCount: parsed.appliedMigrationCount,
+    unfinishedMigrationCount: 0,
   };
 }
 
@@ -133,7 +141,7 @@ export function buildRestoreDrillEvidence({ manifest, checks, recovery, observed
   if (Number.isNaN(observed.getTime())) throw new Error('Restore drill observation time is invalid');
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     kind: 'knowme-postgres-restore-drill',
     status: 'PASSED',
     observedAt: observed.toISOString(),
@@ -149,7 +157,7 @@ export function buildRestoreDrillEvidence({ manifest, checks, recovery, observed
       recovery,
     },
     proofBoundary:
-      'This artifact proves this automated isolated restore drill completed, passed bounded PostgreSQL schema checks, and met the configured RPO/RTO thresholds during this run. It does not prove remote backup durability, production failover, business-data correctness, or future RPO/RTO performance.',
+      'This artifact proves this automated isolated restore drill completed, passed bounded PostgreSQL schema and Prisma migration-state checks with no unfinished migration, and met the configured RPO/RTO thresholds during this run. It does not prove remote backup durability, production failover, complete business-data correctness, that the restored migration set matches a future release head, or future RPO/RTO performance.',
   };
 }
 
@@ -308,7 +316,7 @@ async function runCli() {
   console.log(
     `Restore drill recovery metrics: RPO=${result.evidence.restore.recovery.recoveryPointAgeSeconds}s, RTO=${result.evidence.restore.recovery.restoreDurationMs}ms`,
   );
-  console.log('The drill used an isolated RESTORE_DATABASE_URL and passed bounded PostgreSQL schema checks.');
+  console.log('The drill used an isolated RESTORE_DATABASE_URL and passed bounded PostgreSQL schema and Prisma migration-state checks.');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

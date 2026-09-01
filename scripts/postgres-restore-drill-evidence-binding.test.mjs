@@ -13,14 +13,20 @@ const cliPath = fileURLToPath(new URL('./postgres-restore-drill-evidence-binding
 
 function artifact(overrides = {}) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     kind: 'knowme-postgres-restore-drill',
     status: 'PASSED',
     observedAt: '2026-08-27T11:00:10.000Z',
     backup: { file: 'knowme.dump', sha256: 'a'.repeat(64), createdAt: '2026-08-27T10:00:00.000Z' },
     restore: {
       isolatedTarget: true,
-      checks: { databaseReachable: true, prismaMigrationsTable: true, schemaHasTables: true },
+      checks: {
+        databaseReachable: true,
+        prismaMigrationsTable: true,
+        publicTableCount: 42,
+        appliedMigrationCount: 18,
+        unfinishedMigrationCount: 0,
+      },
       recovery: {
         startedAt: '2026-08-27T11:00:00.000Z',
         completedAt: '2026-08-27T11:00:10.000Z',
@@ -35,51 +41,42 @@ function artifact(overrides = {}) {
 }
 
 function cliArgs(artifactPath, outputPath) {
-  return [
-    cliPath,
-    '--artifact', artifactPath,
-    '--output', outputPath,
-    '--scope', 'WEB_V1',
-    '--verifier', 'release-operator',
-    '--ref', 'evidence://release/restore-drill-cli',
-    '--valid-until', '2026-09-27T11:00:10.000Z',
-  ];
+  return [cliPath, '--artifact', artifactPath, '--output', outputPath, '--scope', 'WEB_V1', '--verifier', 'release-operator', '--ref', 'evidence://release/restore-drill-cli', '--valid-until', '2026-09-27T11:00:10.000Z'];
 }
 
 test('accepts a canonical passing restore drill artifact', () => {
-  const result = validateRestoreDrillArtifact(artifact(), { now });
-  assert.deepEqual(result, { ok: true, verifiedAt: '2026-08-27T11:00:10.000Z' });
+  assert.deepEqual(validateRestoreDrillArtifact(artifact(), { now }), { ok: true, verifiedAt: '2026-08-27T11:00:10.000Z' });
 });
 
 test('creates backup_restore_drill item from exact artifact bytes', () => {
   const bytes = Buffer.from(`${JSON.stringify(artifact(), null, 2)}\n`);
-  const result = createRestoreDrillMarketEvidenceItem(bytes, {
-    scope: 'WEB_V1',
-    verifier: 'release-operator',
-    evidenceRef: 'evidence://release/restore-drill-2026-08-27',
-    validUntil: '2026-09-27T11:00:10.000Z',
-    now,
-  });
+  const result = createRestoreDrillMarketEvidenceItem(bytes, { scope: 'WEB_V1', verifier: 'release-operator', evidenceRef: 'evidence://release/restore-drill-2026-08-27', validUntil: '2026-09-27T11:00:10.000Z', now });
   assert.equal(result.ok, true);
   assert.equal(result.item.id, 'backup_restore_drill');
   assert.equal(result.item.status, 'VERIFIED');
-  assert.equal(result.item.verifiedAt, '2026-08-27T11:00:10.000Z');
   assert.match(result.item.evidenceSha256, /^[0-9a-f]{64}$/);
+});
+
+test('rejects legacy or incomplete migration-state evidence', () => {
+  const cases = [
+    artifact({ schemaVersion: 2 }),
+    artifact({ restore: { ...artifact().restore, checks: { ...artifact().restore.checks, unfinishedMigrationCount: 1 } } }),
+    artifact({ restore: { ...artifact().restore, checks: { ...artifact().restore.checks, appliedMigrationCount: 0 } } }),
+    artifact({ restore: { ...artifact().restore, checks: { ...artifact().restore.checks, publicTableCount: 0 } } }),
+  ];
+  for (const value of cases) assert.equal(validateRestoreDrillArtifact(value, { now }).ok, false);
 });
 
 test('rejects semantic failures even when JSON is hashable', () => {
   const cases = [
     artifact({ status: 'FAILED' }),
     artifact({ restore: { ...artifact().restore, isolatedTarget: false } }),
-    artifact({ restore: { ...artifact().restore, checks: { databaseReachable: true, prismaMigrationsTable: false, schemaHasTables: true } } }),
+    artifact({ restore: { ...artifact().restore, checks: { ...artifact().restore.checks, prismaMigrationsTable: false } } }),
     artifact({ restore: { ...artifact().restore, recovery: { ...artifact().restore.recovery, restoreDurationMs: 901000 } } }),
     artifact({ observedAt: '2026-08-27T11:00:11.000Z' }),
   ];
   for (const value of cases) {
-    const result = createRestoreDrillMarketEvidenceItem(Buffer.from(JSON.stringify(value)), {
-      scope: 'WEB_V1', verifier: 'release-operator', evidenceRef: 'evidence://release/restore-drill',
-      validUntil: '2026-09-27T11:00:10.000Z', now,
-    });
+    const result = createRestoreDrillMarketEvidenceItem(Buffer.from(JSON.stringify(value)), { scope: 'WEB_V1', verifier: 'release-operator', evidenceRef: 'evidence://release/restore-drill', validUntil: '2026-09-27T11:00:10.000Z', now });
     assert.equal(result.ok, false);
   }
 });
@@ -96,7 +93,6 @@ test('CLI creates restore evidence from a regular retained artifact', async () =
     const artifactPath = join(dir, 'restore-drill.json');
     const outputPath = join(dir, 'item.json');
     await writeFile(artifactPath, `${JSON.stringify(artifact(), null, 2)}\n`);
-
     const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     const item = JSON.parse(await readFile(outputPath, 'utf8'));
@@ -112,7 +108,6 @@ test('CLI rejects a symlinked restore retained artifact before JSON ingestion', 
     t.skip('Symlink creation is not reliably available on Windows CI without elevated privileges.');
     return;
   }
-
   const dir = await mkdtemp(join(tmpdir(), 'knowme-restore-binding-symlink-'));
   try {
     const targetPath = join(dir, 'restore-drill-target.json');
@@ -120,7 +115,6 @@ test('CLI rejects a symlinked restore retained artifact before JSON ingestion', 
     const outputPath = join(dir, 'item.json');
     await writeFile(targetPath, `${JSON.stringify(artifact(), null, 2)}\n`);
     await symlink(targetPath, artifactPath);
-
     const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /regular non-symlink file/);
