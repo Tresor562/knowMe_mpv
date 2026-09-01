@@ -46,6 +46,7 @@ const COMMON_EVIDENCE = [
   'data_export_delete_validation',
   'moderation_support_incident_ops',
   'antimalware_provider_validation',
+  'object_storage_provider_validation',
 ];
 
 const FULL_EVIDENCE = [
