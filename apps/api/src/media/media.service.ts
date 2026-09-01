@@ -167,7 +167,7 @@ export class MediaService {
           }
 
           await this.storage.put(storageKey, file.buffer, detectedMime);
-          return tx.mediaAsset.create({
+          const asset = await tx.mediaAsset.create({
             data: {
               ownerId: userId,
               storageKey,
@@ -186,25 +186,36 @@ export class MediaService {
               scannerLastAttemptAt: consumedAt
             }
           });
+
+          // The audit record is part of the same database commit as the media
+          // metadata. If audit persistence fails, Prisma rolls the transaction
+          // back and the catch block below removes the just-written provider
+          // object. Once the transaction commits, no later audit failure can
+          // delete an object that still has durable MediaAsset metadata.
+          await this.audit.record(
+            {
+              actorId: userId,
+              action: 'MEDIA_UPLOAD_COMPLETE',
+              entity: 'MediaAsset',
+              entityId: asset.id,
+              targetAccountId: userId,
+              metadata: {
+                purpose: asset.purpose,
+                detectedMime,
+                size: asset.size,
+                status,
+                scannerVerdict: scan.verdict,
+                storageDriver: this.storage.storageDriver()
+              }
+            },
+            tx
+          );
+
+          return asset;
         },
         { maxWait: 5000, timeout: 30000 }
       );
 
-      await this.audit.record({
-        actorId: userId,
-        action: 'MEDIA_UPLOAD_COMPLETE',
-        entity: 'MediaAsset',
-        entityId: asset.id,
-        targetAccountId: userId,
-        metadata: {
-          purpose: asset.purpose,
-          detectedMime,
-          size: asset.size,
-          status,
-          scannerVerdict: scan.verdict,
-          storageDriver: this.storage.storageDriver()
-        }
-      });
       return this.publicAsset(asset);
     } catch (error) {
       await this.storage.delete(storageKey).catch(() => undefined);
