@@ -132,17 +132,38 @@ jobs:
           set -euo pipefail
           api_id_before="$(docker inspect --format='{{.Id}}' "$API_RUNTIME_CONTAINER")"
           docker start "$DB_RUNTIME_CONTAINER" >/dev/null
+
+          # Container-local pg_isready can turn green before the published host port is
+          # usable again. Prove host-path reachability first so the recovery timer
+          # measures the API/Prisma recovery behavior rather than Docker NAT startup.
           for attempt in $(seq 1 30); do
-            if docker exec "$DB_RUNTIME_CONTAINER" pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
-              live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
-              ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
-              if [ "$live_code" = 200 ] && [ "$ready_code" = 200 ]; then
-                test "$(docker inspect --format='{{.Id}}' "$API_RUNTIME_CONTAINER")" = "$api_id_before"
-                exit 0
-              fi
+            if docker run --rm --network host \
+              postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685 \
+              pg_isready -h 127.0.0.1 -p 55432 -U knowme -d knowme_readiness >/dev/null 2>&1; then
+              break
             fi
             if [ "$attempt" = 30 ]; then
-              echo "API readiness did not recover after PostgreSQL returned; observed live=${live_code:-unknown} ready=${ready_code:-unknown}." >&2
+              echo 'PostgreSQL restarted but its published host endpoint did not recover.' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          for attempt in $(seq 1 60); do
+            live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
+            ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
+            if [ "$live_code" = 200 ] && [ "$ready_code" = 200 ]; then
+              test "$(docker inspect --format='{{.Id}}' "$API_RUNTIME_CONTAINER")" = "$api_id_before"
+              exit 0
+            fi
+            api_state="$(docker inspect --format='{{.State.Status}}' "$API_RUNTIME_CONTAINER")"
+            db_state="$(docker inspect --format='{{.State.Status}}' "$DB_RUNTIME_CONTAINER")"
+            if [ "$api_state" != running ] || [ "$db_state" != running ]; then
+              echo "Runtime recovery invalidated by container state; api=$api_state db=$db_state." >&2
+              exit 1
+            fi
+            if [ "$attempt" = 60 ]; then
+              echo "API readiness did not recover within 120 seconds after the PostgreSQL host endpoint returned; observed live=${live_code:-unknown} ready=${ready_code:-unknown}." >&2
               exit 1
             fi
             sleep 2
