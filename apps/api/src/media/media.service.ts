@@ -294,6 +294,16 @@ export class MediaService {
       select: { id: true, storageKey: true }
     });
     const assetIds = assets.map((asset) => asset.id);
+
+    // Account deletion is a privacy boundary: never remove the only durable
+    // metadata that identifies private objects before the provider confirms
+    // that those objects are gone. MediaStorageService.delete is idempotent
+    // for both local and S3 drivers, so a later retry remains safe if a
+    // database operation fails after the provider purge has completed.
+    for (const asset of assets) {
+      await this.storage.delete(asset.storageKey);
+    }
+
     await this.prisma.$transaction([
       this.prisma.mediaDownloadGrant.deleteMany({
         where: { OR: [{ userId }, { assetId: { in: assetIds } }] }
@@ -304,9 +314,6 @@ export class MediaService {
       this.prisma.mediaAsset.deleteMany({ where: { ownerId: userId } }),
       this.prisma.mediaUploadSession.deleteMany({ where: { ownerId: userId } })
     ]);
-    await Promise.all(
-      assets.map((asset) => this.storage.delete(asset.storageKey).catch(() => undefined))
-    );
   }
 
   private async authorizedAsset(userId: string, assetId: string) {
