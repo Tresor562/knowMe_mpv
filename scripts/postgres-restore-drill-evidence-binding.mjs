@@ -22,7 +22,7 @@ export function validateRestoreDrillArtifact(artifact, { now = new Date() } = {}
   if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
     return { ok: false, errors: ['Restore drill artifact must be a JSON object.'] };
   }
-  if (artifact.schemaVersion !== 2) errors.push('Restore drill artifact schemaVersion must be 2.');
+  if (artifact.schemaVersion !== 3) errors.push('Restore drill artifact schemaVersion must be 3.');
   if (artifact.kind !== 'knowme-postgres-restore-drill') errors.push('Restore drill artifact kind is invalid.');
   if (artifact.status !== 'PASSED') errors.push('Restore drill artifact status must be PASSED.');
 
@@ -33,8 +33,16 @@ export function validateRestoreDrillArtifact(artifact, { now = new Date() } = {}
 
   if (artifact.restore?.isolatedTarget !== true) errors.push('Restore drill must prove an isolated target.');
   const checks = artifact.restore?.checks;
-  if (checks?.databaseReachable !== true || checks?.prismaMigrationsTable !== true || checks?.schemaHasTables !== true) {
-    errors.push('Restore drill bounded PostgreSQL checks must all pass.');
+  if (
+    checks?.databaseReachable !== true ||
+    checks?.prismaMigrationsTable !== true ||
+    !Number.isInteger(checks?.publicTableCount) ||
+    checks.publicTableCount < 1 ||
+    !Number.isInteger(checks?.appliedMigrationCount) ||
+    checks.appliedMigrationCount < 1 ||
+    checks?.unfinishedMigrationCount !== 0
+  ) {
+    errors.push('Restore drill bounded PostgreSQL and Prisma migration-state checks must all pass.');
   }
 
   const recovery = artifact.restore?.recovery;
