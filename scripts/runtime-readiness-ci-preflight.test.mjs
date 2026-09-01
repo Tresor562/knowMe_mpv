@@ -24,7 +24,16 @@ test('readiness proof has separate initial, dependency-loss and recovery gates',
   assert.match(workflow, /\[ "\$live_code" = 200 \] && \[ "\$ready_code" = 503 \]/);
   assert.match(workflow, /docker start "\$DB_RUNTIME_CONTAINER"/);
   assert.match(workflow, /api_id_before="\$\(docker inspect --format='\{\{\.Id\}\}' "\$API_RUNTIME_CONTAINER"\)"/);
-  assert.match(workflow, /API readiness did not recover after PostgreSQL returned/);
+  assert.match(workflow, /API readiness did not recover within 120 seconds after the PostgreSQL host endpoint returned/);
+});
+
+test('recovery proof separates Docker host-port recovery from API recovery and preserves process identity', () => {
+  assert.match(workflow, /docker run --rm --network host[\s\S]*pg_isready -h 127\.0\.0\.1 -p 55432 -U knowme -d knowme_readiness/);
+  assert.match(workflow, /PostgreSQL restarted but its published host endpoint did not recover/);
+  assert.match(workflow, /seq 1 60/);
+  assert.match(workflow, /api_state="\$\(docker inspect --format='\{\{\.State\.Status\}\}' "\$API_RUNTIME_CONTAINER"\)"/);
+  assert.match(workflow, /db_state="\$\(docker inspect --format='\{\{\.State\.Status\}\}' "\$DB_RUNTIME_CONTAINER"\)"/);
+  assert.match(workflow, /test "\$\(docker inspect --format='\{\{\.Id\}\}' "\$API_RUNTIME_CONTAINER"\)" = "\$api_id_before"/);
 });
 
 test('readiness proof is bounded, always cleans resources and never serializes response bodies', () => {
@@ -34,6 +43,7 @@ test('readiness proof is bounded, always cleans resources and never serializes r
   assert.match(workflow, /docker rm -f "\$DB_RUNTIME_CONTAINER"/);
   assert.match(workflow, /seq 1 30/);
   assert.match(workflow, /seq 1 20/);
+  assert.match(workflow, /seq 1 60/);
   assert.match(workflow, /--output \/dev\/null --write-out '%\{http_code\}'/);
   assert.doesNotMatch(workflow, /curl[^\n]*(?:--include|-i\b)/);
 });
