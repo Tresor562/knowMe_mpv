@@ -19,10 +19,11 @@ export class AuditService {
     private readonly context: RequestContextService
   ) {}
 
-  record(record: AuditRecord) {
+  record(record: AuditRecord, tx?: Prisma.TransactionClient) {
     const request = this.context.get();
+    const client = tx ?? this.prisma;
 
-    return this.prisma.auditLog.create({
+    return client.auditLog.create({
       data: {
         actorId: record.actorId ?? null,
         action: record.action,
