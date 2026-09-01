@@ -36,9 +36,11 @@ export class ProfileCircleNotificationResilienceSchedulerService
     const config = this.runtimeConfig.get();
     if (!config.enabled || !config.resilienceEnabled) return;
     const interval = Math.max(30_000, config.schedulerIntervalMs * 2);
-    this.timer = setInterval(() => void this.tick(), interval);
+    this.timer = setInterval(() => {
+      void this.runScheduledTick();
+    }, interval);
     this.timer.unref();
-    void this.tick();
+    void this.runScheduledTick();
   }
 
   onApplicationShutdown() {
@@ -50,17 +52,18 @@ export class ProfileCircleNotificationResilienceSchedulerService
     this.running = true;
     const config = this.runtimeConfig.get();
     const key = 'profile-circle-notification-resilience';
-    const lease = await this.leases.acquire({
-      key,
-      ownerId: config.nodeId,
-      ttlMs: config.leaseTtlMs
-    });
-    if (!lease) {
-      this.running = false;
-      return { skipped: true, reason: 'LEASE_HELD' };
-    }
+    let lease: Awaited<ReturnType<ProfileCircleNotificationLeaseService['acquire']>> | null = null;
 
     try {
+      lease = await this.leases.acquire({
+        key,
+        ownerId: config.nodeId,
+        ttlMs: config.leaseTtlMs
+      });
+      if (!lease) {
+        return { skipped: true, reason: 'LEASE_HELD' };
+      }
+
       this.runs += 1;
       const retry = await this.retries.planFailed({
         limit: config.schedulerBatchSize
@@ -77,12 +80,26 @@ export class ProfileCircleNotificationResilienceSchedulerService
       this.logger.error('Notification resilience maintenance failed', error);
       throw error;
     } finally {
-      await this.leases.release({
-        key,
-        ownerId: config.nodeId,
-        leaseToken: lease.leaseToken
-      });
-      this.running = false;
+      try {
+        if (lease) {
+          await this.leases.release({
+            key,
+            ownerId: config.nodeId,
+            leaseToken: lease.leaseToken
+          });
+        }
+      } finally {
+        this.running = false;
+      }
+    }
+  }
+
+  private async runScheduledTick() {
+    try {
+      await this.tick();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Notification resilience boundary contained ${errorName}; it will retry on the next interval.`);
     }
   }
 

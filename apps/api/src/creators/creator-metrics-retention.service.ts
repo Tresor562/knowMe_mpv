@@ -1,8 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CreatorMetricsRetentionService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(CreatorMetricsRetentionService.name);
   private timer?: NodeJS.Timeout;
   private running = false;
 
@@ -16,7 +17,9 @@ export class CreatorMetricsRetentionService implements OnModuleInit, OnModuleDes
       60_000,
       86_400_000
     );
-    this.timer = setInterval(() => void this.cleanup(), intervalMs);
+    this.timer = setInterval(() => {
+      void this.runScheduledCleanup();
+    }, intervalMs);
     this.timer.unref?.();
   }
 
@@ -41,6 +44,15 @@ export class CreatorMetricsRetentionService implements OnModuleInit, OnModuleDes
       return { skipped: false, deleted: result.count };
     } finally {
       this.running = false;
+    }
+  }
+
+  private async runScheduledCleanup() {
+    try {
+      await this.cleanup();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Creator metrics retention failed (${errorName}); it will retry on the next interval.`);
     }
   }
 
