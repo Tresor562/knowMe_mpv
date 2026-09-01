@@ -17,17 +17,16 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-362`.
-- Latest verified merge at reconciliation: `KMD-362`, commit `80b6c8ec9fe8a999dadda3ced52c0237bb891eec`.
+- Live GitHub has progressed through merged `KMD-363`.
+- Latest verified merge at reconciliation: `KMD-363`, squash commit `09f29aec8e224d469ee6f58dff69653af03a783d` via PR #467.
 - KMD-359 committed the canonical PNPM lockfile and frozen canonical CI installation.
 - KMD-360 extended frozen dependency installation to API/Web runtime Docker builds and proved both image builds before merge.
 - KMD-361 removed UID 0 from final API/Web runtime commands and proved effective non-root runtime identity in production mode.
 - KMD-362 added bounded liveness metadata/routes and exact-head build/E2E proof before merge.
-- `KMD-363` remains the first unfinished core delivery on `feat/kmd-363-runtime-container-boot-probes`, PR #466, until it is actually merged.
-- KMD-363 adds real production-image boot/liveness gates for API and Web, deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded secret-safe application-graph/startup diagnostics, and explicit CI-only configuration for production guards without weakening those guards.
-- Exact candidate `d4645c1ccf40e0e096d41237622c4d22d3ea35a7` passed GitHub Actions CI #1383 end to end: supply-chain preflight, frozen install, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image/entrypoint/native/graph proof, non-root identity/health metadata, real API healthy boot/direct liveness, Web image/identity/health metadata, real Web healthy boot/direct liveness, Web E2E and API E2E.
-- PR #466 had no submitted reviews and no unresolved review threads when CI #1383 was checked.
-- Documentation was updated after CI #1383 to record that proof. Because exact-head validation is mandatory, the resulting documentation head must receive a fresh complete CI success before KMD-363 can merge; CI #1383 cannot validate a later SHA.
+- KMD-363 added real production-image boot/liveness gates for API and Web, deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded secret-safe application-graph/startup diagnostics, and explicit CI-only configuration for production guards without weakening those guards.
+- Exact final KMD-363 head `f817ad9589a1c23e26c2bf85f2bacaa3050de466` passed GitHub Actions CI #1385 end to end before merge: supply-chain/configuration preflights, frozen install, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image/entrypoint/native/graph proof, non-root identity/health metadata, real API healthy boot/direct liveness, Web image/identity/health metadata, real Web healthy boot/direct liveness, Web E2E and API E2E.
+- Original draft PR #466 was closed unmerged only because the draft-to-ready API transition failed. Replacement PR #467 preserved the exact same validated head SHA, was non-draft and mergeable, had no submitted reviews or unresolved review threads, and was merged without widening scope.
+- No KMD-364 scope has been declared merely to keep numbering contiguous. The next delivery must be selected from live release blockers and repository evidence after fresh inspection.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section describing `KMD-061` as pending is stale and must not be used to recreate KMD-061 or any later merged milestone.
 
 ## Independent historical validation boundary
@@ -49,7 +48,7 @@ None of the following may be claimed complete without direct evidence:
 - real object-storage durability/connectivity evidence;
 - App Store / Google Play submission, review or publication evidence.
 
-Live GitHub previously reported `main` as unprotected. Repository code that checks governance does not itself configure branch protection.
+Repository code that checks governance does not itself configure branch protection. During this reconciliation, the GitHub integration could not read the branch-protection endpoint because that resource was not accessible to the integration, so no new branch-protection claim is made.
 
 ## Restart protocol
 
