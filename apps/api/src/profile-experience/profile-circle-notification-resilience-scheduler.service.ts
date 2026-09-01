@@ -36,9 +36,11 @@ export class ProfileCircleNotificationResilienceSchedulerService
     const config = this.runtimeConfig.get();
     if (!config.enabled || !config.resilienceEnabled) return;
     const interval = Math.max(30_000, config.schedulerIntervalMs * 2);
-    this.timer = setInterval(() => void this.tick(), interval);
+    this.timer = setInterval(() => {
+      void this.runScheduledTick();
+    }, interval);
     this.timer.unref();
-    void this.tick();
+    void this.runScheduledTick();
   }
 
   onApplicationShutdown() {
@@ -83,6 +85,15 @@ export class ProfileCircleNotificationResilienceSchedulerService
         leaseToken: lease.leaseToken
       });
       this.running = false;
+    }
+  }
+
+  private async runScheduledTick() {
+    try {
+      await this.tick();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Notification resilience boundary contained ${errorName}; it will retry on the next interval.`);
     }
   }
 
