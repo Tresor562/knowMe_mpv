@@ -290,7 +290,7 @@ export class MediaService {
 
   async revokeAccess(ownerId: string, assetId: string, granteeId: string) {
     const asset = await this.prisma.mediaAsset.findFirst({
-      where: { id: assetId, ownerId: userId, deletedAt: null }
+      where: { id: assetId, ownerId, deletedAt: null }
     });
     if (!asset) throw new NotFoundException('Média introuvable.');
     const result = await this.prisma.mediaAccessGrant.updateMany({
