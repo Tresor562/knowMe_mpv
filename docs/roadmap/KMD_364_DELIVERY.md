@@ -17,7 +17,7 @@ KMD-364 adds a dedicated exact-head GitHub Actions proof that:
 5. starts that image with the same explicit production guards used by the KMD-363 runtime proof;
 6. requires both `/health/live` and `/health/ready` to reach HTTP 200 initially;
 7. stops PostgreSQL and requires the API process to keep returning HTTP 200 from liveness while readiness becomes HTTP 503;
-8. restarts PostgreSQL and requires readiness to recover to HTTP 200 without restarting the API process;
+8. restarts PostgreSQL, first proves the published host endpoint is reachable again, then requires readiness to recover to HTTP 200 without restarting the API process;
 9. proves the API container identity is unchanged across dependency recovery;
 10. bounds every wait loop and always removes temporary API/database containers;
 11. never prints readiness response bodies, database exceptions, connection strings or credentials as proof material.
@@ -36,15 +36,23 @@ The workflow deliberately keeps initial readiness, dependency loss and dependenc
 - The failure occurred inside the original monolithic `Prove readiness dependency loss and recovery` step after the image build. GitHub workflow metadata available to the integration could not distinguish whether the failure was initial readiness, dependency-loss semantics or recovery.
 - No product/runtime behavior was declared broken from that ambiguous result.
 
-### Traceability correction
+### Exact head `060e78f71064f72d05d3e12663e679c08cbf222d`
 
-The readiness proof was split into three independently named gates while preserving the same required HTTP semantics:
+- Canonical CI #1393: **success**.
+- Runtime readiness #4: **failure**.
+- Initial production-image startup/readiness: **success**.
+- PostgreSQL loss semantics (`live=200`, `ready=503`): **success**.
+- Recovery step: **failure after its bounded 60-second window**.
+- Therefore the remaining uncertainty is specifically dependency recovery, not initial boot or traffic shedding.
 
-1. `Start exact API image and require initial readiness`;
-2. `Prove PostgreSQL loss keeps liveness and sheds readiness`;
-3. `Prove readiness recovers after PostgreSQL returns without API restart`.
+### Recovery-proof hardening after Runtime readiness #4
 
-Cleanup is now a separate `if: ${{ always() }}` step. The recovery gate additionally checks that the API container ID remains unchanged, preventing a hidden restart from satisfying the recovery proof.
+The recovery gate now separates two different phenomena that the previous loop conflated:
+
+1. PostgreSQL container restart versus actual reachability through the published host endpoint (`127.0.0.1:55432`);
+2. API/Prisma readiness recovery after that host endpoint is proven reachable.
+
+It uses the same pinned PostgreSQL image as a host-network `pg_isready` probe before starting the API recovery clock. The API recovery window is explicitly bounded at 120 seconds, continuously requires both API and PostgreSQL containers to remain running, and still requires the API container ID to remain unchanged. This is a diagnostic/validation hardening, not a product-side fallback and not a weakening of the fail-closed readiness contract.
 
 ## Why this is launch-critical
 
@@ -60,7 +68,8 @@ KMD-364 is complete only when the exact current PR head has:
 - exact production API image build success;
 - initial liveness/readiness success;
 - dependency-loss evidence of liveness `200` plus readiness `503`;
-- dependency recovery to readiness `200` without API restart;
+- independently proven PostgreSQL host-path recovery;
+- dependency recovery to readiness `200` without API restart within the bounded recovery window;
 - unchanged API container identity across the outage/recovery cycle;
 - no blocking review and no unresolved review thread.
 
