@@ -27,7 +27,7 @@ test('WEB_V1 exposes the complete validate or prepare then bind sequence for eve
   const plan = buildMarketReleaseEvidenceActionPlan(manifest(), { now: new Date('2026-08-28T00:00:00.000Z') });
   assert.equal(plan.schemaVersion, 3);
   assert.equal(plan.complete, false);
-  assert.equal(plan.actions.length, 8);
+  assert.equal(plan.actions.length, 9);
 
   const expected = new Map([
     ['production_tls_domain', ['pnpm release:tls-domain:smoke', 'pnpm release:tls-domain:smoke:evidence:bind']],
@@ -36,6 +36,7 @@ test('WEB_V1 exposes the complete validate or prepare then bind sequence for eve
     ['external_monitoring_alerting', ['pnpm release:monitoring:smoke', 'pnpm release:monitoring:smoke:evidence:bind']],
     ['data_export_delete_validation', ['pnpm release:data-lifecycle:smoke', 'pnpm release:data-lifecycle:smoke:evidence:bind']],
     ['antimalware_provider_validation', ['pnpm release:antimalware:smoke', 'pnpm release:antimalware:smoke:evidence:bind']],
+    ['object_storage_provider_validation', ['pnpm release:object-storage:smoke', 'pnpm release:object-storage:smoke:evidence:bind']],
   ]);
 
   for (const [id, commands] of expected) {
@@ -132,7 +133,7 @@ test('verified evidence is removed from the action list without weakening readin
   };
   const plan = buildMarketReleaseEvidenceActionPlan(value, { now: new Date('2026-08-28T00:00:00.000Z') });
   assert.equal(plan.actions.some((action) => action.id === value.evidence[0].id), false);
-  assert.equal(plan.blockingCount, 7);
+  assert.equal(plan.blockingCount, 8);
 });
 
 test('expired verified evidence becomes actionable again', () => {
@@ -167,8 +168,8 @@ test('CLI reads a regular bounded retained manifest and emits the action plan', 
     const plan = JSON.parse(result.stdout);
     assert.equal(plan.scope, 'WEB_V1');
     assert.equal(plan.complete, false);
-    assert.equal(plan.blockingCount, 8);
-    assert.equal(plan.actions.length, 8);
+    assert.equal(plan.blockingCount, 9);
+    assert.equal(plan.actions.length, 9);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

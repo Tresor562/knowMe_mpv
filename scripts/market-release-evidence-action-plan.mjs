@@ -101,6 +101,15 @@ const ACTIONS = Object.freeze({
       { phase: 'BIND', command: 'pnpm release:antimalware:smoke:evidence:bind' },
     ],
   },
+  object_storage_provider_validation: {
+    kind: 'AUTOMATED_WORKFLOW',
+    responsibility: 'Platform / storage operations',
+    requiresRealWorldValidation: true,
+    steps: [
+      { phase: 'VALIDATE', command: 'pnpm release:object-storage:smoke' },
+      { phase: 'BIND', command: 'pnpm release:object-storage:smoke:evidence:bind' },
+    ],
+  },
   ios_physical_validation: {
     kind: 'MANUAL_EXTERNAL_EVIDENCE',
     responsibility: 'Mobile QA on supported physical iOS devices',
