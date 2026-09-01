@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const workflow = await readFile(new URL('../.github/workflows/runtime-readiness.yml', import.meta.url), 'utf8');
 const healthController = await readFile(new URL('../apps/api/src/health.controller.ts', import.meta.url), 'utf8');
+const callMaintenance = await readFile(new URL('../apps/api/src/calls/call-maintenance.service.ts', import.meta.url), 'utf8');
 
 test('readiness workflow exercises the exact production API image against isolated PostgreSQL', () => {
   assert.match(workflow, /docker build -f Dockerfile\.api -t knowme-api-readiness-ci \./);
@@ -53,4 +54,11 @@ test('API readiness remains fail-closed and secret-safe at the controller bounda
   assert.match(healthController, /await this\.prisma\.\$queryRaw`SELECT 1`/);
   assert.match(healthController, /throw new ServiceUnavailableException\(/);
   assert.doesNotMatch(healthController, /catch \((?:error|err|failure)\)[\s\S]{0,300}(?:message|stack|DATABASE_URL)/);
+});
+
+test('call maintenance contains transient scheduled failures instead of terminating the API process', () => {
+  assert.match(callMaintenance, /setInterval\(\(\) => \{\s*void this\.runScheduledTick\(\);/);
+  assert.match(callMaintenance, /private async runScheduledTick\(\)[\s\S]*try \{[\s\S]*await this\.tick\(\);[\s\S]*catch \(error\)/);
+  assert.doesNotMatch(callMaintenance, /setInterval\(\(\) => void this\.tick\(\)/);
+  assert.doesNotMatch(callMaintenance, /error\.message/);
 });
