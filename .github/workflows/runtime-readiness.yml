@@ -38,12 +38,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --name knowme-readiness-db --network host \
+          docker run -d --name knowme-readiness-db \
+            -p 127.0.0.1:55432:5432 \
             -e POSTGRES_USER=knowme \
             -e POSTGRES_PASSWORD=knowme \
             -e POSTGRES_DB=knowme_readiness \
-            postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685 \
-            -p 55432:5432
+            postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
           for attempt in $(seq 1 30); do
             if docker exec knowme-readiness-db pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
               exit 0
