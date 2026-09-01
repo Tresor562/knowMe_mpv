@@ -14,19 +14,24 @@ test('readiness workflow exercises the exact production API image against isolat
   assert.doesNotMatch(workflow, /NODE_ENV=(development|test)/);
 });
 
-test('readiness proof distinguishes process liveness from PostgreSQL traffic readiness', () => {
+test('readiness proof has separate initial, dependency-loss and recovery gates', () => {
+  assert.match(workflow, /name: Start exact API image and require initial readiness/);
+  assert.match(workflow, /name: Prove PostgreSQL loss keeps liveness and sheds readiness/);
+  assert.match(workflow, /name: Prove readiness recovers after PostgreSQL returns without API restart/);
   assert.match(workflow, /http:\/\/127\.0\.0\.1:4000\/health\/live/);
   assert.match(workflow, /http:\/\/127\.0\.0\.1:4000\/health\/ready/);
-  assert.match(workflow, /docker stop "\$db"/);
+  assert.match(workflow, /docker stop "\$DB_RUNTIME_CONTAINER"/);
   assert.match(workflow, /\[ "\$live_code" = 200 \] && \[ "\$ready_code" = 503 \]/);
-  assert.match(workflow, /docker start "\$db"/);
+  assert.match(workflow, /docker start "\$DB_RUNTIME_CONTAINER"/);
+  assert.match(workflow, /api_id_before="\$\(docker inspect --format='\{\{\.Id\}\}' "\$API_RUNTIME_CONTAINER"\)"/);
   assert.match(workflow, /API readiness did not recover after PostgreSQL returned/);
 });
 
-test('readiness proof is bounded, cleans resources and never serializes response bodies', () => {
-  assert.match(workflow, /trap cleanup EXIT/);
-  assert.match(workflow, /docker rm -f "\$api"/);
-  assert.match(workflow, /docker rm -f "\$db"/);
+test('readiness proof is bounded, always cleans resources and never serializes response bodies', () => {
+  assert.match(workflow, /name: Clean KMD-364 runtime proof resources/);
+  assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
+  assert.match(workflow, /docker rm -f "\$API_RUNTIME_CONTAINER"/);
+  assert.match(workflow, /docker rm -f "\$DB_RUNTIME_CONTAINER"/);
   assert.match(workflow, /seq 1 30/);
   assert.match(workflow, /seq 1 20/);
   assert.match(workflow, /--output \/dev\/null --write-out '%\{http_code\}'/);
