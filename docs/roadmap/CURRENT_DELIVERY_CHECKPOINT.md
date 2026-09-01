@@ -19,6 +19,7 @@ If any remembered conversation or historical document conflicts with live GitHub
 - `KMD-060` is complete and must never be recreated.
 - Live GitHub has progressed through merged `KMD-363`.
 - Latest verified merge at reconciliation: `KMD-363`, squash commit `09f29aec8e224d469ee6f58dff69653af03a783d` via PR #467.
+- Post-merge continuity PR #468 passed exact-head CI #1388 and merged as `5afed801153451ba0de7635bca94a5b64956cdea`; it changed documentation only.
 - KMD-359 committed the canonical PNPM lockfile and frozen canonical CI installation.
 - KMD-360 extended frozen dependency installation to API/Web runtime Docker builds and proved both image builds before merge.
 - KMD-361 removed UID 0 from final API/Web runtime commands and proved effective non-root runtime identity in production mode.
@@ -26,7 +27,8 @@ If any remembered conversation or historical document conflicts with live GitHub
 - KMD-363 added real production-image boot/liveness gates for API and Web, deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded secret-safe application-graph/startup diagnostics, and explicit CI-only configuration for production guards without weakening those guards.
 - Exact final KMD-363 head `f817ad9589a1c23e26c2bf85f2bacaa3050de466` passed GitHub Actions CI #1385 end to end before merge: supply-chain/configuration preflights, frozen install, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image/entrypoint/native/graph proof, non-root identity/health metadata, real API healthy boot/direct liveness, Web image/identity/health metadata, real Web healthy boot/direct liveness, Web E2E and API E2E.
 - Original draft PR #466 was closed unmerged only because the draft-to-ready API transition failed. Replacement PR #467 preserved the exact same validated head SHA, was non-draft and mergeable, had no submitted reviews or unresolved review threads, and was merged without widening scope.
-- No KMD-364 scope has been declared merely to keep numbering contiguous. The next delivery must be selected from live release blockers and repository evidence after fresh inspection.
+- `KMD-364` is now the first unfinished core delivery on `feat/kmd-364-runtime-readiness-proof`. It was selected from a live launch-readiness gap rather than numeric continuity: KMD-363 proves process boot/liveness, while KMD-364 must prove that the exact production API image returns readiness `503` during a real PostgreSQL outage, remains live, and recovers readiness after PostgreSQL returns without restarting the API process.
+- KMD-364 remains unmerged until both canonical CI and the dedicated exact-head `Runtime readiness` workflow succeed and review/thread gates are clear.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section describing `KMD-061` as pending is stale and must not be used to recreate KMD-061 or any later merged milestone.
 
 ## Independent historical validation boundary
@@ -44,11 +46,11 @@ None of the following may be claimed complete without direct evidence:
 - supported-device physical validation on Web/iOS/Android where required;
 - production backup/restore execution evidence;
 - production monitoring/alert delivery evidence;
-- real production deployment/orchestrator evidence;
+- real production deployment/orchestrator evidence, including actual load-balancer readiness-probe wiring;
 - real object-storage durability/connectivity evidence;
 - App Store / Google Play submission, review or publication evidence.
 
-Repository code that checks governance does not itself configure branch protection. During this reconciliation, the GitHub integration could not read the branch-protection endpoint because that resource was not accessible to the integration, so no new branch-protection claim is made.
+Repository code that checks governance does not itself configure branch protection. During this reconciliation, the GitHub integration could not read the branch-protection endpoint because that resource was not accessible to the integration; the repository rulesets collection was empty, so no new branch-protection claim is made.
 
 ## Restart protocol
 
