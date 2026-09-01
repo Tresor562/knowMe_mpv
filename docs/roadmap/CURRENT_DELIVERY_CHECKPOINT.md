@@ -23,13 +23,11 @@ If any remembered conversation or historical document conflicts with live GitHub
 - KMD-360 extended frozen dependency installation to API/Web runtime Docker builds and proved both image builds before merge.
 - KMD-361 removed UID 0 from final API/Web runtime commands and proved effective non-root runtime identity in production mode.
 - KMD-362 added bounded liveness metadata/routes and exact-head build/E2E proof before merge.
-- `KMD-363` remains the first unfinished core delivery on `feat/kmd-363-runtime-container-boot-probes`, PR #466. It is not merged.
-- The KMD-363 branch has already corrected deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded application-graph diagnostics and explicit production media configuration without weakening production guards.
-- CI #1375 passed supply-chain policy, frozen installation, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image build, deterministic compiled-entrypoint proof, native runtime smokes, the application-graph probe, non-root runtime identity and healthcheck metadata.
-- CI #1375 then failed only at the real API runtime boot. The bounded phase marker was `nest-application-create`; logs showed many modules initialized but no `SecurityModule`, `AuthModule` or `AccountModule`.
-- `SecurityCryptoService` intentionally requires a valid 32-byte `ACCOUNT_SECURITY_ENCRYPTION_KEY` in `NODE_ENV=production`. The CI runtime proof had not provided one. Production intentionally does not use its development JWT-derived fallback.
-- The active branch now supplies a fixed CI-only 32-byte account-security key to both the production application-graph probe and real API boot, includes a dedicated preflight proving both bindings while preserving the production fail-closed guard, and allowlists only the configuration key name for bounded startup classification. No key value is logged.
-- KMD-363 remains incomplete until one exact current head passes the complete chain: supply-chain/frozen install/audit, Prisma migrations/drift, build/tests, API image/entrypoint/native/graph proof, real API boot/liveness, real Web boot/liveness, Web E2E and API E2E, with no blocking review or unresolved review thread.
+- `KMD-363` remains the first unfinished core delivery on `feat/kmd-363-runtime-container-boot-probes`, PR #466, until it is actually merged.
+- KMD-363 adds real production-image boot/liveness gates for API and Web, deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded secret-safe application-graph/startup diagnostics, and explicit CI-only configuration for production guards without weakening those guards.
+- Exact candidate `d4645c1ccf40e0e096d41237622c4d22d3ea35a7` passed GitHub Actions CI #1383 end to end: supply-chain preflight, frozen install, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image/entrypoint/native/graph proof, non-root identity/health metadata, real API healthy boot/direct liveness, Web image/identity/health metadata, real Web healthy boot/direct liveness, Web E2E and API E2E.
+- PR #466 had no submitted reviews and no unresolved review threads when CI #1383 was checked.
+- Documentation was updated after CI #1383 to record that proof. Because exact-head validation is mandatory, the resulting documentation head must receive a fresh complete CI success before KMD-363 can merge; CI #1383 cannot validate a later SHA.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section describing `KMD-061` as pending is stale and must not be used to recreate KMD-061 or any later merged milestone.
 
 ## Independent historical validation boundary
