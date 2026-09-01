@@ -1,9 +1,10 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { GamePlatformService } from './game-platform.service';
 import { TournamentService } from './tournament.service';
 
 @Injectable()
 export class GameSessionMaintenanceService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(GameSessionMaintenanceService.name);
   private timer?: NodeJS.Timeout;
   private running = false;
 
@@ -20,7 +21,9 @@ export class GameSessionMaintenanceService implements OnModuleInit, OnModuleDest
       10_000,
       3_600_000
     );
-    this.timer = setInterval(() => void this.tick(), intervalMs);
+    this.timer = setInterval(() => {
+      void this.runScheduledTick();
+    }, intervalMs);
     this.timer.unref?.();
   }
 
@@ -49,6 +52,15 @@ export class GameSessionMaintenanceService implements OnModuleInit, OnModuleDest
       return { skipped: false, ...expired, ...synchronized };
     } finally {
       this.running = false;
+    }
+  }
+
+  private async runScheduledTick() {
+    try {
+      await this.tick();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Game maintenance tick failed (${errorName}); it will retry on the next interval.`);
     }
   }
 
