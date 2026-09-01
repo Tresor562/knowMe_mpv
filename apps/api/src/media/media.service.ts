@@ -34,6 +34,8 @@ const EXTENSIONS: Record<string, string> = {
   'video/mp4': '.mp4'
 };
 
+const ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE = '__ACCOUNT_DELETION_MEDIA_LOCK__';
+
 @Injectable()
 export class MediaService {
   private readonly accountQuota = Number(process.env.MEDIA_ACCOUNT_QUOTA_BYTES ?? 500 * 1024 * 1024);
@@ -55,6 +57,14 @@ export class MediaService {
         throw new BadRequestException('Une conversation est requise pour cette visibilité.');
       }
       await this.assertConversationMembership(userId, dto.conversationId);
+    }
+
+    const deletionPending = await this.prisma.mediaUploadSession.findFirst({
+      where: { ownerId: userId, purpose: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE },
+      select: { id: true }
+    });
+    if (deletionPending) {
+      throw new ConflictException('La suppression du compte est déjà en cours.');
     }
 
     const token = randomBytes(40).toString('base64url');
@@ -96,7 +106,8 @@ export class MediaService {
       session.ownerId !== userId ||
       session.tokenHash !== this.hash(uploadToken) ||
       session.consumedAt ||
-      session.expiresAt <= new Date()
+      session.expiresAt <= new Date() ||
+      session.purpose === ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE
     ) {
       throw new UnauthorizedException('Session d’upload invalide ou expirée.');
     }
@@ -119,40 +130,66 @@ export class MediaService {
     const storageKey = `${randomUUID()}${EXTENSIONS[detectedMime]}`;
     const consumedAt = new Date();
 
-    const consumed = await this.prisma.mediaUploadSession.updateMany({
-      where: {
-        id: session.id,
-        ownerId: userId,
-        consumedAt: null,
-        expiresAt: { gt: consumedAt }
-      },
-      data: { consumedAt }
-    });
-    if (!consumed.count) {
-      throw new ConflictException('Cette session d’upload a déjà été consommée.');
-    }
-
     try {
-      await this.storage.put(storageKey, file.buffer, detectedMime);
-      const asset = await this.prisma.mediaAsset.create({
-        data: {
-          ownerId: userId,
-          storageKey,
-          originalName: this.safeName(file.originalname),
-          declaredMime: file.mimetype.toLowerCase(),
-          detectedMime,
-          size: file.size,
-          sha256: this.hashBuffer(file.buffer),
-          purpose: session.purpose,
-          visibility: session.visibility,
-          conversationId: session.conversationId,
-          status,
-          scannerVerdict: scan.verdict,
-          scannerReference: scan.reference,
-          scannerAttemptCount: 1,
-          scannerLastAttemptAt: consumedAt
-        }
-      });
+      const asset = await this.prisma.$transaction(
+        async (tx) => {
+          // Serialize the external object write and metadata commit with the
+          // account-deletion marker. A deletion that acquires the User row
+          // first leaves a durable marker before cleanup starts; an upload
+          // that acquires it first must finish metadata creation before the
+          // deletion marker can be installed.
+          const lockedUsers = await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
+          `;
+          if (!lockedUsers.length) {
+            throw new UnauthorizedException('Compte introuvable.');
+          }
+          const deletionPending = await tx.mediaUploadSession.findFirst({
+            where: { ownerId: userId, purpose: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE },
+            select: { id: true }
+          });
+          if (deletionPending) {
+            throw new ConflictException('La suppression du compte est déjà en cours.');
+          }
+
+          const consumed = await tx.mediaUploadSession.updateMany({
+            where: {
+              id: session.id,
+              ownerId: userId,
+              purpose: { not: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE },
+              consumedAt: null,
+              expiresAt: { gt: consumedAt }
+            },
+            data: { consumedAt }
+          });
+          if (!consumed.count) {
+            throw new ConflictException('Cette session d’upload a déjà été consommée.');
+          }
+
+          await this.storage.put(storageKey, file.buffer, detectedMime);
+          return tx.mediaAsset.create({
+            data: {
+              ownerId: userId,
+              storageKey,
+              originalName: this.safeName(file.originalname),
+              declaredMime: file.mimetype.toLowerCase(),
+              detectedMime,
+              size: file.size,
+              sha256: this.hashBuffer(file.buffer),
+              purpose: session.purpose,
+              visibility: session.visibility,
+              conversationId: session.conversationId,
+              status,
+              scannerVerdict: scan.verdict,
+              scannerReference: scan.reference,
+              scannerAttemptCount: 1,
+              scannerLastAttemptAt: consumedAt
+            }
+          });
+        },
+        { maxWait: 5000, timeout: 30000 }
+      );
+
       await this.audit.record({
         actorId: userId,
         action: 'MEDIA_UPLOAD_COMPLETE',
@@ -289,17 +326,44 @@ export class MediaService {
   }
 
   async cleanupAccount(userId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const lockedUsers = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
+      `;
+      if (!lockedUsers.length) return;
+
+      const existingMarker = await tx.mediaUploadSession.findFirst({
+        where: { ownerId: userId, purpose: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE },
+        select: { id: true }
+      });
+      if (!existingMarker) {
+        await tx.mediaUploadSession.create({
+          data: {
+            ownerId: userId,
+            tokenHash: this.hash(`account-deletion:${userId}:${randomUUID()}`),
+            purpose: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE,
+            visibility: 'PRIVATE',
+            conversationId: null,
+            maxBytes: 0,
+            allowedMime: [],
+            expiresAt: new Date('9999-12-31T23:59:59.999Z'),
+            consumedAt: new Date()
+          }
+        });
+      }
+    });
+
     const assets = await this.prisma.mediaAsset.findMany({
       where: { ownerId: userId },
       select: { id: true, storageKey: true }
     });
     const assetIds = assets.map((asset) => asset.id);
 
-    // Account deletion is a privacy boundary: never remove the only durable
-    // metadata that identifies private objects before the provider confirms
-    // that those objects are gone. MediaStorageService.delete is idempotent
-    // for both local and S3 drivers, so a later retry remains safe if a
-    // database operation fails after the provider purge has completed.
+    // The deletion marker survives this cleanup until the User row itself is
+    // removed, so no upload can appear in the gap between provider purge and
+    // AccountService's final destructive transaction. Provider deletion is
+    // still fail-closed and metadata remains durable until every object has
+    // been confirmed absent.
     for (const asset of assets) {
       await this.storage.delete(asset.storageKey);
     }
@@ -312,7 +376,9 @@ export class MediaService {
         where: { OR: [{ granteeId: userId }, { assetId: { in: assetIds } }] }
       }),
       this.prisma.mediaAsset.deleteMany({ where: { ownerId: userId } }),
-      this.prisma.mediaUploadSession.deleteMany({ where: { ownerId: userId } })
+      this.prisma.mediaUploadSession.deleteMany({
+        where: { ownerId: userId, purpose: { not: ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE } }
+      })
     ]);
   }
 
