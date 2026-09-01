@@ -22,7 +22,9 @@ KMD-364 adds a dedicated exact-head GitHub Actions proof that:
 10. bounds every wait loop and always removes temporary API/database containers;
 11. never prints readiness response bodies, database exceptions, connection strings or credentials as proof material.
 
-A repository-local structural preflight locks these invariants so the readiness proof cannot silently degrade into another liveness-only check.
+The outage proof exposed a real product-side resilience defect in `CallMaintenanceService`: its default 15-second timer detached `tick()` with `void` and no rejection handler. A transient Prisma/database failure could therefore become an unhandled promise rejection and terminate the Node process even though the HTTP readiness boundary correctly returned `503`. KMD-364 now contains scheduled call-maintenance failures, logs only the error class rather than the exception message, and retries naturally on the next interval. Direct/manual `tick()` callers still receive failures normally; only the detached scheduler boundary owns containment.
+
+A focused unit regression proves a failed scheduled tick is contained and that the service can execute a later successful tick. The structural readiness preflight also rejects reintroduction of the naked detached `tick()` pattern.
 
 The workflow deliberately keeps initial readiness, dependency loss and dependency recovery as separate named GitHub Actions steps. This makes a future failure attributable to one phase from workflow metadata alone without requiring response-body or secret-bearing log collection.
 
@@ -43,20 +45,27 @@ The workflow deliberately keeps initial readiness, dependency loss and dependenc
 - Initial production-image startup/readiness: **success**.
 - PostgreSQL loss semantics (`live=200`, `ready=503`): **success**.
 - Recovery step: **failure after its bounded 60-second window**.
-- Therefore the remaining uncertainty is specifically dependency recovery, not initial boot or traffic shedding.
+- Therefore the remaining uncertainty was specifically dependency recovery, not initial boot or traffic shedding.
 
-### Recovery-proof hardening after Runtime readiness #4
+### Exact head `acef6bd02395a72421c0158338e846971671a343`
 
-The recovery gate now separates two different phenomena that the previous loop conflated:
+- Canonical CI #1396: **success**.
+- Runtime readiness #7: **failure**.
+- Initial production-image startup/readiness: **success**.
+- PostgreSQL loss semantics (`live=200`, `ready=503`): **success**.
+- PostgreSQL restarted and remained `running`; the host-path probe succeeded before API recovery was evaluated.
+- The API container then became `exited`, so the proof failed immediately rather than misreporting a slow recovery.
+- Source inspection identified the default 15-second `CallMaintenanceService` timer as a detached async database maintenance boundary without rejection containment. This matches the outage timing and is a real runtime defect independent of the health controller.
 
-1. PostgreSQL container restart versus actual reachability through the published host endpoint (`127.0.0.1:55432`);
-2. API/Prisma readiness recovery after that host endpoint is proven reachable.
+### Runtime resilience correction after Runtime readiness #7
 
-It uses the same pinned PostgreSQL image as a host-network `pg_isready` probe before starting the API recovery clock. The API recovery window is explicitly bounded at 120 seconds, continuously requires both API and PostgreSQL containers to remain running, and still requires the API container ID to remain unchanged. This is a diagnostic/validation hardening, not a product-side fallback and not a weakening of the fail-closed readiness contract.
+`CallMaintenanceService` now routes timer-driven execution through a scheduler-owned `runScheduledTick()` boundary. That boundary catches transient failures, emits a secret-safe error-class diagnostic and leaves the process alive for the next interval. The public `tick()` method is intentionally unchanged in semantics so explicit callers can still observe failures.
+
+The recovery gate continues to separate PostgreSQL container restart from actual reachability through the published host endpoint (`127.0.0.1:55432`). The API recovery window remains explicitly bounded at 120 seconds, continuously requires both API and PostgreSQL containers to remain running, and requires the API container ID to remain unchanged. No timeout was widened and no readiness behavior was weakened as part of the runtime fix.
 
 ## Why this is launch-critical
 
-`/health/live` answers whether the process should be restarted. `/health/ready` answers whether the instance should receive user traffic. They must not be interchangeable. KMD-364 proves the intended behavior using the exact production API image and a real PostgreSQL outage/recovery cycle rather than mocks.
+`/health/live` answers whether the process should be restarted. `/health/ready` answers whether the instance should receive user traffic. They must not be interchangeable. KMD-364 proves the intended behavior using the exact production API image and a real PostgreSQL outage/recovery cycle rather than mocks. It now also proves a periodic database-backed maintenance task cannot turn that recoverable dependency outage into a process crash.
 
 ## Tests and merge gates
 
@@ -65,6 +74,7 @@ KMD-364 is complete only when the exact current PR head has:
 - the canonical `CI` workflow green;
 - the dedicated `Runtime readiness` workflow green;
 - the KMD-364 structural preflight green;
+- the focused call-maintenance outage regression green;
 - exact production API image build success;
 - initial liveness/readiness success;
 - dependency-loss evidence of liveness `200` plus readiness `503`;
@@ -77,12 +87,12 @@ No earlier workflow run validates a newer head.
 
 ## Migration
 
-No Prisma schema, user-data or public API migration is required. The existing `/health/ready` contract is unchanged. KMD-364 adds release validation only.
+No Prisma schema, user-data or public API migration is required. The existing `/health/ready` contract is unchanged. KMD-364 changes only runtime resilience and release validation.
 
 ## Rollback
 
-Revert the KMD-364 workflow, structural preflight and delivery documentation. The product returns to the KMD-363 state where runtime boot/liveness is proven but dependency-loss/recovery readiness behavior is not an exact production-image merge gate. No persistent-data rollback is required.
+Revert the KMD-364 workflow, structural preflight, call-maintenance scheduler containment, focused regression and delivery documentation. The product returns to the KMD-363 state where runtime boot/liveness is proven but dependency-loss/recovery readiness behavior is not an exact production-image merge gate. No persistent-data rollback is required.
 
 ## Proof boundary
 
-A green KMD-364 proves only the API image behavior against an isolated PostgreSQL outage and recovery inside GitHub Actions. It does **not** prove production load-balancer/orchestrator probe configuration, real production PostgreSQL failover, network partitions, production backup/restore, alert delivery, object-storage durability, legal/privacy approval, supported physical devices, deployment or store publication. Those claims remain external until independently evidenced.
+A green KMD-364 proves only the API image behavior against an isolated PostgreSQL outage and recovery inside GitHub Actions. It does **not** prove production load-balancer/orchestrator probe configuration, real production PostgreSQL failover, network partitions of every shape, production backup/restore, alert delivery, object-storage durability, legal/privacy approval, supported physical devices, deployment or store publication. Those claims remain external until independently evidenced.
