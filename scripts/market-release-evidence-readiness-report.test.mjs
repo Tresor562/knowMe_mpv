@@ -17,6 +17,7 @@ const WEB_IDS = [
   'data_export_delete_validation',
   'moderation_support_incident_ops',
   'antimalware_provider_validation',
+  'object_storage_provider_validation',
 ];
 
 function item(id, overrides = {}) {
@@ -41,8 +42,8 @@ test('reports a complete WEB_V1 manifest without claiming authenticity', () => {
     { now: NOW },
   );
   assert.equal(report.complete, true);
-  assert.equal(report.requiredCount, 8);
-  assert.equal(report.verifiedCount, 8);
+  assert.equal(report.requiredCount, 9);
+  assert.equal(report.verifiedCount, 9);
   assert.equal(report.blockingCount, 0);
   assert.match(report.proofBoundary, /does not authenticate evidence/);
 });
@@ -71,6 +72,7 @@ test('classifies missing, pending, expired and malformed expiry independently', 
       data_export_delete_validation: 'VERIFIED',
       moderation_support_incident_ops: 'VERIFIED',
       antimalware_provider_validation: 'VERIFIED',
+      object_storage_provider_validation: 'VERIFIED',
     },
   );
 });
@@ -127,7 +129,7 @@ test('FULL includes physical-device and store evidence', () => {
     { scope: 'FULL', evidence: fullIds.map((id) => item(id)) },
     { now: NOW },
   );
-  assert.equal(report.requiredCount, 12);
+  assert.equal(report.requiredCount, 13);
   assert.equal(report.complete, true);
 });
 
