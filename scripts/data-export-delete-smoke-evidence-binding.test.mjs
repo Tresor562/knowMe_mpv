@@ -16,7 +16,7 @@ const cliPath = fileURLToPath(new URL('./data-export-delete-smoke-evidence-bindi
 
 function artifact(overrides = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: 'knowme-data-export-delete-smoke',
     status: 'PASSED',
     observedAt: '2026-08-27T19:00:00.000Z',
@@ -28,10 +28,11 @@ function artifact(overrides = {}) {
       exportFormatVersion: 20,
       passwordHashExcluded: true,
       accountDeletion: 'PASSED',
+      preDeletionBearerAuthorizationRevoked: true,
       deletedAccountAuthenticationRejected: true,
     },
     proofBoundary:
-      'This artifact proves only this ephemeral canary export/delete flow at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.',
+      'This artifact proves only this ephemeral canary export/delete flow, immediate revocation of its pre-deletion bearer authorization, and rejected password login at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.',
     ...overrides,
   };
 }
@@ -52,7 +53,7 @@ function cliArgs(artifactPath, outputPath) {
   ];
 }
 
-test('accepts the exact KMD-291 schema and derives verifiedAt from observedAt', () => {
+test('accepts the exact KMD-367 schema and derives verifiedAt from observedAt', () => {
   const result = createDataExportDeleteMarketEvidenceItem(bytes(), {
     scope: 'WEB_V1',
     verifier: 'release-operator',
@@ -67,6 +68,11 @@ test('accepts the exact KMD-291 schema and derives verifiedAt from observedAt', 
   assert.match(result.item.evidenceSha256, /^[0-9a-f]{64}$/);
 });
 
+test('rejects schema-v1 lifecycle artifacts so market evidence cannot omit bearer revocation proof', () => {
+  const legacy = artifact({ schemaVersion: 1 });
+  assert.equal(validateDataExportDeleteSmokeArtifact(legacy, { now: NOW }).ok, false);
+});
+
 test('rejects unknown top-level and check fields even when otherwise plausible', () => {
   assert.equal(validateDataExportDeleteSmokeArtifact({ ...artifact(), extra: true }, { now: NOW }).ok, false);
   const changed = artifact({ checks: { ...artifact().checks, extra: true } });
@@ -79,6 +85,7 @@ test('rejects a failed or incomplete export/delete lifecycle', () => {
     ['accountExport', 'FAILED'],
     ['passwordHashExcluded', false],
     ['accountDeletion', 'FAILED'],
+    ['preDeletionBearerAuthorizationRevoked', false],
     ['deletedAccountAuthenticationRejected', false],
   ]) {
     const changed = artifact({ checks: { ...artifact().checks, [key]: value } });

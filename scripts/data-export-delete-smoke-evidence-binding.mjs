@@ -25,10 +25,11 @@ const CHECK_FIELDS = new Set([
   'exportFormatVersion',
   'passwordHashExcluded',
   'accountDeletion',
+  'preDeletionBearerAuthorizationRevoked',
   'deletedAccountAuthenticationRejected',
 ]);
 const EXPECTED_PROOF_BOUNDARY =
-  'This artifact proves only this ephemeral canary export/delete flow at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.';
+  'This artifact proves only this ephemeral canary export/delete flow, immediate revocation of its pre-deletion bearer authorization, and rejected password login at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.';
 
 function exactFields(value, expected) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -45,9 +46,9 @@ function canonicalTimestamp(value) {
 export function validateDataExportDeleteSmokeArtifact(artifact, { now = new Date() } = {}) {
   const errors = [];
   if (!exactFields(artifact, TOP_LEVEL_FIELDS)) {
-    return { ok: false, errors: ['Data lifecycle smoke artifact must match the exact schema-v1 field contract.'] };
+    return { ok: false, errors: ['Data lifecycle smoke artifact must match the exact schema-v2 field contract.'] };
   }
-  if (artifact.schemaVersion !== 1) errors.push('Data lifecycle smoke schemaVersion must equal 1.');
+  if (artifact.schemaVersion !== 2) errors.push('Data lifecycle smoke schemaVersion must equal 2.');
   if (artifact.kind !== 'knowme-data-export-delete-smoke') errors.push('Data lifecycle smoke kind is invalid.');
   if (artifact.status !== 'PASSED') errors.push('Data lifecycle smoke status must equal PASSED.');
 
@@ -63,7 +64,7 @@ export function validateDataExportDeleteSmokeArtifact(artifact, { now = new Date
   if (typeof artifact.canaryUserIdSha256 !== 'string' || !SHA256.test(artifact.canaryUserIdSha256)) {
     errors.push('Data lifecycle smoke canaryUserIdSha256 must be a lowercase SHA-256 digest.');
   }
-  if (artifact.proofBoundary !== EXPECTED_PROOF_BOUNDARY) errors.push('Data lifecycle smoke proofBoundary is not the canonical KMD-291 boundary.');
+  if (artifact.proofBoundary !== EXPECTED_PROOF_BOUNDARY) errors.push('Data lifecycle smoke proofBoundary is not the canonical KMD-367 boundary.');
 
   if (!exactFields(artifact.checks, CHECK_FIELDS)) {
     errors.push('Data lifecycle smoke checks must match the exact contract.');
@@ -75,6 +76,9 @@ export function validateDataExportDeleteSmokeArtifact(artifact, { now = new Date
     }
     if (artifact.checks.passwordHashExcluded !== true) errors.push('passwordHashExcluded must equal true.');
     if (artifact.checks.accountDeletion !== 'PASSED') errors.push('Account deletion must equal PASSED.');
+    if (artifact.checks.preDeletionBearerAuthorizationRevoked !== true) {
+      errors.push('Pre-deletion bearer authorization revocation must equal true.');
+    }
     if (artifact.checks.deletedAccountAuthenticationRejected !== true) {
       errors.push('Deleted account authentication rejection must equal true.');
     }
