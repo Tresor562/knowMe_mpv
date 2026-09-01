@@ -6,17 +6,17 @@
 -- the tombstone boundary, so no late authority row can survive deletion.
 
 -- Historical stale authority is invalid once its asset is absent/tombstoned.
-DELETE FROM "MediaDownloadGrant" AS grant
+DELETE FROM "MediaDownloadGrant" AS media_grant
 WHERE NOT EXISTS (
   SELECT 1 FROM "MediaAsset" AS asset
-  WHERE asset."id" = grant."assetId"
+  WHERE asset."id" = media_grant."assetId"
     AND asset."deletedAt" IS NULL
 );
 
-DELETE FROM "MediaAccessGrant" AS grant
+DELETE FROM "MediaAccessGrant" AS media_grant
 WHERE NOT EXISTS (
   SELECT 1 FROM "MediaAsset" AS asset
-  WHERE asset."id" = grant."assetId"
+  WHERE asset."id" = media_grant."assetId"
     AND asset."deletedAt" IS NULL
 );
 
