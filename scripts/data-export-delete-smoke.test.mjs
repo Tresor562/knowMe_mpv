@@ -23,6 +23,7 @@ function deterministicRandom(size) {
 
 function successFetchRecorder() {
   const calls = [];
+  let deleted = false;
   const fetchImpl = async (url, options = {}) => {
     const pathname = new URL(url).pathname;
     calls.push({ pathname, method: options.method ?? 'GET', options });
@@ -34,13 +35,17 @@ function successFetchRecorder() {
       });
     }
     if (pathname === '/account/export') {
+      if (deleted) return jsonResponse(401, { statusCode: 401, message: 'Unauthorized' });
       return jsonResponse(200, {
         exportedAt: '2026-08-27T18:00:00.000Z',
         formatVersion: 20,
         account: { id: 'canary-user-1', username: 'kmrel_abababababab' },
       });
     }
-    if (pathname === '/account' && options.method === 'DELETE') return jsonResponse(200, { deleted: true });
+    if (pathname === '/account' && options.method === 'DELETE') {
+      deleted = true;
+      return jsonResponse(200, { deleted: true });
+    }
     if (pathname === '/auth/login') return jsonResponse(401, { statusCode: 401, message: 'Identifiants invalides.' });
     throw new Error(`Unexpected request: ${options.method ?? 'GET'} ${pathname}`);
   };
@@ -56,7 +61,7 @@ test('accepts only a canonical HTTPS production origin', () => {
   assert.equal(canonicalProductionOrigin(' https://knowme.example'), null);
 });
 
-test('runs an ephemeral register -> export -> delete -> rejected-login production lifecycle', async () => {
+test('runs register -> export -> delete -> old-bearer rejection -> rejected-login production lifecycle', async () => {
   const { calls, fetchImpl } = successFetchRecorder();
   const artifact = await runDataExportDeleteSmoke({
     origin: 'https://knowme.example',
@@ -67,7 +72,7 @@ test('runs an ephemeral register -> export -> delete -> rejected-login productio
     randomBytesImpl: deterministicRandom,
   });
 
-  assert.equal(artifact.schemaVersion, 1);
+  assert.equal(artifact.schemaVersion, 2);
   assert.equal(artifact.kind, 'knowme-data-export-delete-smoke');
   assert.equal(artifact.status, 'PASSED');
   assert.equal(artifact.productionOrigin, 'https://knowme.example');
@@ -78,12 +83,15 @@ test('runs an ephemeral register -> export -> delete -> rejected-login productio
     exportFormatVersion: 20,
     passwordHashExcluded: true,
     accountDeletion: 'PASSED',
+    preDeletionBearerAuthorizationRevoked: true,
     deletedAccountAuthenticationRejected: true,
   });
   assert.deepEqual(
     calls.map(({ method, pathname }) => `${method} ${pathname}`),
-    ['POST /auth/register', 'GET /account/export', 'DELETE /account', 'POST /auth/login'],
+    ['POST /auth/register', 'GET /account/export', 'DELETE /account', 'GET /account/export', 'POST /auth/login'],
   );
+  assert.equal(calls[1].options.headers.Authorization, 'Bearer canary-access-token');
+  assert.equal(calls[3].options.headers.Authorization, 'Bearer canary-access-token');
   assert.equal(JSON.stringify(artifact).includes('canary-access-token'), false);
   assert.equal(JSON.stringify(artifact).includes('@example.invalid'), false);
 });
@@ -135,6 +143,37 @@ test('fails if account export leaks passwordHash and attempts cleanup of the cre
   assert.equal(deleteCalls, 1);
 });
 
+test('fails if the pre-deletion bearer token still authorizes after deletion', async () => {
+  let deleted = false;
+  const fetchImpl = async (url, options = {}) => {
+    const pathname = new URL(url).pathname;
+    if (pathname === '/auth/register') return jsonResponse(201, { accessToken: 'token', user: { id: 'u-1' } });
+    if (pathname === '/account/export') {
+      return jsonResponse(200, {
+        exportedAt: '2026-08-27T18:00:00.000Z',
+        formatVersion: 20,
+        account: { id: 'u-1' },
+      });
+    }
+    if (pathname === '/account' && options.method === 'DELETE') {
+      deleted = true;
+      return jsonResponse(200, { deleted: true });
+    }
+    if (pathname === '/auth/login') return jsonResponse(401, { statusCode: 401 });
+    throw new Error(`unexpected request after deleted=${deleted}`);
+  };
+
+  await assert.rejects(
+    runDataExportDeleteSmoke({
+      origin: 'https://knowme.example',
+      confirmation: 'DELETE_EPHEMERAL_CANARY',
+      fetchImpl,
+      randomBytesImpl: deterministicRandom,
+    }),
+    /Pre-deletion bearer token must lose authorization with HTTP 401/,
+  );
+});
+
 test('fails if the deleted canary can authenticate again', async () => {
   const { fetchImpl: baseFetch } = successFetchRecorder();
   const fetchImpl = async (url, options) => {
@@ -153,10 +192,10 @@ test('fails if the deleted canary can authenticate again', async () => {
 });
 
 test('writes an evidence artifact exclusively and preserves an existing file', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'knowme-kmd291-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'knowme-kmd367-'));
   const file = path.join(dir, 'data-lifecycle.json');
   try {
-    const artifact = { schemaVersion: 1, kind: 'knowme-data-export-delete-smoke', status: 'PASSED' };
+    const artifact = { schemaVersion: 2, kind: 'knowme-data-export-delete-smoke', status: 'PASSED' };
     const first = await writeDataExportDeleteSmokeArtifact(file, artifact);
     assert.match(first.sha256, /^[0-9a-f]{64}$/);
     const original = await readFile(file, 'utf8');
