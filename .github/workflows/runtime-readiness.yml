@@ -11,7 +11,9 @@ on:
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - 'scripts/runtime-readiness-ci-preflight.test.mjs'
+      - 'scripts/scheduler-outage-resilience-preflight.test.mjs'
       - 'docs/roadmap/KMD_364_DELIVERY.md'
+      - 'docs/roadmap/KMD_365_DELIVERY.md'
   push:
     branches: [main]
 
@@ -32,8 +34,8 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22.23.2
-      - name: Guard KMD-364 readiness proof contract
-        run: node --test scripts/runtime-readiness-ci-preflight.test.mjs
+      - name: Guard runtime readiness and KMD-365 scheduler resilience contracts
+        run: node --test scripts/runtime-readiness-ci-preflight.test.mjs scripts/scheduler-outage-resilience-preflight.test.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @knowme/api prisma:generate
       - name: Start isolated PostgreSQL readiness dependency
@@ -109,22 +111,38 @@ jobs:
             fi
             sleep 2
           done
-      - name: Prove PostgreSQL loss keeps liveness and sheds readiness
+      - name: Prove sustained PostgreSQL loss keeps liveness and sheds readiness
         shell: bash
         run: |
           set -euo pipefail
           docker stop "$DB_RUNTIME_CONTAINER" >/dev/null
+
           for attempt in $(seq 1 20); do
             live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
             ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
             if [ "$live_code" = 200 ] && [ "$ready_code" = 503 ]; then
-              exit 0
+              break
             fi
             if [ "$attempt" = 20 ]; then
               echo "Expected dependency loss to keep liveness=200 and readiness=503; observed live=$live_code ready=$ready_code." >&2
               exit 1
             fi
             sleep 1
+          done
+
+          # Hold the real database outage long enough for default 15s/60s maintenance
+          # schedulers to execute while PostgreSQL is unavailable. Every sample must
+          # preserve process liveness and traffic shedding; any unhandled rejection
+          # that terminates Node invalidates the proof immediately.
+          for sample in $(seq 1 15); do
+            live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
+            ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
+            api_state="$(docker inspect --format='{{.State.Status}}' "$API_RUNTIME_CONTAINER")"
+            if [ "$api_state" != running ] || [ "$live_code" != 200 ] || [ "$ready_code" != 503 ]; then
+              echo "Sustained dependency-loss proof failed at sample $sample; api=$api_state live=$live_code ready=$ready_code." >&2
+              exit 1
+            fi
+            sleep 5
           done
       - name: Prove readiness recovers after PostgreSQL returns without API restart
         shell: bash
@@ -168,7 +186,7 @@ jobs:
             fi
             sleep 2
           done
-      - name: Clean KMD-364 runtime proof resources
+      - name: Clean runtime readiness proof resources
         if: ${{ always() }}
         shell: bash
         run: |
