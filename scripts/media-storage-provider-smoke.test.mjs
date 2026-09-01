@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runObjectStorageProviderSmoke } from './media-storage-provider-smoke.mjs';
+import { validateObjectStorageProviderSmokeArtifact } from './media-storage-provider-smoke-evidence-preflight.mjs';
 
 const base = {
   endpoint: 'https://storage.example.com',
@@ -45,6 +46,10 @@ test('proves signed write/read/delete while anonymous read stays private', async
     signedReadMatched: true,
     signedDelete: true,
     postDeleteNotFound: true,
+  });
+  assert.deepEqual(validateObjectStorageProviderSmokeArtifact(artifact, { now: base.now }), {
+    ok: true,
+    verifiedAt: base.now.toISOString(),
   });
   assert.equal(calls.length, 5);
   assert.equal(calls[0].init.method, 'PUT');
@@ -108,4 +113,33 @@ test('rejects non-HTTPS storage endpoints before any request', async () => {
     /canonical HTTPS/,
   );
   assert.equal(called, false);
+});
+
+test('retained artifact preflight rejects weakened or malformed semantic evidence', async () => {
+  const uploaded = Buffer.alloc(32, 0x22);
+  const queue = [response(200), response(403), response(200, uploaded), response(204), response(404)];
+  const artifact = await runObjectStorageProviderSmoke({
+    ...base,
+    async fetchImpl() {
+      return queue.shift();
+    },
+  });
+
+  const weakened = structuredClone(artifact);
+  weakened.checks.anonymousReadDenied = false;
+  const weakenedResult = validateObjectStorageProviderSmokeArtifact(weakened, { now: base.now });
+  assert.equal(weakenedResult.ok, false);
+  assert.match(weakenedResult.errors.join(' '), /anonymousReadDenied/);
+
+  const extraField = { ...artifact, rawBucket: base.bucket };
+  const extraResult = validateObjectStorageProviderSmokeArtifact(extraField, { now: base.now });
+  assert.deepEqual(extraResult, {
+    ok: false,
+    errors: ['Object-storage smoke artifact must match the exact schema-v1 field contract.'],
+  });
+
+  const future = { ...artifact, observedAt: '2026-09-01T15:00:01.000Z' };
+  const futureResult = validateObjectStorageProviderSmokeArtifact(future, { now: new Date('2026-09-01T14:50:00.000Z') });
+  assert.equal(futureResult.ok, false);
+  assert.match(futureResult.errors.join(' '), /must not be in the future/);
 });
