@@ -72,16 +72,24 @@ test('restore drill recovery metrics enforce the configured RPO and RTO threshol
 
 test('restore drill integrity output must prove migrations and at least one public table', () => {
   assert.deepEqual(
-    parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":42}'),
-    { databaseReachable: true, prismaMigrationsTable: true, publicTableCount: 42 },
+    parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":42,"appliedMigrationCount":18,"unfinishedMigrationCount":0}'),
+    { databaseReachable: true, prismaMigrationsTable: true, publicTableCount: 42, appliedMigrationCount: 18, unfinishedMigrationCount: 0 },
   );
   assert.throws(() => parseRestoreDrillCheckOutput('not-json'), /invalid JSON/);
   assert.throws(
-    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":false,"publicTableCount":42}'),
+    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":false,"publicTableCount":42,"appliedMigrationCount":18,"unfinishedMigrationCount":0}'),
     /usable restored schema/,
   );
   assert.throws(
-    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":0}'),
+    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":0,"appliedMigrationCount":18,"unfinishedMigrationCount":0}'),
+    /usable restored schema/,
+  );
+  assert.throws(
+    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":42,"appliedMigrationCount":18,"unfinishedMigrationCount":1}'),
+    /usable restored schema/,
+  );
+  assert.throws(
+    () => parseRestoreDrillCheckOutput('{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":42,"appliedMigrationCount":0,"unfinishedMigrationCount":0}'),
     /usable restored schema/,
   );
 });
@@ -97,7 +105,7 @@ test('restore drill uses an isolated target, keeps credentials out of psql argv,
       if (command === 'psql') {
         return {
           status: 0,
-          stdout: '{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":12}\n',
+          stdout: '{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":12,"appliedMigrationCount":18,"unfinishedMigrationCount":0}\n',
           stderr: '',
         };
       }
@@ -128,10 +136,12 @@ test('restore drill uses an isolated target, keeps credentials out of psql argv,
     assert.ok(!calls[1].args.join(' ').includes('restore-secret'));
     assert.equal(calls[1].options.env.PGPASSWORD, 'restore-secret');
     assert.match(result.sha256, /^[a-f0-9]{64}$/);
-    assert.equal(result.evidence.schemaVersion, 2);
+    assert.equal(result.evidence.schemaVersion, 3);
     assert.equal(result.evidence.status, 'PASSED');
     assert.equal(result.evidence.restore.isolatedTarget, true);
     assert.equal(result.evidence.restore.checks.publicTableCount, 12);
+    assert.equal(result.evidence.restore.checks.appliedMigrationCount, 18);
+    assert.equal(result.evidence.restore.checks.unfinishedMigrationCount, 0);
     assert.equal(result.evidence.restore.recovery.recoveryPointAgeSeconds, 7200);
     assert.equal(result.evidence.restore.recovery.restoreDurationMs, 30000);
     assert.deepEqual(result.evidence.restore.recovery.policy, { maxRpoHours: 24, maxRtoSeconds: 60 });
@@ -160,7 +170,7 @@ test('restore drill removes reserved evidence when measured RTO misses policy', 
         monotonicNow: () => ticks.shift(),
         spawn: (command) => command === process.execPath
           ? { status: 0, stdout: '', stderr: '' }
-          : { status: 0, stdout: '{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":4}\n', stderr: '' },
+          : { status: 0, stdout: '{"databaseReachable":true,"prismaMigrationsTable":true,"publicTableCount":4,"appliedMigrationCount":18,"unfinishedMigrationCount":0}\n', stderr: '' },
         env: {
           DATABASE_URL: 'postgresql://app:a@db.example.com/knowme',
           RESTORE_DATABASE_URL: 'postgresql://restore:b@restore.example.com/knowme_restore',
