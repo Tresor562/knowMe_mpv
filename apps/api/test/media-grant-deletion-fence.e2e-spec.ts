@@ -6,6 +6,18 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 let sequence = 0;
 
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = () => resolvePromise();
+  });
+  return { promise, resolve };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 describe('KMD-376 media grant deletion fence (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -118,5 +130,91 @@ describe('KMD-376 media grant deletion fence (e2e)', () => {
     ).rejects.toThrow(/active asset|foreign key|violat/i);
 
     expect(await prisma.mediaDownloadGrant.count({ where: { assetId } })).toBe(0);
+  });
+
+  it('serializes grant-first concurrency so the later tombstone removes the committed grant', async () => {
+    const { userId, assetId } = await createUserAndAsset('grant-first-race');
+    const grantReady = deferred();
+    const releaseGrant = deferred();
+
+    const grantTransaction = prisma.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(
+        'SELECT 1 FROM "MediaAsset" WHERE "id" = $1 FOR UPDATE',
+        assetId
+      );
+      await tx.mediaAccessGrant.create({
+        data: { assetId, granteeId: userId, grantedBy: userId }
+      });
+      grantReady.resolve();
+      await releaseGrant.promise;
+    });
+
+    await grantReady.promise;
+
+    let tombstoneSettled = false;
+    const tombstone = prisma.mediaAsset
+      .update({
+        where: { id: assetId },
+        data: { status: 'DELETED', deletedAt: new Date() }
+      })
+      .then(
+        (value) => {
+          tombstoneSettled = true;
+          return value;
+        },
+        (error) => {
+          tombstoneSettled = true;
+          throw error;
+        }
+      );
+
+    await sleep(100);
+    expect(tombstoneSettled).toBe(false);
+
+    releaseGrant.resolve();
+    await grantTransaction;
+    await tombstone;
+
+    expect(await prisma.mediaAccessGrant.count({ where: { assetId } })).toBe(0);
+  });
+
+  it('serializes deletion-first concurrency so a waiting grant is rejected after tombstone commit', async () => {
+    const { userId, assetId } = await createUserAndAsset('delete-first-race');
+    const tombstoneReady = deferred();
+    const releaseTombstone = deferred();
+
+    const tombstoneTransaction = prisma.$transaction(async (tx) => {
+      await tx.mediaAsset.update({
+        where: { id: assetId },
+        data: { status: 'DELETED', deletedAt: new Date() }
+      });
+      tombstoneReady.resolve();
+      await releaseTombstone.promise;
+    });
+
+    await tombstoneReady.promise;
+
+    let grantSettled = false;
+    const grantAttempt = prisma.mediaAccessGrant
+      .create({ data: { assetId, granteeId: userId, grantedBy: userId } })
+      .then(
+        (value) => {
+          grantSettled = true;
+          return value;
+        },
+        (error) => {
+          grantSettled = true;
+          throw error;
+        }
+      );
+
+    await sleep(100);
+    expect(grantSettled).toBe(false);
+
+    releaseTombstone.resolve();
+    await tombstoneTransaction;
+    await expect(grantAttempt).rejects.toThrow(/active asset|foreign key|violat/i);
+
+    expect(await prisma.mediaAccessGrant.count({ where: { assetId } })).toBe(0);
   });
 });
