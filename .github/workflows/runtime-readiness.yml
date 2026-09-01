@@ -1,0 +1,145 @@
+name: Runtime readiness
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/runtime-readiness.yml'
+      - 'Dockerfile.api'
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'scripts/runtime-readiness-ci-preflight.test.mjs'
+      - 'docs/roadmap/KMD_364_DELIVERY.md'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-24.04
+    env:
+      DATABASE_URL: postgresql://knowme:knowme@127.0.0.1:55432/knowme_readiness?schema=public
+      JWT_SECRET: ci-only-secret-that-is-long-enough-for-tests
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.2
+      - name: Guard KMD-364 readiness proof contract
+        run: node --test scripts/runtime-readiness-ci-preflight.test.mjs
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @knowme/api prisma:generate
+      - name: Start isolated PostgreSQL readiness dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name knowme-readiness-db --network host \
+            -e POSTGRES_USER=knowme \
+            -e POSTGRES_PASSWORD=knowme \
+            -e POSTGRES_DB=knowme_readiness \
+            postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685 \
+            -p 55432:5432
+          for attempt in $(seq 1 30); do
+            if docker exec knowme-readiness-db pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs knowme-readiness-db >&2 || true
+          exit 1
+      - run: pnpm db:migrate:deploy
+      - name: Build exact API runtime image
+        run: docker build -f Dockerfile.api -t knowme-api-readiness-ci .
+      - name: Prove readiness dependency loss and recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          api=knowme-api-readiness-ci-runtime
+          db=knowme-readiness-db
+          cleanup() {
+            docker logs "$api" 2>/dev/null || true
+            docker rm -f "$api" >/dev/null 2>&1 || true
+            docker rm -f "$db" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run -d --name "$api" --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e PORT=4000 \
+            -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
+            -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e API_INSTANCE_COUNT=1 \
+            -e API_RATE_LIMIT_TTL_MS=60000 \
+            -e API_RATE_LIMIT_LIMIT=120 \
+            -e TRUSTED_PROXY_HOPS=0 \
+            -e API_REQUEST_TIMEOUT_MS=30000 \
+            -e API_HEADERS_TIMEOUT_MS=15000 \
+            -e API_KEEP_ALIVE_TIMEOUT_MS=5000 \
+            -e 'CORS_ALLOWED_ORIGINS_JSON=["https://ci.invalid"]' \
+            -e MEDIA_UPLOAD_MAX_BYTES=26214400 \
+            -e ACCOUNT_SECURITY_ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+            -e MEDIA_QUARANTINE_INFECTED_RETENTION_DAYS=30 \
+            -e MEDIA_QUARANTINE_UNAVAILABLE_RETENTION_DAYS=7 \
+            -e MEDIA_QUARANTINE_RETRY_ENABLED=false \
+            -e MEDIA_QUARANTINE_RETRY_INTERVAL_MS=60000 \
+            -e MEDIA_QUARANTINE_RETRY_BATCH_SIZE=10 \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_URL=https://alerts.ci.invalid/hook \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_TOKEN=ci-only-media-purge-alert-token-0001 \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS=2000 \
+            -e MEDIA_STORAGE_DRIVER=s3 \
+            -e MEDIA_S3_ENDPOINT=https://s3.ci.invalid \
+            -e MEDIA_S3_BUCKET=knowme-ci-runtime \
+            -e MEDIA_S3_REGION=ci-test-1 \
+            -e MEDIA_S3_ACCESS_KEY_ID=ci-runtime-access-key \
+            -e MEDIA_S3_SECRET_ACCESS_KEY=ci-runtime-secret-key-not-for-production \
+            knowme-api-readiness-ci
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:4000/health/live >/dev/null 2>&1 \
+              && curl --fail --silent --show-error http://127.0.0.1:4000/health/ready >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$(docker inspect --format='{{.State.Status}}' "$api")" = exited ]; then
+              echo 'API exited before initial readiness.' >&2
+              exit 1
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo 'API did not become ready within 60 seconds.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker stop "$db" >/dev/null
+          for attempt in $(seq 1 20); do
+            live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
+            ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
+            if [ "$live_code" = 200 ] && [ "$ready_code" = 503 ]; then
+              break
+            fi
+            if [ "$attempt" = 20 ]; then
+              echo "Expected dependency loss to keep liveness=200 and readiness=503; observed live=$live_code ready=$ready_code." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          docker start "$db" >/dev/null
+          for attempt in $(seq 1 30); do
+            if docker exec "$db" pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1 \
+              && curl --fail --silent --show-error http://127.0.0.1:4000/health/ready >/dev/null 2>&1; then
+              curl --fail --silent --show-error http://127.0.0.1:4000/health/live >/dev/null
+              exit 0
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo 'API readiness did not recover after PostgreSQL returned.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
