@@ -35,9 +35,11 @@ export class ProfileCircleNotificationSchedulerService
   onApplicationBootstrap() {
     const config = this.runtimeConfig.get();
     if (!config.enabled) return;
-    this.timer = setInterval(() => void this.tick(), config.schedulerIntervalMs);
+    this.timer = setInterval(() => {
+      void this.runScheduledTick();
+    }, config.schedulerIntervalMs);
     this.timer.unref();
-    void this.tick();
+    void this.runScheduledTick();
   }
 
   onApplicationShutdown() {
@@ -93,6 +95,15 @@ export class ProfileCircleNotificationSchedulerService
         leaseToken: lease.leaseToken
       });
       this.running = false;
+    }
+  }
+
+  private async runScheduledTick() {
+    try {
+      await this.tick();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Notification scheduler boundary contained ${errorName}; it will retry on the next interval.`);
     }
   }
 
