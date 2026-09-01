@@ -11,9 +11,21 @@ const mediaUploadPolicy = await readFile(
 const canonicalCiMaxBytes = '26214400';
 
 test('production media upload policy remains fail-closed without an explicit limit', () => {
-  assert.match(mediaUploadPolicy, /if \(env\.NODE_ENV === 'production'\) \{/);
-  assert.match(mediaUploadPolicy, /throw new Error\('MEDIA_UPLOAD_MAX_BYTES is required in production\.'\)/);
-  assert.doesNotMatch(mediaUploadPolicy, /if \(env\.NODE_ENV === 'production'\)[\s\S]{0,160}return DEFAULT_MEDIA_UPLOAD_MAX_BYTES/);
+  const productionGuard = mediaUploadPolicy.match(
+    /if \(env\.NODE_ENV === 'production'\) \{\n(?<body>[\s\S]*?)\n\s{4}\}/
+  );
+
+  assert.ok(productionGuard?.groups?.body, 'production MEDIA_UPLOAD_MAX_BYTES guard must remain explicit');
+  assert.match(
+    productionGuard.groups.body,
+    /throw new Error\('MEDIA_UPLOAD_MAX_BYTES is required in production\.'\)/
+  );
+  assert.doesNotMatch(productionGuard.groups.body, /return DEFAULT_MEDIA_UPLOAD_MAX_BYTES/);
+
+  assert.match(
+    mediaUploadPolicy,
+    /if \(!raw\) \{[\s\S]*if \(env\.NODE_ENV === 'production'\) \{[\s\S]*throw new Error\('MEDIA_UPLOAD_MAX_BYTES is required in production\.'\)[\s\S]*\}\n\s{4}return DEFAULT_MEDIA_UPLOAD_MAX_BYTES;/
+  );
 });
 
 test('application-graph probe and real API boot both supply the bounded production upload limit', () => {
