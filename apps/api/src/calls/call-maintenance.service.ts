@@ -1,8 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { CallsService } from './calls.service';
 
 @Injectable()
 export class CallMaintenanceService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(CallMaintenanceService.name);
   private timer?: NodeJS.Timeout;
   private running = false;
 
@@ -11,7 +12,9 @@ export class CallMaintenanceService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     if (process.env.CALL_MAINTENANCE_ENABLED === 'false') return;
     const interval = this.integerEnv('CALL_MAINTENANCE_INTERVAL_MS', 15_000, 5_000, 300_000);
-    this.timer = setInterval(() => void this.tick(), interval);
+    this.timer = setInterval(() => {
+      void this.runScheduledTick();
+    }, interval);
     this.timer.unref?.();
   }
 
@@ -28,6 +31,15 @@ export class CallMaintenanceService implements OnModuleInit, OnModuleDestroy {
       return { skipped: false, ...(await this.calls.expireDue(batchSize)) };
     } finally {
       this.running = false;
+    }
+  }
+
+  private async runScheduledTick() {
+    try {
+      await this.tick();
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.error(`Call maintenance tick failed (${errorName}); it will retry on the next interval.`);
     }
   }
 
