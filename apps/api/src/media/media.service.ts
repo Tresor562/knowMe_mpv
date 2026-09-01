@@ -306,6 +306,13 @@ export class MediaService {
       where: { id: assetId, ownerId: userId, deletedAt: null }
     });
     if (!asset) throw new NotFoundException('Média introuvable.');
+
+    // Provider deletion is the privacy boundary. Keep the durable row and all
+    // grant metadata intact until the provider confirms the private object is
+    // gone. The storage drivers are idempotent, so a later retry remains safe
+    // if database mutation fails after provider deletion succeeds.
+    await this.storage.delete(asset.storageKey);
+
     await this.prisma.$transaction([
       this.prisma.mediaDownloadGrant.deleteMany({ where: { assetId } }),
       this.prisma.mediaAccessGrant.deleteMany({ where: { assetId } }),
@@ -314,7 +321,6 @@ export class MediaService {
         data: { status: 'DELETED', deletedAt: new Date() }
       })
     ]);
-    await this.storage.delete(asset.storageKey);
     await this.audit.record({
       actorId: userId,
       action: 'MEDIA_DELETE',
