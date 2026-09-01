@@ -24,6 +24,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://knowme:knowme@127.0.0.1:55432/knowme_readiness?schema=public
       JWT_SECRET: ci-only-secret-that-is-long-enough-for-tests
+      API_RUNTIME_CONTAINER: knowme-api-readiness-ci-runtime
+      DB_RUNTIME_CONTAINER: knowme-readiness-db
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -38,37 +40,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --name knowme-readiness-db \
+          docker run -d --name "$DB_RUNTIME_CONTAINER" \
             -p 127.0.0.1:55432:5432 \
             -e POSTGRES_USER=knowme \
             -e POSTGRES_PASSWORD=knowme \
             -e POSTGRES_DB=knowme_readiness \
             postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
           for attempt in $(seq 1 30); do
-            if docker exec knowme-readiness-db pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
+            if docker exec "$DB_RUNTIME_CONTAINER" pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
               exit 0
             fi
             sleep 1
           done
-          docker logs knowme-readiness-db >&2 || true
+          docker logs "$DB_RUNTIME_CONTAINER" >&2 || true
           exit 1
       - run: pnpm db:migrate:deploy
       - name: Build exact API runtime image
         run: docker build -f Dockerfile.api -t knowme-api-readiness-ci .
-      - name: Prove readiness dependency loss and recovery
+      - name: Start exact API image and require initial readiness
         shell: bash
         run: |
           set -euo pipefail
-          api=knowme-api-readiness-ci-runtime
-          db=knowme-readiness-db
-          cleanup() {
-            docker logs "$api" 2>/dev/null || true
-            docker rm -f "$api" >/dev/null 2>&1 || true
-            docker rm -f "$db" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-
-          docker run -d --name "$api" --network host \
+          docker run -d --name "$API_RUNTIME_CONTAINER" --network host \
             -e DATABASE_URL="$DATABASE_URL" \
             -e JWT_SECRET="$JWT_SECRET" \
             -e PORT=4000 \
@@ -101,27 +94,31 @@ jobs:
             knowme-api-readiness-ci
 
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:4000/health/live >/dev/null 2>&1 \
-              && curl --fail --silent --show-error http://127.0.0.1:4000/health/ready >/dev/null 2>&1; then
-              break
+            live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
+            ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
+            if [ "$live_code" = 200 ] && [ "$ready_code" = 200 ]; then
+              exit 0
             fi
-            if [ "$(docker inspect --format='{{.State.Status}}' "$api")" = exited ]; then
+            if [ "$(docker inspect --format='{{.State.Status}}' "$API_RUNTIME_CONTAINER")" = exited ]; then
               echo 'API exited before initial readiness.' >&2
               exit 1
             fi
             if [ "$attempt" = 30 ]; then
-              echo 'API did not become ready within 60 seconds.' >&2
+              echo "API did not become initially ready; observed live=$live_code ready=$ready_code." >&2
               exit 1
             fi
             sleep 2
           done
-
-          docker stop "$db" >/dev/null
+      - name: Prove PostgreSQL loss keeps liveness and sheds readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker stop "$DB_RUNTIME_CONTAINER" >/dev/null
           for attempt in $(seq 1 20); do
             live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
             ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
             if [ "$live_code" = 200 ] && [ "$ready_code" = 503 ]; then
-              break
+              exit 0
             fi
             if [ "$attempt" = 20 ]; then
               echo "Expected dependency loss to keep liveness=200 and readiness=503; observed live=$live_code ready=$ready_code." >&2
@@ -129,17 +126,31 @@ jobs:
             fi
             sleep 1
           done
-
-          docker start "$db" >/dev/null
+      - name: Prove readiness recovers after PostgreSQL returns without API restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          api_id_before="$(docker inspect --format='{{.Id}}' "$API_RUNTIME_CONTAINER")"
+          docker start "$DB_RUNTIME_CONTAINER" >/dev/null
           for attempt in $(seq 1 30); do
-            if docker exec "$db" pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1 \
-              && curl --fail --silent --show-error http://127.0.0.1:4000/health/ready >/dev/null 2>&1; then
-              curl --fail --silent --show-error http://127.0.0.1:4000/health/live >/dev/null
-              exit 0
+            if docker exec "$DB_RUNTIME_CONTAINER" pg_isready -U knowme -d knowme_readiness >/dev/null 2>&1; then
+              live_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/live || true)"
+              ready_code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 http://127.0.0.1:4000/health/ready || true)"
+              if [ "$live_code" = 200 ] && [ "$ready_code" = 200 ]; then
+                test "$(docker inspect --format='{{.Id}}' "$API_RUNTIME_CONTAINER")" = "$api_id_before"
+                exit 0
+              fi
             fi
             if [ "$attempt" = 30 ]; then
-              echo 'API readiness did not recover after PostgreSQL returned.' >&2
+              echo "API readiness did not recover after PostgreSQL returned; observed live=${live_code:-unknown} ready=${ready_code:-unknown}." >&2
               exit 1
             fi
             sleep 2
           done
+      - name: Clean KMD-364 runtime proof resources
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          docker logs "$API_RUNTIME_CONTAINER" 2>/dev/null || true
+          docker rm -f "$API_RUNTIME_CONTAINER" >/dev/null 2>&1 || true
+          docker rm -f "$DB_RUNTIME_CONTAINER" >/dev/null 2>&1 || true
