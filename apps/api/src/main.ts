@@ -11,6 +11,7 @@ type StartupTracePhase = 'main-enter' | BootstrapPhase;
 type StartupFailureCategory = 'module-resolution' | 'configuration' | 'runtime';
 
 const STARTUP_CONFIGURATION_KEYS = [
+  'ACCOUNT_SECURITY_ENCRYPTION_KEY',
   'API_HEADERS_TIMEOUT_MS',
   'API_INSTANCE_COUNT',
   'API_KEEP_ALIVE_TIMEOUT_MS',
