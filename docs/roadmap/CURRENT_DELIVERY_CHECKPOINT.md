@@ -1,6 +1,6 @@
 # KnowMe — Current delivery checkpoint
 
-Last reconciled from live GitHub: 2026-08-31.
+Last reconciled from live GitHub: 2026-09-01.
 
 ## Authority order
 
@@ -24,12 +24,12 @@ If any remembered conversation or historical document conflicts with live GitHub
 - KMD-361 removed UID 0 from final API/Web runtime commands and proved effective non-root runtime identity in production mode.
 - KMD-362 added bounded liveness metadata/routes and exact-head build/E2E proof before merge.
 - `KMD-363` remains the first unfinished core delivery on `feat/kmd-363-runtime-container-boot-probes`, PR #466. It is not merged.
-- CI #1358 exposed a real API release-packaging defect: the runtime contract expected `apps/api/dist/main.js`, but the TypeScript build layout did not guarantee that artifact.
-- KMD-363 now uses a dedicated release `apps/api/tsconfig.build.json` (`rootDir=src`, `outDir=dist`, runtime-only source inclusion, test exclusions, no incremental release-state dependency) selected explicitly by Nest with stale output deletion.
-- CI #1360 proved that deterministic packaging fix: supply-chain, frozen install, production audit, Prisma generation/migrations/drift, monorepo build/tests, API image build, compiled `dist/main.js` proof, non-root identity and health metadata all passed.
-- CI #1360 then failed at the real API boot. Its uploaded bounded startup marker is `application-module-load`, so the remaining defect is inside evaluation of the `AppModule` graph rather than the previous compiled-entrypoint packaging.
-- Because the graph includes native authentication/data dependencies, the active branch now adds an explicit production-image smoke gate for `argon2` and `PrismaClient` before full API boot. A failure there is a release blocker, not a validation to bypass.
-- KMD-363 remains incomplete until one exact current head passes the native runtime smoke, real API boot/liveness, real Web boot/liveness and all Web/API E2E plus the existing supply-chain/migration/build/runtime gates.
+- The KMD-363 branch has already corrected deterministic API release packaging, native `argon2`/Prisma runtime verification, bounded application-graph diagnostics and explicit production media configuration without weakening production guards.
+- CI #1375 passed supply-chain policy, frozen installation, production audit, Prisma generation/migrations/zero drift, monorepo build/tests, API image build, deterministic compiled-entrypoint proof, native runtime smokes, the application-graph probe, non-root runtime identity and healthcheck metadata.
+- CI #1375 then failed only at the real API runtime boot. The bounded phase marker was `nest-application-create`; logs showed many modules initialized but no `SecurityModule`, `AuthModule` or `AccountModule`.
+- `SecurityCryptoService` intentionally requires a valid 32-byte `ACCOUNT_SECURITY_ENCRYPTION_KEY` in `NODE_ENV=production`. The CI runtime proof had not provided one. Production intentionally does not use its development JWT-derived fallback.
+- The active branch now supplies a fixed CI-only 32-byte account-security key to both the production application-graph probe and real API boot, includes a dedicated preflight proving both bindings while preserving the production fail-closed guard, and allowlists only the configuration key name for bounded startup classification. No key value is logged.
+- KMD-363 remains incomplete until one exact current head passes the complete chain: supply-chain/frozen install/audit, Prisma migrations/drift, build/tests, API image/entrypoint/native/graph proof, real API boot/liveness, real Web boot/liveness, Web E2E and API E2E, with no blocking review or unresolved review thread.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section describing `KMD-061` as pending is stale and must not be used to recreate KMD-061 or any later merged milestone.
 
 ## Independent historical validation boundary
