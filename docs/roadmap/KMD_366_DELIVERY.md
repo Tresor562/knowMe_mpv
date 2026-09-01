@@ -2,7 +2,7 @@
 
 ## Status
 
-Active. Do not mark merged until exact-head canonical CI succeeds and review/thread gates are clear.
+Merged. Final exact head `9118e59de2de6e71d5019ec64ba731e6bcd49bdf` passed canonical CI #1412 and Runtime readiness #22, had no submitted reviews or unresolved review threads, and merged through non-draft PR #475 as squash commit `03a52f37a2bf29ece71023137ff5002a375003e6`.
 
 ## Problem
 
@@ -31,15 +31,16 @@ None. No Prisma schema, persisted user data, public API contract or authenticati
 
 Revert KMD-366. Runtime authentication behavior remains unchanged; only the additional release proof and its tests are removed.
 
-## Required validation before merge
+## Validation evidence
 
-- exact-head repository CI;
-- root unit/release script tests including `deleted-session-revocation-smoke.test.mjs`;
-- normal build, Prisma migration/drift gates, API/Web runtime boot and E2E gates already enforced by canonical CI;
-- no unresolved review thread or blocking review.
+- exact-head canonical CI #1412 — passed;
+- Runtime readiness #22 — passed;
+- root unit/release script tests including `deleted-session-revocation-smoke.test.mjs` — passed as part of canonical CI;
+- normal build, Prisma migration/drift gates, API/Web runtime boot and E2E gates — passed as part of canonical CI;
+- no submitted review or unresolved review thread on PR #475 before merge.
 
 ## Real-world proof boundary
 
-A green repository CI proves only the smoke implementation and its deterministic tests. It does not prove that the command has been executed against the real production origin. A market-release claim for deleted-session revocation requires a dated successful `pnpm release:deleted-session:smoke` execution against the canonical production deployment.
+A green repository CI proves only the smoke implementation and its deterministic tests. It does not prove that the command has been executed against the real production origin. A market-release claim for deleted-session revocation requires a dated successful `pnpm release:deleted-session:smoke` execution against the canonical production deployment, or a later canonical release-evidence flow that subsumes the same guarantee.
 
 Even a successful production canary proves only that the tested bearer token and password login lose authorization after deletion for that canary. It does not establish legal/privacy compliance, provider-backup erasure, every external identity-provider behavior, physical-device behavior, store publication, or production branch governance.
