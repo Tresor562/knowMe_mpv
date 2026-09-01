@@ -17,12 +17,14 @@ If any remembered conversation or historical document conflicts with live GitHub
 
 - Canonical repository: `Tresor562/knowMe_mpv`.
 - `KMD-060` is complete and must never be recreated.
-- Live GitHub has progressed through merged `KMD-366`.
+- Live GitHub has progressed through merged `KMD-368`.
 - KMD-363 merged via PR #467 as `09f29aec8e224d469ee6f58dff69653af03a783d`; post-merge continuity PR #468 merged as `5afed801153451ba0de7635bca94a5b64956cdea`.
 - KMD-364 exact head `c7afb153f8fc8c33520e3dfaf03c059c8f4dbc07` passed canonical CI #1400 and Runtime readiness #11 before merge. The production API remained live while PostgreSQL was stopped, returned readiness `503`, then recovered readiness `200` after PostgreSQL returned without changing API container identity. Replacement PR #470 preserved the validated head and merged KMD-364 as squash commit `1f353f93efdb7f2f00d91ca5801ce488af8a48a1`.
 - KMD-365 generalized outage containment to database-backed background schedulers and extended sustained dependency-loss proof. Final exact head `3e3064f4939f323bbb9227d2717f497a6c9742e2` passed canonical CI #1406 and Runtime readiness #17, then merged through PR #472 as squash commit `abaa80ce27d2fb852bacb48f42072afa21edf9c7`.
 - KMD-366 exact head `9118e59de2de6e71d5019ec64ba731e6bcd49bdf` proves that a bearer token issued before account deletion loses authorization immediately after `DELETE /account`, while password login is also rejected and secrets are not retained in the result. The exact head passed canonical CI #1412 and Runtime readiness #22, had no submitted reviews or unresolved review threads, and merged through non-draft PR #475 as squash commit `03a52f37a2bf29ece71023137ff5002a375003e6`.
-- KMD-367 is the current active delivery. It upgrades the existing `data_export_delete_validation` market-evidence path so a new release cannot satisfy that evidence slot with an older schema-v1 artifact that omits KMD-366's pre-deletion bearer revocation guarantee. It is isolated on `feat/kmd-367-data-lifecycle-token-revocation-evidence` and must not merge before exact-head CI plus review/thread gates are clear.
+- KMD-367 upgraded `data_export_delete_validation` so new release evidence must include the pre-deletion bearer revocation guarantee. It merged through PR #477 as squash commit `ebb0912ff24f24ef2120e3441faa3723320c5b71` after exact-head CI passed.
+- KMD-368 hardened the PostgreSQL restore-drill evidence to schema v3, requiring at least one successfully applied Prisma migration and zero unfinished migrations, and aligned the market-evidence binder to the generated artifact. Exact head `6b97e7d224a46f60a11d9be5940061b33aca490b` passed CI #1417 with no submitted reviews or unresolved threads. Because the connector draft→ready mutation remained broken, draft PR #478 was closed without merge and non-draft replacement PR #479 preserved the validated head, then merged as squash commit `864ef36f4dc27888fbc113c19161d143718f3ff7`.
+- KMD-369 is the current active delivery. It adds a release-operator smoke for the real private S3-compatible media store, proving signed PUT/GET/DELETE, denial of anonymous retrieval, byte-identical reads, post-delete absence and best-effort cleanup. It is isolated on `feat/kmd-369-object-storage-provider-smoke`. CI can validate only the software contract with synthetic provider responses; real bucket execution remains external evidence.
 - The old `docs/roadmap/DELIVERY_LEDGER.md` section describing `KMD-061` as pending is stale and must not be used to recreate KMD-061 or any later merged milestone.
 
 ## Independent historical validation boundary
@@ -41,7 +43,7 @@ None of the following may be claimed complete without direct evidence:
 - production backup/restore execution evidence;
 - production monitoring/alert delivery evidence;
 - real production deployment/orchestrator evidence, including actual load-balancer readiness-probe wiring;
-- real object-storage durability/connectivity evidence;
+- real object-storage durability/connectivity evidence, including execution of KMD-369 against the production bucket;
 - App Store / Google Play submission, review or publication evidence.
 
 Repository code that checks governance does not itself configure branch protection. No branch-protection compliance claim is made without direct GitHub configuration evidence.
