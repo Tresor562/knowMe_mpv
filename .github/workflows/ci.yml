@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 22.23.2
       - name: Verify CI and package supply-chain policy
-        run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs scripts/runtime-container-lockfile-preflight.test.mjs scripts/runtime-container-security-preflight.test.mjs scripts/runtime-container-healthcheck-preflight.test.mjs
+        run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs scripts/runtime-container-lockfile-preflight.test.mjs scripts/runtime-container-security-preflight.test.mjs scripts/runtime-container-healthcheck-preflight.test.mjs scripts/runtime-container-boot-preflight.test.mjs scripts/runtime-media-production-config-preflight.test.mjs scripts/runtime-account-security-production-config-preflight.test.mjs scripts/runtime-media-workers-production-config-preflight.test.mjs
       - run: pnpm install --frozen-lockfile
       - name: Audit production dependencies for high and critical advisories
         run: pnpm audit --prod --audit-level=high
@@ -49,16 +49,183 @@ jobs:
       - run: pnpm test
       - name: Build frozen API runtime container
         run: docker build -f Dockerfile.api -t knowme-api-ci .
+      - name: Verify API runtime entrypoint artifact
+        run: |
+          set -euo pipefail
+          docker inspect --format='{{json .Config.Cmd}}' knowme-api-ci | grep -F '["node","apps/api/dist/main.js"]'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'set -eux; id; ls -ld /app /app/apps/api/dist; test -r /app/apps/api/dist/main.js; grep -F "main-enter" /app/apps/api/dist/main.js >/dev/null; node --check /app/apps/api/dist/main.js; mkdir -p /app/.knowme-ci-write-proof; test -w /app/.knowme-ci-write-proof; rmdir /app/.knowme-ci-write-proof'
+      - name: Verify API native runtime dependencies
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "require(\"argon2\"); process.stdout.write(\"argon2-ok\\n\")"'
+          docker run --rm --entrypoint sh knowme-api-ci -c 'cd /app/apps/api && node -e "const { PrismaClient } = require(\"@prisma/client\"); const client = new PrismaClient(); client.\$disconnect().then(() => process.stdout.write(\"prisma-client-ok\\n\"))"'
+      - name: Probe API application graph module loading
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=knowme-api-app-module-probe-ci
+          marker="$RUNNER_TEMP/knowme-api-app-module-load-probe"
+          dump_probe_marker() {
+            rm -f "$marker"
+            if docker cp "$name":/app/.knowme-app-module-load-probe "$marker" 2>/dev/null; then
+              echo '--- API application graph probe marker ---' >&2
+              cat "$marker" >&2
+            else
+              echo '--- API application graph probe marker ---' >&2
+              echo 'missing' >&2
+            fi
+          }
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker create --name "$name" --network host --entrypoint node \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e PORT=4000 \
+            -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
+            -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e API_INSTANCE_COUNT=1 \
+            -e API_RATE_LIMIT_TTL_MS=60000 \
+            -e API_RATE_LIMIT_LIMIT=120 \
+            -e TRUSTED_PROXY_HOPS=0 \
+            -e API_REQUEST_TIMEOUT_MS=30000 \
+            -e API_HEADERS_TIMEOUT_MS=15000 \
+            -e API_KEEP_ALIVE_TIMEOUT_MS=5000 \
+            -e 'CORS_ALLOWED_ORIGINS_JSON=["https://ci.invalid"]' \
+            -e MEDIA_UPLOAD_MAX_BYTES=26214400 \
+            -e ACCOUNT_SECURITY_ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+            -e MEDIA_STORAGE_DRIVER=s3 \
+            -e MEDIA_S3_ENDPOINT=https://s3.ci.invalid \
+            -e MEDIA_S3_BUCKET=knowme-ci-runtime \
+            -e MEDIA_S3_REGION=ci-test-1 \
+            -e MEDIA_S3_ACCESS_KEY_ID=ci-runtime-access-key \
+            -e MEDIA_S3_SECRET_ACCESS_KEY=ci-runtime-secret-key-not-for-production \
+            knowme-api-ci /app/apps/api/scripts/runtime-app-module-load-probe.cjs >/dev/null
+          if docker start -a "$name"; then
+            dump_probe_marker
+            grep -Fx 'app-module-load-ok' "$marker"
+          else
+            status="$(docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}}' "$name")"
+            echo "API application graph probe failed ($status)" >&2
+            dump_probe_marker
+            exit 1
+          fi
       - name: Verify API runtime container identity
         run: docker run --rm --entrypoint sh knowme-api-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify API runtime healthcheck metadata
         run: docker inspect --format='{{json .Config.Healthcheck.Test}}' knowme-api-ci | grep -F 'http://127.0.0.1:4000/health/live'
+      - name: Boot API runtime container and require healthy status
+        id: api_runtime_boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=knowme-api-runtime-ci
+          diagnostics="$RUNNER_TEMP/knowme-api-runtime-diagnostics.log"
+          phase_marker="$RUNNER_TEMP/knowme-api-startup-phase"
+          dump_runtime_diagnostics() {
+            {
+              echo '--- API container state ---'
+              docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}} error={{json .State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name" 2>/dev/null || true
+              echo '--- API startup diagnostic flag ---'
+              docker inspect --format='{{range .Config.Env}}{{println .}}{{end}}' "$name" 2>/dev/null | grep -Fx 'KNOWME_STARTUP_PHASE_DIAGNOSTIC=1' || echo 'missing'
+              echo '--- API startup phase marker ---'
+              rm -f "$phase_marker"
+              if docker cp "$name":/app/.knowme-startup-phase "$phase_marker" 2>/dev/null; then
+                cat "$phase_marker"
+                echo
+              else
+                echo 'missing'
+              fi
+              echo '--- API healthcheck history ---'
+              docker inspect --format='{{range .State.Health.Log}}{{println .Start "exit=" .ExitCode}}{{println .Output}}{{end}}' "$name" 2>/dev/null || true
+              echo '--- API direct liveness probe ---'
+              curl --include --max-time 3 --silent --show-error http://127.0.0.1:4000/health/live 2>&1 || true
+              echo '--- API container logs ---'
+              docker logs "$name" 2>/dev/null || true
+            } 2>&1 | tee "$diagnostics" >&2
+          }
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$name" --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e JWT_SECRET="$JWT_SECRET" \
+            -e PORT=4000 \
+            -e KNOWME_RELEASE_COMMIT="$GITHUB_SHA" \
+            -e KNOWME_RELEASE_VERSION=0.0.0-ci \
+            -e KNOWME_STARTUP_PHASE_DIAGNOSTIC=1 \
+            -e API_INSTANCE_COUNT=1 \
+            -e API_RATE_LIMIT_TTL_MS=60000 \
+            -e API_RATE_LIMIT_LIMIT=120 \
+            -e TRUSTED_PROXY_HOPS=0 \
+            -e API_REQUEST_TIMEOUT_MS=30000 \
+            -e API_HEADERS_TIMEOUT_MS=15000 \
+            -e API_KEEP_ALIVE_TIMEOUT_MS=5000 \
+            -e 'CORS_ALLOWED_ORIGINS_JSON=["https://ci.invalid"]' \
+            -e MEDIA_UPLOAD_MAX_BYTES=26214400 \
+            -e ACCOUNT_SECURITY_ENCRYPTION_KEY=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+            -e MEDIA_QUARANTINE_INFECTED_RETENTION_DAYS=30 \
+            -e MEDIA_QUARANTINE_UNAVAILABLE_RETENTION_DAYS=7 \
+            -e MEDIA_QUARANTINE_RETRY_ENABLED=false \
+            -e MEDIA_QUARANTINE_RETRY_INTERVAL_MS=60000 \
+            -e MEDIA_QUARANTINE_RETRY_BATCH_SIZE=10 \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_URL=https://alerts.ci.invalid/hook \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_TOKEN=ci-only-media-purge-alert-token-0001 \
+            -e MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS=2000 \
+            -e MEDIA_STORAGE_DRIVER=s3 \
+            -e MEDIA_S3_ENDPOINT=https://s3.ci.invalid \
+            -e MEDIA_S3_BUCKET=knowme-ci-runtime \
+            -e MEDIA_S3_REGION=ci-test-1 \
+            -e MEDIA_S3_ACCESS_KEY_ID=ci-runtime-access-key \
+            -e MEDIA_S3_SECRET_ACCESS_KEY=ci-runtime-secret-key-not-for-production \
+            knowme-api-ci
+          for attempt in $(seq 1 30); do
+            status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name")"
+            if [ "$status" = healthy ]; then
+              curl --fail --silent --show-error http://127.0.0.1:4000/health/live >/dev/null
+              exit 0
+            fi
+            if [ "$status" = unhealthy ] || [ "$(docker inspect --format='{{.State.Status}}' "$name")" = exited ]; then
+              echo "API runtime failed before becoming healthy (health=$status)" >&2
+              dump_runtime_diagnostics
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "API runtime did not become healthy within 60 seconds" >&2
+          dump_runtime_diagnostics
+          exit 1
+      - name: Upload API runtime diagnostics
+        if: ${{ failure() && steps.api_runtime_boot.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-api-runtime-diagnostics
+          path: ${{ runner.temp }}/knowme-api-runtime-diagnostics.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Build frozen Web runtime container
         run: docker build -f Dockerfile.web -t knowme-web-ci .
       - name: Verify Web runtime container identity
         run: docker run --rm --entrypoint sh knowme-web-ci -c 'test "$(id -u)" != "0" && test "$NODE_ENV" = "production"'
       - name: Verify Web runtime healthcheck metadata
         run: docker inspect --format='{{json .Config.Healthcheck.Test}}' knowme-web-ci | grep -F 'http://127.0.0.1:3000/health/live'
+      - name: Boot Web runtime container and require healthy status
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=knowme-web-runtime-ci
+          trap 'docker logs "$name" 2>/dev/null || true; docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$name" --network host -e PORT=3000 knowme-web-ci
+          for attempt in $(seq 1 30); do
+            status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' "$name")"
+            if [ "$status" = healthy ]; then
+              curl --fail --silent --show-error http://127.0.0.1:3000/health/live >/dev/null
+              exit 0
+            fi
+            if [ "$status" = unhealthy ] || [ "$(docker inspect --format='{{.State.Status}}' "$name")" = exited ]; then
+              echo "Web runtime failed before becoming healthy (health=$status)" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Web runtime did not become healthy within 60 seconds" >&2
+          exit 1
       - run: pnpm --filter @knowme/web exec playwright install --with-deps chromium
       - run: pnpm --filter @knowme/web test:e2e
       - run: pnpm --filter @knowme/api test:e2e

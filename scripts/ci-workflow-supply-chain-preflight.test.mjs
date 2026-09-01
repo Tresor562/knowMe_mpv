@@ -7,7 +7,7 @@ const packageJsonUrl = new URL('../package.json', import.meta.url);
 const apiDockerfileUrl = new URL('../Dockerfile.api', import.meta.url);
 const webDockerfileUrl = new URL('../Dockerfile.web', import.meta.url);
 const composeUrl = new URL('../docker-compose.yml', import.meta.url);
-const SHA_PINNED_ACTION = /^\s*- uses: ([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
+const SHA_PINNED_ACTION = /^\s*(?:-\s+)?uses:\s+([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([0-9a-f]{40})(?:\s+#.*)?$/;
 const DIGEST_PINNED_POSTGRES = /^\s*image:\s+postgres:16\.15-alpine@sha256:[0-9a-f]{64}\s*$/m;
 const DIGEST_PINNED_NODE = /^FROM node:22\.23\.2-alpine@sha256:[0-9a-f]{64}$/m;
 const PINNED_CI_NODE_VERSION = /^\s*node-version:\s*22\.23\.2\s*$/m;
@@ -17,6 +17,7 @@ const AUDITED_ACTION_PINS = new Map([
   ['actions/checkout', 'd23441a48e516b6c34aea4fa41551a30e30af803'],
   ['pnpm/action-setup', '0977fd99725f1db4007ccb2928dbb4e90d06cc86'],
   ['actions/setup-node', '249970729cb0ef3589644e2896645e5dc5ba9c38'],
+  ['actions/upload-artifact', 'ea165f8d65b6e75b540449e92b4886f43607fa02'],
 ]);
 
 test('CI grants only read access to repository contents by default', async () => {
@@ -33,7 +34,7 @@ test('canonical CI runner uses an explicit Ubuntu release family instead of late
 
 test('every external GitHub Action in CI is pinned to an immutable commit SHA', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  const usesLines = workflow.split('\n').filter((line) => /^\s*- uses:/.test(line));
+  const usesLines = workflow.split('\n').filter((line) => /^\s*(?:-\s+)?uses:/.test(line));
 
   assert.ok(usesLines.length > 0, 'CI must keep at least one explicitly audited external action.');
   for (const line of usesLines) {
@@ -42,7 +43,7 @@ test('every external GitHub Action in CI is pinned to an immutable commit SHA', 
   }
 });
 
-test('canonical GitHub Actions stay on the reviewed Node 24 runtime commits', async () => {
+test('canonical GitHub Actions stay on explicitly reviewed immutable commits', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
   const actualPins = new Map();
   for (const line of workflow.split('\n')) {
@@ -51,7 +52,7 @@ test('canonical GitHub Actions stay on the reviewed Node 24 runtime commits', as
   }
 
   for (const [action, expectedSha] of AUDITED_ACTION_PINS) {
-    assert.equal(actualPins.get(action), expectedSha, `${action} must remain on the reviewed Node 24 runtime commit.`);
+    assert.equal(actualPins.get(action), expectedSha, `${action} must remain on the explicitly reviewed immutable commit.`);
   }
   assert.equal(actualPins.size, AUDITED_ACTION_PINS.size, 'Every external CI action must be explicitly reviewed and pinned.');
 });
