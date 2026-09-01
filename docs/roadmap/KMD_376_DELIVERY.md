@@ -28,7 +28,9 @@ The existing KMD-375 provider-first ordering is preserved. Provider failure ther
 1. tombstoning an asset removes existing access and download authority in the same transition;
 2. access authority cannot be inserted for a tombstoned asset;
 3. download authority cannot be inserted for a tombstoned asset;
-4. rejected authority leaves no stale grant/token row.
+4. rejected authority leaves no stale grant/token row;
+5. when grant creation owns the asset row first, concurrent tombstoning blocks until that transaction commits and then removes the grant;
+6. when deletion owns the asset row first, concurrent grant creation blocks until the tombstone commits and is then rejected.
 
 Canonical CI remains authoritative for migration deploy/drift, complete build/unit validation, runtime images/boots, Web E2E and PostgreSQL-backed API E2E.
 
@@ -45,6 +47,8 @@ The migration performs irreversible cleanup of already-invalid authority rows, t
 - `knowme_purge_media_grants_on_tombstone` trigger.
 
 No Prisma datamodel field is added; these are lifecycle invariants not represented by Prisma relations alone (notably `MediaDownloadGrant` has no asset relation/FK in the current datamodel).
+
+The migration is required to deploy successfully against a clean PostgreSQL database in canonical CI. SQL identifiers used as aliases deliberately avoid reserved keywords so the migration remains valid on the repository's pinned PostgreSQL release.
 
 ## Rollback
 
