@@ -165,6 +165,14 @@ export async function runDataExportDeleteSmoke({
     if (deletion.status < 200 || deletion.status >= 300) throw new Error(`Account deletion returned HTTP ${deletion.status}.`);
     deleted = true;
 
+    const oldBearerAfterDelete = await requestJson(fetchImpl, `${normalizedOrigin}/account/export`, {
+      token,
+      timeoutMs,
+    });
+    if (oldBearerAfterDelete.status !== 401) {
+      throw new Error(`Pre-deletion bearer token must lose authorization with HTTP 401 after account deletion, got ${oldBearerAfterDelete.status}.`);
+    }
+
     const loginAfterDelete = await requestJson(fetchImpl, `${normalizedOrigin}/auth/login`, {
       method: 'POST',
       body: { identifier: credentials.username, password: credentials.password },
@@ -180,7 +188,7 @@ export async function runDataExportDeleteSmoke({
     if (!SHA256.test(canaryUserIdSha256)) throw new Error('Canary id digest is invalid.');
 
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: 'knowme-data-export-delete-smoke',
       status: 'PASSED',
       observedAt,
@@ -192,9 +200,10 @@ export async function runDataExportDeleteSmoke({
         exportFormatVersion: exportSummary.formatVersion,
         passwordHashExcluded: true,
         accountDeletion: 'PASSED',
+        preDeletionBearerAuthorizationRevoked: true,
         deletedAccountAuthenticationRejected: true,
       },
-      proofBoundary: 'This artifact proves only this ephemeral canary export/delete flow at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.',
+      proofBoundary: 'This artifact proves only this ephemeral canary export/delete flow, immediate revocation of its pre-deletion bearer authorization, and rejected password login at the observed production origin; it does not prove legal compliance or deletion from provider backups outside KnowMe.',
     };
   } catch (error) {
     if (token && !deleted) await bestEffortDelete(fetchImpl, normalizedOrigin, token, credentials.password, timeoutMs);
