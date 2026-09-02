@@ -115,10 +115,73 @@ describe('KnowMe private media pipeline (e2e)', () => {
       .send({ granteeId: guestId })
       .expect(201);
 
-    await request(app.getHttpServer())
+    const guestGrant = await request(app.getHttpServer())
       .post(`/media/${assetId}/download-grant`)
       .set('Authorization', `Bearer ${guestToken}`)
       .expect(201);
+
+    expect(
+      await prisma.mediaDownloadGrant.count({ where: { assetId, userId: guestId } })
+    ).toBe(1);
+
+    await request(app.getHttpServer())
+      .delete(`/media/${assetId}/grants/${guestId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+
+    expect(
+      await prisma.mediaDownloadGrant.count({ where: { assetId, userId: guestId } })
+    ).toBe(0);
+
+    await request(app.getHttpServer())
+      .get(`/media/${assetId}/content?token=${encodeURIComponent(guestGrant.body.token)}`)
+      .set('Authorization', `Bearer ${guestToken}`)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post(`/media/${assetId}/download-grant`)
+      .set('Authorization', `Bearer ${guestToken}`)
+      .expect(403);
+
+    // Simulate a stale application authorization decision attempting to write
+    // a token after revocation. The database fence must reject the insertion
+    // even though the asset itself remains active.
+    await expect(
+      prisma.mediaDownloadGrant.create({
+        data: {
+          assetId,
+          userId: guestId,
+          tokenHash: `stale-after-revoke-${Date.now()}`,
+          expiresAt: new Date(Date.now() + 60_000)
+        }
+      })
+    ).rejects.toThrow();
+
+    // Re-granting access restores authority. Revoking it again must remove a
+    // token that was durably created before the revocation boundary.
+    await request(app.getHttpServer())
+      .post(`/media/${assetId}/grants`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ granteeId: guestId })
+      .expect(201);
+
+    await prisma.mediaDownloadGrant.create({
+      data: {
+        assetId,
+        userId: guestId,
+        tokenHash: `before-revoke-${Date.now()}`,
+        expiresAt: new Date(Date.now() + 60_000)
+      }
+    });
+
+    await request(app.getHttpServer())
+      .delete(`/media/${assetId}/grants/${guestId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+
+    expect(
+      await prisma.mediaDownloadGrant.count({ where: { assetId, userId: guestId } })
+    ).toBe(0);
 
     const infectedSession = await session(ownerToken);
     const infected = Buffer.concat([
