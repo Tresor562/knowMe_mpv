@@ -14,6 +14,7 @@ on:
       - 'scripts/scheduler-outage-resilience-preflight.test.mjs'
       - 'docs/roadmap/KMD_364_DELIVERY.md'
       - 'docs/roadmap/KMD_365_DELIVERY.md'
+      - 'docs/roadmap/V1_TESTABLE_RELEASE_*.md'
   push:
     branches: [main]
 
