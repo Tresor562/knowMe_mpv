@@ -14,6 +14,7 @@ import {
 
 const NOW = new Date('2026-08-27T18:00:00.000Z');
 const VALID_UNTIL = '2026-09-03T17:55:00.000Z';
+const CLI_VALID_UNTIL = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 const cliPath = fileURLToPath(new URL('./external-monitoring-alerting-smoke-evidence-binding.mjs', import.meta.url));
 
 function artifact(overrides = {}) {
@@ -45,7 +46,7 @@ function cliArgs(artifactPath, outputPath) {
     '--scope', 'WEB_V1',
     '--verifier', 'release-operator',
     '--ref', 'evidence://monitoring/2026-08-27',
-    '--valid-until', VALID_UNTIL,
+    '--valid-until', CLI_VALID_UNTIL,
   ];
 }
 
