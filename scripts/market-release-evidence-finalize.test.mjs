@@ -19,6 +19,7 @@ const signingKey = 'k'.repeat(48);
 const now = new Date('2026-08-26T22:30:00.000Z');
 const zero = '0'.repeat(64);
 const artifactSha = 'b'.repeat(64);
+const CLI_VALID_UNTIL = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 const finalizeCli = fileURLToPath(new URL('./market-release-evidence-finalize.mjs', import.meta.url));
 const manualReleaseBoundIds = new Set(['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission']);
 
@@ -69,7 +70,8 @@ async function writeFinalizeCliFixture(dir) {
   await mkdir(itemsDir);
   await writeFile(manifestPath, `${JSON.stringify(manifest(), null, 2)}\n`, 'utf8');
   for (const evidenceItem of requiredEvidenceForScope('WEB_V1').map(item)) {
-    await writeFile(join(itemsDir, `${evidenceItem.id}.json`), `${JSON.stringify(evidenceItem, null, 2)}\n`, 'utf8');
+    const cliEvidenceItem = { ...evidenceItem, validUntil: CLI_VALID_UNTIL };
+    await writeFile(join(itemsDir, `${cliEvidenceItem.id}.json`), `${JSON.stringify(cliEvidenceItem, null, 2)}\n`, 'utf8');
   }
   return { manifestPath, itemsDir };
 }
