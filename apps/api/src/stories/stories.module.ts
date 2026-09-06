@@ -7,6 +7,7 @@ import { ObservabilityModule } from '../observability/observability.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StoryAlbumsController } from './story-albums.controller';
 import { StoryAlbumsService } from './story-albums.service';
+import { StoryAssetPolicyService } from './story-asset-policy.service';
 import { StoryDiscoveryController } from './story-discovery.controller';
 import { StoryDiscoveryService } from './story-discovery.service';
 import { StoryInteractionNotifier } from './story-interaction-notifier.service';
@@ -35,6 +36,7 @@ import { StoriesService } from './stories.service';
   providers: [
     StoriesService,
     StoryMediaService,
+    StoryAssetPolicyService,
     StoryAlbumsService,
     StoryDiscoveryService,
     StoryInteractionNotifier,
