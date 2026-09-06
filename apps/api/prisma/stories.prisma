@@ -26,6 +26,13 @@ enum StoryAudience {
   PRIVATE
 }
 
+enum StoryOwnerType {
+  PROFILE
+  PROFILE_CIRCLE
+  COMMUNITY
+  CHANNEL
+}
+
 enum StoryInteractiveAreaType {
   LINK
   PROFILE
@@ -39,11 +46,13 @@ enum StoryInteractiveAreaType {
 }
 
 model Story {
-  id                 String        @id @default(cuid())
+  id                 String         @id @default(cuid())
   authorUserId       String
+  ownerType          StoryOwnerType @default(PROFILE)
+  ownerId            String?
   type               StoryType
-  status             StoryStatus   @default(PUBLISHED)
-  audience           StoryAudience @default(FRIENDS)
+  status             StoryStatus    @default(PUBLISHED)
+  audience           StoryAudience  @default(FRIENDS)
   caption            String?
   captionEntities    Json?
   assetId            String?
@@ -60,24 +69,25 @@ model Story {
   locationLatitude   Float?
   locationLongitude  Float?
   albumId            String?
-  albumPosition      Int           @default(0)
+  albumPosition      Int            @default(0)
   repostOfId         String?
-  allowReplies       Boolean       @default(true)
-  allowReactions     Boolean       @default(true)
-  allowSharing       Boolean       @default(true)
-  allowDownload      Boolean       @default(false)
-  sensitive          Boolean       @default(false)
-  isLive             Boolean       @default(false)
+  allowReplies       Boolean        @default(true)
+  allowReactions     Boolean        @default(true)
+  allowSharing       Boolean        @default(true)
+  allowDownload      Boolean        @default(false)
+  sensitive          Boolean        @default(false)
+  isLive             Boolean        @default(false)
   liveEndedAt        DateTime?
-  startsAt           DateTime      @default(now())
+  startsAt           DateTime       @default(now())
   expiresAt          DateTime?
   archivedAt         DateTime?
   pinnedAt           DateTime?
   removedAt          DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([authorUserId, status, createdAt])
+  @@index([ownerType, ownerId, status, createdAt])
   @@index([status, startsAt, expiresAt])
   @@index([audience, status, createdAt])
   @@index([albumId, albumPosition])
