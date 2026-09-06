@@ -6,11 +6,17 @@ export class StoriesPremiumBootstrap implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    const plan = await this.prisma.billingPlan.findUnique({
+    const plan = await this.prisma.billingPlan.upsert({
       where: { key: 'premium_monthly' },
-      select: { id: true }
+      create: {
+        key: 'premium_monthly',
+        name: 'KnowMe Premium',
+        description: 'Personnalisation avancée, fonctions exclusives et expérience KnowMe enrichie.',
+        active: true,
+        highlighted: true
+      },
+      update: {}
     });
-    if (!plan) return;
 
     await this.prisma.billingPlanEntitlement.createMany({
       data: [{ planId: plan.id, key: 'premium.stories' }],
