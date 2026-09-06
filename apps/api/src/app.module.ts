@@ -63,6 +63,7 @@ import { ShortLinksModule } from './short-links/short-links.module';
 import { SocialMatchmakingModule } from './social-matchmaking/social-matchmaking.module';
 import { SocialModule } from './social/social.module';
 import { StaffModule } from './staff/staff.module';
+import { StoriesModule } from './stories/stories.module';
 import { StreaksModule } from './streaks/streaks.module';
 import { UsersModule } from './users/users.module';
 import { VerificationModule } from './verification/verification.module';
@@ -104,6 +105,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     GuestPlayModule,
     SocialMatchmakingModule,
     KnowMeSecretModule,
+    StoriesModule,
     AppearanceModule,
     BillingModule,
     PaymentsModule,
