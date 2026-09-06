@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiFetch } from '../../../lib/api';
+import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
+import { storyUi } from '../story-i18n';
 
 type Story = {
   id: string;
@@ -36,6 +37,7 @@ type Feed = { stories: Story[]; nextCursor: string | null };
 const REACTIONS = ['❤', '😂', '🔥', '👏', '😮', '💯'];
 
 export default function StoryViewerPage() {
+  const ui = storyUi();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: sessionLoading } = useSession({ required: true });
@@ -44,6 +46,9 @@ export default function StoryViewerPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [progress, setProgress] = useState(0);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const touchStartX = useRef<number | null>(null);
   const storyId = params.id;
 
   const load = useCallback(async () => {
@@ -63,25 +68,57 @@ export default function StoryViewerPage() {
     } catch (cause) {
       setStory(null);
       setSequence([]);
-      setMessage(cause instanceof Error ? cause.message : 'Story unavailable.');
+      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
     } finally {
       setLoading(false);
     }
-  }, [storyId]);
+  }, [storyId, ui.unavailable]);
 
   useEffect(() => {
     if (!sessionLoading && user) void load();
   }, [load, sessionLoading, user?.id]);
 
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl: string | null = null;
+    setMediaUrl(null);
+    if (!story?.assetId) return;
+    setMediaLoading(true);
+    void apiFetchBlob(`/stories/${story.id}/media`)
+      .then((blob) => {
+        if (disposed) return;
+        objectUrl = URL.createObjectURL(blob);
+        setMediaUrl(objectUrl);
+      })
+      .catch((cause) => {
+        if (!disposed) setMessage(cause instanceof Error ? cause.message : ui.unavailable);
+      })
+      .finally(() => {
+        if (!disposed) setMediaLoading(false);
+      });
+    return () => {
+      disposed = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [story?.assetId, story?.id, ui.unavailable]);
+
   const index = useMemo(() => sequence.findIndex((item) => item.id === storyId), [sequence, storyId]);
   const previousId = index > 0 ? sequence[index - 1]?.id : null;
   const nextId = index >= 0 && index < sequence.length - 1 ? sequence[index + 1]?.id : null;
 
+  const goPrevious = useCallback(() => {
+    if (previousId) router.push(`/stories/${previousId}`);
+  }, [previousId, router]);
+  const goNext = useCallback(() => {
+    if (nextId) router.push(`/stories/${nextId}`);
+    else router.push('/feed');
+  }, [nextId, router]);
+
   useEffect(() => {
-    if (!story || loading) return;
+    if (!story || loading || mediaLoading) return;
     setProgress(0);
     const startedAt = Date.now();
-    const durationMs = story.type === 'VIDEO' ? 12_000 : 7_000;
+    const durationMs = story.type === 'VIDEO' ? 15_000 : 7_000;
     const timer = window.setInterval(() => {
       const value = Math.min(1, (Date.now() - startedAt) / durationMs);
       setProgress(value);
@@ -91,21 +128,35 @@ export default function StoryViewerPage() {
           method: 'POST',
           body: JSON.stringify({ completionBps: 10_000 })
         }).catch(() => undefined);
-        if (nextId) router.replace(`/stories/${nextId}`);
+        goNext();
       }
     }, 80);
     return () => window.clearInterval(timer);
-  }, [story?.id, loading, nextId, router]);
+  }, [story?.id, loading, mediaLoading, goNext]);
 
   useEffect(() => {
     function keydown(event: KeyboardEvent) {
-      if (event.key === 'ArrowLeft' && previousId) router.push(`/stories/${previousId}`);
-      if (event.key === 'ArrowRight' && nextId) router.push(`/stories/${nextId}`);
+      if (event.key === 'ArrowLeft') goPrevious();
+      if (event.key === 'ArrowRight') goNext();
       if (event.key === 'Escape') router.push('/feed');
     }
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [nextId, previousId, router]);
+  }, [goNext, goPrevious, router]);
+
+  function touchStart(x: number) {
+    touchStartX.current = x;
+  }
+
+  function touchEnd(x: number) {
+    const start = touchStartX.current;
+    touchStartX.current = null;
+    if (start === null) return;
+    const delta = x - start;
+    if (Math.abs(delta) < 55) return;
+    if (delta > 0) goPrevious();
+    else goNext();
+  }
 
   async function react(reaction: string) {
     if (!story) return;
@@ -120,7 +171,7 @@ export default function StoryViewerPage() {
         viewer: { ...current.viewer, reaction: { reaction } }
       } : current);
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Reaction failed.');
+      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
     }
   }
 
@@ -139,7 +190,7 @@ export default function StoryViewerPage() {
       form.reset();
       setStory((current) => current ? { ...current, metrics: { ...current.metrics, replies: current.metrics.replies + 1 } } : current);
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Reply failed.');
+      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
     }
   }
 
@@ -160,27 +211,35 @@ export default function StoryViewerPage() {
       if (action === 'unpin') await apiFetch(`/stories/${story.id}/pin`, { method: 'DELETE' });
       await load();
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Action failed.');
+      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
     }
   }
 
-  if (sessionLoading || loading) return <main className="shell"><p>Loading Story…</p></main>;
-  if (!story) return <main className="shell"><p role="alert">{message || 'Story unavailable.'}</p><Link href="/feed" className="btn">Back to feed</Link></main>;
+  if (sessionLoading || loading) return <main className="shell"><p>{ui.loading}</p></main>;
+  if (!story) return <main className="shell"><p role="alert">{message || ui.unavailable}</p><Link href="/feed" className="btn">{ui.backFeed}</Link></main>;
 
   return (
     <main style={{ minHeight: '100dvh', background: '#070910', display: 'grid', placeItems: 'center', padding: 12 }}>
-      <section style={{
-        width: 'min(100%, 520px)',
-        height: 'min(92dvh, 900px)',
-        borderRadius: 28,
-        overflow: 'hidden',
-        position: 'relative',
-        background: story.type === 'TEXT'
-          ? 'linear-gradient(145deg, #6d4aff, #177f87 55%, #10131c)'
-          : '#10131c',
-        boxShadow: '0 32px 90px rgba(0,0,0,.55)'
-      }}>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2 }}>
+      <section
+        onTouchStart={(event) => touchStart(event.changedTouches[0]?.clientX ?? 0)}
+        onTouchEnd={(event) => touchEnd(event.changedTouches[0]?.clientX ?? 0)}
+        style={{
+          width: 'min(100%, 520px)',
+          height: 'min(92dvh, 900px)',
+          borderRadius: 28,
+          overflow: 'hidden',
+          position: 'relative',
+          background: story.type === 'TEXT'
+            ? 'linear-gradient(145deg, #6d4aff, #177f87 55%, #10131c)'
+            : '#10131c',
+          boxShadow: '0 32px 90px rgba(0,0,0,.55)',
+          touchAction: 'pan-y'
+        }}
+      >
+        {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {mediaUrl && story.type === 'VIDEO' && <video src={mediaUrl} autoPlay muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2, background: story.type === 'TEXT' ? 'transparent' : 'linear-gradient(rgba(0,0,0,.22), transparent 35%, rgba(0,0,0,.45))' }}>
           <div style={{ display: 'flex', gap: 5, padding: '12px 12px 0' }}>
             <div style={{ height: 3, borderRadius: 4, background: 'rgba(255,255,255,.28)', flex: 1, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.round(progress * 100)}%`, background: '#fff', transition: 'width 80ms linear' }} />
@@ -196,23 +255,18 @@ export default function StoryViewerPage() {
               <div style={{ fontSize: 12, opacity: .75 }}>@{story.author?.username ?? 'unknown'}</div>
             </div>
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
-            <Link href="/feed" style={{ color: '#fff', textDecoration: 'none', fontSize: 28 }} aria-label="Close Story">×</Link>
+            <Link href="/feed" style={{ color: '#fff', textDecoration: 'none', fontSize: 28 }} aria-label={ui.close}>×</Link>
           </header>
 
           <div style={{ flex: 1, position: 'relative', display: 'grid', placeItems: 'center', padding: 28, color: '#fff' }}>
-            {story.type === 'PHOTO' || story.type === 'VIDEO' ? (
-              <div style={{ textAlign: 'center', maxWidth: 360 }}>
-                <div style={{ width: 86, height: 86, borderRadius: 24, background: 'rgba(255,255,255,.10)', display: 'grid', placeItems: 'center', margin: '0 auto 16px', fontSize: 32 }}>
-                  {story.type === 'PHOTO' ? '▧' : '▶'}
-                </div>
-                <p style={{ opacity: .8 }}>Secure media #{story.assetId?.slice(0, 8) ?? '—'}</p>
-              </div>
-            ) : story.type === 'LINK' ? (
+            {mediaLoading && <div style={{ width: 46, height: 46, border: '3px solid rgba(255,255,255,.25)', borderTopColor: '#fff', borderRadius: '50%' }} />}
+
+            {story.type === 'LINK' && (
               <a href={story.linkUrl ?? '#'} target="_blank" rel="noreferrer" style={{ color: '#fff', width: '100%', maxWidth: 380, padding: 22, borderRadius: 22, background: 'rgba(0,0,0,.28)', textDecoration: 'none' }}>
-                <strong>Open link</strong>
+                <strong>{ui.openLink}</strong>
                 <div style={{ opacity: .8, marginTop: 8, overflowWrap: 'anywhere' }}>{story.linkUrl}</div>
               </a>
-            ) : null}
+            )}
 
             {story.caption && (
               <p style={{
@@ -236,8 +290,8 @@ export default function StoryViewerPage() {
               </div>
             )}
 
-            <button aria-label="Previous Story" disabled={!previousId} onClick={() => previousId && router.push(`/stories/${previousId}`)} style={{ position: 'absolute', inset: '0 50% 80px 0', opacity: 0, cursor: previousId ? 'pointer' : 'default' }} />
-            <button aria-label="Next Story" disabled={!nextId} onClick={() => nextId && router.push(`/stories/${nextId}`)} style={{ position: 'absolute', inset: '0 0 80px 50%', opacity: 0, cursor: nextId ? 'pointer' : 'default' }} />
+            <button aria-label="Previous Story" disabled={!previousId} onClick={goPrevious} style={{ position: 'absolute', inset: '0 50% 80px 0', opacity: 0, cursor: previousId ? 'pointer' : 'default' }} />
+            <button aria-label="Next Story" onClick={goNext} style={{ position: 'absolute', inset: '0 0 80px 50%', opacity: 0, cursor: 'pointer' }} />
           </div>
 
           <footer style={{ padding: 14, color: '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,.65))' }}>
@@ -251,17 +305,17 @@ export default function StoryViewerPage() {
 
             {!story.viewer.own && story.allowReplies && (
               <form onSubmit={reply} style={{ display: 'flex', gap: 8 }}>
-                <input name="content" className="input" maxLength={4000} placeholder="Reply to Story…" style={{ flex: 1, background: 'rgba(255,255,255,.09)', color: '#fff' }} />
-                <button className="btn btn-primary">Send</button>
+                <input name="content" className="input" maxLength={4000} placeholder={ui.reply} style={{ flex: 1, background: 'rgba(255,255,255,.09)', color: '#fff' }} />
+                <button className="btn btn-primary">{ui.send}</button>
               </form>
             )}
 
             {story.viewer.own && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <Link className="btn" href={`/stories/${story.id}/viewers`}>Views · {story.metrics.reactions} reactions · {story.metrics.replies} replies</Link>
-                <button className="btn" onClick={() => void ownerAction(story.pinnedAt ? 'unpin' : 'pin')}>{story.pinnedAt ? 'Unpin' : 'Pin to profile'}</button>
-                <button className="btn" onClick={() => void ownerAction('archive')}>Archive</button>
-                <button className="btn" onClick={() => void ownerAction('delete')}>Delete</button>
+                <Link className="btn" href={`/stories/${story.id}/viewers`}>{ui.views} · {story.metrics.reactions} {ui.reactions} · {story.metrics.replies} {ui.replies}</Link>
+                <button className="btn" onClick={() => void ownerAction(story.pinnedAt ? 'unpin' : 'pin')}>{story.pinnedAt ? ui.unpin : ui.pin}</button>
+                <button className="btn" onClick={() => void ownerAction('archive')}>{ui.archive}</button>
+                <button className="btn" onClick={() => void ownerAction('delete')}>{ui.delete}</button>
               </div>
             )}
             {message && <small role="alert" style={{ display: 'block', color: '#ffb095', marginTop: 8 }}>{message}</small>}
