@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { storyUi } from '../stories/story-i18n';
 
 type Story = {
   id: string;
@@ -26,6 +27,7 @@ type StoryFeedResponse = {
 };
 
 export function StoriesRail() {
+  const ui = storyUi();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,25 +40,25 @@ export function StoriesRail() {
       setStories(response.stories);
     } catch (cause) {
       setStories([]);
-      setError(cause instanceof Error ? cause.message : 'Stories unavailable.');
+      setError(cause instanceof Error ? cause.message : ui.unavailable);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ui.unavailable]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   return (
-    <section aria-label="Stories" style={{ marginBottom: 18 }}>
+    <section aria-label={ui.stories} style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <strong>Stories</strong>
-        <Link href="/stories/new" className="btn">Create Story</Link>
+        <strong>{ui.stories}</strong>
+        <Link href="/stories/new" className="btn">{ui.createStory}</Link>
       </div>
 
       {loading && (
-        <div style={{ display: 'flex', gap: 12, overflowX: 'hidden' }} aria-label="Loading Stories">
+        <div style={{ display: 'flex', gap: 12, overflowX: 'hidden' }} aria-label={ui.loading}>
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} style={{ width: 72, flex: '0 0 72px' }}>
               <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--surface-2)' }} />
@@ -69,7 +71,7 @@ export function StoriesRail() {
       {!loading && error && (
         <div className="card" style={{ padding: 14 }} role="status">
           <span style={{ color: 'var(--muted)' }}>{error}</span>{' '}
-          <button className="btn" onClick={() => void load()}>Retry</button>
+          <button className="btn" onClick={() => void load()}>{ui.retry}</button>
         </div>
       )}
 
@@ -87,7 +89,7 @@ export function StoriesRail() {
               fontSize: 28,
               background: 'var(--surface-2)'
             }}>+</div>
-            <small style={{ display: 'block', marginTop: 7 }}>Your Story</small>
+            <small style={{ display: 'block', marginTop: 7 }}>{ui.yourStory}</small>
           </Link>
 
           {stories.map((story) => (
@@ -128,7 +130,7 @@ export function StoriesRail() {
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
-                {story.viewer.own ? 'You' : story.author?.displayName ?? 'Story'}
+                {story.viewer.own ? ui.yourStory : story.author?.displayName ?? ui.stories}
               </small>
             </Link>
           ))}
