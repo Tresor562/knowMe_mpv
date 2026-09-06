@@ -1,0 +1,185 @@
+enum StoryType {
+  TEXT
+  PHOTO
+  VIDEO
+  GIFT
+  ACHIEVEMENT
+  GAME
+  POLL
+  LINK
+}
+
+enum StoryStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  EXPIRED
+  REMOVED
+}
+
+enum StoryAudience {
+  PUBLIC
+  FRIENDS
+  FOLLOWERS
+  BEST_FRIENDS
+  CUSTOM
+  PRIVATE
+}
+
+enum StoryInteractiveAreaType {
+  LINK
+  PROFILE
+  HASHTAG
+  LOCATION
+  GAME
+  POLL
+  GIFT
+  APP
+  BOT
+}
+
+model Story {
+  id                 String       @id @default(cuid())
+  authorUserId       String
+  type               StoryType
+  status             StoryStatus  @default(PUBLISHED)
+  audience           StoryAudience @default(FRIENDS)
+  caption            String?
+  captionEntities    Json?
+  assetId            String?
+  thumbnailAssetId   String?
+  giftInstanceId     String?
+  gameId             String?
+  pollId             String?
+  linkUrl            String?
+  background         Json?
+  musicAssetId       String?
+  musicStartMs       Int?
+  musicDurationMs    Int?
+  locationLabel      String?
+  locationLatitude   Float?
+  locationLongitude  Float?
+  albumId            String?
+  albumPosition      Int          @default(0)
+  repostOfId         String?
+  allowReplies       Boolean      @default(true)
+  allowReactions     Boolean      @default(true)
+  allowSharing       Boolean      @default(true)
+  allowDownload      Boolean      @default(false)
+  sensitive          Boolean      @default(false)
+  isLive             Boolean      @default(false)
+  liveEndedAt        DateTime?
+  startsAt           DateTime     @default(now())
+  expiresAt          DateTime?
+  archivedAt         DateTime?
+  pinnedAt           DateTime?
+  removedAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([authorUserId, status, createdAt])
+  @@index([status, startsAt, expiresAt])
+  @@index([audience, status, createdAt])
+  @@index([albumId, albumPosition])
+  @@index([repostOfId])
+  @@index([pinnedAt])
+}
+
+model StoryAudienceGrant {
+  id           String   @id @default(cuid())
+  storyId      String
+  targetUserId String
+  allowed      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([storyId, targetUserId])
+  @@index([targetUserId, storyId])
+}
+
+model StoryView {
+  id            String   @id @default(cuid())
+  storyId       String
+  viewerUserId  String
+  viewedAt      DateTime @default(now())
+  lastViewedAt  DateTime @default(now())
+  viewCount     Int      @default(1)
+  completionBps Int      @default(0)
+  screenshotAt  DateTime?
+
+  @@unique([storyId, viewerUserId])
+  @@index([storyId, lastViewedAt])
+  @@index([viewerUserId, lastViewedAt])
+}
+
+model StoryReaction {
+  id            String   @id @default(cuid())
+  storyId       String
+  userId        String
+  reaction      String
+  customEmojiId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([storyId, userId])
+  @@index([storyId, updatedAt])
+  @@index([userId, updatedAt])
+}
+
+model StoryReply {
+  id        String   @id @default(cuid())
+  storyId   String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  @@index([storyId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model StoryMention {
+  id           String   @id @default(cuid())
+  storyId      String
+  targetUserId String
+  startOffset  Int?
+  endOffset    Int?
+  createdAt    DateTime @default(now())
+
+  @@unique([storyId, targetUserId, startOffset])
+  @@index([targetUserId, createdAt])
+}
+
+model StoryHashtag {
+  id        String   @id @default(cuid())
+  storyId   String
+  hashtag   String
+  createdAt DateTime @default(now())
+
+  @@unique([storyId, hashtag])
+  @@index([hashtag, createdAt])
+}
+
+model StoryInteractiveArea {
+  id        String                   @id @default(cuid())
+  storyId   String
+  type      StoryInteractiveAreaType
+  geometry  Json
+  payload   Json
+  position  Int                      @default(0)
+  createdAt DateTime                 @default(now())
+
+  @@index([storyId, position])
+}
+
+model StoryAlbum {
+  id           String        @id @default(cuid())
+  ownerUserId  String
+  title        String
+  description  String?
+  coverAssetId String?
+  audience     StoryAudience @default(PUBLIC)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([ownerUserId, createdAt])
+}
