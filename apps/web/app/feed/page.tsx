@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
+import { StoriesRail } from './StoriesRail';
 
 type Post = {
   id: string;
@@ -136,9 +137,12 @@ export default function FeedPage() {
         <h1>Fil KnowMe</h1>
       </header>
 
+      <StoriesRail />
+
       <form className="card" onSubmit={publish} style={{ padding: 18, marginBottom: 18 }}>
         <textarea className="input" name="content" placeholder="Partage une découverte, une question ou un défi..." rows={4} maxLength={1000} required disabled={!authorityFresh || publishing} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 12 }}>
+          <Link href="/stories/new" className="btn">Add Story</Link>
           <button className="btn btn-primary" disabled={!authorityFresh || publishing}>{publishing ? 'Publication...' : 'Publier'}</button>
         </div>
       </form>
