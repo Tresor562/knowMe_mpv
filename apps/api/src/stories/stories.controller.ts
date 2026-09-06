@@ -19,6 +19,7 @@ import {
   StoryReplyDto,
   StoryViewDto
 } from './dto/stories.dto';
+import { StoryAssetPolicyService } from './story-asset-policy.service';
 import { StoryInteractionNotifier } from './story-interaction-notifier.service';
 import { StoryLifecycleService } from './story-lifecycle.service';
 import { StoriesService } from './stories.service';
@@ -27,6 +28,7 @@ import { StoriesService } from './stories.service';
 export class StoriesController {
   constructor(
     private readonly stories: StoriesService,
+    private readonly assets: StoryAssetPolicyService,
     private readonly lifecycle: StoryLifecycleService,
     private readonly notifier: StoryInteractionNotifier,
     private readonly moderation: ModerationService
@@ -38,11 +40,14 @@ export class StoriesController {
     @Req() req: { user: { userId: string } },
     @Body() dto: CreateStoryDto
   ) {
-    await this.moderation.assertAllowed({
-      actorId: req.user.userId,
-      action: 'POST_CREATE',
-      content: dto.caption
-    });
+    await Promise.all([
+      this.moderation.assertAllowed({
+        actorId: req.user.userId,
+        action: 'POST_CREATE',
+        content: dto.caption
+      }),
+      this.assets.assertPublishable(req.user.userId, dto.assetId)
+    ]);
     const story = await this.stories.create(req.user.userId, dto);
     if (dto.mentionUserIds?.length) {
       await this.notifier.mentions(story.id, req.user.userId, dto.mentionUserIds);
@@ -57,11 +62,14 @@ export class StoriesController {
     @Body() dto: CreateStoryBatchDto
   ) {
     for (const story of dto.stories) {
-      await this.moderation.assertAllowed({
-        actorId: req.user.userId,
-        action: 'POST_CREATE',
-        content: story.caption
-      });
+      await Promise.all([
+        this.moderation.assertAllowed({
+          actorId: req.user.userId,
+          action: 'POST_CREATE',
+          content: story.caption
+        }),
+        this.assets.assertPublishable(req.user.userId, story.assetId)
+      ]);
     }
     const result = await this.stories.createBatch(req.user.userId, dto.stories);
     for (let index = 0; index < result.stories.length; index += 1) {
