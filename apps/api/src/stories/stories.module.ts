@@ -4,6 +4,8 @@ import { ModerationModule } from '../moderation/moderation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { StoryAlbumsController } from './story-albums.controller';
+import { StoryAlbumsService } from './story-albums.service';
 import { StoryDiscoveryController } from './story-discovery.controller';
 import { StoryDiscoveryService } from './story-discovery.service';
 import { StoryInteractionNotifier } from './story-interaction-notifier.service';
@@ -20,14 +22,15 @@ import { StoriesService } from './stories.service';
     NotificationsModule,
     ObservabilityModule
   ],
-  controllers: [StoriesController, StoryDiscoveryController],
+  controllers: [StoriesController, StoryDiscoveryController, StoryAlbumsController],
   providers: [
     StoriesService,
+    StoryAlbumsService,
     StoryDiscoveryService,
     StoryInteractionNotifier,
     StoryLifecycleService,
     StoriesPremiumBootstrap
   ],
-  exports: [StoriesService, StoryDiscoveryService, StoryLifecycleService]
+  exports: [StoriesService, StoryAlbumsService, StoryDiscoveryService, StoryLifecycleService]
 })
 export class StoriesModule {}
