@@ -36,7 +36,7 @@ export class StoriesController {
   ) {
     await this.moderation.assertAllowed({
       actorId: req.user.userId,
-      action: 'STORY_CREATE',
+      action: 'POST_CREATE',
       content: dto.caption
     });
     return this.stories.create(req.user.userId, dto);
@@ -51,7 +51,7 @@ export class StoriesController {
     for (const story of dto.stories) {
       await this.moderation.assertAllowed({
         actorId: req.user.userId,
-        action: 'STORY_CREATE',
+        action: 'POST_CREATE',
         content: story.caption
       });
     }
