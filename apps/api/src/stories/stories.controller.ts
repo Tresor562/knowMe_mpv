@@ -19,12 +19,16 @@ import {
   StoryReplyDto,
   StoryViewDto
 } from './dto/stories.dto';
+import { StoryInteractionNotifier } from './story-interaction-notifier.service';
+import { StoryLifecycleService } from './story-lifecycle.service';
 import { StoriesService } from './stories.service';
 
 @Controller('stories')
 export class StoriesController {
   constructor(
     private readonly stories: StoriesService,
+    private readonly lifecycle: StoryLifecycleService,
+    private readonly notifier: StoryInteractionNotifier,
     private readonly moderation: ModerationService
   ) {}
 
@@ -39,7 +43,11 @@ export class StoriesController {
       action: 'POST_CREATE',
       content: dto.caption
     });
-    return this.stories.create(req.user.userId, dto);
+    const story = await this.stories.create(req.user.userId, dto);
+    if (dto.mentionUserIds?.length) {
+      await this.notifier.mentions(story.id, req.user.userId, dto.mentionUserIds);
+    }
+    return story;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -55,7 +63,14 @@ export class StoriesController {
         content: story.caption
       });
     }
-    return this.stories.createBatch(req.user.userId, dto.stories);
+    const result = await this.stories.createBatch(req.user.userId, dto.stories);
+    for (let index = 0; index < result.stories.length; index += 1) {
+      const mentions = dto.stories[index]?.mentionUserIds;
+      if (mentions?.length) {
+        await this.notifier.mentions(result.stories[index].id, req.user.userId, mentions);
+      }
+    }
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,22 +116,28 @@ export class StoriesController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/view')
-  view(
+  async view(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: StoryViewDto
   ) {
-    return this.stories.view(req.user.userId, id, dto);
+    const result = await this.stories.view(req.user.userId, id, dto);
+    if (dto.screenshot) {
+      await this.notifier.screenshot(id, req.user.userId);
+    }
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/reactions')
-  react(
+  async react(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: StoryReactionDto
   ) {
-    return this.stories.react(req.user.userId, id, dto);
+    const result = await this.stories.react(req.user.userId, id, dto);
+    await this.notifier.reaction(id, req.user.userId, dto.reaction);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -141,7 +162,9 @@ export class StoriesController {
       content: dto.content,
       targetId: id
     });
-    return this.stories.reply(req.user.userId, id, dto);
+    const result = await this.stories.reply(req.user.userId, id, dto);
+    await this.notifier.reply(id, req.user.userId);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -192,6 +215,15 @@ export class StoriesController {
       id,
       durationHours ? Number(durationHours) : undefined
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/live/end')
+  endLive(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    return this.lifecycle.endLive(req.user.userId, id);
   }
 
   @UseGuards(JwtAuthGuard)
