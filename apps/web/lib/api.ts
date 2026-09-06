@@ -144,6 +144,42 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
   return data;
 }
 
+async function requestBlob(path: string, retryAfterRefresh: boolean): Promise<Blob> {
+  const token = getAccessToken();
+  const headers = new Headers({ 'Accept-Language': getRuntimeLocale() });
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, {
+    headers,
+    cache: 'no-store'
+  });
+
+  if (response.status === 401 && retryAfterRefresh && !path.startsWith('/auth/')) {
+    const refreshed = await refreshSession();
+    if (refreshed) return requestBlob(path, false);
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as ApiErrorPayload | null;
+    const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
+    const fallback = Array.isArray(data?.message)
+      ? data.message.join(', ')
+      : data?.message ?? 'Une erreur est survenue.';
+    const error = new Error(localizeApiFailure(data?.code, fallback, requestId)) as ApiError;
+    error.status = response.status;
+    error.code = data?.code;
+    error.requestId = requestId;
+    error.details = data?.details;
+    throw error;
+  }
+
+  return response.blob();
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return request(path, init, true) as Promise<T>;
+}
+
+export function apiFetchBlob(path: string): Promise<Blob> {
+  return requestBlob(path, true);
 }
