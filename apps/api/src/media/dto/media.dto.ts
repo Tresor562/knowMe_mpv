@@ -14,7 +14,7 @@ export class CreateUploadSessionDto {
   @IsIn(['AVATAR', 'POST', 'STORY', 'MESSAGE', 'CHALLENGE', 'VERIFICATION'])
   purpose!: string;
 
-  @IsIn(['PRIVATE', 'FRIENDS', 'PUBLIC', 'CONVERSATION'])
+  @IsIn(['PRIVATE', 'FRIENDS', 'CONVERSATION'])
   visibility!: string;
 
   @IsOptional()
