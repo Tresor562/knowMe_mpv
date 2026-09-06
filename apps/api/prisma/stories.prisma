@@ -39,10 +39,10 @@ enum StoryInteractiveAreaType {
 }
 
 model Story {
-  id                 String       @id @default(cuid())
+  id                 String        @id @default(cuid())
   authorUserId       String
   type               StoryType
-  status             StoryStatus  @default(PUBLISHED)
+  status             StoryStatus   @default(PUBLISHED)
   audience           StoryAudience @default(FRIENDS)
   caption            String?
   captionEntities    Json?
@@ -60,22 +60,22 @@ model Story {
   locationLatitude   Float?
   locationLongitude  Float?
   albumId            String?
-  albumPosition      Int          @default(0)
+  albumPosition      Int           @default(0)
   repostOfId         String?
-  allowReplies       Boolean      @default(true)
-  allowReactions     Boolean      @default(true)
-  allowSharing       Boolean      @default(true)
-  allowDownload      Boolean      @default(false)
-  sensitive          Boolean      @default(false)
-  isLive             Boolean      @default(false)
+  allowReplies       Boolean       @default(true)
+  allowReactions     Boolean       @default(true)
+  allowSharing       Boolean       @default(true)
+  allowDownload      Boolean       @default(false)
+  sensitive          Boolean       @default(false)
+  isLive             Boolean       @default(false)
   liveEndedAt        DateTime?
-  startsAt           DateTime     @default(now())
+  startsAt           DateTime      @default(now())
   expiresAt          DateTime?
   archivedAt         DateTime?
   pinnedAt           DateTime?
   removedAt          DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@index([authorUserId, status, createdAt])
   @@index([status, startsAt, expiresAt])
@@ -145,7 +145,7 @@ model StoryMention {
   endOffset    Int?
   createdAt    DateTime @default(now())
 
-  @@unique([storyId, targetUserId, startOffset])
+  @@unique([storyId, targetUserId])
   @@index([targetUserId, createdAt])
 }
 
