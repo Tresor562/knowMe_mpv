@@ -17,7 +17,13 @@ export class StoryMediaService {
       throw new NotFoundException({ code: 'STORY_MEDIA_NOT_FOUND', message: 'Story media not found.' });
     }
     const asset = await this.prisma.mediaAsset.findFirst({
-      where: { id: story.assetId, deletedAt: null, status: 'AVAILABLE' },
+      where: {
+        id: story.assetId,
+        ownerId: story.authorUserId,
+        purpose: 'STORY',
+        deletedAt: null,
+        status: 'AVAILABLE'
+      },
       select: { storageKey: true, detectedMime: true, originalName: true }
     });
     if (!asset) {
