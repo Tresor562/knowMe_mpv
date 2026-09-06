@@ -151,7 +151,7 @@ CREATE INDEX "StoryReaction_storyId_updatedAt_idx" ON "StoryReaction"("storyId",
 CREATE INDEX "StoryReaction_userId_updatedAt_idx" ON "StoryReaction"("userId", "updatedAt");
 CREATE INDEX "StoryReply_storyId_createdAt_idx" ON "StoryReply"("storyId", "createdAt");
 CREATE INDEX "StoryReply_authorId_createdAt_idx" ON "StoryReply"("authorId", "createdAt");
-CREATE UNIQUE INDEX "StoryMention_storyId_targetUserId_startOffset_key" ON "StoryMention"("storyId", "targetUserId", "startOffset");
+CREATE UNIQUE INDEX "StoryMention_storyId_targetUserId_key" ON "StoryMention"("storyId", "targetUserId");
 CREATE INDEX "StoryMention_targetUserId_createdAt_idx" ON "StoryMention"("targetUserId", "createdAt");
 CREATE UNIQUE INDEX "StoryHashtag_storyId_hashtag_key" ON "StoryHashtag"("storyId", "hashtag");
 CREATE INDEX "StoryHashtag_hashtag_createdAt_idx" ON "StoryHashtag"("hashtag", "createdAt");
