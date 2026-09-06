@@ -11,10 +11,10 @@ import {
 } from 'class-validator';
 
 export class CreateUploadSessionDto {
-  @IsIn(['AVATAR', 'POST', 'MESSAGE', 'CHALLENGE', 'VERIFICATION'])
+  @IsIn(['AVATAR', 'POST', 'STORY', 'MESSAGE', 'CHALLENGE', 'VERIFICATION'])
   purpose!: string;
 
-  @IsIn(['PRIVATE', 'FRIENDS', 'CONVERSATION'])
+  @IsIn(['PRIVATE', 'FRIENDS', 'PUBLIC', 'CONVERSATION'])
   visibility!: string;
 
   @IsOptional()
