@@ -14,6 +14,7 @@ import {
 
 const NOW = new Date('2026-08-27T18:00:00.000Z');
 const VALID_UNTIL = '2026-09-03T17:55:00.000Z';
+const CLI_VALID_UNTIL = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 const cliPath = fileURLToPath(new URL('./external-monitoring-alerting-smoke-evidence-binding.mjs', import.meta.url));
 
 function artifact(overrides = {}) {
@@ -33,8 +34,17 @@ function artifact(overrides = {}) {
   };
 }
 
-function bytes() {
-  return Buffer.from(`${JSON.stringify(artifact(), null, 2)}\n`, 'utf8');
+function cliArtifact() {
+  const nowMs = Date.now();
+  return artifact({
+    observedAt: new Date(nowMs - 5 * 60_000).toISOString(),
+    monitoring: { state: 'UP', lastCheckedAt: new Date(nowMs - 3 * 60_000).toISOString() },
+    alerting: { enabled: true, lastTestAt: new Date(nowMs - 60 * 60_000).toISOString(), lastTestStatus: 'DELIVERED' },
+  });
+}
+
+function bytes(value = artifact()) {
+  return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 function cliArgs(artifactPath, outputPath) {
@@ -44,8 +54,8 @@ function cliArgs(artifactPath, outputPath) {
     '--output', outputPath,
     '--scope', 'WEB_V1',
     '--verifier', 'release-operator',
-    '--ref', 'evidence://monitoring/2026-08-27',
-    '--valid-until', VALID_UNTIL,
+    '--ref', 'evidence://monitoring/cli',
+    '--valid-until', CLI_VALID_UNTIL,
   ];
 }
 
@@ -115,7 +125,7 @@ test('CLI creates external monitoring evidence from a regular retained artifact'
   try {
     const artifactPath = join(dir, 'monitoring.json');
     const outputPath = join(dir, 'item.json');
-    await writeFile(artifactPath, bytes());
+    await writeFile(artifactPath, bytes(cliArtifact()));
 
     const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -138,7 +148,7 @@ test('CLI rejects a symlinked external monitoring artifact before JSON ingestion
     const targetPath = join(dir, 'monitoring-target.json');
     const artifactPath = join(dir, 'monitoring-link.json');
     const outputPath = join(dir, 'item.json');
-    await writeFile(targetPath, bytes());
+    await writeFile(targetPath, bytes(cliArtifact()));
     await symlink(targetPath, artifactPath);
 
     const result = spawnSync(process.execPath, cliArgs(artifactPath, outputPath), { encoding: 'utf8' });
