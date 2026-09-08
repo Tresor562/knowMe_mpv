@@ -21,6 +21,7 @@ const zero = '0'.repeat(64);
 const artifactSha = 'b'.repeat(64);
 const finalizeCli = fileURLToPath(new URL('./market-release-evidence-finalize.mjs', import.meta.url));
 const manualReleaseBoundIds = new Set(['ios_physical_validation', 'android_physical_validation', 'ios_store_submission', 'android_store_submission']);
+const CLI_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
 
 function pending(id) {
   return { id, status: 'PENDING', verifiedAt: null, validUntil: null, verifier: null, evidenceRef: null, evidenceSha256: null };
@@ -32,6 +33,20 @@ function item(id) {
     status: 'VERIFIED',
     verifiedAt: '2026-08-26T22:25:00.000Z',
     validUntil: '2026-09-02T22:25:00.000Z',
+    verifier: 'release-operator',
+    evidenceRef: `evidence://release/${id}.json`,
+    evidenceSha256: artifactSha,
+  };
+  return manualReleaseBoundIds.has(id) ? { ...evidence, releaseCommit: commit, releaseVersion: version } : evidence;
+}
+
+function cliItem(id) {
+  const anchorMs = Date.now();
+  const evidence = {
+    id,
+    status: 'VERIFIED',
+    verifiedAt: new Date(anchorMs - 5 * 60_000).toISOString(),
+    validUntil: new Date(anchorMs + CLI_VALIDITY_MS).toISOString(),
     verifier: 'release-operator',
     evidenceRef: `evidence://release/${id}.json`,
     evidenceSha256: artifactSha,
@@ -68,7 +83,7 @@ async function writeFinalizeCliFixture(dir) {
   const itemsDir = join(dir, 'items');
   await mkdir(itemsDir);
   await writeFile(manifestPath, `${JSON.stringify(manifest(), null, 2)}\n`, 'utf8');
-  for (const evidenceItem of requiredEvidenceForScope('WEB_V1').map(item)) {
+  for (const evidenceItem of requiredEvidenceForScope('WEB_V1').map(cliItem)) {
     await writeFile(join(itemsDir, `${evidenceItem.id}.json`), `${JSON.stringify(evidenceItem, null, 2)}\n`, 'utf8');
   }
   return { manifestPath, itemsDir };
