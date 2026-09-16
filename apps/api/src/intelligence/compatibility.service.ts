@@ -160,9 +160,29 @@ export class CompatibilityService {
       throw new NotFoundException('Utilisateur introuvable.');
     }
 
+    const relationships = await this.prisma.friendship.findMany({
+      where: {
+        status: { in: ['PENDING', 'ACCEPTED', 'BLOCKED'] },
+        OR: [{ requesterId: userId }, { addresseeId: userId }]
+      },
+      select: {
+        requesterId: true,
+        addresseeId: true
+      }
+    });
+
+    const excludedUserIds = new Set<string>([userId]);
+    for (const relationship of relationships) {
+      excludedUserIds.add(
+        relationship.requesterId === userId
+          ? relationship.addresseeId
+          : relationship.requesterId
+      );
+    }
+
     const candidates = await this.prisma.user.findMany({
       where: {
-        id: { not: userId },
+        id: { notIn: [...excludedUserIds] },
         isSuspended: false
       },
       include: {
