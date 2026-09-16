@@ -76,4 +76,35 @@ describe('CompatibilityService', () => {
       take: 50
     });
   });
+
+  it('builds ready-to-edit challenge suggestions from interests without creating anything', async () => {
+    const interestFindMany = jest.fn().mockResolvedValue([
+      { interest: { id: 'interest-anime', name: 'anime', slug: 'anime' } }
+    ]);
+    const prisma = {
+      userInterest: {
+        findMany: interestFindMany
+      }
+    } as never;
+    const service = new CompatibilityService(prisma);
+
+    const suggestions = await service.suggestedChallenges('viewer');
+
+    expect(interestFindMany).toHaveBeenCalledWith({
+      where: { userId: 'viewer' },
+      include: { interest: true },
+      orderBy: { createdAt: 'asc' }
+    });
+    expect(suggestions[0]).toEqual({
+      title: 'Notre connexion autour de anime',
+      description: 'Un défi personnalisé basé sur votre intérêt commun pour anime.',
+      questions: [
+        'Qu’est-ce que je préfère dans anime ?',
+        'Depuis quand anime m’intéresse-t-il vraiment ?',
+        'Quelle expérience liée à anime aimerais-je vivre ensuite ?'
+      ]
+    });
+    expect(suggestions).toHaveLength(4);
+    expect(suggestions.every((suggestion) => suggestion.questions.length === 3)).toBe(true);
+  });
 });
