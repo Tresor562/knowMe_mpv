@@ -9,6 +9,18 @@ type RegisterResult = {
   refreshToken?: string;
 };
 
+function safeNextPath(raw: string | null, origin: string) {
+  if (!raw) return '/dashboard';
+
+  try {
+    const target = new URL(raw, origin);
+    if (target.origin !== origin) return '/dashboard';
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return '/dashboard';
+  }
+}
+
 export default function RegisterPage() {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -32,7 +44,9 @@ export default function RegisterPage() {
       });
 
       saveSession(data.accessToken, data.refreshToken);
-      window.location.replace('/dashboard');
+      const currentUrl = new URL(window.location.href);
+      const requestedNext = currentUrl.searchParams.get('next');
+      window.location.replace(safeNextPath(requestedNext, currentUrl.origin));
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Inscription impossible.');
     } finally {

@@ -19,7 +19,7 @@ const dependencySections = ['dependencies', 'devDependencies', 'optionalDependen
 const auditedSecurityOverrides = {
   'path-to-regexp': '8.4.2',
   lodash: '4.18.1',
-  multer: '2.2.0',
+  multer: '2.3.0',
 };
 
 async function readManifest(path) {
