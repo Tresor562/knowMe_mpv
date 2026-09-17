@@ -10,25 +10,30 @@ import {
   Min,
   MinLength
 } from 'class-validator';
+import { AVATAR_ALL_SLOTS } from '../../avatar-universe/avatar-universe.domain';
 
-export const AVATAR_LAYER_SLOTS = [
-  'AVATAR_SKIN',
-  'AVATAR_HAIR',
-  'AVATAR_FACE',
-  'AVATAR_OUTFIT',
-  'AVATAR_ACCESSORY',
-  'AVATAR_AURA'
-] as const;
+/**
+ * Avatar slots have one canonical source: Avatar Universe.
+ * Keeping Cosmetics tied to this list prevents the runtime inventory/equipment API
+ * from silently rejecting newer 3D slots such as footwear, headwear or hand items.
+ */
+export const AVATAR_LAYER_SLOTS = AVATAR_ALL_SLOTS;
 
 export const COSMETIC_SLOTS = [
   ...AVATAR_LAYER_SLOTS,
-  'AVATAR_FRAME',
   'PROFILE_BACKGROUND',
   'CHAT_BUBBLE',
   'PROFILE_BADGE'
 ] as const;
 
-export const COSMETIC_RARITIES = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'] as const;
+export const COSMETIC_RARITIES = [
+  'COMMON',
+  'UNCOMMON',
+  'RARE',
+  'EPIC',
+  'LEGENDARY',
+  'MYTHIC'
+] as const;
 
 export const COSMETIC_GRANT_SOURCES = [
   'ADMIN',
