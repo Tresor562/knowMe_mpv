@@ -1,20 +1,21 @@
 model CosmeticItemDefinition {
-  id          String    @id @default(cuid())
-  key         String
-  version     Int
-  name        String
-  description String?
-  slot        String
-  rarity      String    @default("COMMON")
-  assetUrl    String
-  previewUrl  String?
-  active      Boolean   @default(false)
-  startsAt    DateTime  @default(now())
-  endsAt      DateTime?
-  createdById String
-  reason      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  key             String
+  version         Int
+  name            String
+  description     String?
+  slot            String
+  rarity          String    @default("COMMON")
+  acquisitionMode String    @default("FREE")
+  assetUrl        String
+  previewUrl      String?
+  active          Boolean   @default(false)
+  startsAt        DateTime  @default(now())
+  endsAt          DateTime?
+  createdById     String
+  reason          String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   ownerships       CosmeticOwnership[]
   equippedBy       CosmeticEquipment[]
@@ -24,6 +25,7 @@ model CosmeticItemDefinition {
 
   @@unique([key, version])
   @@index([active, slot, startsAt, endsAt])
+  @@index([acquisitionMode, active])
   @@index([key, active, version])
 }
 
