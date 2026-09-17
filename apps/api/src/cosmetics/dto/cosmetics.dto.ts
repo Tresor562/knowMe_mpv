@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -44,6 +45,8 @@ export class CreateCosmeticItemDto {
   @IsString() @IsIn(COSMETIC_RARITIES) rarity!: (typeof COSMETIC_RARITIES)[number];
   @IsString() @IsIn(AVATAR_ACQUISITION_MODES) acquisitionMode!: AvatarAcquisitionMode;
   @IsString() @MinLength(1) @MaxLength(500) assetUrl!: string;
+  /** Untrusted transport data. CosmeticsService validates the complete manifest before persistence/activation. */
+  @IsOptional() @IsObject() avatarAssetManifest?: Record<string, unknown>;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(500) previewUrl?: string;
   @IsOptional() @IsBoolean() active?: boolean;
   @IsOptional() @IsDateString() startsAt?: string;
