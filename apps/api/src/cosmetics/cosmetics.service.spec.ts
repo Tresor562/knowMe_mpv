@@ -1,3 +1,5 @@
+import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
+import { COSMETIC_RARITIES, COSMETIC_SLOTS } from './dto/cosmetics.dto';
 import { CosmeticsService } from './cosmetics.service';
 
 describe('CosmeticsService', () => {
@@ -16,6 +18,33 @@ describe('CosmeticsService', () => {
         immutablePublishedVersions: true
       })
     );
+  });
+
+  it('keeps Cosmetics aligned with every Avatar Universe slot', () => {
+    for (const slot of AVATAR_ALL_SLOTS) {
+      expect(COSMETIC_SLOTS).toContain(slot);
+    }
+    expect(COSMETIC_SLOTS).toEqual(
+      expect.arrayContaining([
+        'AVATAR_FOOTWEAR',
+        'AVATAR_HEADWEAR',
+        'AVATAR_BACK_ITEM',
+        'AVATAR_HAND_ITEM',
+        'AVATAR_WEAPON_STYLE',
+        'AVATAR_COMPANION'
+      ])
+    );
+  });
+
+  it('supports the Avatar Universe rarity ladder', () => {
+    expect(COSMETIC_RARITIES).toEqual([
+      'COMMON',
+      'UNCOMMON',
+      'RARE',
+      'EPIC',
+      'LEGENDARY',
+      'MYTHIC'
+    ]);
   });
 
   it('checks bounded availability windows', () => {
@@ -57,5 +86,7 @@ describe('CosmeticsService', () => {
     expect(service.slotMatches('AVATAR_FRAME', 'CHAT_BUBBLE')).toBe(false);
     expect(service.slotMatches('AVATAR_HAIR', 'AVATAR_HAIR')).toBe(true);
     expect(service.slotMatches('AVATAR_HAIR', 'AVATAR_FACE')).toBe(false);
+    expect(service.slotMatches('AVATAR_WEAPON_STYLE', 'AVATAR_WEAPON_STYLE')).toBe(true);
+    expect(service.slotMatches('AVATAR_WEAPON_STYLE', 'AVATAR_HAND_ITEM')).toBe(false);
   });
 });
