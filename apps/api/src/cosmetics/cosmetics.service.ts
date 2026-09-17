@@ -1,133 +1,63 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { validateAvatarAssetManifest, AvatarAssetManifest } from '../avatar-universe/avatar-asset-manifest.domain';
+import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  COSMETIC_SLOTS,
-  CreateCosmeticItemDto,
-  EquipCosmeticDto,
-  GrantCosmeticItemDto,
-  RevokeCosmeticOwnershipDto
-} from './dto/cosmetics.dto';
+import { COSMETIC_SLOTS, CreateCosmeticItemDto, EquipCosmeticDto, GrantCosmeticItemDto, RevokeCosmeticOwnershipDto } from './dto/cosmetics.dto';
 
 type AvailabilityCandidate = { active: boolean; startsAt: Date; endsAt: Date | null };
+type AvatarRuntimeCandidate = { slot: string; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
 
 @Injectable()
 export class CosmeticsService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  policy() { return { visualOnly:true, gameplayEffectsAllowed:false, purchasesEnabled:true, paidPriorityAllowed:false, ownershipRequired:true, oneItemPerSlot:true, serverAuthoritativeInventory:true, immutablePublishedVersions:true, serverAuthoritativeAcquisition:true, validated3DAssetsRequired:true, supportedSlots:COSMETIC_SLOTS }; }
+  isAvailable(item:AvailabilityCandidate,now=new Date()){ return item.active&&item.startsAt<=now&&(!item.endsAt||item.endsAt>now); }
+  slotMatches(itemSlot:string,requestedSlot:string){ return itemSlot===requestedSlot; }
+  private isAvatarSlot(slot:string){ return AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]); }
+  private assertAvatarRuntimeReady(item:AvatarRuntimeCandidate){ if(this.isAvatarSlot(item.slot)&&(!item.avatarAssetManifest||!item.assetValidatedAt)) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.'); }
 
-  policy() {
-    return {
-      visualOnly: true, gameplayEffectsAllowed: false, purchasesEnabled: true,
-      paidPriorityAllowed: false, ownershipRequired: true, oneItemPerSlot: true,
-      serverAuthoritativeInventory: true, immutablePublishedVersions: true,
-      serverAuthoritativeAcquisition: true, supportedSlots: COSMETIC_SLOTS
-    };
+  async catalog(now=new Date()){
+    const candidates=await this.prisma.cosmeticItemDefinition.findMany({where:{active:true,startsAt:{lte:now},OR:[{endsAt:null},{endsAt:{gt:now}}]},orderBy:[{key:'asc'},{version:'desc'}]});
+    const latestByKey=new Map<string,(typeof candidates)[number]>();
+    for(const item of candidates){ if(this.isAvatarSlot(item.slot)&&(!item.avatarAssetManifest||!item.assetValidatedAt)) continue; if(!latestByKey.has(item.key)) latestByKey.set(item.key,item); }
+    return {items:Array.from(latestByKey.values()).sort((a,b)=>`${a.slot}:${a.name}`.localeCompare(`${b.slot}:${b.name}`)),rules:this.policy(),serverTime:now};
   }
 
-  isAvailable(item: AvailabilityCandidate, now = new Date()) {
-    return item.active && item.startsAt <= now && (!item.endsAt || item.endsAt > now);
-  }
-  slotMatches(itemSlot: string, requestedSlot: string) { return itemSlot === requestedSlot; }
+  async me(userId:string){ const [ownerships,equipment]=await Promise.all([this.prisma.cosmeticOwnership.findMany({where:{userId,revokedAt:null},include:{item:true},orderBy:[{acquiredAt:'desc'},{id:'desc'}]}),this.prisma.cosmeticEquipment.findMany({where:{userId},include:{item:true},orderBy:[{slot:'asc'}]})]); const equippedIds=new Set(equipment.map(e=>e.itemId)); return {inventory:ownerships.map(o=>({...o,equipped:equippedIds.has(o.itemId)})),equipment,rules:this.policy()}; }
 
-  async catalog(now = new Date()) {
-    const candidates = await this.prisma.cosmeticItemDefinition.findMany({
-      where: { active: true, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
-      orderBy: [{ key: 'asc' }, { version: 'desc' }]
-    });
-    const latestByKey = new Map<string, (typeof candidates)[number]>();
-    for (const item of candidates) if (!latestByKey.has(item.key)) latestByKey.set(item.key, item);
-    return { items: Array.from(latestByKey.values()).sort((a,b) => `${a.slot}:${a.name}`.localeCompare(`${b.slot}:${b.name}`)), rules: this.policy(), serverTime: now };
-  }
-
-  async me(userId: string) {
-    const [ownerships, equipment] = await Promise.all([
-      this.prisma.cosmeticOwnership.findMany({ where: { userId, revokedAt: null }, include: { item: true }, orderBy: [{ acquiredAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.cosmeticEquipment.findMany({ where: { userId }, include: { item: true }, orderBy: [{ slot: 'asc' }] })
-    ]);
-    const equippedIds = new Set(equipment.map((entry) => entry.itemId));
-    return { inventory: ownerships.map((ownership) => ({ ...ownership, equipped: equippedIds.has(ownership.itemId) })), equipment, rules: this.policy() };
-  }
-
-  async createItem(actorId: string, dto: CreateCosmeticItemDto) {
-    const startsAt = dto.startsAt ? new Date(dto.startsAt) : new Date();
-    const endsAt = dto.endsAt ? new Date(dto.endsAt) : null;
-    if (endsAt && endsAt <= startsAt) throw new BadRequestException('La fin de disponibilité doit suivre son début.');
+  async createItem(actorId:string,dto:CreateCosmeticItemDto){
+    const startsAt=dto.startsAt?new Date(dto.startsAt):new Date(), endsAt=dto.endsAt?new Date(dto.endsAt):null;
+    if(endsAt&&endsAt<=startsAt) throw new BadRequestException('La fin de disponibilité doit suivre son début.');
+    let validatedManifest:AvatarAssetManifest|undefined;
+    if(this.isAvatarSlot(dto.slot)){
+      if(!dto.avatarAssetManifest) throw new BadRequestException('Un objet avatar exige un manifest 3D GLB/glTF validable.');
+      try { validatedManifest=validateAvatarAssetManifest(dto.avatarAssetManifest as unknown as AvatarAssetManifest); } catch(error){ throw new BadRequestException(error instanceof Error?error.message:'Manifest 3D avatar invalide.'); }
+      if(validatedManifest.slot!==dto.slot) throw new BadRequestException('Le slot du manifest 3D doit correspondre au slot Cosmetics.');
+      if(validatedManifest.lods[0].uri!==dto.assetUrl) throw new BadRequestException('assetUrl doit référencer le LOD0 validé du manifest 3D.');
+    } else if(dto.avatarAssetManifest) throw new BadRequestException('Un cosmétique non-avatar ne peut pas publier un manifest 3D avatar.');
     try {
-      const item = await this.prisma.cosmeticItemDefinition.create({ data: {
-        key: dto.key, version: dto.version, name: dto.name, description: dto.description?.trim() || null,
-        slot: dto.slot, rarity: dto.rarity, acquisitionMode: dto.acquisitionMode,
-        assetUrl: dto.assetUrl, previewUrl: dto.previewUrl ?? null, active: dto.active ?? false,
-        startsAt, endsAt, createdById: actorId, reason: dto.reason
-      }});
-      await this.audit.record({ actorId, action: 'COSMETIC_ITEM_PUBLISHED', entity: 'CosmeticItemDefinition', entityId: item.id,
-        metadata: { key: item.key, version: item.version, slot: item.slot, rarity: item.rarity, acquisitionMode: item.acquisitionMode, active: item.active, visualOnly: true } });
-      return item;
-    } catch (error) {
-      if (this.isUniqueConflict(error)) throw new ConflictException('Cette version cosmétique existe déjà.');
-      throw error;
-    }
+      const item=await this.prisma.cosmeticItemDefinition.create({data:{key:dto.key,version:dto.version,name:dto.name,description:dto.description?.trim()||null,slot:dto.slot,rarity:dto.rarity,acquisitionMode:dto.acquisitionMode,assetUrl:dto.assetUrl,previewUrl:dto.previewUrl??null,avatarAssetManifest:validatedManifest as unknown as Prisma.InputJsonValue|undefined,assetValidatedAt:validatedManifest?new Date():null,active:dto.active??false,startsAt,endsAt,createdById:actorId,reason:dto.reason}});
+      await this.audit.record({actorId,action:'COSMETIC_ITEM_PUBLISHED',entity:'CosmeticItemDefinition',entityId:item.id,metadata:{key:item.key,version:item.version,slot:item.slot,rarity:item.rarity,acquisitionMode:item.acquisitionMode,active:item.active,asset3DValidated:Boolean(item.assetValidatedAt),visualOnly:true}}); return item;
+    } catch(error){ if(this.isUniqueConflict(error)) throw new ConflictException('Cette version cosmétique existe déjà.'); throw error; }
   }
 
-  async grant(actorId: string, dto: GrantCosmeticItemDto) {
-    const [user, item, existing] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: dto.userId }, select: { id: true } }),
-      this.prisma.cosmeticItemDefinition.findUnique({ where: { id: dto.itemId } }),
-      this.prisma.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId: dto.userId, itemId: dto.itemId } } })
-    ]);
-    if (!user) throw new NotFoundException('Compte bénéficiaire introuvable.');
-    if (!item) throw new NotFoundException('Objet cosmétique introuvable.');
-    if (existing && !existing.revokedAt) return { ownership: existing, replayed: true, reactivated: false };
-    const ownership = existing ? await this.prisma.cosmeticOwnership.update({ where: { id: existing.id }, data: { source: dto.source, externalReference: dto.externalReference ?? null, grantedById: actorId, reason: dto.reason, acquiredAt: new Date(), revokedAt: null, revokedById: null } }) : await this.createOwnership(actorId, dto);
-    await this.audit.record({ actorId, action: existing ? 'COSMETIC_OWNERSHIP_REACTIVATED' : 'COSMETIC_OWNERSHIP_GRANTED', entity: 'CosmeticOwnership', entityId: ownership.id, targetAccountId: dto.userId, metadata: { itemId: dto.itemId, source: dto.source, externalReference: dto.externalReference ?? null, purchaseSource: false } });
-    return { ownership, replayed: false, reactivated: Boolean(existing) };
+  async grant(actorId:string,dto:GrantCosmeticItemDto){ const [user,item,existing]=await Promise.all([this.prisma.user.findUnique({where:{id:dto.userId},select:{id:true}}),this.prisma.cosmeticItemDefinition.findUnique({where:{id:dto.itemId}}),this.prisma.cosmeticOwnership.findUnique({where:{userId_itemId:{userId:dto.userId,itemId:dto.itemId}}})]); if(!user) throw new NotFoundException('Compte bénéficiaire introuvable.'); if(!item) throw new NotFoundException('Objet cosmétique introuvable.'); this.assertAvatarRuntimeReady(item); if(existing&&!existing.revokedAt) return {ownership:existing,replayed:true,reactivated:false}; const ownership=existing?await this.prisma.cosmeticOwnership.update({where:{id:existing.id},data:{source:dto.source,externalReference:dto.externalReference??null,grantedById:actorId,reason:dto.reason,acquiredAt:new Date(),revokedAt:null,revokedById:null}}):await this.createOwnership(actorId,dto); await this.audit.record({actorId,action:existing?'COSMETIC_OWNERSHIP_REACTIVATED':'COSMETIC_OWNERSHIP_GRANTED',entity:'CosmeticOwnership',entityId:ownership.id,targetAccountId:dto.userId,metadata:{itemId:dto.itemId,source:dto.source,externalReference:dto.externalReference??null,purchaseSource:false}}); return {ownership,replayed:false,reactivated:Boolean(existing)}; }
+
+  async revoke(actorId:string,ownershipId:string,dto:RevokeCosmeticOwnershipDto){ const ownership=await this.prisma.cosmeticOwnership.findUnique({where:{id:ownershipId},include:{item:true}}); if(!ownership) throw new NotFoundException('Possession cosmétique introuvable.'); if(ownership.revokedAt) return {ownership,replayed:true,unequippedSlots:0}; const result=await this.prisma.$transaction(async tx=>{const unequipped=await tx.cosmeticEquipment.deleteMany({where:{userId:ownership.userId,itemId:ownership.itemId}});const clearedPreset=unequipped.count?await tx.cosmeticPresetState.updateMany({where:{userId:ownership.userId,activePresetId:{not:null}},data:{activePresetId:null}}):{count:0};const revoked=await tx.cosmeticOwnership.update({where:{id:ownership.id},data:{revokedAt:new Date(),revokedById:actorId}});return {ownership:revoked,unequippedSlots:unequipped.count,activePresetCleared:clearedPreset.count>0};}); await this.audit.record({actorId,action:'COSMETIC_OWNERSHIP_REVOKED',entity:'CosmeticOwnership',entityId:ownership.id,targetAccountId:ownership.userId,metadata:{itemId:ownership.itemId,slot:ownership.item.slot,reason:dto.reason,unequippedSlots:result.unequippedSlots,activePresetCleared:result.activePresetCleared}}); return {...result,replayed:false}; }
+
+  async equip(userId:string,slot:string,dto:EquipCosmeticDto){
+    if(!COSMETIC_SLOTS.includes(slot as (typeof COSMETIC_SLOTS)[number])) throw new BadRequestException('Emplacement cosmétique inconnu.');
+    const current=await this.prisma.cosmeticEquipment.findUnique({where:{userId_slot:{userId,slot}},include:{item:true}});
+    if(!dto.itemId){ if(!current) return {slot,item:null,replayed:true}; const result=await this.prisma.$transaction(async tx=>{await tx.cosmeticEquipment.delete({where:{id:current.id}});const clearedPreset=await tx.cosmeticPresetState.updateMany({where:{userId,activePresetId:{not:null}},data:{activePresetId:null}});return {activePresetCleared:clearedPreset.count>0};}); await this.audit.record({actorId:userId,action:'COSMETIC_ITEM_UNEQUIPPED',entity:'CosmeticEquipment',entityId:current.id,targetAccountId:userId,metadata:{slot,itemId:current.itemId,activePresetCleared:result.activePresetCleared}}); return {slot,item:null,activePresetCleared:result.activePresetCleared,replayed:false}; }
+    if(current?.itemId===dto.itemId){ this.assertAvatarRuntimeReady(current.item); return {slot,item:current.item,equipment:current,replayed:true}; }
+    const [item,ownership]=await Promise.all([this.prisma.cosmeticItemDefinition.findUnique({where:{id:dto.itemId}}),this.prisma.cosmeticOwnership.findUnique({where:{userId_itemId:{userId,itemId:dto.itemId}}})]); if(!item) throw new NotFoundException('Objet cosmétique introuvable.'); if(!ownership||ownership.revokedAt) throw new ForbiddenException('Cet objet ne fait pas partie de ton inventaire.'); if(!this.slotMatches(item.slot,slot)) throw new BadRequestException('Cet objet ne correspond pas à cet emplacement.'); if(!this.isAvailable(item)) throw new BadRequestException('Cet objet cosmétique n’est pas actuellement disponible.'); this.assertAvatarRuntimeReady(item);
+    const result=await this.prisma.$transaction(async tx=>{const equipment=await tx.cosmeticEquipment.upsert({where:{userId_slot:{userId,slot}},create:{userId,slot,itemId:item.id},update:{itemId:item.id,equippedAt:new Date()},include:{item:true}});const clearedPreset=await tx.cosmeticPresetState.updateMany({where:{userId,activePresetId:{not:null}},data:{activePresetId:null}});return {equipment,activePresetCleared:clearedPreset.count>0};}); await this.audit.record({actorId:userId,action:'COSMETIC_ITEM_EQUIPPED',entity:'CosmeticEquipment',entityId:result.equipment.id,targetAccountId:userId,metadata:{slot,itemId:item.id,visualOnly:true,asset3DValidated:Boolean(result.equipment.item.assetValidatedAt),activePresetCleared:result.activePresetCleared}}); return {slot,item:result.equipment.item,equipment:result.equipment,activePresetCleared:result.activePresetCleared,replayed:false};
   }
 
-  async revoke(actorId: string, ownershipId: string, dto: RevokeCosmeticOwnershipDto) {
-    const ownership = await this.prisma.cosmeticOwnership.findUnique({ where: { id: ownershipId }, include: { item: true } });
-    if (!ownership) throw new NotFoundException('Possession cosmétique introuvable.');
-    if (ownership.revokedAt) return { ownership, replayed: true, unequippedSlots: 0 };
-    const result = await this.prisma.$transaction(async (tx) => {
-      const unequipped = await tx.cosmeticEquipment.deleteMany({ where: { userId: ownership.userId, itemId: ownership.itemId } });
-      const clearedPreset = unequipped.count ? await tx.cosmeticPresetState.updateMany({ where: { userId: ownership.userId, activePresetId: { not: null } }, data: { activePresetId: null } }) : { count: 0 };
-      const revoked = await tx.cosmeticOwnership.update({ where: { id: ownership.id }, data: { revokedAt: new Date(), revokedById: actorId } });
-      return { ownership: revoked, unequippedSlots: unequipped.count, activePresetCleared: clearedPreset.count > 0 };
-    });
-    await this.audit.record({ actorId, action: 'COSMETIC_OWNERSHIP_REVOKED', entity: 'CosmeticOwnership', entityId: ownership.id, targetAccountId: ownership.userId, metadata: { itemId: ownership.itemId, slot: ownership.item.slot, reason: dto.reason, unequippedSlots: result.unequippedSlots, activePresetCleared: result.activePresetCleared } });
-    return { ...result, replayed: false };
-  }
-
-  async equip(userId: string, slot: string, dto: EquipCosmeticDto) {
-    if (!COSMETIC_SLOTS.includes(slot as (typeof COSMETIC_SLOTS)[number])) throw new BadRequestException('Emplacement cosmétique inconnu.');
-    const current = await this.prisma.cosmeticEquipment.findUnique({ where: { userId_slot: { userId, slot } }, include: { item: true } });
-    if (!dto.itemId) {
-      if (!current) return { slot, item: null, replayed: true };
-      const result = await this.prisma.$transaction(async (tx) => { await tx.cosmeticEquipment.delete({ where: { id: current.id } }); const clearedPreset = await tx.cosmeticPresetState.updateMany({ where: { userId, activePresetId: { not: null } }, data: { activePresetId: null } }); return { activePresetCleared: clearedPreset.count > 0 }; });
-      await this.audit.record({ actorId: userId, action: 'COSMETIC_ITEM_UNEQUIPPED', entity: 'CosmeticEquipment', entityId: current.id, targetAccountId: userId, metadata: { slot, itemId: current.itemId, activePresetCleared: result.activePresetCleared } });
-      return { slot, item: null, activePresetCleared: result.activePresetCleared, replayed: false };
-    }
-    if (current?.itemId === dto.itemId) return { slot, item: current.item, equipment: current, replayed: true };
-    const [item, ownership] = await Promise.all([this.prisma.cosmeticItemDefinition.findUnique({ where: { id: dto.itemId } }), this.prisma.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId, itemId: dto.itemId } } })]);
-    if (!item) throw new NotFoundException('Objet cosmétique introuvable.');
-    if (!ownership || ownership.revokedAt) throw new ForbiddenException('Cet objet ne fait pas partie de ton inventaire.');
-    if (!this.slotMatches(item.slot, slot)) throw new BadRequestException('Cet objet ne correspond pas à cet emplacement.');
-    if (!this.isAvailable(item)) throw new BadRequestException('Cet objet cosmétique n’est pas actuellement disponible.');
-    const result = await this.prisma.$transaction(async (tx) => { const equipment = await tx.cosmeticEquipment.upsert({ where: { userId_slot: { userId, slot } }, create: { userId, slot, itemId: item.id }, update: { itemId: item.id, equippedAt: new Date() }, include: { item: true } }); const clearedPreset = await tx.cosmeticPresetState.updateMany({ where: { userId, activePresetId: { not: null } }, data: { activePresetId: null } }); return { equipment, activePresetCleared: clearedPreset.count > 0 }; });
-    await this.audit.record({ actorId: userId, action: 'COSMETIC_ITEM_EQUIPPED', entity: 'CosmeticEquipment', entityId: result.equipment.id, targetAccountId: userId, metadata: { slot, itemId: item.id, visualOnly: true, activePresetCleared: result.activePresetCleared } });
-    return { slot, item: result.equipment.item, equipment: result.equipment, activePresetCleared: result.activePresetCleared, replayed: false };
-  }
-
-  async exportForAccount(userId: string) {
-    const [ownerships, equipment, purchaseReceipts] = await Promise.all([this.prisma.cosmeticOwnership.findMany({ where: { userId }, include: { item: true }, orderBy: [{ acquiredAt: 'desc' }, { id: 'desc' }] }), this.prisma.cosmeticEquipment.findMany({ where: { userId }, include: { item: true }, orderBy: [{ slot: 'asc' }] }), this.prisma.cosmeticPurchaseReceipt.findMany({ where: { userId }, include: { offer: true, item: true }, orderBy: [{ purchasedAt: 'desc' }, { id: 'desc' }] })]);
-    return { ownerships, equipment, purchaseReceipts, rules: this.policy() };
-  }
-  async deleteForAccount(userId: string, tx: Prisma.TransactionClient) { await tx.cosmeticEquipment.deleteMany({ where: { userId } }); await tx.cosmeticPurchaseReceipt.deleteMany({ where: { userId } }); await tx.cosmeticOwnership.deleteMany({ where: { userId } }); }
-  private async createOwnership(actorId: string, dto: GrantCosmeticItemDto) { try { return await this.prisma.cosmeticOwnership.create({ data: { userId: dto.userId, itemId: dto.itemId, source: dto.source, externalReference: dto.externalReference ?? null, grantedById: actorId, reason: dto.reason } }); } catch (error) { if (this.isUniqueConflict(error)) { const replay = await this.prisma.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId: dto.userId, itemId: dto.itemId } } }); if (replay) return replay; } throw error; } }
-  private isUniqueConflict(error: unknown) { return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'; }
+  async exportForAccount(userId:string){ const [ownerships,equipment,purchaseReceipts]=await Promise.all([this.prisma.cosmeticOwnership.findMany({where:{userId},include:{item:true},orderBy:[{acquiredAt:'desc'},{id:'desc'}]}),this.prisma.cosmeticEquipment.findMany({where:{userId},include:{item:true},orderBy:[{slot:'asc'}]}),this.prisma.cosmeticPurchaseReceipt.findMany({where:{userId},include:{offer:true,item:true},orderBy:[{purchasedAt:'desc'},{id:'desc'}]})]); return {ownerships,equipment,purchaseReceipts,rules:this.policy()}; }
+  async deleteForAccount(userId:string,tx:Prisma.TransactionClient){ await tx.cosmeticEquipment.deleteMany({where:{userId}}); await tx.cosmeticPurchaseReceipt.deleteMany({where:{userId}}); await tx.cosmeticOwnership.deleteMany({where:{userId}}); }
+  private async createOwnership(actorId:string,dto:GrantCosmeticItemDto){ try{return await this.prisma.cosmeticOwnership.create({data:{userId:dto.userId,itemId:dto.itemId,source:dto.source,externalReference:dto.externalReference??null,grantedById:actorId,reason:dto.reason}});}catch(error){if(this.isUniqueConflict(error)){const replay=await this.prisma.cosmeticOwnership.findUnique({where:{userId_itemId:{userId:dto.userId,itemId:dto.itemId}}});if(replay)return replay;}throw error;} }
+  private isUniqueConflict(error:unknown){ return error instanceof Prisma.PrismaClientKnownRequestError&&error.code==='P2002'; }
 }
