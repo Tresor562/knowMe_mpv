@@ -9,6 +9,8 @@ model CosmeticItemDefinition {
   acquisitionMode String    @default("FREE")
   assetUrl        String
   previewUrl      String?
+  avatarAssetManifest Json?
+  assetValidatedAt DateTime?
   active          Boolean   @default(false)
   startsAt        DateTime  @default(now())
   endsAt          DateTime?
@@ -27,6 +29,7 @@ model CosmeticItemDefinition {
   @@index([active, slot, startsAt, endsAt])
   @@index([acquisitionMode, active])
   @@index([key, active, version])
+  @@index([assetValidatedAt, active])
 }
 
 model CosmeticOwnership {
