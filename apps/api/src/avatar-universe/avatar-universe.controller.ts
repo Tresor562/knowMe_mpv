@@ -1,24 +1,16 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AvatarDnaService, UpdateAvatarDnaInput } from './avatar-dna.service';
 import {
   AVATAR_FREE_STARTER_KIT,
-  AvatarItemDefinition,
   avatarUniversePolicy,
-  calculateAvatarItemPrice,
-  calculateReadyAvatarBundlePrice,
   hasCompleteFreeNormalAvatar
 } from './avatar-universe.domain';
 
-type AvatarItemQuoteDto = {
-  item: AvatarItemDefinition;
-};
-
-type AvatarBundleQuoteDto = {
-  items: AvatarItemDefinition[];
-  discountBps: number;
-};
-
 @Controller('avatar-universe')
 export class AvatarUniverseController {
+  constructor(private readonly avatarDna: AvatarDnaService) {}
+
   @Get('policy')
   policy() {
     return avatarUniversePolicy();
@@ -33,21 +25,18 @@ export class AvatarUniverseController {
     };
   }
 
-  @Post('quotes/item')
-  quoteItem(@Body() dto: AvatarItemQuoteDto) {
-    return {
-      itemKey: dto.item.key,
-      priceKnowCoins: calculateAvatarItemPrice(dto.item),
-      serverAuthoritative: true
-    };
+  @UseGuards(JwtAuthGuard)
+  @Get('dna/me')
+  dna(@Req() req: { user: { userId: string } }) {
+    return this.avatarDna.me(req.user.userId);
   }
 
-  @Post('quotes/bundle')
-  quoteBundle(@Body() dto: AvatarBundleQuoteDto) {
-    return {
-      itemCount: dto.items.length,
-      priceKnowCoins: calculateReadyAvatarBundlePrice(dto.items, dto.discountBps),
-      serverAuthoritative: true
-    };
+  @UseGuards(JwtAuthGuard)
+  @Put('dna/me')
+  updateDna(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: UpdateAvatarDnaInput
+  ) {
+    return this.avatarDna.update(req.user.userId, dto);
   }
 }
