@@ -1,0 +1,19 @@
+/// Server-authoritative, versioned Avatar DNA.
+/// Cosmetic ownership remains in Cosmetics; this model stores only body/face/personality/render state.
+model AvatarIdentityProfile {
+  userId             String   @id
+  schemaVersion      Int      @default(1)
+  revision           Int      @default(1)
+  morphology         Json
+  personality        Json
+  renderTier         String   @default("REALTIME_3D_BALANCED")
+  baseMeshKey        String   @default("knowme-human-v1")
+  skeletonKey        String   @default("knowme-humanoid-v1")
+  facialRigKey       String   @default("knowme-face-v1")
+  materialProfileKey String   @default("knowme-pbr-skin-v1")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([updatedAt])
+  @@index([schemaVersion, renderTier])
+}
