@@ -1,16 +1,14 @@
 """KnowMe Hero Avatar blockout measurement exporter.
 
 Run inside Blender after opening the real Hero .blend. It inspects evaluated geometry
-(the geometry that will actually be exported after modifiers) and writes the v3 JSON
-report consumed by the server-side production gate. Blender is Z-up; KnowMe runtime
-is Y-up after glTF/GLB export.
+and writes the v4 JSON report consumed by the server-side production gate.
 """
 from __future__ import annotations
 import json, math
 from pathlib import Path
 import bpy
 
-REPORT_VERSION=3
+REPORT_VERSION=4
 ASSET_KEY="knowme.hero.blockout.v1"
 SKELETON="knowme.humanoid.v1"
 REQUIRED=("BODY","EYE_L","EYE_R")
@@ -21,18 +19,18 @@ SPATIAL_TOLERANCE_M=0.002
 A_POSE_MIN_ARM_ANGLE_DEG=25.0
 A_POSE_MAX_ARM_ANGLE_DEG=60.0
 A_POSE_SIDE_SYMMETRY_DEG=8.0
+MAX_BODY_BONE_INFLUENCES=4
+MAX_BODY_WEIGHT_SUM_ERROR=0.02
 
 def _is_manifold(mesh):
     import bmesh
     bm=bmesh.new()
     try:
-        bm.from_mesh(mesh)
-        return all(e.is_manifold for e in bm.edges)
+        bm.from_mesh(mesh); return all(e.is_manifold for e in bm.edges)
     finally: bm.free()
 
 def _evaluated_mesh(obj,depsgraph):
-    evaluated=obj.evaluated_get(depsgraph)
-    mesh=evaluated.to_mesh(preserve_all_data_layers=True,depsgraph=depsgraph)
+    evaluated=obj.evaluated_get(depsgraph); mesh=evaluated.to_mesh(preserve_all_data_layers=True,depsgraph=depsgraph)
     if mesh is None: raise RuntimeError(f"Unable to evaluate mesh for {obj.name}")
     return evaluated,mesh
 
@@ -64,18 +62,23 @@ def _find_armature(scene):
 
 def _validate_body_skinning(body,armature):
     modifiers=[m for m in body.modifiers if m.type=="ARMATURE"]
-    if len(modifiers)!=1 or modifiers[0].object!=armature:
-        raise RuntimeError("BODY must have exactly one Armature modifier targeting the canonical Hero armature")
+    if len(modifiers)!=1 or modifiers[0].object!=armature: raise RuntimeError("BODY must have exactly one Armature modifier targeting the canonical Hero armature")
     deform_bones={b.name for b in armature.data.bones if b.use_deform}
     if not deform_bones: raise RuntimeError("Hero armature has no deform bones")
     group_by_index={g.index:g.name for g in body.vertex_groups}
-    unweighted=[]
+    unweighted=[]; too_many=[]; max_influences=0; max_sum_error=0.0
     for vertex in body.data.vertices:
-        weighted=any(group_by_index.get(g.group) in deform_bones and g.weight>EPSILON for g in vertex.groups)
-        if not weighted: unweighted.append(vertex.index)
+        weights=[g.weight for g in vertex.groups if group_by_index.get(g.group) in deform_bones and g.weight>EPSILON]
+        count=len(weights); max_influences=max(max_influences,count)
+        if count==0: unweighted.append(vertex.index); continue
+        if count>MAX_BODY_BONE_INFLUENCES: too_many.append(vertex.index)
+        max_sum_error=max(max_sum_error,abs(sum(weights)-1.0))
     if unweighted:
-        preview=", ".join(str(i) for i in unweighted[:12])
-        raise RuntimeError(f"BODY has {len(unweighted)} source vertices without canonical deform-bone weights (first: {preview})")
+        preview=", ".join(str(i) for i in unweighted[:12]); raise RuntimeError(f"BODY has {len(unweighted)} source vertices without canonical deform-bone weights (first: {preview})")
+    if too_many:
+        preview=", ".join(str(i) for i in too_many[:12]); raise RuntimeError(f"BODY has {len(too_many)} vertices exceeding {MAX_BODY_BONE_INFLUENCES} deform-bone influences (first: {preview})")
+    if max_sum_error>MAX_BODY_WEIGHT_SUM_ERROR: raise RuntimeError(f"BODY deform weights are not normalized; maximum sum error is {max_sum_error:.6f}")
+    return {"unweighted":0,"maxInfluences":max_influences,"maxWeightSumError":max_sum_error}
 
 def _pose_bone(armature,*names):
     for name in names:
@@ -86,16 +89,14 @@ def _pose_bone(armature,*names):
 def _arm_angle_from_horizontal(evaluated_armature,side):
     bone=_pose_bone(evaluated_armature,f"upper_arm.{side}",f"upper_arm_{side}",f"UpperArm_{side.upper()}")
     head=evaluated_armature.matrix_world@bone.head; tail=evaluated_armature.matrix_world@bone.tail
-    dx=tail.x-head.x; dz=tail.z-head.z
-    expected_x_sign=-1.0 if side=="l" else 1.0
+    dx=tail.x-head.x; dz=tail.z-head.z; expected_x_sign=-1.0 if side=="l" else 1.0
     if dx*expected_x_sign<=EPSILON: raise RuntimeError(f"Hero {side} upper arm points across the torso or toward the wrong side")
     if dz>=-EPSILON: raise RuntimeError(f"Hero {side} upper arm must slope downward from shoulder to elbow")
     if abs(dx)<EPSILON: return 90.0
     return math.degrees(math.atan2(-dz,abs(dx)))
 
 def _validate_a_pose(scene,depsgraph):
-    evaluated=_find_armature(scene).evaluated_get(depsgraph)
-    left=_arm_angle_from_horizontal(evaluated,"l"); right=_arm_angle_from_horizontal(evaluated,"r")
+    evaluated=_find_armature(scene).evaluated_get(depsgraph); left=_arm_angle_from_horizontal(evaluated,"l"); right=_arm_angle_from_horizontal(evaluated,"r")
     for side,angle in (("left",left),("right",right)):
         if angle<A_POSE_MIN_ARM_ANGLE_DEG or angle>A_POSE_MAX_ARM_ANGLE_DEG: raise RuntimeError(f"Hero {side} upper arm is not in A-pose: {angle:.2f}deg")
     if abs(left-right)>A_POSE_SIDE_SYMMETRY_DEG: raise RuntimeError(f"Hero A-pose arms are asymmetric by {abs(left-right):.2f}deg")
@@ -104,21 +105,15 @@ def _validate_a_pose(scene,depsgraph):
 def export_report(output_path=None):
     scene=bpy.context.scene
     if scene.unit_settings.system!="METRIC" or abs(scene.unit_settings.scale_length-1.0)>EPSILON: raise RuntimeError("Scene must use metric units with scale_length=1")
-    _validate_scene_objects(scene)
-    objects={o.name:o for o in scene.objects if o.name in ALLOWED}
-    missing=[n for n in REQUIRED if n not in objects]
+    _validate_scene_objects(scene); objects={o.name:o for o in scene.objects if o.name in ALLOWED}; missing=[n for n in REQUIRED if n not in objects]
     if missing: raise RuntimeError("Missing required Hero objects: "+", ".join(missing))
-    armature=_find_armature(scene)
-    _validate_body_skinning(objects["BODY"],armature)
-    depsgraph=bpy.context.evaluated_depsgraph_get()
-    left_arm_angle,right_arm_angle=_validate_a_pose(scene,depsgraph)
-    body=objects["BODY"]
+    armature=_find_armature(scene); skinning=_validate_body_skinning(objects["BODY"],armature); depsgraph=bpy.context.evaluated_depsgraph_get()
+    left_arm_angle,right_arm_angle=_validate_a_pose(scene,depsgraph); body=objects["BODY"]
     x_min,x_max,z_min,z_max=_evaluated_world_bounds(body,depsgraph); center_x=(x_min+x_max)/2.0
     if abs(center_x)>SPATIAL_TOLERANCE_M: raise RuntimeError(f"BODY must be centered on world X=0 within {SPATIAL_TOLERANCE_M}m; measured center {center_x:.6f}m")
     if abs(z_min)>SPATIAL_TOLERANCE_M: raise RuntimeError(f"BODY feet must contact Blender Z=0 within {SPATIAL_TOLERANCE_M}m; measured {z_min:.6f}m")
     metrics=[_mesh_metrics(objects[n],depsgraph) for n in REQUIRED+OPTIONAL if n in objects]
-    report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left_arm_angle,4),"measuredRightUpperArmAngleDeg":round(right_arm_angle,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center_x,6),"groundContactY":0,"measuredGroundContactMeters":round(z_min,6),"groundContactVerified":True,"bodyHeightMeters":round(z_max-z_min,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"objects":metrics}
-    path=Path(output_path or bpy.path.abspath("//hero-blockout-report.json")); path.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    print(f"KnowMe Hero report written: {path}"); return report
+    report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left_arm_angle,4),"measuredRightUpperArmAngleDeg":round(right_arm_angle,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center_x,6),"groundContactY":0,"measuredGroundContactMeters":round(z_min,6),"groundContactVerified":True,"bodyHeightMeters":round(z_max-z_min,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"skinningVerified":True,"measuredUnweightedBodyVertices":skinning["unweighted"],"measuredMaxBodyBoneInfluences":skinning["maxInfluences"],"measuredMaxBodyWeightSumError":round(skinning["maxWeightSumError"],6),"objects":metrics}
+    path=Path(output_path or bpy.path.abspath("//hero-blockout-report.json")); path.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8"); print(f"KnowMe Hero report written: {path}"); return report
 
 if __name__=="__main__": export_report()
