@@ -66,22 +66,27 @@ def _find_armature(scene):
     if len(armatures)!=1: raise RuntimeError(f"Hero blockout must contain exactly one armature; found {len(armatures)}")
     return armatures[0]
 
-def _bone(armature,*names):
+def _pose_bone(armature,*names):
     for name in names:
-        bone=armature.data.bones.get(name)
+        bone=armature.pose.bones.get(name)
         if bone is not None: return bone
-    raise RuntimeError("Missing canonical Hero bone; expected one of: "+", ".join(names))
+    raise RuntimeError("Missing canonical Hero pose bone; expected one of: "+", ".join(names))
 
-def _arm_angle_from_horizontal(armature,side):
-    bone=_bone(armature, f"upper_arm.{side}", f"upper_arm_{side}", f"UpperArm_{side.upper()}")
-    head=armature.matrix_world@bone.head_local; tail=armature.matrix_world@bone.tail_local
+def _arm_angle_from_horizontal(evaluated_armature,side):
+    # PoseBone.head/tail are evaluated in armature-object space. Using pose bones here is
+    # essential: Armature.data.bones.*_local describes the rest pose and would let a
+    # T-pose animation be certified when the rest rig happened to be authored in A-pose.
+    bone=_pose_bone(evaluated_armature, f"upper_arm.{side}", f"upper_arm_{side}", f"UpperArm_{side.upper()}")
+    head=evaluated_armature.matrix_world@bone.head
+    tail=evaluated_armature.matrix_world@bone.tail
     dx=abs(tail.x-head.x); dz=abs(tail.z-head.z)
     if dx<EPSILON: return 90.0
     return math.degrees(math.atan2(dz,dx))
 
-def _validate_a_pose(scene):
+def _validate_a_pose(scene,depsgraph):
     armature=_find_armature(scene)
-    left=_arm_angle_from_horizontal(armature,"l"); right=_arm_angle_from_horizontal(armature,"r")
+    evaluated_armature=armature.evaluated_get(depsgraph)
+    left=_arm_angle_from_horizontal(evaluated_armature,"l"); right=_arm_angle_from_horizontal(evaluated_armature,"r")
     for side,angle in (("left",left),("right",right)):
         if angle<A_POSE_MIN_ARM_ANGLE_DEG or angle>A_POSE_MAX_ARM_ANGLE_DEG:
             raise RuntimeError(f"Hero {side} upper arm is not in A-pose: {angle:.2f}deg from horizontal; expected {A_POSE_MIN_ARM_ANGLE_DEG}-{A_POSE_MAX_ARM_ANGLE_DEG}deg")
@@ -95,8 +100,8 @@ def export_report(output_path=None):
     objects={o.name:o for o in scene.objects if o.name in ALLOWED}
     missing=[n for n in REQUIRED if n not in objects]
     if missing: raise RuntimeError("Missing required Hero objects: "+", ".join(missing))
-    _validate_a_pose(scene)
     depsgraph=bpy.context.evaluated_depsgraph_get()
+    _validate_a_pose(scene,depsgraph)
     body=objects["BODY"]
     x_min,x_max,z_min,z_max=_evaluated_world_bounds(body,depsgraph)
     center_x=(x_min+x_max)/2.0
