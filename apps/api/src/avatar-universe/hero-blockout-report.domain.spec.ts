@@ -11,6 +11,7 @@ describe('Hero blockout production gate',()=>{
  it('rejects unlocked vertex order',()=>{const x=valid();x.stableVertexOrder=false;expect(()=>validateHeroBlockoutReport(x)).toThrow(/vertex order/);});
  it('rejects geometry beyond mobile-oriented blockout budget',()=>{const x=valid();x.objects[0].triangles=60001;expect(()=>validateHeroBlockoutReport(x)).toThrow(/budget/);});
  it('rejects duplicate object roles',()=>{const x=valid();x.objects.push({...x.objects[1]});expect(()=>validateHeroBlockoutReport(x)).toThrow(/unique/);});
+ it('rejects a forged role even if a client bypasses TypeScript types',()=>{const x=valid();(x.objects as unknown as Array<Record<string,unknown>>).push({role:'CLIENT_FAKE_CAPE',vertices:1,triangles:1,manifold:true,unappliedTransforms:false,fusedClothingOrAccessories:false});expect(()=>validateHeroBlockoutReport(x)).toThrow(/unsupported object role/);});
  it('rejects a body whose measured center drifts beyond 2mm',()=>{const x=valid();x.measuredBodyCenterX=0.003;expect(()=>validateHeroBlockoutReport(x)).toThrow(/centered/);});
  it('rejects declared ground contact when the measured feet are above ground',()=>{const x=valid();x.measuredGroundContactMeters=0.003;expect(()=>validateHeroBlockoutReport(x)).toThrow(/ground contact/);});
  it('rejects unverified ground contact',()=>{const x=valid();x.groundContactVerified=false as true;expect(()=>validateHeroBlockoutReport(x)).toThrow(/ground contact/);});
