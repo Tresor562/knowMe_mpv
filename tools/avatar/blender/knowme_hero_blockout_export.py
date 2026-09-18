@@ -80,11 +80,13 @@ def _arm_angle_from_horizontal(evaluated_armature,side):
     head=evaluated_armature.matrix_world@bone.head
     tail=evaluated_armature.matrix_world@bone.tail
     dx=tail.x-head.x; dz=tail.z-head.z
-    # An A-pose upper arm must travel away from the torso and downward from the shoulder.
-    # abs(dx/dz) alone is insufficient: it would certify a V-up pose or an arm crossing
-    # inward over the chest at the same numerical angle.
-    if abs(tail.x)<=abs(head.x)+EPSILON:
-        raise RuntimeError(f"Hero {side} upper arm points inward instead of away from the torso")
+    # KnowMe's canonical Blender rig uses +X to character-right: the right upper arm
+    # must therefore travel toward +X and the left toward -X. Merely comparing absolute
+    # distances from X=0 is unsafe: a bone can cross the torso and finish farther from
+    # the origin on the opposite side while still looking numerically "outward".
+    expected_x_sign=-1.0 if side=="l" else 1.0
+    if dx*expected_x_sign<=EPSILON:
+        raise RuntimeError(f"Hero {side} upper arm points across the torso or toward the wrong side")
     if dz>=-EPSILON:
         raise RuntimeError(f"Hero {side} upper arm must slope downward from shoulder to elbow")
     if abs(dx)<EPSILON: return 90.0
