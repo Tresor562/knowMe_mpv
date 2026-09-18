@@ -27,13 +27,17 @@ export type HeroBlockoutReport = {
 
 const SAFE_KEY=/^[a-z0-9][a-z0-9._-]{1,95}$/i;
 const HERO_BLOCKOUT_ALLOWED_ROLE_SET=new Set<string>(HERO_BLOCKOUT_ALLOWED_OBJECTS);
+const HERO_BLOCKOUT_REPORT_KEYS=new Set(['reportVersion','assetKey','unitSystem','authoringUpAxis','runtimeUpAxis','pose','centeredWorldOrigin','measuredBodyCenterX','groundContactY','measuredGroundContactMeters','groundContactVerified','bodyHeightMeters','skeletonTarget','stableVertexOrder','deformationTopologyReady','objects']);
+const HERO_BLOCKOUT_OBJECT_KEYS=new Set(['role','vertices','triangles','manifold','unappliedTransforms','fusedClothingOrAccessories']);
 export const HERO_BLOCKOUT_BUDGETS=Object.freeze({minHeightMeters:1.35,maxHeightMeters:2.15,maxBodyTriangles:60000,maxBodyVertices:45000,maxTotalTriangles:75000,maxCenterOffsetMeters:0.002,maxGroundOffsetMeters:0.002});
 
 function isRecord(value:unknown):value is Record<string,unknown>{return typeof value==='object'&&value!==null&&!Array.isArray(value);}
+function assertExactKeys(value:Record<string,unknown>,allowed:Set<string>,scope:string):void{for(const key of Object.keys(value))if(!allowed.has(key))throw new Error(`${scope} contains unsupported field ${key}.`);}
 
 /** Runtime boundary: reports can originate from JSON, so never rely on TypeScript-only guarantees here. */
 export function validateHeroBlockoutReport(input:HeroBlockoutReport):HeroBlockoutReport{
  if(!isRecord(input))throw new Error('Hero blockout report must be an object.');
+ assertExactKeys(input,HERO_BLOCKOUT_REPORT_KEYS,'Hero blockout report');
  if(input.reportVersion!==HERO_BLOCKOUT_REPORT_VERSION)throw new Error('Unsupported Hero blockout report version.');
  if(typeof input.assetKey!=='string'||!SAFE_KEY.test(input.assetKey))throw new Error('Invalid Hero blockout asset key.');
  if(input.unitSystem!=='METERS'||input.authoringUpAxis!=='Z'||input.runtimeUpAxis!=='Y'||input.pose!=='A_POSE'||input.centeredWorldOrigin!==true||input.groundContactY!==0)throw new Error('Hero blockout transform convention is invalid.');
@@ -47,6 +51,7 @@ export function validateHeroBlockoutReport(input:HeroBlockoutReport):HeroBlockou
  const roles:string[]=[];
  for(const rawObject of input.objects as unknown[]){
   if(!isRecord(rawObject))throw new Error('Hero blockout contains an invalid object report.');
+  assertExactKeys(rawObject,HERO_BLOCKOUT_OBJECT_KEYS,'Hero blockout object');
   const role=rawObject.role;
   if(typeof role!=='string'||!HERO_BLOCKOUT_ALLOWED_ROLE_SET.has(role))throw new Error(`Hero blockout contains unsupported object role ${String(role)}.`);
   roles.push(role);
