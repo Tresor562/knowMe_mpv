@@ -6,7 +6,7 @@ report consumed by the server-side production gate. Blender is Z-up; KnowMe runt
 is Y-up after glTF/GLB export.
 """
 from __future__ import annotations
-import json
+import json, math
 from pathlib import Path
 import bpy
 
@@ -18,6 +18,10 @@ OPTIONAL=("TEETH","TONGUE","HAIR_PLACEHOLDER")
 ALLOWED=set(REQUIRED+OPTIONAL)
 EPSILON=1e-5
 SPATIAL_TOLERANCE_M=0.002
+# A-pose is intentionally broad enough for different proportions while rejecting T-pose/down-arm impostors.
+A_POSE_MIN_ARM_ANGLE_DEG=25.0
+A_POSE_MAX_ARM_ANGLE_DEG=60.0
+A_POSE_SIDE_SYMMETRY_DEG=8.0
 
 def _is_manifold(mesh):
     import bmesh
@@ -57,6 +61,33 @@ def _validate_scene_objects(scene):
     unexpected=sorted(o.name for o in scene.objects if o.type=="MESH" and o.name not in ALLOWED)
     if unexpected: raise RuntimeError("Unexpected mesh objects in Hero blockout scene: "+", ".join(unexpected))
 
+def _find_armature(scene):
+    armatures=[o for o in scene.objects if o.type=="ARMATURE"]
+    if len(armatures)!=1: raise RuntimeError(f"Hero blockout must contain exactly one armature; found {len(armatures)}")
+    return armatures[0]
+
+def _bone(armature,*names):
+    for name in names:
+        bone=armature.data.bones.get(name)
+        if bone is not None: return bone
+    raise RuntimeError("Missing canonical Hero bone; expected one of: "+", ".join(names))
+
+def _arm_angle_from_horizontal(armature,side):
+    bone=_bone(armature, f"upper_arm.{side}", f"upper_arm_{side}", f"UpperArm_{side.upper()}")
+    head=armature.matrix_world@bone.head_local; tail=armature.matrix_world@bone.tail_local
+    dx=abs(tail.x-head.x); dz=abs(tail.z-head.z)
+    if dx<EPSILON: return 90.0
+    return math.degrees(math.atan2(dz,dx))
+
+def _validate_a_pose(scene):
+    armature=_find_armature(scene)
+    left=_arm_angle_from_horizontal(armature,"l"); right=_arm_angle_from_horizontal(armature,"r")
+    for side,angle in (("left",left),("right",right)):
+        if angle<A_POSE_MIN_ARM_ANGLE_DEG or angle>A_POSE_MAX_ARM_ANGLE_DEG:
+            raise RuntimeError(f"Hero {side} upper arm is not in A-pose: {angle:.2f}deg from horizontal; expected {A_POSE_MIN_ARM_ANGLE_DEG}-{A_POSE_MAX_ARM_ANGLE_DEG}deg")
+    if abs(left-right)>A_POSE_SIDE_SYMMETRY_DEG: raise RuntimeError(f"Hero A-pose arms are asymmetric by {abs(left-right):.2f}deg")
+    return left,right
+
 def export_report(output_path=None):
     scene=bpy.context.scene
     if scene.unit_settings.system!="METRIC" or abs(scene.unit_settings.scale_length-1.0)>EPSILON: raise RuntimeError("Scene must use metric units with scale_length=1")
@@ -64,6 +95,7 @@ def export_report(output_path=None):
     objects={o.name:o for o in scene.objects if o.name in ALLOWED}
     missing=[n for n in REQUIRED if n not in objects]
     if missing: raise RuntimeError("Missing required Hero objects: "+", ".join(missing))
+    _validate_a_pose(scene)
     depsgraph=bpy.context.evaluated_depsgraph_get()
     body=objects["BODY"]
     x_min,x_max,z_min,z_max=_evaluated_world_bounds(body,depsgraph)
