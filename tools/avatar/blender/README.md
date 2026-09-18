@@ -16,7 +16,9 @@ Do not set those properties merely to make validation pass. They represent expli
 
 ## Measure the real source
 
-Open the real `.blend`, load `knowme_hero_blockout_export.py` in Blender's scripting workspace and run it. It writes `hero-blockout-report.json` next to the `.blend` by default. The exporter measures vertex/triangle counts, checks manifold geometry, applied transforms and body height, and records the canonical skeleton target.
+Open the real `.blend`, load `knowme_hero_blockout_export.py` in Blender's scripting workspace and run it. It writes `hero-blockout-report.json` next to the `.blend` by default.
+
+The exporter evaluates Blender's dependency graph and measures the **evaluated mesh after modifiers**, rather than only the raw edit mesh. This is intentional: subdivision, mirror, geometry-nodes or other enabled modifiers can change runtime/export geometry and must be reflected in vertex/triangle budgets, manifold checks, body bounds, centering and ground-contact measurements. Object transforms are still required to be applied before approval.
 
 The resulting report is input to the API's `validateHeroBlockoutReport`. The subsequent provenance stage must hash the actual `.blend`/GLB bytes and bind that digest to the report. A JSON report by itself is never proof that the Hero mesh exists.
 
