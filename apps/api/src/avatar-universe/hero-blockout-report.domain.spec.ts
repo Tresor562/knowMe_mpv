@@ -15,4 +15,8 @@ describe('Hero blockout production gate',()=>{
  it('rejects a body whose measured center drifts beyond 2mm',()=>{const x=valid();x.measuredBodyCenterX=0.003;expect(()=>validateHeroBlockoutReport(x)).toThrow(/centered/);});
  it('rejects declared ground contact when the measured feet are above ground',()=>{const x=valid();x.measuredGroundContactMeters=0.003;expect(()=>validateHeroBlockoutReport(x)).toThrow(/ground contact/);});
  it('rejects unverified ground contact',()=>{const x=valid();x.groundContactVerified=false as true;expect(()=>validateHeroBlockoutReport(x)).toThrow(/ground contact/);});
+ it('rejects null object entries from untrusted JSON',()=>{const x=valid();(x.objects as unknown[]).push(null);expect(()=>validateHeroBlockoutReport(x)).toThrow(/invalid object report/);});
+ it('rejects missing boolean evidence instead of treating it as false',()=>{const x=valid();delete (x.objects[0] as unknown as Record<string,unknown>).unappliedTransforms;expect(()=>validateHeroBlockoutReport(x)).toThrow(/applied transforms/);});
+ it('rejects missing fused-geometry evidence instead of treating it as false',()=>{const x=valid();delete (x.objects[0] as unknown as Record<string,unknown>).fusedClothingOrAccessories;expect(()=>validateHeroBlockoutReport(x)).toThrow(/no fused/);});
+ it('rejects malformed numeric evidence from untrusted JSON',()=>{const x=valid();(x.objects[0] as unknown as Record<string,unknown>).triangles='45000';expect(()=>validateHeroBlockoutReport(x)).toThrow(/mesh metrics/);});
 });
