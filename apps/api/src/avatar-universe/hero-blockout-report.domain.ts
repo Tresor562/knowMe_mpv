@@ -1,17 +1,17 @@
 import { AVATAR_CANONICAL_SKELETON } from './avatar-asset-manifest.domain';
 
 export const HERO_BLOCKOUT_REPORT_VERSION = 3 as const;
+export const HERO_BLOCKOUT_ASSET_KEY = 'knowme.hero.blockout.v1' as const;
 export const HERO_BLOCKOUT_REQUIRED_OBJECTS = ['BODY','EYE_L','EYE_R'] as const;
 export const HERO_BLOCKOUT_OPTIONAL_OBJECTS = ['TEETH','TONGUE','HAIR_PLACEHOLDER'] as const;
 export const HERO_BLOCKOUT_ALLOWED_OBJECTS = [...HERO_BLOCKOUT_REQUIRED_OBJECTS,...HERO_BLOCKOUT_OPTIONAL_OBJECTS] as const;
 export type HeroBlockoutObjectRole = typeof HERO_BLOCKOUT_ALLOWED_OBJECTS[number];
 export type HeroBlockoutObjectReport = { role:HeroBlockoutObjectRole; vertices:number; triangles:number; manifold:boolean; unappliedTransforms:boolean; fusedClothingOrAccessories:boolean; };
 export type HeroBlockoutReport = {
- reportVersion:typeof HERO_BLOCKOUT_REPORT_VERSION; assetKey:string; unitSystem:'METERS'; authoringUpAxis:'Z'; runtimeUpAxis:'Y'; pose:'A_POSE'; poseVerified:true;
+ reportVersion:typeof HERO_BLOCKOUT_REPORT_VERSION; assetKey:typeof HERO_BLOCKOUT_ASSET_KEY; unitSystem:'METERS'; authoringUpAxis:'Z'; runtimeUpAxis:'Y'; pose:'A_POSE'; poseVerified:true;
  measuredLeftUpperArmAngleDeg:number; measuredRightUpperArmAngleDeg:number; centeredWorldOrigin:true; measuredBodyCenterX:number; groundContactY:0; measuredGroundContactMeters:number; groundContactVerified:true; bodyHeightMeters:number; skeletonTarget:typeof AVATAR_CANONICAL_SKELETON; stableVertexOrder:true; deformationTopologyReady:boolean; objects:HeroBlockoutObjectReport[];
 };
 
-const SAFE_KEY=/^[a-z0-9][a-z0-9._-]{1,95}$/i;
 const HERO_BLOCKOUT_ALLOWED_ROLE_SET=new Set<string>(HERO_BLOCKOUT_ALLOWED_OBJECTS);
 const HERO_BLOCKOUT_REPORT_KEYS=new Set(['reportVersion','assetKey','unitSystem','authoringUpAxis','runtimeUpAxis','pose','poseVerified','measuredLeftUpperArmAngleDeg','measuredRightUpperArmAngleDeg','centeredWorldOrigin','measuredBodyCenterX','groundContactY','measuredGroundContactMeters','groundContactVerified','bodyHeightMeters','skeletonTarget','stableVertexOrder','deformationTopologyReady','objects']);
 const HERO_BLOCKOUT_OBJECT_KEYS=new Set(['role','vertices','triangles','manifold','unappliedTransforms','fusedClothingOrAccessories']);
@@ -26,7 +26,8 @@ export function validateHeroBlockoutReport(input:HeroBlockoutReport):HeroBlockou
  if(!isRecord(input))throw new Error('Hero blockout report must be an object.');
  assertExactKeys(input,HERO_BLOCKOUT_REPORT_KEYS,'Hero blockout report');
  if(input.reportVersion!==HERO_BLOCKOUT_REPORT_VERSION)throw new Error('Unsupported Hero blockout report version.');
- if(typeof input.assetKey!=='string'||!SAFE_KEY.test(input.assetKey))throw new Error('Invalid Hero blockout asset key.');
+ // The Hero production gate certifies one canonical source asset. A syntactically valid client-supplied key must never retarget this report to another asset.
+ if(input.assetKey!==HERO_BLOCKOUT_ASSET_KEY)throw new Error('Hero blockout asset key does not match the canonical Hero source.');
  if(input.unitSystem!=='METERS'||input.authoringUpAxis!=='Z'||input.runtimeUpAxis!=='Y'||input.pose!=='A_POSE'||input.centeredWorldOrigin!==true||input.groundContactY!==0)throw new Error('Hero blockout transform convention is invalid.');
  if(input.poseVerified!==true||!isFiniteNumber(input.measuredLeftUpperArmAngleDeg)||!isFiniteNumber(input.measuredRightUpperArmAngleDeg))throw new Error('Hero A-pose must include measured arm-angle evidence.');
  const left=input.measuredLeftUpperArmAngleDeg,right=input.measuredRightUpperArmAngleDeg;
