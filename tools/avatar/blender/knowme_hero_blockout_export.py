@@ -62,6 +62,21 @@ def _find_armature(scene):
     if len(armatures)!=1: raise RuntimeError(f"Hero blockout must contain exactly one armature; found {len(armatures)}")
     return armatures[0]
 
+def _validate_body_skinning(body,armature):
+    modifiers=[m for m in body.modifiers if m.type=="ARMATURE"]
+    if len(modifiers)!=1 or modifiers[0].object!=armature:
+        raise RuntimeError("BODY must have exactly one Armature modifier targeting the canonical Hero armature")
+    deform_bones={b.name for b in armature.data.bones if b.use_deform}
+    if not deform_bones: raise RuntimeError("Hero armature has no deform bones")
+    group_by_index={g.index:g.name for g in body.vertex_groups}
+    unweighted=[]
+    for vertex in body.data.vertices:
+        weighted=any(group_by_index.get(g.group) in deform_bones and g.weight>EPSILON for g in vertex.groups)
+        if not weighted: unweighted.append(vertex.index)
+    if unweighted:
+        preview=", ".join(str(i) for i in unweighted[:12])
+        raise RuntimeError(f"BODY has {len(unweighted)} source vertices without canonical deform-bone weights (first: {preview})")
+
 def _pose_bone(armature,*names):
     for name in names:
         bone=armature.pose.bones.get(name)
@@ -93,6 +108,8 @@ def export_report(output_path=None):
     objects={o.name:o for o in scene.objects if o.name in ALLOWED}
     missing=[n for n in REQUIRED if n not in objects]
     if missing: raise RuntimeError("Missing required Hero objects: "+", ".join(missing))
+    armature=_find_armature(scene)
+    _validate_body_skinning(objects["BODY"],armature)
     depsgraph=bpy.context.evaluated_depsgraph_get()
     left_arm_angle,right_arm_angle=_validate_a_pose(scene,depsgraph)
     body=objects["BODY"]
