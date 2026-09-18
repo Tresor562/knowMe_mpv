@@ -79,9 +79,16 @@ def _arm_angle_from_horizontal(evaluated_armature,side):
     bone=_pose_bone(evaluated_armature, f"upper_arm.{side}", f"upper_arm_{side}", f"UpperArm_{side.upper()}")
     head=evaluated_armature.matrix_world@bone.head
     tail=evaluated_armature.matrix_world@bone.tail
-    dx=abs(tail.x-head.x); dz=abs(tail.z-head.z)
-    if dx<EPSILON: return 90.0
-    return math.degrees(math.atan2(dz,dx))
+    dx=tail.x-head.x; dz=tail.z-head.z
+    # An A-pose upper arm must travel away from the torso and downward from the shoulder.
+    # abs(dx/dz) alone is insufficient: it would certify a V-up pose or an arm crossing
+    # inward over the chest at the same numerical angle.
+    if abs(tail.x)<=abs(head.x)+EPSILON:
+        raise RuntimeError(f"Hero {side} upper arm points inward instead of away from the torso")
+    if dz>=-EPSILON:
+        raise RuntimeError(f"Hero {side} upper arm must slope downward from shoulder to elbow")
+    if abs(dx)<EPSILON: return 90.0
+    return math.degrees(math.atan2(-dz,abs(dx)))
 
 def _validate_a_pose(scene,depsgraph):
     armature=_find_armature(scene)
