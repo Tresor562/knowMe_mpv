@@ -19,4 +19,6 @@ describe('Hero blockout production gate',()=>{
  it('rejects missing boolean evidence instead of treating it as false',()=>{const x=valid();delete (x.objects[0] as unknown as Record<string,unknown>).unappliedTransforms;expect(()=>validateHeroBlockoutReport(x)).toThrow(/applied transforms/);});
  it('rejects missing fused-geometry evidence instead of treating it as false',()=>{const x=valid();delete (x.objects[0] as unknown as Record<string,unknown>).fusedClothingOrAccessories;expect(()=>validateHeroBlockoutReport(x)).toThrow(/no fused/);});
  it('rejects malformed numeric evidence from untrusted JSON',()=>{const x=valid();(x.objects[0] as unknown as Record<string,unknown>).triangles='45000';expect(()=>validateHeroBlockoutReport(x)).toThrow(/mesh metrics/);});
+ it('rejects unknown top-level fields from untrusted JSON',()=>{const x=valid();(x as unknown as Record<string,unknown>).clientApproved=true;expect(()=>validateHeroBlockoutReport(x)).toThrow(/unsupported field clientApproved/);});
+ it('rejects unknown per-mesh fields from untrusted JSON',()=>{const x=valid();(x.objects[0] as unknown as Record<string,unknown>).clientPrice=0;expect(()=>validateHeroBlockoutReport(x)).toThrow(/unsupported field clientPrice/);});
 });
