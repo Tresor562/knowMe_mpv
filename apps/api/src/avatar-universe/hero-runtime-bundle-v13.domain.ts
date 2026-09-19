@@ -12,6 +12,10 @@ const SHA256=/^[a-f0-9]{64}$/;
 const FILE=/^knowme-hero-lod([012])\.glb$/;
 const GLB_MAGIC=0x46546c67,GLB_VERSION=2,GLB_JSON=0x4e4f534a;
 const positiveInt=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0;
+const accessor=(doc:any,index:unknown,label:string)=>{
+ if(!Number.isSafeInteger(index)||Number(index)<0||!Array.isArray(doc.accessors)||!doc.accessors[index as number])throw new Error(`Runtime GLB ${label} accessor is invalid.`);
+ const a=doc.accessors[index as number];if(!positiveInt(a.count))throw new Error(`Runtime GLB ${label} accessor count is invalid.`);return a;
+};
 
 export function sha256RuntimeBytes(bytes:Uint8Array){return createHash('sha256').update(bytes).digest('hex');}
 
@@ -25,18 +29,26 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
  if(jsonType!==GLB_JSON||jsonLength===0||20+jsonLength>bytes.byteLength)throw new Error('Runtime GLB JSON chunk is invalid.');
  let doc:any;try{doc=JSON.parse(new TextDecoder().decode(bytes.subarray(20,20+jsonLength)).trim());}catch{throw new Error('Runtime GLB JSON is malformed.');}
  if(doc?.asset?.version!=='2.0')throw new Error('Runtime GLB asset version must be 2.0.');
- if(!Array.isArray(doc.meshes)||doc.meshes.length<1)throw new Error('Runtime GLB must contain a mesh.');
- if(!Array.isArray(doc.skins)||doc.skins.length!==1)throw new Error('Runtime GLB must contain exactly one canonical skin.');
+ if(!Array.isArray(doc.meshes)||doc.meshes.length!==1)throw new Error('Runtime GLB must contain exactly one Hero body mesh.');
+ if(!Array.isArray(doc.skins)||doc.skins.length!==1||!Array.isArray(doc.skins[0]?.joints)||doc.skins[0].joints.length<1)throw new Error('Runtime GLB must contain exactly one non-empty canonical skin.');
  const targetNames=doc.meshes[0]?.extras?.targetNames;
  if(!Array.isArray(targetNames)||targetNames.length!==HERO_RUNTIME_MORPH_TARGETS.length||HERO_RUNTIME_MORPH_TARGETS.some((n,i)=>targetNames[i]!==n))throw new Error('Runtime GLB morph targets are non-canonical.');
  const primitives=doc.meshes[0]?.primitives;
  if(!Array.isArray(primitives)||primitives.length<1)throw new Error('Runtime GLB mesh has no primitives.');
+ let vertices=0,triangles=0;
  for(const primitive of primitives){
+  if(primitive?.mode!==undefined&&primitive.mode!==4)throw new Error('Runtime GLB Hero primitives must use TRIANGLES mode.');
   if(!primitive?.attributes||primitive.attributes.POSITION===undefined)throw new Error('Runtime GLB primitive has no POSITION attribute.');
   if(primitive.attributes.JOINTS_0===undefined||primitive.attributes.WEIGHTS_0===undefined)throw new Error('Runtime GLB primitive is not skinned.');
+  const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');
+  const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');
+  const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');
+  const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');
   if(!Array.isArray(primitive.targets)||primitive.targets.length!==HERO_RUNTIME_MORPH_TARGETS.length)throw new Error('Runtime GLB primitive morph count is non-canonical.');
+  for(const target of primitive.targets){const morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');}
+  vertices+=pos.count;triangles+=indices.count/3;
  }
- return {meshCount:doc.meshes.length,skinCount:doc.skins.length,morphTargetCount:targetNames.length};
+ return {meshCount:doc.meshes.length,skinCount:doc.skins.length,morphTargetCount:targetNames.length,vertices,triangles};
 }
 
 export function validateHeroRuntimeBundle(input:HeroRuntimeBundle):HeroRuntimeBundle{
@@ -64,7 +76,8 @@ export function verifyHeroRuntimeBundleBytes(bundle:HeroRuntimeBundle,files:Read
   const bytes=files.get(lod.fileName);if(!bytes)throw new Error(`Missing runtime bytes for ${lod.fileName}.`);
   if(bytes.byteLength!==lod.downloadBytes)throw new Error(`Runtime byte length mismatch for ${lod.fileName}.`);
   if(sha256RuntimeBytes(bytes)!==lod.sha256)throw new Error(`Runtime SHA-256 mismatch for ${lod.fileName}.`);
-  inspectHeroRuntimeGlb(bytes);
+  const measured=inspectHeroRuntimeGlb(bytes);
+  if(measured.vertices!==lod.vertices||measured.triangles!==lod.triangles)throw new Error(`Runtime GLB geometry mismatch for ${lod.fileName}.`);
  }
  for(const name of files.keys())if(!bundle.lods.some(l=>l.fileName===name))throw new Error(`Unexpected runtime file ${name}.`);
  return true;
