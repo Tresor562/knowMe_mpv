@@ -22,10 +22,10 @@ The `dna_` and `expr_` namespaces deliberately coexist on the same `BODY` shape-
 
 The exporter evaluates Blender's dependency graph and measures the **evaluated mesh after modifiers**, rather than only the raw edit mesh. This is intentional: subdivision, mirror, geometry-nodes or other enabled modifiers can change runtime/export geometry and must be reflected in vertex/triangle budgets, manifold checks, body bounds, centering and ground-contact measurements. Object transforms are still required to be applied before approval.
 
-The v10 report adds `expressionsVerified`, `expressionMorphNames`, `measuredExpressionMorphCount`, and `measuredMaxExpressionVertexDeltaMeters`. The API boundary must independently validate those fields before a v10 report can become authoritative. Until that server gate lands, v10 Blender output is measured evidence but is **not yet end-to-end certified**.
+The v10 report adds `expressionsVerified`, `expressionMorphNames`, `measuredExpressionMorphCount`, and `measuredMaxExpressionVertexDeltaMeters`. The API now validates these fields independently in `hero-blockout-report-v10.domain.ts`: the canonical 10-name ordered set is mandatory, count must match exactly, deformation evidence must be finite/non-empty and remain at or below 0.12 m, and arbitrary client fields continue through the inherited exact-key rejection boundary. The v9 geometry/PBR/skinning/DNA gate is reused rather than duplicated.
 
-The subsequent provenance stage must hash the actual `.blend`/GLB bytes and bind that digest to the report. A JSON report by itself is never proof that the Hero mesh exists.
+The provenance stage now consumes the v10 gate too. It hashes the actual `.blend`/GLB bytes and binds that digest to the report, then revalidates expression semantics and deformation budget along with the existing geometry/PBR/DNA evidence. A JSON report by itself is never proof that the Hero mesh exists.
 
 ## Next production gates
 
-After expression report integration: server-side v10 expression validation and adversarial tests; combined DNA-expression deformation QA; LOD0/LOD1/LOD2 generation; GLB/glTF export; runtime manifest validation; Android GPU/memory/performance QA. Do not publish the Hero or derived cosmetics until their applicable gates pass.
+Next: combined DNA-expression deformation QA (including unsafe combinations and collision/intersection checks); LOD0/LOD1/LOD2 generation; GLB/glTF export; runtime manifest validation; Android GPU/memory/performance QA. The real Hero `.blend`/GLB is still an artistic production dependency and must not be claimed as complete until those source assets actually exist and pass the gates.
