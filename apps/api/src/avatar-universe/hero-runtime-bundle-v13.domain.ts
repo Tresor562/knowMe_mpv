@@ -39,7 +39,18 @@ function validateAccessorStorage(doc:any,a:any,label:string,binLength:number){
  const end=start+(a.count-1)*stride+elementBytes;
  const viewEnd=(bv.byteOffset??0)+bv.byteLength;
  if(start<0||end>viewEnd||viewEnd>binLength)throw new Error(`Runtime GLB ${label} binary range exceeds its bufferView.`);
- return {start,stride,componentBytes,elementBytes};
+ return {start,stride,componentBytes,components};
+}
+
+function readComponent(view:DataView,offset:number,type:number){
+ switch(type){case 5120:return view.getInt8(offset);case 5121:return view.getUint8(offset);case 5122:return view.getInt16(offset,true);case 5123:return view.getUint16(offset,true);case 5125:return view.getUint32(offset,true);case 5126:return view.getFloat32(offset,true);default:throw new Error('Unsupported GLB component type.');}
+}
+function normalizedComponent(value:number,type:number){
+ switch(type){case 5120:return Math.max(value/127,-1);case 5121:return value/255;case 5122:return Math.max(value/32767,-1);case 5123:return value/65535;default:return value;}
+}
+function readAccessorElement(view:DataView,binStart:number,a:any,storage:{start:number;stride:number;componentBytes:number;components:number},index:number){
+ const values:number[]=[];const base=binStart+storage.start+index*storage.stride;
+ for(let c=0;c<storage.components;c++){const raw=readComponent(view,base+c*storage.componentBytes,a.componentType);values.push(a.normalized===true?normalizedComponent(raw,a.componentType):raw);}return values;
 }
 
 export function inspectHeroRuntimeGlb(bytes:Uint8Array){
@@ -57,8 +68,15 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
  if(binStart+binLength!==bytes.byteLength)throw new Error('Runtime GLB BIN chunk length is invalid.');
  if(!Array.isArray(doc.buffers)||doc.buffers.length!==1||doc.buffers[0]?.uri!==undefined||doc.buffers[0]?.byteLength!==binLength)throw new Error('Runtime GLB embedded buffer contract is invalid.');
  if(doc?.asset?.version!=='2.0')throw new Error('Runtime GLB asset version must be 2.0.');
+ if(!Array.isArray(doc.nodes)||doc.nodes.length<1)throw new Error('Runtime GLB must contain skeleton nodes.');
  if(!Array.isArray(doc.meshes)||doc.meshes.length!==1)throw new Error('Runtime GLB must contain exactly one Hero body mesh.');
  if(!Array.isArray(doc.skins)||doc.skins.length!==1||!Array.isArray(doc.skins[0]?.joints)||doc.skins[0].joints.length<1)throw new Error('Runtime GLB must contain exactly one non-empty canonical skin.');
+ const skin=doc.skins[0];
+ if(new Set(skin.joints).size!==skin.joints.length||skin.joints.some((j:unknown)=>!nonNegativeInt(j)||j>=doc.nodes.length))throw new Error('Runtime GLB skin joints must reference unique existing nodes.');
+ const ibm=accessor(doc,skin.inverseBindMatrices,'inverse bind matrices');
+ if(ibm.type!=='MAT4'||ibm.componentType!==5126||ibm.count!==skin.joints.length)throw new Error('Runtime GLB inverse bind matrices contract is invalid.');
+ const ibmStorage=validateAccessorStorage(doc,ibm,'inverse bind matrices',binLength);
+ for(let i=0;i<ibm.count;i++)if(readAccessorElement(view,binStart,ibm,ibmStorage,i).some(v=>!Number.isFinite(v)))throw new Error('Runtime GLB inverse bind matrices must be finite.');
  const targetNames=doc.meshes[0]?.extras?.targetNames;
  if(!Array.isArray(targetNames)||targetNames.length!==HERO_RUNTIME_MORPH_TARGETS.length||HERO_RUNTIME_MORPH_TARGETS.some((n,i)=>targetNames[i]!==n))throw new Error('Runtime GLB morph targets are non-canonical.');
  const primitives=doc.meshes[0]?.primitives;
@@ -69,9 +87,15 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
   if(!primitive?.attributes||primitive.attributes.POSITION===undefined)throw new Error('Runtime GLB primitive has no POSITION attribute.');
   if(primitive.attributes.JOINTS_0===undefined||primitive.attributes.WEIGHTS_0===undefined)throw new Error('Runtime GLB primitive is not skinned.');
   const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');validateAccessorStorage(doc,pos,'POSITION',binLength);
-  const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');validateAccessorStorage(doc,joints,'JOINTS_0',binLength);
-  const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');validateAccessorStorage(doc,weights,'WEIGHTS_0',binLength);
-  const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');validateAccessorStorage(doc,indices,'indices',binLength);
+  const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');const jointStorage=validateAccessorStorage(doc,joints,'JOINTS_0',binLength);
+  const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');const weightStorage=validateAccessorStorage(doc,weights,'WEIGHTS_0',binLength);
+  for(let i=0;i<pos.count;i++){
+   const js=readAccessorElement(view,binStart,joints,jointStorage,i);if(js.some(j=>!Number.isInteger(j)||j<0||j>=skin.joints.length))throw new Error('Runtime GLB JOINTS_0 references a joint outside the skin palette.');
+   const ws=readAccessorElement(view,binStart,weights,weightStorage,i);if(ws.some(w=>!Number.isFinite(w)||w<0))throw new Error('Runtime GLB WEIGHTS_0 contains invalid weights.');
+   const sum=ws.reduce((a,b)=>a+b,0);if(Math.abs(sum-1)>1e-3)throw new Error('Runtime GLB WEIGHTS_0 must sum to one per vertex.');
+  }
+  const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');const indexStorage=validateAccessorStorage(doc,indices,'indices',binLength);
+  for(let i=0;i<indices.count;i++)if(readAccessorElement(view,binStart,indices,indexStorage,i)[0]>=pos.count)throw new Error('Runtime GLB index references a vertex outside POSITION.');
   if(!Array.isArray(primitive.targets)||primitive.targets.length!==HERO_RUNTIME_MORPH_TARGETS.length)throw new Error('Runtime GLB primitive morph count is non-canonical.');
   for(const target of primitive.targets){const morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');validateAccessorStorage(doc,morph,'morph POSITION',binLength);}
   vertices+=pos.count;triangles+=indices.count/3;
