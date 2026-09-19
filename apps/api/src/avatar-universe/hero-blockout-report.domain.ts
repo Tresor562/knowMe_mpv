@@ -1,6 +1,6 @@
 import { AVATAR_CANONICAL_SKELETON } from './avatar-asset-manifest.domain';
 
-export const HERO_BLOCKOUT_REPORT_VERSION = 4 as const;
+export const HERO_BLOCKOUT_REPORT_VERSION = 5 as const;
 export const HERO_BLOCKOUT_ASSET_KEY = 'knowme.hero.blockout.v1' as const;
 export const HERO_BLOCKOUT_REQUIRED_OBJECTS = ['BODY','EYE_L','EYE_R'] as const;
 export const HERO_BLOCKOUT_OPTIONAL_OBJECTS = ['TEETH','TONGUE','HAIR_PLACEHOLDER'] as const;
@@ -10,13 +10,13 @@ export type HeroBlockoutObjectReport = { role:HeroBlockoutObjectRole; vertices:n
 export type HeroBlockoutReport = {
  reportVersion:typeof HERO_BLOCKOUT_REPORT_VERSION; assetKey:typeof HERO_BLOCKOUT_ASSET_KEY; unitSystem:'METERS'; authoringUpAxis:'Z'; runtimeUpAxis:'Y'; pose:'A_POSE'; poseVerified:true;
  measuredLeftUpperArmAngleDeg:number; measuredRightUpperArmAngleDeg:number; centeredWorldOrigin:true; measuredBodyCenterX:number; groundContactY:0; measuredGroundContactMeters:number; groundContactVerified:true; bodyHeightMeters:number; skeletonTarget:typeof AVATAR_CANONICAL_SKELETON; stableVertexOrder:true; deformationTopologyReady:boolean;
- skinningVerified:true; measuredUnweightedBodyVertices:0; measuredMaxBodyBoneInfluences:number; measuredMaxBodyWeightSumError:number; objects:HeroBlockoutObjectReport[];
+ skinningVerified:true; measuredUnweightedBodyVertices:0; measuredMaxBodyBoneInfluences:number; measuredMaxBodyWeightSumError:number; uvVerified:true; measuredBodyUvLayers:number; measuredBodyUvOutOfBoundsLoops:0; objects:HeroBlockoutObjectReport[];
 };
 
 const HERO_BLOCKOUT_ALLOWED_ROLE_SET=new Set<string>(HERO_BLOCKOUT_ALLOWED_OBJECTS);
-const HERO_BLOCKOUT_REPORT_KEYS=new Set(['reportVersion','assetKey','unitSystem','authoringUpAxis','runtimeUpAxis','pose','poseVerified','measuredLeftUpperArmAngleDeg','measuredRightUpperArmAngleDeg','centeredWorldOrigin','measuredBodyCenterX','groundContactY','measuredGroundContactMeters','groundContactVerified','bodyHeightMeters','skeletonTarget','stableVertexOrder','deformationTopologyReady','skinningVerified','measuredUnweightedBodyVertices','measuredMaxBodyBoneInfluences','measuredMaxBodyWeightSumError','objects']);
+const HERO_BLOCKOUT_REPORT_KEYS=new Set(['reportVersion','assetKey','unitSystem','authoringUpAxis','runtimeUpAxis','pose','poseVerified','measuredLeftUpperArmAngleDeg','measuredRightUpperArmAngleDeg','centeredWorldOrigin','measuredBodyCenterX','groundContactY','measuredGroundContactMeters','groundContactVerified','bodyHeightMeters','skeletonTarget','stableVertexOrder','deformationTopologyReady','skinningVerified','measuredUnweightedBodyVertices','measuredMaxBodyBoneInfluences','measuredMaxBodyWeightSumError','uvVerified','measuredBodyUvLayers','measuredBodyUvOutOfBoundsLoops','objects']);
 const HERO_BLOCKOUT_OBJECT_KEYS=new Set(['role','vertices','triangles','manifold','unappliedTransforms','fusedClothingOrAccessories']);
-export const HERO_BLOCKOUT_BUDGETS=Object.freeze({minHeightMeters:1.35,maxHeightMeters:2.15,maxBodyTriangles:60000,maxBodyVertices:45000,maxTotalTriangles:75000,maxCenterOffsetMeters:0.002,maxGroundOffsetMeters:0.002,minUpperArmAngleDeg:25,maxUpperArmAngleDeg:60,maxArmAngleAsymmetryDeg:8,maxBodyBoneInfluences:4,maxBodyWeightSumError:0.02});
+export const HERO_BLOCKOUT_BUDGETS=Object.freeze({minHeightMeters:1.35,maxHeightMeters:2.15,maxBodyTriangles:60000,maxBodyVertices:45000,maxTotalTriangles:75000,maxCenterOffsetMeters:0.002,maxGroundOffsetMeters:0.002,minUpperArmAngleDeg:25,maxUpperArmAngleDeg:60,maxArmAngleAsymmetryDeg:8,maxBodyBoneInfluences:4,maxBodyWeightSumError:0.02,minBodyUvLayers:1});
 
 function isRecord(value:unknown):value is Record<string,unknown>{return typeof value==='object'&&value!==null&&!Array.isArray(value);}
 function assertExactKeys(value:Record<string,unknown>,allowed:Set<string>,scope:string):void{for(const key of Object.keys(value))if(!allowed.has(key))throw new Error(`${scope} contains unsupported field ${key}.`);}
@@ -39,6 +39,7 @@ export function validateHeroBlockoutReport(input:HeroBlockoutReport):HeroBlockou
  if(input.stableVertexOrder!==true)throw new Error('Hero blockout vertex order must be locked before DNA morph production.');
  if(input.deformationTopologyReady!==true)throw new Error('Hero blockout requires deformation-ready topology around major joints and face loops.');
  if(input.skinningVerified!==true||input.measuredUnweightedBodyVertices!==0||typeof input.measuredMaxBodyBoneInfluences!=='number'||!Number.isSafeInteger(input.measuredMaxBodyBoneInfluences)||input.measuredMaxBodyBoneInfluences<1||input.measuredMaxBodyBoneInfluences>HERO_BLOCKOUT_BUDGETS.maxBodyBoneInfluences||!isFiniteNumber(input.measuredMaxBodyWeightSumError)||input.measuredMaxBodyWeightSumError<0||input.measuredMaxBodyWeightSumError>HERO_BLOCKOUT_BUDGETS.maxBodyWeightSumError)throw new Error('Hero BODY skinning evidence is missing or outside the mobile deformation budget.');
+ if(input.uvVerified!==true||typeof input.measuredBodyUvLayers!=='number'||!Number.isSafeInteger(input.measuredBodyUvLayers)||input.measuredBodyUvLayers<HERO_BLOCKOUT_BUDGETS.minBodyUvLayers||input.measuredBodyUvOutOfBoundsLoops!==0)throw new Error('Hero BODY UV evidence is missing or outside the mobile 0-1 texture tile.');
  if(!Array.isArray(input.objects)||input.objects.length<3)throw new Error('Hero blockout object report is incomplete.');
  const roles:string[]=[];
  for(const rawObject of input.objects as unknown[]){
