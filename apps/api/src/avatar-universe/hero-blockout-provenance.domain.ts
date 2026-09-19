@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { HeroBlockoutReport, validateHeroBlockoutReport } from './hero-blockout-report-v11.domain';
+import { HeroBlockoutReport, validateHeroBlockoutReport } from './hero-blockout-report-v12.domain';
 
 export const HERO_BLOCKOUT_PROVENANCE_VERSION = 1 as const;
 export type HeroBlockoutSourceFormat = 'BLEND' | 'GLB' | 'GLTF' | 'FBX' | 'OBJ';
