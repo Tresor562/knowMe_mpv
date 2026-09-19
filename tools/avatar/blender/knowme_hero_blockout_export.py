@@ -1,15 +1,15 @@
 """KnowMe Hero Avatar production measurement exporter.
 
 Run inside Blender after opening the real Hero .blend. It inspects evaluated geometry,
-skinning, UVs and runtime PBR material structure and writes the v6 JSON report consumed
-by the server-side production gate. Generated concept art is never treated as runtime 3D.
+skinning, UVs, PBR materials and runtime texture budgets and writes the v7 JSON report.
+Generated concept art is never treated as runtime 3D.
 """
 from __future__ import annotations
 import json, math
 from pathlib import Path
 import bpy
 
-REPORT_VERSION=6
+REPORT_VERSION=7
 ASSET_KEY="knowme.hero.blockout.v1"
 SKELETON="knowme.humanoid.v1"
 REQUIRED=("BODY","EYE_L","EYE_R")
@@ -24,6 +24,8 @@ A_POSE_SIDE_SYMMETRY_DEG=8.0
 MAX_BODY_BONE_INFLUENCES=4
 MAX_BODY_WEIGHT_SUM_ERROR=0.02
 MAX_MATERIALS_PER_OBJECT=2
+MAX_TEXTURE_DIMENSION=2048
+MAX_TOTAL_TEXTURE_PIXELS=4*2048*2048
 
 def _is_manifold(mesh):
  import bmesh; bm=bmesh.new()
@@ -88,8 +90,7 @@ def _validate_body_uv(body):
  return {"layers":len(layers),"outOfBoundsLoops":0}
 
 def _validate_pbr_materials(objects):
- """Require glTF-friendly node materials; reject legacy/non-node shaders and material sprawl."""
- material_count=0
+ material_count=0; images={}; body_base_color=False
  for role,obj in objects.items():
   slots=[s.material for s in obj.material_slots if s.material is not None]
   if not slots: raise RuntimeError(f"{role} must have a runtime PBR material")
@@ -97,17 +98,27 @@ def _validate_pbr_materials(objects):
   material_count+=len(slots)
   for material in slots:
    if not material.use_nodes or material.node_tree is None: raise RuntimeError(f"{role}/{material.name} must use node-based PBR")
-   principled=[n for n in material.node_tree.nodes if n.type=='BSDF_PRINCIPLED']
-   outputs=[n for n in material.node_tree.nodes if n.type=='OUTPUT_MATERIAL' and n.is_active_output]
+   principled=[n for n in material.node_tree.nodes if n.type=='BSDF_PRINCIPLED']; outputs=[n for n in material.node_tree.nodes if n.type=='OUTPUT_MATERIAL' and n.is_active_output]
    if len(principled)!=1 or len(outputs)!=1: raise RuntimeError(f"{role}/{material.name} must have exactly one Principled BSDF and one active Material Output")
    surface=outputs[0].inputs.get('Surface')
-   if surface is None or not surface.is_linked or surface.links[0].from_node!=principled[0]: raise RuntimeError(f"{role}/{material.name} Principled BSDF must directly drive Material Output Surface for deterministic glTF export")
- return {"materialSlots":material_count,"maxPerObject":max(len([s for s in o.material_slots if s.material]) for o in objects.values())}
+   if surface is None or not surface.is_linked or surface.links[0].from_node!=principled[0]: raise RuntimeError(f"{role}/{material.name} Principled BSDF must directly drive Material Output Surface")
+   base=principled[0].inputs.get('Base Color')
+   if role=='BODY' and base and base.is_linked and base.links[0].from_node.type=='TEX_IMAGE': body_base_color=True
+   for node in material.node_tree.nodes:
+    if node.type!='TEX_IMAGE' or node.image is None: continue
+    image=node.image; w,h=int(image.size[0]),int(image.size[1])
+    if w<=0 or h<=0: raise RuntimeError(f"{role}/{material.name}/{image.name} has invalid texture dimensions")
+    if w>MAX_TEXTURE_DIMENSION or h>MAX_TEXTURE_DIMENSION: raise RuntimeError(f"{image.name} exceeds Android texture dimension budget ({w}x{h})")
+    images[image.name]=(w,h)
+ if not body_base_color: raise RuntimeError("BODY Base Color must be driven by an image texture for production Hero texturing")
+ total_pixels=sum(w*h for w,h in images.values())
+ if total_pixels>MAX_TOTAL_TEXTURE_PIXELS: raise RuntimeError(f"Hero textures exceed Android pixel budget ({total_pixels} > {MAX_TOTAL_TEXTURE_PIXELS})")
+ return {"materialSlots":material_count,"maxPerObject":max(len([s for s in o.material_slots if s.material]) for o in objects.values()),"textureCount":len(images),"maxTextureDimension":max(max(x) for x in images.values()) if images else 0,"totalTexturePixels":total_pixels,"bodyBaseColorTexture":body_base_color}
 
 def _pose_bone(armature,*names):
  for name in names:
   bone=armature.pose.bones.get(name)
-  if bone is not None: return bone
+  if bone is not None:return bone
  raise RuntimeError("Missing canonical Hero pose bone; expected one of: "+", ".join(names))
 
 def _arm_angle_from_horizontal(armature,side):
@@ -133,7 +144,7 @@ def export_report(output_path=None):
  if abs(center)>SPATIAL_TOLERANCE_M: raise RuntimeError("BODY must be centered on world X=0")
  if abs(z0)>SPATIAL_TOLERANCE_M: raise RuntimeError("BODY feet must contact Blender Z=0")
  metrics=[_mesh_metrics(objects[n],depsgraph) for n in REQUIRED+OPTIONAL if n in objects]
- report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left,4),"measuredRightUpperArmAngleDeg":round(right,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center,6),"groundContactY":0,"measuredGroundContactMeters":round(z0,6),"groundContactVerified":True,"bodyHeightMeters":round(z1-z0,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"skinningVerified":True,"measuredUnweightedBodyVertices":skinning["unweighted"],"measuredMaxBodyBoneInfluences":skinning["maxInfluences"],"measuredMaxBodyWeightSumError":round(skinning["maxWeightSumError"],6),"uvVerified":True,"measuredBodyUvLayers":uv["layers"],"measuredBodyUvOutOfBoundsLoops":uv["outOfBoundsLoops"],"pbrMaterialsVerified":True,"measuredMaterialSlots":pbr["materialSlots"],"measuredMaxMaterialsPerObject":pbr["maxPerObject"],"objects":metrics}
+ report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left,4),"measuredRightUpperArmAngleDeg":round(right,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center,6),"groundContactY":0,"measuredGroundContactMeters":round(z0,6),"groundContactVerified":True,"bodyHeightMeters":round(z1-z0,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"skinningVerified":True,"measuredUnweightedBodyVertices":skinning["unweighted"],"measuredMaxBodyBoneInfluences":skinning["maxInfluences"],"measuredMaxBodyWeightSumError":round(skinning["maxWeightSumError"],6),"uvVerified":True,"measuredBodyUvLayers":uv["layers"],"measuredBodyUvOutOfBoundsLoops":uv["outOfBoundsLoops"],"pbrMaterialsVerified":True,"measuredMaterialSlots":pbr["materialSlots"],"measuredMaxMaterialsPerObject":pbr["maxPerObject"],"texturesVerified":True,"bodyBaseColorTextureVerified":pbr["bodyBaseColorTexture"],"measuredTextureCount":pbr["textureCount"],"measuredMaxTextureDimension":pbr["maxTextureDimension"],"measuredTotalTexturePixels":pbr["totalTexturePixels"],"objects":metrics}
  path=Path(output_path or bpy.path.abspath("//hero-blockout-report.json")); path.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8"); print(f"KnowMe Hero report written: {path}"); return report
 
-if __name__=="__main__": export_report()
+if __name__=="__main__":export_report()
