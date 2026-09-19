@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 import { AVATAR_CANONICAL_SKELETON } from './avatar-asset-manifest.domain';
-import { HERO_BLOCKOUT_ASSET_KEY,HERO_DNA_MORPH_NAMES,HERO_EXPRESSION_MORPH_NAMES,HeroBlockoutReport,validateHeroBlockoutReport } from './hero-blockout-report-v12.domain';
+import { HERO_BLOCKOUT_ASSET_KEY,HERO_BLOCKOUT_BUDGETS,HERO_DNA_MORPH_NAMES,HERO_EXPRESSION_MORPH_NAMES,HeroBlockoutReport,validateHeroBlockoutReport } from './hero-blockout-report-v12.domain';
 
 export const HERO_RUNTIME_BUNDLE_VERSION=13 as const;
 export const HERO_RUNTIME_FORMAT='GLB' as const;
 export const HERO_RUNTIME_MAX_BYTES=[8*1024*1024,5*1024*1024,3*1024*1024] as const;
+export const HERO_RUNTIME_MAX_ABS_POSITION_METERS=4 as const;
+export const HERO_RUNTIME_MAX_EXPRESSION_DELTA_METERS=0.12 as const;
 export const HERO_RUNTIME_MORPH_TARGETS=[...HERO_DNA_MORPH_NAMES,...HERO_EXPRESSION_MORPH_NAMES] as const;
 export type HeroRuntimeLod={level:0|1|2;fileName:string;sha256:string;downloadBytes:number;vertices:number;triangles:number};
 export type HeroRuntimeBundle={bundleVersion:typeof HERO_RUNTIME_BUNDLE_VERSION;assetKey:typeof HERO_BLOCKOUT_ASSET_KEY;format:typeof HERO_RUNTIME_FORMAT;skeletonKey:typeof AVATAR_CANONICAL_SKELETON;morphTargets:string[];lods:HeroRuntimeLod[];sourceReport:HeroBlockoutReport};
@@ -52,6 +54,7 @@ function readAccessorElement(view:DataView,binStart:number,a:any,storage:{start:
  const values:number[]=[];const base=binStart+storage.start+index*storage.stride;
  for(let c=0;c<storage.components;c++){const raw=readComponent(view,base+c*storage.componentBytes,a.componentType);values.push(a.normalized===true?normalizedComponent(raw,a.componentType):raw);}return values;
 }
+function vectorLength3(v:number[]){return Math.hypot(v[0],v[1],v[2]);}
 
 export function inspectHeroRuntimeGlb(bytes:Uint8Array){
  if(!(bytes instanceof Uint8Array)||bytes.byteLength<28)throw new Error('Runtime GLB is truncated.');
@@ -86,7 +89,8 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
   if(primitive?.mode!==undefined&&primitive.mode!==4)throw new Error('Runtime GLB Hero primitives must use TRIANGLES mode.');
   if(!primitive?.attributes||primitive.attributes.POSITION===undefined)throw new Error('Runtime GLB primitive has no POSITION attribute.');
   if(primitive.attributes.JOINTS_0===undefined||primitive.attributes.WEIGHTS_0===undefined)throw new Error('Runtime GLB primitive is not skinned.');
-  const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');validateAccessorStorage(doc,pos,'POSITION',binLength);
+  const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');const posStorage=validateAccessorStorage(doc,pos,'POSITION',binLength);
+  for(let i=0;i<pos.count;i++){const p=readAccessorElement(view,binStart,pos,posStorage,i);if(p.some(v=>!Number.isFinite(v)))throw new Error('Runtime GLB POSITION contains non-finite coordinates.');if(p.some(v=>Math.abs(v)>HERO_RUNTIME_MAX_ABS_POSITION_METERS))throw new Error('Runtime GLB POSITION exceeds the Hero world-space safety bound.');}
   const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');const jointStorage=validateAccessorStorage(doc,joints,'JOINTS_0',binLength);
   const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');const weightStorage=validateAccessorStorage(doc,weights,'WEIGHTS_0',binLength);
   for(let i=0;i<pos.count;i++){
@@ -97,7 +101,11 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
   const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');const indexStorage=validateAccessorStorage(doc,indices,'indices',binLength);
   for(let i=0;i<indices.count;i++)if(readAccessorElement(view,binStart,indices,indexStorage,i)[0]>=pos.count)throw new Error('Runtime GLB index references a vertex outside POSITION.');
   if(!Array.isArray(primitive.targets)||primitive.targets.length!==HERO_RUNTIME_MORPH_TARGETS.length)throw new Error('Runtime GLB primitive morph count is non-canonical.');
-  for(const target of primitive.targets){const morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');validateAccessorStorage(doc,morph,'morph POSITION',binLength);}
+  for(let targetIndex=0;targetIndex<primitive.targets.length;targetIndex++){
+   const target=primitive.targets[targetIndex],morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');const morphStorage=validateAccessorStorage(doc,morph,'morph POSITION',binLength);
+   const isDna=targetIndex<HERO_DNA_MORPH_NAMES.length;const maxDelta=isDna?HERO_BLOCKOUT_BUDGETS.maxDnaVertexDeltaMeters:HERO_RUNTIME_MAX_EXPRESSION_DELTA_METERS;
+   for(let i=0;i<morph.count;i++){const delta=readAccessorElement(view,binStart,morph,morphStorage,i);if(delta.some(v=>!Number.isFinite(v)))throw new Error('Runtime GLB morph POSITION contains non-finite deltas.');if(vectorLength3(delta)>maxDelta+1e-6)throw new Error(`Runtime GLB morph POSITION exceeds the ${isDna?'DNA':'expression'} deformation budget.`);}
+  }
   vertices+=pos.count;triangles+=indices.count/3;
  }
  return {meshCount:doc.meshes.length,skinCount:doc.skins.length,morphTargetCount:targetNames.length,vertices,triangles};
