@@ -10,8 +10,11 @@ export type HeroRuntimeLod={level:0|1|2;fileName:string;sha256:string;downloadBy
 export type HeroRuntimeBundle={bundleVersion:typeof HERO_RUNTIME_BUNDLE_VERSION;assetKey:typeof HERO_BLOCKOUT_ASSET_KEY;format:typeof HERO_RUNTIME_FORMAT;skeletonKey:typeof AVATAR_CANONICAL_SKELETON;morphTargets:string[];lods:HeroRuntimeLod[];sourceReport:HeroBlockoutReport};
 const SHA256=/^[a-f0-9]{64}$/;
 const FILE=/^knowme-hero-lod([012])\.glb$/;
-const GLB_MAGIC=0x46546c67,GLB_VERSION=2,GLB_JSON=0x4e4f534a;
+const GLB_MAGIC=0x46546c67,GLB_VERSION=2,GLB_JSON=0x4e4f534a,GLB_BIN=0x004e4942;
+const COMPONENT_BYTES:Record<number,number>={5120:1,5121:1,5122:2,5123:2,5125:4,5126:4};
+const TYPE_COMPONENTS:Record<string,number>={SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT2:4,MAT3:9,MAT4:16};
 const positiveInt=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0;
+const nonNegativeInt=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
 const accessor=(doc:any,index:unknown,label:string)=>{
  if(!Number.isSafeInteger(index)||Number(index)<0||!Array.isArray(doc.accessors)||!doc.accessors[index as number])throw new Error(`Runtime GLB ${label} accessor is invalid.`);
  const a=doc.accessors[index as number];if(!positiveInt(a.count))throw new Error(`Runtime GLB ${label} accessor count is invalid.`);return a;
@@ -19,8 +22,28 @@ const accessor=(doc:any,index:unknown,label:string)=>{
 
 export function sha256RuntimeBytes(bytes:Uint8Array){return createHash('sha256').update(bytes).digest('hex');}
 
+function validateAccessorStorage(doc:any,a:any,label:string,binLength:number){
+ if(a.sparse!==undefined)throw new Error(`Runtime GLB ${label} sparse accessors are not allowed.`);
+ if(!nonNegativeInt(a.bufferView)||!Array.isArray(doc.bufferViews)||!doc.bufferViews[a.bufferView])throw new Error(`Runtime GLB ${label} bufferView is invalid.`);
+ const bv=doc.bufferViews[a.bufferView];
+ if(bv.buffer!==0)throw new Error(`Runtime GLB ${label} must reference the embedded GLB buffer.`);
+ if(!positiveInt(bv.byteLength)||!nonNegativeInt(bv.byteOffset??0))throw new Error(`Runtime GLB ${label} bufferView range is invalid.`);
+ const componentBytes=COMPONENT_BYTES[a.componentType],components=TYPE_COMPONENTS[a.type];
+ if(!componentBytes||!components)throw new Error(`Runtime GLB ${label} accessor layout is unsupported.`);
+ const elementBytes=componentBytes*components;
+ const stride=bv.byteStride??elementBytes;
+ if(!positiveInt(stride)||stride<elementBytes||stride%componentBytes!==0)throw new Error(`Runtime GLB ${label} byteStride is invalid.`);
+ const accessorOffset=a.byteOffset??0;
+ if(!nonNegativeInt(accessorOffset)||accessorOffset%componentBytes!==0)throw new Error(`Runtime GLB ${label} byteOffset is invalid.`);
+ const start=(bv.byteOffset??0)+accessorOffset;
+ const end=start+(a.count-1)*stride+elementBytes;
+ const viewEnd=(bv.byteOffset??0)+bv.byteLength;
+ if(start<0||end>viewEnd||viewEnd>binLength)throw new Error(`Runtime GLB ${label} binary range exceeds its bufferView.`);
+ return {start,stride,componentBytes,elementBytes};
+}
+
 export function inspectHeroRuntimeGlb(bytes:Uint8Array){
- if(!(bytes instanceof Uint8Array)||bytes.byteLength<20)throw new Error('Runtime GLB is truncated.');
+ if(!(bytes instanceof Uint8Array)||bytes.byteLength<28)throw new Error('Runtime GLB is truncated.');
  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
  if(view.getUint32(0,true)!==GLB_MAGIC)throw new Error('Runtime file is not a GLB.');
  if(view.getUint32(4,true)!==GLB_VERSION)throw new Error('Runtime GLB must use glTF 2.0.');
@@ -28,6 +51,11 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
  const jsonLength=view.getUint32(12,true),jsonType=view.getUint32(16,true);
  if(jsonType!==GLB_JSON||jsonLength===0||20+jsonLength>bytes.byteLength)throw new Error('Runtime GLB JSON chunk is invalid.');
  let doc:any;try{doc=JSON.parse(new TextDecoder().decode(bytes.subarray(20,20+jsonLength)).trim());}catch{throw new Error('Runtime GLB JSON is malformed.');}
+ const binHeader=20+jsonLength;
+ if(binHeader+8>bytes.byteLength||view.getUint32(binHeader+4,true)!==GLB_BIN)throw new Error('Runtime GLB must contain one embedded BIN chunk.');
+ const binLength=view.getUint32(binHeader,true),binStart=binHeader+8;
+ if(binStart+binLength!==bytes.byteLength)throw new Error('Runtime GLB BIN chunk length is invalid.');
+ if(!Array.isArray(doc.buffers)||doc.buffers.length!==1||doc.buffers[0]?.uri!==undefined||doc.buffers[0]?.byteLength!==binLength)throw new Error('Runtime GLB embedded buffer contract is invalid.');
  if(doc?.asset?.version!=='2.0')throw new Error('Runtime GLB asset version must be 2.0.');
  if(!Array.isArray(doc.meshes)||doc.meshes.length!==1)throw new Error('Runtime GLB must contain exactly one Hero body mesh.');
  if(!Array.isArray(doc.skins)||doc.skins.length!==1||!Array.isArray(doc.skins[0]?.joints)||doc.skins[0].joints.length<1)throw new Error('Runtime GLB must contain exactly one non-empty canonical skin.');
@@ -40,12 +68,12 @@ export function inspectHeroRuntimeGlb(bytes:Uint8Array){
   if(primitive?.mode!==undefined&&primitive.mode!==4)throw new Error('Runtime GLB Hero primitives must use TRIANGLES mode.');
   if(!primitive?.attributes||primitive.attributes.POSITION===undefined)throw new Error('Runtime GLB primitive has no POSITION attribute.');
   if(primitive.attributes.JOINTS_0===undefined||primitive.attributes.WEIGHTS_0===undefined)throw new Error('Runtime GLB primitive is not skinned.');
-  const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');
-  const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');
-  const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');
-  const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');
+  const pos=accessor(doc,primitive.attributes.POSITION,'POSITION');if(pos.type!=='VEC3'||pos.componentType!==5126)throw new Error('Runtime GLB POSITION must be FLOAT VEC3.');validateAccessorStorage(doc,pos,'POSITION',binLength);
+  const joints=accessor(doc,primitive.attributes.JOINTS_0,'JOINTS_0');if(joints.type!=='VEC4'||![5121,5123].includes(joints.componentType)||joints.count!==pos.count)throw new Error('Runtime GLB JOINTS_0 contract is invalid.');validateAccessorStorage(doc,joints,'JOINTS_0',binLength);
+  const weights=accessor(doc,primitive.attributes.WEIGHTS_0,'WEIGHTS_0');if(weights.type!=='VEC4'||![5121,5123,5126].includes(weights.componentType)||weights.count!==pos.count||([5121,5123].includes(weights.componentType)&&weights.normalized!==true))throw new Error('Runtime GLB WEIGHTS_0 contract is invalid.');validateAccessorStorage(doc,weights,'WEIGHTS_0',binLength);
+  const indices=accessor(doc,primitive.indices,'indices');if(indices.type!=='SCALAR'||![5121,5123,5125].includes(indices.componentType)||indices.count%3!==0)throw new Error('Runtime GLB indices must encode triangles.');validateAccessorStorage(doc,indices,'indices',binLength);
   if(!Array.isArray(primitive.targets)||primitive.targets.length!==HERO_RUNTIME_MORPH_TARGETS.length)throw new Error('Runtime GLB primitive morph count is non-canonical.');
-  for(const target of primitive.targets){const morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');}
+  for(const target of primitive.targets){const morph=accessor(doc,target?.POSITION,'morph POSITION');if(morph.type!=='VEC3'||morph.componentType!==5126||morph.count!==pos.count)throw new Error('Runtime GLB morph POSITION contract is invalid.');validateAccessorStorage(doc,morph,'morph POSITION',binLength);}
   vertices+=pos.count;triangles+=indices.count/3;
  }
  return {meshCount:doc.meshes.length,skinCount:doc.skins.length,morphTargetCount:targetNames.length,vertices,triangles};
