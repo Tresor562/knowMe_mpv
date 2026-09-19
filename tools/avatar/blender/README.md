@@ -4,20 +4,20 @@ This directory bridges the art DCC and the authoritative Avatar pipeline. It del
 
 ## Scene contract
 
-Use Blender metric units (`METRIC`, scale 1.0). Keep the production body in A-pose. Required mesh object names are `BODY`, `EYE_L`, and `EYE_R`; optional blockout meshes are `TEETH`, `TONGUE`, and `HAIR_PLACEHOLDER`. Clothing, shoes, weapons, backpacks and accessories must remain separate assets and must never be fused into `BODY`.
+Use Blender metric units (`METRIC`, scale 1.0). Keep the production body in A-pose. Required v11 source meshes are `BODY`, `EYE_L`, and `EYE_R`; optional blockout meshes are `TEETH`, `TONGUE`, and `HAIR_PLACEHOLDER`. Clothing, shoes, weapons, backpacks and accessories must remain separate assets and must never be fused into `BODY`.
 
 Before measuring, apply object transforms and set these reviewed custom properties only after the topology review: scene `knowme_centered_world_origin = true`; BODY `knowme_stable_vertex_order = true`; BODY `knowme_deformation_topology_ready = true`. Do not set them merely to make validation pass.
 
-## Measure the real source
+## Hero v12 certification
 
-Open the real `.blend`, ensure `tools/avatar/blender` is importable, then run `knowme_hero_v11_export.py`. It reuses v10 geometry/skinning/UV/PBR/DNA/expression certification and adds measured combined-deformation stress QA. It writes `hero-blockout-report.json` next to the `.blend` by default.
+Open the real `.blend`, ensure `tools/avatar/blender` is importable, then run `knowme_hero_v12_export.py`. v12 preserves the full v11 geometry/skinning/UV/PBR/DNA/expression/combined-deformation gate and adds measured LOD certification.
 
-The `dna_` and `expr_` namespaces coexist on the same `BODY` shape-key stack. Individual DNA and expression gates verify canonical names, topology, finite data, non-empty deformation and neutral export values. v11 then evaluates six deterministic runtime-legal stress combinations through Blender's dependency graph. For every case it requires stable evaluated topology and finite vertices, enforces a 0.42 m maximum combined displacement, builds a BVH over the evaluated BODY, and rejects non-adjacent triangle self-intersections. Triangle pairs sharing vertices are ignored so ordinary manifold adjacency is not misclassified as a collision.
+The source certification mesh remains `BODY`. Production LOD meshes must additionally exist as `BODY_LOD0`, `BODY_LOD1`, and `BODY_LOD2`. They must all use the same armature, keep at most four active bone influences per vertex and carry the exact same ordered `Basis` + canonical DNA + canonical expression shape-key contract. Every shape key must be neutral during certification. This intentionally favors runtime correctness over destructive decimation that silently drops Avatar DNA or facial animation.
 
-The v11 report adds `combinedDeformationsVerified`, `combinationCaseNames`, `measuredCombinationCaseCount`, `measuredMaxCombinedVertexDeltaMeters`, and `measuredMaxSelfIntersectionCount`. `hero-blockout-report-v11.domain.ts` independently requires the canonical ordered stress matrix, exact count, finite displacement within budget and exactly zero measured self-intersections. The provenance gate consumes v11 as well, so JSON evidence is revalidated when bound to source bytes.
+LOD geometry is measured from Blender loop triangles, not trusted metadata. Mobile ceilings are 60k / 30k / 12k triangles for LOD0/1/2. Counts must strictly decrease; LOD1 must reduce at least 25% from LOD0 and LOD2 at least 50% from LOD1. The report records vertices, triangles, active influence maxima and measured reduction ratios for each level. `hero-blockout-report-v12.domain.ts` independently recomputes reduction ratios and rejects forged metrics, wrong object identities, missing shape keys, non-canonical ordering and skinning over four influences.
 
-This is a certification pipeline, not proof that the artistic Hero exists. The real Hero `.blend`/GLB remains a production dependency until actual source geometry is created and passes these gates.
+The provenance gate consumes v12, so LOD evidence is revalidated when a report is bound to source bytes. This is still a certification pipeline, not proof that the artistic Hero exists. The real Hero `.blend`/GLB remains a production dependency until actual source geometry is created and passes these gates.
 
 ## Next production gates
 
-Next: LOD0/LOD1/LOD2 generation and topology/skin/morph preservation policy; GLB/glTF export and runtime manifest validation; Android GPU/memory/performance QA; then modular cosmetic compatibility against the common skeleton. Do not publish the Hero or derived cosmetics until their applicable gates pass.
+Next: deterministic GLB/glTF export for the certified LOD set, runtime manifest generation/validation, Android GPU/memory/performance QA, then modular cosmetic compatibility against the common skeleton. Do not publish the Hero or derived cosmetics until their applicable gates pass.
