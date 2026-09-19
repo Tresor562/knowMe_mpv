@@ -8,10 +8,11 @@ const sourceReport=():HeroBlockoutReport=>({
 } as HeroBlockoutReport);
 
 const makeGlb=(vertices:number,triangles:number,targetNames:string[]=[...HERO_RUNTIME_MORPH_TARGETS],mutate?:(doc:any)=>void)=>{
- const accessors=[{count:vertices,type:'VEC3',componentType:5126},{count:vertices,type:'VEC4',componentType:5123},{count:vertices,type:'VEC4',componentType:5126},{count:triangles*3,type:'SCALAR',componentType:5125},{count:vertices,type:'VEC3',componentType:5126}];
- const doc:any={asset:{version:'2.0'},accessors,skins:[{joints:[0]}],meshes:[{extras:{targetNames},primitives:[{mode:4,indices:3,attributes:{POSITION:0,JOINTS_0:1,WEIGHTS_0:2},targets:targetNames.map(()=>({POSITION:4}))}]}]};mutate?.(doc);
- const raw=new TextEncoder().encode(JSON.stringify(doc));const padded=(raw.length+3)&~3;const out=new Uint8Array(20+padded);const view=new DataView(out.buffer);
- view.setUint32(0,0x46546c67,true);view.setUint32(4,2,true);view.setUint32(8,out.byteLength,true);view.setUint32(12,padded,true);view.setUint32(16,0x4e4f534a,true);out.fill(0x20,20);out.set(raw,20);return out;
+ const accessors=[{count:vertices,type:'VEC3',componentType:5126,bufferView:0},{count:vertices,type:'VEC4',componentType:5123,bufferView:0},{count:vertices,type:'VEC4',componentType:5126,bufferView:0},{count:triangles*3,type:'SCALAR',componentType:5125,bufferView:0},{count:vertices,type:'VEC3',componentType:5126,bufferView:0}];
+ const binLength=Math.max(vertices*16,triangles*3*4);
+ const doc:any={asset:{version:'2.0'},buffers:[{byteLength:binLength}],bufferViews:[{buffer:0,byteOffset:0,byteLength:binLength}],accessors,skins:[{joints:[0]}],meshes:[{extras:{targetNames},primitives:[{mode:4,indices:3,attributes:{POSITION:0,JOINTS_0:1,WEIGHTS_0:2},targets:targetNames.map(()=>({POSITION:4}))}]}]};mutate?.(doc);
+ const raw=new TextEncoder().encode(JSON.stringify(doc));const padded=(raw.length+3)&~3;const out=new Uint8Array(20+padded+8+binLength);const view=new DataView(out.buffer);
+ view.setUint32(0,0x46546c67,true);view.setUint32(4,2,true);view.setUint32(8,out.byteLength,true);view.setUint32(12,padded,true);view.setUint32(16,0x4e4f534a,true);out.fill(0x20,20,20+padded);out.set(raw,20);const binHeader=20+padded;view.setUint32(binHeader,binLength,true);view.setUint32(binHeader+4,0x004e4942,true);return out;
 };
 const bytes=LOD_VERTICES.map((v,i)=>makeGlb(v,LOD_TRIANGLES[i]));
 const bundle=():HeroRuntimeBundle=>({bundleVersion:HERO_RUNTIME_BUNDLE_VERSION,assetKey:HERO_BLOCKOUT_ASSET_KEY,format:'GLB',skeletonKey:AVATAR_CANONICAL_SKELETON,morphTargets:[...HERO_DNA_MORPH_NAMES,...HERO_EXPRESSION_MORPH_NAMES],sourceReport:sourceReport(),lods:bytes.map((b,i)=>({level:i as 0|1|2,fileName:`knowme-hero-lod${i}.glb`,sha256:sha256RuntimeBytes(b),downloadBytes:b.byteLength,vertices:LOD_VERTICES[i],triangles:LOD_TRIANGLES[i]}))});
@@ -28,6 +29,11 @@ describe('Hero runtime bundle v13',()=>{
  it('rejects malformed skin accessor contracts',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.accessors[1].type='VEC3';});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/JOINTS_0/);});
  it('rejects morph accessors with a different vertex domain',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.accessors[4].count=5999;});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/morph POSITION/);});
  it('rejects non-triangle index streams',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.accessors[3].count=29999;});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/indices/);});
+ it('rejects bufferViews that exceed the embedded BIN chunk',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.bufferViews[0].byteLength=999999999;});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/binary range/);});
+ it('rejects accessor offsets escaping their bufferView',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.accessors[0].byteOffset=doc.bufferViews[0].byteLength;});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/binary range/);});
+ it('rejects invalid interleaved strides',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.bufferViews[0].byteStride=2;});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/byteStride/);});
+ it('rejects external or secondary buffers',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.buffers[0].uri='evil.bin';});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/embedded buffer/);});
+ it('rejects sparse runtime accessors',()=>{const b=bundle();const forged=makeGlb(6000,10000,undefined,doc=>{doc.accessors[0].sparse={count:1};});expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/sparse/);});
  it('rejects non-GLB payload even with matching manifest digest',()=>{const b=bundle();const forged=new Uint8Array(32);expect(()=>verifyHeroRuntimeBundleBytes(b,replace(b,2,forged))).toThrow(/not a GLB/);});
  it('rejects extra runtime files',()=>{const b=bundle();const files=new Map(b.lods.map((l,i)=>[l.fileName,bytes[i]]));files.set('evil.glb',new Uint8Array([1]));expect(()=>verifyHeroRuntimeBundleBytes(b,files)).toThrow(/exactly three|Unexpected/);});
 });
