@@ -1,9 +1,9 @@
-import {HERO_ANDROID_PROFILE_SCHEMA,HERO_ANDROID_MIN_SAMPLE_FRAMES,verifyHeroAndroidMeasuredProfile} from './hero-runtime-android-profile-v16.domain';
-
+import {HERO_ANDROID_PROFILE_SCHEMA,HERO_ANDROID_MIN_SAMPLE_FRAMES,heroRuntimeBundleFingerprint,verifyHeroAndroidMeasuredProfile} from './hero-runtime-android-profile-v16.domain';
 const valid=()=>({schema:HERO_ANDROID_PROFILE_SCHEMA,device:{manufacturer:'Reference',model:'Android-mid',androidApi:30,gpu:'Reference GPU',renderer:'Vulkan'},build:{appVersion:'1.0.0',commitSha:'a'.repeat(40),runtimeBundleSha256:'b'.repeat(64)},measurement:{coldLoadMs:1800,warmLoadMs:600,frames:HERO_ANDROID_MIN_SAMPLE_FRAMES,p95FrameMs:22,p99FrameMs:31,peakJavaBytes:20_000_000,peakNativeBytes:30_000_000,peakGpuBytes:40_000_000},lodTransitions:[{from:0 as const,to:1 as const,distanceM:3,frame:200},{from:1 as const,to:2 as const,distanceM:6,frame:400}]});
-
+const bundle=()=>({bundleVersion:13,assetKey:'knowme.hero.v1',format:'GLB',skeletonKey:'knowme.humanoid.v1',morphTargets:['a'],lods:[{level:0,fileName:'knowme-hero-lod0.glb',sha256:'1'.repeat(64),downloadBytes:10,vertices:3,triangles:1}],sourceReport:{}} as any);
 describe('Hero runtime measured Android profile v16',()=>{
- it('accepts a provenance-bound measured run within budgets',()=>expect(verifyHeroAndroidMeasuredProfile(valid())).toBeTruthy());
+ it('accepts a provenance-shaped measured run within budgets',()=>expect(verifyHeroAndroidMeasuredProfile(valid())).toBeTruthy());
+ it('fingerprints runtime identity deterministically and detects a GLB digest mutation',()=>{const a=bundle(),b=bundle();expect(heroRuntimeBundleFingerprint(a)).toBe(heroRuntimeBundleFingerprint(a));b.lods[0].sha256='2'.repeat(64);expect(heroRuntimeBundleFingerprint(b)).not.toBe(heroRuntimeBundleFingerprint(a));});
  it('rejects fabricated/absent provenance identifiers',()=>{const p=valid();p.build.runtimeBundleSha256='nope';expect(()=>verifyHeroAndroidMeasuredProfile(p)).toThrow(/bundle SHA-256/);});
  it('requires a substantial frame sample',()=>{const p=valid();p.measurement.frames=599;expect(()=>verifyHeroAndroidMeasuredProfile(p)).toThrow(/sample/);});
  it.each([['coldLoadMs',2501,/cold-load/],['warmLoadMs',901,/warm-load/],['p95FrameMs',33.35,/p95/],['p99FrameMs',50.01,/p99/]] as const)('rejects measured %s budget overflow',(field,value,error)=>{const p=valid();(p.measurement as any)[field]=value;if(field==='warmLoadMs')p.measurement.coldLoadMs=1000;if(field==='p95FrameMs')p.measurement.p99FrameMs=40;expect(()=>verifyHeroAndroidMeasuredProfile(p)).toThrow(error);});
