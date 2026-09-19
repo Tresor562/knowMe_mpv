@@ -1,14 +1,14 @@
 """KnowMe Hero Avatar blockout measurement exporter.
 
 Run inside Blender after opening the real Hero .blend. It inspects evaluated geometry
-and writes the v4 JSON report consumed by the server-side production gate.
+and writes the v5 JSON report consumed by the server-side production gate.
 """
 from __future__ import annotations
 import json, math
 from pathlib import Path
 import bpy
 
-REPORT_VERSION=4
+REPORT_VERSION=5
 ASSET_KEY="knowme.hero.blockout.v1"
 SKELETON="knowme.humanoid.v1"
 REQUIRED=("BODY","EYE_L","EYE_R")
@@ -16,6 +16,7 @@ OPTIONAL=("TEETH","TONGUE","HAIR_PLACEHOLDER")
 ALLOWED=set(REQUIRED+OPTIONAL)
 EPSILON=1e-5
 SPATIAL_TOLERANCE_M=0.002
+UV_TOLERANCE=1e-5
 A_POSE_MIN_ARM_ANGLE_DEG=25.0
 A_POSE_MAX_ARM_ANGLE_DEG=60.0
 A_POSE_SIDE_SYMMETRY_DEG=8.0
@@ -80,6 +81,22 @@ def _validate_body_skinning(body,armature):
     if max_sum_error>MAX_BODY_WEIGHT_SUM_ERROR: raise RuntimeError(f"BODY deform weights are not normalized; maximum sum error is {max_sum_error:.6f}")
     return {"unweighted":0,"maxInfluences":max_influences,"maxWeightSumError":max_sum_error}
 
+def _validate_body_uv(body):
+    mesh=body.data
+    layers=list(mesh.uv_layers)
+    if not layers: raise RuntimeError("BODY must have a UV map before Hero certification")
+    active=mesh.uv_layers.active
+    if active is None: raise RuntimeError("BODY must have an active UV map")
+    out_of_bounds=[]
+    for loop_index,uv_loop in enumerate(active.data):
+        u=float(uv_loop.uv.x); v=float(uv_loop.uv.y)
+        if not math.isfinite(u) or not math.isfinite(v): raise RuntimeError(f"BODY UV map contains non-finite coordinates at loop {loop_index}")
+        if u < -UV_TOLERANCE or u > 1.0+UV_TOLERANCE or v < -UV_TOLERANCE or v > 1.0+UV_TOLERANCE: out_of_bounds.append(loop_index)
+    if len(active.data)!=len(mesh.loops): raise RuntimeError("BODY active UV map does not cover every mesh loop")
+    if out_of_bounds:
+        preview=", ".join(str(i) for i in out_of_bounds[:12]); raise RuntimeError(f"BODY active UV map has {len(out_of_bounds)} loops outside the mobile 0-1 UV tile (first: {preview})")
+    return {"layers":len(layers),"outOfBoundsLoops":0}
+
 def _pose_bone(armature,*names):
     for name in names:
         bone=armature.pose.bones.get(name)
@@ -107,13 +124,13 @@ def export_report(output_path=None):
     if scene.unit_settings.system!="METRIC" or abs(scene.unit_settings.scale_length-1.0)>EPSILON: raise RuntimeError("Scene must use metric units with scale_length=1")
     _validate_scene_objects(scene); objects={o.name:o for o in scene.objects if o.name in ALLOWED}; missing=[n for n in REQUIRED if n not in objects]
     if missing: raise RuntimeError("Missing required Hero objects: "+", ".join(missing))
-    armature=_find_armature(scene); skinning=_validate_body_skinning(objects["BODY"],armature); depsgraph=bpy.context.evaluated_depsgraph_get()
-    left_arm_angle,right_arm_angle=_validate_a_pose(scene,depsgraph); body=objects["BODY"]
+    body=objects["BODY"]; armature=_find_armature(scene); skinning=_validate_body_skinning(body,armature); uv=_validate_body_uv(body); depsgraph=bpy.context.evaluated_depsgraph_get()
+    left_arm_angle,right_arm_angle=_validate_a_pose(scene,depsgraph)
     x_min,x_max,z_min,z_max=_evaluated_world_bounds(body,depsgraph); center_x=(x_min+x_max)/2.0
     if abs(center_x)>SPATIAL_TOLERANCE_M: raise RuntimeError(f"BODY must be centered on world X=0 within {SPATIAL_TOLERANCE_M}m; measured center {center_x:.6f}m")
     if abs(z_min)>SPATIAL_TOLERANCE_M: raise RuntimeError(f"BODY feet must contact Blender Z=0 within {SPATIAL_TOLERANCE_M}m; measured {z_min:.6f}m")
     metrics=[_mesh_metrics(objects[n],depsgraph) for n in REQUIRED+OPTIONAL if n in objects]
-    report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left_arm_angle,4),"measuredRightUpperArmAngleDeg":round(right_arm_angle,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center_x,6),"groundContactY":0,"measuredGroundContactMeters":round(z_min,6),"groundContactVerified":True,"bodyHeightMeters":round(z_max-z_min,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"skinningVerified":True,"measuredUnweightedBodyVertices":skinning["unweighted"],"measuredMaxBodyBoneInfluences":skinning["maxInfluences"],"measuredMaxBodyWeightSumError":round(skinning["maxWeightSumError"],6),"objects":metrics}
+    report={"reportVersion":REPORT_VERSION,"assetKey":ASSET_KEY,"unitSystem":"METERS","authoringUpAxis":"Z","runtimeUpAxis":"Y","pose":"A_POSE","poseVerified":True,"measuredLeftUpperArmAngleDeg":round(left_arm_angle,4),"measuredRightUpperArmAngleDeg":round(right_arm_angle,4),"centeredWorldOrigin":True,"measuredBodyCenterX":round(center_x,6),"groundContactY":0,"measuredGroundContactMeters":round(z_min,6),"groundContactVerified":True,"bodyHeightMeters":round(z_max-z_min,6),"skeletonTarget":SKELETON,"stableVertexOrder":bool(body.get("knowme_stable_vertex_order",False)),"deformationTopologyReady":bool(body.get("knowme_deformation_topology_ready",False)),"skinningVerified":True,"measuredUnweightedBodyVertices":skinning["unweighted"],"measuredMaxBodyBoneInfluences":skinning["maxInfluences"],"measuredMaxBodyWeightSumError":round(skinning["maxWeightSumError"],6),"uvVerified":True,"measuredBodyUvLayers":uv["layers"],"measuredBodyUvOutOfBoundsLoops":uv["outOfBoundsLoops"],"objects":metrics}
     path=Path(output_path or bpy.path.abspath("//hero-blockout-report.json")); path.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8"); print(f"KnowMe Hero report written: {path}"); return report
 
 if __name__=="__main__": export_report()
