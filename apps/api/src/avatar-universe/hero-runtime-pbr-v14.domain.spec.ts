@@ -1,4 +1,4 @@
-import {HERO_RUNTIME_MAX_GPU_TEXTURE_BYTES,HERO_RUNTIME_MAX_TEXTURE_DIMENSION,inspectHeroRuntimePbrGlb} from './hero-runtime-pbr-v14.domain';
+import {HERO_RUNTIME_MAX_TEXTURE_DIMENSION,inspectHeroRuntimePbrGlb} from './hero-runtime-pbr-v14.domain';
 
 type Mutator=(doc:any)=>void;
 const png=(w:number,h:number)=>{const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10],0);b.set([73,72,68,82],12);const v=new DataView(b.buffer);v.setUint32(16,w,false);v.setUint32(20,h,false);return b;};
@@ -13,6 +13,6 @@ describe('Hero runtime PBR v14',()=>{
  it('rejects external texture URIs',()=>expect(()=>inspectHeroRuntimePbrGlb(make(d=>{d.images[0]={uri:'https://evil.invalid/a.png',mimeType:'image/png'};}))).toThrow(/embedded/));
  it('rejects unverifiable image formats',()=>expect(()=>inspectHeroRuntimePbrGlb(make(d=>{d.images[0].mimeType='image/webp';}))).toThrow(/PNG or JPEG/));
  it('rejects textures above the mobile dimension budget',()=>expect(()=>inspectHeroRuntimePbrGlb(make(undefined,HERO_RUNTIME_MAX_TEXTURE_DIMENSION+1))).toThrow(/dimension budget/));
- it('rejects aggregate decoded texture memory above the Android GPU budget',()=>{const side=Math.floor(Math.sqrt(HERO_RUNTIME_MAX_GPU_TEXTURE_BYTES/8))+1;expect(()=>inspectHeroRuntimePbrGlb(make(undefined,side))).toThrow(/GPU memory budget/);});
+ it('rejects aggregate decoded texture memory above the Android GPU budget while each texture stays <= 2K',()=>expect(()=>inspectHeroRuntimePbrGlb(make(undefined,1800))).toThrow(/GPU memory budget/));
  it('rejects unused materials that could hide unvalidated payloads',()=>expect(()=>inspectHeroRuntimePbrGlb(make(d=>d.materials.push(JSON.parse(JSON.stringify(d.materials[0])))))).toThrow(/unused materials/));
 });
