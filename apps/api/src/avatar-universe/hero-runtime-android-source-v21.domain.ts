@@ -27,16 +27,16 @@ export class HeroAndroidRuntimeSource{
   this.token={schema:HERO_ANDROID_SOURCE_SCHEMA,sessionId:identity.sessionId,nonce:nonce.toLowerCase()};
  }
  issueToken():HeroAndroidSourceToken{return clone(this.token);}
- private accept(token:HeroAndroidSourceToken,sequence:number,kind:HeroAndroidSourceReceipt['kind']){
+ private authorize(token:HeroAndroidSourceToken,sequence:number){
   if(this.finished)throw new Error('Android source is already finished.');
   if(token?.schema!==HERO_ANDROID_SOURCE_SCHEMA||token.sessionId!==this.token.sessionId||token.nonce!==this.token.nonce)throw new Error('Android source token does not belong to this measured session.');
   if(!Number.isSafeInteger(sequence)||sequence!==this.nextSequence)throw new Error(`Android source callback sequence must be ${this.nextSequence}.`);
-  const atMs=this.clock();if(!Number.isFinite(atMs)||atMs<0)throw new Error('Android source callback timestamp is invalid.');
-  this.receipts.push({sequence,kind,atMs});this.nextSequence++;return atMs;
+  const atMs=this.clock();if(!Number.isFinite(atMs)||atMs<0)throw new Error('Android source callback timestamp is invalid.');return atMs;
  }
- recordFrame(token:HeroAndroidSourceToken,sequence:number,frameTimeMs:number){this.accept(token,sequence,'frame');this.session.recordFrame(frameTimeMs);}
- recordMemory(token:HeroAndroidSourceToken,sequence:number,sample:HeroAndroidMemorySample){this.accept(token,sequence,'memory');this.session.recordMemory(sample);}
- recordLodTransition(token:HeroAndroidSourceToken,sequence:number,transition:HeroLodMeasuredTransition){this.accept(token,sequence,'lod');this.session.recordLodTransition(transition);}
+ private commit(sequence:number,kind:HeroAndroidSourceReceipt['kind'],atMs:number){this.receipts.push({sequence,kind,atMs});this.nextSequence++;}
+ recordFrame(token:HeroAndroidSourceToken,sequence:number,frameTimeMs:number){const atMs=this.authorize(token,sequence);this.session.recordFrame(frameTimeMs);this.commit(sequence,'frame',atMs);}
+ recordMemory(token:HeroAndroidSourceToken,sequence:number,sample:HeroAndroidMemorySample){const atMs=this.authorize(token,sequence);this.session.recordMemory(sample);this.commit(sequence,'memory',atMs);}
+ recordLodTransition(token:HeroAndroidSourceToken,sequence:number,transition:HeroLodMeasuredTransition){const atMs=this.authorize(token,sequence);this.session.recordLodTransition(transition);this.commit(sequence,'lod',atMs);}
  finish(coldLoadMs:number,warmLoadMs:number):HeroAndroidSourceResult{
   if(this.finished)throw new Error('Android source is already finished.');
   const result=this.session.finish(coldLoadMs,warmLoadMs);this.finished=true;
