@@ -1,0 +1,14 @@
+import { AvatarAssetManifest, AVATAR_BODY_MORPHS } from './avatar-asset-manifest.domain';
+import { AvatarGlbInspection, validateAvatarGlbInspection } from './avatar-glb-inspection.domain';
+const HASH='a'.repeat(64);
+const manifest=():AvatarAssetManifest=>({manifestVersion:1,assetKey:'knowme.hero.jacket.v1',kind:'CLOTHING',slot:'AVATAR_OUTFIT',format:'GLB',skeletonKey:'knowme.humanoid.v1',materialProfileKey:'knowme.pbr.mobile.v1',morphTargets:[...AVATAR_BODY_MORPHS],geometry:{skinned:true,maxBonesPerVertex:4},lods:[{level:0,uri:'https://cdn.knowme.test/a.glb',triangles:38000,vertices:25000,downloadBytes:5000000,sha256:HASH},{level:1,uri:'https://cdn.knowme.test/b.glb',triangles:22000,vertices:13000,downloadBytes:2500000,sha256:'b'.repeat(64)},{level:2,uri:'https://cdn.knowme.test/c.glb',triangles:9000,vertices:6000,downloadBytes:1000000,sha256:'c'.repeat(64)}],textures:{baseColor:'asset://a',normal:'asset://n',metallicRoughness:'asset://m',maxResolution:2048},provenance:{sourceRevision:'src-v1',exportRevision:'export-v1',exporter:'blender',exporterVersion:'4.3',skeletonVersion:'knowme.humanoid.v1',validatedAt:'2026-09-20T09:00:00Z'},pbr:true,originalDesign:true});
+const inspection=():AvatarGlbInspection=>({sha256:HASH,byteLength:5000000,triangles:38000,vertices:25000,meshes:1,primitives:2,materials:1,textures:3,joints:Array.from({length:55},(_,i)=>`joint_${i}`),morphTargets:[...AVATAR_BODY_MORPHS],maxBonesPerVertex:4,cameras:0,lights:0,animations:0,skins:1,pbrMetallicRoughness:true});
+describe('Avatar GLB inspection gates',()=>{
+ it('accepts inspection matching the certified manifest',()=>expect(validateAvatarGlbInspection(manifest(),manifest().lods[0],inspection())).toBeTruthy());
+ it('rejects binary substitution',()=>{const x=inspection();x.sha256='d'.repeat(64);expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/SHA-256/);});
+ it('rejects manifest geometry lies',()=>{const x=inspection();x.triangles--;expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/geometry metrics/);});
+ it('rejects embedded scene cameras',()=>{const x=inspection();x.cameras=1;expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/cameras or lights/);});
+ it('rejects excessive skin influences',()=>{const x=inspection();x.maxBonesPerVertex=5;expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/4 bone influences/);});
+ it('rejects missing declared morph targets',()=>{const x=inspection();x.morphTargets=x.morphTargets.slice(1);expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/missing declared morph/);});
+ it('rejects undeclared morph targets',()=>{const x=inspection();x.morphTargets.push('secretMorph');expect(()=>validateAvatarGlbInspection(manifest(),manifest().lods[0],x)).toThrow(/undeclared morph/);});
+});
