@@ -30,7 +30,7 @@ model HeroRuntimeEvidence {
   commitSha             String  @db.Char(40)
   acceptedAtMs          BigInt
   consumedAtMs          BigInt?
-  certificationId       String?
+  certificationId       String? @unique
 
   @@index([runtimeBundleSha256])
 }
