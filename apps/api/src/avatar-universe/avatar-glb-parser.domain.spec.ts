@@ -1,24 +1,27 @@
 import { inspectAvatarGlb } from './avatar-glb-parser.domain';
 
-function glb(json: unknown) {
-  const encoded = new TextEncoder().encode(JSON.stringify(json));
-  const padded = new Uint8Array(Math.ceil(encoded.length / 4) * 4); padded.set(encoded); padded.fill(0x20, encoded.length);
-  const out = new Uint8Array(20 + padded.length); const view = new DataView(out.buffer);
-  view.setUint32(0, 0x46546c67, true); view.setUint32(4, 2, true); view.setUint32(8, out.length, true);
-  view.setUint32(12, padded.length, true); view.setUint32(16, 0x4e4f534a, true); out.set(padded, 20); return out;
+function fixture(){
+ const bin=new Uint8Array(324),v=new DataView(bin.buffer);let o=0;
+ const views:any[]=[];const push=(bytes:number,fill:(base:number)=>void)=>{const start=o;fill(start);o+=bytes;views.push({buffer:0,byteOffset:start,byteLength:bytes});return views.length-1;};
+ const pos=push(72,b=>{for(let i=0;i<18;i++)v.setFloat32(b+i*4,i/10,true);});
+ const normal=push(72,b=>{for(let i=0;i<6;i++)v.setFloat32(b+i*12+4,1,true);});
+ const uv=push(48,b=>{for(let i=0;i<12;i++)v.setFloat32(b+i*4,(i%2),true);});
+ const joints=push(24,b=>{for(let i=0;i<24;i++)bin[b+i]=i%4;});
+ const weights=push(96,b=>{for(let i=0;i<24;i++)v.setFloat32(b+i*4,.25,true);});
+ const indices=push(12,b=>{for(let i=0;i<6;i++)v.setUint16(b+i*2,i,true);});
+ const accessors=[{bufferView:indices,componentType:5123,count:6,type:'SCALAR'},{bufferView:pos,componentType:5126,count:6,type:'VEC3'},{bufferView:joints,componentType:5121,count:6,type:'VEC4'},{bufferView:weights,componentType:5126,count:6,type:'VEC4'},{bufferView:normal,componentType:5126,count:6,type:'VEC3'},{bufferView:uv,componentType:5126,count:6,type:'VEC2'}];
+ const json:any={asset:{version:'2.0'},buffers:[{byteLength:bin.length}],bufferViews:views,accessors,materials:[{pbrMetallicRoughness:{}}],textures:[{}],nodes:[{name:'root'},{name:'hips'}],skins:[{joints:[0,1]}],meshes:[{extras:{targetNames:['bodyMass']},primitives:[{indices:0,attributes:{POSITION:1,JOINTS_0:2,WEIGHTS_0:3,NORMAL:4,TEXCOORD_0:5},targets:[{POSITION:1}]}]}]};return{json,bin};
 }
-const doc = () => ({
-  asset:{version:'2.0'}, accessors:[{count:6},{count:6},{count:6}],
-  materials:[{pbrMetallicRoughness:{}}], textures:[{}],
-  nodes:[{name:'root'},{name:'hips'}], skins:[{joints:[0,1]}],
-  meshes:[{extras:{targetNames:['bodyMass']},primitives:[{indices:0,attributes:{POSITION:1,JOINTS_0:2,WEIGHTS_0:2},targets:[{POSITION:1}]}]}],
-});
+function glb(json:any,bin:Uint8Array){const enc=new TextEncoder().encode(JSON.stringify(json)),jp=new Uint8Array(Math.ceil(enc.length/4)*4);jp.set(enc);jp.fill(0x20,enc.length);const bp=new Uint8Array(Math.ceil(bin.length/4)*4);bp.set(bin);const out=new Uint8Array(12+8+jp.length+8+bp.length),view=new DataView(out.buffer);view.setUint32(0,0x46546c67,true);view.setUint32(4,2,true);view.setUint32(8,out.length,true);view.setUint32(12,jp.length,true);view.setUint32(16,0x4e4f534a,true);out.set(jp,20);const p=20+jp.length;view.setUint32(p,bp.length,true);view.setUint32(p+4,0x004e4942,true);out.set(bp,p+8);return out;}
 describe('Avatar GLB binary inspector',()=>{
-  it('derives geometry, skin, PBR and morph observations from GLB bytes',()=>{const x=inspectAvatarGlb(glb(doc()));expect(x.triangles).toBe(2);expect(x.vertices).toBe(6);expect(x.joints).toEqual(['root','hips']);expect(x.morphTargets).toEqual(['bodyMass']);expect(x.maxBonesPerVertex).toBe(4);expect(x.pbrMetallicRoughness).toBe(true);expect(x.sha256).toMatch(/^[a-f0-9]{64}$/);});
-  it('rejects forged container length',()=>{const b=glb(doc());new DataView(b.buffer).setUint32(8,b.length-4,true);expect(()=>inspectAvatarGlb(b)).toThrow(/declared length/);});
-  it('rejects non triangle primitives',()=>{const x:any=doc();x.meshes[0].primitives[0].mode=1;expect(()=>inspectAvatarGlb(glb(x))).toThrow(/TRIANGLES/);});
-  it('rejects non-indexed runtime geometry',()=>{const x:any=doc();delete x.meshes[0].primitives[0].indices;expect(()=>inspectAvatarGlb(glb(x))).toThrow(/indexed/);});
-  it('detects second joint set as eight possible influences',()=>{const x:any=doc();x.meshes[0].primitives[0].attributes.JOINTS_1=2;x.meshes[0].primitives[0].attributes.WEIGHTS_1=2;expect(inspectAvatarGlb(glb(x)).maxBonesPerVertex).toBe(8);});
-  it('rejects unnamed skin joints',()=>{const x:any=doc();delete x.nodes[1].name;expect(()=>inspectAvatarGlb(glb(x))).toThrow(/stable node names/);});
-  it('rejects anonymous morph targets',()=>{const x:any=doc();delete x.meshes[0].extras;expect(()=>inspectAvatarGlb(glb(x))).toThrow(/targetNames/);});
+ it('derives geometry and actual vertex payload observations',()=>{const f=fixture(),x=inspectAvatarGlb(glb(f.json,f.bin));expect(x.triangles).toBe(2);expect(x.vertices).toBe(6);expect(x.maxBonesPerVertex).toBe(4);expect(x.normalizedSkinWeights).toBe(true);expect(x.hasNormals).toBe(true);expect(x.hasUv0).toBe(true);expect(x.invalidNumericData).toBe(false);expect(x.joints).toEqual(['root','hips']);expect(x.morphTargets).toEqual(['bodyMass']);});
+ it('rejects forged container length',()=>{const f=fixture(),b=glb(f.json,f.bin);new DataView(b.buffer).setUint32(8,b.length-4,true);expect(()=>inspectAvatarGlb(b)).toThrow(/declared length/);});
+ it('rejects non triangle primitives',()=>{const f=fixture();f.json.meshes[0].primitives[0].mode=1;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/TRIANGLES/);});
+ it('rejects non-indexed runtime geometry',()=>{const f=fixture();delete f.json.meshes[0].primitives[0].indices;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/indexed/);});
+ it('counts actual non-zero influences across a second joint set',()=>{const f=fixture(),p=f.json.meshes[0].primitives[0];p.attributes.JOINTS_1=2;p.attributes.WEIGHTS_1=3;expect(inspectAvatarGlb(glb(f.json,f.bin)).maxBonesPerVertex).toBe(8);});
+ it('detects non-normalized skin weights from BIN payload',()=>{const f=fixture();new DataView(f.bin.buffer).setFloat32(216,.5,true);expect(inspectAvatarGlb(glb(f.json,f.bin)).normalizedSkinWeights).toBe(false);});
+ it('detects NaN vertex payload',()=>{const f=fixture();new DataView(f.bin.buffer).setFloat32(0,Number.NaN,true);expect(inspectAvatarGlb(glb(f.json,f.bin)).invalidNumericData).toBe(true);});
+ it('rejects accessor escaping its bufferView',()=>{const f=fixture();f.json.bufferViews[0].byteLength=2;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/exceeds its bufferView/);});
+ it('rejects unnamed skin joints',()=>{const f=fixture();delete f.json.nodes[1].name;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/stable node names/);});
+ it('rejects anonymous morph targets',()=>{const f=fixture();delete f.json.meshes[0].extras;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/targetNames/);});
 });
