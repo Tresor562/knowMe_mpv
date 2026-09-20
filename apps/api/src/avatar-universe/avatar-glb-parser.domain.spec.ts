@@ -31,4 +31,7 @@ describe('Avatar GLB binary inspector',()=>{
  it('does not count bytes outside the image bufferView',()=>{const f=fixture();f.json.bufferViews[f.texture].byteLength=23;expect(()=>inspectAvatarGlb(glb(f.json,f.bin))).toThrow(/PNG texture has an invalid signature or truncated IHDR/);});
  it('detects normal-map usage',()=>{const f=fixture();f.json.materials[0].normalTexture={index:0};expect(inspectAvatarGlb(glb(f.json,f.bin)).normalMappedMaterials).toBe(1);});
  it('allows BasisU but reports unsupported texture extensions',()=>{const f=fixture();f.json.extensionsUsed=['KHR_texture_basisu','KHR_texture_transform'];expect(inspectAvatarGlb(glb(f.json,f.bin)).unsupportedTextureExtensions).toEqual(['KHR_texture_transform']);});
+ it('rejects an undeclared KHR_texture_basisu source graph',()=>{const f=fixture();f.json.textures[0].extensions={KHR_texture_basisu:{source:0}};expect(inspectAvatarGlb(glb(f.json,f.bin)).textureReferencesValid).toBe(false);});
+ it('requires a BasisU source image to be KTX2 rather than a PNG fallback',()=>{const f=fixture();f.json.extensionsUsed=['KHR_texture_basisu'];f.json.textures[0].extensions={KHR_texture_basisu:{source:0}};expect(inspectAvatarGlb(glb(f.json,f.bin)).textureReferencesValid).toBe(false);});
+ it('rejects an out-of-range BasisU source even when a valid fallback exists',()=>{const f=fixture();f.json.extensionsUsed=['KHR_texture_basisu'];f.json.textures[0].extensions={KHR_texture_basisu:{source:99}};expect(inspectAvatarGlb(glb(f.json,f.bin)).textureReferencesValid).toBe(false);});
 });
