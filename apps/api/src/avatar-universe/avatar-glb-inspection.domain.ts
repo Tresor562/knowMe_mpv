@@ -11,8 +11,8 @@ export type AvatarGlbInspection = {
   invalidNumericData:boolean; normalizedSkinWeights:boolean;
   textureReferencesValid:boolean; embeddedImages:boolean; externalImages:number;
   normalMappedMaterials:number; unsupportedTextureExtensions:string[];
-  maxTextureWidth:number; maxTextureHeight:number; textureGpuBytes:number;
-  textureEncodedBytes:number; textureMipChainsComplete:boolean;
+  maxTextureWidth?:number; maxTextureHeight?:number; textureGpuBytes?:number;
+  textureEncodedBytes?:number; textureMipChainsComplete?:boolean;
 };
 
 const SHA256=/^[a-f0-9]{64}$/i;
@@ -32,11 +32,11 @@ export function validateAvatarGlbInspection(manifest:AvatarAssetManifest,lod:Ava
  if(inspection.externalImages>0||!inspection.embeddedImages)throw new Error('Runtime avatar GLB textures must be embedded in the GLB.');
  if(inspection.unsupportedTextureExtensions.length)throw new Error(`Runtime avatar GLB uses unsupported texture extensions: ${inspection.unsupportedTextureExtensions.join(', ')}.`);
  const maxResolution=Math.min(manifest.textures.maxResolution,AVATAR_MOBILE_ASSET_BUDGETS.maxTextureResolution);
- if(!Number.isSafeInteger(inspection.maxTextureWidth)||!Number.isSafeInteger(inspection.maxTextureHeight)||inspection.maxTextureWidth<1||inspection.maxTextureHeight<1)throw new Error('Runtime avatar GLB texture dimensions were not inspected from embedded image bytes.');
- if(inspection.maxTextureWidth>maxResolution||inspection.maxTextureHeight>maxResolution)throw new Error(`Runtime avatar GLB texture exceeds certified ${maxResolution}px resolution.`);
- if(!Number.isSafeInteger(inspection.textureGpuBytes)||inspection.textureGpuBytes<1)throw new Error('Runtime avatar GLB texture GPU budget was not derived from embedded image bytes.');
- if(!Number.isSafeInteger(inspection.textureEncodedBytes)||inspection.textureEncodedBytes<1||inspection.textureEncodedBytes>inspection.byteLength)throw new Error('Runtime avatar GLB embedded texture byte accounting is invalid.');
- if(lod.level>0&&!inspection.textureMipChainsComplete)throw new Error('Mobile LOD1/LOD2 avatar textures require complete mip chains.');
+ if(!Number.isSafeInteger(inspection.maxTextureWidth)||!Number.isSafeInteger(inspection.maxTextureHeight)||(inspection.maxTextureWidth??0)<1||(inspection.maxTextureHeight??0)<1)throw new Error('Runtime avatar GLB texture dimensions were not inspected from embedded image bytes.');
+ if((inspection.maxTextureWidth??0)>maxResolution||(inspection.maxTextureHeight??0)>maxResolution)throw new Error(`Runtime avatar GLB texture exceeds certified ${maxResolution}px resolution.`);
+ if(!Number.isSafeInteger(inspection.textureGpuBytes)||(inspection.textureGpuBytes??0)<1)throw new Error('Runtime avatar GLB texture GPU budget was not derived from embedded image bytes.');
+ if(!Number.isSafeInteger(inspection.textureEncodedBytes)||(inspection.textureEncodedBytes??0)<1||(inspection.textureEncodedBytes??0)>inspection.byteLength)throw new Error('Runtime avatar GLB embedded texture byte accounting is invalid.');
+ if(lod.level>0&&inspection.textureMipChainsComplete!==true)throw new Error('Mobile LOD1/LOD2 avatar textures require complete mip chains.');
  if(inspection.invalidNumericData)throw new Error('Runtime avatar GLB contains non-finite vertex data.');
  if(manifest.geometry?.skinned){if(inspection.skins<1)throw new Error('Skinned avatar GLB must contain a skin.');if(inspection.maxBonesPerVertex>4)throw new Error('Avatar GLB exceeds 4 non-zero bone influences per vertex.');if(inspection.joints.length===0)throw new Error('Skinned avatar GLB must expose joints.');if(!inspection.normalizedSkinWeights)throw new Error('Avatar GLB skin weights must be normalized per vertex.');}
  if(manifest.skeletonKey===AVATAR_CANONICAL_SKELETON&&manifest.geometry?.skinned&&inspection.joints.length<15)throw new Error('Avatar GLB skeleton inspection is incomplete.');
