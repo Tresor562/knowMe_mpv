@@ -1,84 +1,16 @@
 import { sha256AvatarGlb, AvatarGlbInspection } from './avatar-glb-inspection.domain';
 
-const GLB_MAGIC = 0x46546c67;
-const JSON_CHUNK = 0x4e4f534a;
-const TRIANGLES = 4;
-
-type Gltf = {
-  accessors?: Array<{ count?: number }>;
-  meshes?: Array<{ name?: string; primitives?: Array<{ mode?: number; indices?: number; attributes?: Record<string, number>; targets?: Array<Record<string, number>> }> }>;
-  nodes?: Array<{ name?: string; mesh?: number; skin?: number }>;
-  skins?: Array<{ joints?: number[] }>;
-  materials?: Array<{ pbrMetallicRoughness?: unknown }>;
-  textures?: unknown[];
-  cameras?: unknown[];
-  animations?: unknown[];
-  extensions?: { KHR_lights_punctual?: { lights?: unknown[] } };
-};
-
-function integer(value: unknown, label: string) {
-  if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`Invalid GLB ${label}.`);
-  return value as number;
-}
-
-function parseJsonChunk(bytes: Uint8Array): Gltf {
-  if (bytes.byteLength < 20) throw new Error('GLB is truncated.');
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('Invalid GLB magic.');
-  if (view.getUint32(4, true) !== 2) throw new Error('Only glTF 2.0 GLB is supported.');
-  if (view.getUint32(8, true) !== bytes.byteLength) throw new Error('GLB declared length does not match binary length.');
-  const length = view.getUint32(12, true);
-  if (view.getUint32(16, true) !== JSON_CHUNK || 20 + length > bytes.byteLength) throw new Error('GLB JSON chunk is missing or truncated.');
-  try { return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)).trim()) as Gltf; }
-  catch { throw new Error('GLB JSON chunk is invalid.'); }
-}
-
-export function inspectAvatarGlb(bytes: Uint8Array): AvatarGlbInspection {
-  const gltf = parseJsonChunk(bytes);
-  const accessors = gltf.accessors ?? [];
-  const meshes = gltf.meshes ?? [];
-  const primitives = meshes.flatMap(mesh => mesh.primitives ?? []);
-  let triangles = 0;
-  let vertices = 0;
-  let maxBonesPerVertex = 0;
-  const morphTargets = new Set<string>();
-
-  for (const primitive of primitives) {
-    if ((primitive.mode ?? TRIANGLES) !== TRIANGLES) throw new Error('Avatar GLB primitives must use TRIANGLES mode.');
-    const positionAccessor = primitive.attributes?.POSITION;
-    if (positionAccessor === undefined) throw new Error('Avatar GLB primitive is missing POSITION.');
-    const vertexCount = integer(accessors[positionAccessor]?.count, 'POSITION accessor count');
-    vertices += vertexCount;
-    if (primitive.indices === undefined) throw new Error('Avatar GLB primitive must be indexed.');
-    const indexCount = integer(accessors[primitive.indices]?.count, 'index accessor count');
-    if (indexCount % 3 !== 0) throw new Error('Avatar GLB triangle index count must be divisible by 3.');
-    triangles += indexCount / 3;
-    const attrs = primitive.attributes ?? {};
-    if (attrs.JOINTS_0 !== undefined || attrs.WEIGHTS_0 !== undefined) {
-      if (attrs.JOINTS_0 === undefined || attrs.WEIGHTS_0 === undefined) throw new Error('Avatar GLB JOINTS_0 and WEIGHTS_0 must be paired.');
-      maxBonesPerVertex = Math.max(maxBonesPerVertex, 4);
-    }
-    if (attrs.JOINTS_1 !== undefined || attrs.WEIGHTS_1 !== undefined) maxBonesPerVertex = Math.max(maxBonesPerVertex, 8);
-    const targetNames = (meshes.find(mesh => mesh.primitives?.includes(primitive)) as any)?.extras?.targetNames as string[] | undefined;
-    const targetCount = primitive.targets?.length ?? 0;
-    if (targetCount && (!targetNames || targetNames.length !== targetCount)) throw new Error('Avatar GLB morph targets require exact mesh extras.targetNames.');
-    targetNames?.forEach(name => morphTargets.add(name));
-  }
-
-  const joints = new Set<string>();
-  for (const skin of gltf.skins ?? []) for (const nodeIndex of skin.joints ?? []) {
-    const name = gltf.nodes?.[nodeIndex]?.name;
-    if (!name) throw new Error('Avatar GLB skin joints must have stable node names.');
-    joints.add(name);
-  }
-  const materials = gltf.materials ?? [];
-  const lights = gltf.extensions?.KHR_lights_punctual?.lights?.length ?? 0;
-  return {
-    sha256: sha256AvatarGlb(bytes), byteLength: bytes.byteLength, triangles, vertices,
-    meshes: meshes.length, primitives: primitives.length, materials: materials.length,
-    textures: gltf.textures?.length ?? 0, joints: [...joints], morphTargets: [...morphTargets].sort(),
-    maxBonesPerVertex, cameras: gltf.cameras?.length ?? 0, lights,
-    animations: gltf.animations?.length ?? 0, skins: gltf.skins?.length ?? 0,
-    pbrMetallicRoughness: materials.length > 0 && materials.every(material => material.pbrMetallicRoughness !== undefined),
-  };
-}
+const GLB_MAGIC=0x46546c67,JSON_CHUNK=0x4e4f534a,BIN_CHUNK=0x004e4942,TRIANGLES=4;
+type Accessor={bufferView?:number;byteOffset?:number;componentType?:number;count?:number;type?:string;normalized?:boolean};
+type BufferView={buffer?:number;byteOffset?:number;byteLength?:number;byteStride?:number};
+type Primitive={mode?:number;indices?:number;attributes?:Record<string,number>;targets?:Array<Record<string,number>>};
+type Mesh={name?:string;extras?:{targetNames?:string[]};primitives?:Primitive[]};
+type Gltf={accessors?:Accessor[];bufferViews?:BufferView[];buffers?:Array<{byteLength?:number}>;meshes?:Mesh[];nodes?:Array<{name?:string;mesh?:number;skin?:number}>;skins?:Array<{joints?:number[]}>;materials?:Array<{pbrMetallicRoughness?:unknown}>;textures?:unknown[];cameras?:unknown[];animations?:unknown[];extensions?:{KHR_lights_punctual?:{lights?:unknown[]}}};
+function integer(v:unknown,label:string){if(!Number.isSafeInteger(v)||(v as number)<0)throw new Error(`Invalid GLB ${label}.`);return v as number;}
+function parse(bytes:Uint8Array){if(bytes.byteLength<20)throw new Error('GLB is truncated.');const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);if(v.getUint32(0,true)!==GLB_MAGIC)throw new Error('Invalid GLB magic.');if(v.getUint32(4,true)!==2)throw new Error('Only glTF 2.0 GLB is supported.');if(v.getUint32(8,true)!==bytes.byteLength)throw new Error('GLB declared length does not match binary length.');let p=12;let gltf:Gltf|undefined,bin:Uint8Array|undefined;while(p+8<=bytes.length){const n=v.getUint32(p,true),t=v.getUint32(p+4,true);p+=8;if(p+n>bytes.length)throw new Error('GLB chunk is truncated.');if(t===JSON_CHUNK&&!gltf){try{gltf=JSON.parse(new TextDecoder().decode(bytes.subarray(p,p+n)).trim())}catch{throw new Error('GLB JSON chunk is invalid.');}}else if(t===BIN_CHUNK&&!bin)bin=bytes.subarray(p,p+n);p+=n;}if(!gltf)throw new Error('GLB JSON chunk is missing.');if(p!==bytes.length)throw new Error('GLB has trailing malformed bytes.');return{gltf,bin};}
+const comps:Record<number,{bytes:number;read:(v:DataView,o:number)=>number}>={5120:{bytes:1,read:(v,o)=>v.getInt8(o)},5121:{bytes:1,read:(v,o)=>v.getUint8(o)},5122:{bytes:2,read:(v,o)=>v.getInt16(o,true)},5123:{bytes:2,read:(v,o)=>v.getUint16(o,true)},5125:{bytes:4,read:(v,o)=>v.getUint32(o,true)},5126:{bytes:4,read:(v,o)=>v.getFloat32(o,true)}};
+const widths:Record<string,number>={SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT4:16};
+function values(g:Gltf,bin:Uint8Array|undefined,index:number,label:string){const a=g.accessors?.[index];if(!a)throw new Error(`Invalid GLB ${label} accessor.`);if(a.bufferView===undefined)throw new Error(`Avatar GLB ${label} accessor must use a bufferView.`);const bv=g.bufferViews?.[a.bufferView];if(!bv||bv.buffer!==0||!bin)throw new Error(`Avatar GLB ${label} accessor must reference the embedded BIN buffer.`);const c=comps[a.componentType??0],w=widths[a.type??''];if(!c||!w)throw new Error(`Unsupported GLB ${label} accessor format.`);const count=integer(a.count,`${label} accessor count`),stride=bv.byteStride??c.bytes*w;if(stride<c.bytes*w)throw new Error(`Invalid GLB ${label} byteStride.`);const start=(bv.byteOffset??0)+(a.byteOffset??0),end=start+(count?((count-1)*stride+c.bytes*w):0);if(start<0||end>bin.length||end>(bv.byteOffset??0)+(bv.byteLength??0))throw new Error(`GLB ${label} accessor exceeds its bufferView.`);const view=new DataView(bin.buffer,bin.byteOffset,bin.byteLength),out:number[][]=[];for(let i=0;i<count;i++){const row:number[]=[];for(let j=0;j<w;j++)row.push(c.read(view,start+i*stride+j*c.bytes));out.push(row);}return{a,out};}
+function finite(rows:number[][]){return rows.every(r=>r.every(Number.isFinite));}
+export function inspectAvatarGlb(bytes:Uint8Array):AvatarGlbInspection{const{gltf:g,bin}=parse(bytes),meshes=g.meshes??[],primitives=meshes.flatMap(m=>m.primitives??[]);let triangles=0,vertices=0,maxBonesPerVertex=0,invalidNumericData=false,normalizedSkinWeights=true;let hasNormals=primitives.length>0,hasTangents=primitives.length>0,hasUv0=primitives.length>0;const morphTargets=new Set<string>();for(const primitive of primitives){if((primitive.mode??TRIANGLES)!==TRIANGLES)throw new Error('Avatar GLB primitives must use TRIANGLES mode.');const attrs=primitive.attributes??{};if(attrs.POSITION===undefined)throw new Error('Avatar GLB primitive is missing POSITION.');const pos=values(g,bin,attrs.POSITION,'POSITION');if(pos.a.type!=='VEC3'||pos.a.componentType!==5126)throw new Error('Avatar GLB POSITION must be FLOAT VEC3.');vertices+=pos.out.length;invalidNumericData||=!finite(pos.out);hasNormals&&=attrs.NORMAL!==undefined;hasTangents&&=attrs.TANGENT!==undefined;hasUv0&&=attrs.TEXCOORD_0!==undefined;if(attrs.NORMAL!==undefined){const x=values(g,bin,attrs.NORMAL,'NORMAL');if(x.a.type!=='VEC3'||x.a.componentType!==5126||x.out.length!==pos.out.length)throw new Error('Avatar GLB NORMAL must be matching FLOAT VEC3.');invalidNumericData||=!finite(x.out);}if(attrs.TEXCOORD_0!==undefined){const x=values(g,bin,attrs.TEXCOORD_0,'TEXCOORD_0');if(x.a.type!=='VEC2'||x.out.length!==pos.out.length)throw new Error('Avatar GLB TEXCOORD_0 must be matching VEC2.');invalidNumericData||=!finite(x.out);}if(primitive.indices===undefined)throw new Error('Avatar GLB primitive must be indexed.');const idx=values(g,bin,primitive.indices,'indices');if(idx.a.type!=='SCALAR'||![5121,5123,5125].includes(idx.a.componentType??0))throw new Error('Avatar GLB indices must be unsigned SCALAR.');if(idx.out.length%3)throw new Error('Avatar GLB triangle index count must be divisible by 3.');triangles+=idx.out.length/3;const jointSets:[[number|undefined,number|undefined],[number|undefined,number|undefined]]=[[attrs.JOINTS_0,attrs.WEIGHTS_0],[attrs.JOINTS_1,attrs.WEIGHTS_1]];const perVertex=Array(pos.out.length).fill(0),sums=Array(pos.out.length).fill(0);for(const[j,w]of jointSets){if((j===undefined)!==(w===undefined))throw new Error('Avatar GLB JOINTS/WEIGHTS attributes must be paired.');if(j===undefined||w===undefined)continue;const js=values(g,bin,j,'JOINTS'),ws=values(g,bin,w,'WEIGHTS');if(js.a.type!=='VEC4'||![5121,5123].includes(js.a.componentType??0)||ws.a.type!=='VEC4'||![5126,5121,5123].includes(ws.a.componentType??0)||js.out.length!==pos.out.length||ws.out.length!==pos.out.length)throw new Error('Invalid avatar skin accessor format.');for(let i=0;i<ws.out.length;i++)for(let k=0;k<4;k++){let weight=ws.out[i][k];if(ws.a.componentType===5121)weight/=255;else if(ws.a.componentType===5123)weight/=65535;if(!Number.isFinite(weight)||weight<0)invalidNumericData=true;if(weight>1e-6){perVertex[i]++;sums[i]+=weight;}}}if(jointSets[0][0]!==undefined){maxBonesPerVertex=Math.max(maxBonesPerVertex,...perVertex);normalizedSkinWeights&&=sums.every(s=>Math.abs(s-1)<=1e-3);}const mesh=meshes.find(m=>m.primitives?.includes(primitive));const names=mesh?.extras?.targetNames,targetCount=primitive.targets?.length??0;if(targetCount&&(!names||names.length!==targetCount))throw new Error('Avatar GLB morph targets require exact mesh extras.targetNames.');names?.forEach(n=>morphTargets.add(n));}
+const joints=new Set<string>();for(const skin of g.skins??[])for(const ni of skin.joints??[]){const name=g.nodes?.[ni]?.name;if(!name)throw new Error('Avatar GLB skin joints must have stable node names.');joints.add(name);}const materials=g.materials??[];return{sha256:sha256AvatarGlb(bytes),byteLength:bytes.byteLength,triangles,vertices,meshes:meshes.length,primitives:primitives.length,materials:materials.length,textures:g.textures?.length??0,joints:[...joints],morphTargets:[...morphTargets].sort(),maxBonesPerVertex,cameras:g.cameras?.length??0,lights:g.extensions?.KHR_lights_punctual?.lights?.length??0,animations:g.animations?.length??0,skins:g.skins?.length??0,pbrMetallicRoughness:materials.length>0&&materials.every(m=>m.pbrMetallicRoughness!==undefined),hasNormals,hasTangents,hasUv0,invalidNumericData,normalizedSkinWeights};}
