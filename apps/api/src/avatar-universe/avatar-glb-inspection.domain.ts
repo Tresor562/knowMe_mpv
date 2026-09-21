@@ -17,6 +17,9 @@ export type AvatarGlbInspection = {
   srgbTextureCount?:number; linearTextureCount?:number;
   textureSamplersValid?:boolean; textureSamplerIssues?:string[];
   mipmappedSamplerCount?:number; repeatSamplerCount?:number;
+  rigValid?:boolean; rigIssues?:string[]; rigRootCount?:number; skinnedNodeCount?:number;
+  animationsValid?:boolean; animationIssues?:string[]; animationChannelCount?:number;
+  animatedNodeCount?:number; rotationChannelCount?:number; morphWeightChannelCount?:number;
 };
 
 const SHA256=/^[a-f0-9]{64}$/i;
@@ -44,7 +47,8 @@ export function validateAvatarGlbInspection(manifest:AvatarAssetManifest,lod:Ava
  if(!Number.isSafeInteger(inspection.textureEncodedBytes)||(inspection.textureEncodedBytes??0)<1||(inspection.textureEncodedBytes??0)>inspection.byteLength)throw new Error('Runtime avatar GLB embedded texture byte accounting is invalid.');
  if(lod.level>0&&inspection.textureMipChainsComplete!==true)throw new Error('Mobile LOD1/LOD2 avatar textures require complete mip chains.');
  if(inspection.invalidNumericData)throw new Error('Runtime avatar GLB contains non-finite vertex data.');
- if(manifest.geometry?.skinned){if(inspection.skins<1)throw new Error('Skinned avatar GLB must contain a skin.');if(inspection.maxBonesPerVertex>4)throw new Error('Avatar GLB exceeds 4 non-zero bone influences per vertex.');if(inspection.joints.length===0)throw new Error('Skinned avatar GLB must expose joints.');if(!inspection.normalizedSkinWeights)throw new Error('Avatar GLB skin weights must be normalized per vertex.');}
+ if(manifest.geometry?.skinned){if(inspection.rigValid!==true)throw new Error(`Skinned avatar GLB has an invalid or unverified rig${inspection.rigIssues?.length?`: ${inspection.rigIssues.join(' ')}`:'.'}`);if(inspection.skins<1)throw new Error('Skinned avatar GLB must contain a skin.');if(inspection.maxBonesPerVertex>4)throw new Error('Avatar GLB exceeds 4 non-zero bone influences per vertex.');if(inspection.joints.length===0)throw new Error('Skinned avatar GLB must expose joints.');if(!inspection.normalizedSkinWeights)throw new Error('Avatar GLB skin weights must be normalized per vertex.');}
+ if(inspection.animations>0&&inspection.animationsValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified animations${inspection.animationIssues?.length?`: ${inspection.animationIssues.join(' ')}`:'.'}`);
  if(manifest.skeletonKey===AVATAR_CANONICAL_SKELETON&&manifest.geometry?.skinned&&inspection.joints.length<15)throw new Error('Avatar GLB skeleton inspection is incomplete.');
  const expected=new Set(manifest.morphTargets);const actual=new Set(inspection.morphTargets);for(const morph of expected)if(!actual.has(morph))throw new Error(`Avatar GLB is missing declared morph target ${morph}.`);for(const morph of actual)if(!expected.has(morph))throw new Error(`Avatar GLB contains undeclared morph target ${morph}.`);
  return inspection;
