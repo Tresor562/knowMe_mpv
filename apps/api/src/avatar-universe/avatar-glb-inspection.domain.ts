@@ -15,6 +15,8 @@ export type AvatarGlbInspection = {
   textureEncodedBytes?:number; textureMipChainsComplete?:boolean;
   textureColorSpacesValid?:boolean; textureColorSpaceIssues?:string[];
   srgbTextureCount?:number; linearTextureCount?:number;
+  textureSamplersValid?:boolean; textureSamplerIssues?:string[];
+  mipmappedSamplerCount?:number; repeatSamplerCount?:number;
 };
 
 const SHA256=/^[a-f0-9]{64}$/i;
@@ -34,6 +36,7 @@ export function validateAvatarGlbInspection(manifest:AvatarAssetManifest,lod:Ava
  if(inspection.externalImages>0||!inspection.embeddedImages)throw new Error('Runtime avatar GLB textures must be embedded in the GLB.');
  if(inspection.unsupportedTextureExtensions.length)throw new Error(`Runtime avatar GLB uses unsupported texture extensions: ${inspection.unsupportedTextureExtensions.join(', ')}.`);
  if(inspection.textureColorSpacesValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified texture color-space semantics${inspection.textureColorSpaceIssues?.length?`: ${inspection.textureColorSpaceIssues.join(' ')}`:'.'}`);
+ if(inspection.textureSamplersValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified Android texture samplers${inspection.textureSamplerIssues?.length?`: ${inspection.textureSamplerIssues.join(' ')}`:'.'}`);
  const maxResolution=Math.min(manifest.textures.maxResolution,AVATAR_MOBILE_ASSET_BUDGETS.maxTextureResolution);
  if(!Number.isSafeInteger(inspection.maxTextureWidth)||!Number.isSafeInteger(inspection.maxTextureHeight)||(inspection.maxTextureWidth??0)<1||(inspection.maxTextureHeight??0)<1)throw new Error('Runtime avatar GLB texture dimensions were not inspected from embedded image bytes.');
  if((inspection.maxTextureWidth??0)>maxResolution||(inspection.maxTextureHeight??0)>maxResolution)throw new Error(`Runtime avatar GLB texture exceeds certified ${maxResolution}px resolution.`);
