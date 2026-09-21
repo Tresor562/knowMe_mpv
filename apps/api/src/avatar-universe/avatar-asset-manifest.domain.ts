@@ -15,7 +15,7 @@ export const AVATAR_CANONICAL_SKELETON='knowme.humanoid.v1';
 export const AVATAR_CANONICAL_FACIAL_RIG='knowme.face.v1';
 export const AVATAR_BODY_MORPHS=['height','shoulderWidth','torsoLength','muscleDefinition','bodyMass','headScale'] as const;
 export const AVATAR_FACE_MORPHS=['jawWidth','cheekboneHeight','noseWidth','noseLength','eyeSize','eyeSpacing','browHeight','lipFullness','earSize'] as const;
-export const AVATAR_MOBILE_ASSET_BUDGETS=Object.freeze({maxLod0Triangles:60000,maxLod1Triangles:30000,maxLod2Triangles:12000,maxLod0DownloadBytes:8*1024*1024,maxTextureResolution:2048,maxMorphTargetsPerAsset:32,maxHairLod0Triangles:30000,maxClothingLod0Triangles:40000,maxFootwearLod0Triangles:18000,maxAccessoryLod0Triangles:15000,minLod1TriangleReduction:0.20,minLod2TriangleReductionFromLod1:0.35});
+export const AVATAR_MOBILE_ASSET_BUDGETS=Object.freeze({maxLod0Triangles:60000,maxLod1Triangles:30000,maxLod2Triangles:12000,maxLod0DownloadBytes:8*1024*1024,maxTextureResolution:2048,maxMorphTargetsPerAsset:32,maxHairLod0Triangles:30000,maxClothingLod0Triangles:40000,maxFootwearLod0Triangles:18000,maxAccessoryLod0Triangles:15000,minLod1TriangleReduction:0.20,minLod2TriangleReductionFromLod1:0.35,maxAnimationClipsPerAsset:24,maxAnimationChannelsPerAsset:256,maxAnimationKeyframesPerAsset:12000,maxAnimationClipDurationSeconds:30});
 
 const SAFE_KEY=/^[a-z0-9][a-z0-9._-]{1,95}$/i;
 const SHA256=/^[a-f0-9]{64}$/i;
