@@ -51,7 +51,20 @@ export function validateAvatarGlbInspection(manifest:AvatarAssetManifest,lod:Ava
  if(lod.level>0&&inspection.textureMipChainsComplete!==true)throw new Error('Mobile LOD1/LOD2 avatar textures require complete mip chains.');
  if(inspection.invalidNumericData)throw new Error('Runtime avatar GLB contains non-finite vertex data.');
  if(manifest.geometry?.skinned){if(inspection.rigValid!==true)throw new Error(`Skinned avatar GLB has an invalid or unverified rig${inspection.rigIssues?.length?`: ${inspection.rigIssues.join(' ')}`:'.'}`);if(inspection.skins<1)throw new Error('Skinned avatar GLB must contain a skin.');if(inspection.maxBonesPerVertex>4)throw new Error('Avatar GLB exceeds 4 non-zero bone influences per vertex.');if(inspection.joints.length===0)throw new Error('Skinned avatar GLB must expose joints.');if(!inspection.normalizedSkinWeights)throw new Error('Avatar GLB skin weights must be normalized per vertex.');}
- if(inspection.animations>0){if(inspection.animationsValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified animation structure${inspection.animationIssues?.length?`: ${inspection.animationIssues.join(' ')}`:'.'}`);if(inspection.animationBinaryValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified animation payloads${inspection.animationBinaryIssues?.length?`: ${inspection.animationBinaryIssues.join(' ')}`:'.'}`);}
+ if(inspection.animations>0){
+  if(inspection.animationsValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified animation structure${inspection.animationIssues?.length?`: ${inspection.animationIssues.join(' ')}`:'.'}`);
+  if(inspection.animationBinaryValid!==true)throw new Error(`Runtime avatar GLB has invalid or unverified animation payloads${inspection.animationBinaryIssues?.length?`: ${inspection.animationBinaryIssues.join(' ')}`:'.'}`);
+  const b=AVATAR_MOBILE_ASSET_BUDGETS;
+  if(!Number.isSafeInteger(inspection.animationChannelCount)||(inspection.animationChannelCount??0)<1)throw new Error('Runtime avatar GLB animation channel count was not certified.');
+  if(!Number.isSafeInteger(inspection.animationKeyframeCount)||(inspection.animationKeyframeCount??0)<1)throw new Error('Runtime avatar GLB animation keyframe count was not certified.');
+  if(!Number.isFinite(inspection.maxAnimationClipDurationSeconds)||(inspection.maxAnimationClipDurationSeconds??0)<0)throw new Error('Runtime avatar GLB animation duration was not certified.');
+  if(inspection.animations>b.maxAnimationClipsPerAsset)throw new Error(`Runtime avatar GLB exceeds ${b.maxAnimationClipsPerAsset} animation clips.`);
+  if((inspection.animationChannelCount??0)>b.maxAnimationChannelsPerAsset)throw new Error(`Runtime avatar GLB exceeds ${b.maxAnimationChannelsPerAsset} animation channels.`);
+  if((inspection.animationKeyframeCount??0)>b.maxAnimationKeyframesPerAsset)throw new Error(`Runtime avatar GLB exceeds ${b.maxAnimationKeyframesPerAsset} animation keyframes.`);
+  if((inspection.maxAnimationClipDurationSeconds??0)>b.maxAnimationClipDurationSeconds)throw new Error(`Runtime avatar GLB animation clip exceeds ${b.maxAnimationClipDurationSeconds}s mobile duration budget.`);
+  if((inspection.nonFiniteAnimationValueCount??0)!==0)throw new Error('Runtime avatar GLB contains non-finite animation values.');
+  if((inspection.nonNormalizedQuaternionCount??0)!==0)throw new Error('Runtime avatar GLB contains non-normalized animation quaternions.');
+ }
  if(manifest.skeletonKey===AVATAR_CANONICAL_SKELETON&&manifest.geometry?.skinned&&inspection.joints.length<15)throw new Error('Avatar GLB skeleton inspection is incomplete.');
  const expected=new Set(manifest.morphTargets);const actual=new Set(inspection.morphTargets);for(const morph of expected)if(!actual.has(morph))throw new Error(`Avatar GLB is missing declared morph target ${morph}.`);for(const morph of actual)if(!expected.has(morph))throw new Error(`Avatar GLB contains undeclared morph target ${morph}.`);
  return inspection;
