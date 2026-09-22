@@ -1,4 +1,4 @@
-import { assertAvatarSkeletonCompatibility, validateAvatarAssetManifest, AvatarAssetManifest, AVATAR_BODY_MORPHS } from './avatar-asset-manifest.domain';
+import { assertAvatarSkeletonCompatibility, validateAvatarAssetManifest, AvatarAssetManifest, AVATAR_BODY_MORPHS, AVATAR_FACE_MORPHS } from './avatar-asset-manifest.domain';
 
 const HASH='a'.repeat(64);
 const valid = (): AvatarAssetManifest => ({
@@ -12,9 +12,13 @@ const valid = (): AvatarAssetManifest => ({
   provenance:{sourceRevision:'hero-jacket-src-v1',exportRevision:'hero-jacket-export-v1',exporter:'blender',exporterVersion:'4.3',skeletonVersion:'knowme.humanoid.v1',validatedAt:'2026-09-20T09:00:00.000Z'},
   pbr:true,originalDesign:true
 });
+const baseBody=():AvatarAssetManifest=>{const x=valid();x.assetKey='knowme.hero.base-body.v1';x.kind='BASE_BODY';x.slot=undefined;x.facialRigKey='knowme.face.v1';x.morphTargets=[...AVATAR_BODY_MORPHS,...AVATAR_FACE_MORPHS];x.lods[0].triangles=58000;x.lods[1].triangles=28000;x.lods[2].triangles=11000;x.textures.metallicRoughness=undefined;return x;};
 
 describe('Avatar 3D asset production gates',()=>{
  it('accepts a mobile-ready original PBR clothing asset',()=>expect(validateAvatarAssetManifest(valid())).toBeTruthy());
+ it('accepts a Hero base body only with the canonical facial rig contract',()=>expect(validateAvatarAssetManifest(baseBody()).facialRigKey).toBe('knowme.face.v1'));
+ it('rejects a Hero base body that carries facial DNA without declaring the facial rig',()=>{const x=baseBody();x.facialRigKey=undefined;expect(()=>validateAvatarAssetManifest(x)).toThrow(/BASE_BODY.*canonical facial rig/i);});
+ it('rejects a Hero base body with a non-canonical facial rig',()=>{const x=baseBody();x.facialRigKey='other.face.v1';expect(()=>validateAvatarAssetManifest(x)).toThrow(/BASE_BODY.*canonical facial rig/i);});
  it('enforces the stricter clothing triangle budget',()=>{const x=valid();x.lods[0].triangles=40001;expect(()=>validateAvatarAssetManifest(x)).toThrow(/CLOTHING.*triangle budget/i);});
  it('rejects missing PBR base color',()=>{const x=valid();delete x.textures.baseColor;expect(()=>validateAvatarAssetManifest(x)).toThrow(/baseColor/i);});
  it('validates every texture URI',()=>{const x=valid();x.textures.normal='javascript:bad';expect(()=>validateAvatarAssetManifest(x)).toThrow(/URI/i);});
