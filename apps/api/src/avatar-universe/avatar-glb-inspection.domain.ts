@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
-import { AvatarAssetManifest, AvatarLod, AVATAR_CANONICAL_SKELETON, AVATAR_MOBILE_ASSET_BUDGETS } from './avatar-asset-manifest.domain';
+import { AvatarAssetManifest, AvatarLod, AVATAR_CANONICAL_FACIAL_RIG, AVATAR_CANONICAL_SKELETON, AVATAR_MOBILE_ASSET_BUDGETS } from './avatar-asset-manifest.domain';
+import { AVATAR_EXPRESSION_BLENDSHAPES } from './avatar-facial-expression.domain';
 
 export type AvatarGlbInspection = {
   sha256:string; byteLength:number; triangles:number; vertices:number;
@@ -23,6 +24,8 @@ export type AvatarGlbInspection = {
   animationBinaryValid?:boolean; animationBinaryIssues?:string[]; animationKeyframeCount?:number;
   maxAnimationClipDurationSeconds?:number; nonFiniteAnimationValueCount?:number;
   nonNormalizedQuaternionCount?:number;
+  facialValid?:boolean; facialIssues?:string[]; expressionTargets?:string[];
+  expressionMeshIndices?:number[]; expressionTargetCount?:number; facialWeightChannelCount?:number;
 };
 
 const SHA256=/^[a-f0-9]{64}$/i;
@@ -65,7 +68,15 @@ export function validateAvatarGlbInspection(manifest:AvatarAssetManifest,lod:Ava
   if((inspection.nonFiniteAnimationValueCount??0)!==0)throw new Error('Runtime avatar GLB contains non-finite animation values.');
   if((inspection.nonNormalizedQuaternionCount??0)!==0)throw new Error('Runtime avatar GLB contains non-normalized animation quaternions.');
  }
+ const requiresFacialCertification=(manifest.kind==='BASE_BODY'||manifest.kind==='FACE')&&manifest.facialRigKey===AVATAR_CANONICAL_FACIAL_RIG;
+ if(requiresFacialCertification){
+  if(inspection.facialValid!==true)throw new Error(`Facial avatar GLB has an invalid or unverified expression rig${inspection.facialIssues?.length?`: ${inspection.facialIssues.join(' ')}`:'.'}`);
+  if(!Number.isSafeInteger(inspection.expressionTargetCount)||inspection.expressionTargetCount!==AVATAR_EXPRESSION_BLENDSHAPES.length)throw new Error(`Facial avatar GLB must certify exactly ${AVATAR_EXPRESSION_BLENDSHAPES.length} canonical expression targets.`);
+  const actualExpressions=new Set(inspection.expressionTargets??[]);for(const expression of AVATAR_EXPRESSION_BLENDSHAPES)if(!actualExpressions.has(expression))throw new Error(`Facial avatar GLB is missing canonical expression target ${expression}.`);
+  if(!Array.isArray(inspection.expressionMeshIndices)||inspection.expressionMeshIndices.length<1)throw new Error('Facial avatar GLB must bind canonical expressions to at least one certified mesh.');
+  if(!Number.isSafeInteger(inspection.facialWeightChannelCount)||(inspection.facialWeightChannelCount??0)<1)throw new Error('Facial avatar GLB expressions must be driven by a certified weights animation channel.');
+ }
  if(manifest.skeletonKey===AVATAR_CANONICAL_SKELETON&&manifest.geometry?.skinned&&inspection.joints.length<15)throw new Error('Avatar GLB skeleton inspection is incomplete.');
- const expected=new Set(manifest.morphTargets);const actual=new Set(inspection.morphTargets);for(const morph of expected)if(!actual.has(morph))throw new Error(`Avatar GLB is missing declared morph target ${morph}.`);for(const morph of actual)if(!expected.has(morph))throw new Error(`Avatar GLB contains undeclared morph target ${morph}.`);
+ const expected=new Set(manifest.morphTargets);const actual=new Set(inspection.morphTargets);for(const morph of expected)if(!actual.has(morph))throw new Error(`Avatar GLB is missing declared morph target ${morph}.`);for(const morph of actual)if(!expected.has(morph)&&!(requiresFacialCertification&&AVATAR_EXPRESSION_BLENDSHAPES.includes(morph as (typeof AVATAR_EXPRESSION_BLENDSHAPES)[number])))throw new Error(`Avatar GLB contains undeclared morph target ${morph}.`);
  return inspection;
 }
