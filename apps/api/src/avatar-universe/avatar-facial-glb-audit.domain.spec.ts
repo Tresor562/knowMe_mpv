@@ -5,6 +5,7 @@ const facialMesh = () => ({
   extras: { targetNames: [...AVATAR_EXPRESSION_BLENDSHAPES] },
   primitives: [{ targets: AVATAR_EXPRESSION_BLENDSHAPES.map(() => ({ POSITION: 0 })) }],
 });
+const meshWith = (names: string[]) => ({ extras: { targetNames: names }, primitives: [{ targets: names.map(() => ({ POSITION: 0 })) }] });
 
 describe('auditAvatarFacialGlb', () => {
   it('certifies canonical expression targets bound to the animated facial mesh', () => {
@@ -25,6 +26,25 @@ describe('auditAvatarFacialGlb', () => {
     const result = auditAvatarFacialGlb({ meshes: [mesh], nodes: [{ mesh: 0 }], animations: [{ channels: [{ target: { node: 0, path: 'weights' } }] }] });
     expect(result.valid).toBe(false);
     expect(result.issues.some((issue) => issue.includes('missing expression target'))).toBe(true);
+  });
+
+  it('rejects a canonical contract forged by splitting expressions across meshes', () => {
+    const split = Math.floor(AVATAR_EXPRESSION_BLENDSHAPES.length / 2);
+    const left = AVATAR_EXPRESSION_BLENDSHAPES.slice(0, split);
+    const right = AVATAR_EXPRESSION_BLENDSHAPES.slice(split);
+    const result = auditAvatarFacialGlb({
+      meshes: [meshWith([...left]), meshWith([...right])],
+      nodes: [{ mesh: 0 }, { mesh: 1 }],
+      animations: [{ channels: [
+        { target: { node: 0, path: 'weights' } },
+        { target: { node: 1, path: 'weights' } },
+      ] }],
+    });
+    expect(result.expressionTargetCount).toBe(AVATAR_EXPRESSION_BLENDSHAPES.length);
+    expect(result.expressionMeshIndices).toEqual([]);
+    expect(result.facialWeightChannelCount).toBe(0);
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain('No single facial mesh contains the complete canonical expression contract.');
   });
 
   it('does not let a weights channel on another mesh prove facial animation', () => {
