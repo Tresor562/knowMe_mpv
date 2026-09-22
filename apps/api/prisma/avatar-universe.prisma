@@ -17,3 +17,20 @@ model AvatarIdentityProfile {
   @@index([updatedAt])
   @@index([schemaVersion, renderTier])
 }
+
+/// Durable Android Hero runtime evidence. Provenance fields are immutable after insertion;
+/// consumedAtMs/certificationId form the database-enforced one-shot certification fence.
+model HeroRuntimeEvidence {
+  sessionId             String  @id
+  schema                String
+  sourceEvidenceSha256  String  @unique @db.Char(64)
+  sessionEvidenceSha256 String  @db.Char(64)
+  runtimeBundleSha256   String  @db.Char(64)
+  appVersion            String
+  commitSha             String  @db.Char(40)
+  acceptedAtMs          BigInt
+  consumedAtMs          BigInt?
+  certificationId       String? @unique
+
+  @@index([runtimeBundleSha256])
+}

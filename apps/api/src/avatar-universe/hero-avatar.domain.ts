@@ -6,17 +6,14 @@ import {
   AvatarAssetManifest,
   validateAvatarAssetManifest,
 } from './avatar-asset-manifest.domain';
+import {
+  AVATAR_EXPRESSION_BLENDSHAPES,
+  validateAvatarFacialExpressionContract,
+} from './avatar-facial-expression.domain';
 
 export const HERO_AVATAR_CONTRACT_VERSION = 1 as const;
 export const HERO_AVATAR_KEY = 'knowme.hero.v1' as const;
-
-export const HERO_AVATAR_EXPRESSIONS = [
-  'neutral', 'blinkLeft', 'blinkRight', 'jawOpen', 'smileLeft', 'smileRight',
-  'frownLeft', 'frownRight', 'browInnerUp', 'browOuterUpLeft', 'browOuterUpRight',
-  'eyeLookUpLeft', 'eyeLookUpRight', 'eyeLookDownLeft', 'eyeLookDownRight',
-  'eyeLookInLeft', 'eyeLookInRight', 'eyeLookOutLeft', 'eyeLookOutRight',
-  'mouthPucker', 'mouthFunnel', 'mouthClose', 'cheekPuff', 'noseSneerLeft', 'noseSneerRight',
-] as const;
+export const HERO_AVATAR_EXPRESSIONS = ['neutral', ...AVATAR_EXPRESSION_BLENDSHAPES] as const;
 
 export const HERO_AVATAR_REQUIRED_VIEWS = [
   'front', 'threeQuarterLeft', 'threeQuarterRight', 'profileLeft', 'profileRight',
@@ -42,35 +39,24 @@ export type HeroAvatarProductionContract = {
 };
 
 function assertSafeReferenceUri(uri: string, view: string) {
-  if (typeof uri !== 'string' || !uri.startsWith('https://')) {
-    throw new Error(`Hero Avatar reference ${view} must use https://.`);
-  }
+  if (typeof uri !== 'string' || !uri.startsWith('https://')) throw new Error(`Hero Avatar reference ${view} must use https://.`);
 }
 
 export function validateHeroAvatarProductionContract(input: HeroAvatarProductionContract) {
-  if (input.contractVersion !== HERO_AVATAR_CONTRACT_VERSION || input.heroKey !== HERO_AVATAR_KEY) {
-    throw new Error('Unsupported Hero Avatar production contract.');
-  }
-  if (input.skeletonKey !== AVATAR_CANONICAL_SKELETON || input.facialRigKey !== AVATAR_CANONICAL_FACIAL_RIG) {
-    throw new Error('Hero Avatar must use the canonical body and facial rigs.');
-  }
-  if (input.neutralPose !== 'A_POSE' || input.uvSets !== 1 || input.pbrWorkflow !== 'METALLIC_ROUGHNESS' || input.authoredInLinearColorSpace !== true) {
-    throw new Error('Hero Avatar authoring settings are incompatible with the runtime pipeline.');
-  }
-  if (!Number.isFinite(input.scaleMeters) || input.scaleMeters < 1.4 || input.scaleMeters > 2.1) {
-    throw new Error('Hero Avatar scale must be expressed in realistic meters.');
-  }
+  if (input.contractVersion !== HERO_AVATAR_CONTRACT_VERSION || input.heroKey !== HERO_AVATAR_KEY) throw new Error('Unsupported Hero Avatar production contract.');
+  if (input.skeletonKey !== AVATAR_CANONICAL_SKELETON || input.facialRigKey !== AVATAR_CANONICAL_FACIAL_RIG) throw new Error('Hero Avatar must use the canonical body and facial rigs.');
+  if (input.neutralPose !== 'A_POSE' || input.uvSets !== 1 || input.pbrWorkflow !== 'METALLIC_ROUGHNESS' || input.authoredInLinearColorSpace !== true) throw new Error('Hero Avatar authoring settings are incompatible with the runtime pipeline.');
+  if (!Number.isFinite(input.scaleMeters) || input.scaleMeters < 1.4 || input.scaleMeters > 2.1) throw new Error('Hero Avatar scale must be expressed in realistic meters.');
   const body = validateAvatarAssetManifest(input.baseBody);
   if (body.kind !== 'BASE_BODY') throw new Error('Hero Avatar baseBody must be a BASE_BODY asset.');
-  if (body.skeletonKey !== input.skeletonKey || body.facialRigKey !== input.facialRigKey) {
-    throw new Error('Hero Avatar base body rig metadata is inconsistent.');
-  }
-  for (const morph of [...AVATAR_BODY_MORPHS, ...AVATAR_FACE_MORPHS]) {
-    if (!body.morphTargets.includes(morph)) throw new Error(`Hero Avatar is missing DNA morph ${morph}.`);
-  }
-  for (const expression of HERO_AVATAR_EXPRESSIONS) {
-    if (!input.expressions.includes(expression)) throw new Error(`Hero Avatar is missing facial expression ${expression}.`);
-  }
+  if (body.skeletonKey !== input.skeletonKey || body.facialRigKey !== input.facialRigKey) throw new Error('Hero Avatar base body rig metadata is inconsistent.');
+  for (const morph of [...AVATAR_BODY_MORPHS, ...AVATAR_FACE_MORPHS]) if (!body.morphTargets.includes(morph)) throw new Error(`Hero Avatar is missing DNA morph ${morph}.`);
+  if (!input.expressions.includes('neutral')) throw new Error('Hero Avatar is missing facial expression neutral.');
+  validateAvatarFacialExpressionContract({
+    contractVersion: 1,
+    facialRigKey: input.facialRigKey,
+    blendshapes: input.expressions.filter((value): value is (typeof AVATAR_EXPRESSION_BLENDSHAPES)[number] => value !== 'neutral'),
+  });
   for (const view of HERO_AVATAR_REQUIRED_VIEWS) assertSafeReferenceUri(input.referenceViews?.[view], view);
   return input;
 }
