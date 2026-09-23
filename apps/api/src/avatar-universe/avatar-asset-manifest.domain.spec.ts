@@ -12,6 +12,11 @@ const valid = (): AvatarAssetManifest => ({
 
 describe('Avatar 3D asset production gates',()=>{
  it('accepts a mobile-ready original PBR clothing asset',()=>expect(validateAvatarAssetManifest(valid())).toBeTruthy());
+ it('returns a detached canonical projection rather than the input object',()=>{const x=valid();const result=validateAvatarAssetManifest(x);expect(result).not.toBe(x);expect(result.lods).not.toBe(x.lods);expect(result.textures).not.toBe(x.textures);expect(result.geometry).not.toBe(x.geometry);expect(result.morphTargets).not.toBe(x.morphTargets);});
+ it('rejects unknown top-level metadata',()=>{const x=valid() as AvatarAssetManifest & {clientNote?:string};x.clientNote='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar asset manifest field: clientNote/i);});
+ it('rejects unknown LOD metadata',()=>{const x=valid();(x.lods[0] as typeof x.lods[0] & {clientTag?:string}).clientTag='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar LOD field: clientTag/i);});
+ it('rejects unknown texture metadata',()=>{const x=valid();(x.textures as typeof x.textures & {clientTag?:string}).clientTag='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar texture field: clientTag/i);});
+ it('rejects unknown geometry metadata',()=>{const x=valid();(x.geometry as NonNullable<typeof x.geometry> & {clientTag?:string}).clientTag='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar geometry field: clientTag/i);});
  it('enforces the stricter clothing triangle budget',()=>{const x=valid();x.lods[0].triangles=40001;expect(()=>validateAvatarAssetManifest(x)).toThrow(/CLOTHING.*triangle budget/i);});
  it('rejects missing PBR base color',()=>{const x=valid();delete x.textures.baseColor;expect(()=>validateAvatarAssetManifest(x)).toThrow(/baseColor/i);});
  it('validates every texture URI',()=>{const x=valid();x.textures.normal='javascript:bad';expect(()=>validateAvatarAssetManifest(x)).toThrow(/URI/i);});
