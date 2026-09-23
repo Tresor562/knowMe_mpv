@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { CosmeticsShopService } from './cosmetics-shop.service';
 
 describe('CosmeticsShopService', () => {
@@ -18,7 +19,8 @@ describe('CosmeticsShopService', () => {
         premiumBypassAllowed: false,
         premiumEntitlementKey: 'premium.core',
         serverAuthoritativePricing: true,
-        serverAuthoritativeAcquisition: true
+        serverAuthoritativeAcquisition: true,
+        validated3DAssetsRequired: true
       })
     );
   });
@@ -63,6 +65,44 @@ describe('CosmeticsShopService', () => {
     const withPremium = await premiumService.shop('user-1', now);
     expect(withPremium.premium).toBe(true);
     expect(withPremium.offers[0]).toEqual(expect.objectContaining({ premiumEligible: true, affordable: true }));
+  });
+
+  it('hides uncertified avatar offers while keeping certified runtime assets', async () => {
+    const now = new Date('2026-09-23T07:00:00.000Z');
+    const offerBase = { version: 1, priceKnowCoins: 100, active: true, startsAt: new Date('2026-09-01T00:00:00.000Z'), endsAt: null };
+    const uncertified = { ...offerBase, id: 'offer-bad', key: 'hair-bad', itemId: 'item-bad', item: { id: 'item-bad', slot: 'HAIR', acquisitionMode: 'KNOWCOINS', avatarAssetManifest: null, assetValidatedAt: null } };
+    const certified = { ...offerBase, id: 'offer-good', key: 'hair-good', itemId: 'item-good', item: { id: 'item-good', slot: 'HAIR', acquisitionMode: 'KNOWCOINS', avatarAssetManifest: { schemaVersion: 1 }, assetValidatedAt: now } };
+    const prisma = {
+      cosmeticOfferDefinition: { findMany: jest.fn().mockResolvedValue([uncertified, certified]) },
+      cosmeticOwnership: { findMany: jest.fn().mockResolvedValue([]) },
+      entitlementGrant: { findFirst: jest.fn().mockResolvedValue(null) }
+    };
+    const runtimeService = new CosmeticsShopService(prisma as never, { me: jest.fn().mockResolvedValue({ balance: 500 }) } as never, {} as never);
+
+    const result = await runtimeService.shop('user-1', now);
+    expect(result.offers.map((offer) => offer.id)).toEqual(['offer-good']);
+  });
+
+  it('refuses publishing a shop offer for an uncertified avatar asset', async () => {
+    const prisma = {
+      cosmeticItemDefinition: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'item-hair',
+          slot: 'HAIR',
+          acquisitionMode: 'KNOWCOINS',
+          active: true,
+          startsAt: new Date('2026-09-01T00:00:00.000Z'),
+          endsAt: null,
+          avatarAssetManifest: null,
+          assetValidatedAt: null
+        })
+      }
+    };
+    const runtimeService = new CosmeticsShopService(prisma as never, {} as never, {} as never);
+
+    await expect(runtimeService.createOffer('admin-1', {
+      key: 'hair-offer', version: 1, itemId: 'item-hair', priceKnowCoins: 100, active: false, reason: 'test runtime authority'
+    } as never)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('checks offer windows deterministically', () => {
