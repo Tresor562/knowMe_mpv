@@ -17,25 +17,16 @@ export const AVATAR_DNA_DEFAULT_KEYS = {
 /**
  * Server-owned runtime motion registry. DNA stores stable logical keys, never
  * client-provided URIs. Runtime manifests resolve these keys to certified clips.
- * New clips must be explicitly registered here after artistic/runtime validation.
+ *
+ * This registry is intentionally conservative: do not add a key merely because
+ * a design/test names it. Add it only when the corresponding runtime clip has
+ * passed the artistic/runtime certification pipeline.
  */
 export const AVATAR_RUNTIME_MOTION_KEYS = Object.freeze({
-  idleAnimation: [
-    'idle-neutral-v1',
-    'idle.confident.v1'
-  ],
-  signaturePose: [
-    'pose-neutral-v1',
-    'pose.confident.v1'
-  ],
-  greetingStyle: [
-    'WAVE',
-    'greeting.confident.v1'
-  ],
-  emotePackKey: [
-    'emotes-core-v1',
-    'emotes.core.v1'
-  ]
+  idleAnimation: ['idle-neutral-v1'],
+  signaturePose: ['pose-neutral-v1'],
+  greetingStyle: ['WAVE'],
+  emotePackKey: ['emotes-core-v1']
 } as const);
 
 export const AVATAR_MORPHOLOGY_KEYS = [
