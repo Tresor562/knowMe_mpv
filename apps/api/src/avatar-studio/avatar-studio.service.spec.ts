@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
 import { AvatarStudioService } from './avatar-studio.service';
 
 describe('AvatarStudioService', () => {
@@ -42,7 +43,7 @@ describe('AvatarStudioService', () => {
     };
   }
 
-  it('keeps the studio visual-only and inventory-authoritative', () => {
+  it('keeps the studio visual-only, inventory-authoritative and exhaustive over canonical avatar slots', () => {
     const { service } = setup();
     expect(service.policy()).toMatchObject({
       serverResolved: true,
@@ -56,18 +57,13 @@ describe('AvatarStudioService', () => {
       paidPriorityAllowed: false,
       publicVisibilityUsesCosmeticPrivacy: true
     });
-    expect(service.policy().layerOrder.map((entry) => entry.slot)).toEqual([
-      'AVATAR_SKIN',
-      'AVATAR_HAIR',
-      'AVATAR_FACE',
-      'AVATAR_OUTFIT',
-      'AVATAR_ACCESSORY',
-      'AVATAR_AURA',
-      'AVATAR_FRAME'
-    ]);
+    const layerOrder = service.policy().layerOrder;
+    expect(layerOrder.map((entry) => entry.slot)).toEqual([...AVATAR_ALL_SLOTS]);
+    expect(new Set(layerOrder.map((entry) => entry.slot)).size).toBe(AVATAR_ALL_SLOTS.length);
+    expect(layerOrder.every((entry) => Number.isFinite(entry.zIndex))).toBe(true);
   });
 
-  it('builds a deterministic ordered manifest with safe fallbacks', () => {
+  it('builds a deterministic ordered manifest with safe fallbacks for every canonical slot', () => {
     const { service } = setup();
     const manifest = service.manifest(
       {
@@ -97,8 +93,9 @@ describe('AvatarStudioService', () => {
     expect(manifest.width).toBe(512);
     expect(manifest.height).toBe(512);
     expect(manifest.fallback).toMatchObject({ kind: 'INITIALS', initials: 'AU' });
+    expect(manifest.layers.map((entry) => entry.slot)).toEqual([...AVATAR_ALL_SLOTS]);
     expect(manifest.layers.find((entry) => entry.slot === 'AVATAR_HAIR')).toMatchObject({
-      zIndex: 20,
+      zIndex: 30,
       fallback: false,
       item: {
         id: 'hair-1',
@@ -106,14 +103,13 @@ describe('AvatarStudioService', () => {
         version: 2
       }
     });
-    expect(manifest.layers.find((entry) => entry.slot === 'AVATAR_SKIN')).toMatchObject({
-      fallback: true,
-      item: null
-    });
+    expect(manifest.layers.find((entry) => entry.slot === 'AVATAR_FOOTWEAR')).toMatchObject({ fallback: true, item: null });
+    expect(manifest.layers.find((entry) => entry.slot === 'AVATAR_WEAPON_STYLE')).toMatchObject({ fallback: true, item: null });
+    expect(manifest.layers.find((entry) => entry.slot === 'AVATAR_COMPANION')).toMatchObject({ fallback: true, item: null });
     expect(manifest.cacheKey).toContain('AVATAR_HAIR:hair-1:2');
   });
 
-  it('delegates only avatar layer equipment to the cosmetic authority', async () => {
+  it('delegates every canonical avatar layer to the cosmetic authority and rejects non-avatar cosmetics', async () => {
     const { service, cosmetics } = setup();
 
     await expect(
@@ -121,12 +117,11 @@ describe('AvatarStudioService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(cosmetics.equip).not.toHaveBeenCalled();
 
-    await service.equip('user-1', 'AVATAR_HAIR', { itemId: null });
-    expect(cosmetics.equip).toHaveBeenCalledWith(
-      'user-1',
-      'AVATAR_HAIR',
-      { itemId: null }
-    );
+    for (const slot of AVATAR_ALL_SLOTS) {
+      await service.equip('user-1', slot, { itemId: null });
+      expect(cosmetics.equip).toHaveBeenCalledWith('user-1', slot, { itemId: null });
+    }
+    expect(cosmetics.equip).toHaveBeenCalledTimes(AVATAR_ALL_SLOTS.length);
   });
 
   it('returns a hidden manifest when cosmetic privacy denies the viewer', async () => {
