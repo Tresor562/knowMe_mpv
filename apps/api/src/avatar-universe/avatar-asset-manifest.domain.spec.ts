@@ -1,4 +1,4 @@
-import { assertAvatarSkeletonCompatibility, validateAvatarAssetManifest, AvatarAssetManifest, AVATAR_BODY_MORPHS } from './avatar-asset-manifest.domain';
+import { assertAvatarSkeletonCompatibility, validateAvatarAssetManifest, AvatarAssetManifest, AVATAR_BODY_MORPHS, AVATAR_FACE_MORPHS, AVATAR_EXPRESSION_MORPHS } from './avatar-asset-manifest.domain';
 
 const valid = (): AvatarAssetManifest => ({
   manifestVersion:1, assetKey:'knowme.hero.jacket.v1', kind:'CLOTHING', slot:'AVATAR_OUTFIT', format:'GLB', skeletonKey:'knowme.humanoid.v1', materialProfileKey:'knowme.pbr.mobile.v1',
@@ -9,9 +9,14 @@ const valid = (): AvatarAssetManifest => ({
     {level:2,uri:'https://cdn.knowme.test/avatar/jacket-lod2.glb',triangles:9000,vertices:6000,downloadBytes:1_000_000}],
   textures:{baseColor:'asset://textures/jacket-base',normal:'asset://textures/jacket-normal',metallicRoughness:'asset://textures/jacket-mr',maxResolution:2048},pbr:true,originalDesign:true
 });
+const validFace = (): AvatarAssetManifest => {const x=valid();x.assetKey='knowme.hero.face.v1';x.kind='FACE';x.slot='AVATAR_FACE';x.skeletonKey=undefined;x.facialRigKey='knowme.face.v1';x.morphTargets=[...AVATAR_FACE_MORPHS,...AVATAR_EXPRESSION_MORPHS];x.geometry={skinned:false};x.lods=x.lods.map(lod=>({...lod,uri:lod.uri.replace('jacket','face')}));x.textures={baseColor:'asset://textures/face-base',normal:'asset://textures/face-normal',maxResolution:2048};return x;};
 
 describe('Avatar 3D asset production gates',()=>{
  it('accepts a mobile-ready original PBR clothing asset',()=>expect(validateAvatarAssetManifest(valid())).toBeTruthy());
+ it('accepts a certified face carrying anatomy and expression blendshapes',()=>expect(validateAvatarAssetManifest(validFace())).toBeTruthy());
+ it('rejects a face missing an anatomical morph',()=>{const x=validFace();x.morphTargets=x.morphTargets.filter(m=>m!=='jawWidth');expect(()=>validateAvatarAssetManifest(x)).toThrow(/jawWidth/i);});
+ it('rejects a face missing a runtime expression blendshape',()=>{const x=validFace();x.morphTargets=x.morphTargets.filter(m=>m!=='blinkLeft');expect(()=>validateAvatarAssetManifest(x)).toThrow(/blinkLeft/i);});
+ it('rejects a face without the canonical facial rig',()=>{const x=validFace();x.facialRigKey='other.face.v1';expect(()=>validateAvatarAssetManifest(x)).toThrow(/canonical facial rig/i);});
  it('returns a detached canonical projection rather than the input object',()=>{const x=valid();const result=validateAvatarAssetManifest(x);expect(result).not.toBe(x);expect(result.lods).not.toBe(x.lods);expect(result.textures).not.toBe(x.textures);expect(result.geometry).not.toBe(x.geometry);expect(result.morphTargets).not.toBe(x.morphTargets);});
  it('rejects unknown top-level metadata',()=>{const x=valid() as AvatarAssetManifest & {clientNote?:string};x.clientNote='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar asset manifest field: clientNote/i);});
  it('rejects unknown LOD metadata',()=>{const x=valid();(x.lods[0] as typeof x.lods[0] & {clientTag?:string}).clientTag='extra';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Unknown avatar LOD field: clientTag/i);});
