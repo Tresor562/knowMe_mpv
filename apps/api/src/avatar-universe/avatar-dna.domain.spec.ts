@@ -6,6 +6,7 @@ import {
   validateAvatarMorphology,
   validateAvatarPersonality
 } from './avatar-dna.domain';
+import { AVATAR_CANONICAL_FACIAL_RIG, AVATAR_CANONICAL_SKELETON } from './avatar-asset-manifest.domain';
 
 const morphology = {
   height: 50, shoulderWidth: 50, torsoLength: 50, muscleDefinition: 50, bodyMass: 50,
@@ -32,6 +33,20 @@ const validDNA = () => ({
 describe('Avatar DNA', () => {
   it('accepts a complete versioned server DNA payload', () => {
     expect(validateAvatarDNA(validDNA())).toMatchObject({ revision: 1, morphology, personality });
+  });
+
+  it('uses exactly the same canonical skeleton and facial rig as certified runtime assets', () => {
+    expect(AVATAR_DNA_DEFAULT_KEYS.skeletonKey).toBe(AVATAR_CANONICAL_SKELETON);
+    expect(AVATAR_DNA_DEFAULT_KEYS.facialRigKey).toBe(AVATAR_CANONICAL_FACIAL_RIG);
+  });
+
+  it.each([
+    ['baseMeshKey', 'client.mesh.v999'],
+    ['skeletonKey', 'knowme-humanoid-v1'],
+    ['facialRigKey', 'knowme-face-v1'],
+    ['materialProfileKey', 'client.material.v999']
+  ] as const)('rejects persisted DNA with noncanonical server-owned identity %s', (field, value) => {
+    expect(() => validateAvatarDNA({ ...validDNA(), [field]: value })).toThrow(/server-certified runtime identity/i);
   });
 
   it('rejects out-of-range and non-finite morph values', () => {
