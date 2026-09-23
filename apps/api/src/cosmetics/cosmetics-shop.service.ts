@@ -1,17 +1,22 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateCosmeticOfferDto, PurchaseCosmeticOfferDto } from './dto/cosmetics-shop.dto';
 
 type AvailableDefinition = { active: boolean; startsAt: Date; endsAt: Date | null };
+type RuntimeAssetDefinition = { slot?: string | null; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
 
 @Injectable()
 export class CosmeticsShopService {
   constructor(private readonly prisma: PrismaService, private readonly wallet: WalletService, private readonly audit: AuditService) {}
-  policy() { return { currency: 'KNOWCOINS', verifiedLedgerRequired: true, atomicDebitAndOwnership: true, idempotentPurchases: true, onePurchasePerItemPerAccount: true, visualOnly: true, gameplayEffectsAllowed: false, paidPriorityAllowed: false, socialVisibilityBoostAllowed: false, premiumBypassAllowed: false, premiumEntitlementKey: 'premium.core', serverAuthoritativePricing: true, serverAuthoritativeAcquisition: true }; }
+  policy() { return { currency: 'KNOWCOINS', verifiedLedgerRequired: true, atomicDebitAndOwnership: true, idempotentPurchases: true, onePurchasePerItemPerAccount: true, visualOnly: true, gameplayEffectsAllowed: false, paidPriorityAllowed: false, socialVisibilityBoostAllowed: false, premiumBypassAllowed: false, premiumEntitlementKey: 'premium.core', serverAuthoritativePricing: true, serverAuthoritativeAcquisition: true, validated3DAssetsRequired: true }; }
   isAvailable(definition: AvailableDefinition, now = new Date()) { return definition.active && definition.startsAt <= now && (!definition.endsAt || definition.endsAt > now); }
+  private isAvatarSlot(slot?: string | null) { return Boolean(slot && AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number])); }
+  private isRuntimeAssetReady(item: RuntimeAssetDefinition) { return !this.isAvatarSlot(item.slot) || Boolean(item.avatarAssetManifest && item.assetValidatedAt); }
+  private assertRuntimeAssetReady(item: RuntimeAssetDefinition) { if (!this.isRuntimeAssetReady(item)) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.'); }
   private async hasPremium(tx: Prisma.TransactionClient | PrismaService, userId: string, now: Date) {
     const grant = await tx.entitlementGrant.findFirst({ where: { userId, key: 'premium.core', startsAt: { lte: now }, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, select: { id: true } });
     return Boolean(grant);
@@ -26,7 +31,7 @@ export class CosmeticsShopService {
       this.prisma.cosmeticOwnership.findMany({ where: { userId, revokedAt: null }, select: { itemId: true } }),
       this.wallet.me(userId), this.hasPremium(this.prisma, userId, now)
     ]);
-    const latestByKey = new Map<string, (typeof offers)[number]>(); for (const offer of offers) if (!latestByKey.has(offer.key)) latestByKey.set(offer.key, offer);
+    const latestByKey = new Map<string, (typeof offers)[number]>(); for (const offer of offers) if (this.isRuntimeAssetReady(offer.item) && !latestByKey.has(offer.key)) latestByKey.set(offer.key, offer);
     const ownedItemIds = new Set(ownerships.map((o) => o.itemId));
     return { offers: Array.from(latestByKey.values()).map((offer) => ({ ...offer, owned: ownedItemIds.has(offer.itemId), premiumEligible: offer.item.acquisitionMode !== 'PREMIUM_KNOWCOINS' || premium, affordable: wallet.balance >= offer.priceKnowCoins && (offer.item.acquisitionMode !== 'PREMIUM_KNOWCOINS' || premium) })), wallet, premium, rules: this.policy(), serverTime: now };
   }
@@ -39,6 +44,7 @@ export class CosmeticsShopService {
     const item = await this.prisma.cosmeticItemDefinition.findUnique({ where: { id: dto.itemId } });
     if (!item) throw new NotFoundException('Objet cosmétique introuvable.');
     this.assertShopPurchasable(item.acquisitionMode);
+    this.assertRuntimeAssetReady(item);
     if (dto.active && !this.isAvailable(item)) throw new BadRequestException('Une offre active exige un objet cosmétique actuellement disponible.');
     try {
       const offer = await this.prisma.cosmeticOfferDefinition.create({ data: { key: dto.key, version: dto.version, itemId: dto.itemId, priceKnowCoins: dto.priceKnowCoins, active: dto.active ?? false, startsAt, endsAt, createdById: actorId, reason: dto.reason }, include: { item: true } });
@@ -57,6 +63,7 @@ export class CosmeticsShopService {
         const offer = await tx.cosmeticOfferDefinition.findUnique({ where: { id: dto.offerId }, include: { item: true } }); if (!offer) throw new NotFoundException('Offre cosmétique introuvable.');
         const now = new Date(); if (!this.isAvailable(offer, now) || !this.isAvailable(offer.item, now)) throw new BadRequestException('Cette offre cosmétique n’est plus disponible.');
         this.assertShopPurchasable(offer.item.acquisitionMode);
+        this.assertRuntimeAssetReady(offer.item);
         if (offer.item.acquisitionMode === 'PREMIUM_KNOWCOINS' && !(await this.hasPremium(tx, userId, now))) throw new ForbiddenException('KnowMe Premium est requis pour acheter cet objet.');
         const currentOwnership = await tx.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId, itemId: offer.itemId } } }); if (currentOwnership && !currentOwnership.revokedAt) throw new ConflictException('Cet objet cosmétique est déjà possédé.');
         const walletMutation = await this.wallet.applyInTransaction(tx, { userId, amount: -offer.priceKnowCoins, type: 'COSMETIC_PURCHASE', source: 'COSMETICS_SHOP', idempotencyKey: ledgerIdempotencyKey, actorId: userId, reason: `Achat de ${offer.item.name}`, referenceType: 'CosmeticOfferDefinition', referenceId: offer.id, metadata: { offerKey: offer.key, offerVersion: offer.version, itemId: offer.itemId, acquisitionMode: offer.item.acquisitionMode, visualOnly: true } });
