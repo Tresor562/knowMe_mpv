@@ -39,6 +39,7 @@ export type AvatarCatalogProductionPlan = {
 
 const SAFE_KEY = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
 const SHA256 = /^[a-f0-9]{64}$/i;
+const RUNTIME_GLB_ROOT = 'runtime/avatar/';
 const RUNTIME_EVIDENCE_FIELDS = ['runtimeGlbUri', 'runtimeGlbSha256', 'runtimeGlbBytes', 'runtimeCertifiedAt'] as const;
 
 function assertKey(value: string, label: string) {
@@ -55,9 +56,25 @@ function hasCompleteRuntimeEvidence(entry: AvatarCatalogProductionEntry) {
     && (entry.runtimeGlbBytes ?? 0) > 0;
 }
 
+function hasOrderedPipelinePrefix(entry: AvatarCatalogProductionEntry) {
+  return entry.completedStages.every((stage, index) => AVATAR_ART_PIPELINE_STAGES[index] === stage);
+}
+
+function isInternalRuntimeGlbUri(uri: string) {
+  const normalized = uri.toLowerCase();
+  return normalized.startsWith(RUNTIME_GLB_ROOT)
+    && normalized.endsWith('.glb')
+    && !uri.includes('..')
+    && !uri.includes('\\')
+    && !uri.includes('?')
+    && !uri.includes('#')
+    && !uri.includes('://');
+}
+
 export function isAvatarCatalogEntryRuntimeReady(entry: AvatarCatalogProductionEntry) {
-  const completed = new Set(entry.completedStages);
-  return AVATAR_ART_PIPELINE_STAGES.every((stage) => completed.has(stage)) && hasCompleteRuntimeEvidence(entry);
+  return entry.completedStages.length === AVATAR_ART_PIPELINE_STAGES.length
+    && hasOrderedPipelinePrefix(entry)
+    && hasCompleteRuntimeEvidence(entry);
 }
 
 export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductionPlan) {
@@ -87,12 +104,13 @@ export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductio
     if (stageSet.size !== entry.completedStages.length) throw new Error(`Catalog item ${entry.itemKey} repeats a production stage.`);
     const unknownStage = entry.completedStages.find((stage) => !allowedStages.has(stage));
     if (unknownStage) throw new Error(`Catalog item ${entry.itemKey} contains unknown production stage ${unknownStage}.`);
+    if (!hasOrderedPipelinePrefix(entry)) throw new Error(`Catalog item ${entry.itemKey} must complete production stages in canonical order without skipping gates.`);
 
     if (hasAnyRuntimeEvidence(entry)) {
       if (!isAvatarCatalogEntryRuntimeReady(entry)) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline and GLB evidence are certified.`);
       const certifiedAt = Date.parse(entry.runtimeCertifiedAt!);
       if (!Number.isFinite(certifiedAt) || certifiedAt > Date.now() + 5 * 60 * 1000) throw new Error(`Invalid runtime certification timestamp for ${entry.itemKey}.`);
-      if (!entry.runtimeGlbUri!.toLowerCase().endsWith('.glb')) throw new Error(`Catalog item ${entry.itemKey} runtime asset must be GLB.`);
+      if (!isInternalRuntimeGlbUri(entry.runtimeGlbUri!)) throw new Error(`Catalog item ${entry.itemKey} runtime asset must be an internal GLB under ${RUNTIME_GLB_ROOT}.`);
       if (!SHA256.test(entry.runtimeGlbSha256!)) throw new Error(`Catalog item ${entry.itemKey} runtime GLB requires a valid SHA-256 digest.`);
     }
   }
