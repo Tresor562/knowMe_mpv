@@ -14,6 +14,30 @@ export const AVATAR_DNA_DEFAULT_KEYS = {
   materialProfileKey: 'knowme-pbr-skin-v1'
 } as const;
 
+/**
+ * Server-owned runtime motion registry. DNA stores stable logical keys, never
+ * client-provided URIs. Runtime manifests resolve these keys to certified clips.
+ * New clips must be explicitly registered here after artistic/runtime validation.
+ */
+export const AVATAR_RUNTIME_MOTION_KEYS = Object.freeze({
+  idleAnimation: [
+    'idle-neutral-v1',
+    'idle.confident.v1'
+  ],
+  signaturePose: [
+    'pose-neutral-v1',
+    'pose.confident.v1'
+  ],
+  greetingStyle: [
+    'WAVE',
+    'greeting.confident.v1'
+  ],
+  emotePackKey: [
+    'emotes-core-v1',
+    'emotes.core.v1'
+  ]
+} as const);
+
 export const AVATAR_MORPHOLOGY_KEYS = [
   'height', 'shoulderWidth', 'torsoLength', 'muscleDefinition', 'bodyMass',
   'headScale', 'jawWidth', 'cheekboneHeight', 'noseWidth', 'noseLength',
@@ -42,6 +66,12 @@ function assertSafeKey(name: string, value: unknown): asserts value is string {
   }
 }
 
+function assertRegisteredMotionKey(field: typeof PERSONALITY_KEY_FIELDS[number], value: unknown): asserts value is string {
+  assertSafeKey(`personality.${field}`, value);
+  const registry = AVATAR_RUNTIME_MOTION_KEYS[field] as readonly string[];
+  if (!registry.includes(value)) throw new Error(`personality.${field} is not a registered runtime motion key`);
+}
+
 function assertOnlyKnownKeys(source: Record<string, unknown>, allowed: ReadonlySet<string>, label: string) {
   for (const key of Object.keys(source)) if (!allowed.has(key)) throw new Error(`Unknown ${label} field: ${key}`);
 }
@@ -65,7 +95,7 @@ export function validateAvatarPersonality(value: unknown): AvatarPersonalityProf
   assertOnlyKnownKeys(source, PERSONALITY_ALLOWED_KEYS, 'personality');
   if (!AVATAR_PERSONALITIES.includes(source.archetype as never)) throw new Error('personality.archetype is invalid');
   for (const key of PERSONALITY_NUMBER_KEYS) assertFiniteRange(`personality.${key}`, source[key]);
-  for (const key of PERSONALITY_KEY_FIELDS) assertSafeKey(`personality.${key}`, source[key]);
+  for (const key of PERSONALITY_KEY_FIELDS) assertRegisteredMotionKey(key, source[key]);
   return {
     archetype: source.archetype as AvatarPersonalityProfile['archetype'],
     confidence: source.confidence as number,
