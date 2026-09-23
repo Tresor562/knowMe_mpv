@@ -7,19 +7,28 @@ import {
 } from '../cosmetics/dto/cosmetics.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
-const AVATAR_RENDER_SLOTS = [
-  ...AVATAR_LAYER_SLOTS,
-  'AVATAR_FRAME'
-] as const;
+/**
+ * Runtime composition order for every canonical Avatar Universe slot.
+ * Keep this exhaustive: Cosmetics derives AVATAR_LAYER_SLOTS from AVATAR_ALL_SLOTS,
+ * so adding a slot upstream must produce a compile-time error here until its render
+ * position is deliberately chosen.
+ */
+const AVATAR_RENDER_SLOTS = AVATAR_LAYER_SLOTS;
 
 const AVATAR_Z_INDEX: Record<(typeof AVATAR_RENDER_SLOTS)[number], number> = {
   AVATAR_SKIN: 10,
-  AVATAR_HAIR: 20,
-  AVATAR_FACE: 30,
+  AVATAR_FACE: 20,
+  AVATAR_HAIR: 30,
   AVATAR_OUTFIT: 40,
-  AVATAR_ACCESSORY: 50,
-  AVATAR_AURA: 60,
-  AVATAR_FRAME: 70
+  AVATAR_FOOTWEAR: 45,
+  AVATAR_HEADWEAR: 50,
+  AVATAR_ACCESSORY: 60,
+  AVATAR_BACK_ITEM: 70,
+  AVATAR_HAND_ITEM: 80,
+  AVATAR_WEAPON_STYLE: 90,
+  AVATAR_AURA: 100,
+  AVATAR_COMPANION: 110,
+  AVATAR_FRAME: 120
 };
 
 type CosmeticItem = {
