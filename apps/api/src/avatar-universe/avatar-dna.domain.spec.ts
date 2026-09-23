@@ -16,8 +16,8 @@ const morphology = {
 const personality = {
   archetype: 'CONFIDENT' as const,
   confidence: 70, expressiveness: 55, energy: 60, warmth: 50, humor: 45, mystery: 30,
-  idleAnimation: 'idle.confident.v1', signaturePose: 'pose.confident.v1',
-  greetingStyle: 'greeting.confident.v1', emotePackKey: 'emotes.core.v1'
+  idleAnimation: 'idle-neutral-v1', signaturePose: 'pose-neutral-v1',
+  greetingStyle: 'WAVE', emotePackKey: 'emotes-core-v1'
 };
 
 const validDNA = () => ({
@@ -66,11 +66,13 @@ describe('Avatar DNA', () => {
     );
   });
 
-  it('keeps the default and current validated motion keys explicitly registered', () => {
-    expect(AVATAR_RUNTIME_MOTION_KEYS.idleAnimation).toEqual(expect.arrayContaining(['idle-neutral-v1', personality.idleAnimation]));
-    expect(AVATAR_RUNTIME_MOTION_KEYS.signaturePose).toEqual(expect.arrayContaining(['pose-neutral-v1', personality.signaturePose]));
-    expect(AVATAR_RUNTIME_MOTION_KEYS.greetingStyle).toEqual(expect.arrayContaining(['WAVE', personality.greetingStyle]));
-    expect(AVATAR_RUNTIME_MOTION_KEYS.emotePackKey).toEqual(expect.arrayContaining(['emotes-core-v1', personality.emotePackKey]));
+  it('registers only the runtime baseline that is currently evidenced by the default DNA', () => {
+    expect(AVATAR_RUNTIME_MOTION_KEYS).toEqual({
+      idleAnimation: ['idle-neutral-v1'],
+      signaturePose: ['pose-neutral-v1'],
+      greetingStyle: ['WAVE'],
+      emotePackKey: ['emotes-core-v1']
+    });
   });
 
   it('returns a canonical personality object containing only validated fields', () => {
