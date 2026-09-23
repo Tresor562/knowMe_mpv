@@ -80,6 +80,31 @@ describe('AvatarDnaService', () => {
     expect(tx.avatarIdentityProfile.update).not.toHaveBeenCalled();
   });
 
+  it('pins runtime mesh, skeleton, facial rig and material keys to server authority', async () => {
+    const { prisma, tx } = makePrisma(dna(2));
+    const service = new AvatarDnaService(prisma);
+    const hostile = {
+      ...dna(2),
+      expectedRevision: 2,
+      baseMeshKey: 'client-premium-mesh',
+      skeletonKey: 'client-bypass-skeleton',
+      facialRigKey: 'client-unlocked-face',
+      materialProfileKey: 'client-premium-skin'
+    } as any;
+
+    const result = await service.update(userId, hostile);
+
+    expect(tx.avatarIdentityProfile.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId },
+      data: expect.objectContaining(AVATAR_DNA_DEFAULT_KEYS)
+    }));
+    expect(result).toMatchObject(AVATAR_DNA_DEFAULT_KEYS);
+    expect(result.baseMeshKey).not.toBe(hostile.baseMeshKey);
+    expect(result.skeletonKey).not.toBe(hostile.skeletonKey);
+    expect(result.facialRigKey).not.toBe(hostile.facialRigKey);
+    expect(result.materialProfileKey).not.toBe(hostile.materialProfileKey);
+  });
+
   it('rejects non-safe expected revisions before opening a transaction', async () => {
     const { prisma } = makePrisma(dna());
     const service = new AvatarDnaService(prisma);
