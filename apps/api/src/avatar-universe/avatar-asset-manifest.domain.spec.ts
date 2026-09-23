@@ -24,6 +24,10 @@ describe('Avatar 3D asset production gates',()=>{
  it('requires LOD1 to remove at least 25 percent of triangle complexity',()=>{const x=valid();x.lods[1].triangles=Math.floor(x.lods[0].triangles*0.76);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD1 triangles.*25%/i);});
  it('requires LOD2 to remove at least 50 percent of previous triangle complexity',()=>{const x=valid();x.lods[2].triangles=Math.floor(x.lods[1].triangles*0.51);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD2 triangles.*50%/i);});
  it('requires meaningful vertex reduction instead of triangle-only decimation evidence',()=>{const x=valid();x.lods[1].vertices=Math.floor(x.lods[0].vertices*0.80);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD1 vertices.*25%/i);});
- it('rejects oversized downloads',()=>{const x=valid();x.lods[0].downloadBytes=8*1024*1024+1;expect(()=>validateAvatarAssetManifest(x)).toThrow(/download budget/i);});
+ it('rejects oversized LOD0 downloads',()=>{const x=valid();x.lods[0].downloadBytes=8*1024*1024+1;expect(()=>validateAvatarAssetManifest(x)).toThrow(/download budget/i);});
+ it('rejects oversized LOD1 downloads',()=>{const x=valid();x.lods[1].downloadBytes=4*1024*1024+1;expect(()=>validateAvatarAssetManifest(x)).toThrow(/download budget/i);});
+ it('rejects oversized LOD2 downloads',()=>{const x=valid();x.lods[2].downloadBytes=2*1024*1024+1;expect(()=>validateAvatarAssetManifest(x)).toThrow(/download budget/i);});
+ it('rejects LOD geometry reductions that do not reduce transfer payload',()=>{const x=valid();x.lods[1].downloadBytes=x.lods[0].downloadBytes;expect(()=>validateAvatarAssetManifest(x)).toThrow(/payload must be smaller/i);});
+ it('rejects reuse of one runtime payload for multiple LOD levels',()=>{const x=valid();x.lods[2].uri=x.lods[1].uri;expect(()=>validateAvatarAssetManifest(x)).toThrow(/distinct runtime payloads/i);});
  it('rejects incompatible equipped skeletons',()=>expect(()=>assertAvatarSkeletonCompatibility('knowme.humanoid.v2',valid())).toThrow(/incompatible/i));
 });
