@@ -3,7 +3,6 @@ import {
   IsInt,
   IsObject,
   IsString,
-  Matches,
   Min
 } from 'class-validator';
 import {
@@ -12,14 +11,16 @@ import {
   AvatarPersonalityProfile
 } from '../avatar-universe.domain';
 
-const SAFE_ASSET_KEY = /^[a-z0-9][a-z0-9._-]{1,79}$/i;
-
 /**
  * Transport DTO for Avatar DNA writes.
  *
  * Nested morphology/personality objects are intentionally validated again by
  * validateAvatarDNA in AvatarDnaService. Keeping the domain validator as the
  * final authority prevents transport-layer changes from weakening DNA rules.
+ *
+ * Runtime identity keys (base mesh, skeleton, facial rig and material profile)
+ * are deliberately absent. They are server-owned compatibility/security
+ * decisions and must never be selected by an untrusted client payload.
  */
 export class UpdateAvatarDnaDto {
   @IsInt()
@@ -39,20 +40,4 @@ export class UpdateAvatarDnaDto {
   @IsString()
   @IsIn(AVATAR_RENDER_TIERS)
   renderTier!: (typeof AVATAR_RENDER_TIERS)[number];
-
-  @IsString()
-  @Matches(SAFE_ASSET_KEY)
-  baseMeshKey!: string;
-
-  @IsString()
-  @Matches(SAFE_ASSET_KEY)
-  skeletonKey!: string;
-
-  @IsString()
-  @Matches(SAFE_ASSET_KEY)
-  facialRigKey!: string;
-
-  @IsString()
-  @Matches(SAFE_ASSET_KEY)
-  materialProfileKey!: string;
 }
