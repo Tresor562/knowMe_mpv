@@ -23,6 +23,12 @@ export const AVATAR_MORPHOLOGY_KEYS = [
 const PERSONALITY_NUMBER_KEYS = [
   'confidence', 'expressiveness', 'energy', 'warmth', 'humor', 'mystery'
 ] as const satisfies readonly (keyof AvatarPersonalityProfile)[];
+const PERSONALITY_KEY_FIELDS = ['idleAnimation', 'signaturePose', 'greetingStyle', 'emotePackKey'] as const;
+const PERSONALITY_ALLOWED_KEYS = new Set<string>(['archetype', ...PERSONALITY_NUMBER_KEYS, ...PERSONALITY_KEY_FIELDS]);
+const DNA_ALLOWED_KEYS = new Set<string>([
+  'schemaVersion', 'revision', 'morphology', 'personality', 'renderTier',
+  'baseMeshKey', 'skeletonKey', 'facialRigKey', 'materialProfileKey'
+]);
 
 function assertFiniteRange(name: string, value: unknown, min = 0, max = 100): asserts value is number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
@@ -34,6 +40,10 @@ function assertSafeKey(name: string, value: unknown): asserts value is string {
   if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9._-]{1,79}$/i.test(value)) {
     throw new Error(`${name} is invalid`);
   }
+}
+
+function assertOnlyKnownKeys(source: Record<string, unknown>, allowed: ReadonlySet<string>, label: string) {
+  for (const key of Object.keys(source)) if (!allowed.has(key)) throw new Error(`Unknown ${label} field: ${key}`);
 }
 
 export function validateAvatarMorphology(value: unknown): AvatarMorphology {
@@ -52,10 +62,23 @@ export function validateAvatarMorphology(value: unknown): AvatarMorphology {
 export function validateAvatarPersonality(value: unknown): AvatarPersonalityProfile {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('personality must be an object');
   const source = value as Record<string, unknown>;
+  assertOnlyKnownKeys(source, PERSONALITY_ALLOWED_KEYS, 'personality');
   if (!AVATAR_PERSONALITIES.includes(source.archetype as never)) throw new Error('personality.archetype is invalid');
   for (const key of PERSONALITY_NUMBER_KEYS) assertFiniteRange(`personality.${key}`, source[key]);
-  for (const key of ['idleAnimation', 'signaturePose', 'greetingStyle', 'emotePackKey'] as const) assertSafeKey(`personality.${key}`, source[key]);
-  return source as AvatarPersonalityProfile;
+  for (const key of PERSONALITY_KEY_FIELDS) assertSafeKey(`personality.${key}`, source[key]);
+  return {
+    archetype: source.archetype as AvatarPersonalityProfile['archetype'],
+    confidence: source.confidence as number,
+    expressiveness: source.expressiveness as number,
+    energy: source.energy as number,
+    warmth: source.warmth as number,
+    humor: source.humor as number,
+    mystery: source.mystery as number,
+    idleAnimation: source.idleAnimation as string,
+    signaturePose: source.signaturePose as string,
+    greetingStyle: source.greetingStyle as string,
+    emotePackKey: source.emotePackKey as string
+  };
 }
 
 export function validateAvatarRenderTier(value: unknown): AvatarRenderTier {
@@ -78,6 +101,7 @@ export type AvatarDNA = {
 export function validateAvatarDNA(value: unknown): AvatarDNA {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('avatar DNA must be an object');
   const source = value as Record<string, unknown>;
+  assertOnlyKnownKeys(source, DNA_ALLOWED_KEYS, 'avatar DNA');
   if (source.schemaVersion !== AVATAR_DNA_SCHEMA_VERSION) throw new Error('Unsupported avatar DNA schema version');
   if (!Number.isSafeInteger(source.revision) || (source.revision as number) < 1) throw new Error('revision must be a positive safe integer');
   const baseMeshKey = source.baseMeshKey; const skeletonKey = source.skeletonKey;
