@@ -41,6 +41,7 @@ const SAFE_KEY = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
 const SHA256 = /^[a-f0-9]{64}$/i;
 const RUNTIME_GLB_ROOT = 'runtime/avatar/';
 const RUNTIME_EVIDENCE_FIELDS = ['runtimeGlbUri', 'runtimeGlbSha256', 'runtimeGlbBytes', 'runtimeCertifiedAt'] as const;
+const CERTIFICATION_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 function assertKey(value: string, label: string) {
   if (!SAFE_KEY.test(value)) throw new Error(`Invalid ${label}.`);
@@ -71,10 +72,18 @@ function isInternalRuntimeGlbUri(uri: string) {
     && !uri.includes('://');
 }
 
+function hasValidRuntimeCertificationEvidence(entry: AvatarCatalogProductionEntry, nowMs = Date.now()) {
+  if (!hasCompleteRuntimeEvidence(entry)) return false;
+  if (!isInternalRuntimeGlbUri(entry.runtimeGlbUri!)) return false;
+  if (!SHA256.test(entry.runtimeGlbSha256!)) return false;
+  const certifiedAt = Date.parse(entry.runtimeCertifiedAt!);
+  return Number.isFinite(certifiedAt) && certifiedAt <= nowMs + CERTIFICATION_CLOCK_SKEW_MS;
+}
+
 export function isAvatarCatalogEntryRuntimeReady(entry: AvatarCatalogProductionEntry) {
   return entry.completedStages.length === AVATAR_ART_PIPELINE_STAGES.length
     && hasOrderedPipelinePrefix(entry)
-    && hasCompleteRuntimeEvidence(entry);
+    && hasValidRuntimeCertificationEvidence(entry);
 }
 
 export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductionPlan) {
@@ -107,9 +116,10 @@ export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductio
     if (!hasOrderedPipelinePrefix(entry)) throw new Error(`Catalog item ${entry.itemKey} must complete production stages in canonical order without skipping gates.`);
 
     if (hasAnyRuntimeEvidence(entry)) {
-      if (!isAvatarCatalogEntryRuntimeReady(entry)) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline and GLB evidence are certified.`);
+      if (!hasCompleteRuntimeEvidence(entry)) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline and GLB evidence are certified.`);
+      if (entry.completedStages.length !== AVATAR_ART_PIPELINE_STAGES.length) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline and GLB evidence are certified.`);
       const certifiedAt = Date.parse(entry.runtimeCertifiedAt!);
-      if (!Number.isFinite(certifiedAt) || certifiedAt > Date.now() + 5 * 60 * 1000) throw new Error(`Invalid runtime certification timestamp for ${entry.itemKey}.`);
+      if (!Number.isFinite(certifiedAt) || certifiedAt > Date.now() + CERTIFICATION_CLOCK_SKEW_MS) throw new Error(`Invalid runtime certification timestamp for ${entry.itemKey}.`);
       if (!isInternalRuntimeGlbUri(entry.runtimeGlbUri!)) throw new Error(`Catalog item ${entry.itemKey} runtime asset must be an internal GLB under ${RUNTIME_GLB_ROOT}.`);
       if (!SHA256.test(entry.runtimeGlbSha256!)) throw new Error(`Catalog item ${entry.itemKey} runtime GLB requires a valid SHA-256 digest.`);
     }
