@@ -20,7 +20,10 @@ describe('Avatar 3D asset production gates',()=>{
  it('rejects kind/slot mismatches',()=>{const x=valid();x.slot='AVATAR_HAIR';expect(()=>validateAvatarAssetManifest(x)).toThrow(/Cosmetics slot/i);});
  it('rejects duplicate morph targets',()=>{const x=valid();x.morphTargets.push('height');expect(()=>validateAvatarAssetManifest(x)).toThrow(/Duplicate/i);});
  it('requires hair cards for mobile hair',()=>{const x=valid();x.kind='HAIR';x.slot='AVATAR_HAIR';x.skeletonKey=undefined;x.morphTargets=[];x.geometry={skinned:false,hairCards:false};expect(()=>validateAvatarAssetManifest(x)).toThrow(/hair cards/i);});
- it('rejects fake LOD chains with equal complexity',()=>{const x=valid();x.lods[1].triangles=x.lods[0].triangles;expect(()=>validateAvatarAssetManifest(x)).toThrow(/strictly decrease/i);});
+ it('rejects fake LOD chains with equal complexity',()=>{const x=valid();x.lods[1].triangles=x.lods[0].triangles;expect(()=>validateAvatarAssetManifest(x)).toThrow(/reduce by at least/i);});
+ it('requires LOD1 to remove at least 25 percent of triangle complexity',()=>{const x=valid();x.lods[1].triangles=Math.floor(x.lods[0].triangles*0.76);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD1 triangles.*25%/i);});
+ it('requires LOD2 to remove at least 50 percent of previous triangle complexity',()=>{const x=valid();x.lods[2].triangles=Math.floor(x.lods[1].triangles*0.51);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD2 triangles.*50%/i);});
+ it('requires meaningful vertex reduction instead of triangle-only decimation evidence',()=>{const x=valid();x.lods[1].vertices=Math.floor(x.lods[0].vertices*0.80);expect(()=>validateAvatarAssetManifest(x)).toThrow(/LOD1 vertices.*25%/i);});
  it('rejects oversized downloads',()=>{const x=valid();x.lods[0].downloadBytes=8*1024*1024+1;expect(()=>validateAvatarAssetManifest(x)).toThrow(/download budget/i);});
  it('rejects incompatible equipped skeletons',()=>expect(()=>assertAvatarSkeletonCompatibility('knowme.humanoid.v2',valid())).toThrow(/incompatible/i));
 });
