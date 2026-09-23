@@ -1,6 +1,7 @@
 import {
   AVATAR_DNA_DEFAULT_KEYS,
   AVATAR_DNA_SCHEMA_VERSION,
+  AVATAR_RUNTIME_MOTION_KEYS,
   validateAvatarDNA,
   validateAvatarMorphology,
   validateAvatarPersonality
@@ -52,6 +53,24 @@ describe('Avatar DNA', () => {
   it('rejects unknown personality fields that could smuggle unlock or animation authority', () => {
     expect(() => validateAvatarPersonality({ ...personality, premiumUnlocked: true })).toThrow('Unknown personality field: premiumUnlocked');
     expect(() => validateAvatarPersonality({ ...personality, animationUri: 'https://evil.invalid/a.glb' })).toThrow('Unknown personality field: animationUri');
+  });
+
+  it.each([
+    ['idleAnimation', 'idle-client-upload-v999'],
+    ['signaturePose', 'pose-premium-bypass-v1'],
+    ['greetingStyle', 'greeting-unreviewed-v1'],
+    ['emotePackKey', 'emotes-paid-without-entitlement-v1']
+  ] as const)('rejects unregistered runtime personality key %s', (field, value) => {
+    expect(() => validateAvatarPersonality({ ...personality, [field]: value })).toThrow(
+      `personality.${field} is not a registered runtime motion key`
+    );
+  });
+
+  it('keeps the default and current validated motion keys explicitly registered', () => {
+    expect(AVATAR_RUNTIME_MOTION_KEYS.idleAnimation).toEqual(expect.arrayContaining(['idle-neutral-v1', personality.idleAnimation]));
+    expect(AVATAR_RUNTIME_MOTION_KEYS.signaturePose).toEqual(expect.arrayContaining(['pose-neutral-v1', personality.signaturePose]));
+    expect(AVATAR_RUNTIME_MOTION_KEYS.greetingStyle).toEqual(expect.arrayContaining(['WAVE', personality.greetingStyle]));
+    expect(AVATAR_RUNTIME_MOTION_KEYS.emotePackKey).toEqual(expect.arrayContaining(['emotes-core-v1', personality.emotePackKey]));
   });
 
   it('returns a canonical personality object containing only validated fields', () => {
