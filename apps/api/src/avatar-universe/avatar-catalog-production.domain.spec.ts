@@ -20,6 +20,17 @@ function makePlanEntries(): AvatarCatalogProductionEntry[] {
   );
 }
 
+function certify(entry: AvatarCatalogProductionEntry): AvatarCatalogProductionEntry {
+  return {
+    ...entry,
+    completedStages: [...AVATAR_ART_PIPELINE_STAGES],
+    runtimeGlbUri: 'runtime/avatar/outfit-001.glb',
+    runtimeGlbSha256: 'a'.repeat(64),
+    runtimeGlbBytes: 1_048_576,
+    runtimeCertifiedAt: '2026-09-23T03:00:00.000Z',
+  };
+}
+
 describe('Avatar catalog production contract', () => {
   it('reserves a balanced production backlog of at least 100 original cosmetics', () => {
     expect(AVATAR_CATALOG_TARGET_COUNT).toBe(120);
@@ -52,12 +63,30 @@ describe('Avatar catalog production contract', () => {
     expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [entry, ...makePlanEntries().slice(1)] })).toThrow('cannot claim runtime readiness');
   });
 
-  it('requires the complete audited art pipeline before runtime readiness', () => {
-    const entry = makePlanEntries()[0];
-    entry.completedStages = [...AVATAR_ART_PIPELINE_STAGES];
-    entry.runtimeGlbUri = 'runtime/avatar/outfit-001.glb';
-    entry.runtimeCertifiedAt = '2026-09-23T03:00:00.000Z';
+  it('requires the complete audited art pipeline and immutable GLB evidence before runtime readiness', () => {
+    const entry = certify(makePlanEntries()[0]);
     expect(isAvatarCatalogEntryRuntimeReady(entry)).toBe(true);
     expect(validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [entry, ...makePlanEntries().slice(1)] })).toBeDefined();
+  });
+
+  it('rejects runtime certification without a GLB digest or byte size', () => {
+    const entry = certify(makePlanEntries()[0]);
+    delete entry.runtimeGlbSha256;
+    expect(isAvatarCatalogEntryRuntimeReady(entry)).toBe(false);
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [entry, ...makePlanEntries().slice(1)] })).toThrow('cannot claim runtime readiness');
+
+    const invalidBytes = certify(makePlanEntries()[0]);
+    invalidBytes.runtimeGlbBytes = 0;
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [invalidBytes, ...makePlanEntries().slice(1)] })).toThrow('cannot claim runtime readiness');
+  });
+
+  it('rejects malformed SHA-256 evidence and unknown pipeline stages at runtime boundaries', () => {
+    const malformedDigest = certify(makePlanEntries()[0]);
+    malformedDigest.runtimeGlbSha256 = 'not-a-digest';
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [malformedDigest, ...makePlanEntries().slice(1)] })).toThrow('valid SHA-256 digest');
+
+    const unknownStage = makePlanEntries()[0] as AvatarCatalogProductionEntry & { completedStages: string[] };
+    unknownStage.completedStages = ['CONCEPT_MULTI_ANGLE', 'AI_IMAGE_IS_FINAL_ASSET'];
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [unknownStage as AvatarCatalogProductionEntry, ...makePlanEntries().slice(1)] })).toThrow('unknown production stage');
   });
 });
