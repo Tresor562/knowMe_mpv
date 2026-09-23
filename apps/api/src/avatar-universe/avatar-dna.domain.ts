@@ -5,12 +5,13 @@ import {
   AvatarPersonalityProfile,
   AvatarRenderTier
 } from './avatar-universe.domain';
+import { AVATAR_CANONICAL_FACIAL_RIG, AVATAR_CANONICAL_SKELETON } from './avatar-asset-manifest.domain';
 
 export const AVATAR_DNA_SCHEMA_VERSION = 1 as const;
 export const AVATAR_DNA_DEFAULT_KEYS = {
   baseMeshKey: 'knowme-human-v1',
-  skeletonKey: 'knowme-humanoid-v1',
-  facialRigKey: 'knowme-face-v1',
+  skeletonKey: AVATAR_CANONICAL_SKELETON,
+  facialRigKey: AVATAR_CANONICAL_FACIAL_RIG,
   materialProfileKey: 'knowme-pbr-skin-v1'
 } as const;
 
@@ -129,6 +130,9 @@ export function validateAvatarDNA(value: unknown): AvatarDNA {
   const facialRigKey = source.facialRigKey; const materialProfileKey = source.materialProfileKey;
   assertSafeKey('baseMeshKey', baseMeshKey); assertSafeKey('skeletonKey', skeletonKey);
   assertSafeKey('facialRigKey', facialRigKey); assertSafeKey('materialProfileKey', materialProfileKey);
+  if (baseMeshKey !== AVATAR_DNA_DEFAULT_KEYS.baseMeshKey || skeletonKey !== AVATAR_DNA_DEFAULT_KEYS.skeletonKey || facialRigKey !== AVATAR_DNA_DEFAULT_KEYS.facialRigKey || materialProfileKey !== AVATAR_DNA_DEFAULT_KEYS.materialProfileKey) {
+    throw new Error('Avatar DNA runtime identity does not match the server-certified runtime identity');
+  }
   return {
     schemaVersion: AVATAR_DNA_SCHEMA_VERSION,
     revision: source.revision as number,
