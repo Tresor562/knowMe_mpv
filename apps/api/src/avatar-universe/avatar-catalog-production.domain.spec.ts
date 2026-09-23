@@ -89,4 +89,29 @@ describe('Avatar catalog production contract', () => {
     unknownStage.completedStages = ['CONCEPT_MULTI_ANGLE', 'AI_IMAGE_IS_FINAL_ASSET'];
     expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [unknownStage as AvatarCatalogProductionEntry, ...makePlanEntries().slice(1)] })).toThrow('unknown production stage');
   });
+
+  it('requires production stages to form the canonical prefix instead of skipping artistic gates', () => {
+    const entries = makePlanEntries();
+    const skipped = { ...entries[0], completedStages: [AVATAR_ART_PIPELINE_STAGES[0], AVATAR_ART_PIPELINE_STAGES[2]] } as AvatarCatalogProductionEntry;
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [skipped, ...entries.slice(1)] })).toThrow('canonical order without skipping gates');
+
+    const reordered = certify(entries[0]);
+    [reordered.completedStages[0], reordered.completedStages[1]] = [reordered.completedStages[1], reordered.completedStages[0]];
+    expect(isAvatarCatalogEntryRuntimeReady(reordered)).toBe(false);
+    expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [reordered, ...entries.slice(1)] })).toThrow('canonical order without skipping gates');
+  });
+
+  it('keeps certified GLBs inside the controlled runtime asset root', () => {
+    for (const unsafeUri of [
+      'https://cdn.example.com/avatar/outfit.glb',
+      'runtime/avatar/../private/outfit.glb',
+      'runtime/avatar/outfit.glb?version=2',
+      'runtime/avatar/outfit.glb#tampered',
+      'runtime\\avatar\\outfit.glb',
+    ]) {
+      const entry = certify(makePlanEntries()[0]);
+      entry.runtimeGlbUri = unsafeUri;
+      expect(() => validateAvatarCatalogProductionPlan({ revision: 'catalog.v1', entries: [entry, ...makePlanEntries().slice(1)] })).toThrow('internal GLB under runtime/avatar/');
+    }
+  });
 });
