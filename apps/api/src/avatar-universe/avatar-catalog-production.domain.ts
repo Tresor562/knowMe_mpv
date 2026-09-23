@@ -27,6 +27,8 @@ export type AvatarCatalogProductionEntry = {
   originalDesign: true;
   completedStages: AvatarArtPipelineStage[];
   runtimeGlbUri?: string;
+  runtimeGlbSha256?: string;
+  runtimeGlbBytes?: number;
   runtimeCertifiedAt?: string;
 };
 
@@ -36,14 +38,26 @@ export type AvatarCatalogProductionPlan = {
 };
 
 const SAFE_KEY = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
+const SHA256 = /^[a-f0-9]{64}$/i;
+const RUNTIME_EVIDENCE_FIELDS = ['runtimeGlbUri', 'runtimeGlbSha256', 'runtimeGlbBytes', 'runtimeCertifiedAt'] as const;
 
 function assertKey(value: string, label: string) {
   if (!SAFE_KEY.test(value)) throw new Error(`Invalid ${label}.`);
 }
 
+function hasAnyRuntimeEvidence(entry: AvatarCatalogProductionEntry) {
+  return RUNTIME_EVIDENCE_FIELDS.some((field) => entry[field] !== undefined);
+}
+
+function hasCompleteRuntimeEvidence(entry: AvatarCatalogProductionEntry) {
+  return Boolean(entry.runtimeGlbUri && entry.runtimeGlbSha256 && entry.runtimeCertifiedAt)
+    && Number.isSafeInteger(entry.runtimeGlbBytes)
+    && (entry.runtimeGlbBytes ?? 0) > 0;
+}
+
 export function isAvatarCatalogEntryRuntimeReady(entry: AvatarCatalogProductionEntry) {
   const completed = new Set(entry.completedStages);
-  return AVATAR_ART_PIPELINE_STAGES.every((stage) => completed.has(stage)) && Boolean(entry.runtimeGlbUri) && Boolean(entry.runtimeCertifiedAt);
+  return AVATAR_ART_PIPELINE_STAGES.every((stage) => completed.has(stage)) && hasCompleteRuntimeEvidence(entry);
 }
 
 export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductionPlan) {
@@ -55,6 +69,7 @@ export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductio
   const itemKeys = new Set<string>();
   const variantKeys = new Set<string>();
   const counts = new Map<string, number>();
+  const allowedStages = new Set<string>(AVATAR_ART_PIPELINE_STAGES);
 
   for (const entry of plan.entries) {
     assertKey(entry.itemKey, 'catalog item key');
@@ -70,11 +85,15 @@ export function validateAvatarCatalogProductionPlan(plan: AvatarCatalogProductio
 
     const stageSet = new Set(entry.completedStages);
     if (stageSet.size !== entry.completedStages.length) throw new Error(`Catalog item ${entry.itemKey} repeats a production stage.`);
-    if (entry.runtimeGlbUri || entry.runtimeCertifiedAt) {
-      if (!isAvatarCatalogEntryRuntimeReady(entry)) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline is certified.`);
+    const unknownStage = entry.completedStages.find((stage) => !allowedStages.has(stage));
+    if (unknownStage) throw new Error(`Catalog item ${entry.itemKey} contains unknown production stage ${unknownStage}.`);
+
+    if (hasAnyRuntimeEvidence(entry)) {
+      if (!isAvatarCatalogEntryRuntimeReady(entry)) throw new Error(`Catalog item ${entry.itemKey} cannot claim runtime readiness before the complete art pipeline and GLB evidence are certified.`);
       const certifiedAt = Date.parse(entry.runtimeCertifiedAt!);
       if (!Number.isFinite(certifiedAt) || certifiedAt > Date.now() + 5 * 60 * 1000) throw new Error(`Invalid runtime certification timestamp for ${entry.itemKey}.`);
       if (!entry.runtimeGlbUri!.toLowerCase().endsWith('.glb')) throw new Error(`Catalog item ${entry.itemKey} runtime asset must be GLB.`);
+      if (!SHA256.test(entry.runtimeGlbSha256!)) throw new Error(`Catalog item ${entry.itemKey} runtime GLB requires a valid SHA-256 digest.`);
     }
   }
 
