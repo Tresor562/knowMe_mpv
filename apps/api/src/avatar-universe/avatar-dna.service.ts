@@ -9,7 +9,9 @@ import {
 } from './avatar-dna.domain';
 import { AVATAR_DEFAULT_MORPHOLOGY, AVATAR_DEFAULT_PERSONALITY } from './avatar-universe.domain';
 
-export type UpdateAvatarDnaInput = Omit<AvatarDNA, 'revision'> & { expectedRevision: number };
+export type UpdateAvatarDnaInput = Pick<AvatarDNA, 'schemaVersion' | 'morphology' | 'personality' | 'renderTier'> & {
+  expectedRevision: number;
+};
 
 @Injectable()
 export class AvatarDnaService {
@@ -25,7 +27,16 @@ export class AvatarDnaService {
     if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1) {
       throw new BadRequestException('expectedRevision must be a positive safe integer');
     }
-    const validated = this.validate({ ...input, revision: input.expectedRevision });
+    // Runtime identity is server authority. A client may tune safe DNA controls,
+    // but it cannot select an arbitrary mesh/rig/material compatibility domain.
+    const validated = this.validate({
+      schemaVersion: input.schemaVersion,
+      revision: input.expectedRevision,
+      morphology: input.morphology,
+      personality: input.personality,
+      renderTier: input.renderTier,
+      ...AVATAR_DNA_DEFAULT_KEYS
+    });
 
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.avatarIdentityProfile.findUnique({ where: { userId } });
