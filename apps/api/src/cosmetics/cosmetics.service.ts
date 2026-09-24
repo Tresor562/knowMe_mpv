@@ -33,7 +33,20 @@ export class CosmeticsService {
     return {items:Array.from(latestByKey.values()).sort((a,b)=>`${a.slot}:${a.name}`.localeCompare(`${b.slot}:${b.name}`)),rules:this.policy(),serverTime:now};
   }
 
-  async me(userId:string){ const [ownerships,equipment]=await Promise.all([this.prisma.cosmeticOwnership.findMany({where:{userId,revokedAt:null},include:{item:true},orderBy:[{acquiredAt:'desc'},{id:'desc'}]}),this.prisma.cosmeticEquipment.findMany({where:{userId},include:{item:true},orderBy:[{slot:'asc'}]})]); const equippedIds=new Set(equipment.map(e=>e.itemId)); return {inventory:ownerships.map(o=>({...o,equipped:equippedIds.has(o.itemId)})),equipment,rules:this.policy()}; }
+  async me(userId:string){
+    const now=new Date();
+    const [ownerships,equipment]=await Promise.all([
+      this.prisma.cosmeticOwnership.findMany({where:{userId,revokedAt:null},include:{item:true},orderBy:[{acquiredAt:'desc'},{id:'desc'}]}),
+      this.prisma.cosmeticEquipment.findMany({where:{userId},include:{item:true},orderBy:[{slot:'asc'}]})
+    ]);
+    const ownedItemIds=new Set(ownerships.map(o=>o.itemId));
+    const safeEquipment=equipment.filter(e=>{
+      if(!ownedItemIds.has(e.itemId)||!this.slotMatches(e.item.slot,e.slot)||!this.isAvailable(e.item,now)) return false;
+      try{this.assertAvatarRuntimeReady(e.item);return true;}catch{return false;}
+    });
+    const equippedIds=new Set(safeEquipment.map(e=>e.itemId));
+    return {inventory:ownerships.map(o=>({...o,equipped:equippedIds.has(o.itemId)})),equipment:safeEquipment,rules:this.policy()};
+  }
 
   async createItem(actorId:string,dto:CreateCosmeticItemDto){
     const startsAt=dto.startsAt?new Date(dto.startsAt):new Date(), endsAt=dto.endsAt?new Date(dto.endsAt):null;
