@@ -17,10 +17,11 @@ function assertCompositionShape(value:unknown):asserts value is AvatarRuntimeCom
   for(const key of COMPOSITION_KEYS)if(!(key in source))throw new Error(`Missing runtime composition field: ${key}`);
   if(!Array.isArray(source.equipped))throw new Error('Runtime composition equipped assets must be an array');
 }
-/** Conservative KTX2 residency estimate: one byte/texel plus the full mip chain. Shared texture URIs are counted once. */
+function assertMobileTexturePayload(asset:AvatarAssetManifest){if(asset.textures.runtimeFormat!=='KTX2'||!asset.textures.compression?.startsWith('BASISU_'))throw new Error(`Asset ${asset.assetKey} requires explicit KTX2/BasisU runtime texture encoding`);}
+/** Conservative post-transcode GPU residency estimate with a full mip chain. Shared texture URIs are counted once. ETC1S targets 4bpp mobile blocks; UASTC reserves 8bpp. */
 function estimateTextureMemoryMiB(assets:AvatarAssetManifest[]){
   const seen=new Set<string>();let bytes=0;
-  for(const asset of assets){for(const channel of TEXTURE_CHANNELS){const uri=asset.textures[channel];if(!uri||seen.has(uri))continue;seen.add(uri);const side=asset.textures.maxResolution;bytes+=Math.ceil(side*side*4/3);}}
+  for(const asset of assets){const bytesPerTexel=asset.textures.compression==='BASISU_ETC1S'?0.5:1;for(const channel of TEXTURE_CHANNELS){const uri=asset.textures[channel];if(!uri||seen.has(uri))continue;seen.add(uri);const side=asset.textures.maxResolution;bytes+=Math.ceil(side*side*bytesPerTexel*4/3);}}
   return bytes/(1024*1024);
 }
 
@@ -43,7 +44,7 @@ export function validateAvatarRuntimeComposition(value:unknown,lodLevel:0|1|2=0)
     if(asset.facialRigKey&&asset.facialRigKey!==dna.facialRigKey)throw new Error(`Asset ${asset.assetKey} uses an incompatible facial rig`);
     if(asset.kind==='CLOTHING')requiredMorphs(asset,AVATAR_BODY_MORPHS,`Clothing ${asset.assetKey}`);
   }
-  const all=[baseBody,...equipped];
+  const all=[baseBody,...equipped];for(const asset of all)assertMobileTexturePayload(asset);
   const visibleTriangles=all.reduce((sum,asset)=>sum+asset.lods[lodLevel].triangles,0);
   const skinnedMeshes=all.reduce((sum,asset)=>sum+(asset.geometry?.skinned?1:0),0);
   const estimatedDrawCalls=all.reduce((sum,asset)=>sum+1+(['normal','metallicRoughness','occlusion','emissive'] as const).filter(key=>Boolean(asset.textures[key])).length,0);
