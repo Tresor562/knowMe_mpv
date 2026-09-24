@@ -105,12 +105,26 @@ describe('CosmeticsService', () => {
     const tampered={...hairManifest,geometry:{...hairManifest.geometry,hairCards:false}};
     const result=await meService({itemOverrides:{avatarAssetManifest:tampered}}).me('user-1');
     expect(result.equipment).toEqual([]);
-    expect(result.inventory[0]).toEqual(expect.objectContaining({equipped:false}));
+    expect(result.inventory).toEqual([]);
+  });
+
+  it('does not expose an owned avatar payload in inventory when its certified manifest was tampered', async()=>{
+    const tampered={...hairManifest,lods:hairManifest.lods.map((lod,index)=>index===0?{...lod,downloadBytes:99_000_000}:lod)};
+    const result=await meService({itemOverrides:{avatarAssetManifest:tampered}}).me('user-1');
+    expect(result.inventory).toEqual([]);
+    expect(result.equipment).toEqual([]);
+  });
+
+  it('does not expose an owned avatar payload when assetUrl was substituted after certification', async()=>{
+    const result=await meService({itemOverrides:{assetUrl:'https://evil.invalid/inventory.glb'}}).me('user-1');
+    expect(result.inventory).toEqual([]);
+    expect(result.equipment).toEqual([]);
   });
 
   it('does not expose stale equipment when server-side ownership is absent', async()=>{
     const result=await meService({owned:false}).me('user-1');
     expect(result.equipment).toEqual([]);
+    expect(result.inventory).toEqual([]);
   });
 
   it('does not expose persisted equipment that crosses its authoritative slot', async()=>{
