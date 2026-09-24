@@ -6,6 +6,8 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AvatarAssetManifest, validateAvatarAssetManifest } from '../avatar-universe/avatar-asset-manifest.domain';
+import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -20,6 +22,13 @@ type AvailabilityCandidate = {
   active: boolean;
   startsAt: Date;
   endsAt: Date | null;
+};
+
+type RuntimeAssetCandidate = AvailabilityCandidate & {
+  slot: string;
+  assetUrl: string;
+  avatarAssetManifest?: Prisma.JsonValue | null;
+  assetValidatedAt?: Date | null;
 };
 
 type LoadedPreset = Prisma.CosmeticPresetGetPayload<{
@@ -43,6 +52,7 @@ export class CosmeticPresetsService {
       idempotentActivation: true,
       hiddenSlotsRespected: true,
       unavailableItemsPruned: true,
+      validated3DAssetsRequired: true,
       maxItems: COSMETIC_SLOTS.length,
       supportedSlots: COSMETIC_SLOTS
     };
@@ -54,6 +64,23 @@ export class CosmeticPresetsService {
 
   isAvailable(item: AvailabilityCandidate, now = new Date()) {
     return item.active && item.startsAt <= now && (!item.endsAt || item.endsAt > now);
+  }
+
+  private isAvatarSlot(slot: string) {
+    return AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]);
+  }
+
+  private isRuntimeAssetReady(item: RuntimeAssetCandidate) {
+    if (!this.isAvatarSlot(item.slot)) return true;
+    if (!item.avatarAssetManifest || !item.assetValidatedAt || !item.assetUrl) return false;
+    try {
+      const manifest = validateAvatarAssetManifest(
+        item.avatarAssetManifest as unknown as AvatarAssetManifest
+      );
+      return manifest.slot === item.slot && manifest.lods[0].uri === item.assetUrl;
+    } catch {
+      return false;
+    }
   }
 
   async list(userId: string) {
@@ -312,7 +339,8 @@ export class CosmeticPresetsService {
             owned.has(entry.itemId) &&
             entry.item.slot === entry.slot &&
             COSMETIC_SLOTS.includes(entry.slot as (typeof COSMETIC_SLOTS)[number]) &&
-            this.isAvailable(entry.item, now);
+            this.isAvailable(entry.item, now) &&
+            this.isRuntimeAssetReady(entry.item);
           if (!valid) invalidItemIds.push(entry.id);
           return valid && !hidden.has(entry.slot);
         });
@@ -500,6 +528,9 @@ export class CosmeticPresetsService {
       if (!this.isAvailable(item)) {
         throw new BadRequestException('Un objet du preset n’est pas actuellement disponible.');
       }
+      if (!this.isRuntimeAssetReady(item)) {
+        throw new BadRequestException('Un objet avatar du preset ne possède plus un asset 3D runtime certifié.');
+      }
       return { slot: entry.slot, itemId: entry.itemId };
     });
   }
@@ -537,7 +568,8 @@ export class CosmeticPresetsService {
         (entry) =>
           !owned.has(entry.itemId) ||
           entry.item.slot !== entry.slot ||
-          !this.isAvailable(entry.item, now)
+          !this.isAvailable(entry.item, now) ||
+          !this.isRuntimeAssetReady(entry.item)
       )
       .map((entry) => entry.id);
 
