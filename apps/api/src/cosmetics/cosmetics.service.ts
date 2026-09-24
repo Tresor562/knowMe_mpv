@@ -25,11 +25,12 @@ export class CosmeticsService {
       if(manifest.lods[0].uri!==item.assetUrl) throw new Error('assetUrl ne correspond plus au LOD0 certifié.');
     } catch(error){ throw new BadRequestException(error instanceof Error?error.message:'Manifest 3D avatar persisté invalide.'); }
   }
+  private isRuntimeSafe(item:AvatarRuntimeCandidate){ try{this.assertAvatarRuntimeReady(item);return true;}catch{return false;} }
 
   async catalog(now=new Date()){
     const candidates=await this.prisma.cosmeticItemDefinition.findMany({where:{active:true,startsAt:{lte:now},OR:[{endsAt:null},{endsAt:{gt:now}}]},orderBy:[{key:'asc'},{version:'desc'}]});
     const latestByKey=new Map<string,(typeof candidates)[number]>();
-    for(const item of candidates){ try{this.assertAvatarRuntimeReady(item);}catch{continue;} if(!latestByKey.has(item.key)) latestByKey.set(item.key,item); }
+    for(const item of candidates){ if(!this.isRuntimeSafe(item)) continue; if(!latestByKey.has(item.key)) latestByKey.set(item.key,item); }
     return {items:Array.from(latestByKey.values()).sort((a,b)=>`${a.slot}:${a.name}`.localeCompare(`${b.slot}:${b.name}`)),rules:this.policy(),serverTime:now};
   }
 
@@ -39,13 +40,13 @@ export class CosmeticsService {
       this.prisma.cosmeticOwnership.findMany({where:{userId,revokedAt:null},include:{item:true},orderBy:[{acquiredAt:'desc'},{id:'desc'}]}),
       this.prisma.cosmeticEquipment.findMany({where:{userId},include:{item:true},orderBy:[{slot:'asc'}]})
     ]);
-    const ownedItemIds=new Set(ownerships.map(o=>o.itemId));
-    const safeEquipment=equipment.filter(e=>{
-      if(!ownedItemIds.has(e.itemId)||!this.slotMatches(e.item.slot,e.slot)||!this.isAvailable(e.item,now)) return false;
-      try{this.assertAvatarRuntimeReady(e.item);return true;}catch{return false;}
-    });
+    // Runtime-facing inventory is fail-closed too: a legitimate ownership record may remain
+    // for ledger/history purposes, but a tampered/invalid avatar payload must never reach a client renderer.
+    const safeOwnerships=ownerships.filter(o=>this.isRuntimeSafe(o.item));
+    const ownedItemIds=new Set(safeOwnerships.map(o=>o.itemId));
+    const safeEquipment=equipment.filter(e=>ownedItemIds.has(e.itemId)&&this.slotMatches(e.item.slot,e.slot)&&this.isAvailable(e.item,now)&&this.isRuntimeSafe(e.item));
     const equippedIds=new Set(safeEquipment.map(e=>e.itemId));
-    return {inventory:ownerships.map(o=>({...o,equipped:equippedIds.has(o.itemId)})),equipment:safeEquipment,rules:this.policy()};
+    return {inventory:safeOwnerships.map(o=>({...o,equipped:equippedIds.has(o.itemId)})),equipment:safeEquipment,rules:this.policy()};
   }
 
   async createItem(actorId:string,dto:CreateCosmeticItemDto){
