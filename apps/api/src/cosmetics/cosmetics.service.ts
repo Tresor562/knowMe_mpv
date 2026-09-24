@@ -7,21 +7,29 @@ import { PrismaService } from '../prisma/prisma.service';
 import { COSMETIC_SLOTS, CreateCosmeticItemDto, EquipCosmeticDto, GrantCosmeticItemDto, RevokeCosmeticOwnershipDto } from './dto/cosmetics.dto';
 
 type AvailabilityCandidate = { active: boolean; startsAt: Date; endsAt: Date | null };
-type AvatarRuntimeCandidate = { slot: string; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
+type AvatarRuntimeCandidate = { slot: string; assetUrl?: string | null; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
 
 @Injectable()
 export class CosmeticsService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
-  policy() { return { visualOnly:true, gameplayEffectsAllowed:false, purchasesEnabled:true, paidPriorityAllowed:false, ownershipRequired:true, oneItemPerSlot:true, serverAuthoritativeInventory:true, immutablePublishedVersions:true, serverAuthoritativeAcquisition:true, validated3DAssetsRequired:true, supportedSlots:COSMETIC_SLOTS }; }
+  policy() { return { visualOnly:true,gameplayEffectsAllowed:false,purchasesEnabled:true,paidPriorityAllowed:false,ownershipRequired:true,oneItemPerSlot:true,serverAuthoritativeInventory:true,immutablePublishedVersions:true,serverAuthoritativeAcquisition:true,validated3DAssetsRequired:true,supportedSlots:COSMETIC_SLOTS }; }
   isAvailable(item:AvailabilityCandidate,now=new Date()){ return item.active&&item.startsAt<=now&&(!item.endsAt||item.endsAt>now); }
   slotMatches(itemSlot:string,requestedSlot:string){ return itemSlot===requestedSlot; }
   private isAvatarSlot(slot:string){ return AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]); }
-  private assertAvatarRuntimeReady(item:AvatarRuntimeCandidate){ if(this.isAvatarSlot(item.slot)&&(!item.avatarAssetManifest||!item.assetValidatedAt)) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.'); }
+  private assertAvatarRuntimeReady(item:AvatarRuntimeCandidate){
+    if(!this.isAvatarSlot(item.slot)) return;
+    if(!item.avatarAssetManifest||!item.assetValidatedAt||!item.assetUrl) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.');
+    try {
+      const manifest=validateAvatarAssetManifest(item.avatarAssetManifest as unknown as AvatarAssetManifest);
+      if(manifest.slot!==item.slot) throw new Error('Le slot du manifest 3D ne correspond plus au slot Cosmetics.');
+      if(manifest.lods[0].uri!==item.assetUrl) throw new Error('assetUrl ne correspond plus au LOD0 certifié.');
+    } catch(error){ throw new BadRequestException(error instanceof Error?error.message:'Manifest 3D avatar persisté invalide.'); }
+  }
 
   async catalog(now=new Date()){
     const candidates=await this.prisma.cosmeticItemDefinition.findMany({where:{active:true,startsAt:{lte:now},OR:[{endsAt:null},{endsAt:{gt:now}}]},orderBy:[{key:'asc'},{version:'desc'}]});
     const latestByKey=new Map<string,(typeof candidates)[number]>();
-    for(const item of candidates){ if(this.isAvatarSlot(item.slot)&&(!item.avatarAssetManifest||!item.assetValidatedAt)) continue; if(!latestByKey.has(item.key)) latestByKey.set(item.key,item); }
+    for(const item of candidates){ try{this.assertAvatarRuntimeReady(item);}catch{continue;} if(!latestByKey.has(item.key)) latestByKey.set(item.key,item); }
     return {items:Array.from(latestByKey.values()).sort((a,b)=>`${a.slot}:${a.name}`.localeCompare(`${b.slot}:${b.name}`)),rules:this.policy(),serverTime:now};
   }
 
