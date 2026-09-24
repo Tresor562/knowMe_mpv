@@ -55,6 +55,14 @@ describe('CosmeticsService', () => {
     return { service:new CosmeticsService(prisma as never, {record:jest.fn()} as never), prisma };
   }
 
+  function meService(options: { owned?: boolean; itemOverrides?: Record<string, unknown>; equipmentSlot?: string } = {}) {
+    const item={ id:'item-1', slot:'AVATAR_HAIR', active:true, startsAt:new Date('2026-01-01T00:00:00.000Z'), endsAt:null, assetUrl:hairManifest.lods[0].uri, avatarAssetManifest:hairManifest, assetValidatedAt:new Date('2026-09-23T00:00:00.000Z'), ...(options.itemOverrides??{}) };
+    const ownership={id:'ownership-1',userId:'user-1',itemId:'item-1',revokedAt:null,acquiredAt:new Date('2026-09-23T00:00:00.000Z'),item};
+    const equipment={id:'equipment-1',userId:'user-1',slot:options.equipmentSlot??'AVATAR_HAIR',itemId:'item-1',item};
+    const prisma={cosmeticOwnership:{findMany:jest.fn().mockResolvedValue(options.owned===false?[]:[ownership])},cosmeticEquipment:{findMany:jest.fn().mockResolvedValue([equipment])}};
+    return new CosmeticsService(prisma as never,{} as never);
+  }
+
   it('revalidates ownership and the complete persisted runtime manifest before accepting an idempotent equip replay', async () => {
     const { service: replay, prisma } = replayService({revokedAt:null});
     await expect(replay.equip('user-1','AVATAR_HAIR',{itemId:'item-1'})).resolves.toEqual(expect.objectContaining({replayed:true}));
@@ -85,5 +93,29 @@ describe('CosmeticsService', () => {
   it('rejects an equip replay when assetUrl no longer points at the certified LOD0', async () => {
     const { service: replay }=replayService({revokedAt:null},{assetUrl:'https://evil.invalid/replaced.glb'});
     await expect(replay.equip('user-1','AVATAR_HAIR',{itemId:'item-1'})).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('only exposes equipped avatar assets that still have active ownership and a valid certified runtime manifest', async()=>{
+    const result=await meService().me('user-1');
+    expect(result.equipment).toHaveLength(1);
+    expect(result.inventory[0]).toEqual(expect.objectContaining({equipped:true}));
+  });
+
+  it('fails closed on the read path when persisted equipment points at a tampered runtime manifest', async()=>{
+    const tampered={...hairManifest,geometry:{...hairManifest.geometry,hairCards:false}};
+    const result=await meService({itemOverrides:{avatarAssetManifest:tampered}}).me('user-1');
+    expect(result.equipment).toEqual([]);
+    expect(result.inventory[0]).toEqual(expect.objectContaining({equipped:false}));
+  });
+
+  it('does not expose stale equipment when server-side ownership is absent', async()=>{
+    const result=await meService({owned:false}).me('user-1');
+    expect(result.equipment).toEqual([]);
+  });
+
+  it('does not expose persisted equipment that crosses its authoritative slot', async()=>{
+    const result=await meService({equipmentSlot:'AVATAR_FACE'}).me('user-1');
+    expect(result.equipment).toEqual([]);
+    expect(result.inventory[0]).toEqual(expect.objectContaining({equipped:false}));
   });
 });
