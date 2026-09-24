@@ -3,9 +3,10 @@ import { AvatarDNA, validateAvatarDNA } from './avatar-dna.domain';
 import { AvatarRenderProfile, validateAvatarRenderProfile } from './avatar-render-profile.domain';
 
 export type AvatarRuntimeComposition = { dna:AvatarDNA; renderProfile:AvatarRenderProfile; baseBody:AvatarAssetManifest; equipped:AvatarAssetManifest[] };
-export type AvatarRuntimeCompositionMetrics = { visibleTriangles:number; estimatedDrawCalls:number; skinnedMeshes:number; lodLevel:0|1|2 };
+export type AvatarRuntimeCompositionMetrics = { visibleTriangles:number; estimatedDrawCalls:number; skinnedMeshes:number; estimatedTextureMemoryMiB:number; lodLevel:0|1|2 };
 export type CertifiedAvatarRuntimeComposition = AvatarRuntimeComposition & { metrics:AvatarRuntimeCompositionMetrics };
 const COMPOSITION_KEYS=new Set(['dna','renderProfile','baseBody','equipped']);
+const TEXTURE_CHANNELS=['baseColor','normal','metallicRoughness','occlusion','emissive'] as const;
 
 function requiredMorphs(asset:AvatarAssetManifest,names:readonly string[],label:string){for(const name of names)if(!asset.morphTargets.includes(name))throw new Error(`${label} cannot follow Avatar DNA control ${name}`);}
 function canonicalAsset(value:AvatarAssetManifest,label:string){try{return validateAvatarAssetManifest(value);}catch(error){throw new Error(`${label} is not runtime-certified: ${error instanceof Error?error.message:'invalid asset'}`);}}
@@ -15,6 +16,12 @@ function assertCompositionShape(value:unknown):asserts value is AvatarRuntimeCom
   for(const key of Object.keys(source))if(!COMPOSITION_KEYS.has(key))throw new Error(`Unknown runtime composition field: ${key}`);
   for(const key of COMPOSITION_KEYS)if(!(key in source))throw new Error(`Missing runtime composition field: ${key}`);
   if(!Array.isArray(source.equipped))throw new Error('Runtime composition equipped assets must be an array');
+}
+/** Conservative KTX2 residency estimate: one byte/texel plus the full mip chain. Shared texture URIs are counted once. */
+function estimateTextureMemoryMiB(assets:AvatarAssetManifest[]){
+  const seen=new Set<string>();let bytes=0;
+  for(const asset of assets){for(const channel of TEXTURE_CHANNELS){const uri=asset.textures[channel];if(!uri||seen.has(uri))continue;seen.add(uri);const side=asset.textures.maxResolution;bytes+=Math.ceil(side*side*4/3);}}
+  return bytes/(1024*1024);
 }
 
 /** Final geometry/rig/morph/mobile-budget gate before the renderer consumes assembled GLBs. Ownership and pricing remain server-authoritative in Cosmetics. */
@@ -40,8 +47,10 @@ export function validateAvatarRuntimeComposition(value:unknown,lodLevel:0|1|2=0)
   const visibleTriangles=all.reduce((sum,asset)=>sum+asset.lods[lodLevel].triangles,0);
   const skinnedMeshes=all.reduce((sum,asset)=>sum+(asset.geometry?.skinned?1:0),0);
   const estimatedDrawCalls=all.reduce((sum,asset)=>sum+1+(['normal','metallicRoughness','occlusion','emissive'] as const).filter(key=>Boolean(asset.textures[key])).length,0);
+  const estimatedTextureMemoryMiB=estimateTextureMemoryMiB(all);
   if(visibleTriangles>renderProfile.android.maxVisibleTriangles)throw new Error('Assembled avatar exceeds the render profile visible-triangle budget');
   if(skinnedMeshes>renderProfile.android.maxSkinnedMeshes)throw new Error('Assembled avatar exceeds the render profile skinned-mesh budget');
   if(estimatedDrawCalls>renderProfile.android.maxDrawCalls)throw new Error('Assembled avatar exceeds the render profile draw-call budget');
-  return{dna,renderProfile,baseBody,equipped,metrics:{visibleTriangles,estimatedDrawCalls,skinnedMeshes,lodLevel}};
+  if(estimatedTextureMemoryMiB>renderProfile.android.maxTextureMemoryMiB)throw new Error('Assembled avatar exceeds the render profile texture-memory budget');
+  return{dna,renderProfile,baseBody,equipped,metrics:{visibleTriangles,estimatedDrawCalls,skinnedMeshes,estimatedTextureMemoryMiB,lodLevel}};
 }
