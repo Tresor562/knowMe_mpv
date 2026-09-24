@@ -2,8 +2,8 @@ import { AvatarAnimationManifest } from './avatar-animation-manifest.domain';
 import { AvatarEmotePackManifest } from './avatar-emote-pack-manifest.domain';
 import { AVATAR_EMOTE_PACK_BINDINGS, AVATAR_MOTION_BINDINGS, bindCertifiedAvatarEmotePack, bindCertifiedAvatarMotion, isKnownAvatarMotionKey } from './avatar-motion-runtime-binding.domain';
 
-const evidence=(payload='a')=>({payloadSha256:payload.repeat(64),payloadBytes:256_000,manifestSha256:'b'.repeat(64),certifiedAt:'2026-09-23T22:00:00.000Z'});
-const body=(clipKey='knowme.idle.neutral.v1',loop=true,payload='a'):AvatarAnimationManifest=>({manifestVersion:1,clipKey,kind:'BODY',uri:`asset://runtime/avatar/animations/${clipKey}.glb`,durationMs:4000,loop,skeletonKey:'knowme.humanoid.v1',drivenMorphTargets:[],sampleRate:30,...evidence(payload)});
+const evidence=(payload='a',payloadBytes=256_000)=>({payloadSha256:payload.repeat(64),payloadBytes,manifestSha256:'b'.repeat(64),certifiedAt:'2026-09-23T22:00:00.000Z'});
+const body=(clipKey='knowme.idle.neutral.v1',loop=true,payload='a',durationMs=4000,payloadBytes=256_000):AvatarAnimationManifest=>({manifestVersion:1,clipKey,kind:'BODY',uri:`asset://runtime/avatar/animations/${clipKey}.glb`,durationMs,loop,skeletonKey:'knowme.humanoid.v1',drivenMorphTargets:[],sampleRate:30,...evidence(payload,payloadBytes)});
 const pack=(packKey='knowme.emotes.core.v1'):AvatarEmotePackManifest=>({manifestVersion:1,packKey,clips:[body('knowme.emote.wave.v1',false,'a'),body('knowme.emote.nod.v1',false,'c')],manifestSha256:'d'.repeat(64),certifiedAt:'2026-09-23T22:00:00.000Z'});
 
 // Contract fixtures only: they do not claim that these GLB binaries exist in production.
@@ -49,5 +49,15 @@ describe('Avatar motion runtime binding',()=>{
     expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),clips:[body('knowme.emote.wave.v1',true,'a'),body('knowme.emote.nod.v1',false,'c')]})).toThrow(/non-looping/i);
     expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),clips:[body('knowme.emote.wave.v1',false,'a'),body('knowme.emote.nod.v1',false,'a')]})).toThrow(/same certified GLB payload/i);
     expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),premiumUnlocked:true} as AvatarEmotePackManifest)).toThrow(/Unknown avatar emote pack manifest field/i);
+  });
+
+  it('rejects emote clips that exceed mobile duration or per-clip payload budgets',()=>{
+    expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),clips:[body('knowme.emote.wave.v1',false,'a',15_001),body('knowme.emote.nod.v1',false,'c')]})).toThrow(/duration budget/i);
+    expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),clips:[body('knowme.emote.wave.v1',false,'a',4000,2*1024*1024+1),body('knowme.emote.nod.v1',false,'c')]})).toThrow(/payload budget/i);
+  });
+
+  it('rejects packs whose independently valid clips exceed the aggregate mobile download budget',()=>{
+    const clips=Array.from({length:9},(_,i)=>body(`knowme.emote.mobile-${i}.v1`,false,(i+1).toString(16),4000,2*1024*1024));
+    expect(()=>bindCertifiedAvatarEmotePack('emotes-core-v1',{...pack(),clips})).toThrow(/aggregate mobile payload budget/i);
   });
 });
