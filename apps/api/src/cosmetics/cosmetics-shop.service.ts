@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AvatarAssetManifest, validateAvatarAssetManifest } from '../avatar-universe/avatar-asset-manifest.domain';
 import { AVATAR_ALL_SLOTS } from '../avatar-universe/avatar-universe.domain';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,7 +8,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { CreateCosmeticOfferDto, PurchaseCosmeticOfferDto } from './dto/cosmetics-shop.dto';
 
 type AvailableDefinition = { active: boolean; startsAt: Date; endsAt: Date | null };
-type RuntimeAssetDefinition = { slot?: string | null; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
+type RuntimeAssetDefinition = { slot?: string | null; assetUrl?: string | null; avatarAssetManifest?: Prisma.JsonValue | null; assetValidatedAt?: Date | null };
 
 @Injectable()
 export class CosmeticsShopService {
@@ -15,15 +16,20 @@ export class CosmeticsShopService {
   policy() { return { currency: 'KNOWCOINS', verifiedLedgerRequired: true, atomicDebitAndOwnership: true, idempotentPurchases: true, onePurchasePerItemPerAccount: true, visualOnly: true, gameplayEffectsAllowed: false, paidPriorityAllowed: false, socialVisibilityBoostAllowed: false, premiumBypassAllowed: false, premiumEntitlementKey: 'premium.core', serverAuthoritativePricing: true, serverAuthoritativeAcquisition: true, validated3DAssetsRequired: true }; }
   isAvailable(definition: AvailableDefinition, now = new Date()) { return definition.active && definition.startsAt <= now && (!definition.endsAt || definition.endsAt > now); }
   private isAvatarSlot(slot?: string | null) { return Boolean(slot && AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number])); }
-  private isRuntimeAssetReady(item: RuntimeAssetDefinition) { return !this.isAvatarSlot(item.slot) || Boolean(item.avatarAssetManifest && item.assetValidatedAt); }
-  private assertRuntimeAssetReady(item: RuntimeAssetDefinition) { if (!this.isRuntimeAssetReady(item)) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.'); }
+  private isRuntimeAssetReady(item: RuntimeAssetDefinition) {
+    if (!this.isAvatarSlot(item.slot)) return true;
+    if (!item.avatarAssetManifest || !item.assetValidatedAt || !item.assetUrl) return false;
+    try {
+      const manifest = validateAvatarAssetManifest(item.avatarAssetManifest as unknown as AvatarAssetManifest);
+      return manifest.slot === item.slot && manifest.lods[0].uri === item.assetUrl;
+    } catch { return false; }
+  }
+  private assertRuntimeAssetReady(item: RuntimeAssetDefinition) { if (!this.isRuntimeAssetReady(item)) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé et cohérent.'); }
   private async hasPremium(tx: Prisma.TransactionClient | PrismaService, userId: string, now: Date) {
     const grant = await tx.entitlementGrant.findFirst({ where: { userId, key: 'premium.core', startsAt: { lte: now }, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, select: { id: true } });
     return Boolean(grant);
   }
-  private assertShopPurchasable(mode: string) {
-    if (mode !== 'KNOWCOINS' && mode !== 'PREMIUM_KNOWCOINS') throw new BadRequestException('Cet objet ne peut pas être acheté dans la boutique KnowCoins.');
-  }
+  private assertShopPurchasable(mode: string) { if (mode !== 'KNOWCOINS' && mode !== 'PREMIUM_KNOWCOINS') throw new BadRequestException('Cet objet ne peut pas être acheté dans la boutique KnowCoins.'); }
 
   async shop(userId: string, now = new Date()) {
     const [offers, ownerships, wallet, premium] = await Promise.all([
@@ -43,13 +49,9 @@ export class CosmeticsShopService {
     if (endsAt && endsAt <= startsAt) throw new BadRequestException('La fin de l’offre doit suivre son début.');
     const item = await this.prisma.cosmeticItemDefinition.findUnique({ where: { id: dto.itemId } });
     if (!item) throw new NotFoundException('Objet cosmétique introuvable.');
-    this.assertShopPurchasable(item.acquisitionMode);
-    this.assertRuntimeAssetReady(item);
+    this.assertShopPurchasable(item.acquisitionMode); this.assertRuntimeAssetReady(item);
     if (dto.active && !this.isAvailable(item)) throw new BadRequestException('Une offre active exige un objet cosmétique actuellement disponible.');
-    try {
-      const offer = await this.prisma.cosmeticOfferDefinition.create({ data: { key: dto.key, version: dto.version, itemId: dto.itemId, priceKnowCoins: dto.priceKnowCoins, active: dto.active ?? false, startsAt, endsAt, createdById: actorId, reason: dto.reason }, include: { item: true } });
-      await this.audit.record({ actorId, action: 'COSMETIC_OFFER_PUBLISHED', entity: 'CosmeticOfferDefinition', entityId: offer.id, metadata: { key: offer.key, version: offer.version, itemId: offer.itemId, acquisitionMode: offer.item.acquisitionMode, priceKnowCoins: offer.priceKnowCoins, active: offer.active, visualOnly: true } }); return offer;
-    } catch (error) { if (this.isUniqueConflict(error)) throw new ConflictException('Cette version d’offre cosmétique existe déjà.'); throw error; }
+    try { const offer = await this.prisma.cosmeticOfferDefinition.create({ data: { key: dto.key, version: dto.version, itemId: dto.itemId, priceKnowCoins: dto.priceKnowCoins, active: dto.active ?? false, startsAt, endsAt, createdById: actorId, reason: dto.reason }, include: { item: true } }); await this.audit.record({ actorId, action: 'COSMETIC_OFFER_PUBLISHED', entity: 'CosmeticOfferDefinition', entityId: offer.id, metadata: { key: offer.key, version: offer.version, itemId: offer.itemId, acquisitionMode: offer.item.acquisitionMode, priceKnowCoins: offer.priceKnowCoins, active: offer.active, visualOnly: true } }); return offer; } catch (error) { if (this.isUniqueConflict(error)) throw new ConflictException('Cette version d’offre cosmétique existe déjà.'); throw error; }
   }
 
   async purchase(userId: string, dto: PurchaseCosmeticOfferDto) {
@@ -62,8 +64,7 @@ export class CosmeticsShopService {
         if (duplicate) { this.assertReplayMatches(duplicate.userId, duplicate.offerId, userId, dto.offerId); return { receipt: duplicate, ownership: await tx.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId, itemId: duplicate.itemId } } }), ledgerEntry: await tx.knowCoinLedgerEntry.findUnique({ where: { id: duplicate.ledgerEntryId } }), replayed: true }; }
         const offer = await tx.cosmeticOfferDefinition.findUnique({ where: { id: dto.offerId }, include: { item: true } }); if (!offer) throw new NotFoundException('Offre cosmétique introuvable.');
         const now = new Date(); if (!this.isAvailable(offer, now) || !this.isAvailable(offer.item, now)) throw new BadRequestException('Cette offre cosmétique n’est plus disponible.');
-        this.assertShopPurchasable(offer.item.acquisitionMode);
-        this.assertRuntimeAssetReady(offer.item);
+        this.assertShopPurchasable(offer.item.acquisitionMode); this.assertRuntimeAssetReady(offer.item);
         if (offer.item.acquisitionMode === 'PREMIUM_KNOWCOINS' && !(await this.hasPremium(tx, userId, now))) throw new ForbiddenException('KnowMe Premium est requis pour acheter cet objet.');
         const currentOwnership = await tx.cosmeticOwnership.findUnique({ where: { userId_itemId: { userId, itemId: offer.itemId } } }); if (currentOwnership && !currentOwnership.revokedAt) throw new ConflictException('Cet objet cosmétique est déjà possédé.');
         const walletMutation = await this.wallet.applyInTransaction(tx, { userId, amount: -offer.priceKnowCoins, type: 'COSMETIC_PURCHASE', source: 'COSMETICS_SHOP', idempotencyKey: ledgerIdempotencyKey, actorId: userId, reason: `Achat de ${offer.item.name}`, referenceType: 'CosmeticOfferDefinition', referenceId: offer.id, metadata: { offerKey: offer.key, offerVersion: offer.version, itemId: offer.itemId, acquisitionMode: offer.item.acquisitionMode, visualOnly: true } });
