@@ -317,7 +317,11 @@ export function messengerExperiencePolicy() {
     voiceTransformation: {
       enabled: true,
       originalVoice: true,
-      previewBeforeSend: true,
+      normalVoiceSendUnchanged: true,
+      optInOnly: true,
+      availableOnLockedOrDraftRecording: true,
+      previewRequiredOnlyWhenTransformationRequested: true,
+      resetsToOriginalForEveryNewRecording: true,
       systemPresetVoices: true,
       userConsentedVoiceProfiles: true,
       serverAuthoritativeVoiceCatalog: true,
