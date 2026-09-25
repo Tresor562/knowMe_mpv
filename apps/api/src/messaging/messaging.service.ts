@@ -473,19 +473,27 @@ export class MessagingService {
 
   private presentMessage<T extends { content: string; conversationId: string }>(
     message: T,
-    knownSticker?: StickerPresentation | null
+    knownSticker?: StickerPresentation | null,
+    knownMediaMessage?: ReturnType<MediaMessageTokenService['resolve']>
   ) {
     const sticker =
       knownSticker ??
       this.stickerTokens.resolve(message.content, {
         conversationId: message.conversationId
       });
+    const mediaMessage =
+      knownMediaMessage ??
+      this.mediaMessageTokens.resolve(message.content, {
+        conversationId: message.conversationId
+      });
     return {
       ...message,
-      presentation: sticker ?? {
-        kind: 'TEXT' as const,
-        text: message.content
-      }
+      presentation:
+        sticker ??
+        mediaMessage ?? {
+          kind: 'TEXT' as const,
+          text: message.content
+        }
     };
   }
 
