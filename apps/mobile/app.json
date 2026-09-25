@@ -11,7 +11,10 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Autoriser KnowMe à enregistrer des messages vocaux."
+          "microphonePermission": "Autoriser KnowMe à enregistrer des messages vocaux.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
         }
       ],
       [
