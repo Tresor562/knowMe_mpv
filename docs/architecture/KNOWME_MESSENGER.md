@@ -171,6 +171,48 @@ Depuis une conversation :
 
 Le résultat est publié comme un événement signé par le serveur. Le client ne peut pas inventer un score final.
 
+## Notes vidéo
+
+KnowMe Messenger permet d’enregistrer et d’envoyer une note vidéo directement depuis la zone de composition.
+
+Comportement initial :
+
+- enregistrement depuis la caméra avant ou arrière ;
+- durée initiale maximale de 60 secondes, ajustable par politique serveur ;
+- aperçu avant envoi ;
+- possibilité de recommencer l’enregistrement ;
+- présentation compacte dédiée dans le fil, distincte d’une vidéo classique ;
+- lecture au toucher sans quitter la conversation ;
+- vignette et durée visibles ;
+- sauvegarde possible dans les médias de conversation selon les préférences ;
+- mêmes contrôles de stockage, analyse, modération et accès que les autres médias.
+
+Une note vidéo est un type de message média explicite (VIDEO_NOTE) et ne doit pas être traitée comme une simple URL ou comme du texte enrichi.
+
+## Traduction d’une conversation
+
+La traduction est une vue locale et réversible : elle ne remplace jamais le texte original stocké.
+
+Quand la langue dominante détectée dans une conversation diffère de la langue de l’application, une barre d’action apparaît sous la zone d’informations de la conversation, par exemple :
+
+- « Traduire en français » si l’application est en français ;
+- « Translate to English » si l’application est en anglais.
+
+L’utilisateur peut :
+
+- traduire tous les messages actuellement chargés ;
+- conserver cette traduction active pour les nouveaux messages entrants ;
+- utiliser la langue de l’application comme cible ;
+- choisir manuellement une autre langue ;
+- afficher à tout moment le message original ;
+- désactiver la traduction pour revenir entièrement à la vue originale.
+
+La préférence de traduction est personnelle au membre de la conversation. Elle ne change pas ce que les autres participants voient.
+
+Le système conserve le texte original comme source autoritaire. Les traductions peuvent être mises en cache par utilisateur, message, langue cible et version du message, mais une modification du message original invalide la traduction correspondante.
+
+La traduction doit indiquer qu’elle peut contenir des erreurs. Pour une conversation chiffrée de bout en bout, aucun texte en clair ne doit être envoyé silencieusement à un service de traduction : le traitement doit respecter le mode de chiffrement et le consentement utilisateur.
+
 ## Messages vocaux
 
 Fonctions prévues :
@@ -182,9 +224,29 @@ Fonctions prévues :
 - réactions ;
 - suppression des silences ;
 - aperçu de forme d’onde ;
-- reprise de lecture.
+- reprise de lecture ;
+- transformation de voix avant envoi.
 
-La transcription et la traduction doivent indiquer qu’elles peuvent contenir des erreurs.
+### Changement de voix avant envoi
+
+Après l’enregistrement d’un vocal, KnowMe ouvre un aperçu avant envoi avec :
+
+- lecture du vocal original ;
+- forme d’onde ;
+- bouton « Voix » ;
+- choix « Voix originale » ;
+- catalogue de voix synthétiques KnowMe ;
+- profils vocaux personnels explicitement créés et autorisés par leur propriétaire ;
+- écoute d’un aperçu de la transformation avant envoi ;
+- possibilité de revenir immédiatement à la voix originale.
+
+La voix sélectionnée est traitée comme une transformation média structurée et non comme une modification locale non vérifiée. Le catalogue et les autorisations sont contrôlés côté serveur.
+
+Les profils vocaux personnels doivent être associés au compte qui les possède et à un consentement vérifiable. Les transformations destinées à imiter frauduleusement une personne réelle ou à contourner les règles de sécurité sont refusées.
+
+Le message envoyé référence l’asset audio final autorisé. L’audio original peut être supprimé après traitement selon la politique de confidentialité et les préférences utilisateur ; il ne doit pas rester accessible à d’autres participants par défaut.
+
+La transcription, la traduction et les transformations automatiques doivent indiquer qu’elles peuvent contenir des erreurs.
 
 ## Fichiers et médias
 
@@ -192,6 +254,7 @@ Types pris en charge :
 
 - images ;
 - vidéos ;
+- notes vidéo ;
 - audio ;
 - messages vocaux ;
 - documents ;
