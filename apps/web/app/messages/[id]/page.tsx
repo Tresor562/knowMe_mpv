@@ -352,13 +352,18 @@ export default function ConversationPage() {
     []
   );
 
-  const translatableIds=useMemo(
+  const translatableMessages=useMemo(
     ()=>items
       .filter(item=>
         !item.presentation||
         item.presentation.kind==='TEXT'
       )
-      .map(item=>item.id),
+      .map(item=>({
+        id:item.id,
+        text:item.presentation?.kind==='TEXT'
+          ?item.presentation.text
+          :item.content
+      })),
     [items]
   );
 
@@ -404,7 +409,7 @@ export default function ConversationPage() {
 
       <ConversationTranslationBar
         conversationId={conversationId}
-        messageIds={translatableIds}
+        messages={translatableMessages}
         appLanguage={locale}
         onChange={updateTranslationState}
       />
