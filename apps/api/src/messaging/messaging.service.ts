@@ -354,7 +354,7 @@ export class MessagingService {
     }
     if (
       input.kind === 'VOICE_NOTE' &&
-      !['audio/mpeg', 'audio/webm', 'audio/wav'].includes(asset.detectedMime)
+      !['audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/wav'].includes(asset.detectedMime)
     ) {
       throw new ForbiddenException('Le média sélectionné n’est pas un message vocal.');
     }
