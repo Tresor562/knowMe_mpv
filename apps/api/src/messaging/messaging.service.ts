@@ -426,12 +426,21 @@ export class MessagingService {
     });
 
     const sticker = this.stickerTokens.resolve(content, { conversationId });
+    const mediaMessage = this.mediaMessageTokens.resolve(content, {
+      conversationId
+    });
     const preview = sticker
       ? `Sticker : ${sticker.sticker.label}`
-      : content.length > 120
-        ? `${content.slice(0, 117)}…`
-        : content;
-    const presented = this.presentMessage(message, sticker);
+      : mediaMessage
+        ? mediaMessage.kind === 'VIDEO_NOTE'
+          ? 'Note vidéo'
+          : mediaMessage.transformedVoice
+            ? 'Message vocal · voix modifiée'
+            : 'Message vocal'
+        : content.length > 120
+          ? `${content.slice(0, 117)}…`
+          : content;
+    const presented = this.presentMessage(message, sticker, mediaMessage);
 
     await Promise.all([
       recipients.length
@@ -447,7 +456,7 @@ export class MessagingService {
                 entityId: conversationId,
                 messageId: message.id,
                 actorId: userId,
-                messageKind: sticker ? 'STICKER' : 'TEXT'
+                messageKind: sticker ? 'STICKER' : mediaMessage?.kind ?? 'TEXT'
               }
             }))
           )
