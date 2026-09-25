@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { MEDIA_MESSAGE_PREFIX } from './media-message-token.service';
+import { STICKER_MESSAGE_PREFIX } from './stickers/sticker-token.service';
 
 type TranslationSegment = {
   id: string;
@@ -210,7 +212,14 @@ export class ConversationTranslationService {
 
     return unique.flatMap((id) => {
       const text = byId.get(id);
-      return text ? [{ id, text }] : [];
+      if (
+        !text ||
+        text.startsWith(`${MEDIA_MESSAGE_PREFIX}.`) ||
+        text.startsWith(`${STICKER_MESSAGE_PREFIX}.`)
+      ) {
+        return [];
+      }
+      return [{ id, text }];
     });
   }
 
