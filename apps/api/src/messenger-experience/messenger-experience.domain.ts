@@ -31,6 +31,7 @@ export type MessageEffect = (typeof MESSAGE_EFFECTS)[number];
 export const ATTACHMENT_KINDS = [
   'IMAGE',
   'VIDEO',
+  'VIDEO_NOTE',
   'AUDIO',
   'VOICE_NOTE',
   'DOCUMENT',
@@ -74,6 +75,34 @@ export type VoiceMessagePreferences = {
   saveToConversationMedia: boolean;
 };
 
+export const CONVERSATION_TRANSLATION_MODES = [
+  'OFF',
+  'APP_LANGUAGE',
+  'CUSTOM_LANGUAGE'
+] as const;
+
+export type ConversationTranslationMode =
+  (typeof CONVERSATION_TRANSLATION_MODES)[number];
+
+export type ConversationTranslationPreferences = {
+  mode: ConversationTranslationMode;
+  targetLanguage: string | null;
+  showOriginalByDefault: boolean;
+};
+
+export const VOICE_TRANSFORM_SOURCES = [
+  'ORIGINAL',
+  'SYSTEM_PRESET',
+  'USER_CONSENTED_PROFILE'
+] as const;
+
+export type VoiceTransformSource = (typeof VOICE_TRANSFORM_SOURCES)[number];
+
+export type VoiceTransformSelection = {
+  source: VoiceTransformSource;
+  voiceId: string | null;
+};
+
 export type MessageDeliveryCapabilities = {
   editWindowSeconds: number;
   deleteForEveryoneWindowSeconds: number;
@@ -86,6 +115,7 @@ export type MessageDeliveryCapabilities = {
 };
 
 const MAX_BACKGROUND_ADJUSTMENT = 100;
+const MAX_VIDEO_NOTE_DURATION_SECONDS = 60;
 const MAX_DOCUMENT_BYTES_FREE = 512 * 1024 * 1024;
 const MAX_DOCUMENT_BYTES_PREMIUM = 2 * 1024 * 1024 * 1024;
 const STATUS_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -152,6 +182,88 @@ export function assertMessageEffectAllowed(
   return effect;
 }
 
+function assertLanguageTag(value: string): void {
+  if (
+    !/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(value) ||
+    value.length > 35
+  ) {
+    throw new Error('Langue de traduction invalide.');
+  }
+}
+
+export function validateConversationTranslationPreferences(
+  preferences: ConversationTranslationPreferences
+): void {
+  if (!CONVERSATION_TRANSLATION_MODES.includes(preferences.mode)) {
+    throw new Error('Mode de traduction inconnu.');
+  }
+  if (preferences.mode === 'OFF') {
+    if (preferences.targetLanguage !== null) {
+      throw new Error('La traduction désactivée ne doit pas définir de langue cible.');
+    }
+    return;
+  }
+  if (!preferences.targetLanguage) {
+    throw new Error('Une langue cible est obligatoire pour traduire la conversation.');
+  }
+  assertLanguageTag(preferences.targetLanguage);
+}
+
+export function assertVideoNoteAllowed(
+  input: {
+    durationSeconds: number;
+    sizeBytes: number;
+  },
+  context: {
+    hasPremiumEntitlement: boolean;
+    malwareScanPassed: boolean;
+    contentModerationPassed: boolean;
+  }
+): void {
+  if (
+    !Number.isFinite(input.durationSeconds) ||
+    input.durationSeconds <= 0 ||
+    input.durationSeconds > MAX_VIDEO_NOTE_DURATION_SECONDS
+  ) {
+    throw new Error(
+      `Une note vidéo doit durer entre 0 et ${MAX_VIDEO_NOTE_DURATION_SECONDS} secondes.`
+    );
+  }
+  assertAttachmentAllowed('VIDEO_NOTE', input.sizeBytes, context);
+}
+
+export function assertVoiceTransformAllowed(
+  selection: VoiceTransformSelection,
+  context: {
+    selectedVoiceExists: boolean;
+    selectedVoiceOwnedByUser: boolean;
+    consentVerified: boolean;
+    impersonationRisk: boolean;
+  }
+): void {
+  if (!VOICE_TRANSFORM_SOURCES.includes(selection.source)) {
+    throw new Error('Source de voix inconnue.');
+  }
+  if (selection.source === 'ORIGINAL') {
+    if (selection.voiceId !== null) {
+      throw new Error('La voix originale ne doit pas référencer un profil vocal.');
+    }
+    return;
+  }
+  if (!selection.voiceId || !context.selectedVoiceExists) {
+    throw new Error('Voix sélectionnée indisponible.');
+  }
+  if (context.impersonationRisk) {
+    throw new Error('Cette transformation vocale est refusée.');
+  }
+  if (
+    selection.source === 'USER_CONSENTED_PROFILE' &&
+    (!context.selectedVoiceOwnedByUser || !context.consentVerified)
+  ) {
+    throw new Error('Ce profil vocal exige une propriété et un consentement vérifiés.');
+  }
+}
+
 export function statusExpiresAt(createdAt: Date): Date {
   return new Date(createdAt.getTime() + STATUS_DURATION_MS);
 }
@@ -184,6 +296,32 @@ export function messengerExperiencePolicy() {
       translation: true,
       saving: true,
       reactions: true
+    },
+    videoNotes: {
+      enabled: true,
+      maxDurationSeconds: MAX_VIDEO_NOTE_DURATION_SECONDS,
+      previewBeforeSend: true,
+      frontAndRearCamera: true,
+      dedicatedCompactPresentation: true
+    },
+    conversationTranslation: {
+      enabled: true,
+      wholeConversation: true,
+      autoOfferWhenDetectedLanguageDiffersFromApp: true,
+      appLanguageTarget: true,
+      customTargetLanguage: true,
+      keepsOriginalMessage: true,
+      originalToggle: true,
+      incomingMessagesFollowActiveTarget: true
+    },
+    voiceTransformation: {
+      enabled: true,
+      originalVoice: true,
+      previewBeforeSend: true,
+      systemPresetVoices: true,
+      userConsentedVoiceProfiles: true,
+      serverAuthoritativeVoiceCatalog: true,
+      impersonationProtectionRequired: true
     },
     conversationAppearance: {
       freeColors: true,
