@@ -193,6 +193,7 @@ export function MessengerMediaComposer<T>({
   const voiceStartedAtRef = useRef(0);
   const voiceStopModeRef = useRef<'immediate' | 'draft' | 'discard'>('immediate');
   const voiceLockedRef = useRef(false);
+  const voiceCancelArmedRef = useRef(false);
   const voicePointerStartRef = useRef({ x: 0, y: 0 });
 
   const videoRecorderRef = useRef<MediaRecorder | null>(null);
@@ -302,6 +303,7 @@ export function MessengerMediaComposer<T>({
     setVoiceLocked(false);
     setVoiceCancelArmed(false);
     voiceLockedRef.current = false;
+    voiceCancelArmedRef.current = false;
   }
 
   async function startVoice(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -331,6 +333,7 @@ export function MessengerMediaComposer<T>({
       voiceStartedAtRef.current = Date.now();
       voiceStopModeRef.current = 'immediate';
       voiceLockedRef.current = false;
+      voiceCancelArmedRef.current = false;
       voicePointerStartRef.current = {
         x: event.clientX,
         y: event.clientY
@@ -397,17 +400,20 @@ export function MessengerMediaComposer<T>({
     if (deltaY >= 72) {
       voiceLockedRef.current = true;
       setVoiceLocked(true);
+      voiceCancelArmedRef.current = false;
       setVoiceCancelArmed(false);
       return;
     }
-    setVoiceCancelArmed(deltaX >= 90);
+    const cancelArmed = deltaX >= 90;
+    voiceCancelArmedRef.current = cancelArmed;
+    setVoiceCancelArmed(cancelArmed);
   }
 
   function releaseVoice() {
     const recorder = voiceRecorderRef.current;
     if (!recorder || recorder.state === 'inactive') return;
     if (voiceLockedRef.current) return;
-    voiceStopModeRef.current = voiceCancelArmed ? 'discard' : 'immediate';
+    voiceStopModeRef.current = voiceCancelArmedRef.current ? 'discard' : 'immediate';
     recorder.stop();
   }
 
