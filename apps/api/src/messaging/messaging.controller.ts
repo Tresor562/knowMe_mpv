@@ -17,8 +17,10 @@ import { EditMessageDto } from './dto/edit-message.dto';
 import { SendMediaMessageDto } from './dto/send-media-message.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { TranslateConversationDto } from './dto/translate-conversation.dto';
+import { TransformVoiceMessageDto } from './dto/transform-voice-message.dto';
 import { ConversationTranslationService } from './conversation-translation.service';
 import { MessageEditingService } from './message-editing.service';
+import { VoiceTransformService } from './voice-transform.service';
 import { MessagingService } from './messaging.service';
 
 @UseGuards(JwtAuthGuard)
@@ -28,7 +30,8 @@ export class MessagingController {
     private readonly messaging: MessagingService,
     private readonly messageEditing: MessageEditingService,
     private readonly moderation: ModerationService,
-    private readonly translation: ConversationTranslationService
+    private readonly translation: ConversationTranslationService,
+    private readonly voiceTransform: VoiceTransformService
   ) {}
 
   @Post()
@@ -80,6 +83,15 @@ export class MessagingController {
       targetId: id
     });
     return this.messaging.send(req.user.userId, id, dto.content);
+  }
+
+  @Post(':id/voice-transform')
+  transformVoice(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: TransformVoiceMessageDto
+  ) {
+    return this.voiceTransform.transform(req.user.userId, id, dto);
   }
 
   @Post(':id/media-messages')
