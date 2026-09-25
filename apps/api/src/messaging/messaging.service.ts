@@ -309,6 +309,68 @@ export class MessagingService {
     return this.sendAuthorized(userId, conversationId, content);
   }
 
+  async sendMediaMessage(
+    userId: string,
+    conversationId: string,
+    input: SendMediaMessageDto
+  ) {
+    await this.assertMember(userId, conversationId);
+
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: input.assetId,
+        ownerId: userId,
+        conversationId,
+        visibility: 'CONVERSATION',
+        status: 'AVAILABLE',
+        deletedAt: null
+      },
+      select: { id: true, detectedMime: true }
+    });
+    if (!asset) {
+      throw new ForbiddenException(
+        'Ce média ne peut pas être envoyé dans cette conversation.'
+      );
+    }
+
+    if (
+      input.kind === 'VIDEO_NOTE' &&
+      (input.durationSeconds <= 0 || input.durationSeconds > 60)
+    ) {
+      throw new ForbiddenException('Une note vidéo est limitée à 60 secondes.');
+    }
+    if (
+      input.kind === 'VOICE_NOTE' &&
+      (input.durationSeconds <= 0 || input.durationSeconds > 600)
+    ) {
+      throw new ForbiddenException('Un message vocal est limité à 10 minutes.');
+    }
+
+    if (
+      input.kind === 'VIDEO_NOTE' &&
+      !['video/mp4', 'video/webm'].includes(asset.detectedMime)
+    ) {
+      throw new ForbiddenException('Le média sélectionné n’est pas une note vidéo.');
+    }
+    if (
+      input.kind === 'VOICE_NOTE' &&
+      !['audio/mpeg', 'audio/webm', 'audio/wav'].includes(asset.detectedMime)
+    ) {
+      throw new ForbiddenException('Le média sélectionné n’est pas un message vocal.');
+    }
+
+    const content = this.mediaMessageTokens.create({
+      conversationId,
+      kind: input.kind,
+      assetId: asset.id,
+      mimeType: asset.detectedMime,
+      durationSeconds: input.durationSeconds,
+      voicePreset:
+        input.kind === 'VOICE_NOTE' ? input.voicePreset ?? 'ORIGINAL' : null
+    });
+    return this.sendAuthorized(userId, conversationId, content);
+  }
+
   async sendSticker(input: {
     userId: string;
     conversationId: string;
