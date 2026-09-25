@@ -229,16 +229,45 @@ Fonctions prévues :
 
 ### Changement de voix avant envoi
 
-Après l’enregistrement d’un vocal, KnowMe ouvre un aperçu avant envoi avec :
+Le changement de voix est une option secondaire. Il ne doit jamais ralentir l’envoi d’un vocal normal.
 
-- lecture du vocal original ;
-- forme d’onde ;
-- bouton « Voix » ;
-- choix « Voix originale » ;
+#### Parcours normal — priorité absolue
+
+- depuis la zone de composition, l’utilisateur maintient le bouton micro pour enregistrer ;
+- s’il relâche normalement, le vocal original part immédiatement, sans écran d’aperçu, popup, sélecteur de voix ni étape supplémentaire ;
+- la voix originale est toujours le comportement par défaut pour chaque nouveau vocal ;
+- une voix transformée précédemment ne reste jamais sélectionnée automatiquement pour le vocal suivant.
+
+Ainsi, un utilisateur qui n’utilise jamais la transformation vocale ne rencontre pratiquement jamais cette fonctionnalité dans son parcours habituel.
+
+#### Parcours volontaire de transformation
+
+Le choix de voix devient disponible uniquement lorsqu’un vocal existe encore comme brouillon avant envoi, par exemple lorsque l’utilisateur :
+
+- verrouille l’enregistrement en faisant glisser vers le haut ;
+- arrête volontairement un enregistrement verrouillé afin de le relire ou le modifier.
+
+Dans cet état, la zone du brouillon vocal affiche les actions principales dans cet ordre :
+
+1. supprimer/recommencer ;
+2. lire ou reprendre le vocal ;
+3. bouton secondaire « Voix » ;
+4. envoyer.
+
+Le bouton « Voix » reste visuellement secondaire et n’occupe pas la place du bouton Envoyer.
+
+Un appui sur « Voix » ouvre une feuille inférieure dédiée avec :
+
+- « Voix originale » sélectionnée par défaut ;
 - catalogue de voix synthétiques KnowMe ;
 - profils vocaux personnels explicitement créés et autorisés par leur propriétaire ;
-- écoute d’un aperçu de la transformation avant envoi ;
-- possibilité de revenir immédiatement à la voix originale.
+- aperçu court de chaque transformation ;
+- action pour appliquer la voix sélectionnée ;
+- retour immédiat à la voix originale.
+
+L’aperçu complet avant envoi n’est requis que lorsqu’une transformation vocale a été demandée. Il n’est pas imposé aux vocaux normaux.
+
+Une option de réglage séparée pourra permettre aux utilisateurs qui le souhaitent d’activer « Toujours vérifier mes vocaux avant envoi », mais elle reste désactivée par défaut.
 
 La voix sélectionnée est traitée comme une transformation média structurée et non comme une modification locale non vérifiée. Le catalogue et les autorisations sont contrôlés côté serveur.
 
