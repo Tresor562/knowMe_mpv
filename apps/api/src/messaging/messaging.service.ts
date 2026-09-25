@@ -3,6 +3,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { SendMediaMessageDto } from './dto/send-media-message.dto';
+import { MediaMessageTokenService } from './media-message-token.service';
 import {
   StickerPresentation,
   StickerTokenService
@@ -21,7 +23,8 @@ export class MessagingService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly notifications: NotificationsService,
-    private readonly stickerTokens: StickerTokenService
+    private readonly stickerTokens: StickerTokenService,
+    private readonly mediaMessageTokens: MediaMessageTokenService
   ) {}
 
   createConversation(userId: string, dto: CreateConversationDto) {
