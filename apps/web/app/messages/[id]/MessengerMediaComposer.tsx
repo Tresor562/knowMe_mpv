@@ -193,6 +193,7 @@ export function MessengerMediaComposer<T>({
   const voiceStartedAtRef = useRef(0);
   const voiceStopModeRef = useRef<'immediate' | 'draft' | 'discard'>('immediate');
   const voiceLockedRef = useRef(false);
+  const voicePointerActiveRef = useRef(false);
   const voiceCancelArmedRef = useRef(false);
   const voicePointerStartRef = useRef({ x: 0, y: 0 });
 
@@ -227,10 +228,21 @@ export function MessengerMediaComposer<T>({
 
   useEffect(() => {
     return () => {
-      voiceRecorderRef.current?.state !== 'inactive' &&
-        voiceRecorderRef.current?.stop();
-      videoRecorderRef.current?.state !== 'inactive' &&
-        videoRecorderRef.current?.stop();
+      voicePointerActiveRef.current = false;
+      voiceStopModeRef.current = 'discard';
+      if (
+        voiceRecorderRef.current &&
+        voiceRecorderRef.current.state !== 'inactive'
+      ) {
+        voiceRecorderRef.current.stop();
+      }
+      if (
+        videoRecorderRef.current &&
+        videoRecorderRef.current.state !== 'inactive'
+      ) {
+        videoRecorderRef.current.onstop = null;
+        videoRecorderRef.current.stop();
+      }
       voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
       videoStreamRef.current?.getTracks().forEach((track) => track.stop());
       if (videoTimerRef.current) clearTimeout(videoTimerRef.current);
@@ -319,9 +331,14 @@ export function MessengerMediaComposer<T>({
       return;
     }
     setStatus('');
+    voicePointerActiveRef.current = true;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!voicePointerActiveRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const recorder = preferredRecorder(stream, [
         'audio/webm;codecs=opus',
         'audio/webm',
@@ -410,6 +427,7 @@ export function MessengerMediaComposer<T>({
   }
 
   function releaseVoice() {
+    voicePointerActiveRef.current = false;
     const recorder = voiceRecorderRef.current;
     if (!recorder || recorder.state === 'inactive') return;
     if (voiceLockedRef.current) return;
@@ -418,6 +436,7 @@ export function MessengerMediaComposer<T>({
   }
 
   function stopLockedVoice() {
+    voicePointerActiveRef.current = false;
     const recorder = voiceRecorderRef.current;
     if (!recorder || recorder.state === 'inactive') return;
     voiceStopModeRef.current = 'draft';
