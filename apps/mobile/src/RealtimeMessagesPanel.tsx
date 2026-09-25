@@ -12,6 +12,16 @@ import {
 } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
+import {
+  MobileConversationTranslationBar,
+  type ConversationTranslationState
+} from './ConversationTranslationBar';
+import {
+  MobileMessageMedia,
+  MobileMessengerMediaComposer,
+  type MediaPresentation,
+  type MessengerMediaMessage
+} from './MessengerMedia';
 import { getRealtimeSocket } from './realtime';
 
 type UserSummary = {
@@ -27,6 +37,7 @@ type ConversationMember = {
   lastReadAt: string;
   user: UserSummary;
 };
+type TextPresentation = { kind: 'TEXT'; text: string };
 type ConversationMessage = {
   id: string;
   conversationId: string;
@@ -35,6 +46,7 @@ type ConversationMessage = {
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
+  presentation?: TextPresentation | MediaPresentation;
 };
 type Conversation = {
   id: string;
@@ -125,10 +137,31 @@ export function RealtimeMessagesPanel({
   const [creatingNexus, setCreatingNexus] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [live, setLive] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
 
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
+
+  const updateTranslationState = useCallback(
+    (state: ConversationTranslationState) => {
+      setTranslations(state.translations);
+    },
+    []
+  );
+
+  const acceptSentMessage = useCallback(
+    (created: ConversationMessage | MessengerMediaMessage) => {
+      const normalized = created as ConversationMessage;
+      setHistory((current) => mergeMessages(current, [normalized]));
+      setReadStates((current) => current.map((state) =>
+        state.userId === userId
+          ? { ...state, lastReadAt: normalized.createdAt }
+          : state
+      ));
+    },
+    [userId]
+  );
 
   const applyPinData = useCallback((pinData: ConversationPinsResponse) => {
     setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
@@ -333,6 +366,7 @@ export function RealtimeMessagesPanel({
       setReadStates(data.readStates);
       setNextCursor(data.nextCursor ?? null);
       setTypingUsers({});
+      setTranslations({});
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -502,12 +536,7 @@ export function RealtimeMessagesPanel({
           body: JSON.stringify({ content })
         }
       );
-      setHistory((current) => mergeMessages(current, [created]));
-      setReadStates((current) => current.map((state) =>
-        state.userId === userId
-          ? { ...state, lastReadAt: created.createdAt }
-          : state
-      ));
+      acceptSentMessage(created);
       setDraft('');
       if (isNexusPrivate || NEXUS_MENTION.test(content)) {
         await invokeNexus(active, created);
@@ -532,6 +561,7 @@ export function RealtimeMessagesPanel({
     setTypingUsers({});
     setNextCursor(null);
     setNexusPending(false);
+    setTranslations({});
     void load();
   }
 
@@ -547,6 +577,15 @@ export function RealtimeMessagesPanel({
       onlineUserIds.has(member.user.id)
     );
     const typingNames = Object.values(typingUsers);
+    const translatableMessages = history
+      .filter((item) => !item.presentation || item.presentation.kind === 'TEXT')
+      .map((item) => ({
+        id: item.id,
+        text:
+          item.presentation?.kind === 'TEXT'
+            ? item.presentation.text
+            : item.content
+      }));
 
     return (
       <View style={styles.conversationRoot}>
@@ -569,6 +608,12 @@ export function RealtimeMessagesPanel({
             onPress={() => void openConversation(active)}
           />
         </View>
+
+        <MobileConversationTranslationBar
+          conversationId={active.id}
+          messages={translatableMessages}
+          onChange={updateTranslationState}
+        />
 
         <FlatList
           data={history}
@@ -602,11 +647,26 @@ export function RealtimeMessagesPanel({
                     {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
                 ) : null}
-                <Text style={
-                  mine ? styles.bubbleMineText : styles.bubbleText
-                }>
-                  {item.content}
-                </Text>
+                {item.presentation?.kind === 'VOICE_NOTE' ||
+                item.presentation?.kind === 'VIDEO_NOTE' ? (
+                  <MobileMessageMedia presentation={item.presentation} />
+                ) : (
+                  <>
+                    <Text style={
+                      mine ? styles.bubbleMineText : styles.bubbleText
+                    }>
+                      {translations[item.id] ??
+                        (item.presentation?.kind === 'TEXT'
+                          ? item.presentation.text
+                          : item.content)}
+                    </Text>
+                    {translations[item.id] ? (
+                      <Text style={styles.translationMeta}>
+                        Traduction automatique
+                      </Text>
+                    ) : null}
+                  </>
+                )}
                 <Text style={styles.bubbleDate}>
                   {new Date(item.createdAt).toLocaleString('fr-FR')}
                 </Text>
@@ -629,6 +689,12 @@ export function RealtimeMessagesPanel({
               {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
             </Text>
           ) : null}
+        />
+
+        <MobileMessengerMediaComposer
+          conversationId={active.id}
+          disabled={sending || nexusPending}
+          onSent={acceptSentMessage}
         />
 
         <View style={styles.composer}>
@@ -797,7 +863,17 @@ export function RealtimeMessagesPanel({
                 numberOfLines={2}
               >
                 {last
-                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
+                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${
+                      last.presentation?.kind === 'VIDEO_NOTE'
+                        ? 'Note vidéo'
+                        : last.presentation?.kind === 'VOICE_NOTE'
+                          ? last.presentation.transformedVoice
+                            ? 'Message vocal · voix modifiée'
+                            : 'Message vocal'
+                          : last.presentation?.kind === 'TEXT'
+                            ? last.presentation.text
+                            : last.content
+                    }`
                   : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
               </Text>
               {last ? (
@@ -1026,6 +1102,7 @@ const styles = StyleSheet.create({
   senderName: { color: '#45e6bd', fontWeight: '800', fontSize: 11 },
   bubbleDate: { color: '#607a70', fontSize: 9 },
   receipt: { color: '#315d50', fontSize: 9, fontWeight: '700' },
+  translationMeta: { color: '#607a70', fontSize: 9, fontStyle: 'italic' },
   typing: { color: '#45e6bd', fontStyle: 'italic', paddingVertical: 8 },
   composer: {
     flexDirection: 'row',

@@ -3,9 +3,13 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../../components/i18n-provider';
 import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
+import { ConversationTranslationBar } from './ConversationTranslationBar';
+import { MessageMedia, type MediaPresentation } from './MessageMedia';
+import { MessengerMediaComposer } from './MessengerMediaComposer';
 import { StickerPicker } from './StickerPicker';
 
 type Sender = {
@@ -39,7 +43,7 @@ type Message = {
   senderId:string;
   sender:Sender;
   nexusAuthored?:boolean;
-  presentation?:StickerPresentation|TextPresentation;
+  presentation?:StickerPresentation|TextPresentation|MediaPresentation;
 };
 type ReadState = {
   userId:string;
@@ -70,7 +74,13 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
   return prepend?[...fresh,...current]:[...current,...fresh];
 }
 
-function MessageContent({item}:{item:Message}){
+function MessageContent({
+  item,
+  translated
+}:{
+  item:Message;
+  translated?:string;
+}){
   if(item.presentation?.kind==='STICKER'){
     return(
       <div
@@ -85,9 +95,16 @@ function MessageContent({item}:{item:Message}){
       </div>
     );
   }
+  if(
+    item.presentation?.kind==='VOICE_NOTE'||
+    item.presentation?.kind==='VIDEO_NOTE'
+  ){
+    return <MessageMedia presentation={item.presentation}/>;
+  }
   return(
     <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-      {item.presentation?.kind==='TEXT'?item.presentation.text:item.content}
+      {translated??(item.presentation?.kind==='TEXT'?item.presentation.text:item.content)}
+      {translated?<small style={{display:'block',marginTop:5,opacity:.68}}>Traduction automatique</small>:null}
     </div>
   );
 }
@@ -96,6 +113,7 @@ export default function ConversationPage() {
   const params=useParams<{id:string}>();
   const conversationId=params.id;
   const {user,loading:sessionLoading}=useSession({required:true});
+  const {locale}=useI18n();
   const socket=useMemo(()=>getRealtimeSocket(),[]);
   const userIdRef=useRef<string|null>(null);
   const typingTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -113,6 +131,7 @@ export default function ConversationPage() {
   const [nexusPending,setNexusPending]=useState(false);
   const [loadingOlder,setLoadingOlder]=useState(false);
   const [refreshing,setRefreshing]=useState(false);
+  const [translations,setTranslations]=useState<Record<string,string>>({});
 
   useEffect(()=>{
     userIdRef.current=user?.id??null;
@@ -326,6 +345,28 @@ export default function ConversationPage() {
     }
   }
 
+  const updateTranslationState=useCallback(
+    (state:{translations:Record<string,string>})=>{
+      setTranslations(state.translations);
+    },
+    []
+  );
+
+  const translatableMessages=useMemo(
+    ()=>items
+      .filter(item=>
+        !item.presentation||
+        item.presentation.kind==='TEXT'
+      )
+      .map(item=>({
+        id:item.id,
+        text:item.presentation?.kind==='TEXT'
+          ?item.presentation.text
+          :item.content
+      })),
+    [items]
+  );
+
   if(sessionLoading){
     return <main className="shell">Chargement…</main>;
   }
@@ -365,6 +406,13 @@ export default function ConversationPage() {
           <Link href="/messages" className="btn">Retour</Link>
         </div>
       </header>
+
+      <ConversationTranslationBar
+        conversationId={conversationId}
+        messages={translatableMessages}
+        appLanguage={locale}
+        onChange={updateTranslationState}
+      />
 
       {message&&(
         <p role="alert" style={{color:'var(--orange)'}}>{message}</p>
@@ -408,7 +456,7 @@ export default function ConversationPage() {
                   {nexus?'✦ Nexus':item.sender.displayName}
                 </strong>
               )}
-              <MessageContent item={item}/>
+              <MessageContent item={item} translated={translations[item.id]}/>
               <small style={{display:'block',marginTop:6,opacity:.7}}>
                 {new Date(item.createdAt).toLocaleString('fr-FR')}
               </small>
@@ -437,6 +485,11 @@ export default function ConversationPage() {
         className="card"
         style={{padding:14,display:'flex',gap:10,marginTop:14,flexWrap:'wrap',alignItems:'center'}}
       >
+        <MessengerMediaComposer<Message>
+          conversationId={conversationId}
+          onSent={acceptSent}
+          disabled={sending||nexusPending}
+        />
         {!isNexusPrivate&&<StickerPicker<Message>
           conversationId={conversationId}
           onSent={acceptSent}

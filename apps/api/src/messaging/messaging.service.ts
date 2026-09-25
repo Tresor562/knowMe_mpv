@@ -3,6 +3,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { SendMediaMessageDto } from './dto/send-media-message.dto';
+import { MediaMessageTokenService } from './media-message-token.service';
 import {
   StickerPresentation,
   StickerTokenService
@@ -21,7 +23,8 @@ export class MessagingService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly notifications: NotificationsService,
-    private readonly stickerTokens: StickerTokenService
+    private readonly stickerTokens: StickerTokenService,
+    private readonly mediaMessageTokens: MediaMessageTokenService
   ) {}
 
   createConversation(userId: string, dto: CreateConversationDto) {
@@ -306,6 +309,68 @@ export class MessagingService {
     return this.sendAuthorized(userId, conversationId, content);
   }
 
+  async sendMediaMessage(
+    userId: string,
+    conversationId: string,
+    input: SendMediaMessageDto
+  ) {
+    await this.assertMember(userId, conversationId);
+
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: input.assetId,
+        ownerId: userId,
+        conversationId,
+        visibility: 'CONVERSATION',
+        status: 'AVAILABLE',
+        deletedAt: null
+      },
+      select: { id: true, detectedMime: true }
+    });
+    if (!asset) {
+      throw new ForbiddenException(
+        'Ce média ne peut pas être envoyé dans cette conversation.'
+      );
+    }
+
+    if (
+      input.kind === 'VIDEO_NOTE' &&
+      (input.durationSeconds <= 0 || input.durationSeconds > 60)
+    ) {
+      throw new ForbiddenException('Une note vidéo est limitée à 60 secondes.');
+    }
+    if (
+      input.kind === 'VOICE_NOTE' &&
+      (input.durationSeconds <= 0 || input.durationSeconds > 600)
+    ) {
+      throw new ForbiddenException('Un message vocal est limité à 10 minutes.');
+    }
+
+    if (
+      input.kind === 'VIDEO_NOTE' &&
+      !['video/mp4', 'video/webm'].includes(asset.detectedMime)
+    ) {
+      throw new ForbiddenException('Le média sélectionné n’est pas une note vidéo.');
+    }
+    if (
+      input.kind === 'VOICE_NOTE' &&
+      !['audio/mpeg', 'audio/mp4', 'audio/webm', 'audio/wav'].includes(asset.detectedMime)
+    ) {
+      throw new ForbiddenException('Le média sélectionné n’est pas un message vocal.');
+    }
+
+    const content = this.mediaMessageTokens.create({
+      conversationId,
+      kind: input.kind,
+      assetId: asset.id,
+      mimeType: asset.detectedMime,
+      durationSeconds: input.durationSeconds,
+      voicePreset:
+        input.kind === 'VOICE_NOTE' ? input.voicePreset ?? 'ORIGINAL' : null
+    });
+    return this.sendAuthorized(userId, conversationId, content);
+  }
+
   async sendSticker(input: {
     userId: string;
     conversationId: string;
@@ -361,12 +426,21 @@ export class MessagingService {
     });
 
     const sticker = this.stickerTokens.resolve(content, { conversationId });
+    const mediaMessage = this.mediaMessageTokens.resolve(content, {
+      conversationId
+    });
     const preview = sticker
       ? `Sticker : ${sticker.sticker.label}`
-      : content.length > 120
-        ? `${content.slice(0, 117)}…`
-        : content;
-    const presented = this.presentMessage(message, sticker);
+      : mediaMessage
+        ? mediaMessage.kind === 'VIDEO_NOTE'
+          ? 'Note vidéo'
+          : mediaMessage.transformedVoice
+            ? 'Message vocal · voix modifiée'
+            : 'Message vocal'
+        : content.length > 120
+          ? `${content.slice(0, 117)}…`
+          : content;
+    const presented = this.presentMessage(message, sticker, mediaMessage);
 
     await Promise.all([
       recipients.length
@@ -382,7 +456,7 @@ export class MessagingService {
                 entityId: conversationId,
                 messageId: message.id,
                 actorId: userId,
-                messageKind: sticker ? 'STICKER' : 'TEXT'
+                messageKind: sticker ? 'STICKER' : mediaMessage?.kind ?? 'TEXT'
               }
             }))
           )
@@ -399,19 +473,27 @@ export class MessagingService {
 
   private presentMessage<T extends { content: string; conversationId: string }>(
     message: T,
-    knownSticker?: StickerPresentation | null
+    knownSticker?: StickerPresentation | null,
+    knownMediaMessage?: ReturnType<MediaMessageTokenService['resolve']>
   ) {
     const sticker =
       knownSticker ??
       this.stickerTokens.resolve(message.content, {
         conversationId: message.conversationId
       });
+    const mediaMessage =
+      knownMediaMessage ??
+      this.mediaMessageTokens.resolve(message.content, {
+        conversationId: message.conversationId
+      });
     return {
       ...message,
-      presentation: sticker ?? {
-        kind: 'TEXT' as const,
-        text: message.content
-      }
+      presentation:
+        sticker ??
+        mediaMessage ?? {
+          kind: 'TEXT' as const,
+          text: message.content
+        }
     };
   }
 

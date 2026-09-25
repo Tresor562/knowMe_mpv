@@ -21,7 +21,11 @@ const SUPPORTED_MIME = new Set([
   'image/gif',
   'application/pdf',
   'audio/mpeg',
-  'video/mp4'
+  'audio/mp4',
+  'audio/webm',
+  'audio/wav',
+  'video/mp4',
+  'video/webm'
 ]);
 
 const EXTENSIONS: Record<string, string> = {
@@ -31,7 +35,11 @@ const EXTENSIONS: Record<string, string> = {
   'image/gif': '.gif',
   'application/pdf': '.pdf',
   'audio/mpeg': '.mp3',
-  'video/mp4': '.mp4'
+  'audio/mp4': '.m4a',
+  'audio/webm': '.webm',
+  'audio/wav': '.wav',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm'
 };
 
 const ACCOUNT_DELETION_MEDIA_LOCK_PURPOSE = '__ACCOUNT_DELETION_MEDIA_LOCK__';
@@ -115,12 +123,13 @@ export class MediaService {
       throw new BadRequestException('Le fichier dépasse la taille autorisée pour cette session.');
     }
 
-    const detectedMime = this.detectMime(file.buffer);
+    const declaredMime = file.mimetype.toLowerCase().split(';')[0] ?? '';
+    const detectedMime = this.detectMime(file.buffer, declaredMime);
     const allowedMime = session.allowedMime as string[];
     if (!detectedMime || !SUPPORTED_MIME.has(detectedMime) || !allowedMime.includes(detectedMime)) {
       throw new BadRequestException('Le contenu binaire ne correspond pas à un format autorisé.');
     }
-    if (file.mimetype.toLowerCase() !== detectedMime) {
+    if (declaredMime !== detectedMime) {
       throw new BadRequestException('Le type déclaré ne correspond pas au contenu réel.');
     }
 
@@ -172,7 +181,7 @@ export class MediaService {
               ownerId: userId,
               storageKey,
               originalName: this.safeName(file.originalname),
-              declaredMime: file.mimetype.toLowerCase(),
+              declaredMime,
               detectedMime,
               size: file.size,
               sha256: this.hashBuffer(file.buffer),
@@ -451,15 +460,28 @@ export class MediaService {
     return { verdict: 'CLEAN' as const, reference: 'LOCAL_SIGNATURE_V1' };
   }
 
-  private detectMime(buffer: Buffer) {
+  private detectMime(buffer: Buffer, declaredMime?: string) {
     if (buffer.length < 12) return null;
     if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
     if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
     if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+    if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE') return 'audio/wav';
     if (['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))) return 'image/gif';
     if (buffer.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
     if (buffer.subarray(0, 3).toString('ascii') === 'ID3' || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)) return 'audio/mpeg';
-    if (buffer.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/mp4';
+    if (
+      buffer.subarray(4, 8).toString('ascii') === 'ftyp' &&
+      ['audio/mp4', 'video/mp4'].includes(declaredMime ?? '')
+    ) return declaredMime;
+    if (
+      buffer[0] === 0x1a &&
+      buffer[1] === 0x45 &&
+      buffer[2] === 0xdf &&
+      buffer[3] === 0xa3 &&
+      ['audio/webm', 'video/webm'].includes(declaredMime ?? '')
+    ) {
+      return declaredMime;
+    }
     return null;
   }
 

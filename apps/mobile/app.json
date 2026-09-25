@@ -9,6 +9,23 @@
     "newArchEnabled": true,
     "plugins": [
       [
+        "expo-audio",
+        {
+          "microphonePermission": "Autoriser KnowMe à enregistrer des messages vocaux.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Autoriser KnowMe à enregistrer des notes vidéo.",
+          "microphonePermission": "Autoriser KnowMe à enregistrer le son des notes vidéo.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
         "expo-secure-store",
         {
           "configureAndroidBackup": true,
