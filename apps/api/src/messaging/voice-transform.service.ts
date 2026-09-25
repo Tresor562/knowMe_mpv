@@ -16,7 +16,7 @@ import type { TransformableVoicePreset } from './dto/transform-voice-message.dto
 const execFileAsync = promisify(execFile);
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
-export function voiceTransformFilter(preset: TransformableVoicePreset) {
+export function voiceTransformFilter(preset: TransformableVoicePreset): string {
   switch (preset) {
     case 'DEEP':
       return 'asetrate=44100*0.84,aresample=44100,atempo=1.190476,lowpass=f=4200';
@@ -24,6 +24,10 @@ export function voiceTransformFilter(preset: TransformableVoicePreset) {
       return 'asetrate=44100*1.16,aresample=44100,atempo=0.862069,highshelf=f=2200:g=4';
     case 'ROBOT':
       return 'highpass=f=220,lowpass=f=3600,aecho=0.75:0.8:8:0.35,tremolo=f=32:d=0.55';
+    default: {
+      const unreachable: never = preset;
+      throw new Error(`Unsupported voice preset: ${String(unreachable)}`);
+    }
   }
 }
 
