@@ -160,9 +160,29 @@ export class CompatibilityService {
       throw new NotFoundException('Utilisateur introuvable.');
     }
 
+    const relationships = await this.prisma.friendship.findMany({
+      where: {
+        status: { in: ['PENDING', 'ACCEPTED', 'BLOCKED'] },
+        OR: [{ requesterId: userId }, { addresseeId: userId }]
+      },
+      select: {
+        requesterId: true,
+        addresseeId: true
+      }
+    });
+
+    const excludedUserIds = new Set<string>([userId]);
+    for (const relationship of relationships) {
+      excludedUserIds.add(
+        relationship.requesterId === userId
+          ? relationship.addresseeId
+          : relationship.requesterId
+      );
+    }
+
     const candidates = await this.prisma.user.findMany({
       where: {
-        id: { not: userId },
+        id: { notIn: [...excludedUserIds] },
         isSuspended: false
       },
       include: {
@@ -204,21 +224,41 @@ export class CompatibilityService {
     const generic = [
       {
         title: 'Qui me connaît le mieux ?',
-        description: 'Découvre qui comprend le mieux tes habitudes.'
+        description: 'Découvre qui comprend le mieux tes habitudes.',
+        questions: [
+          'Quel est mon plus grand rêve en ce moment ?',
+          'Quelle habitude me définit le mieux ?',
+          'Quel sujet me passionne le plus ?'
+        ]
       },
       {
         title: 'Nos trois plus grands points communs',
-        description: 'Comparez vos réponses et révélez vos ressemblances.'
+        description: 'Comparez vos réponses et révélez vos ressemblances.',
+        questions: [
+          'Quelle activité avons-nous le plus envie de faire ensemble ?',
+          'Quel sujet pourrait nous faire parler pendant des heures ?',
+          'Quelle valeur avons-nous le plus en commun ?'
+        ]
       },
       {
         title: 'Vrai ou faux sur moi',
-        description: 'Teste les connaissances de tes proches.'
+        description: 'Teste les connaissances de tes proches.',
+        questions: [
+          'Quel détail sur moi surprend souvent les autres ?',
+          'Quelle chose je refuse presque toujours de faire ?',
+          'Quel choix me ressemble le plus ?'
+        ]
       }
     ];
 
     const personalized = names.slice(0, 3).map((name) => ({
       title: `Notre connexion autour de ${name}`,
-      description: `Un défi personnalisé basé sur votre intérêt commun pour ${name}.`
+      description: `Un défi personnalisé basé sur votre intérêt commun pour ${name}.`,
+      questions: [
+        `Qu’est-ce que je préfère dans ${name} ?`,
+        `Depuis quand ${name} m’intéresse-t-il vraiment ?`,
+        `Quelle expérience liée à ${name} aimerais-je vivre ensuite ?`
+      ]
     }));
 
     return [...personalized, ...generic].slice(0, 6);

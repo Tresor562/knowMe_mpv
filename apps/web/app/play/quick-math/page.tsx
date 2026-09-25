@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import { getAccessToken } from '../../../lib/api';
 import {
   clearGuestSession,
   clearQuickMathSessionId,
@@ -21,6 +22,7 @@ type GuestStatus = 'checking' | 'none' | 'active';
 
 export default function QuickMathInstantPage() {
   const [guestStatus, setGuestStatus] = useState<GuestStatus>('checking');
+  const [accountAuthenticated, setAccountAuthenticated] = useState(false);
   const [alias, setAlias] = useState('');
   const [ageGateState, setAgeGateState] = useState<GuestAgeGateState | ''>('');
   const [consent, setConsent] = useState(false);
@@ -31,6 +33,7 @@ export default function QuickMathInstantPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setAccountAuthenticated(Boolean(getAccessToken()));
 
     async function restore() {
       if (!getGuestToken()) {
@@ -285,18 +288,62 @@ export default function QuickMathInstantPage() {
       ) : null}
 
       {session && completed ? (
-        <section className="card" style={{ padding: 22, display: 'grid', gap: 16, textAlign: 'center' }}>
-          <small style={{ color: 'var(--mint)', fontWeight: 800 }}>PARTIE TERMINÉE</small>
-          <h2 style={{ margin: 0 }}>Score : {session.result?.score ?? session.state.score}/{session.state.maxRounds}</h2>
-          <p style={{ color: 'var(--muted)', margin: 0 }}>
-            Tu peux rejouer immédiatement. Un compte n’est nécessaire que lorsque tu veux conserver les fonctions qui le nécessitent.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" disabled={busy} onClick={() => void beginGuestPlay()}>
-              Rejouer
-            </button>
-            <Link className="btn" href="/register">Créer un compte</Link>
-            <Link className="btn" href="/games/center">Découvrir d’autres jeux</Link>
+        <section className="card" style={{ padding: 22, display: 'grid', gap: 18 }}>
+          <div style={{ textAlign: 'center', display: 'grid', gap: 10 }}>
+            <small style={{ color: 'var(--mint)', fontWeight: 800 }}>PARTIE TERMINÉE</small>
+            <h2 style={{ margin: 0 }}>Score : {session.result?.score ?? session.state.score}/{session.state.maxRounds}</h2>
+            <p style={{ color: 'var(--muted)', margin: 0 }}>
+              Tu peux rejouer immédiatement. La session et le score invités restent séparés d’un futur compte :
+              créer un profil sert à débloquer les fonctions sociales et créatives, pas à promettre un transfert de cette partie.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" disabled={busy} onClick={() => void beginGuestPlay()}>
+                Rejouer
+              </button>
+              <Link className="btn" href="/games/center">Découvrir d’autres jeux</Link>
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ marginBottom: 10 }}>Choisir la suite</h3>
+            <div
+              className="grid"
+              style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}
+            >
+              <article className="card" style={{ padding: 16 }}>
+                <small style={{ color: 'var(--mint)', fontWeight: 800 }}>DISCOVER</small>
+                <p style={{ color: 'var(--muted)' }}>
+                  Explore KnowMe maintenant ; les recommandations personnelles restent optionnelles.
+                </p>
+                <Link className="btn" href="/discover">Découvrir KnowMe</Link>
+              </article>
+
+              <article className="card" style={{ padding: 16 }}>
+                <small style={{ color: 'var(--mint)', fontWeight: 800 }}>CONNECT</small>
+                <p style={{ color: 'var(--muted)' }}>
+                  Retrouve des profils et gère tes relations avec un compte KnowMe.
+                </p>
+                <Link
+                  className="btn"
+                  href={accountAuthenticated ? '/friends' : '/register?next=/friends'}
+                >
+                  {accountAuthenticated ? 'Ouvrir mes connexions' : 'Créer mon profil puis connecter'}
+                </Link>
+              </article>
+
+              <article className="card" style={{ padding: 16 }}>
+                <small style={{ color: 'var(--mint)', fontWeight: 800 }}>CREATE</small>
+                <p style={{ color: 'var(--muted)' }}>
+                  Passe du jeu à ton propre défi sans ouvrir un studio complexe.
+                </p>
+                <Link
+                  className="btn"
+                  href={accountAuthenticated ? '/challenges' : '/register?next=/challenges'}
+                >
+                  {accountAuthenticated ? 'Créer un défi' : 'Créer mon profil puis un défi'}
+                </Link>
+              </article>
+            </div>
           </div>
         </section>
       ) : null}

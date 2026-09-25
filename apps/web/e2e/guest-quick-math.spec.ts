@@ -193,7 +193,16 @@ test('Quick Math delivers value before account creation and can explicitly revok
 
   await expect(page.getByText('PARTIE TERMINÉE')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Score : 5/5' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', '/register');
+  await expect(page.getByText(/score invités restent séparés d’un futur compte/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Découvrir KnowMe' })).toHaveAttribute('href', '/discover');
+  await expect(page.getByRole('link', { name: 'Créer mon profil puis connecter' })).toHaveAttribute(
+    'href',
+    '/register?next=/friends'
+  );
+  await expect(page.getByRole('link', { name: 'Créer mon profil puis un défi' })).toHaveAttribute(
+    'href',
+    '/register?next=/challenges'
+  );
 
   await page.getByRole('button', { name: 'Terminer et effacer la session invitée' }).click();
   await expect(page.getByRole('status')).toContainText('Session invitée terminée');
