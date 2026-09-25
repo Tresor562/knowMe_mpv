@@ -252,7 +252,7 @@ export function MobileMessengerMediaComposer({
   disabled?: boolean;
   onSent: (message: MessengerMediaMessage) => void;
 }) {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY!);
   const recorderState = useAudioRecorderState(recorder, 100);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [cameraMicPermission, requestCameraMicPermission] =
