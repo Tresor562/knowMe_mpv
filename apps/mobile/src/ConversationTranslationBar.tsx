@@ -72,7 +72,7 @@ export function MobileConversationTranslationBar({
 }) {
   const appLanguage = getRuntimeLocale();
   const [offer, setOffer] = useState<Offer | null>(null);
-  const [targetLanguage, setTargetLanguage] = useState(appLanguage);
+  const [targetLanguage, setTargetLanguage] = useState<string>(appLanguage);
   const [active, setActive] = useState(false);
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
