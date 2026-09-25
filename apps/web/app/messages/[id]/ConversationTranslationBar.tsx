@@ -34,12 +34,12 @@ function languageName(code: string, locale: string) {
 
 export function ConversationTranslationBar({
   conversationId,
-  messageIds,
+  messages,
   appLanguage,
   onChange
 }: {
   conversationId: string;
-  messageIds: string[];
+  messages: Array<{ id: string; text: string }>;
   appLanguage: string;
   onChange: (state: TranslationState) => void;
 }) {
@@ -50,10 +50,23 @@ export function ConversationTranslationBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const previousIdsRef = useRef<Set<string>>(new Set());
+  const browserTranslatorRef = useRef<{
+    sourceLanguage: string;
+    targetLanguage: string;
+    translate: (text: string) => Promise<string>;
+    destroy?: () => void;
+  } | null>(null);
 
+  const stableMessages = useMemo(() => {
+    const unique = new Map<string, string>();
+    for (const item of messages) {
+      if (item.id && item.text.trim()) unique.set(item.id, item.text);
+    }
+    return [...unique].map(([id, text]) => ({ id, text }));
+  }, [messages]);
   const stableIds = useMemo(
-    () => [...new Set(messageIds)].filter(Boolean),
-    [messageIds]
+    () => stableMessages.map((item) => item.id),
+    [stableMessages]
   );
 
   useEffect(() => {
@@ -70,34 +83,107 @@ export function ConversationTranslationBar({
       .catch(() => setOffer(null));
   }, [appLanguage, conversationId, onChange]);
 
+  async function browserTranslate(ids: string[], language: string) {
+    const sourceLanguage = offer?.sourceLanguage;
+    if (!sourceLanguage) return null;
+    const factory = (
+      window as typeof window & {
+        Translator?: {
+          availability: (input: {
+            sourceLanguage: string;
+            targetLanguage: string;
+          }) => Promise<string | null>;
+          create: (input: {
+            sourceLanguage: string;
+            targetLanguage: string;
+          }) => Promise<{
+            sourceLanguage: string;
+            targetLanguage: string;
+            translate: (text: string) => Promise<string>;
+            destroy?: () => void;
+          }>;
+        };
+      }
+    ).Translator;
+    if (!factory) return null;
+
+    const availability = await factory.availability({
+      sourceLanguage,
+      targetLanguage: language
+    });
+    if (!availability || availability === 'unavailable') return null;
+
+    let translator = browserTranslatorRef.current;
+    if (
+      !translator ||
+      translator.sourceLanguage !== sourceLanguage ||
+      translator.targetLanguage !== language
+    ) {
+      translator?.destroy?.();
+      translator = await factory.create({
+        sourceLanguage,
+        targetLanguage: language
+      });
+      browserTranslatorRef.current = translator;
+    }
+
+    const sourceById = new Map(
+      stableMessages.map((item) => [item.id, item.text] as const)
+    );
+    const entries = await Promise.all(
+      ids.flatMap((id) => {
+        const text = sourceById.get(id);
+        return text
+          ? [
+              translator!.translate(text).then(
+                (translated) => [id, translated] as const
+              )
+            ]
+          : [];
+      })
+    );
+    return Object.fromEntries(entries);
+  }
+
   async function translate(ids = stableIds, language = targetLanguage) {
     if (!ids.length || busy) return;
     setBusy(true);
     setError('');
     try {
-      const result = await apiFetch<{
-        targetLanguage: string;
-        items: TranslationItem[];
-      }>(`/conversations/${conversationId}/translate`, {
-        method: 'POST',
-        body: JSON.stringify({
-          targetLanguage: language,
-          messageIds: ids
-        })
-      });
-      const mapped = Object.fromEntries(
-        result.items.map((item) => [item.id, item.translated])
-      );
+      let mapped: Record<string, string> | null = null;
+      try {
+        mapped = await browserTranslate(ids, language);
+      } catch {
+        mapped = null;
+      }
+
+      let resolvedTarget = language;
+      if (!mapped) {
+        const result = await apiFetch<{
+          targetLanguage: string;
+          items: TranslationItem[];
+        }>(`/conversations/${conversationId}/translate`, {
+          method: 'POST',
+          body: JSON.stringify({
+            targetLanguage: language,
+            messageIds: ids
+          })
+        });
+        mapped = Object.fromEntries(
+          result.items.map((item) => [item.id, item.translated])
+        );
+        resolvedTarget = result.targetLanguage;
+      }
       const next = ids === stableIds
         ? mapped
         : { ...translations, ...mapped };
       setTranslations(next);
-      setTargetLanguage(result.targetLanguage);
+      setTargetLanguage(resolvedTarget);
       setActive(true);
       previousIdsRef.current = new Set(stableIds);
       onChange({
         active: true,
-        targetLanguage: result.targetLanguage,
+        targetLanguage: resolvedTarget,
         translations: next
       });
     } catch (cause) {
@@ -158,19 +244,15 @@ export function ConversationTranslationBar({
               ? 'Traduction…'
               : `Traduire en ${languageName(targetLanguage, appLanguage)}`}
           </button>
-          <select
+          <input
             className="input"
             aria-label="Langue de traduction"
+            list="knowme-translation-languages"
             value={targetLanguage}
             onChange={(event) => setTargetLanguage(event.target.value)}
-            style={{ width: 'auto', minWidth: 150 }}
-          >
-            {allTargets.map((language) => (
-              <option key={language} value={language}>
-                {languageName(language, appLanguage)}
-              </option>
-            ))}
-          </select>
+            placeholder="fr, en, es, nl…"
+            style={{ width: 150 }}
+          />
         </>
       ) : (
         <>
@@ -180,27 +262,29 @@ export function ConversationTranslationBar({
           <button type="button" className="btn" onClick={showOriginal}>
             Afficher l’original
           </button>
-          <select
+          <input
             className="input"
             aria-label="Changer la langue de traduction"
+            list="knowme-translation-languages"
             value={targetLanguage}
-            onChange={(event) => {
-              const next = event.target.value;
-              setTargetLanguage(next);
+            onChange={(event) => setTargetLanguage(event.target.value)}
+            onBlur={() => {
               setTranslations({});
               previousIdsRef.current = new Set();
-              void translate(stableIds, next);
+              void translate(stableIds, targetLanguage);
             }}
-            style={{ width: 'auto', minWidth: 150 }}
-          >
-            {allTargets.map((language) => (
-              <option key={language} value={language}>
-                {languageName(language, appLanguage)}
-              </option>
-            ))}
-          </select>
+            placeholder="fr, en, es, nl…"
+            style={{ width: 150 }}
+          />
         </>
       )}
+      <datalist id="knowme-translation-languages">
+        {allTargets.map((language) => (
+          <option key={language} value={language}>
+            {languageName(language, appLanguage)}
+          </option>
+        ))}
+      </datalist>
       {error ? <small style={{ color: 'var(--orange)' }}>{error}</small> : null}
       <small style={{ color: 'var(--muted)', flexBasis: '100%' }}>
         Traduction automatique : le texte original reste toujours disponible.
