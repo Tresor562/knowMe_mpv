@@ -21,6 +21,7 @@ const SUPPORTED_MIME = new Set([
   'image/gif',
   'application/pdf',
   'audio/mpeg',
+  'audio/mp4',
   'audio/webm',
   'audio/wav',
   'video/mp4',
@@ -34,6 +35,7 @@ const EXTENSIONS: Record<string, string> = {
   'image/gif': '.gif',
   'application/pdf': '.pdf',
   'audio/mpeg': '.mp3',
+  'audio/mp4': '.m4a',
   'audio/webm': '.webm',
   'audio/wav': '.wav',
   'video/mp4': '.mp4',
@@ -467,7 +469,10 @@ export class MediaService {
     if (['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))) return 'image/gif';
     if (buffer.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf';
     if (buffer.subarray(0, 3).toString('ascii') === 'ID3' || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)) return 'audio/mpeg';
-    if (buffer.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/mp4';
+    if (
+      buffer.subarray(4, 8).toString('ascii') === 'ftyp' &&
+      ['audio/mp4', 'video/mp4'].includes(declaredMime ?? '')
+    ) return declaredMime;
     if (
       buffer[0] === 0x1a &&
       buffer[1] === 0x45 &&
