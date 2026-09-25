@@ -126,7 +126,11 @@ describe('messenger experience domain', () => {
       voiceTransformation: {
         enabled: true,
         originalVoice: true,
-        previewBeforeSend: true,
+        normalVoiceSendUnchanged: true,
+        optInOnly: true,
+        availableOnLockedOrDraftRecording: true,
+        previewRequiredOnlyWhenTransformationRequested: true,
+        resetsToOriginalForEveryNewRecording: true,
         systemPresetVoices: true
       }
     });
