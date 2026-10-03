@@ -7,6 +7,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'crypto';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -155,6 +156,8 @@ export class SecretChatService {
       });
     }
 
+    const payloadDigest = this.payloadDigest(dto.protocol, envelopes);
+
     const existing = await this.prisma.e2eeMessage.findUnique({
       where: {
         senderDeviceId_clientMessageId: {
@@ -166,17 +169,20 @@ export class SecretChatService {
         id: true,
         conversationId: true,
         protocol: true,
+        payloadDigest: true,
         createdAt: true
       }
     });
     if (existing) {
       if (
         existing.conversationId !== conversationId ||
-        existing.protocol !== dto.protocol
+        existing.protocol !== dto.protocol ||
+        existing.payloadDigest !== payloadDigest
       ) {
         throw new ConflictException('SECRET_CHAT_CLIENT_MESSAGE_ID_REUSED');
       }
-      return { ...existing, replayed: true };
+      const { payloadDigest: _payloadDigest, ...message } = existing;
+      return { ...message, replayed: true };
     }
 
     let created;
@@ -189,6 +195,7 @@ export class SecretChatService {
             senderDeviceId: senderDevice.id,
             clientMessageId: dto.clientMessageId,
             protocol: dto.protocol,
+            payloadDigest,
             envelopes: {
               create: envelopes
             }
@@ -200,6 +207,7 @@ export class SecretChatService {
             senderDeviceId: true,
             clientMessageId: true,
             protocol: true,
+            payloadDigest: true,
             createdAt: true
           }
         });
@@ -229,11 +237,21 @@ export class SecretChatService {
             senderDeviceId: true,
             clientMessageId: true,
             protocol: true,
+            payloadDigest: true,
             createdAt: true
           }
         });
-        if (replay && replay.conversationId === conversationId) {
-          return { ...replay, replayed: true };
+        if (
+          replay &&
+          replay.conversationId === conversationId &&
+          replay.protocol === dto.protocol &&
+          replay.payloadDigest === payloadDigest
+        ) {
+          const { payloadDigest: _payloadDigest, ...message } = replay;
+          return { ...message, replayed: true };
+        }
+        if (replay) {
+          throw new ConflictException('SECRET_CHAT_CLIENT_MESSAGE_ID_REUSED');
         }
       }
       throw error;
@@ -266,7 +284,8 @@ export class SecretChatService {
       }
     });
 
-    return { ...created, replayed: false };
+    const { payloadDigest: _payloadDigest, ...message } = created;
+    return { ...message, replayed: false };
   }
 
   async inbox(
@@ -391,6 +410,30 @@ export class SecretChatService {
       };
     }
     return { envelopeId, deliveredAt: now, readAt: now, replayed: false };
+  }
+
+  private payloadDigest(
+    protocol: string,
+    envelopes: Array<{
+      recipientDeviceId: string;
+      messageKind: string;
+      ciphertext: string;
+    }>
+  ) {
+    const canonical = envelopes
+      .slice()
+      .sort((a, b) =>
+        a.recipientDeviceId.localeCompare(b.recipientDeviceId)
+      )
+      .map((envelope) => [
+        envelope.recipientDeviceId,
+        envelope.messageKind,
+        envelope.ciphertext
+      ]);
+
+    return createHash('sha256')
+      .update(JSON.stringify([protocol, canonical]), 'utf8')
+      .digest('hex');
   }
 
   private async requireCurrentDevice(
