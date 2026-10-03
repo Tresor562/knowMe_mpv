@@ -1,6 +1,8 @@
 import {
   assertOpaqueCiphertext,
-  secretChatServerPolicy
+  assertSecretEnvelopeBatchSize,
+  secretChatServerPolicy,
+  SECRET_MESSAGE_MAX_CIPHERTEXT_BYTES
 } from './secret-chat.domain';
 
 describe('Secret Chat server-blind policy', () => {
@@ -14,6 +16,24 @@ describe('Secret Chat server-blind policy', () => {
     expect(() =>
       assertOpaqueCiphertext(Buffer.alloc(4, 1).toString('base64'))
     ).toThrow();
+  });
+
+  it('caps aggregate ciphertext amplification across recipient devices', () => {
+    const chunk = Buffer.alloc(128 * 1024, 5).toString('base64');
+    expect(
+      assertSecretEnvelopeBatchSize([
+        { ciphertext: chunk },
+        { ciphertext: chunk }
+      ])
+    ).toBe(256 * 1024);
+
+    const oversized = Buffer.alloc(
+      SECRET_MESSAGE_MAX_CIPHERTEXT_BYTES + 1,
+      7
+    ).toString('base64');
+    expect(() =>
+      assertSecretEnvelopeBatchSize([{ ciphertext: oversized }])
+    ).toThrow('SECRET_MESSAGE_BATCH_TOO_LARGE');
   });
 
   it('forbids server plaintext storage and decryption by contract', () => {
