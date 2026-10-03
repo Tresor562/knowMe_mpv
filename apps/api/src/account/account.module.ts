@@ -3,6 +3,7 @@ import { AppearanceModule } from '../appearance/appearance.module';
 import { ConceptKModule } from '../concept-k/concept-k.module';
 import { CosmeticsModule } from '../cosmetics/cosmetics.module';
 import { CreatorsModule } from '../creators/creators.module';
+import { E2eeModule } from '../e2ee/e2ee.module';
 import { GamePlatformModule } from '../games/game-platform.module';
 import { MediaModule } from '../media/media.module';
 import { NexusSocialModule } from '../nexus-social/nexus-social.module';
@@ -17,6 +18,7 @@ import { AccountService } from './account.service';
 @Module({
   imports: [
     SecurityModule,
+    E2eeModule,
     PrivacyModule,
     MediaModule,
     CreatorsModule,
