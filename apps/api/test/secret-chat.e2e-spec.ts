@@ -164,7 +164,12 @@ describe('KnowMe Secret Chats (e2e)', () => {
     });
     expect('content' in stored).toBe(false);
     expect(stored.envelopes).toHaveLength(2);
-    expect(stored.envelopes[0]!.ciphertext).toBe(ciphertext);
+    expect(stored.envelopes.map((envelope) => envelope.ciphertext)).toEqual(
+      expect.arrayContaining([
+        ciphertext,
+        Buffer.alloc(96, 44).toString('base64')
+      ])
+    );
     expect(stored.envelopes[0]!.ciphertext).not.toContain(
       'this plaintext must never be persisted'
     );
@@ -188,7 +193,7 @@ describe('KnowMe Secret Chats (e2e)', () => {
     expect(secondDeviceInbox.body.items).toHaveLength(1);
     expect(secondDeviceInbox.body.items[0].ciphertext).not.toBe(ciphertext);
 
-    const replay = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post(`/e2ee/secret-conversations/${conversation.body.id}/messages`)
       .set('Authorization', `Bearer ${alice.token}`)
       .send({
@@ -204,6 +209,27 @@ describe('KnowMe Secret Chats (e2e)', () => {
             recipientDeviceId: bobSecondDevice.body.id,
             messageKind: 'RATCHET',
             ciphertext: Buffer.alloc(96, 45).toString('base64')
+          }
+        ]
+      })
+      .expect(409);
+
+    const replay = await request(app.getHttpServer())
+      .post(`/e2ee/secret-conversations/${conversation.body.id}/messages`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({
+        protocol: 'SIGNAL_LIBSIGNAL_V1',
+        clientMessageId: 'client-msg-0001',
+        envelopes: [
+          {
+            recipientDeviceId: bobDevice.body.id,
+            messageKind: 'PREKEY',
+            ciphertext
+          },
+          {
+            recipientDeviceId: bobSecondDevice.body.id,
+            messageKind: 'PREKEY',
+            ciphertext: Buffer.alloc(96, 44).toString('base64')
           }
         ]
       })
