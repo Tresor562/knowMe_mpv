@@ -4,6 +4,7 @@ export const SECRET_MESSAGE_KINDS = ['PREKEY', 'RATCHET'] as const;
 export type SecretMessageKind = (typeof SECRET_MESSAGE_KINDS)[number];
 
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+export const SECRET_MESSAGE_MAX_CIPHERTEXT_BYTES = 512 * 1024;
 
 export function assertOpaqueCiphertext(value: string) {
   const trimmed = value.trim();
@@ -29,6 +30,20 @@ export function assertOpaqueCiphertext(value: string) {
   return trimmed;
 }
 
+export function assertSecretEnvelopeBatchSize(
+  envelopes: Array<{ ciphertext: string }>
+) {
+  const totalBytes = envelopes.reduce(
+    (sum, envelope) =>
+      sum + Buffer.from(envelope.ciphertext, 'base64').byteLength,
+    0
+  );
+  if (totalBytes > SECRET_MESSAGE_MAX_CIPHERTEXT_BYTES) {
+    throw new Error('SECRET_MESSAGE_BATCH_TOO_LARGE');
+  }
+  return totalBytes;
+}
+
 export function secretChatServerPolicy() {
   return {
     schemaVersion: 1,
@@ -38,6 +53,7 @@ export function secretChatServerPolicy() {
     allMembersRequireActiveE2eeDevice: true,
     cloudMessageEndpointBlockedForSecretConversations: true,
     serverModeratesSecretMessagePlaintext: false,
+    maxCiphertextBatchBytes: SECRET_MESSAGE_MAX_CIPHERTEXT_BYTES,
     metadataVisibleToServer: [
       'conversationId',
       'senderUserId',
