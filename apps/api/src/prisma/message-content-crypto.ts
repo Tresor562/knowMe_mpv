@@ -73,9 +73,17 @@ function resolveKeyRing(env: NodeJS.ProcessEnv): KeyRing {
     'KNOWME_MESSAGE_ENCRYPTION_KEY_ID'
   );
 
-  const activeKey = env.KNOWME_MESSAGE_ENCRYPTION_KEY?.trim()
+  const dedicatedKey = env.KNOWME_MESSAGE_ENCRYPTION_KEY?.trim();
+
+  if (env.NODE_ENV === 'production' && !dedicatedKey) {
+    throw new Error(
+      'KNOWME_MESSAGE_ENCRYPTION_KEY is required in production.'
+    );
+  }
+
+  const activeKey = dedicatedKey
     ? parseDedicatedKey(
-        env.KNOWME_MESSAGE_ENCRYPTION_KEY,
+        dedicatedKey,
         'KNOWME_MESSAGE_ENCRYPTION_KEY'
       )
     : env.JWT_SECRET?.trim()
@@ -86,7 +94,7 @@ function resolveKeyRing(env: NodeJS.ProcessEnv): KeyRing {
 
   if (!activeKey) {
     throw new Error(
-      'KnowMe message encryption requires KNOWME_MESSAGE_ENCRYPTION_KEY or JWT_SECRET.'
+      'KnowMe message encryption requires KNOWME_MESSAGE_ENCRYPTION_KEY or a non-production JWT_SECRET fallback.'
     );
   }
 
@@ -146,6 +154,12 @@ function decode(value: string, label: string) {
     throw new Error(`Invalid encrypted message ${label}.`);
   }
   return Buffer.from(value, 'base64url');
+}
+
+export function assertMessageEncryptionRuntimeConfig(
+  env: NodeJS.ProcessEnv = process.env
+): void {
+  resolveKeyRing(env);
 }
 
 export function isEncryptedMessageContent(value: unknown): value is string {
