@@ -12,13 +12,14 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { E2eePrivateMaterialGuard } from './e2ee-private-material.guard';
 import {
   RegisterE2eeDeviceDto,
   ReplenishE2eePreKeysDto
 } from './e2ee.dto';
 import { E2eeService } from './e2ee.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, E2eePrivateMaterialGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,
