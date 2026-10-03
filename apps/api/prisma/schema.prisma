@@ -41,7 +41,7 @@ model User {
   challengeVersionsCreated ChallengeVersion[]  @relation("ChallengeVersionCreator")
   challengeEntries         ChallengeParticipant[]
   sentMessages             Message[]
-  secretMessagesSent       SecretMessage[]      @relation("SecretMessageSender")
+  e2eeMessagesSent         E2eeMessage[]        @relation("E2eeMessageSender")
   memberships              ConversationMember[]
   posts                    Post[]
   postLikes                PostLike[]
@@ -171,7 +171,7 @@ model Conversation {
 
   members        ConversationMember[]
   messages       Message[]
-  secretMessages SecretMessage[]
+  e2eeMessages   E2eeMessage[]
 
   @@index([encryptionMode, updatedAt])
 }
@@ -775,8 +775,8 @@ model E2eeDevice {
   user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   session                AuthSession?            @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   oneTimePreKeys         E2eeOneTimePreKey[]
-  sentSecretMessages     SecretMessage[]         @relation("SecretMessageSenderDevice")
-  secretMessageEnvelopes SecretMessageEnvelope[] @relation("SecretMessageRecipientDevice")
+  sentE2eeMessages       E2eeMessage[]          @relation("E2eeMessageSenderDevice")
+  e2eeMessageEnvelopes  E2eeMessageEnvelope[]  @relation("E2eeMessageRecipientDevice")
 
   @@index([userId, revokedAt])
   @@index([protocol, revokedAt])
@@ -796,7 +796,7 @@ model E2eeOneTimePreKey {
   @@index([deviceId, claimedAt, keyId])
 }
 
-model SecretMessage {
+model E2eeMessage {
   id              String   @id @default(cuid())
   conversationId  String
   senderUserId    String
@@ -806,16 +806,16 @@ model SecretMessage {
   createdAt       DateTime @default(now())
 
   conversation Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderUser   User                     @relation("SecretMessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
-  senderDevice E2eeDevice               @relation("SecretMessageSenderDevice", fields: [senderDeviceId], references: [id], onDelete: Cascade)
-  envelopes    SecretMessageEnvelope[]
+  senderUser   User                     @relation("E2eeMessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
+  senderDevice E2eeDevice               @relation("E2eeMessageSenderDevice", fields: [senderDeviceId], references: [id], onDelete: Cascade)
+  envelopes    E2eeMessageEnvelope[]
 
   @@unique([senderDeviceId, clientMessageId])
   @@index([conversationId, createdAt, id])
   @@index([senderUserId, createdAt])
 }
 
-model SecretMessageEnvelope {
+model E2eeMessageEnvelope {
   id                String   @id @default(cuid())
   messageId         String
   recipientDeviceId String
@@ -825,8 +825,8 @@ model SecretMessageEnvelope {
   deliveredAt       DateTime?
   readAt            DateTime?
 
-  message         SecretMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  recipientDevice E2eeDevice    @relation("SecretMessageRecipientDevice", fields: [recipientDeviceId], references: [id], onDelete: Cascade)
+  message         E2eeMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientDevice E2eeDevice    @relation("E2eeMessageRecipientDevice", fields: [recipientDeviceId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, recipientDeviceId])
   @@index([recipientDeviceId, createdAt, id])
