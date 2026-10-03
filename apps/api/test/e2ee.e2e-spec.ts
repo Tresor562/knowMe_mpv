@@ -111,6 +111,30 @@ describe('KnowMe E2EE public key directory (e2e)', () => {
       .set('Authorization', `Bearer ${mallory.token}`)
       .expect(403);
 
+    const identities = await request(app.getHttpServer())
+      .get(
+        `/e2ee/conversations/${conversationId}/identities/${bob.id}`
+      )
+      .set('Authorization', `Bearer ${alice.token}`)
+      .expect(200);
+
+    expect(identities.body.devices).toHaveLength(1);
+    expect(identities.body.devices[0]).toEqual(
+      expect.objectContaining({
+        deviceId: bobDevice.body.id,
+        identityKey: bobBundle.identityKey,
+        identityFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/)
+      })
+    );
+
+    const unclaimedBeforeBundle = await prisma.e2eeOneTimePreKey.count({
+      where: {
+        deviceId: bobDevice.body.id,
+        claimedAt: null
+      }
+    });
+    expect(unclaimedBeforeBundle).toBe(1);
+
     const firstClaim = await request(app.getHttpServer())
       .post(`/e2ee/conversations/${conversationId}/bundles/${bob.id}/claim`)
       .set('Authorization', `Bearer ${alice.token}`)
