@@ -71,6 +71,10 @@ For each Secret Chat send:
 
 The server can still observe unavoidable routing metadata such as participants, device identifiers, timestamps and ciphertext sizes. This is not metadata-hiding or traffic-analysis resistance.
 
+Clients can query a non-consuming per-conversation identity directory to obtain active device identity fingerprints without burning a one-time prekey. KnowMe must pin these fingerprints locally and warn users when a participant adds or changes a cryptographic device before silently trusting the new identity.
+
+A client message id is cryptographically bound on the server to a SHA-256 digest of the protocol identifier plus the exact sorted ciphertext-envelope set. Retrying the identical encrypted payload is idempotent; reusing the same client message id with different ciphertext, message kind or recipients fails closed.
+
 Auth-session cleanup no longer deletes cryptographic device records automatically. A retired E2EE device loses active-session eligibility but can remain as historical routing/key metadata until normal account/data-lifecycle cleanup removes it.
 
 ## Planned client layer
