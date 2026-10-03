@@ -120,6 +120,24 @@ describe('KnowMe Secret Chats (e2e)', () => {
       })
     ).toBe(0);
 
+    await request(app.getHttpServer())
+      .post('/media/uploads')
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({
+        purpose: 'MESSAGE',
+        visibility: 'CONVERSATION',
+        conversationId: conversation.body.id,
+        maxBytes: 1024 * 1024,
+        allowedMime: ['image/png']
+      })
+      .expect(409);
+
+    expect(
+      await prisma.mediaUploadSession.count({
+        where: { conversationId: conversation.body.id }
+      })
+    ).toBe(0);
+
     expect(
       await prisma.message.count({
         where: { conversationId: conversation.body.id }
