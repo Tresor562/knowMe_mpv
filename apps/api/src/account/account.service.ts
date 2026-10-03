@@ -8,6 +8,7 @@ import { ConceptKService } from '../concept-k/concept-k.service';
 import { CosmeticPresetsService } from '../cosmetics/cosmetic-presets.service';
 import { CosmeticsService } from '../cosmetics/cosmetics.service';
 import { CreatorsService } from '../creators/creators.service';
+import { E2eeService } from '../e2ee/e2ee.service';
 import { AffinityGamePolicyService } from '../games/affinity-game-policy.service';
 import { GameAccountLifecycleService } from '../games/game-account-lifecycle.service';
 import { GamePlatformService } from '../games/game-platform.service';
@@ -37,6 +38,7 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly security: SecurityService,
+    private readonly e2ee: E2eeService,
     private readonly privacy: PrivacyService,
     private readonly i18n: I18nService,
     private readonly notificationCenter: NotificationCenterLifecycleService,
@@ -83,6 +85,7 @@ export class AccountService {
     const [
       user,
       security,
+      e2ee,
       privacy,
       localization,
       notificationCenter,
@@ -146,6 +149,7 @@ export class AccountService {
         }
       }),
       this.security.exportForAccount(userId),
+      this.e2ee.exportForAccount(userId),
       this.privacy.exportForAccount(userId),
       this.i18n.exportForAccount(userId),
       this.notificationCenter.exportForAccount(userId),
@@ -218,6 +222,7 @@ export class AccountService {
 
     if (!user) throw new UnauthorizedException('Compte introuvable.');
     const { passwordHash, ...safeUser } = user;
+    const hasE2eeData = e2ee.devices.length > 0;
     const hasTournamentData =
       tournaments.memberships.length > 0 ||
       tournaments.tournaments.length > 0 ||
@@ -280,8 +285,10 @@ export class AccountService {
 
     return {
       exportedAt: new Date().toISOString(),
-      formatVersion: hasGameFavoriteData
-        ? 20
+      formatVersion: hasE2eeData
+        ? 21
+        : hasGameFavoriteData
+          ? 20
         : hasShortLinkData
           ? 19
           : hasTournamentData
@@ -309,6 +316,7 @@ export class AccountService {
                                 : 6,
       account: safeUser,
       security,
+      ...(hasE2eeData ? { e2ee } : {}),
       privacy,
       ...(hasGameData || hasAffinityData
         ? {
