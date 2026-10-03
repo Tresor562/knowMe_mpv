@@ -56,7 +56,10 @@ export class MediaService {
       if (!dto.conversationId) {
         throw new BadRequestException('Une conversation est requise pour cette visibilité.');
       }
-      await this.assertConversationMembership(userId, dto.conversationId);
+      await this.assertCloudConversationUpload(
+        userId,
+        dto.conversationId
+      );
     }
 
     const deletionPending = await this.prisma.mediaUploadSession.findFirst({
@@ -422,6 +425,25 @@ export class MediaService {
       if (friendship) return asset;
     }
     throw new ForbiddenException('Accès au média refusé.');
+  }
+
+  private async assertCloudConversationUpload(
+    userId: string,
+    conversationId: string
+  ) {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+      select: {
+        id: true,
+        conversation: { select: { encryptionMode: true } }
+      }
+    });
+    if (!member) {
+      throw new ForbiddenException('Tu ne participes pas à cette conversation.');
+    }
+    if (member.conversation.encryptionMode !== 'CLOUD') {
+      throw new ConflictException('SECRET_CHAT_ENCRYPTED_MEDIA_REQUIRED');
+    }
   }
 
   private async assertConversationMembership(userId: string, conversationId: string) {
