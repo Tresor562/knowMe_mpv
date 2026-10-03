@@ -161,13 +161,17 @@ export class E2eeService {
       identityFingerprint: this.fingerprint(device.identityKey),
       availablePreKeys: device._count.oneTimePreKeys,
       session: {
-        current: device.sessionId === currentSessionId,
-        active:
+        current: Boolean(
+          device.sessionId && device.sessionId === currentSessionId
+        ),
+        active: Boolean(
           !device.revokedAt &&
+          device.session &&
           !device.session.revokedAt &&
-          device.session.expiresAt > now,
-        userAgent: device.session.userAgent,
-        expiresAt: device.session.expiresAt
+          device.session.expiresAt > now
+        ),
+        userAgent: device.session?.userAgent ?? null,
+        expiresAt: device.session?.expiresAt ?? null
       },
       createdAt: device.createdAt,
       updatedAt: device.updatedAt,
