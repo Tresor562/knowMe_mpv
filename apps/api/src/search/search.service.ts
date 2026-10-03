@@ -62,7 +62,6 @@ export class SearchService {
     const [messages, posts, challenges, conversations] = await Promise.all([
       this.prisma.message.findMany({
         where: {
-          content: contains,
           conversation: { members: { some: { userId } } },
           ...(messageBoundary ? { AND: [messageBoundary] } : {})
         },
@@ -73,7 +72,10 @@ export class SearchService {
           createdAt: true
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-        take
+        // Message bodies are encrypted at rest. Search a bounded decrypted
+        // candidate window in application memory rather than asking PostgreSQL
+        // to match ciphertext.
+        take: Math.min(Math.max(take * 20, 200), 1000)
       }),
       this.prisma.post.findMany({
         where: {
@@ -114,9 +116,15 @@ export class SearchService {
       })
     ]);
 
+    const matchingMessages = messages
+      .filter((message) =>
+        message.content.toLocaleLowerCase().includes(normalizedQuery)
+      )
+      .slice(0, take);
+
     const allowedKinds = new Set(kinds);
     const items: SearchItem[] = [
-      ...messages.map((message) => ({
+      ...matchingMessages.map((message) => ({
         kind: 'MESSAGE' as const,
         id: message.id,
         title: null,
