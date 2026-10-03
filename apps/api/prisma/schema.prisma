@@ -760,7 +760,7 @@ model AuthSession {
 model E2eeDevice {
   id                    String   @id @default(cuid())
   userId                String
-  sessionId             String   @unique
+  sessionId             String?  @unique
   protocol              String   @default("SIGNAL_LIBSIGNAL_V1")
   registrationId        Int
   identityKey           String
@@ -773,7 +773,7 @@ model E2eeDevice {
   revokedAt             DateTime?
 
   user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session                AuthSession             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session                AuthSession?            @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   oneTimePreKeys         E2eeOneTimePreKey[]
   sentSecretMessages     SecretMessage[]         @relation("SecretMessageSenderDevice")
   secretMessageEnvelopes SecretMessageEnvelope[] @relation("SecretMessageRecipientDevice")
@@ -807,7 +807,7 @@ model SecretMessage {
 
   conversation Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderUser   User                     @relation("SecretMessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
-  senderDevice E2eeDevice               @relation("SecretMessageSenderDevice", fields: [senderDeviceId], references: [id], onDelete: Restrict)
+  senderDevice E2eeDevice               @relation("SecretMessageSenderDevice", fields: [senderDeviceId], references: [id], onDelete: Cascade)
   envelopes    SecretMessageEnvelope[]
 
   @@unique([senderDeviceId, clientMessageId])
@@ -826,7 +826,7 @@ model SecretMessageEnvelope {
   readAt            DateTime?
 
   message         SecretMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  recipientDevice E2eeDevice    @relation("SecretMessageRecipientDevice", fields: [recipientDeviceId], references: [id], onDelete: Restrict)
+  recipientDevice E2eeDevice    @relation("SecretMessageRecipientDevice", fields: [recipientDeviceId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, recipientDeviceId])
   @@index([recipientDeviceId, createdAt, id])
