@@ -45,6 +45,10 @@ export class StickerController {
     @Param('conversationId') conversationId: string,
     @Body() dto: SendStickerDto
   ) {
+    await this.messaging.assertCloudConversation(
+      request.user.userId,
+      conversationId
+    );
     await this.moderation.assertAllowed({
       actorId: request.user.userId,
       action: 'MESSAGE_SEND',
