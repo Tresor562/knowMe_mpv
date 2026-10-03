@@ -1,3 +1,13 @@
+ALTER TABLE "E2eeDevice"
+DROP CONSTRAINT "E2eeDevice_sessionId_fkey";
+
+ALTER TABLE "E2eeDevice"
+ALTER COLUMN "sessionId" DROP NOT NULL;
+
+ALTER TABLE "E2eeDevice"
+ADD CONSTRAINT "E2eeDevice_sessionId_fkey"
+FOREIGN KEY ("sessionId") REFERENCES "AuthSession"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 ALTER TABLE "Conversation"
 ADD COLUMN "encryptionMode" TEXT NOT NULL DEFAULT 'CLOUD';
 
@@ -57,7 +67,7 @@ FOREIGN KEY ("senderUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE
 
 ALTER TABLE "SecretMessage"
 ADD CONSTRAINT "SecretMessage_senderDeviceId_fkey"
-FOREIGN KEY ("senderDeviceId") REFERENCES "E2eeDevice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+FOREIGN KEY ("senderDeviceId") REFERENCES "E2eeDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE "SecretMessageEnvelope"
 ADD CONSTRAINT "SecretMessageEnvelope_messageId_fkey"
@@ -65,4 +75,4 @@ FOREIGN KEY ("messageId") REFERENCES "SecretMessage"("id") ON DELETE CASCADE ON 
 
 ALTER TABLE "SecretMessageEnvelope"
 ADD CONSTRAINT "SecretMessageEnvelope_recipientDeviceId_fkey"
-FOREIGN KEY ("recipientDeviceId") REFERENCES "E2eeDevice"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+FOREIGN KEY ("recipientDeviceId") REFERENCES "E2eeDevice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
