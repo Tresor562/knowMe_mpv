@@ -52,6 +52,27 @@ At most one one-time prekey is consumed for each target device. Claiming is perf
 
 A bundle may be returned without a one-time prekey if that device's prekey pool is temporarily empty. Clients should prompt/retry replenishment according to the reviewed libsignal integration rather than weakening identity verification.
 
+## Opaque Secret Chat message transport
+
+The server now has a separate Secret Chat persistence path that stores only opaque per-device ciphertext envelopes.
+
+A Secret Chat conversation is marked with `encryptionMode=SECRET`. Existing Cloud Chat message, edit and sticker endpoints fail closed for these conversations, so Secret Chat content cannot be accidentally persisted through the normal plaintext `Message.content` path.
+
+For each Secret Chat send:
+
+- the sender must be an active E2EE device bound to the authenticated session;
+- every conversation member must currently have at least one active E2EE device;
+- the client must provide exactly one opaque ciphertext envelope for every active target device except the sending device;
+- duplicate, missing or extra recipient-device envelopes are rejected;
+- the server validates only bounded encoding/size and routing metadata; it does not decrypt or interpret ciphertext;
+- retries are idempotent by sender-device + client-message id;
+- recipient inboxes expose only envelopes addressed to that authenticated E2EE device;
+- realtime notifications contain message availability metadata only, never ciphertext or plaintext.
+
+The server can still observe unavoidable routing metadata such as participants, device identifiers, timestamps and ciphertext sizes. This is not metadata-hiding or traffic-analysis resistance.
+
+Auth-session cleanup no longer deletes cryptographic device records automatically. A retired E2EE device loses active-session eligibility but can remain as historical routing/key metadata until normal account/data-lifecycle cleanup removes it.
+
 ## Planned client layer
 
 The next delivery must integrate the reviewed cryptographic library on Android/iOS first and cover:
