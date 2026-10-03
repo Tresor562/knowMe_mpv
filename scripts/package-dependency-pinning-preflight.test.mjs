@@ -19,7 +19,11 @@ const dependencySections = ['dependencies', 'devDependencies', 'optionalDependen
 const auditedSecurityOverrides = {
   'path-to-regexp': '8.4.2',
   lodash: '4.18.1',
-  multer: '2.2.0',
+  multer: '2.4.0',
+  undici: '6.29.0',
+  'engine.io': '6.6.11',
+  'brace-expansion@1.1.18': '1.1.21',
+  'brace-expansion@2.1.4': '2.1.7',
 };
 
 async function readManifest(path) {
