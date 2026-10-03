@@ -73,6 +73,20 @@ export class E2eeController {
     return this.e2ee.revoke(req.user.userId, id);
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Get('conversations/:conversationId/identities/:targetUserId')
+  identities(
+    @Req() req: { user: { userId: string } },
+    @Param('conversationId') conversationId: string,
+    @Param('targetUserId') targetUserId: string
+  ) {
+    return this.e2ee.conversationIdentities(
+      req.user.userId,
+      conversationId,
+      targetUserId
+    );
+  }
+
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('conversations/:conversationId/bundles/:targetUserId/claim')
   claim(
