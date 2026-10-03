@@ -37,7 +37,11 @@ describe('E2eeService', () => {
       )
     };
     const audit = { record: jest.fn() };
-    const service = new E2eeService(prisma as never, audit as never);
+    const service = new E2eeService(
+      prisma as never,
+      audit as never,
+      { create: jest.fn() } as never
+    );
 
     await expect(
       service.register('user-1', 'session-1', registration(keyB))
@@ -90,7 +94,8 @@ describe('E2eeService', () => {
     };
     const service = new E2eeService(
       prisma as never,
-      { record: jest.fn() } as never
+      { record: jest.fn() } as never,
+      { create: jest.fn() } as never
     );
 
     const result = await service.claimConversationBundles(
@@ -152,7 +157,8 @@ describe('E2eeService', () => {
     };
     const service = new E2eeService(
       prisma as never,
-      { record: jest.fn() } as never
+      { record: jest.fn() } as never,
+      { create: jest.fn() } as never
     );
 
     const result = await service.claimConversationBundles(
