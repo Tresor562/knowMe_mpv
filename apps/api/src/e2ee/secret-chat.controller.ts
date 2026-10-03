@@ -14,13 +14,14 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { E2eePrivateMaterialGuard } from './e2ee-private-material.guard';
 import {
   CreateSecretConversationDto,
   SendSecretMessageDto
 } from './secret-chat.dto';
 import { SecretChatService } from './secret-chat.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, E2eePrivateMaterialGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,
