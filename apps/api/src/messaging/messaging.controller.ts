@@ -69,6 +69,7 @@ export class MessagingController {
     @Param('id') id: string,
     @Body() dto: SendMessageDto
   ) {
+    await this.messaging.assertCloudConversation(req.user.userId, id);
     await this.moderation.assertAllowed({
       actorId: req.user.userId,
       action: 'MESSAGE_SEND',
@@ -85,6 +86,7 @@ export class MessagingController {
     @Param('messageId') messageId: string,
     @Body() dto: EditMessageDto
   ) {
+    await this.messaging.assertCloudConversation(req.user.userId, id);
     await this.moderation.assertAllowed({
       actorId: req.user.userId,
       action: 'MESSAGE_SEND',
