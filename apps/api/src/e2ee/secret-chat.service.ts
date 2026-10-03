@@ -18,6 +18,7 @@ import {
 } from './secret-chat.dto';
 import {
   assertOpaqueCiphertext,
+  assertSecretEnvelopeBatchSize,
   SECRET_CONVERSATION_MODE,
   secretChatServerPolicy
 } from './secret-chat.domain';
@@ -154,6 +155,12 @@ export class SecretChatService {
         expectedEnvelopeCount: requiredDeviceIds.size,
         providedEnvelopeCount: seen.size
       });
+    }
+
+    try {
+      assertSecretEnvelopeBatchSize(envelopes);
+    } catch {
+      throw new BadRequestException('SECRET_MESSAGE_BATCH_TOO_LARGE');
     }
 
     const payloadDigest = this.payloadDigest(dto.protocol, envelopes);
