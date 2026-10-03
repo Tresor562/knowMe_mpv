@@ -2,7 +2,7 @@ import { HeroRuntimeBundle, verifyHeroRuntimeBundleBytes } from './hero-runtime-
 
 export const HERO_RUNTIME_PBR_GATE_VERSION=14 as const;
 export const HERO_RUNTIME_MAX_TEXTURE_DIMENSION=2048 as const;
-export const HERO_RUNTIME_MAX_GPU_TEXTURE_BYTES=32*1024*1024 as const;
+export const HERO_RUNTIME_MAX_GPU_TEXTURE_BYTES=33_554_432 as const;
 const GLB_JSON=0x4e4f534a,GLB_BIN=0x004e4942;
 const nonNegativeInt=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
 const positiveInt=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0;
