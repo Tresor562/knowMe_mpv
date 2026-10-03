@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { E2eeController } from './e2ee.controller';
 import { E2eeService } from './e2ee.service';
+import { SecretChatController } from './secret-chat.controller';
+import { SecretChatService } from './secret-chat.service';
 
 @Module({
-  controllers: [E2eeController],
-  providers: [E2eeService],
-  exports: [E2eeService]
+  imports: [RealtimeModule],
+  controllers: [E2eeController, SecretChatController],
+  providers: [E2eeService, SecretChatService],
+  exports: [E2eeService, SecretChatService]
 })
 export class E2eeModule {}
