@@ -262,9 +262,38 @@ export class NexusIntegrationService {
         const conversationId = this.targetId(request, 'conversation');
         const userId = request.actor.knowMeUserId;
         if (!userId) throw new ForbiddenException('A linked KnowMe user is required for conversation context.');
-        const membership = await this.prisma.conversationMember.findUnique({ where: { conversationId_userId: { conversationId, userId } }, select: { conversationId: true, conversation: { select: { id: true, title: true, isGroup: true } } } });
-        if (!membership) throw new ForbiddenException('Conversation membership required.');
-        if (capability.id === 'groups.context.read' && !membership.conversation.isGroup) throw new BadRequestException('Target is not a group conversation.');
+        const membership = await this.prisma.conversationMember.findUnique({
+          where: {
+            conversationId_userId: { conversationId, userId }
+          },
+          select: {
+            conversationId: true,
+            conversation: {
+              select: {
+                id: true,
+                title: true,
+                isGroup: true,
+                encryptionMode: true
+              }
+            }
+          }
+        });
+        if (!membership) {
+          throw new ForbiddenException('Conversation membership required.');
+        }
+        if (membership.conversation.encryptionMode !== 'CLOUD') {
+          throw new ForbiddenException({
+            code: 'SECRET_CHAT_SERVER_INTEGRATION_FORBIDDEN',
+            message:
+              'Secret Chat plaintext is unavailable to server-side integrations.'
+          });
+        }
+        if (
+          capability.id === 'groups.context.read' &&
+          !membership.conversation.isGroup
+        ) {
+          throw new BadRequestException('Target is not a group conversation.');
+        }
         const messages = await this.prisma.message.findMany({ where: { conversationId }, select: { id: true, senderId: true, content: true, createdAt: true, editedAt: true }, orderBy: { createdAt: 'desc' }, take: 30 });
         return { conversation: membership.conversation, messages: messages.reverse() };
       }
