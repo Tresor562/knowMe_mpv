@@ -98,6 +98,14 @@ export class E2eeService {
           })),
           skipDuplicates: true
         });
+        const storedKeys = await tx.e2eeOneTimePreKey.findMany({
+          where: {
+            deviceId: device.id,
+            keyId: { in: keys.map((key) => key.keyId) }
+          },
+          select: { keyId: true, publicKey: true }
+        });
+        this.assertPreKeyIdsImmutable(keys, storedKeys);
       }
 
       const availablePreKeys = await tx.e2eeOneTimePreKey.count({
@@ -209,37 +217,47 @@ export class E2eeService {
     const session = await this.requireActiveSession(userId, sessionId);
     const keys = this.validateOneTimePreKeys(dto.oneTimePreKeys);
 
-    const device = await this.prisma.e2eeDevice.findFirst({
-      where: {
-        id: deviceId,
-        userId,
-        sessionId: session.id,
-        revokedAt: null
-      },
-      select: { id: true }
-    });
-    if (!device) {
-      throw new NotFoundException('E2EE_ACTIVE_DEVICE_NOT_FOUND');
-    }
-
-    if (keys.length) {
-      await this.prisma.e2eeOneTimePreKey.createMany({
-        data: keys.map((key) => ({
-          deviceId,
-          keyId: key.keyId,
-          publicKey: key.publicKey
-        })),
-        skipDuplicates: true
+    const availablePreKeys = await this.prisma.$transaction(async (tx) => {
+      const device = await tx.e2eeDevice.findFirst({
+        where: {
+          id: deviceId,
+          userId,
+          sessionId: session.id,
+          revokedAt: null
+        },
+        select: { id: true }
       });
-    }
+      if (!device) {
+        throw new NotFoundException('E2EE_ACTIVE_DEVICE_NOT_FOUND');
+      }
 
-    const availablePreKeys = await this.prisma.e2eeOneTimePreKey.count({
-      where: { deviceId, claimedAt: null }
-    });
+      if (keys.length) {
+        await tx.e2eeOneTimePreKey.createMany({
+          data: keys.map((key) => ({
+            deviceId,
+            keyId: key.keyId,
+            publicKey: key.publicKey
+          })),
+          skipDuplicates: true
+        });
+        const storedKeys = await tx.e2eeOneTimePreKey.findMany({
+          where: {
+            deviceId,
+            keyId: { in: keys.map((key) => key.keyId) }
+          },
+          select: { keyId: true, publicKey: true }
+        });
+        this.assertPreKeyIdsImmutable(keys, storedKeys);
+      }
 
-    await this.prisma.e2eeDevice.update({
-      where: { id: deviceId },
-      data: { lastSeenAt: new Date() }
+      await tx.e2eeDevice.update({
+        where: { id: deviceId },
+        data: { lastSeenAt: new Date() }
+      });
+
+      return tx.e2eeOneTimePreKey.count({
+        where: { deviceId, claimedAt: null }
+      });
     });
 
     return { deviceId, availablePreKeys };
@@ -540,6 +558,21 @@ export class E2eeService {
         )
       };
     });
+  }
+
+  private assertPreKeyIdsImmutable(
+    requested: Array<{ keyId: number; publicKey: string }>,
+    stored: Array<{ keyId: number; publicKey: string }>
+  ) {
+    const byId = new Map(stored.map((key) => [key.keyId, key.publicKey]));
+    for (const key of requested) {
+      const storedPublicKey = byId.get(key.keyId);
+      if (!storedPublicKey || storedPublicKey !== key.publicKey) {
+        throw new ConflictException(
+          'E2EE_PREKEY_ID_REUSED_WITH_DIFFERENT_KEY'
+        );
+      }
+    }
   }
 
   private fingerprint(identityKey: string) {
