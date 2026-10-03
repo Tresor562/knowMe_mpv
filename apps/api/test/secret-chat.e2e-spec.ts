@@ -114,7 +114,7 @@ describe('KnowMe Secret Chats (e2e)', () => {
 
     expect(sent.body.replayed).toBe(false);
 
-    const stored = await prisma.secretMessage.findUniqueOrThrow({
+    const stored = await prisma.e2eeMessage.findUniqueOrThrow({
       where: { id: sent.body.id },
       include: { envelopes: true }
     });
@@ -153,7 +153,7 @@ describe('KnowMe Secret Chats (e2e)', () => {
 
     expect(replay.body.replayed).toBe(true);
     expect(
-      await prisma.secretMessage.count({
+      await prisma.e2eeMessage.count({
         where: { conversationId: conversation.body.id }
       })
     ).toBe(1);
