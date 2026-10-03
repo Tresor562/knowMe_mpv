@@ -105,6 +105,21 @@ describe('KnowMe Secret Chats (e2e)', () => {
       .send({ content: 'this plaintext must never be persisted' })
       .expect(409);
 
+    await request(app.getHttpServer())
+      .put(`/conversation-drafts/${conversation.body.id}`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({
+        content: 'this Secret Chat draft must stay on-device',
+        expectedVersion: 0
+      })
+      .expect(409);
+
+    expect(
+      await prisma.conversationDraft.count({
+        where: { conversationId: conversation.body.id }
+      })
+    ).toBe(0);
+
     expect(
       await prisma.message.count({
         where: { conversationId: conversation.body.id }
