@@ -49,6 +49,7 @@ model User {
   reports                  Report[]
   interests                UserInterest[]
   authSessions             AuthSession[]
+  e2eeDevices              E2eeDevice[]
   featureFlagOverrides     FeatureFlagOverride[]
   entitlementGrants        EntitlementGrant[]
   staffAccount             StaffAccount?
@@ -744,8 +745,46 @@ model AuthSession {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  e2eeDevice E2eeDevice?
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+}
+
+model E2eeDevice {
+  id                    String   @id @default(cuid())
+  userId                String
+  sessionId             String   @unique
+  protocol              String   @default("SIGNAL_LIBSIGNAL_V1")
+  registrationId        Int
+  identityKey           String
+  signedPreKeyId        Int
+  signedPreKey          String
+  signedPreKeySignature String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  lastSeenAt            DateTime @default(now())
+  revokedAt             DateTime?
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        AuthSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  oneTimePreKeys E2eeOneTimePreKey[]
+
+  @@index([userId, revokedAt])
+  @@index([protocol, revokedAt])
+}
+
+model E2eeOneTimePreKey {
+  id        String   @id @default(cuid())
+  deviceId  String
+  keyId     Int
+  publicKey String
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+
+  device E2eeDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, keyId])
+  @@index([deviceId, claimedAt, keyId])
 }
