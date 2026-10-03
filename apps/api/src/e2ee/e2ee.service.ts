@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -24,7 +25,8 @@ import {
 export class E2eeService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly notifications: NotificationsService
   ) {}
 
   policy() {
@@ -109,7 +111,8 @@ export class E2eeService {
         identityFingerprint: this.fingerprint(device.identityKey),
         availablePreKeys,
         createdAt: device.createdAt,
-        updatedAt: device.updatedAt
+        updatedAt: device.updatedAt,
+        isNew: !existing
       };
     });
 
@@ -122,11 +125,29 @@ export class E2eeService {
       metadata: {
         protocol: result.protocol,
         registrationId: result.registrationId,
-        availablePreKeys: result.availablePreKeys
+        availablePreKeys: result.availablePreKeys,
+        isNew: result.isNew
       }
     });
 
-    return result;
+    if (result.isNew) {
+      await this.notifications.create({
+        userId,
+        type: 'SECURITY_E2EE_DEVICE_ADDED',
+        title: 'Nouvel appareil de chiffrement',
+        body:
+          'Un nouvel appareil a activé les conversations chiffrées de bout en bout.',
+        data: {
+          route: '/security',
+          entityType: 'E2EE_DEVICE',
+          entityId: result.id,
+          identityFingerprint: result.identityFingerprint
+        }
+      });
+    }
+
+    const { isNew: _isNew, ...device } = result;
+    return device;
   }
 
   async listMine(userId: string, currentSessionId?: string) {
@@ -246,6 +267,19 @@ export class E2eeService {
       entity: 'E2eeDevice',
       entityId: deviceId,
       targetAccountId: userId
+    });
+
+    await this.notifications.create({
+      userId,
+      type: 'SECURITY_E2EE_DEVICE_REVOKED',
+      title: 'Appareil de chiffrement révoqué',
+      body:
+        'Un appareil ne peut plus établir de nouvelles conversations chiffrées.',
+      data: {
+        route: '/security',
+        entityType: 'E2EE_DEVICE',
+        entityId: deviceId
+      }
     });
 
     return result;
