@@ -155,7 +155,7 @@ export class SecretChatService {
       });
     }
 
-    const existing = await this.prisma.secretMessage.findUnique({
+    const existing = await this.prisma.e2eeMessage.findUnique({
       where: {
         senderDeviceId_clientMessageId: {
           senderDeviceId: senderDevice.id,
@@ -182,7 +182,7 @@ export class SecretChatService {
     let created;
     try {
       created = await this.prisma.$transaction(async (tx) => {
-        const message = await tx.secretMessage.create({
+        const message = await tx.e2eeMessage.create({
           data: {
             conversationId,
             senderUserId: userId,
@@ -215,7 +215,7 @@ export class SecretChatService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const replay = await this.prisma.secretMessage.findUnique({
+        const replay = await this.prisma.e2eeMessage.findUnique({
           where: {
             senderDeviceId_clientMessageId: {
               senderDeviceId: senderDevice.id,
@@ -255,7 +255,7 @@ export class SecretChatService {
     await this.audit.record({
       actorId: userId,
       action: 'SECRET_MESSAGE_SEND',
-      entity: 'SecretMessage',
+      entity: 'E2eeMessage',
       entityId: created.id,
       targetAccountId: userId,
       metadata: {
@@ -279,7 +279,7 @@ export class SecretChatService {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
 
     const cursorRow = cursor
-      ? await this.prisma.secretMessageEnvelope.findFirst({
+      ? await this.prisma.e2eeMessageEnvelope.findFirst({
           where: { id: cursor, recipientDeviceId: device.id },
           select: { id: true, createdAt: true }
         })
@@ -288,7 +288,7 @@ export class SecretChatService {
       throw new BadRequestException('SECRET_CHAT_INBOX_CURSOR_INVALID');
     }
 
-    const rows = await this.prisma.secretMessageEnvelope.findMany({
+    const rows = await this.prisma.e2eeMessageEnvelope.findMany({
       where: {
         recipientDeviceId: device.id,
         ...(cursorRow
@@ -340,7 +340,7 @@ export class SecretChatService {
   ) {
     const device = await this.requireCurrentDevice(userId, sessionId);
     const now = new Date();
-    const result = await this.prisma.secretMessageEnvelope.updateMany({
+    const result = await this.prisma.e2eeMessageEnvelope.updateMany({
       where: {
         id: envelopeId,
         recipientDeviceId: device.id,
@@ -349,7 +349,7 @@ export class SecretChatService {
       data: { deliveredAt: now }
     });
     if (!result.count) {
-      const existing = await this.prisma.secretMessageEnvelope.findFirst({
+      const existing = await this.prisma.e2eeMessageEnvelope.findFirst({
         where: { id: envelopeId, recipientDeviceId: device.id },
         select: { deliveredAt: true }
       });
@@ -366,7 +366,7 @@ export class SecretChatService {
   ) {
     const device = await this.requireCurrentDevice(userId, sessionId);
     const now = new Date();
-    const result = await this.prisma.secretMessageEnvelope.updateMany({
+    const result = await this.prisma.e2eeMessageEnvelope.updateMany({
       where: {
         id: envelopeId,
         recipientDeviceId: device.id,
@@ -378,7 +378,7 @@ export class SecretChatService {
       }
     });
     if (!result.count) {
-      const existing = await this.prisma.secretMessageEnvelope.findFirst({
+      const existing = await this.prisma.e2eeMessageEnvelope.findFirst({
         where: { id: envelopeId, recipientDeviceId: device.id },
         select: { deliveredAt: true, readAt: true }
       });
