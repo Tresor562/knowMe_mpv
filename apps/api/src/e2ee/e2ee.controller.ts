@@ -6,7 +6,9 @@ import {
   Param,
   Post,
   Req,
-  UseGuards
+  UseGuards,
+  UsePipes,
+  ValidationPipe
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,6 +19,13 @@ import {
 import { E2eeService } from './e2ee.service';
 
 @UseGuards(JwtAuthGuard)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true
+  })
+)
 @Controller('e2ee')
 export class E2eeController {
   constructor(private readonly e2ee: E2eeService) {}
