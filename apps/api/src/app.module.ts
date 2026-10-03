@@ -25,6 +25,7 @@ import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
+import { E2eeModule } from './e2ee/e2ee.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { GamePlatformModule } from './games/game-platform.module';
 import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
@@ -136,6 +137,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     ReportsModule,
     FeatureFlagsModule,
     EntitlementsModule,
+    E2eeModule,
     StaffModule,
     NexusIntegrationModule,
     NexusSocialModule
