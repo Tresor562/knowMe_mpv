@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import {
+  assertMessageEncryptionRuntimeConfig,
   decryptMessageContent,
   encryptMessageContent,
   isEncryptedMessageContent
@@ -96,6 +97,7 @@ function decryptMessageResults(value: unknown): unknown {
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     super();
+    assertMessageEncryptionRuntimeConfig();
 
     this.$use(async (params, next) => {
       if (params.model === 'Message') {
