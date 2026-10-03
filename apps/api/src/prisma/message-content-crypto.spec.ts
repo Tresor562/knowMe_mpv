@@ -90,7 +90,18 @@ describe('KnowMe message content crypto', () => {
     );
   });
 
-  it('uses a domain-separated JWT-derived key when a dedicated key is absent', () => {
+  it('fails closed in production when the dedicated message key is missing', () => {
+    const env = {
+      NODE_ENV: 'production',
+      JWT_SECRET: 'jwt-secret-must-not-become-a-production-message-key'
+    };
+
+    expect(() => encryptMessageContent('must fail', {}, env)).toThrow(
+      'KNOWME_MESSAGE_ENCRYPTION_KEY is required in production'
+    );
+  });
+
+  it('uses a domain-separated JWT-derived key outside production when a dedicated key is absent', () => {
     const env = {
       JWT_SECRET: 'this-is-a-long-production-like-jwt-secret-for-tests'
     };
