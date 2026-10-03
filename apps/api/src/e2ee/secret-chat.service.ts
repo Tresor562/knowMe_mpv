@@ -131,10 +131,16 @@ export class SecretChatService {
         throw new BadRequestException('SECRET_CHAT_DUPLICATE_RECIPIENT_DEVICE');
       }
       seen.add(envelope.recipientDeviceId);
+      let ciphertext: string;
+      try {
+        ciphertext = assertOpaqueCiphertext(envelope.ciphertext);
+      } catch {
+        throw new BadRequestException('SECRET_MESSAGE_CIPHERTEXT_INVALID');
+      }
       return {
         recipientDeviceId: envelope.recipientDeviceId,
         messageKind: envelope.messageKind,
-        ciphertext: assertOpaqueCiphertext(envelope.ciphertext)
+        ciphertext
       };
     });
 
