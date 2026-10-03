@@ -309,6 +309,19 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  emitSecretMessageAvailable(
+    userIds: string[],
+    message: { conversationId: string; messageId: string; createdAt: Date }
+  ) {
+    for (const userId of new Set(userIds)) {
+      this.server.to(`user:${userId}`).emit('secret-message:available', {
+        conversationId: message.conversationId,
+        messageId: message.messageId,
+        createdAt: message.createdAt
+      });
+    }
+  }
+
   emitNotificationCreated(userId: string, notification: unknown) {
     this.server.to(`user:${userId}`).emit('notification:created', notification);
   }
