@@ -21,6 +21,7 @@ CREATE TABLE "E2eeMessage" (
     "senderDeviceId" TEXT NOT NULL,
     "clientMessageId" TEXT NOT NULL,
     "protocol" TEXT NOT NULL DEFAULT 'SIGNAL_LIBSIGNAL_V1',
+    "payloadDigest" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "E2eeMessage_pkey" PRIMARY KEY ("id")
