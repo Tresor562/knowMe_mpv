@@ -348,6 +348,54 @@ export class E2eeService {
     };
   }
 
+  async exportForAccount(userId: string) {
+    const devices = await this.prisma.e2eeDevice.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        sessionId: true,
+        protocol: true,
+        registrationId: true,
+        identityKey: true,
+        signedPreKeyId: true,
+        signedPreKey: true,
+        signedPreKeySignature: true,
+        createdAt: true,
+        updatedAt: true,
+        lastSeenAt: true,
+        revokedAt: true,
+        _count: {
+          select: {
+            oneTimePreKeys: true
+          }
+        }
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
+    });
+
+    return {
+      schemaVersion: 1,
+      devices: devices.map((device) => ({
+        id: device.id,
+        sessionId: device.sessionId,
+        protocol: device.protocol,
+        registrationId: device.registrationId,
+        identityKey: device.identityKey,
+        identityFingerprint: this.fingerprint(device.identityKey),
+        signedPreKey: {
+          keyId: device.signedPreKeyId,
+          publicKey: device.signedPreKey,
+          signature: device.signedPreKeySignature
+        },
+        oneTimePreKeyCount: device._count.oneTimePreKeys,
+        createdAt: device.createdAt,
+        updatedAt: device.updatedAt,
+        lastSeenAt: device.lastSeenAt,
+        revokedAt: device.revokedAt
+      }))
+    };
+  }
+
   private async requireActiveSession(
     userId: string,
     sessionId: string | undefined
