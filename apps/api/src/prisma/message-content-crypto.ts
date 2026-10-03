@@ -80,7 +80,9 @@ function resolveKeyRing(env: NodeJS.ProcessEnv): KeyRing {
       )
     : env.JWT_SECRET?.trim()
       ? deriveJwtSeparatedKey(env.JWT_SECRET)
-      : null;
+      : env.NODE_ENV === 'test'
+        ? deriveJwtSeparatedKey('knowme-test-only-message-encryption-key')
+        : null;
 
   if (!activeKey) {
     throw new Error(
