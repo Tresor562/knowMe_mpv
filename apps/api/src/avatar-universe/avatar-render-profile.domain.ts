@@ -113,10 +113,13 @@ export function validateAvatarRenderProfile(value: unknown): AvatarRenderProfile
   };
 }
 
-export const AVATAR_BALANCED_RENDER_PROFILE: Readonly<AvatarRenderProfile> = Object.freeze({
+const AVATAR_BALANCED_RENDER_PROFILE_VALUE = {
   schemaVersion:1,key:'knowme.render.android-balanced.v1',tier:'REALTIME_3D_BALANCED',backend:'VULKAN_ANDROID',
   pbr:{metallicRoughness:true,normalMapping:true,occlusion:true,imageBasedLighting:true,toneMapper:'ACES',maxDynamicLights:2},
   turntable:{enabled:true,degrees:360,framesPerRevolution:180,autoRotateSeconds:10,dragDegreesPerViewport:360},
   camera:{verticalFovDegrees:40,nearMeters:0.05,farMeters:8,targetHeightRatio:0.52},environment:'STUDIO_NEUTRAL_V1',
   android:{maxGpuFrameMs:16.67,maxDrawCalls:70,maxVisibleTriangles:90_000,maxTextureMemoryMiB:128,maxSkinnedMeshes:12,maxBonesPerDraw:96,textureCompression:'KTX2_BASISU'}
-});
+} as const satisfies AvatarRenderProfile;
+
+export const AVATAR_BALANCED_RENDER_PROFILE: Readonly<AvatarRenderProfile> =
+  Object.freeze(AVATAR_BALANCED_RENDER_PROFILE_VALUE);
