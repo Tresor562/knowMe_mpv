@@ -251,6 +251,73 @@ export class E2eeService {
     return result;
   }
 
+  async conversationIdentities(
+    requesterId: string,
+    conversationId: string,
+    targetUserId: string
+  ) {
+    const [requesterMembership, targetMembership] = await Promise.all([
+      this.prisma.conversationMember.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId,
+            userId: requesterId
+          }
+        },
+        select: { id: true }
+      }),
+      this.prisma.conversationMember.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId,
+            userId: targetUserId
+          }
+        },
+        select: { id: true }
+      })
+    ]);
+
+    if (!requesterMembership) {
+      throw new ForbiddenException('E2EE_CONVERSATION_ACCESS_DENIED');
+    }
+    if (!targetMembership) {
+      throw new NotFoundException('E2EE_TARGET_NOT_IN_CONVERSATION');
+    }
+
+    const devices = await this.prisma.e2eeDevice.findMany({
+      where: {
+        userId: targetUserId,
+        revokedAt: null,
+        protocol: E2EE_PROTOCOL,
+        session: {
+          revokedAt: null,
+          expiresAt: { gt: new Date() }
+        }
+      },
+      select: {
+        id: true,
+        registrationId: true,
+        identityKey: true,
+        createdAt: true
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 20
+    });
+
+    return {
+      conversationId,
+      targetUserId,
+      protocol: E2EE_PROTOCOL,
+      devices: devices.map((device) => ({
+        deviceId: device.id,
+        registrationId: device.registrationId,
+        identityKey: device.identityKey,
+        identityFingerprint: this.fingerprint(device.identityKey),
+        createdAt: device.createdAt
+      }))
+    };
+  }
+
   async claimConversationBundles(
     requesterId: string,
     conversationId: string,
@@ -328,6 +395,7 @@ export class E2eeService {
             registrationId: device.registrationId,
             identityKey: device.identityKey,
             identityFingerprint: this.fingerprint(device.identityKey),
+            createdAt: device.createdAt,
             signedPreKey: {
               keyId: device.signedPreKeyId,
               publicKey: device.signedPreKey,
