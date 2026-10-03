@@ -24,9 +24,18 @@ export class ConversationDraftsService {
         userId,
         conversationId: { in: drafts.map((draft) => draft.conversationId) }
       },
-      select: { conversationId: true }
+      select: {
+        conversationId: true,
+        conversation: { select: { encryptionMode: true } }
+      }
     });
-    const allowed = new Set(memberships.map((membership) => membership.conversationId));
+    const allowed = new Set(
+      memberships
+        .filter(
+          (membership) => membership.conversation.encryptionMode === 'CLOUD'
+        )
+        .map((membership) => membership.conversationId)
+    );
     const staleIds = drafts
       .filter((draft) => !allowed.has(draft.conversationId))
       .map((draft) => draft.conversationId);
@@ -47,7 +56,7 @@ export class ConversationDraftsService {
     conversationId: string,
     dto: SaveConversationDraftDto
   ) {
-    await this.assertMember(userId, conversationId);
+    await this.assertCloudMember(userId, conversationId);
 
     const existing = await this.prisma.conversationDraft.findUnique({
       where: { userId_conversationId: { userId, conversationId } }
@@ -106,13 +115,23 @@ export class ConversationDraftsService {
     return { removed: result.count > 0 };
   }
 
-  private async assertMember(userId: string, conversationId: string) {
+  private async assertCloudMember(userId: string, conversationId: string) {
     const membership = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId } },
-      select: { id: true }
+      select: {
+        id: true,
+        conversation: { select: { encryptionMode: true } }
+      }
     });
     if (!membership) {
       throw new NotFoundException('CONVERSATION_DRAFT_TARGET_NOT_FOUND');
     }
+    if (membership.conversation.encryptionMode !== 'CLOUD') {
+      await this.prisma.conversationDraft.deleteMany({
+        where: { userId, conversationId }
+      });
+      throw new ConflictException('SECRET_CHAT_SERVER_DRAFT_FORBIDDEN');
+    }
+    return membership;
   }
 }
