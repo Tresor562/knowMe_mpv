@@ -82,6 +82,31 @@ describe('KnowMe E2EE public key directory (e2e)', () => {
       .expect(201);
 
     await request(app.getHttpServer())
+      .post(`/e2ee/devices/${bobDevice.body.id}/prekeys`)
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({
+        oneTimePreKeys: [
+          {
+            keyId: bobBundle.oneTimePreKeys[0]!.keyId,
+            publicKey: publicKey(99)
+          }
+        ]
+      })
+      .expect(409);
+
+    const originalPreKey = await prisma.e2eeOneTimePreKey.findUniqueOrThrow({
+      where: {
+        deviceId_keyId: {
+          deviceId: bobDevice.body.id,
+          keyId: bobBundle.oneTimePreKeys[0]!.keyId
+        }
+      }
+    });
+    expect(originalPreKey.publicKey).toBe(
+      bobBundle.oneTimePreKeys[0]!.publicKey
+    );
+
+    await request(app.getHttpServer())
       .post('/e2ee/devices')
       .set('Authorization', `Bearer ${alice.token}`)
       .send({
