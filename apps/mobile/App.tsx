@@ -24,6 +24,7 @@ import {
   SessionTokens
 } from './src/api';
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
+import { I18nProvider, useI18n } from './src/I18nProvider';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -102,6 +103,7 @@ function AuthScreen({
   onAuthenticated: () => Promise<void>;
 }) {
   const { colors } = useAppearance();
+  const { locale, setLocalLocale, refresh: refreshLocale, syncLocale, t } = useI18n();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identifier, setIdentifier] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -150,15 +152,20 @@ function AuthScreen({
 
       if (isTwoFactorChallenge(result)) {
         setChallengeToken(result.challengeToken);
-        setError('Entre le code de ton application d’authentification ou un code de récupération.');
+        setError(t('auth.twoFactorPrompt'));
         return;
       }
 
       await saveSession(result);
+      if (mode === 'register') {
+        await syncLocale(locale).catch(() => null);
+      } else {
+        await refreshLocale().catch(() => null);
+      }
       await onAuthenticated();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'Authentification impossible.'
+        cause instanceof Error ? cause.message : t('auth.failed')
       );
     } finally {
       setBusy(false);
@@ -187,18 +194,19 @@ function AuthScreen({
       resetChallenge();
       await onAuthenticated();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Code de sécurité invalide.');
+      setError(cause instanceof Error ? cause.message : t('auth.invalidSecurityCode'));
     } finally {
       setBusy(false);
     }
   }
 
+  const usernameValid = /^[A-Za-z0-9_]{3,24}$/.test(username.trim());
   const valid =
     password.length >= 8 &&
     (mode === 'login'
       ? identifier.trim().length > 0
       : displayName.trim().length > 0 &&
-        username.trim().length > 0 &&
+        usernameValid &&
         email.includes('@'));
 
   return (
@@ -213,8 +221,42 @@ function AuthScreen({
         <View style={[styles.brandMark, { backgroundColor: colors.accent }]}>
           <Text style={[styles.brandMarkText, { color: colors.accentText }]}>K</Text>
         </View>
-        <Text style={[styles.logo, { color: colors.text }]}>KnowMe</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Mieux se connaître, vraiment.</Text>
+        <Text style={[styles.logo, { color: colors.text }]}>{t('app.name')}</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>{t('app.tagline')}</Text>
+
+        <View
+          accessibilityLabel={t('common.language')}
+          style={[styles.languagePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
+          <Text style={[styles.languageLabel, { color: colors.muted }]}>{t('common.language')}</Text>
+          <View style={styles.languageActions}>
+            {(['fr', 'en'] as const).map((candidate) => {
+              const selected = locale === candidate;
+              return (
+                <Pressable
+                  key={candidate}
+                  onPress={() => void setLocalLocale(candidate)}
+                  style={[
+                    styles.languageButton,
+                    {
+                      backgroundColor: selected ? colors.accent : colors.surfaceRaised,
+                      borderColor: selected ? colors.accent : colors.border
+                    }
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.languageButtonText,
+                      { color: selected ? colors.accentText : colors.text }
+                    ]}
+                  >
+                    {candidate === 'fr' ? 'Français' : 'English'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         {!challengeToken ? (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -238,41 +280,71 @@ function AuthScreen({
                       { color: mode === value ? colors.text : colors.muted }
                     ]}
                   >
-                    {value === 'login' ? 'Connexion' : 'Inscription'}
+                    {value === 'login' ? t('auth.signIn') : t('auth.signUp')}
                   </Text>
                 </Pressable>
               ))}
             </View>
             {mode === 'register' && (
               <>
-                <Field value={displayName} onChangeText={setDisplayName} placeholder="Nom affiché" />
-                <Field value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="Pseudo" />
-                <Field value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="Email" />
+                <Field
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder={t('auth.displayName')}
+                />
+                <Field
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={24}
+                  placeholder={t('auth.username')}
+                />
+                <Text style={[styles.fieldHint, { color: username.length > 0 && !usernameValid ? colors.danger : colors.muted }]}>
+                  {t('auth.usernameHint')}
+                </Text>
+                <Field
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholder={t('auth.email')}
+                />
               </>
             )}
             {mode === 'login' && (
-              <Field value={identifier} onChangeText={setIdentifier} autoCapitalize="none" placeholder="Email ou pseudo" />
+              <Field
+                value={identifier}
+                onChangeText={setIdentifier}
+                autoCapitalize="none"
+                placeholder={t('auth.identifier')}
+              />
             )}
-            <Field value={password} onChangeText={setPassword} secureTextEntry placeholder="Mot de passe" />
+            <Field
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder={t('auth.password')}
+            />
             {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
             <PrimaryButton
               disabled={!valid || busy}
               onPress={() => void submit()}
-              title={busy ? 'Vérification…' : mode === 'login' ? 'Entrer dans KnowMe' : 'Créer mon profil'}
+              title={busy ? t('auth.verifying') : mode === 'login' ? t('auth.enter') : t('auth.createProfile')}
             />
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Deuxième preuve</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{t('auth.secondFactorTitle')}</Text>
             <Text style={[styles.cardText, { color: colors.muted }]}>
-              Le mot de passe est correct, mais aucune session n’est encore ouverte.
+              {t('auth.secondFactorDescription')}
             </Text>
             <Field
               value={securityCode}
               onChangeText={setSecurityCode}
               autoCapitalize="characters"
               autoCorrect={false}
-              placeholder="123456 ou XXXX-XXXX"
+              placeholder={t('auth.securityCode')}
             />
             <Pressable
               accessibilityRole="checkbox"
@@ -290,21 +362,21 @@ function AuthScreen({
                 <Text style={[styles.checkboxText, { color: colors.accentText }]}>{trustDevice ? '✓' : ''}</Text>
               </View>
               <Text style={[styles.checkboxLabel, { color: colors.muted }]}>
-                Faire confiance à cet appareil pendant 30 jours. Cette autorisation reste révocable.
+                {t('auth.trustDevice')}
               </Text>
             </Pressable>
             {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
             <PrimaryButton
               disabled={busy || securityCode.trim().length < 6}
               onPress={() => void verifySecondFactor()}
-              title={busy ? 'Validation…' : 'Valider et ouvrir la session'}
+              title={busy ? t('auth.validating') : t('auth.validateSession')}
             />
             <Pressable
               disabled={busy}
               onPress={resetChallenge}
               style={[styles.secondaryButton, { borderColor: colors.accent }]}
             >
-              <Text style={[styles.secondaryButtonText, { color: colors.accent }]}>Recommencer la connexion</Text>
+              <Text style={[styles.secondaryButtonText, { color: colors.accent }]}>{t('auth.restartSignIn')}</Text>
             </Pressable>
           </View>
         )}
@@ -420,6 +492,7 @@ function HomeScreen({
 
 function AppContent() {
   const { colors, refresh: refreshAppearance } = useAppearance();
+  const { ready: i18nReady, t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
@@ -468,7 +541,7 @@ function AppContent() {
     await resetLocalSession();
   }
 
-  if (loading) {
+  if (loading || !i18nReady) {
     return (
       <SafeAreaView style={[styles.loadingRoot, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.statusBar} />
@@ -487,11 +560,11 @@ function AppContent() {
   }
 
   const tabs: Array<[Screen, string, string]> = [
-    ['home', '⌂', 'Accueil'],
-    ['feed', '◉', 'Fil'],
-    ['social', '✦', 'Cercle'],
-    ['challenges', '◎', 'Défis'],
-    ['profile', '●', 'Profil']
+    ['home', '⌂', t('nav.home')],
+    ['feed', '◉', t('nav.feed')],
+    ['social', '✦', t('nav.social')],
+    ['challenges', '◎', t('nav.challenges')],
+    ['profile', '●', t('nav.profile')]
   ];
 
   return (
@@ -558,7 +631,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppearanceProvider>
-      <AppContent />
+      <I18nProvider>
+        <AppContent />
+      </I18nProvider>
     </AppearanceProvider>
   );
 }
@@ -572,7 +647,13 @@ const styles = StyleSheet.create({
   brandMark: { width: 64, height: 64, borderRadius: 22, backgroundColor: '#45e6bd', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   brandMarkText: { color: '#052017', fontSize: 34, fontWeight: '900' },
   logo: { color: '#f4fff9', fontSize: 46, fontWeight: '900' },
-  subtitle: { color: '#a7b9b1', fontSize: 18, marginTop: 4, marginBottom: 24 },
+  subtitle: { color: '#a7b9b1', fontSize: 18, marginTop: 4, marginBottom: 16 },
+  languagePicker: { borderWidth: 1, borderRadius: 18, padding: 10, marginBottom: 18, gap: 8 },
+  languageLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
+  languageActions: { flexDirection: 'row', gap: 8 },
+  languageButton: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  languageButtonText: { fontSize: 13, fontWeight: '900' },
+  fieldHint: { fontSize: 12, marginTop: -4, marginBottom: 2 },
   screenContent: { padding: 20, paddingBottom: 36, gap: 14 },
   eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
   heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900', marginTop: 4 },
