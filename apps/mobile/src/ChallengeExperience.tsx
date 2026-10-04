@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { BrandMark, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
 type Person = {
@@ -608,11 +609,29 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         />
       }
     >
-      <Text style={styles.eyebrow}>LE CŒUR DE KNOWME</Text>
-      <Text style={styles.heading}>Défis</Text>
+      <View style={styles.challengeHeader}>
+        <View style={styles.challengeBrand}>
+          <BrandMark size={31} />
+          <View>
+            <Text style={styles.heading}>Défis</Text>
+            <Text style={styles.challengeSub}>Le cœur de KnowMe.</Text>
+          </View>
+        </View>
+        <View style={styles.challengeHeaderIcon}>
+          <KnowMeIcon name="challenge" size={23} color="#FF9B57" />
+        </View>
+      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Créer un défi</Text>
+      <View style={[styles.card, styles.createCard]}>
+        <View style={styles.createTitleRow}>
+          <View style={styles.createIcon}>
+            <KnowMeIcon name="create" size={20} color="#FFFFFF" />
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.sectionTitle}>Créer un défi</Text>
+            <Text style={styles.createHint}>Pose les questions qui comptent vraiment.</Text>
+          </View>
+        </View>
         <TextInput
           value={title}
           onChangeText={setTitle}
@@ -650,9 +669,14 @@ export function ChallengeExperience({ userId }: { userId: string }) {
       {items.map((item) => {
         const participant = item.participants.find((entry) => entry.userId === userId);
         return (
-          <Pressable key={item.id} onPress={() => setSelectedId(item.id)} style={styles.card}>
+          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard]}>
             <View style={styles.headerRow}>
-              <Text style={[styles.title, styles.flex]}>🎯 {item.title}</Text>
+              <View style={styles.challengeListTitleRow}>
+                <View style={styles.challengeMiniIcon}>
+                  <KnowMeIcon name="challenge" size={18} color="#FF9B57" />
+                </View>
+                <Text style={[styles.title, styles.flex]}>{item.title}</Text>
+              </View>
               <Text
                 style={[
                   styles.badge,
@@ -674,7 +698,7 @@ export function ChallengeExperience({ userId }: { userId: string }) {
                   ? `Ta participation est sur la v${participant.challengeVersion}.`
                   : 'Ouvre le défi pour le rejoindre.'}
             </Text>
-          </Pressable>
+          </PressScale>
         );
       })}
       {!items.length && (
@@ -687,21 +711,32 @@ export function ChallengeExperience({ userId }: { userId: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40, gap: 14 },
+  content: { padding: 18, paddingBottom: 40, gap: 14 },
+  challengeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  challengeBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  challengeSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
+  challengeHeaderIcon: { width: 43, height: 43, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  createCard: { borderRadius: 26, padding: 16 },
+  createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  createIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
+  createHint: { color: '#929BAD', fontSize: 11.5, marginTop: 2 },
+  challengeListCard: { borderRadius: 22 },
+  challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  challengeMiniIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#171E2C', alignItems: 'center', justifyContent: 'center' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   flex: { flex: 1 },
   eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900', marginTop: 4 },
+  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
   sectionTitle: { color: '#F7F7FB', fontSize: 21, fontWeight: '900' },
   title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
-  description: { color: '#d5e8df', fontSize: 15, lineHeight: 22 },
+  description: { color: '#DCE2EC', fontSize: 15, lineHeight: 22 },
   muted: { color: '#929BAD', lineHeight: 20 },
   success: { color: '#7A5CFF', fontWeight: '800' },
   card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
   historyBanner: { backgroundColor: '#1f2117', borderColor: '#6f6330', borderWidth: 1, borderRadius: 20, padding: 16, gap: 8 },
   historyTitle: { color: '#f4c95d', fontSize: 17, fontWeight: '900' },
-  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#0d1f19', borderRadius: 18, padding: 14 },
+  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#0D111B', borderRadius: 18, padding: 14 },
   questionBlock: { gap: 8, borderTopColor: '#273044', borderTopWidth: 1, paddingTop: 14 },
   questionLabel: { color: '#7A5CFF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   question: { color: '#F7F7FB', fontSize: 17, lineHeight: 24, fontWeight: '700' },
