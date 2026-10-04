@@ -4,6 +4,26 @@ import { Platform } from 'react-native';
 import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
 const DEVELOPMENT_API_URL = 'http://10.0.2.2:4000';
+const REQUEST_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: init.signal ?? controller.signal
+    });
+  } catch (cause) {
+    if (!init.signal && controller.signal.aborted) {
+      throw new Error('Le serveur KnowMe ne répond pas. Vérifie ta connexion puis réessaie.');
+    }
+    throw cause;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export function resolveApiUrl(rawValue: string | undefined, isDevelopment: boolean) {
   const candidate = rawValue?.trim();
@@ -172,7 +192,7 @@ async function refreshAccessToken() {
     const refreshToken = await secureGet(REFRESH_KEY);
     if (!refreshToken) return null;
 
-    const response = await fetch(`${API_URL}/auth/refresh`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -212,7 +232,7 @@ export async function apiFetch<T>(
   }
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  const response = await fetchWithTimeout(`${API_URL}${path}`, { ...init, headers });
 
   if (response.status === 401 && allowRefresh && !path.startsWith('/auth/')) {
     const renewedToken = await refreshAccessToken();
