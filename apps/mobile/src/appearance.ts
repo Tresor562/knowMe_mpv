@@ -139,9 +139,17 @@ const SYSTEM_LIGHT: MobileThemePalette = {
   statusBar: 'dark'
 };
 const SYSTEM_DARK: MobileThemePalette = {
-  background: '#071410', backgroundAccent: '#123529', surface: '#10231d',
-  surfaceRaised: '#17342a', text: '#f4fff9', muted: '#a7b9b1', accent: '#45e6bd',
-  secondary: '#ff8a3d', accentText: '#052017', border: '#285848', danger: '#ff867a',
+  background: '#090C14',
+  backgroundAccent: '#14182A',
+  surface: '#101521',
+  surfaceRaised: '#171E2C',
+  text: '#F7F7FB',
+  muted: '#929BAD',
+  accent: '#7A5CFF',
+  secondary: '#FF9B57',
+  accentText: '#FFFFFF',
+  border: '#273044',
+  danger: '#FF6B73',
   statusBar: 'light'
 };
 
