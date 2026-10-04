@@ -249,7 +249,7 @@ export function VerificationExperience({
             value={displayNameClaim}
             onChangeText={setDisplayNameClaim}
             placeholder="Nom à vérifier"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <TextInput
@@ -258,7 +258,7 @@ export function VerificationExperience({
             autoCapitalize="characters"
             maxLength={2}
             placeholder="Pays ISO, ex. BJ"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <TextInput
@@ -266,7 +266,7 @@ export function VerificationExperience({
             onChangeText={setProvider}
             autoCapitalize="characters"
             placeholder="Prestataire"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <TextInput
@@ -274,7 +274,7 @@ export function VerificationExperience({
             onChangeText={setOpaqueReference}
             autoCapitalize="none"
             placeholder="Référence opaque"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <TextInput
@@ -283,7 +283,7 @@ export function VerificationExperience({
             autoCapitalize="none"
             maxLength={64}
             placeholder="Empreinte SHA-256"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <Button
@@ -357,28 +357,28 @@ export function VerificationExperience({
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 42, gap: 14 },
   eyebrow: { color: '#65b7ff', fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
-  heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900' },
-  sectionTitle: { color: '#f4fff9', fontSize: 22, fontWeight: '900', marginTop: 8 },
-  description: { color: '#b6c8c0', fontSize: 15, lineHeight: 22 },
+  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900' },
+  sectionTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginTop: 8 },
+  description: { color: '#B8C0CE', fontSize: 15, lineHeight: 22 },
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard: { flexGrow: 1, minWidth: 100, backgroundColor: '#10231d', borderRadius: 18, padding: 14 },
-  badgeLabel: { color: '#789187', fontSize: 11, fontWeight: '800' },
-  badgeValue: { color: '#91a79e', fontSize: 17, fontWeight: '900', marginTop: 5 },
+  badgeCard: { flexGrow: 1, minWidth: 100, backgroundColor: '#101521', borderRadius: 18, padding: 14 },
+  badgeLabel: { color: '#737E93', fontSize: 11, fontWeight: '800' },
+  badgeValue: { color: '#929BAD', fontSize: 17, fontWeight: '900', marginTop: 5 },
   verified: { color: '#65b7ff' },
   premium: { color: '#d8a7ff' },
   staff: { color: '#f4c95d' },
-  warning: { color: '#ff9d66', fontWeight: '900' },
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  cardTitle: { color: '#f4fff9', fontSize: 19, fontWeight: '900' },
+  warning: { color: '#FF6B73', fontWeight: '900' },
+  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
+  cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
-  input: { minHeight: 52, backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 16, color: '#f4fff9', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16 },
-  button: { backgroundColor: '#45e6bd', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { color: '#052017', fontWeight: '900' },
+  input: { minHeight: 52, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16 },
+  button: { backgroundColor: '#7A5CFF', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  buttonText: { color: '#FFFFFF', fontWeight: '900' },
   secondaryButton: { backgroundColor: 'transparent', borderColor: '#65b7ff', borderWidth: 1 },
   secondaryButtonText: { color: '#65b7ff' },
   mutedButton: { opacity: 0.45 },
-  evidence: { backgroundColor: '#091914', borderRadius: 14, padding: 12, gap: 6 },
-  evidenceTitle: { color: '#f4fff9', fontWeight: '800' },
-  code: { color: '#91a79e', fontSize: 11 },
-  timeline: { color: '#91a79e', fontSize: 12, lineHeight: 18 }
+  evidence: { backgroundColor: '#0D111B', borderRadius: 14, padding: 12, gap: 6 },
+  evidenceTitle: { color: '#F7F7FB', fontWeight: '800' },
+  code: { color: '#929BAD', fontSize: 11 },
+  timeline: { color: '#929BAD', fontSize: 12, lineHeight: 18 }
 });
