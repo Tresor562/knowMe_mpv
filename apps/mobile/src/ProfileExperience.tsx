@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
+import { Avatar, BrandMark, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 export type MobileUser = {
   id: string;
@@ -167,40 +167,89 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
     }
   }
 
-  const avatarInitial = user.displayName.charAt(0).toUpperCase();
-
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {user.avatarUrl ? (
-        <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-      ) : (
-        <View style={styles.avatar}><Text style={styles.avatarText}>{avatarInitial}</Text></View>
-      )}
-      <Text style={styles.heading}>{user.displayName}</Text>
-      <View style={styles.badges}>
-        {user.verification ? (
-          <View style={styles.verificationBadge} accessibilityLabel={user.verification.label}>
-            <Text style={styles.verificationBadgeText}>VERIFIED · {user.verification.label}</Text>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.profileHero}>
+        <View style={styles.cover}>
+          <View style={styles.coverOrbOne} />
+          <View style={styles.coverOrbTwo} />
+          <View style={styles.coverBrand}>
+            <BrandMark size={34} />
+            <View>
+              <Text style={styles.coverBrandTitle}>KnowMe</Text>
+              <Text style={styles.coverBrandSub}>Be Real. Belong.</Text>
+            </View>
           </View>
-        ) : null}
-        {user.premium ? (
-          <View style={styles.premiumBadge} accessibilityLabel={user.premium.label}>
-            <Text style={styles.premiumBadgeText}>PREMIUM · {user.premium.label}</Text>
-          </View>
-        ) : null}
-        {user.staff ? (
-          <View style={styles.staffBadge} accessibilityLabel={`${user.staff.label}, ${user.staff.role}`}>
-            <Text style={styles.staffBadgeText}>STAFF · {user.staff.label} · {user.staff.role}</Text>
-          </View>
-        ) : null}
-      </View>
-      <Text style={styles.handle}>@{user.username}</Text>
-      <Text style={styles.muted}>{user.email}</Text>
-      <Text style={styles.accountId}>ID compte : {user.accountId ?? user.id}</Text>
+        </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.stat}><Text style={styles.statValue}>{user.knowCoins ?? 0}</Text><Text style={styles.muted}>KnowCoins</Text></View>
-        <View style={styles.stat}><Text style={styles.statValue}>{user.verification ? 'Vérifié' : 'Actif'}</Text><Text style={styles.muted}>Identité</Text></View>
+        <View style={styles.profileAvatarRow}>
+          <Avatar
+            uri={user.avatarUrl}
+            name={user.displayName}
+            size={96}
+            ring
+          />
+          <PressScale
+            onPress={onOpenVerification}
+            style={styles.profileTrustButton}
+          >
+            <KnowMeIcon name="check" size={20} color="#F7F7FB" />
+            <Text style={styles.profileTrustText}>Identité</Text>
+          </PressScale>
+        </View>
+
+        <Text style={styles.heading}>{user.displayName}</Text>
+        <Text style={styles.handle}>@{user.username}</Text>
+
+        {user.bio ? (
+          <Text style={styles.bio}>{user.bio}</Text>
+        ) : (
+          <Text style={styles.bioMuted}>Ajoute une bio pour raconter qui tu es.</Text>
+        )}
+
+        <View style={styles.badges}>
+          {user.verification ? (
+            <View style={styles.verificationBadge} accessibilityLabel={user.verification.label}>
+              <Text style={styles.verificationBadgeText}>VERIFIED · {user.verification.label}</Text>
+            </View>
+          ) : null}
+          {user.premium ? (
+            <View style={styles.premiumBadge} accessibilityLabel={user.premium.label}>
+              <Text style={styles.premiumBadgeText}>PREMIUM · {user.premium.label}</Text>
+            </View>
+          ) : null}
+          {user.staff ? (
+            <View style={styles.staffBadge} accessibilityLabel={user.staff.label + ', ' + user.staff.role}>
+              <Text style={styles.staffBadgeText}>STAFF · {user.staff.label} · {user.staff.role}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{user.knowCoins ?? 0}</Text>
+            <Text style={styles.statLabel}>KnowCoins</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{user.verification ? 'Vérifié' : 'Actif'}</Text>
+            <Text style={styles.statLabel}>Identité</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.statValue} numberOfLines={1}>{user.role ?? 'Membre'}</Text>
+            <Text style={styles.statLabel}>Rôle</Text>
+          </View>
+        </View>
+
+        <View style={styles.accountMeta}>
+          <Text style={styles.accountMetaText}>{user.email}</Text>
+          <Text style={styles.accountMetaDot}>·</Text>
+          <Text style={styles.accountMetaText} numberOfLines={1}>ID {user.accountId ?? user.id}</Text>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -262,24 +311,38 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 42, gap: 14 },
-  avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
-  avatarImage: { width: 92, height: 92, borderRadius: 46, backgroundColor: '#171E2C' },
-  avatarText: { color: '#FFFFFF', fontSize: 38, fontWeight: '900' },
-  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900' },
-  handle: { color: '#7A5CFF', fontWeight: '800' },
+  root: { flex: 1, backgroundColor: '#090C14' },
+  content: { padding: 16, paddingBottom: 42, gap: 14 },
+  profileHero: { overflow: 'hidden', backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 28, paddingBottom: 18 },
+  cover: { height: 132, backgroundColor: '#14182A', position: 'relative', overflow: 'hidden', padding: 18, justifyContent: 'flex-end' },
+  coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: '#7A5CFF', opacity: 0.22, right: -40, top: -72 },
+  coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, backgroundColor: '#FF9B57', opacity: 0.14, left: -30, bottom: -75 },
+  coverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  coverBrandTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '900' },
+  coverBrandSub: { color: '#929BAD', fontSize: 10.5, marginTop: 1 },
+  profileAvatarRow: { marginTop: -43, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  profileTrustButton: { minHeight: 38, borderRadius: 14, paddingHorizontal: 12, backgroundColor: '#171E2C', borderColor: '#30394E', borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  profileTrustText: { color: '#F7F7FB', fontSize: 12, fontWeight: '800' },
+  heading: { color: '#F7F7FB', fontSize: 28, fontWeight: '900', paddingHorizontal: 18, marginTop: 12, letterSpacing: -0.6 },
+  handle: { color: '#7A5CFF', fontWeight: '800', paddingHorizontal: 18, marginTop: 3 },
+  bio: { color: '#DCE2EC', fontSize: 14, lineHeight: 20, paddingHorizontal: 18, marginTop: 11 },
+  bioMuted: { color: '#737E93', fontSize: 13, lineHeight: 19, paddingHorizontal: 18, marginTop: 11 },
   muted: { color: '#929BAD' },
   accountId: { color: '#737E93', fontSize: 12 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingHorizontal: 18, marginTop: 13 },
   verificationBadge: { borderColor: '#65b7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(101,183,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
   verificationBadgeText: { color: '#65b7ff', fontWeight: '900', fontSize: 13 },
   premiumBadge: { borderColor: '#d8a7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(216,167,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
   premiumBadgeText: { color: '#d8a7ff', fontWeight: '900', fontSize: 13 },
   staffBadge: { borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
   staffBadgeText: { color: '#f4c95d', fontWeight: '900', fontSize: 13 },
-  statsRow: { flexDirection: 'row', gap: 12 },
-  stat: { flex: 1, backgroundColor: '#101521', borderRadius: 18, padding: 14 },
-  statValue: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 15 },
+  stat: { flex: 1, backgroundColor: '#0D111B', borderColor: '#273044', borderWidth: 1, borderRadius: 16, padding: 11, minWidth: 0 },
+  statValue: { color: '#F7F7FB', fontSize: 16, fontWeight: '900', marginBottom: 3 },
+  statLabel: { color: '#737E93', fontSize: 9.5, fontWeight: '700' },
+  accountMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, marginTop: 13 },
+  accountMetaText: { color: '#737E93', fontSize: 10.5, flexShrink: 1 },
+  accountMetaDot: { color: '#30394E', fontSize: 12 },
   card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
   cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
   description: { color: '#B8C0CE', fontSize: 15, lineHeight: 22 },
