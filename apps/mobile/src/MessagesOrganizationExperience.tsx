@@ -56,37 +56,37 @@ const organizationTools: Array<{
 }> = [
   {
     id: 'folders',
-    title: '🗂️ Dossiers privés',
+    title: 'Dossiers privés',
     description: 'Classe et déplace tes conversations dans tes dossiers personnels.'
   },
   {
     id: 'search',
-    title: '🔎 Recherche dans les dossiers',
+    title: 'Recherche dans les dossiers',
     description: 'Retrouve localement un dossier ou une conversation déjà accessible.'
   },
   {
     id: 'archives',
-    title: '📦 Archives personnelles',
+    title: 'Archives personnelles',
     description: 'Archive ou restaure une conversation sans modifier les droits du groupe.'
   },
   {
     id: 'archiveTimeline',
-    title: '🕓 Chronologie des archives',
+    title: 'Chronologie des archives',
     description: 'Parcours tes archives personnelles par période sans modifier leur état.'
   },
   {
     id: 'pins',
-    title: '📌 Conversations épinglées',
+    title: 'Conversations épinglées',
     description: 'Gère tes raccourcis privés et leur ordre personnel.'
   },
   {
     id: 'saved',
-    title: '🔖 Messages enregistrés',
+    title: 'Messages enregistrés',
     description: 'Retrouve et retire les messages que tu as enregistrés et qui restent accessibles.'
   },
   {
     id: 'drafts',
-    title: '✍️ Brouillons synchronisés',
+    title: 'Brouillons synchronisés',
     description: 'Retrouve tes brouillons personnels et rouvre leur conversation sans envoyer de message.'
   }
 ];
@@ -382,7 +382,7 @@ export function MessagesOrganizationExperience({
               style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
             >
               <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text>
-              <Text style={mutedStyle}>🗂️ Voir l’organisation privée</Text>
+              <Text style={mutedStyle}>Voir l’organisation privée</Text>
             </Pressable>
           );
         })}
@@ -406,7 +406,7 @@ export function MessagesOrganizationExperience({
             pressed && styles.pressed
           ]}
         >
-          <Text style={[styles.organizationButtonText, { color: colors.text }]}>🗂️ Organisation privée</Text>
+          <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
         </Pressable>
       </View>
       <View style={styles.messages}>
