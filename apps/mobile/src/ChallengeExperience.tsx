@@ -400,7 +400,7 @@ function ChallengeDetail({
             onChangeText={setEditTitle}
             maxLength={100}
             placeholder="Titre"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <TextInput
@@ -409,7 +409,7 @@ function ChallengeDetail({
             maxLength={500}
             multiline
             placeholder="Description"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <VisibilityPicker value={editVisibility} onChange={setEditVisibility} />
@@ -418,7 +418,7 @@ function ChallengeDetail({
             onChangeText={setEditQuestions}
             multiline
             placeholder="Une question par ligne"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={[styles.input, styles.questionsInput]}
           />
           <TextInput
@@ -427,7 +427,7 @@ function ChallengeDetail({
             multiline
             maxLength={500}
             placeholder="Motif de la modification"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
           <Button
@@ -454,7 +454,7 @@ function ChallengeDetail({
                   setAnswers((current) => ({ ...current, [question.id]: value }))
                 }
                 placeholder="Ta réponse…"
-                placeholderTextColor="#789187"
+                placeholderTextColor="#737E93"
                 style={[styles.input, !isActive && styles.disabledInput]}
               />
             </View>
@@ -618,7 +618,7 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           onChangeText={setTitle}
           maxLength={100}
           placeholder="Titre du défi"
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={styles.input}
         />
         <TextInput
@@ -627,7 +627,7 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           maxLength={500}
           multiline
           placeholder="Description facultative"
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={styles.input}
         />
         <VisibilityPicker value={visibility} onChange={setVisibility} />
@@ -636,7 +636,7 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           onChangeText={setQuestions}
           multiline
           placeholder={'Une question par ligne\nQuel est mon plus grand rêve ?'}
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={[styles.input, styles.questionsInput]}
         />
         <Button
@@ -691,37 +691,37 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   flex: { flex: 1 },
-  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900', marginTop: 4 },
-  sectionTitle: { color: '#f4fff9', fontSize: 21, fontWeight: '900' },
-  title: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
+  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900', marginTop: 4 },
+  sectionTitle: { color: '#F7F7FB', fontSize: 21, fontWeight: '900' },
+  title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
   description: { color: '#d5e8df', fontSize: 15, lineHeight: 22 },
-  muted: { color: '#91a79e', lineHeight: 20 },
-  success: { color: '#45e6bd', fontWeight: '800' },
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
+  muted: { color: '#929BAD', lineHeight: 20 },
+  success: { color: '#7A5CFF', fontWeight: '800' },
+  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
   historyBanner: { backgroundColor: '#1f2117', borderColor: '#6f6330', borderWidth: 1, borderRadius: 20, padding: 16, gap: 8 },
   historyTitle: { color: '#f4c95d', fontSize: 17, fontWeight: '900' },
   participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#0d1f19', borderRadius: 18, padding: 14 },
-  questionBlock: { gap: 8, borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 14 },
-  questionLabel: { color: '#45e6bd', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  question: { color: '#f4fff9', fontSize: 17, lineHeight: 24, fontWeight: '700' },
-  input: { minHeight: 52, backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 16, color: '#f4fff9', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
+  questionBlock: { gap: 8, borderTopColor: '#273044', borderTopWidth: 1, paddingTop: 14 },
+  questionLabel: { color: '#7A5CFF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  question: { color: '#F7F7FB', fontSize: 17, lineHeight: 24, fontWeight: '700' },
+  input: { minHeight: 52, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
   questionsInput: { minHeight: 128 },
   disabledInput: { opacity: 0.65 },
   badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { color: '#b6c8c0', backgroundColor: '#091914', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
-  activeBadge: { color: '#45e6bd' },
-  closedBadge: { color: '#ff9d66' },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#45e6bd', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#052017', fontWeight: '900', fontSize: 17 },
-  button: { backgroundColor: '#45e6bd', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { color: '#052017', fontWeight: '900' },
+  badge: { color: '#B8C0CE', backgroundColor: '#0D111B', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
+  activeBadge: { color: '#7A5CFF' },
+  closedBadge: { color: '#FF6B73' },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 17 },
+  button: { backgroundColor: '#7A5CFF', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  buttonText: { color: '#FFFFFF', fontWeight: '900' },
   buttonMuted: { opacity: 0.45 },
-  dangerButton: { backgroundColor: 'transparent', borderColor: '#ff9d66', borderWidth: 1 },
-  dangerText: { color: '#ff9d66' },
+  dangerButton: { backgroundColor: 'transparent', borderColor: '#FF6B73', borderWidth: 1 },
+  dangerText: { color: '#FF6B73' },
   visibilityRow: { flexDirection: 'row', gap: 8 },
-  visibilityChoice: { flex: 1, backgroundColor: '#091914', borderRadius: 14, paddingVertical: 11, alignItems: 'center', borderColor: '#25473b', borderWidth: 1 },
-  visibilityChoiceActive: { backgroundColor: '#1b3b31', borderColor: '#45e6bd' },
-  visibilityText: { color: '#789187', fontWeight: '800' },
-  visibilityTextActive: { color: '#f4fff9' }
+  visibilityChoice: { flex: 1, backgroundColor: '#0D111B', borderRadius: 14, paddingVertical: 11, alignItems: 'center', borderColor: '#30394E', borderWidth: 1 },
+  visibilityChoiceActive: { backgroundColor: '#171E2C', borderColor: '#7A5CFF' },
+  visibilityText: { color: '#737E93', fontWeight: '800' },
+  visibilityTextActive: { color: '#F7F7FB' }
 });
