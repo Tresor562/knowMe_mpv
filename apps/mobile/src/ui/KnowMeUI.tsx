@@ -1,0 +1,612 @@
+import { ReactNode, useEffect, useMemo, useRef } from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  ImageStyle,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle
+} from 'react-native';
+import { useAppearance } from '../AppearanceProvider';
+
+export type KnowMeIconName =
+  | 'home'
+  | 'discover'
+  | 'create'
+  | 'messages'
+  | 'profile'
+  | 'bell'
+  | 'spark'
+  | 'challenge'
+  | 'coins'
+  | 'arrow'
+  | 'check'
+  | 'settings';
+
+export function BrandMark({ size = 38 }: { size?: number }) {
+  const unit = size / 38;
+  return (
+    <View style={{ width: size, height: size, position: 'relative' }}>
+      <View
+        style={[
+          styles.brandPill,
+          {
+            width: 11 * unit,
+            height: 31 * unit,
+            borderRadius: 6 * unit,
+            left: 3 * unit,
+            top: 3.5 * unit,
+            backgroundColor: '#B35CFF',
+            transform: [{ rotate: '8deg' }]
+          }
+        ]}
+      />
+      <View
+        style={[
+          styles.brandPill,
+          {
+            width: 11 * unit,
+            height: 25 * unit,
+            borderRadius: 6 * unit,
+            left: 16 * unit,
+            top: 0,
+            backgroundColor: '#FF7DB8',
+            transform: [{ rotate: '42deg' }]
+          }
+        ]}
+      />
+      <View
+        style={[
+          styles.brandPill,
+          {
+            width: 11 * unit,
+            height: 25 * unit,
+            borderRadius: 6 * unit,
+            left: 17 * unit,
+            top: 16 * unit,
+            backgroundColor: '#FFB25C',
+            transform: [{ rotate: '-42deg' }]
+          }
+        ]}
+      />
+      <View
+        style={[
+          styles.brandPill,
+          {
+            width: 9 * unit,
+            height: 28 * unit,
+            borderRadius: 5 * unit,
+            left: 10 * unit,
+            top: 5 * unit,
+            backgroundColor: '#7D66FF',
+            opacity: 0.88
+          }
+        ]}
+      />
+    </View>
+  );
+}
+
+function Line({
+  width,
+  height = 2,
+  left,
+  top,
+  rotate = '0deg',
+  color
+}: {
+  width: number;
+  height?: number;
+  left: number;
+  top: number;
+  rotate?: string;
+  color: string;
+}) {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        width,
+        height,
+        left,
+        top,
+        borderRadius: height / 2,
+        backgroundColor: color,
+        transform: [{ rotate }]
+      }}
+    />
+  );
+}
+
+export function KnowMeIcon({
+  name,
+  size = 22,
+  color = '#AEB6C4',
+  strokeWidth = 1.8
+}: {
+  name: KnowMeIconName;
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+}) {
+  const s = size / 24;
+  const sw = strokeWidth * s;
+  const commonBorder = { borderColor: color, borderWidth: sw };
+
+  if (name === 'home') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={10 * s} height={sw} left={3.1 * s} top={7.4 * s} rotate="-38deg" color={color} />
+        <Line width={10 * s} height={sw} left={10.9 * s} top={7.4 * s} rotate="38deg" color={color} />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 5.2 * s,
+              top: 9.2 * s,
+              width: 13.6 * s,
+              height: 11.6 * s,
+              borderRadius: 3 * s,
+              borderTopWidth: 0
+            },
+            commonBorder
+          ]}
+        />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 10 * s,
+              top: 14.1 * s,
+              width: 4.2 * s,
+              height: 6.4 * s,
+              borderRadius: 1.4 * s
+            },
+            commonBorder
+          ]}
+        />
+      </View>
+    );
+  }
+
+  if (name === 'discover') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 3.3 * s,
+              top: 3.3 * s,
+              width: 13.2 * s,
+              height: 13.2 * s,
+              borderRadius: 7 * s
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={8 * s} height={sw} left={14.2 * s} top={16.1 * s} rotate="46deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'create') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={15 * s} height={sw} left={4.5 * s} top={11.1 * s} color={color} />
+        <Line width={15 * s} height={sw} left={4.5 * s} top={11.1 * s} rotate="90deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'messages') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 3 * s,
+              top: 4 * s,
+              width: 18 * s,
+              height: 14 * s,
+              borderRadius: 5 * s
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={6 * s} height={sw} left={4.2 * s} top={17.6 * s} rotate="-36deg" color={color} />
+        <Line width={6.7 * s} height={sw} left={7.3 * s} top={9 * s} color={color} />
+        <Line width={4.8 * s} height={sw} left={7.3 * s} top={12.4 * s} color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'profile') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 7.4 * s,
+              top: 3 * s,
+              width: 9.2 * s,
+              height: 9.2 * s,
+              borderRadius: 5 * s
+            },
+            commonBorder
+          ]}
+        />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 4.3 * s,
+              top: 13.8 * s,
+              width: 15.4 * s,
+              height: 7 * s,
+              borderRadius: 7 * s,
+              borderBottomWidth: 0
+            },
+            commonBorder
+          ]}
+        />
+      </View>
+    );
+  }
+
+  if (name === 'bell') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 5.2 * s,
+              top: 5 * s,
+              width: 13.6 * s,
+              height: 13.2 * s,
+              borderRadius: 7 * s,
+              borderBottomLeftRadius: 4 * s,
+              borderBottomRightRadius: 4 * s
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={14 * s} height={sw} left={5 * s} top={17.5 * s} color={color} />
+        <View
+          style={{
+            position: 'absolute',
+            width: 3.5 * s,
+            height: 3.5 * s,
+            borderRadius: 2 * s,
+            left: 10.3 * s,
+            top: 19.2 * s,
+            backgroundColor: color
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (name === 'spark') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={14 * s} height={sw} left={5 * s} top={11 * s} rotate="45deg" color={color} />
+        <Line width={14 * s} height={sw} left={5 * s} top={11 * s} rotate="-45deg" color={color} />
+        <Line width={9 * s} height={sw} left={7.5 * s} top={11 * s} rotate="90deg" color={color} />
+        <Line width={9 * s} height={sw} left={7.5 * s} top={11 * s} color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'challenge') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 4 * s,
+              top: 4 * s,
+              width: 16 * s,
+              height: 16 * s,
+              borderRadius: 8 * s
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={8 * s} height={sw} left={8 * s} top={8 * s} rotate="45deg" color={color} />
+        <Line width={8 * s} height={sw} left={8 * s} top={14 * s} rotate="-45deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'coins') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 4 * s,
+              top: 4 * s,
+              width: 16 * s,
+              height: 16 * s,
+              borderRadius: 8 * s
+            },
+            commonBorder
+          ]}
+        />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 8 * s,
+              top: 7.2 * s,
+              width: 8 * s,
+              height: 9.6 * s,
+              borderRadius: 4.8 * s
+            },
+            commonBorder
+          ]}
+        />
+      </View>
+    );
+  }
+
+  if (name === 'arrow') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={13 * s} height={sw} left={4 * s} top={11 * s} color={color} />
+        <Line width={8 * s} height={sw} left={11 * s} top={8.2 * s} rotate="40deg" color={color} />
+        <Line width={8 * s} height={sw} left={11 * s} top={13.8 * s} rotate="-40deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'check') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={8 * s} height={sw} left={3.5 * s} top={12.6 * s} rotate="42deg" color={color} />
+        <Line width={13 * s} height={sw} left={8.3 * s} top={10.6 * s} rotate="-46deg" color={color} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={[
+          {
+            position: 'absolute',
+            left: 4 * s,
+            top: 4 * s,
+            width: 16 * s,
+            height: 16 * s,
+            borderRadius: 8 * s
+          },
+          commonBorder
+        ]}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: 10 * s,
+          top: 10 * s,
+          width: 4 * s,
+          height: 4 * s,
+          borderRadius: 2 * s,
+          backgroundColor: color
+        }}
+      />
+    </View>
+  );
+}
+
+export function PressScale({
+  children,
+  onPress,
+  disabled = false,
+  style
+}: {
+  children: ReactNode;
+  onPress?: () => void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { appearance } = useAppearance();
+  const value = useRef(new Animated.Value(1)).current;
+  const motion = appearance?.preference.animationsEnabled !== false;
+
+  function to(next: number) {
+    if (!motion) return;
+    Animated.spring(value, {
+      toValue: next,
+      useNativeDriver: true,
+      speed: 28,
+      bounciness: 2
+    }).start();
+  }
+
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      onPressIn={() => to(0.97)}
+      onPressOut={() => to(1)}
+    >
+      <Animated.View
+        style={[
+          style,
+          motion ? { transform: [{ scale: value }] } : null,
+          disabled ? { opacity: 0.45 } : null
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+export function FadeRise({
+  children,
+  delay = 0,
+  distance = 10,
+  style
+}: {
+  children: ReactNode;
+  delay?: number;
+  distance?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { appearance } = useAppearance();
+  const enabled = appearance?.preference.animationsEnabled !== false;
+  const progress = useRef(new Animated.Value(enabled ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (!enabled) {
+      progress.setValue(1);
+      return;
+    }
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 280,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start();
+  }, [delay, enabled, progress]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: progress,
+          transform: [
+            {
+              translateY: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [distance, 0]
+              })
+            }
+          ]
+        }
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+export function Avatar({
+  uri,
+  name,
+  size = 42,
+  ring = false,
+  style
+}: {
+  uri?: string | null;
+  name: string;
+  size?: number;
+  ring?: boolean;
+  style?: StyleProp<ImageStyle>;
+}) {
+  const initial = (name.trim()[0] || 'K').toUpperCase();
+  const { colors } = useAppearance();
+
+  const body = uri ? (
+    <Image
+      source={{ uri }}
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: colors.surfaceRaised
+        },
+        style
+      ]}
+    />
+  ) : (
+    <View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: '#24233B',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      ]}
+    >
+      <Text
+        style={{
+          color: '#F6F2FF',
+          fontWeight: '900',
+          fontSize: Math.max(14, size * 0.38)
+        }}
+      >
+        {initial}
+      </Text>
+    </View>
+  );
+
+  if (!ring) return body;
+
+  return (
+    <View
+      style={{
+        width: size + 6,
+        height: size + 6,
+        borderRadius: (size + 6) / 2,
+        borderWidth: 2,
+        borderColor: '#B45CFF',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      {body}
+    </View>
+  );
+}
+
+export function SoftSurface({
+  children,
+  style,
+  strong = false
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  strong?: boolean;
+}) {
+  const { colors } = useAppearance();
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: strong ? colors.surfaceRaised : colors.surface,
+          borderColor: colors.border,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderRadius: 22
+        },
+        style
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  brandPill: {
+    position: 'absolute'
+  }
+});
