@@ -176,7 +176,7 @@ export function SocialGiftsExperience() {
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#45e6bd" />
+          <ActivityIndicator color="#7A5CFF" />
           <Text style={styles.muted}>Chargement du catalogue…</Text>
         </View>
       ) : (
@@ -217,7 +217,7 @@ export function SocialGiftsExperience() {
             onChangeText={setGiftMessage}
             maxLength={160}
             placeholder="Petit message facultatif"
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={styles.input}
           />
 
@@ -316,8 +316,8 @@ export function SocialGiftsExperience() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 24,
     padding: 18,
@@ -325,56 +325,56 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerText: { flex: 1, gap: 8 },
-  title: { color: '#f4fff9', fontSize: 19, fontWeight: '900' },
-  description: { color: '#b6c8c0', fontSize: 14, lineHeight: 21 },
+  title: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
+  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
   refresh: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    borderColor: '#25473b',
+    borderColor: '#30394E',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { color: '#45e6bd', fontSize: 22, fontWeight: '900' },
+  refreshText: { color: '#7A5CFF', fontSize: 22, fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  balanceBox: { backgroundColor: '#091914', borderRadius: 16, padding: 14, gap: 3 },
-  balance: { color: '#45e6bd', fontSize: 26, fontWeight: '900' },
-  status: { color: '#45e6bd', fontSize: 13, lineHeight: 19 },
+  balanceBox: { backgroundColor: '#0D111B', borderRadius: 16, padding: 14, gap: 3 },
+  balance: { color: '#7A5CFF', fontSize: 26, fontWeight: '900' },
+  status: { color: '#7A5CFF', fontSize: 13, lineHeight: 19 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionTitle: { color: '#f4fff9', fontWeight: '900', fontSize: 16, marginTop: 4 },
-  muted: { color: '#91a79e', fontSize: 12 },
+  sectionTitle: { color: '#F7F7FB', fontWeight: '900', fontSize: 16, marginTop: 4 },
+  muted: { color: '#929BAD', fontSize: 12 },
   friendGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   friendButton: {
     minWidth: 92,
     maxWidth: 130,
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 16,
     padding: 10,
     alignItems: 'center',
     gap: 6
   },
-  friendSelected: { borderColor: '#45e6bd' },
+  friendSelected: { borderColor: '#7A5CFF' },
   friendInitial: {
     width: 34,
     height: 34,
     borderRadius: 17,
     textAlign: 'center',
     textAlignVertical: 'center',
-    backgroundColor: '#45e6bd',
-    color: '#052017',
+    backgroundColor: '#7A5CFF',
+    color: '#FFFFFF',
     fontWeight: '900'
   },
-  friendName: { color: '#f4fff9', fontWeight: '800', fontSize: 12 },
+  friendName: { color: '#F7F7FB', fontWeight: '800', fontSize: 12 },
   input: {
     minHeight: 50,
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 16,
-    color: '#f4fff9',
+    color: '#F7F7FB',
     paddingHorizontal: 14,
     paddingVertical: 12
   },
@@ -382,8 +382,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 18,
     padding: 13
@@ -392,48 +392,48 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 18,
-    backgroundColor: '#10231d',
+    backgroundColor: '#101521',
     alignItems: 'center',
     justifyContent: 'center'
   },
   giftEmoji: { fontSize: 29 },
   giftText: { flex: 1, gap: 3 },
-  giftName: { color: '#f4fff9', fontWeight: '900' },
-  rarity: { color: '#91a79e', fontSize: 11 },
-  giftDescription: { color: '#b6c8c0', fontSize: 11, lineHeight: 16 },
-  price: { color: '#45e6bd', fontWeight: '900', fontSize: 12 },
-  safety: { color: '#789187', fontSize: 10 },
+  giftName: { color: '#F7F7FB', fontWeight: '900' },
+  rarity: { color: '#929BAD', fontSize: 11 },
+  giftDescription: { color: '#B8C0CE', fontSize: 11, lineHeight: 16 },
+  price: { color: '#7A5CFF', fontWeight: '900', fontSize: 12 },
+  safety: { color: '#737E93', fontSize: 10 },
   sendButton: {
     minWidth: 72,
-    backgroundColor: '#45e6bd',
+    backgroundColor: '#7A5CFF',
     borderRadius: 13,
     paddingHorizontal: 11,
     paddingVertical: 10,
     alignItems: 'center'
   },
-  sendButtonText: { color: '#052017', fontWeight: '900', fontSize: 11 },
+  sendButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 11 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
-    backgroundColor: '#091914',
+    backgroundColor: '#0D111B',
     borderColor: '#18372d',
     borderWidth: 1,
     borderRadius: 16,
     padding: 12
   },
-  unreadRow: { borderColor: '#45e6bd' },
+  unreadRow: { borderColor: '#7A5CFF' },
   historyEmoji: { fontSize: 27 },
   historyText: { flex: 1, gap: 3 },
-  historyTitle: { color: '#f4fff9', fontWeight: '900' },
-  historyMessage: { color: '#b6c8c0', fontSize: 12, lineHeight: 17 },
+  historyTitle: { color: '#F7F7FB', fontWeight: '900' },
+  historyMessage: { color: '#B8C0CE', fontSize: 12, lineHeight: 17 },
   viewButton: {
-    borderColor: '#45e6bd',
+    borderColor: '#7A5CFF',
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8
   },
-  viewButtonText: { color: '#45e6bd', fontWeight: '900', fontSize: 11 },
-  policy: { color: '#789187', fontSize: 11, lineHeight: 17 }
+  viewButtonText: { color: '#7A5CFF', fontWeight: '900', fontSize: 11 },
+  policy: { color: '#737E93', fontSize: 11, lineHeight: 17 }
 });
