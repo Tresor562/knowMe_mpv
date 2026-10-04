@@ -25,6 +25,7 @@ import {
 } from './src/api';
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { I18nProvider, useI18n } from './src/I18nProvider';
+import { LanguagePicker } from './src/LanguagePicker';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -224,38 +225,11 @@ function AuthScreen({
         <Text style={[styles.logo, { color: colors.text }]}>{t('app.name')}</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>{t('app.tagline')}</Text>
 
-        <View
-          accessibilityLabel={t('common.language')}
-          style={[styles.languagePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
-          <Text style={[styles.languageLabel, { color: colors.muted }]}>{t('common.language')}</Text>
-          <View style={styles.languageActions}>
-            {(['fr', 'en'] as const).map((candidate) => {
-              const selected = locale === candidate;
-              return (
-                <Pressable
-                  key={candidate}
-                  onPress={() => void setLocalLocale(candidate)}
-                  style={[
-                    styles.languageButton,
-                    {
-                      backgroundColor: selected ? colors.accent : colors.surfaceRaised,
-                      borderColor: selected ? colors.accent : colors.border
-                    }
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.languageButtonText,
-                      { color: selected ? colors.accentText : colors.text }
-                    ]}
-                  >
-                    {candidate === 'fr' ? 'Français' : 'English'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={styles.languagePickerWrap}>
+          <LanguagePicker
+            value={locale}
+            onChange={(nextLocale) => setLocalLocale(nextLocale)}
+          />
         </View>
 
         {!challengeToken ? (
@@ -648,11 +622,7 @@ const styles = StyleSheet.create({
   brandMarkText: { color: '#052017', fontSize: 34, fontWeight: '900' },
   logo: { color: '#f4fff9', fontSize: 46, fontWeight: '900' },
   subtitle: { color: '#a7b9b1', fontSize: 18, marginTop: 4, marginBottom: 16 },
-  languagePicker: { borderWidth: 1, borderRadius: 18, padding: 10, marginBottom: 18, gap: 8 },
-  languageLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
-  languageActions: { flexDirection: 'row', gap: 8 },
-  languageButton: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
-  languageButtonText: { fontSize: 13, fontWeight: '900' },
+  languagePickerWrap: { marginBottom: 18 },
   fieldHint: { fontSize: 12, marginTop: -4, marginBottom: 2 },
   screenContent: { padding: 20, paddingBottom: 36, gap: 14 },
   eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
