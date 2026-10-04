@@ -4,8 +4,19 @@ import { API_URL, getAccessToken } from './api';
 let socket: Socket | null = null;
 let connectPromise: Promise<Socket | null> | null = null;
 
+function realtimeEndpoint() {
+  const api = new URL(API_URL);
+  const prefix = api.pathname.replace(/\/+$/, '');
+  return {
+    namespaceUrl: `${api.origin}/realtime`,
+    enginePath: `${prefix}/socket.io`
+  };
+}
+
 function createSocket(token: string) {
-  return io(`${API_URL}/realtime`, {
+  const endpoint = realtimeEndpoint();
+  return io(endpoint.namespaceUrl, {
+    path: endpoint.enginePath,
     autoConnect: false,
     transports: ['websocket'],
     auth: { token },
