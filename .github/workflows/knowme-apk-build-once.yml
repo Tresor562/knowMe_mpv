@@ -29,6 +29,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Prepare Expo-compatible pnpm layout
+        shell: bash
+        run: printf '%s\n' 'shamefully-hoist=true' > .npmrc
+
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
