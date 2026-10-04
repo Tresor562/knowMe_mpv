@@ -244,7 +244,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
           multiline
           maxLength={500}
           placeholder="Écris ce que tu penses…"
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={styles.input}
         />
         <ActionButton title={sending ? 'Envoi…' : 'Commenter'} disabled={sending || !commentText.trim()} onPress={() => void sendComment()} />
@@ -374,7 +374,7 @@ export function FeedExperience({ userId }: { userId: string }) {
               value={content}
               onChangeText={setContent}
               placeholder="Partage une découverte, une question ou un défi…"
-              placeholderTextColor="#789187"
+              placeholderTextColor="#737E93"
               style={styles.input}
             />
             <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
@@ -405,28 +405,28 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 14 },
   headerBlock: { gap: 12, marginBottom: 2 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900', marginTop: 4 },
-  sectionTitle: { color: '#f4fff9', fontSize: 22, fontWeight: '900', marginTop: 4 },
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  commentCard: { backgroundColor: '#0d1f19', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
+  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900', marginTop: 4 },
+  sectionTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginTop: 4 },
+  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
+  commentCard: { backgroundColor: '#0d1f19', borderColor: '#273044', borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   flex: { flex: 1 },
-  title: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
+  title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
   postText: { color: '#e4f2ec', fontSize: 17, lineHeight: 25 },
   commentText: { color: '#d5e8df', fontSize: 15, lineHeight: 22 },
-  muted: { color: '#91a79e' },
-  date: { color: '#91a79e', marginLeft: 'auto' },
-  input: { minHeight: 56, backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 16, color: '#f4fff9', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
-  action: { backgroundColor: '#1b3b31', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
-  actionText: { color: '#f4fff9', fontWeight: '800' },
-  dangerAction: { backgroundColor: 'transparent', borderColor: '#ff9d66', borderWidth: 1 },
-  dangerText: { color: '#ff9d66' },
+  muted: { color: '#929BAD' },
+  date: { color: '#929BAD', marginLeft: 'auto' },
+  input: { minHeight: 56, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
+  action: { backgroundColor: '#171E2C', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
+  actionText: { color: '#F7F7FB', fontWeight: '800' },
+  dangerAction: { backgroundColor: 'transparent', borderColor: '#FF6B73', borderWidth: 1 },
+  dangerText: { color: '#FF6B73' },
   mutedAction: { opacity: 0.45 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#45e6bd', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#052017', fontWeight: '900', fontSize: 18 },
-  smallAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#1b3b31', alignItems: 'center', justifyContent: 'center' },
-  smallAvatarText: { color: '#45e6bd', fontWeight: '900' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 18 },
+  smallAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#171E2C', alignItems: 'center', justifyContent: 'center' },
+  smallAvatarText: { color: '#7A5CFF', fontWeight: '900' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }
 });
