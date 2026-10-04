@@ -32,6 +32,7 @@ import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
 import { SocialHub } from './src/SocialHub';
+import { StoriesRail } from './src/StoriesRail';
 import {
   Avatar,
   BrandMark,
@@ -620,88 +621,15 @@ function HomeScreen({
       </FadeRise>
 
       <FadeRise delay={70}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storyRail}
-        >
-          <PressScale onPress={openCreate} style={styles.storyItem}>
-            <View
-              style={[
-                styles.storyCreateRing,
-                { borderColor: colors.accent }
-              ]}
-            >
-              <Avatar
-                uri={user.avatarUrl}
-                name={user.displayName}
-                size={54}
-              />
-              <View
-                style={[
-                  styles.storyPlus,
-                  {
-                    backgroundColor: colors.accent,
-                    borderColor: colors.background
-                  }
-                ]}
-              >
-                <KnowMeIcon
-                  name="create"
-                  size={13}
-                  color={colors.accentText}
-                  strokeWidth={2.1}
-                />
-              </View>
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[styles.storyLabel, { color: colors.muted }]}
-            >
-              {t('home.yourStory')}
-            </Text>
-          </PressScale>
-
-          <PressScale onPress={openDiscover} style={styles.storyItem}>
-            <View
-              style={[
-                styles.storyShortcut,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border
-                }
-              ]}
-            >
-              <KnowMeIcon name="discover" size={25} color={colors.accent} />
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[styles.storyLabel, { color: colors.muted }]}
-            >
-              {t('home.explore')}
-            </Text>
-          </PressScale>
-
-          <PressScale onPress={openChallenges} style={styles.storyItem}>
-            <View
-              style={[
-                styles.storyShortcut,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border
-                }
-              ]}
-            >
-              <KnowMeIcon name="challenge" size={25} color={colors.secondary} />
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[styles.storyLabel, { color: colors.muted }]}
-            >
-              {t('nav.challenges')}
-            </Text>
-          </PressScale>
-        </ScrollView>
+        <StoriesRail
+          currentUser={{
+            id: user.id,
+            displayName: user.displayName,
+            username: user.username,
+            avatarUrl: user.avatarUrl
+          }}
+          onOpenDiscover={openDiscover}
+        />
       </FadeRise>
 
       <FadeRise delay={105}>
