@@ -51,6 +51,20 @@ export type MobileUser = {
   } | null;
 };
 
+type ProfilePanel =
+  | 'main'
+  | 'appearance'
+  | 'language'
+  | 'avatar'
+  | 'payments'
+  | 'gifts'
+  | 'games'
+  | 'platform'
+  | 'security'
+  | 'privacy'
+  | 'edit'
+  | 'session';
+
 type ReauthResult = {
   proofToken: string;
   assurance: string;
@@ -102,6 +116,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [deleteCode, setDeleteCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [panel, setPanel] = useState<ProfilePanel>('main');
 
   useEffect(() => {
     setDisplayName(user.displayName);
@@ -165,6 +180,94 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
     } finally {
       setDeleting(false);
     }
+  }
+
+  if (panel !== 'main') {
+    const titleByPanel: Record<Exclude<ProfilePanel, 'main'>, string> = {
+      appearance: 'Apparence',
+      language: 'Langue et région',
+      avatar: 'Avatar Studio',
+      payments: 'KnowCoins & paiements',
+      gifts: 'Cadeaux sociaux',
+      games: 'PLAY',
+      platform: 'Plateforme de jeux',
+      security: 'Sécurité',
+      privacy: 'Confidentialité',
+      edit: 'Modifier mon profil',
+      session: 'Session & compte'
+    };
+
+    return (
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={styles.panelContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.panelHeader}>
+          <PressScale onPress={() => setPanel('main')} style={styles.backButton}>
+            <KnowMeIcon name="arrow" size={18} color="#F7F7FB" />
+            <Text style={styles.backButtonText}>Profil</Text>
+          </PressScale>
+          <Text style={styles.panelTitle}>{titleByPanel[panel]}</Text>
+        </View>
+
+        {panel === 'appearance' ? <AppearanceExperience /> : null}
+        {panel === 'language' ? <LanguageSettingsExperience /> : null}
+        {panel === 'avatar' ? <AvatarStudioExperience /> : null}
+        {panel === 'payments' ? <PaymentsExperience /> : null}
+        {panel === 'gifts' ? <SocialGiftsExperience /> : null}
+        {panel === 'games' ? <MobileGameCenterExperience /> : null}
+        {panel === 'platform' ? <GamePlatformExperience /> : null}
+        {panel === 'security' ? (
+          <SecurityExperience onSessionClosed={onAccountDeleted} />
+        ) : null}
+        {panel === 'privacy' ? <PrivacyExperience /> : null}
+
+        {panel === 'edit' ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Modifier mon profil</Text>
+            <TextInput value={displayName} onChangeText={setDisplayName} maxLength={60} placeholder="Nom affiché" placeholderTextColor="#737E93" style={styles.input} />
+            <TextInput value={bio} onChangeText={setBio} maxLength={500} multiline placeholder="Biographie" placeholderTextColor="#737E93" style={[styles.input, styles.multiline]} />
+            <TextInput value={avatarUrl} onChangeText={setAvatarUrl} autoCapitalize="none" keyboardType="url" placeholder="URL HTTPS de l’avatar" placeholderTextColor="#737E93" style={styles.input} />
+            <Text style={styles.helper}>Le nom doit contenir au moins 2 caractères. L’avatar doit utiliser une URL valide.</Text>
+            <Button title={saving ? 'Enregistrement…' : 'Enregistrer'} disabled={saving || displayName.trim().length < 2} onPress={() => void save()} />
+          </View>
+        ) : null}
+
+        {panel === 'session' ? (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Session</Text>
+              <Text style={styles.description}>Déconnecte cet appareil sans supprimer ton compte. L’autorisation d’appareil de confiance reste révocable séparément.</Text>
+              <Button title="Se déconnecter" onPress={() => void onLogout()} />
+            </View>
+
+            <View style={[styles.card, styles.dangerZone]}>
+              <Text style={styles.dangerHeading}>Zone dangereuse</Text>
+              <Text style={styles.description}>La suppression exige toujours le mot de passe, une preuve serveur récente et le second facteur lorsqu’il est actif.</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder="Mot de passe actuel"
+                placeholderTextColor="#737E93"
+                style={styles.input}
+              />
+              <TextInput
+                value={deleteCode}
+                onChangeText={setDeleteCode}
+                autoCapitalize="characters"
+                placeholder="Code 2FA ou récupération, si activé"
+                placeholderTextColor="#737E93"
+                style={styles.input}
+              />
+              <Button title={deleting ? 'Suppression…' : 'Supprimer mon compte'} disabled={deleting || password.length < 8} danger onPress={confirmDelete} />
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+    );
   }
 
   return (
@@ -252,66 +355,88 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Identité et confiance</Text>
-        <Text style={styles.description}>
-          Consulte ton historique, soumets une référence de preuve ou retire une demande encore ouverte.
-        </Text>
-        <Button title="Gérer ma vérification" secondary onPress={onOpenVerification} />
-      </View>
+      <View style={styles.profileMenuSection}>
+        <Text style={styles.profileMenuHeading}>Mon espace</Text>
+        <View style={styles.profileMenuGrid}>
+          <PressScale onPress={onOpenVerification} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="check" size={20} color="#7A5CFF" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Identité et confiance</Text><Text style={styles.profileMenuText}>Vérification et preuves de confiance.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
 
-      <AppearanceExperience />
-      <LanguageSettingsExperience />
-      <AvatarStudioExperience />
-      <PaymentsExperience />
-      <SocialGiftsExperience />
-      <MobileGameCenterExperience />
-      <GamePlatformExperience />
-      <SecurityExperience onSessionClosed={onAccountDeleted} />
-      <PrivacyExperience />
+          <PressScale onPress={() => setPanel('edit')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="profile" size={20} color="#FF9B57" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Modifier mon profil</Text><Text style={styles.profileMenuText}>Nom, bio et photo de profil.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Modifier mon profil</Text>
-        <TextInput value={displayName} onChangeText={setDisplayName} maxLength={60} placeholder="Nom affiché" placeholderTextColor="#737E93" style={styles.input} />
-        <TextInput value={bio} onChangeText={setBio} maxLength={500} multiline placeholder="Biographie" placeholderTextColor="#737E93" style={[styles.input, styles.multiline]} />
-        <TextInput value={avatarUrl} onChangeText={setAvatarUrl} autoCapitalize="none" keyboardType="url" placeholder="URL HTTPS de l’avatar" placeholderTextColor="#737E93" style={styles.input} />
-        <Text style={styles.helper}>Le nom doit contenir au moins 2 caractères. L’avatar doit utiliser une URL valide.</Text>
-        <Button title={saving ? 'Enregistrement…' : 'Enregistrer'} disabled={saving || displayName.trim().length < 2} onPress={() => void save()} />
-      </View>
+          <PressScale onPress={() => setPanel('appearance')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="spark" size={20} color="#F46CF6" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Apparence</Text><Text style={styles.profileMenuText}>Thèmes, animations et personnalisation.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Session</Text>
-        <Text style={styles.description}>Déconnecte cet appareil sans supprimer ton compte. L’autorisation d’appareil de confiance reste révocable séparément.</Text>
-        <Button title="Se déconnecter" onPress={() => void onLogout()} />
-      </View>
+          <PressScale onPress={() => setPanel('language')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="discover" size={20} color="#7A5CFF" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Langue et région</Text><Text style={styles.profileMenuText}>Choisis la langue de toute l’interface.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
 
-      <View style={[styles.card, styles.dangerZone]}>
-        <Text style={styles.dangerHeading}>Zone dangereuse</Text>
-        <Text style={styles.description}>La suppression exige toujours le mot de passe, une preuve serveur récente et le second facteur lorsqu’il est actif.</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="Mot de passe actuel"
-          placeholderTextColor="#737E93"
-          style={styles.input}
-        />
-        <TextInput
-          value={deleteCode}
-          onChangeText={setDeleteCode}
-          autoCapitalize="characters"
-          placeholder="Code 2FA ou récupération, si activé"
-          placeholderTextColor="#737E93"
-          style={styles.input}
-        />
-        <Button title={deleting ? 'Suppression…' : 'Supprimer mon compte'} disabled={deleting || password.length < 8} danger onPress={confirmDelete} />
+          <PressScale onPress={() => setPanel('avatar')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="profile" size={20} color="#F46CF6" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Avatar Studio</Text><Text style={styles.profileMenuText}>Construis ton identité visuelle.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('payments')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="coins" size={20} color="#F7C85A" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>KnowCoins & paiements</Text><Text style={styles.profileMenuText}>Solde, achats et avantages.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('gifts')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="spark" size={20} color="#FF9B57" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Cadeaux sociaux</Text><Text style={styles.profileMenuText}>Envoie et gère tes cadeaux.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('games')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="challenge" size={20} color="#7A5CFF" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>PLAY</Text><Text style={styles.profileMenuText}>Jeux, récompenses et défis ludiques.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('security')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="settings" size={20} color="#FF9B57" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Sécurité</Text><Text style={styles.profileMenuText}>Sessions, 2FA et appareils de confiance.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('privacy')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="settings" size={20} color="#F46CF6" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Confidentialité</Text><Text style={styles.profileMenuText}>Contrôle ce que les autres peuvent voir.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+
+          <PressScale onPress={() => setPanel('session')} style={styles.profileMenuRow}>
+            <View style={styles.profileMenuIcon}><KnowMeIcon name="settings" size={20} color="#FF6B73" /></View>
+            <View style={styles.flex}><Text style={styles.profileMenuTitle}>Session & compte</Text><Text style={styles.profileMenuText}>Déconnexion et gestion du compte.</Text></View>
+            <KnowMeIcon name="arrow" size={17} color="#737E93" />
+          </PressScale>
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   root: { flex: 1, backgroundColor: '#090C14' },
+  panelContent: { padding: 16, paddingBottom: 42, gap: 14 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
+  backButton: { minHeight: 42, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  backButtonText: { color: '#F7F7FB', fontSize: 12, fontWeight: '800' },
+  panelTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', flex: 1 },
   content: { padding: 16, paddingBottom: 42, gap: 14 },
   profileHero: { overflow: 'hidden', backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 28, paddingBottom: 18 },
   cover: { height: 132, backgroundColor: '#14182A', position: 'relative', overflow: 'hidden', padding: 18, justifyContent: 'flex-end' },
@@ -343,6 +468,13 @@ const styles = StyleSheet.create({
   accountMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, marginTop: 13 },
   accountMetaText: { color: '#737E93', fontSize: 10.5, flexShrink: 1 },
   accountMetaDot: { color: '#30394E', fontSize: 12 },
+  profileMenuSection: { gap: 11 },
+  profileMenuHeading: { color: '#F7F7FB', fontSize: 18, fontWeight: '900', marginTop: 4 },
+  profileMenuGrid: { gap: 8 },
+  profileMenuRow: { minHeight: 72, backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 19, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  profileMenuIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#171E2C', alignItems: 'center', justifyContent: 'center' },
+  profileMenuTitle: { color: '#F7F7FB', fontSize: 14, fontWeight: '900' },
+  profileMenuText: { color: '#737E93', fontSize: 10.5, lineHeight: 15, marginTop: 2 },
   card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
   cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
   description: { color: '#B8C0CE', fontSize: 15, lineHeight: 22 },
