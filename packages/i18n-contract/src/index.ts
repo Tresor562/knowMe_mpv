@@ -1,9 +1,27 @@
-export const SUPPORTED_LOCALES = ['fr', 'en'] as const;
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-export type TextDirection = 'ltr' | 'rtl';
-export const DEFAULT_LOCALE: SupportedLocale = 'fr';
+import {
+  DEFAULT_LOCALE,
+  META_NLLB_LOCALES,
+  SUPPORTED_LOCALES,
+  isSupportedLocale,
+  localeDisplayName,
+  normalizeLocale,
+  resolveSupportedLocale,
+  resolveTextDirection,
+  type SupportedLocale,
+  type TextDirection
+} from './meta-locales';
 
-const RTL_LANGUAGES = new Set(['ar', 'fa', 'he', 'ps', 'ur']);
+export {
+  DEFAULT_LOCALE,
+  META_NLLB_LOCALES,
+  SUPPORTED_LOCALES,
+  isSupportedLocale,
+  localeDisplayName,
+  normalizeLocale,
+  resolveSupportedLocale,
+  resolveTextDirection
+};
+export type { SupportedLocale, TextDirection };
 
 const FR_MESSAGES = {
   'app.name': 'KnowMe',
@@ -123,10 +141,25 @@ const EN_MESSAGES: Record<MessageKey, string> = {
   'messages.other': '{count} messages'
 };
 
-const CATALOGS: Record<SupportedLocale, Readonly<Record<MessageKey, string>>> = {
+type MessageCatalog = Readonly<Record<MessageKey, string>>;
+
+const STATIC_CATALOGS: Partial<Record<SupportedLocale, MessageCatalog>> = {
   fr: FR_MESSAGES,
   en: EN_MESSAGES
 };
+
+const RUNTIME_CATALOGS = new Map<SupportedLocale, MessageCatalog>();
+
+export function registerCatalog(
+  locale: SupportedLocale,
+  catalog: Record<MessageKey, string>
+) {
+  RUNTIME_CATALOGS.set(locale, Object.freeze({ ...catalog }));
+}
+
+export function unregisterCatalog(locale: SupportedLocale) {
+  RUNTIME_CATALOGS.delete(locale);
+}
 
 export const API_ERROR_CODES = [
   'BAD_REQUEST',
@@ -147,7 +180,7 @@ export const API_ERROR_CODES = [
 
 export type KnownApiErrorCode = (typeof API_ERROR_CODES)[number];
 
-const ERROR_MESSAGES: Record<SupportedLocale, Record<KnownApiErrorCode, string>> = {
+const ERROR_MESSAGES: Partial<Record<SupportedLocale, Record<KnownApiErrorCode, string>>> = {
   fr: {
     BAD_REQUEST: 'La requête contient des données invalides.',
     UNAUTHORIZED: 'Connecte-toi pour continuer.',
@@ -190,22 +223,6 @@ export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & {
   other: string;
 };
 
-export function isSupportedLocale(value: unknown): value is SupportedLocale {
-  return typeof value === 'string' &&
-    SUPPORTED_LOCALES.includes(value as SupportedLocale);
-}
-
-export function normalizeLocale(
-  value: unknown,
-  fallback: SupportedLocale = DEFAULT_LOCALE
-): SupportedLocale {
-  if (typeof value !== 'string') return fallback;
-  const normalized = value.trim().toLowerCase().replace(/_/g, '-');
-  if (isSupportedLocale(normalized)) return normalized;
-  const language = normalized.split('-')[0];
-  return isSupportedLocale(language) ? language : fallback;
-}
-
 export function parseAcceptLanguage(
   header: string | null | undefined,
   fallback: SupportedLocale = DEFAULT_LOCALE
@@ -235,9 +252,8 @@ export function parseAcceptLanguage(
     );
 
   for (const candidate of candidates) {
-    const normalized = normalizeLocale(candidate.tag, fallback);
-    const rawLanguage = candidate.tag.trim().toLowerCase().split(/[-_]/)[0];
-    if (isSupportedLocale(rawLanguage)) return normalized;
+    const resolved = resolveSupportedLocale(candidate.tag);
+    if (resolved) return resolved;
   }
   return fallback;
 }
@@ -246,23 +262,19 @@ export function resolveLocale(
   ...candidates: Array<string | null | undefined>
 ): SupportedLocale {
   for (const candidate of candidates) {
-    if (!candidate) continue;
-    const rawLanguage = candidate.trim().toLowerCase().split(/[-_]/)[0];
-    if (isSupportedLocale(rawLanguage)) return normalizeLocale(candidate);
+    const resolved = resolveSupportedLocale(candidate);
+    if (resolved) return resolved;
   }
   return DEFAULT_LOCALE;
 }
 
-export function resolveTextDirection(locale: string | null | undefined): TextDirection {
-  const language = String(locale ?? '')
-    .trim()
-    .toLowerCase()
-    .split(/[-_]/)[0];
-  return RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
-}
-
-export function getCatalog(locale: string | null | undefined) {
-  return CATALOGS[normalizeLocale(locale)];
+export function getCatalog(locale: string | null | undefined): MessageCatalog {
+  const resolved = normalizeLocale(locale);
+  return (
+    RUNTIME_CATALOGS.get(resolved) ??
+    STATIC_CATALOGS[resolved] ??
+    FR_MESSAGES
+  );
 }
 
 export function translate(
@@ -270,9 +282,18 @@ export function translate(
   key: MessageKey,
   params: TranslationParams = {}
 ): string {
-  const resolvedLocale = normalizeLocale(locale);
-  const template = CATALOGS[resolvedLocale][key] ?? FR_MESSAGES[key] ?? key;
+  const template = getCatalog(locale)[key] ?? FR_MESSAGES[key] ?? key;
   return interpolate(template, params);
+}
+
+function safeIntlLocale(locale: string | null | undefined) {
+  const resolved = normalizeLocale(locale);
+  try {
+    new Intl.Locale(resolved);
+    return resolved;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
 }
 
 export function translatePlural(
@@ -281,8 +302,12 @@ export function translatePlural(
   forms: PluralForms,
   params: TranslationParams = {}
 ): string {
-  const resolvedLocale = normalizeLocale(locale);
-  const category = new Intl.PluralRules(resolvedLocale).select(count);
+  let category: Intl.LDMLPluralRule = 'other';
+  try {
+    category = new Intl.PluralRules(safeIntlLocale(locale)).select(count);
+  } catch {
+    category = new Intl.PluralRules(DEFAULT_LOCALE).select(count);
+  }
   const template = forms[category] ?? forms.other;
   return interpolate(template, { ...params, count });
 }
@@ -293,9 +318,10 @@ export function translateCount(
   singularKey: MessageKey,
   pluralKey: MessageKey
 ) {
+  const catalog = getCatalog(locale);
   return translatePlural(locale, count, {
-    one: CATALOGS[normalizeLocale(locale)][singularKey],
-    other: CATALOGS[normalizeLocale(locale)][pluralKey]
+    one: catalog[singularKey],
+    other: catalog[pluralKey]
   });
 }
 
@@ -304,7 +330,11 @@ export function formatNumber(
   value: number,
   options?: Intl.NumberFormatOptions
 ) {
-  return new Intl.NumberFormat(normalizeLocale(locale), options).format(value);
+  try {
+    return new Intl.NumberFormat(safeIntlLocale(locale), options).format(value);
+  } catch {
+    return new Intl.NumberFormat(DEFAULT_LOCALE, options).format(value);
+  }
 }
 
 export function formatDate(
@@ -317,7 +347,11 @@ export function formatDate(
 ) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(normalizeLocale(locale), options).format(date);
+  try {
+    return new Intl.DateTimeFormat(safeIntlLocale(locale), options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(DEFAULT_LOCALE, options).format(date);
+  }
 }
 
 export function formatRelativeTime(
@@ -326,10 +360,14 @@ export function formatRelativeTime(
   unit: Intl.RelativeTimeFormatUnit,
   options: Intl.RelativeTimeFormatOptions = { numeric: 'auto' }
 ) {
-  return new Intl.RelativeTimeFormat(normalizeLocale(locale), options).format(
-    value,
-    unit
-  );
+  try {
+    return new Intl.RelativeTimeFormat(safeIntlLocale(locale), options).format(
+      value,
+      unit
+    );
+  } catch {
+    return new Intl.RelativeTimeFormat(DEFAULT_LOCALE, options).format(value, unit);
+  }
 }
 
 export function translateApiError(
@@ -338,10 +376,14 @@ export function translateApiError(
   fallback?: string
 ) {
   const resolvedLocale = normalizeLocale(locale);
+  const catalog =
+    ERROR_MESSAGES[resolvedLocale] ??
+    ERROR_MESSAGES[resolvedLocale === 'en' ? 'en' : 'fr'] ??
+    ERROR_MESSAGES.fr!;
   if (code && API_ERROR_CODES.includes(code as KnownApiErrorCode)) {
-    return ERROR_MESSAGES[resolvedLocale][code as KnownApiErrorCode];
+    return catalog[code as KnownApiErrorCode];
   }
-  return fallback?.trim() || ERROR_MESSAGES[resolvedLocale].INTERNAL_ERROR;
+  return fallback?.trim() || catalog.INTERNAL_ERROR;
 }
 
 export function withSupportReference(
