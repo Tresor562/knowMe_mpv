@@ -189,14 +189,40 @@ export class TelegramMediaStorage {
     const config = await this.getConfig();
     const isForm = payload instanceof FormData;
     const endpoint = new URL(`bot${config.token}/${method}`, this.ensureTrailingSlash(config.apiBase));
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: isForm ? undefined : { 'content-type': 'application/json' },
-      body: isForm ? payload : JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeoutMs ?? config.timeoutMs)
-    });
-    const data = await response.json().catch(() => null);
-    return { ok: response.ok, status: response.status, data };
+    const attempts = 4;
+    let lastNetworkError: unknown = null;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: isForm ? undefined : { 'content-type': 'application/json' },
+          body: isForm ? payload : JSON.stringify(payload),
+          signal: AbortSignal.timeout(timeoutMs ?? config.timeoutMs)
+        });
+        const data = await response.json().catch(() => null);
+
+        if ((response.status === 429 || response.status >= 500) && attempt < attempts) {
+          const retryAfterSeconds = Number(response.headers.get('retry-after') || 0);
+          const retryDelayMs =
+            Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+              ? Math.min(retryAfterSeconds * 1000, 5_000)
+              : Math.min(500 * attempt, 2_000);
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          continue;
+        }
+
+        return { ok: response.ok, status: response.status, data };
+      } catch (error) {
+        lastNetworkError = error;
+        if (attempt >= attempts) throw error;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(500 * attempt, 2_000)));
+      }
+    }
+
+    throw lastNetworkError instanceof Error
+      ? lastNetworkError
+      : new Error('Telegram media storage network request failed.');
   }
 
   private async getConfig() {
