@@ -38,10 +38,10 @@ function providerLabel(provider: string) {
 }
 
 function statusColor(status: string) {
-  if (['PAID', 'FULFILLED'].includes(status)) return '#45e6bd';
-  if (['FAILED', 'INIT_FAILED', 'CANCELED'].includes(status)) return '#ff9d66';
+  if (['PAID', 'FULFILLED'].includes(status)) return '#7A5CFF';
+  if (['FAILED', 'INIT_FAILED', 'CANCELED'].includes(status)) return '#FF6B73';
   if (['REFUNDED', 'REVIEW_REQUIRED'].includes(status)) return '#f4c95d';
-  return '#91a79e';
+  return '#929BAD';
 }
 
 function PurchaseButton({
@@ -171,7 +171,7 @@ export function PaymentsExperience() {
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#45e6bd" />
+          <ActivityIndicator color="#7A5CFF" />
           <Text style={styles.muted}>Chargement du catalogue sécurisé…</Text>
         </View>
       ) : (
@@ -280,8 +280,8 @@ export function PaymentsExperience() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 24,
     padding: 18,
@@ -289,49 +289,49 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerText: { flex: 1, gap: 8 },
-  cardTitle: { color: '#f4fff9', fontSize: 19, fontWeight: '900' },
-  description: { color: '#b6c8c0', fontSize: 14, lineHeight: 21 },
+  cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
+  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
   refreshButton: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    borderColor: '#25473b',
+    borderColor: '#30394E',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { color: '#45e6bd', fontSize: 22, fontWeight: '900' },
+  refreshText: { color: '#7A5CFF', fontSize: 22, fontWeight: '900' },
   buttonDisabled: { opacity: 0.45 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  muted: { color: '#91a79e', fontSize: 12 },
+  muted: { color: '#929BAD', fontSize: 12 },
   policyBox: {
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 16,
     padding: 14,
     gap: 5
   },
-  policyTitle: { color: '#f4fff9', fontWeight: '900' },
-  policyText: { color: '#b6c8c0', fontSize: 12, lineHeight: 18 },
-  accountReference: { color: '#789187', fontSize: 11 },
-  message: { color: '#45e6bd', fontSize: 13, lineHeight: 19 },
-  sectionTitle: { color: '#f4fff9', fontWeight: '900', fontSize: 16, marginTop: 4 },
+  policyTitle: { color: '#F7F7FB', fontWeight: '900' },
+  policyText: { color: '#B8C0CE', fontSize: 12, lineHeight: 18 },
+  accountReference: { color: '#737E93', fontSize: 11 },
+  message: { color: '#7A5CFF', fontSize: 13, lineHeight: 19 },
+  sectionTitle: { color: '#F7F7FB', fontWeight: '900', fontSize: 16, marginTop: 4 },
   productCard: {
-    backgroundColor: '#091914',
+    backgroundColor: '#0D111B',
     borderRadius: 18,
-    borderColor: '#25473b',
+    borderColor: '#30394E',
     borderWidth: 1,
     padding: 14,
     gap: 12
   },
   productHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   productText: { flex: 1, gap: 5 },
-  productName: { color: '#f4fff9', fontWeight: '900', fontSize: 16 },
-  productDescription: { color: '#b6c8c0', fontSize: 12, lineHeight: 18 },
+  productName: { color: '#F7F7FB', fontWeight: '900', fontSize: 16 },
+  productDescription: { color: '#B8C0CE', fontSize: 12, lineHeight: 18 },
   highlight: {
-    color: '#052017',
-    backgroundColor: '#45e6bd',
+    color: '#FFFFFF',
+    backgroundColor: '#7A5CFF',
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 5,
@@ -349,26 +349,26 @@ const styles = StyleSheet.create({
     paddingTop: 12
   },
   priceText: { flex: 1, gap: 3 },
-  price: { color: '#f4fff9', fontWeight: '900', fontSize: 17 },
+  price: { color: '#F7F7FB', fontWeight: '900', fontSize: 17 },
   button: {
     minWidth: 104,
-    backgroundColor: '#45e6bd',
+    backgroundColor: '#7A5CFF',
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  buttonText: { color: '#052017', fontWeight: '900', fontSize: 12 },
-  helper: { color: '#789187', fontSize: 11, lineHeight: 17 },
+  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
+  helper: { color: '#737E93', fontSize: 11, lineHeight: 17 },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#091914',
+    backgroundColor: '#0D111B',
     borderRadius: 16,
     padding: 13
   },
   orderText: { flex: 1, gap: 4 },
-  orderName: { color: '#f4fff9', fontWeight: '800' },
+  orderName: { color: '#F7F7FB', fontWeight: '800' },
   orderStatus: { fontWeight: '900', fontSize: 12 }
 });
