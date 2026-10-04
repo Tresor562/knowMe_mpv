@@ -10,6 +10,7 @@ function configureTelegram() {
   process.env.MEDIA_TELEGRAM_API_BASE_URL = 'https://api.telegram.org';
   process.env.MEDIA_TELEGRAM_TIMEOUT_MS = '30000';
   process.env.MEDIA_TELEGRAM_MAX_BYTES = String(20 * 1024 * 1024);
+  process.env.MEDIA_TELEGRAM_ENCRYPTION_KEY = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f';
 }
 
 function telegramJson(result: unknown, status = 200) {
@@ -28,7 +29,8 @@ describe('TelegramMediaStorage', () => {
   it('verifies the existing storage bot/channel and round-trips an opaque Telegram reference', async () => {
     configureTelegram();
     const storedFileId = 'BQACAgQAAxkBAAExampleFileId_1234567890';
-    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async (input) => {
+    let uploadedBytes: Buffer | null = null;
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.endsWith('/getMe')) {
         return telegramJson({ id: 999, username: 'NexAiStorage_bot' });
@@ -40,9 +42,13 @@ describe('TelegramMediaStorage', () => {
         return telegramJson([{ status: 'administrator', user: { id: 999 } }]);
       }
       if (url.endsWith('/sendDocument')) {
+        const form = init?.body as FormData;
+        const document = form.get('document');
+        if (!(document instanceof Blob)) throw new Error('Telegram document body missing');
+        uploadedBytes = Buffer.from(await document.arrayBuffer());
         return telegramJson({
           message_id: 88,
-          document: { file_id: storedFileId, file_size: 4 }
+          document: { file_id: storedFileId, file_size: uploadedBytes.length }
         });
       }
       if (url.endsWith('/getFile')) {
@@ -68,6 +74,8 @@ describe('TelegramMediaStorage', () => {
     expect(key).toMatch(/^tg\.[A-Za-z0-9_-]+$/);
     expect(key).not.toContain(process.env.MEDIA_TELEGRAM_BOT_TOKEN!);
     expect(key).not.toContain(process.env.MEDIA_TELEGRAM_CHAT_ID!);
+    expect(uploadedBytes).not.toBeNull();
+    expect(uploadedBytes).not.toEqual(Buffer.from([1, 2, 3, 4]));
     await expect(storage.get(key)).resolves.toEqual(Buffer.from([1, 2, 3, 4]));
     await expect(storage.delete(key)).resolves.toBeUndefined();
     expect(fetchSpy).toHaveBeenCalled();
