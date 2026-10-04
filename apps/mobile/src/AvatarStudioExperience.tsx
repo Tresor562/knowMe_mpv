@@ -132,7 +132,7 @@ export function AvatarStudioExperience() {
 
       {loading || !studio ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#45e6bd" />
+          <ActivityIndicator color="#7A5CFF" />
           <Text style={styles.muted}>Chargement du rendu autoritaire…</Text>
         </View>
       ) : (
@@ -216,8 +216,8 @@ export function AvatarStudioExperience() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 24,
     padding: 18,
@@ -225,29 +225,29 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerText: { flex: 1, gap: 8 },
-  title: { color: '#f4fff9', fontSize: 19, fontWeight: '900' },
-  description: { color: '#b6c8c0', fontSize: 14, lineHeight: 21 },
+  title: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
+  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
   refresh: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    borderColor: '#25473b',
+    borderColor: '#30394E',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { color: '#45e6bd', fontSize: 22, fontWeight: '900' },
+  refreshText: { color: '#7A5CFF', fontSize: 22, fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  status: { color: '#45e6bd', fontSize: 13, lineHeight: 19 },
+  status: { color: '#7A5CFF', fontSize: 13, lineHeight: 19 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  muted: { color: '#91a79e', fontSize: 12 },
+  muted: { color: '#929BAD', fontSize: 12 },
   preview: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: 30,
     overflow: 'hidden',
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -255,14 +255,14 @@ const styles = StyleSheet.create({
   },
   legacyAvatar: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', gap: 6 },
-  fallbackInitials: { color: '#f4fff9', fontSize: 72, fontWeight: '900' },
-  fallbackToken: { color: '#789187', fontSize: 11 },
+  fallbackInitials: { color: '#F7F7FB', fontSize: 72, fontWeight: '900' },
+  fallbackToken: { color: '#737E93', fontSize: 11 },
   layer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
-  profileName: { color: '#f4fff9', fontWeight: '900', fontSize: 18 },
-  handle: { color: '#45e6bd', fontWeight: '800' },
+  profileName: { color: '#F7F7FB', fontWeight: '900', fontSize: 18 },
+  handle: { color: '#7A5CFF', fontWeight: '800' },
   layerSection: {
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 18,
     padding: 13,
@@ -270,29 +270,29 @@ const styles = StyleSheet.create({
   },
   layerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   layerTitleBox: { flex: 1, gap: 3 },
-  layerTitle: { color: '#f4fff9', fontWeight: '900' },
+  layerTitle: { color: '#F7F7FB', fontWeight: '900' },
   removeButton: {
-    borderColor: '#ff9d66',
+    borderColor: '#FF6B73',
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8
   },
-  removeButtonText: { color: '#ff9d66', fontWeight: '900', fontSize: 11 },
+  removeButtonText: { color: '#FF6B73', fontWeight: '900', fontSize: 11 },
   itemStrip: { gap: 10 },
   itemCard: {
     width: 116,
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 16,
     padding: 10,
     gap: 6
   },
-  itemSelected: { borderColor: '#45e6bd' },
-  itemImage: { width: '100%', aspectRatio: 1, backgroundColor: '#091914', borderRadius: 12 },
-  itemName: { color: '#f4fff9', fontWeight: '800', fontSize: 12 },
-  itemRarity: { color: '#91a79e', fontSize: 10 },
-  selectedText: { color: '#45e6bd' },
-  policy: { color: '#789187', fontSize: 11, lineHeight: 17 }
+  itemSelected: { borderColor: '#7A5CFF' },
+  itemImage: { width: '100%', aspectRatio: 1, backgroundColor: '#0D111B', borderRadius: 12 },
+  itemName: { color: '#F7F7FB', fontWeight: '800', fontSize: 12 },
+  itemRarity: { color: '#929BAD', fontSize: 10 },
+  selectedText: { color: '#7A5CFF' },
+  policy: { color: '#737E93', fontSize: 11, lineHeight: 17 }
 });

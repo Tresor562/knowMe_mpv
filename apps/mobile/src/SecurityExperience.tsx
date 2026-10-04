@@ -73,7 +73,7 @@ function Button({ title, onPress, disabled = false, secondary = false, danger = 
 }
 
 function Input(props: React.ComponentProps<typeof TextInput>) {
-  return <TextInput placeholderTextColor="#789187" style={styles.input} {...props} />;
+  return <TextInput placeholderTextColor="#737E93" style={styles.input} {...props} />;
 }
 
 function date(value?: string | null) {
@@ -344,27 +344,27 @@ export function SecurityExperience({ onSessionClosed }: {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 24, padding: 18, gap: 16 },
-  title: { color: '#f4fff9', fontSize: 19, fontWeight: '900' },
-  subtitle: { color: '#f4fff9', fontSize: 16, fontWeight: '900' },
-  description: { color: '#b6c8c0', fontSize: 14, lineHeight: 21 },
-  section: { borderTopWidth: 1, borderTopColor: '#1c3a31', paddingTop: 14, gap: 10 },
-  input: { minHeight: 50, backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 16, color: '#f4fff9', paddingHorizontal: 15, paddingVertical: 12, fontSize: 15 },
-  button: { backgroundColor: '#45e6bd', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  secondaryButton: { backgroundColor: 'transparent', borderColor: '#45e6bd', borderWidth: 1 },
-  dangerButton: { backgroundColor: 'transparent', borderColor: '#ff9d66', borderWidth: 1 },
-  buttonText: { color: '#052017', fontWeight: '900' },
-  secondaryText: { color: '#45e6bd' },
-  dangerText: { color: '#ff9d66' },
+  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 16 },
+  title: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
+  subtitle: { color: '#F7F7FB', fontSize: 16, fontWeight: '900' },
+  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
+  section: { borderTopWidth: 1, borderTopColor: '#273044', paddingTop: 14, gap: 10 },
+  input: { minHeight: 50, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 12, fontSize: 15 },
+  button: { backgroundColor: '#7A5CFF', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  secondaryButton: { backgroundColor: 'transparent', borderColor: '#7A5CFF', borderWidth: 1 },
+  dangerButton: { backgroundColor: 'transparent', borderColor: '#FF6B73', borderWidth: 1 },
+  buttonText: { color: '#FFFFFF', fontWeight: '900' },
+  secondaryText: { color: '#7A5CFF' },
+  dangerText: { color: '#FF6B73' },
   muted: { opacity: 0.45 },
-  secret: { backgroundColor: '#091914', color: '#45e6bd', borderRadius: 12, padding: 12, fontWeight: '900', letterSpacing: 1 },
-  helper: { color: '#789187', fontSize: 12, lineHeight: 18 },
-  warning: { color: '#ff9d66', fontWeight: '900' },
+  secret: { backgroundColor: '#0D111B', color: '#7A5CFF', borderRadius: 12, padding: 12, fontWeight: '900', letterSpacing: 1 },
+  helper: { color: '#737E93', fontSize: 12, lineHeight: 18 },
+  warning: { color: '#FF6B73', fontWeight: '900' },
   recoveryBox: { borderColor: '#784a35' },
-  recoveryCode: { color: '#f4fff9', backgroundColor: '#091914', borderRadius: 10, padding: 8, fontFamily: 'monospace' },
-  row: { flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#1c3a31', paddingBottom: 10 },
+  recoveryCode: { color: '#F7F7FB', backgroundColor: '#0D111B', borderRadius: 10, padding: 8, fontFamily: 'monospace' },
+  row: { flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#273044', paddingBottom: 10 },
   rowText: { flex: 1 },
-  rowTitle: { color: '#f4fff9', fontWeight: '800' },
-  remove: { color: '#ff9d66', fontWeight: '900' },
-  event: { borderLeftWidth: 2, borderLeftColor: '#45e6bd', paddingLeft: 10, gap: 3 }
+  rowTitle: { color: '#F7F7FB', fontWeight: '800' },
+  remove: { color: '#FF6B73', fontWeight: '900' },
+  event: { borderLeftWidth: 2, borderLeftColor: '#7A5CFF', paddingLeft: 10, gap: 3 }
 });

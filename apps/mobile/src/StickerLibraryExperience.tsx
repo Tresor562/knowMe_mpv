@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   closeText: { color: '#dffaf0', fontWeight: '700' },
   content: { paddingBottom: 28 },
   pack: { marginTop: 14 },
-  packTitle: { color: '#45e6bd', fontWeight: '800', fontSize: 16 },
+  packTitle: { color: '#7A5CFF', fontWeight: '800', fontSize: 16 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

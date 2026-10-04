@@ -269,7 +269,7 @@ export function PrivacyExperience() {
           maxLength={1000}
           multiline
           placeholder="Précision facultative"
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={styles.input}
         />
         <ActionButton title="Créer la demande" disabled={busy} onPress={() => void createRequest()} />
@@ -296,27 +296,27 @@ export function PrivacyExperience() {
 const styles = StyleSheet.create({
   content: { gap: 14, paddingBottom: 20 },
   header: { gap: 7 },
-  eyebrow: { color: '#45e6bd', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
-  heading: { color: '#f4fff9', fontSize: 24, fontWeight: '900' },
-  description: { color: '#b6c8c0', fontSize: 14, lineHeight: 20 },
-  muted: { color: '#789187', fontSize: 12, lineHeight: 18 },
-  active: { color: '#45e6bd', fontWeight: '900', fontSize: 12 },
-  warning: { color: '#ff9d66', fontWeight: '900', fontSize: 12 },
-  card: { backgroundColor: '#10231d', borderColor: '#1c3a31', borderWidth: 1, borderRadius: 22, padding: 17, gap: 12 },
-  cardTitle: { color: '#f4fff9', fontSize: 17, fontWeight: '900', flexShrink: 1 },
+  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
+  heading: { color: '#F7F7FB', fontSize: 24, fontWeight: '900' },
+  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 20 },
+  muted: { color: '#737E93', fontSize: 12, lineHeight: 18 },
+  active: { color: '#7A5CFF', fontWeight: '900', fontSize: 12 },
+  warning: { color: '#FF6B73', fontWeight: '900', fontSize: 12 },
+  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 22, padding: 17, gap: 12 },
+  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '900', flexShrink: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  button: { backgroundColor: '#45e6bd', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
-  secondaryButton: { backgroundColor: 'transparent', borderColor: '#45e6bd', borderWidth: 1 },
-  buttonText: { color: '#052017', fontWeight: '900' },
-  secondaryButtonText: { color: '#45e6bd' },
+  button: { backgroundColor: '#7A5CFF', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
+  secondaryButton: { backgroundColor: 'transparent', borderColor: '#7A5CFF', borderWidth: 1 },
+  buttonText: { color: '#FFFFFF', fontWeight: '900' },
+  secondaryButtonText: { color: '#7A5CFF' },
   mutedButton: { opacity: 0.45 },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: { flex: 1, minWidth: 80, borderColor: '#25473b', borderWidth: 1, borderRadius: 13, paddingVertical: 10, alignItems: 'center' },
-  requestChip: { borderColor: '#25473b', borderWidth: 1, borderRadius: 13, paddingVertical: 9, paddingHorizontal: 11 },
-  segmentActive: { borderColor: '#45e6bd', backgroundColor: 'rgba(69,230,189,0.1)' },
-  segmentActiveText: { color: '#45e6bd', fontWeight: '900', fontSize: 12 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopColor: '#1c3a31', borderTopWidth: 1, paddingTop: 12 },
+  segment: { flex: 1, minWidth: 80, borderColor: '#30394E', borderWidth: 1, borderRadius: 13, paddingVertical: 10, alignItems: 'center' },
+  requestChip: { borderColor: '#30394E', borderWidth: 1, borderRadius: 13, paddingVertical: 9, paddingHorizontal: 11 },
+  segmentActive: { borderColor: '#7A5CFF', backgroundColor: 'rgba(69,230,189,0.1)' },
+  segmentActiveText: { color: '#7A5CFF', fontWeight: '900', fontSize: 12 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopColor: '#273044', borderTopWidth: 1, paddingTop: 12 },
   toggleCopy: { flex: 1, gap: 3 },
-  label: { color: '#f4fff9', fontWeight: '800' },
-  input: { minHeight: 86, backgroundColor: '#091914', borderColor: '#25473b', borderWidth: 1, borderRadius: 15, color: '#f4fff9', padding: 13, textAlignVertical: 'top' }
+  label: { color: '#F7F7FB', fontWeight: '800' },
+  input: { minHeight: 86, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 15, color: '#F7F7FB', padding: 13, textAlignVertical: 'top' }
 });
