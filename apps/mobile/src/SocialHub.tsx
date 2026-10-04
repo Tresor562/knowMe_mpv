@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
+import { Avatar, BrandMark, KnowMeIcon } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
   username: string;
   displayName: string;
   bio?: string | null;
+  avatarUrl?: string | null;
 };
 
 type Friend = { friendshipId: string; user: UserSummary };
@@ -48,8 +50,18 @@ export function SocialHub({ userId }: { userId: string }) {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>CONNEXIONS</Text>
-        <Text style={styles.heading}>Mon cercle</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerBrand}>
+            <BrandMark size={31} />
+            <View>
+              <Text style={styles.heading}>Messages</Text>
+              <Text style={styles.headerSub}>Ton cercle, en direct.</Text>
+            </View>
+          </View>
+          <View style={styles.headerIcon}>
+            <KnowMeIcon name="messages" size={22} color="#7A5CFF" />
+          </View>
+        </View>
         <View style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
             <Pressable
@@ -366,11 +378,7 @@ function NotificationsPanel({
 function Identity({ user }: { user: UserSummary }) {
   return (
     <View style={styles.identity}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {user.displayName.charAt(0).toUpperCase()}
-        </Text>
-      </View>
+      <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
         <Text style={styles.cardTitle}>{user.displayName}</Text>
         <Text style={styles.muted}>@{user.username}</Text>
@@ -439,14 +447,12 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#090C14' },
-  header: { paddingHorizontal: 20, paddingTop: 18, gap: 8 },
-  eyebrow: {
-    color: '#7A5CFF',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.5
-  },
-  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900' },
+  header: { paddingHorizontal: 18, paddingTop: 12, gap: 14 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
+  headerIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
   segmented: {
     flexDirection: 'row',
     backgroundColor: '#0D111B',
@@ -471,7 +477,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10
   },
-  unreadCard: { borderColor: '#7A5CFF', backgroundColor: '#123027' },
+  unreadCard: { borderColor: '#7A5CFF', backgroundColor: '#17152A' },
   cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
   sectionTitle: {
     color: '#F7F7FB',
@@ -502,14 +508,14 @@ const styles = StyleSheet.create({
   compactButton: { flex: 1 },
   actionText: { color: '#FFFFFF', fontWeight: '900' },
   secondaryButton: {
-    borderColor: '#315449',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  secondaryText: { color: '#d9ebe4', fontWeight: '800' },
+  secondaryText: { color: '#DCE2EC', fontWeight: '800' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
   identity: { flexDirection: 'row', gap: 12, alignItems: 'center' },
