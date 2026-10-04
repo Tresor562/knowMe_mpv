@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import {
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
+  localeDisplayName,
   parseAcceptLanguage,
   resolveTextDirection,
   type SupportedLocale
@@ -32,11 +33,12 @@ export class I18nService {
 
   catalog() {
     return {
-      contractVersion: 1,
+      contractVersion: 2,
       fallbackLocale: DEFAULT_LOCALE,
       supportedLocales: SUPPORTED_LOCALES.map((locale) => ({
         locale,
-        nativeName: locale === 'fr' ? 'Français' : 'English',
+        nativeName: localeDisplayName(locale, locale),
+        englishName: localeDisplayName(locale, 'en'),
         direction: resolveTextDirection(locale)
       })),
       serverMessagesAreFallbackOnly: true,
