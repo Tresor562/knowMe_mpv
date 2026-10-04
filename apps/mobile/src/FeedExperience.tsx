@@ -228,8 +228,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
         <Text style={styles.postText}>{post.content}</Text>
         <Text style={styles.muted}>{new Date(post.createdAt).toLocaleString('fr-FR')}</Text>
         <View style={styles.actionsRow}>
-          <ActionButton title={`♥ ${post._count.likes}`} onPress={() => void toggleLike()} />
-          <Text style={styles.muted}>💬 {post._count.comments}</Text>
+          <ActionButton title={`J’aime · ${post._count.likes}`} onPress={() => void toggleLike()} />
+          <Text style={styles.muted}>Commentaires · {post._count.comments}</Text>
           {post.authorId === userId && (
             <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
           )}
@@ -391,8 +391,8 @@ export function FeedExperience({ userId }: { userId: string }) {
           </View>
           <Text style={styles.postText}>{item.content}</Text>
           <View style={styles.actionsRow}>
-            <ActionButton title={`♥ ${item._count.likes}`} onPress={() => void like(item.id)} />
-            <Text style={styles.muted}>💬 {item._count.comments}</Text>
+            <ActionButton title={`J’aime · ${item._count.likes}`} onPress={() => void like(item.id)} />
+            <Text style={styles.muted}>Commentaires · {item._count.comments}</Text>
             <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString('fr-FR')}</Text>
           </View>
         </Pressable>

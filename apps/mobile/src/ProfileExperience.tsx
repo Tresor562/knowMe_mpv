@@ -180,17 +180,17 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       <View style={styles.badges}>
         {user.verification ? (
           <View style={styles.verificationBadge} accessibilityLabel={user.verification.label}>
-            <Text style={styles.verificationBadgeText}>✓ {user.verification.label}</Text>
+            <Text style={styles.verificationBadgeText}>VERIFIED · {user.verification.label}</Text>
           </View>
         ) : null}
         {user.premium ? (
           <View style={styles.premiumBadge} accessibilityLabel={user.premium.label}>
-            <Text style={styles.premiumBadgeText}>◆ {user.premium.label}</Text>
+            <Text style={styles.premiumBadgeText}>PREMIUM · {user.premium.label}</Text>
           </View>
         ) : null}
         {user.staff ? (
           <View style={styles.staffBadge} accessibilityLabel={`${user.staff.label}, ${user.staff.role}`}>
-            <Text style={styles.staffBadgeText}>🛡️ {user.staff.label} · {user.staff.role}</Text>
+            <Text style={styles.staffBadgeText}>STAFF · {user.staff.label} · {user.staff.role}</Text>
           </View>
         ) : null}
       </View>

@@ -351,7 +351,7 @@ function NotificationsPanel({
           style={[styles.card, !item.readAt && styles.unreadCard]}
         >
           <Text style={styles.cardTitle}>
-            {notificationIcon(item.type)} {item.title}
+            {item.title}
           </Text>
           <Text style={styles.muted}>{item.body}</Text>
           <Text style={styles.date}>
@@ -436,19 +436,6 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-function notificationIcon(type: string) {
-  return ({
-    FRIEND_REQUEST: '👥',
-    FRIEND_ACCEPTED: '🤝',
-    MESSAGE: '💬',
-    POST_LIKE: '♥',
-    POST_LIKED: '♥',
-    POST_COMMENT: '💬',
-    POST_COMMENTED: '💬',
-    CHALLENGE_JOIN: '🎯',
-    CHALLENGE_JOINED: '🎯'
-  } as Record<string, string>)[type] ?? '🔔';
-}
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#090C14' },
