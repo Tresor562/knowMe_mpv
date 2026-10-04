@@ -67,7 +67,7 @@ describe('MediaStorageService', () => {
       .mockResolvedValueOnce(new Response('', { status: 200 }));
     const storage = new MediaStorageService();
 
-    await expect(storage.put('asset-retry.webp', Buffer.from('private-media'), 'image/webp')).resolves.toBeUndefined();
+    await expect(storage.put('asset-retry.webp', Buffer.from('private-media'), 'image/webp')).resolves.toBe('asset-retry.webp');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
