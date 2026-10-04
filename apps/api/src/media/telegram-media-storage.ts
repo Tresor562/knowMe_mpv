@@ -67,7 +67,7 @@ export class TelegramMediaStorage {
 
     const form = new FormData();
     form.append('chat_id', config.chatId);
-    form.append('document', new Blob([body], { type: contentType || 'application/octet-stream' }), key);
+    form.append('document', new Blob([new Uint8Array(body)], { type: contentType || 'application/octet-stream' }), key);
     form.append('disable_notification', 'true');
     form.append('protect_content', 'true');
     form.append('caption', 'KnowMe private media');
