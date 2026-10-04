@@ -155,7 +155,7 @@ describe('MediaService account cleanup privacy boundary', () => {
     });
     prisma.mediaAsset.aggregate = jest.fn().mockResolvedValue({ _sum: { size: 0 } });
     prisma.mediaUploadSession.findFirst.mockResolvedValue(null);
-    storage.put.mockResolvedValue(undefined);
+    storage.put.mockResolvedValue('tg.provider-reference');
     storage.delete.mockResolvedValue(undefined);
     prisma.mediaAsset.create.mockResolvedValue({
       id: 'asset-1',
@@ -176,5 +176,8 @@ describe('MediaService account cleanup privacy boundary', () => {
 
     expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(storage.put.mock.invocationCallOrder[0]);
     expect(storage.put.mock.invocationCallOrder[0]).toBeLessThan(prisma.mediaAsset.create.mock.invocationCallOrder[0]);
+    expect(prisma.mediaAsset.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ storageKey: 'tg.provider-reference' })
+    });
   });
 });
