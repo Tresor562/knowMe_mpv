@@ -638,7 +638,7 @@ export function RealtimeMessagesPanel({
             onBlur={stopTyping}
             maxLength={2000}
             placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-            placeholderTextColor="#789187"
+            placeholderTextColor="#737E93"
             style={[styles.input, styles.composerInput]}
           />
           <ActionButton
@@ -877,49 +877,49 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   flex: { flex: 1 },
-  liveStatus: { color: '#45e6bd', fontSize: 12, fontWeight: '800' },
+  liveStatus: { color: '#7A5CFF', fontSize: 12, fontWeight: '800' },
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 22,
     padding: 16,
     gap: 10
   },
   unreadConversation: {
-    borderColor: '#45e6bd',
+    borderColor: '#7A5CFF',
     backgroundColor: '#123027'
   },
-  cardTitle: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
+  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
   sectionTitle: {
-    color: '#f4fff9',
+    color: '#F7F7FB',
     fontSize: 20,
     fontWeight: '900',
     marginTop: 8
   },
-  muted: { color: '#91a79e', lineHeight: 20 },
-  online: { color: '#45e6bd', lineHeight: 20, fontWeight: '700' },
+  muted: { color: '#929BAD', lineHeight: 20 },
+  online: { color: '#7A5CFF', lineHeight: 20, fontWeight: '700' },
   unreadPreview: { color: '#e7f7f0', fontWeight: '700' },
-  date: { color: '#789187', fontSize: 11 },
+  date: { color: '#737E93', fontSize: 11 },
   input: {
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 15,
-    color: '#f4fff9',
+    color: '#F7F7FB',
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 48
   },
   actionButton: {
-    backgroundColor: '#45e6bd',
+    backgroundColor: '#7A5CFF',
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { color: '#052017', fontWeight: '900' },
+  actionText: { color: '#FFFFFF', fontWeight: '900' },
   secondaryButton: {
     borderColor: '#315449',
     borderWidth: 1,
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
   secondaryText: { color: '#d9ebe4', fontWeight: '800' },
   disabled: { opacity: 0.45 },
   empty: {
-    backgroundColor: '#10231d',
+    backgroundColor: '#101521',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center'
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   friendChoices: { gap: 10 },
   friendChoice: {
     width: 84,
-    borderColor: '#25473b',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 18,
     padding: 10,
@@ -947,14 +947,14 @@ const styles = StyleSheet.create({
     gap: 6
   },
   friendChoiceActive: {
-    borderColor: '#45e6bd',
+    borderColor: '#7A5CFF',
     backgroundColor: '#123027'
   },
   friendAvatarWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1b3b31',
+    backgroundColor: '#171E2C',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
@@ -970,13 +970,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1b3b31',
+    backgroundColor: '#171E2C',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   nexusAvatar: { backgroundColor: '#253a3c', borderColor: '#776cff', borderWidth: 1 },
-  avatarText: { color: '#45e6bd', fontSize: 18, fontWeight: '900' },
+  avatarText: { color: '#7A5CFF', fontSize: 18, fontWeight: '900' },
   presenceDot: {
     position: 'absolute',
     right: -1,
@@ -985,15 +985,15 @@ const styles = StyleSheet.create({
     height: 13,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#10231d'
+    borderColor: '#101521'
   },
-  presenceOnline: { backgroundColor: '#45e6bd' },
+  presenceOnline: { backgroundColor: '#7A5CFF' },
   presenceOffline: { backgroundColor: '#607a70' },
   unreadBadge: {
     minWidth: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#ff9d66',
+    backgroundColor: '#FF6B73',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 7
@@ -1013,25 +1013,25 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   bubble: { maxWidth: '82%', padding: 12, borderRadius: 18, gap: 5 },
-  bubbleMine: { backgroundColor: '#45e6bd', alignSelf: 'flex-end' },
-  bubbleOther: { backgroundColor: '#10231d', alignSelf: 'flex-start' },
+  bubbleMine: { backgroundColor: '#7A5CFF', alignSelf: 'flex-end' },
+  bubbleOther: { backgroundColor: '#101521', alignSelf: 'flex-start' },
   bubbleNexus: {
     backgroundColor: '#17252a',
     borderColor: '#776cff',
     borderWidth: 1,
     alignSelf: 'flex-start'
   },
-  bubbleText: { color: '#f4fff9' },
-  bubbleMineText: { color: '#052017', fontWeight: '600' },
-  senderName: { color: '#45e6bd', fontWeight: '800', fontSize: 11 },
+  bubbleText: { color: '#F7F7FB' },
+  bubbleMineText: { color: '#FFFFFF', fontWeight: '600' },
+  senderName: { color: '#7A5CFF', fontWeight: '800', fontSize: 11 },
   bubbleDate: { color: '#607a70', fontSize: 9 },
   receipt: { color: '#315d50', fontSize: 9, fontWeight: '700' },
-  typing: { color: '#45e6bd', fontStyle: 'italic', paddingVertical: 8 },
+  typing: { color: '#7A5CFF', fontStyle: 'italic', paddingVertical: 8 },
   composer: {
     flexDirection: 'row',
     gap: 8,
     padding: 12,
-    borderTopColor: '#1c3a31',
+    borderTopColor: '#273044',
     borderTopWidth: 1
   },
   composerInput: { flex: 1 }
