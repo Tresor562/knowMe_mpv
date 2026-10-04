@@ -1,3 +1,4 @@
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'crypto';
 import { readFile } from 'fs/promises';
 
 const DEFAULT_BOT_TOKEN_FILE = '/var/lib/nex/runtime/public/nexaccount/nexai-storage-bot-token';
@@ -14,6 +15,7 @@ type TelegramConfig = {
   apiBase: URL;
   timeoutMs: number;
   maxBytes: number;
+  encryptionKey: Buffer;
 };
 
 type StoredTelegramReference = {
@@ -21,6 +23,8 @@ type StoredTelegramReference = {
   messageId: number;
   fileId: string;
   size: number;
+  iv: string;
+  tag: string;
 };
 
 export class TelegramMediaStorage {
@@ -65,12 +69,17 @@ export class TelegramMediaStorage {
       throw new Error('Telegram media object exceeds the configured safe download limit.');
     }
 
+    const encrypted = this.encrypt(body, config.encryptionKey);
     const form = new FormData();
     form.append('chat_id', config.chatId);
-    form.append('document', new Blob([new Uint8Array(body)], { type: contentType || 'application/octet-stream' }), key);
+    form.append(
+      'document',
+      new Blob([new Uint8Array(encrypted.body)], { type: 'application/octet-stream' }),
+      key + '.enc'
+    );
     form.append('disable_notification', 'true');
     form.append('protect_content', 'true');
-    form.append('caption', 'KnowMe private media');
+    form.append('caption', 'KnowMe encrypted media');
 
     const message = await this.botApi('sendDocument', form, Math.max(config.timeoutMs, 60_000));
     const stored = message?.document ?? message?.video ?? message?.audio ?? message?.animation ?? null;
@@ -88,7 +97,9 @@ export class TelegramMediaStorage {
       v: 1,
       messageId,
       fileId,
-      size: Number(stored?.file_size || body.length)
+      size: body.length,
+      iv: encrypted.iv.toString('base64url'),
+      tag: encrypted.tag.toString('base64url')
     });
   }
 
@@ -112,12 +123,25 @@ export class TelegramMediaStorage {
       throw new Error(`Telegram media download failed with HTTP ${response.status}.`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (!buffer.length) throw new Error('Telegram media download returned an empty object.');
-    if (buffer.length > config.maxBytes) {
+    const encrypted = Buffer.from(await response.arrayBuffer());
+    if (!encrypted.length) throw new Error('Telegram media download returned an empty object.');
+    if (encrypted.length > config.maxBytes) {
       throw new Error('Telegram media object exceeds the configured safe download limit.');
     }
-    return buffer;
+    try {
+      const plain = this.decrypt(
+        encrypted,
+        config.encryptionKey,
+        Buffer.from(stored.iv, 'base64url'),
+        Buffer.from(stored.tag, 'base64url')
+      );
+      if (plain.length !== stored.size) {
+        throw new Error('size mismatch');
+      }
+      return plain;
+    } catch {
+      throw new Error('Telegram media decryption failed.');
+    }
   }
 
   async delete(storageKey: string) {
@@ -244,7 +268,8 @@ export class TelegramMediaStorage {
         .replace(/^@/, ''),
       apiBase,
       timeoutMs,
-      maxBytes
+      maxBytes,
+      encryptionKey: this.resolveEncryptionKey()
     };
     return this.config;
   }
@@ -280,20 +305,61 @@ export class TelegramMediaStorage {
       const messageId = Number(decoded?.messageId || 0);
       const fileId = String(decoded?.fileId || '');
       const size = Number(decoded?.size || 0);
+      const iv = String(decoded?.iv || '');
+      const tag = String(decoded?.tag || '');
       if (
         decoded?.v !== 1 ||
         !Number.isSafeInteger(messageId) ||
         messageId <= 0 ||
         !/^[A-Za-z0-9_-]{10,1024}$/.test(fileId) ||
         !Number.isSafeInteger(size) ||
-        size < 0
+        size < 0 ||
+        !/^[A-Za-z0-9_-]+$/.test(iv) ||
+        !/^[A-Za-z0-9_-]+$/.test(tag) ||
+        Buffer.from(iv, 'base64url').length !== 12 ||
+        Buffer.from(tag, 'base64url').length !== 16
       ) {
         throw new Error('invalid');
       }
-      return { v: 1, messageId, fileId, size };
+      return { v: 1, messageId, fileId, size, iv, tag };
     } catch {
       throw new Error('Invalid Telegram media storage key.');
     }
+  }
+
+  private resolveEncryptionKey() {
+    const dedicated = String(process.env.MEDIA_TELEGRAM_ENCRYPTION_KEY || '').trim();
+    if (dedicated) {
+      if (/^[a-fA-F0-9]{64}$/.test(dedicated)) return Buffer.from(dedicated, 'hex');
+      try {
+        const decoded = Buffer.from(dedicated, 'base64');
+        if (decoded.length === 32) return decoded;
+      } catch {
+        // Fall through to a fixed configuration error.
+      }
+      throw new Error('MEDIA_TELEGRAM_ENCRYPTION_KEY must encode exactly 32 bytes.');
+    }
+
+    const root = String(process.env.ACCOUNT_SECURITY_ENCRYPTION_KEY || '').trim();
+    if (!root) {
+      throw new Error('MEDIA_TELEGRAM_ENCRYPTION_KEY is required when Telegram media storage is enabled.');
+    }
+    return createHmac('sha256', root)
+      .update('knowme:telegram-media-storage:v1')
+      .digest();
+  }
+
+  private encrypt(body: Buffer, key: Buffer) {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(body), cipher.final()]);
+    return { body: encrypted, iv, tag: cipher.getAuthTag() };
+  }
+
+  private decrypt(body: Buffer, key: Buffer, iv: Buffer, tag: Buffer) {
+    const decipher = createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(body), decipher.final()]);
   }
 
   private fileUrl(config: TelegramConfig, filePath: string) {
