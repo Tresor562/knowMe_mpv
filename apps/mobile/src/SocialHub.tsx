@@ -205,7 +205,7 @@ function FriendsPanel({
           value={query}
           onChangeText={setQuery}
           placeholder="Nom ou pseudo"
-          placeholderTextColor="#789187"
+          placeholderTextColor="#737E93"
           style={styles.input}
           autoCapitalize="none"
         />
@@ -451,18 +451,18 @@ function notificationIcon(type: string) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#071410' },
+  root: { flex: 1, backgroundColor: '#090C14' },
   header: { paddingHorizontal: 20, paddingTop: 18, gap: 8 },
   eyebrow: {
-    color: '#45e6bd',
+    color: '#7A5CFF',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.5
   },
-  heading: { color: '#f4fff9', fontSize: 30, fontWeight: '900' },
+  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900' },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#0b1d17',
+    backgroundColor: '#0D111B',
     borderRadius: 14,
     padding: 4
   },
@@ -472,48 +472,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 11
   },
-  segmentActive: { backgroundColor: '#1b3b31' },
-  segmentText: { color: '#789187', fontWeight: '700', fontSize: 12 },
-  segmentTextActive: { color: '#f4fff9' },
+  segmentActive: { backgroundColor: '#171E2C' },
+  segmentText: { color: '#737E93', fontWeight: '700', fontSize: 12 },
+  segmentTextActive: { color: '#F7F7FB' },
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   card: {
-    backgroundColor: '#10231d',
-    borderColor: '#1c3a31',
+    backgroundColor: '#101521',
+    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 22,
     padding: 16,
     gap: 10
   },
-  unreadCard: { borderColor: '#45e6bd', backgroundColor: '#123027' },
-  cardTitle: { color: '#f4fff9', fontSize: 17, fontWeight: '800' },
+  unreadCard: { borderColor: '#7A5CFF', backgroundColor: '#123027' },
+  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
   sectionTitle: {
-    color: '#f4fff9',
+    color: '#F7F7FB',
     fontSize: 20,
     fontWeight: '900',
     marginTop: 8
   },
-  muted: { color: '#91a79e', lineHeight: 20 },
-  bio: { color: '#b6c8c0', marginTop: 4 },
-  date: { color: '#789187', fontSize: 11 },
+  muted: { color: '#929BAD', lineHeight: 20 },
+  bio: { color: '#B8C0CE', marginTop: 4 },
+  date: { color: '#737E93', fontSize: 11 },
   input: {
-    backgroundColor: '#091914',
-    borderColor: '#25473b',
+    backgroundColor: '#0D111B',
+    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 15,
-    color: '#f4fff9',
+    color: '#F7F7FB',
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 48
   },
   actionButton: {
-    backgroundColor: '#45e6bd',
+    backgroundColor: '#7A5CFF',
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { color: '#052017', fontWeight: '900' },
+  actionText: { color: '#FFFFFF', fontWeight: '900' },
   secondaryButton: {
     borderColor: '#315449',
     borderWidth: 1,
@@ -531,13 +531,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1b3b31',
+    backgroundColor: '#171E2C',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  avatarText: { color: '#45e6bd', fontSize: 18, fontWeight: '900' },
+  avatarText: { color: '#7A5CFF', fontSize: 18, fontWeight: '900' },
   empty: {
-    backgroundColor: '#10231d',
+    backgroundColor: '#101521',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center'
