@@ -128,6 +128,7 @@ export class MediaService {
     const scan = await this.scan(file.buffer, detectedMime);
     const status = scan.verdict === 'CLEAN' ? 'AVAILABLE' : 'QUARANTINED';
     const storageKey = `${randomUUID()}${EXTENSIONS[detectedMime]}`;
+    let persistedStorageKey = storageKey;
     const consumedAt = new Date();
 
     try {
@@ -166,11 +167,11 @@ export class MediaService {
             throw new ConflictException('Cette session d’upload a déjà été consommée.');
           }
 
-          await this.storage.put(storageKey, file.buffer, detectedMime);
+          persistedStorageKey = await this.storage.put(storageKey, file.buffer, detectedMime);
           return tx.mediaAsset.create({
             data: {
               ownerId: userId,
-              storageKey,
+              storageKey: persistedStorageKey,
               originalName: this.safeName(file.originalname),
               declaredMime: file.mimetype.toLowerCase(),
               detectedMime,
@@ -207,7 +208,7 @@ export class MediaService {
       });
       return this.publicAsset(asset);
     } catch (error) {
-      await this.storage.delete(storageKey).catch(() => undefined);
+      await this.storage.delete(persistedStorageKey).catch(() => undefined);
       throw error;
     }
   }
