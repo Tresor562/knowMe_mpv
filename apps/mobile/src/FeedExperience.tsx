@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { Avatar, BrandMark, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
   id: string;
@@ -222,7 +223,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
 
       <View style={styles.card}>
         <View style={styles.authorRow}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{post.author.displayName.charAt(0).toUpperCase()}</Text></View>
+          <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
           <View style={styles.flex}><Text style={styles.title}>{post.author.displayName}</Text><Text style={styles.muted}>@{post.author.username}</Text></View>
         </View>
         <Text style={styles.postText}>{post.content}</Text>
@@ -256,7 +257,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
         return (
           <View key={comment.id} style={styles.commentCard}>
             <View style={styles.authorRow}>
-              <View style={styles.smallAvatar}><Text style={styles.smallAvatarText}>{comment.author.displayName.charAt(0).toUpperCase()}</Text></View>
+              <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
               <View style={styles.flex}><Text style={styles.title}>{comment.author.displayName}</Text><Text style={styles.muted}>@{comment.author.username}</Text></View>
               {canDelete && (
                 <ActionButton
@@ -365,9 +366,19 @@ export function FeedExperience({ userId }: { userId: string }) {
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <Text style={styles.eyebrow}>ACTIVITÉ</Text>
-          <Text style={styles.heading}>Fil KnowMe</Text>
-          <View style={styles.card}>
+          <View style={styles.discoverHeader}>
+            <View style={styles.discoverBrand}>
+              <BrandMark size={30} />
+              <View>
+                <Text style={styles.heading}>Discover</Text>
+                <Text style={styles.discoverSub}>Le monde KnowMe, sans bruit inutile.</Text>
+              </View>
+            </View>
+            <View style={styles.discoverIcon}>
+              <KnowMeIcon name="discover" size={22} color="#7A5CFF" />
+            </View>
+          </View>
+          <View style={[styles.card, styles.composerCard]}>
             <TextInput
               multiline
               maxLength={1000}
@@ -377,16 +388,19 @@ export function FeedExperience({ userId }: { userId: string }) {
               placeholderTextColor="#737E93"
               style={styles.input}
             />
-            <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
+            <View style={styles.composerFooter}>
+              <Text style={styles.composerHint}>{content.length}/1000</Text>
+              <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
+            </View>
           </View>
         </View>
       )}
       ListEmptyComponent={<View style={styles.card}><Text style={styles.title}>Le fil est calme</Text><Text style={styles.muted}>Sois la première personne à partager quelque chose.</Text></View>}
       ListFooterComponent={hasMore ? <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus de publications'} disabled={loadingMore} onPress={() => void loadMore()} /> : null}
       renderItem={({ item }) => (
-        <Pressable onPress={() => setSelectedPostId(item.id)} style={styles.card}>
+        <Pressable onPress={() => setSelectedPostId(item.id)} style={[styles.card, styles.postCard]}>
           <View style={styles.authorRow}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{item.author.displayName.charAt(0).toUpperCase()}</Text></View>
+            <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
             <View style={styles.flex}><Text style={styles.title}>{item.author.displayName}</Text><Text style={styles.muted}>@{item.author.username}</Text></View>
           </View>
           <Text style={styles.postText}>{item.content}</Text>
@@ -403,19 +417,27 @@ export function FeedExperience({ userId }: { userId: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 14 },
-  headerBlock: { gap: 12, marginBottom: 2 },
+  headerBlock: { gap: 14, marginBottom: 4 },
+  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  discoverSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
+  discoverIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  composerCard: { padding: 14, borderRadius: 20 },
+  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  composerHint: { color: '#737E93', fontSize: 11 },
+  postCard: { borderRadius: 22 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900', marginTop: 4 },
+  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
   sectionTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginTop: 4 },
   card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  commentCard: { backgroundColor: '#0d1f19', borderColor: '#273044', borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
+  commentCard: { backgroundColor: '#0D111B', borderColor: '#273044', borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   flex: { flex: 1 },
   title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
-  postText: { color: '#e4f2ec', fontSize: 17, lineHeight: 25 },
-  commentText: { color: '#d5e8df', fontSize: 15, lineHeight: 22 },
+  postText: { color: '#E8ECF4', fontSize: 17, lineHeight: 25 },
+  commentText: { color: '#DCE2EC', fontSize: 15, lineHeight: 22 },
   muted: { color: '#929BAD' },
   date: { color: '#929BAD', marginLeft: 'auto' },
   input: { minHeight: 56, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
