@@ -2,8 +2,9 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
+import { TelegramMediaStorage } from './telegram-media-storage';
 
-export type MediaStorageDriver = 'local' | 's3';
+export type MediaStorageDriver = 'local' | 's3' | 'telegram';
 
 type S3Config = {
   endpoint: URL;
@@ -21,6 +22,7 @@ export class MediaStorageService implements OnModuleInit {
   private readonly localRoot = join(process.cwd(), 'private-media');
   private readonly driver = this.resolveDriver(process.env.MEDIA_STORAGE_DRIVER);
   private readonly s3 = this.driver === 's3' ? this.resolveS3Config(process.env) : null;
+  private readonly telegram = this.driver === 'telegram' ? new TelegramMediaStorage() : null;
 
   async onModuleInit() {
     if (this.driver === 'local') {
@@ -28,6 +30,10 @@ export class MediaStorageService implements OnModuleInit {
         throw new Error('MEDIA_STORAGE_DRIVER=local is forbidden in production. Configure private S3-compatible object storage.');
       }
       await mkdir(this.localRoot, { recursive: true });
+      return;
+    }
+    if (this.driver === 'telegram') {
+      await this.telegram!.init();
     }
   }
 
@@ -35,14 +41,17 @@ export class MediaStorageService implements OnModuleInit {
     this.assertSafeKey(key);
     if (this.driver === 'local') {
       await writeFile(this.localPath(key), body, { flag: 'wx' });
-      return;
+      return key;
     }
+    if (this.driver === 'telegram') return this.telegram!.put(key, body, contentType);
     await this.s3Request('PUT', key, body, contentType);
+    return key;
   }
 
   async get(key: string) {
     this.assertSafeKey(key);
     if (this.driver === 'local') return readFile(this.localPath(key));
+    if (this.driver === 'telegram') return this.telegram!.get(key);
     const response = await this.s3Request('GET', key);
     return Buffer.from(await response.arrayBuffer());
   }
@@ -51,6 +60,10 @@ export class MediaStorageService implements OnModuleInit {
     this.assertSafeKey(key);
     if (this.driver === 'local') {
       await rm(this.localPath(key), { force: true });
+      return;
+    }
+    if (this.driver === 'telegram') {
+      await this.telegram!.delete(key);
       return;
     }
     await this.s3Request('DELETE', key, undefined, undefined, true);
@@ -63,8 +76,8 @@ export class MediaStorageService implements OnModuleInit {
   private resolveDriver(value: string | undefined): MediaStorageDriver {
     const normalized = value?.trim().toLowerCase();
     if (!normalized) return 'local';
-    if (normalized === 'local' || normalized === 's3') return normalized;
-    throw new Error('MEDIA_STORAGE_DRIVER must be either "local" or "s3".');
+    if (normalized === 'local' || normalized === 's3' || normalized === 'telegram') return normalized;
+    throw new Error('MEDIA_STORAGE_DRIVER must be "local", "s3" or "telegram".');
   }
 
   private resolveS3Config(env: NodeJS.ProcessEnv): S3Config {
