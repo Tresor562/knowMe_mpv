@@ -188,7 +188,7 @@ export class TelegramMediaStorage {
   ) {
     const config = await this.getConfig();
     const isForm = payload instanceof FormData;
-    const endpoint = new URL(`bot${config.token}/${method}`, this.ensureTrailingSlash(config.apiBase));
+    const endpoint = new URL(`./bot${config.token}/${method}`, this.ensureTrailingSlash(config.apiBase));
     const attempts = 4;
     let lastNetworkError: unknown = null;
 
