@@ -59,7 +59,8 @@ describe('TelegramMediaStorage', () => {
         });
       }
       if (url.includes('/file/bot') && url.endsWith('/documents/file_1.bin')) {
-        return new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 });
+        if (!uploadedBytes) throw new Error('Encrypted upload bytes missing');
+        return new Response(new Uint8Array(uploadedBytes), { status: 200 });
       }
       if (url.endsWith('/deleteMessage')) {
         return telegramJson(true);
