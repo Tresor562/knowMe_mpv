@@ -375,10 +375,14 @@ export function localeDisplayName(
   displayLocale: SupportedLocale = DEFAULT_LOCALE
 ) {
   try {
-    const ui = displayLocale === 'fr' || displayLocale === 'en' ? displayLocale : 'en';
-    const names = new Intl.DisplayNames([ui], { type: 'language' });
+    const names = new Intl.DisplayNames([displayLocale], { type: 'language' });
     return names.of(locale) || locale;
   } catch {
-    return locale;
+    try {
+      const fallback = new Intl.DisplayNames(['en'], { type: 'language' });
+      return fallback.of(locale) || locale;
+    } catch {
+      return locale;
+    }
   }
 }
