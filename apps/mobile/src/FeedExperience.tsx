@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -227,6 +228,13 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
           <View style={styles.flex}><Text style={styles.title}>{post.author.displayName}</Text><Text style={styles.muted}>@{post.author.username}</Text></View>
         </View>
         <Text style={styles.postText}>{post.content}</Text>
+        {post.imageUrl ? (
+          <Image
+            source={{ uri: post.imageUrl }}
+            style={styles.postImage}
+            resizeMode="cover"
+          />
+        ) : null}
         <Text style={styles.muted}>{new Date(post.createdAt).toLocaleString('fr-FR')}</Text>
         <View style={styles.actionsRow}>
           <ActionButton title={`J’aime · ${post._count.likes}`} onPress={() => void toggleLike()} />
@@ -404,6 +412,13 @@ export function FeedExperience({ userId }: { userId: string }) {
             <View style={styles.flex}><Text style={styles.title}>{item.author.displayName}</Text><Text style={styles.muted}>@{item.author.username}</Text></View>
           </View>
           <Text style={styles.postText}>{item.content}</Text>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.postImage}
+              resizeMode="cover"
+            />
+          ) : null}
           <View style={styles.actionsRow}>
             <ActionButton title={`J’aime · ${item._count.likes}`} onPress={() => void like(item.id)} />
             <Text style={styles.muted}>Commentaires · {item._count.comments}</Text>
@@ -436,7 +451,8 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   flex: { flex: 1 },
   title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
-  postText: { color: '#E8ECF4', fontSize: 17, lineHeight: 25 },
+  postText: { color: '#E8ECF4', fontSize: 16.5, lineHeight: 24 },
+  postImage: { width: '100%', aspectRatio: 1.2, borderRadius: 18, backgroundColor: '#171E2C' },
   commentText: { color: '#DCE2EC', fontSize: 15, lineHeight: 22 },
   muted: { color: '#929BAD' },
   date: { color: '#929BAD', marginLeft: 'auto' },
