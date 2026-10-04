@@ -32,8 +32,8 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate mobile TypeScript
-        run: pnpm --filter @knowme/mobile build
+      - name: Build mobile workspace dependencies and validate TypeScript
+        run: pnpm --filter @knowme/mobile... build
 
       - name: Generate Android project
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean --no-install
