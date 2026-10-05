@@ -111,6 +111,16 @@ function humanizeSecurityEvent(value: string) {
     .replace(/^./, (letter) => letter.toLocaleUpperCase());
 }
 
+function platformLabel(value?: string | null) {
+  if (!value) return 'Appareil inconnu';
+  const normalized = value.toUpperCase();
+  if (normalized === 'IOS') return 'iOS';
+  if (normalized === 'ANDROID') return 'Android';
+  if (normalized === 'WEB') return 'Web';
+  if (normalized === 'DESKTOP') return 'Ordinateur';
+  return humanizeSecurityEvent(value);
+}
+
 export function SecurityExperience({ onSessionClosed }: {
   onSessionClosed: () => Promise<void>;
 }) {
@@ -380,7 +390,7 @@ export function SecurityExperience({ onSessionClosed }: {
           <View key={device.id} style={[styles.row, { borderBottomColor: colors.border }]}>
             <View style={styles.rowText}>
               <Text style={[styles.rowTitle, { color: colors.text }]}>{device.label}</Text>
-              <Text style={[styles.helper, { color: colors.muted }]}>{device.platform || 'UNKNOWN'} · {device.active ? 'actif' : 'révoqué/expiré'}</Text>
+              <Text style={[styles.helper, { color: colors.muted }]}>{platformLabel(device.platform)} · {device.active ? 'actif' : 'révoqué/expiré'}</Text>
               <Text style={[styles.helper, { color: colors.muted }]}>Jusqu’au {date(device.trustedUntil)}</Text>
             </View>
             {device.active ? (
