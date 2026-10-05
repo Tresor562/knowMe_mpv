@@ -13,8 +13,10 @@ import {
   AppearanceUpdateInput,
   fetchAppearance,
   loadCachedAppearance,
+  MobileChatStyle,
   MobileThemePalette,
   MobileVisualStyle,
+  resolveMobileChatStyle,
   resolveMobilePalette,
   resolveMobileVisualStyle,
   updateAppearance
@@ -25,6 +27,7 @@ type AppearanceContextValue = {
   appearance: AppearanceResponse | null;
   colors: MobileThemePalette;
   visual: MobileVisualStyle;
+  chat: MobileChatStyle;
   loading: boolean;
   busy: boolean;
   refresh: () => Promise<AppearanceResponse | null>;
@@ -45,6 +48,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   );
   const visual = useMemo(
     () => resolveMobileVisualStyle(appearance),
+    [appearance]
+  );
+  const chat = useMemo(
+    () => resolveMobileChatStyle(appearance),
     [appearance]
   );
 
@@ -90,8 +97,8 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ appearance, colors, visual, loading, busy, refresh, update }),
-    [appearance, colors, visual, loading, busy, refresh, update]
+    () => ({ appearance, colors, visual, chat, loading, busy, refresh, update }),
+    [appearance, colors, visual, chat, loading, busy, refresh, update]
   );
 
   return (
