@@ -2,7 +2,7 @@ name: KnowMe APK Build Once
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/knowme-chat-wallpaper-system]
     paths:
       - '.github/workflows/knowme-apk-build-once.yml'
       - 'apps/mobile/**'
