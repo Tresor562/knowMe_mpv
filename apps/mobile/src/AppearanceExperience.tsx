@@ -16,6 +16,7 @@ import {
   MobileThemePalette
 } from './appearance';
 import { useAppearance } from './AppearanceProvider';
+import { ChatWallpaper } from './ui/KnowMeUI';
 
 const CATEGORY_LABELS: Record<string, string> = {
   ALL: 'Tout',
@@ -177,7 +178,7 @@ function ToggleOption({
 }
 
 export function AppearanceExperience() {
-  const { appearance, colors, visual, loading, busy, refresh, update } = useAppearance();
+  const { appearance, colors, visual, chat, loading, busy, refresh, update } = useAppearance();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('ALL');
   const [tier, setTier] = useState<'ALL' | 'FREE' | 'PREMIUM'>('ALL');
@@ -246,6 +247,57 @@ export function AppearanceExperience() {
           </Text>
         </View>
       ) : null}
+
+      <View
+        style={[
+          styles.chatPreview,
+          {
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            borderRadius: visual.cardRadius
+          }
+        ]}
+      >
+        <ChatWallpaper />
+        <View style={styles.chatPreviewHeader}>
+          <Text style={[styles.chatPreviewTitle, { color: colors.text }]}>Aperçu du chat</Text>
+          <Text style={[styles.chatPreviewMeta, { color: colors.muted }]}>
+            {appearance.themes.find((theme) => theme.key === preference.effectiveThemeKey)?.name ?? 'KnowMe'}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.previewBubble,
+            styles.previewBubbleIncoming,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: chat.bubbleBorderWidth,
+              borderRadius: visual.bubbleRadius
+            }
+          ]}
+        >
+          <Text style={[styles.previewBubbleText, { color: colors.text }]}>
+            Le thème change aussi le fond et les bulles.
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.previewBubble,
+            styles.previewBubbleOutgoing,
+            {
+              backgroundColor: colors.accent,
+              borderColor: colors.accent,
+              borderWidth: chat.bubbleBorderWidth,
+              borderRadius: visual.bubbleRadius
+            }
+          ]}
+        >
+          <Text style={[styles.previewBubbleText, { color: colors.accentText }]}>
+            Pas seulement les couleurs.
+          </Text>
+        </View>
+      </View>
 
       <TextInput
         value={query}
@@ -527,6 +579,41 @@ export function AppearanceExperience() {
 }
 
 const styles = StyleSheet.create({
+  chatPreview: {
+    minHeight: 220,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 16,
+    gap: 10,
+    position: 'relative'
+  },
+  chatPreviewHeader: {
+    marginBottom: 12
+  },
+  chatPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  chatPreviewMeta: {
+    fontSize: 11,
+    marginTop: 2
+  },
+  previewBubble: {
+    maxWidth: '82%',
+    paddingHorizontal: 13,
+    paddingVertical: 10
+  },
+  previewBubbleIncoming: {
+    alignSelf: 'flex-start'
+  },
+  previewBubbleOutgoing: {
+    alignSelf: 'flex-end'
+  },
+  previewBubbleText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600'
+  },
   card: { borderWidth: 1, borderRadius: 24, padding: 18, gap: 16 },
   loadingText: { textAlign: 'center' },
   eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
