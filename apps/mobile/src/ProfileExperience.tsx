@@ -357,17 +357,16 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
                   color: colors.text
                 }
               ]} />
-            <TextInput value={avatarUrl} onChangeText={setAvatarUrl} autoCapitalize="none" keyboardType="url" placeholder="URL HTTPS de l’avatar" placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]} />
-            <Text style={[styles.helper, { color: colors.muted }]}>Le nom doit contenir au moins 2 caractères. L’avatar doit utiliser une URL valide.</Text>
+            <View style={styles.editAvatarRow}>
+              <Avatar uri={user.avatarUrl} name={displayName || user.displayName} size={46} />
+              <View style={styles.flex}>
+                <Text style={[styles.editAvatarTitle, { color: colors.text }]}>Photo de profil</Text>
+                <Text style={[styles.helper, { color: colors.muted }]}>
+                  La photo actuelle est conservée. La sélection locale remplacera l’ancien champ URL dans la prochaine étape média.
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.helper, { color: colors.muted }]}>Le nom doit contenir au moins 2 caractères.</Text>
             <Button title={saving ? 'Enregistrement…' : 'Enregistrer'} disabled={saving || displayName.trim().length < 2} onPress={() => void save()} />
           </View>
         ) : null}
@@ -580,11 +579,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </View>
         </View>
 
-        <View style={styles.accountMeta}>
-          <Text style={[styles.accountMetaText, { color: colors.muted }]}>{user.email}</Text>
-          <Text style={[styles.accountMetaDot, { color: colors.border }]}>·</Text>
-          <Text style={[styles.accountMetaText, { color: colors.muted }]} numberOfLines={1}>ID {user.accountId ?? user.id}</Text>
-        </View>
         </GlassSurface>
       </FadeRise>
 
@@ -708,25 +702,25 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
-  panelContent: { padding: 16, paddingBottom: 42, gap: 14 },
-  panelHeader: { minHeight: 60, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
-  backButton: { minHeight: 42, borderRadius: 21, borderWidth: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  backButtonText: { fontSize: 12, fontWeight: '800' },
-  panelTitle: { fontSize: 22, fontWeight: '900', flex: 1 },
-  content: { padding: 16, paddingBottom: 42, gap: 14 },
-  profileHero: { overflow: 'hidden', paddingBottom: 18 },
-  cover: { height: 132, position: 'relative', overflow: 'hidden', padding: 18, justifyContent: 'flex-end' },
+  panelContent: { padding: 16, paddingBottom: 30, gap: 12 },
+  panelHeader: { minHeight: 52, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  backButton: { minHeight: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backButtonText: { fontSize: 11.5, fontWeight: '700' },
+  panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
+  content: { padding: 16, paddingBottom: 30, gap: 12 },
+  profileHero: { overflow: 'hidden', paddingBottom: 14 },
+  cover: { height: 104, position: 'relative', overflow: 'hidden', padding: 14, justifyContent: 'flex-end' },
   coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, opacity: 0.22, right: -40, top: -72 },
   coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, opacity: 0.14, left: -30, bottom: -75 },
   coverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   coverBrandTitle: { fontSize: 17, fontWeight: '900' },
   coverBrandSub: { fontSize: 10.5, marginTop: 1 },
-  profileAvatarRow: { marginTop: -43, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'flex-end' },
-  profileActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 14 },
-  profileActionPress: { flex: 1, borderRadius: 21 },
-  profileAction: { minHeight: 42, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  profileActionText: { fontSize: 11.5, fontWeight: '800' },
-  heading: { fontSize: 28, fontWeight: '900', paddingHorizontal: 18, marginTop: 12, letterSpacing: -0.6 },
+  profileAvatarRow: { marginTop: -36, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
+  profileActions: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 11 },
+  profileActionPress: { flex: 1, borderRadius: 18 },
+  profileAction: { minHeight: 38, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  profileActionText: { fontSize: 10.5, fontWeight: '700' },
+  heading: { fontSize: 24, fontWeight: '800', paddingHorizontal: 16, marginTop: 10, letterSpacing: -0.5 },
   handle: { fontWeight: '800', paddingHorizontal: 18, marginTop: 3 },
   bio: { fontSize: 14, lineHeight: 20, paddingHorizontal: 18, marginTop: 11 },
   bioMuted: { fontSize: 13, lineHeight: 19, paddingHorizontal: 18, marginTop: 11 },
@@ -735,30 +729,29 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingHorizontal: 18, marginTop: 13 },
   identityBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   identityBadgeText: { fontWeight: '900', fontSize: 11.5 },
-  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 15 },
-  stat: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 11, minWidth: 0 },
-  statValue: { fontSize: 16, fontWeight: '900', marginBottom: 3 },
-  statLabel: { fontSize: 9.5, fontWeight: '700' },
-  accountMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, marginTop: 13 },
-  accountMetaText: { fontSize: 10.5, flexShrink: 1 },
-  accountMetaDot: { fontSize: 12 },
+  statsRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 12 },
+  stat: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 9, minWidth: 0 },
+  statValue: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  statLabel: { fontSize: 9, fontWeight: '600' },
   profileMenuSection: { gap: 9 },
-  profileMenuHeading: { fontSize: 20, fontWeight: '900', marginTop: 4, marginBottom: 2 },
+  profileMenuHeading: { fontSize: 18, fontWeight: '800', marginTop: 3, marginBottom: 1 },
   profileGroupLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginTop: 8, marginLeft: 4 },
   profileMenuGroup: { overflow: 'hidden' },
   profileMenuPress: { width: '100%' },
-  profileMenuRow: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  profileMenuDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64, marginRight: 12 },
-  profileMenuIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  profileMenuTitle: { fontSize: 14, fontWeight: '900' },
-  profileMenuText: { fontSize: 10.5, lineHeight: 15, marginTop: 2 },
-  card: { borderWidth: 1, borderRadius: 26, padding: 18, gap: 12 },
-  cardTitle: { fontSize: 19, fontWeight: '900' },
+  profileMenuRow: { minHeight: 60, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  profileMenuDivider: { height: StyleSheet.hairlineWidth, marginLeft: 58, marginRight: 11 },
+  profileMenuIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  profileMenuTitle: { fontSize: 13.5, fontWeight: '800' },
+  profileMenuText: { fontSize: 10, lineHeight: 14, marginTop: 1 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 11 },
+  cardTitle: { fontSize: 17.5, fontWeight: '800' },
   description: { fontSize: 15, lineHeight: 22 },
   helper: { fontSize: 12, lineHeight: 18 },
-  input: { minHeight: 52, borderWidth: 1, borderRadius: 28, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
-  multiline: { minHeight: 100 },
-  button: { borderRadius: 22, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14.5, textAlignVertical: 'top' },
+  multiline: { minHeight: 84 },
+  editAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 3 },
+  editAvatarTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  button: { borderRadius: 20, paddingVertical: 12, paddingHorizontal: 15, alignItems: 'center' },
   buttonText: { fontWeight: '900' },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 1 },
   secondaryButtonText: {},
