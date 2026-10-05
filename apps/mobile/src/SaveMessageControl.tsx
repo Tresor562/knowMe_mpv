@@ -8,7 +8,7 @@ type SavedMessagesResponse = {
 };
 
 export function SaveMessageControl({ messageId }: { messageId: string }) {
-  const { colors, visual } = useAppearance();
+  const { colors } = useAppearance();
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
