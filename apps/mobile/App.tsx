@@ -263,17 +263,13 @@ function AuthScreen({
         </View>
 
         <FadeRise style={styles.authHero}>
-          <View
-            style={[
-              styles.authLogoHalo,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
+          <GlassSurface
+            strength="soft"
+            borderRadius={32}
+            style={styles.authLogoHalo}
           >
             <BrandMark size={66} />
-          </View>
+          </GlassSurface>
           <Text style={[styles.authTitle, { color: colors.text }]}>
             {t('auth.welcome')}
           </Text>
@@ -847,14 +843,12 @@ function CreateHub({
         <View style={styles.createSheetWrap}>
           <Pressable
             onPress={(event) => event.stopPropagation()}
-            style={[
-              styles.createSheet,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border
-              }
-            ]}
           >
+            <GlassSurface
+              strength="strong"
+              borderRadius={30}
+              style={styles.createSheet}
+            >
             <View style={styles.sheetHandleWrap}>
               <View
                 style={[
@@ -942,6 +936,7 @@ function CreateHub({
                 <KnowMeIcon name="arrow" size={18} color={colors.muted} />
               </PressScale>
             </View>
+            </GlassSurface>
           </Pressable>
         </View>
       </Pressable>
