@@ -21,7 +21,7 @@ import {
 import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 import { SavedMessagesExperience } from './SavedMessagesExperience';
-import { GlassSurface } from './ui/KnowMeUI';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Conversation = {
   id: string;
@@ -200,27 +200,30 @@ export function MessagesOrganizationExperience({
   const mutedStyle = [styles.muted, { color: colors.muted }];
   const cardStyle = [
     styles.card,
-    { backgroundColor: colors.surface, borderColor: colors.border }
+    { backgroundColor: colors.surfaceGlass, borderColor: colors.border }
   ];
 
   if (organizationConversationId) {
     return (
       <View style={rootStyle}>
         <View style={styles.toolbar}>
-          <Pressable
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Retour à Organisation"
             onPress={() => setOrganizationConversationId(null)}
-            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+            style={[styles.iconButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
           >
-            <Text style={secondaryTextStyle}>← Organisation</Text>
-          </Pressable>
-          <Pressable
+            <KnowMeIcon name="back" size={18} color={colors.text} />
+          </PressScale>
+          <Text style={[styles.toolbarTitle, { color: colors.text }]}>Organisation</Text>
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Fermer Organisation"
             onPress={closeOrganization}
-            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+            style={[styles.iconButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
           >
-            <Text style={secondaryTextStyle}>Messages</Text>
-          </Pressable>
+            <KnowMeIcon name="close" size={18} color={colors.text} />
+          </PressScale>
         </View>
         <ConversationOrganizationDetail
           conversationId={organizationConversationId}
@@ -235,20 +238,23 @@ export function MessagesOrganizationExperience({
     return (
       <View style={rootStyle}>
         <View style={styles.toolbarPadded}>
-          <Pressable
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Retour à Organisation"
             onPress={() => setOrganizationTool(null)}
-            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+            style={[styles.iconButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
           >
-            <Text style={secondaryTextStyle}>← Organisation</Text>
-          </Pressable>
-          <Pressable
+            <KnowMeIcon name="back" size={18} color={colors.text} />
+          </PressScale>
+          <Text style={[styles.toolbarTitle, { color: colors.text }]}>Organisation</Text>
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Fermer Organisation"
             onPress={closeOrganization}
-            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+            style={[styles.iconButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
           >
-            <Text style={secondaryTextStyle}>Messages</Text>
-          </Pressable>
+            <KnowMeIcon name="close" size={18} color={colors.text} />
+          </PressScale>
         </View>
 
         {organizationTool === 'folders' ? (
@@ -296,52 +302,54 @@ export function MessagesOrganizationExperience({
     return (
       <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
         <View style={styles.toolbar}>
-          <Pressable
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Retour aux Messages"
             onPress={closeOrganization}
-            style={({ pressed }) => [secondaryButtonStyle, pressed && styles.pressed]}
+            style={[styles.iconButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
           >
-            <Text style={secondaryTextStyle}>← Messages</Text>
-          </Pressable>
-          <Pressable
+            <KnowMeIcon name="back" size={18} color={colors.text} />
+          </PressScale>
+          <View style={styles.toolbarCopy}>
+            <Text style={[styles.heading, { color: colors.text }]}>Organisation</Text>
+            <Text style={[styles.toolbarSub, { color: colors.muted }]}>Privée et personnelle</Text>
+          </View>
+          <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Actualiser"
             disabled={loading}
             onPress={() => void loadOrganization()}
-            style={({ pressed }) => [
-              secondaryButtonStyle,
-              (pressed || loading) && styles.pressed
+            style={[
+              styles.iconButton,
+              { backgroundColor: colors.backgroundAccent, borderColor: colors.border },
+              loading && styles.pressed
             ]}
           >
-            <Text style={secondaryTextStyle}>Actualiser</Text>
-          </Pressable>
+            <KnowMeIcon name="refresh" size={18} color={colors.text} />
+          </PressScale>
         </View>
 
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>ORGANISATION PRIVÉE</Text>
-        <Text style={[styles.heading, { color: colors.text }]}>Organiser mes conversations</Text>
         <Text style={mutedStyle}>
-          Ces outils restent personnels : ils n’ajoutent aucun droit d’accès et ne modifient pas les conversations des autres membres.
+          Dossiers, archives, épingles et brouillons restent visibles uniquement par toi.
         </Text>
 
         {overview ? (
-          <View style={styles.overviewGrid}>
+          <GlassSurface strength="soft" borderRadius={20} style={styles.overviewStrip}>
             {[
-              ['Conversations', overview.conversations],
+              ['Chats', overview.conversations],
               ['Dossiers', overview.folders],
               ['Archives', overview.archives],
               ['Épingles', overview.pins],
               ['Brouillons', overview.drafts]
             ].map(([label, count]) => (
-              <View
-                key={String(label)}
-                style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
+              <View key={String(label)} style={styles.overviewMetric}>
                 <Text style={[styles.overviewCount, { color: colors.text }]}>
                   {count === null ? '—' : String(count)}
                 </Text>
                 <Text style={[styles.overviewLabel, { color: colors.muted }]}>{String(label)}</Text>
               </View>
             ))}
-          </View>
+          </GlassSurface>
         ) : null}
 
         {overviewWarning ? (
@@ -349,17 +357,32 @@ export function MessagesOrganizationExperience({
         ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Outils personnels</Text>
-        {organizationTools.map((tool) => (
-          <Pressable
-            accessibilityRole="button"
-            key={tool.id}
-            onPress={() => setOrganizationTool(tool.id)}
-            style={({ pressed }) => [cardStyle, pressed && styles.pressed]}
-          >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{tool.title}</Text>
-            <Text style={mutedStyle}>{tool.description}</Text>
-          </Pressable>
-        ))}
+        <GlassSurface strength="soft" borderRadius={20} style={styles.toolGroup}>
+          {organizationTools.map((tool, index) => (
+            <Pressable
+              accessibilityRole="button"
+              key={tool.id}
+              onPress={() => setOrganizationTool(tool.id)}
+              style={({ pressed }) => [styles.toolRow, pressed && styles.pressed]}
+            >
+              <View style={[styles.toolIcon, { backgroundColor: colors.backgroundAccent }]}>
+                <KnowMeIcon
+                  name={tool.id === 'search' ? 'search' : tool.id === 'saved' ? 'heart' : 'settings'}
+                  size={18}
+                  color={tool.id === 'search' ? colors.accent : tool.id === 'saved' ? colors.secondary : colors.text}
+                />
+              </View>
+              <View style={styles.toolCopy}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{tool.title}</Text>
+                <Text style={mutedStyle} numberOfLines={1}>{tool.description}</Text>
+              </View>
+              <KnowMeIcon name="arrow" size={16} color={colors.muted} />
+              {index < organizationTools.length - 1 ? (
+                <View style={[styles.toolDivider, { backgroundColor: colors.border }]} />
+              ) : null}
+            </Pressable>
+          ))}
+        </GlassSurface>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Par conversation</Text>
         <Text style={mutedStyle}>
@@ -398,7 +421,7 @@ export function MessagesOrganizationExperience({
   return (
     <View style={rootStyle}>
       <View style={styles.entrypoint}>
-        <GlassSurface strength="soft" borderRadius={22}>
+        <GlassSurface strength="soft" borderRadius={20}>
           <Pressable
             accessibilityRole="button"
             onPress={openOrganization}
@@ -407,7 +430,11 @@ export function MessagesOrganizationExperience({
               pressed && styles.pressed
             ]}
           >
-            <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
+            <View style={[styles.organizationIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="settings" size={17} color={colors.accent} />
+            </View>
+            <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organiser mes messages</Text>
+            <KnowMeIcon name="arrow" size={16} color={colors.muted} />
           </Pressable>
         </GlassSurface>
       </View>
@@ -425,47 +452,53 @@ export function MessagesOrganizationExperience({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   messages: { flex: 1 },
-  entrypoint: { paddingHorizontal: 20, paddingTop: 10 },
+  entrypoint: { paddingHorizontal: 14, paddingTop: 8 },
   organizationButton: {
-    borderRadius: 22,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    alignItems: 'center'
+    minHeight: 46,
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
   },
-  organizationButtonText: { fontWeight: '800' },
-  content: { padding: 20, paddingBottom: 40, gap: 12 },
-  toolbar: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  toolbarPadded: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
+  organizationIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  organizationButtonText: { flex: 1, fontSize: 12.5, fontWeight: '700' },
+  content: { padding: 14, paddingBottom: 30, gap: 10 },
+  toolbar: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  toolbarPadded: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingTop: 8 },
   secondaryButton: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 13
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 12
   },
+  iconButton: { width: 38, height: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  toolbarTitle: { flex: 1, fontSize: 16, fontWeight: '800' },
+  toolbarCopy: { flex: 1 },
+  toolbarSub: { fontSize: 10.5, marginTop: 1 },
   secondaryText: { fontWeight: '800' },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.4 },
-  heading: { fontSize: 28, fontWeight: '900' },
-  sectionTitle: { fontSize: 16, fontWeight: '900', marginTop: 6 },
-  muted: { lineHeight: 20 },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  heading: { fontSize: 18, fontWeight: '800' },
+  sectionTitle: { fontSize: 15, fontWeight: '800', marginTop: 5 },
+  muted: { fontSize: 11.5, lineHeight: 16.5 },
   warning: { lineHeight: 20, fontStyle: 'italic' },
   error: { lineHeight: 20 },
-  overviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  overviewCard: {
-    minWidth: 96,
-    flexGrow: 1,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14
-  },
-  overviewCount: { fontSize: 20, fontWeight: '900' },
-  overviewLabel: { marginTop: 2, fontSize: 12, fontWeight: '700' },
+  overviewStrip: { flexDirection: 'row', padding: 5 },
+  overviewMetric: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  overviewCount: { fontSize: 14, fontWeight: '800' },
+  overviewLabel: { marginTop: 1, fontSize: 8.5, fontWeight: '600', textAlign: 'center' },
   card: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
-    gap: 6
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 19,
+    padding: 12,
+    gap: 5
   },
-  cardTitle: { fontSize: 17, fontWeight: '800' },
+  toolGroup: { overflow: 'hidden' },
+  toolRow: { minHeight: 58, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 9, position: 'relative' },
+  toolIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  toolCopy: { flex: 1 },
+  toolDivider: { position: 'absolute', height: StyleSheet.hairlineWidth, left: 53, right: 10, bottom: 0 },
+  cardTitle: { fontSize: 13, fontWeight: '800' },
   pressed: { opacity: 0.72 }
 });
