@@ -428,22 +428,33 @@ export function VerificationExperience({
         </GlassSurface>
       ) : null}
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique</Text>
       {requests.map((item) => (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]} key={item.id}>
+        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card} key={item.id}>
           <View style={styles.rowBetween}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Demande #{item.submissionNumber}</Text>
-            <Text style={[item.status === 'APPROVED' ? styles.verified : styles.warning, { color: item.status === 'APPROVED' ? colors.accent : colors.danger }]}>
-              {item.status}
+            <Text
+              style={[
+                styles.statusText,
+                {
+                  color:
+                    item.status === 'APPROVED'
+                      ? colors.accent
+                      : ['SUBMITTED', 'UNDER_REVIEW'].includes(item.status)
+                        ? colors.secondary
+                        : colors.muted
+                }
+              ]}
+            >
+              {verificationStatusLabel(item.status)}
             </Text>
           </View>
           <Text style={[styles.description, { color: colors.muted }]}>
-            Soumise le {new Date(item.submittedAt).toLocaleString('fr-FR')} · {item.evidenceCount}{' '}
-            référence(s)
+            {new Date(item.submittedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} · {item.evidenceCount} preuve(s)
           </Text>
           {item.expiresAt ? (
             <Text style={[styles.description, { color: colors.muted }]}>
-              Échéance : {new Date(item.expiresAt).toLocaleString('fr-FR')}
+              Valide jusqu’au {new Date(item.expiresAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
             </Text>
           ) : null}
           {item.decisionReason ? (
@@ -451,33 +462,70 @@ export function VerificationExperience({
           ) : null}
           {item.evidence.map((evidence) => (
             <View key={evidence.id} style={[styles.evidence, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
-              <Text style={[styles.evidenceTitle, { color: colors.text }]}>
-                {evidence.type} · {evidence.provider}
-              </Text>
-              <Text selectable style={[styles.code, { color: colors.muted }]}>{evidence.opaqueReference}</Text>
-              <Text selectable style={[styles.code, { color: colors.muted }]}>{evidence.digest}</Text>
+              <KnowMeIcon name="check" size={16} color={colors.accent} />
+              <View style={styles.evidenceCopy}>
+                <Text style={[styles.evidenceTitle, { color: colors.text }]}>Preuve sécurisée enregistrée</Text>
+                <Text style={[styles.helper, { color: colors.muted }]}>{evidence.provider}</Text>
+              </View>
             </View>
           ))}
           {item.decisions.map((decision) => (
             <Text key={decision.id} style={[styles.timeline, { color: colors.muted }]}>
-              {new Date(decision.createdAt).toLocaleString('fr-FR')} · {decision.action} ·{' '}
-              {decision.reason}
+              {new Date(decision.createdAt).toLocaleDateString()} · {decisionLabel(decision.action)} · {decision.reason}
             </Text>
           ))}
           {['SUBMITTED', 'UNDER_REVIEW'].includes(item.status) ? (
-            <Button
-              title="Retirer la demande"
-              secondary
-              disabled={busy}
-              onPress={() => confirmWithdraw(item)}
-            />
+            withdrawTargetId === item.id ? (
+              <View style={styles.withdrawBox}>
+                <TextInput
+                  value={withdrawReason}
+                  onChangeText={setWithdrawReason}
+                  maxLength={500}
+                  placeholder="Pourquoi veux-tu retirer cette demande ?"
+                  placeholderTextColor={colors.muted}
+                  selectionColor={colors.accent}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.backgroundAccent,
+                      borderColor: colors.border,
+                      color: colors.text,
+                      borderRadius: visual.inputRadius
+                    }
+                  ]}
+                />
+                <View style={styles.withdrawActions}>
+                  <Button
+                    title="Annuler"
+                    secondary
+                    disabled={busy}
+                    onPress={() => {
+                      setWithdrawTargetId(null);
+                      setWithdrawReason('');
+                    }}
+                  />
+                  <Button
+                    title={busy ? 'Retrait…' : 'Confirmer le retrait'}
+                    disabled={busy || withdrawReason.trim().length < 3}
+                    onPress={() => void withdraw(item, withdrawReason.trim())}
+                  />
+                </View>
+              </View>
+            ) : (
+              <Button
+                title="Retirer la demande"
+                secondary
+                disabled={busy}
+                onPress={() => confirmWithdraw(item)}
+              />
+            )
           ) : null}
-        </View>
+        </GlassSurface>
       ))}
       {!requests.length ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
           <Text style={[styles.description, { color: colors.muted }]}>Aucune demande enregistrée.</Text>
-        </View>
+        </GlassSurface>
       ) : null}
     </ScrollView>
   );
