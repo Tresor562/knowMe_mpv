@@ -101,7 +101,6 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
   secondary?: boolean;
 }) {
   const { colors, visual } = useAppearance();
-  const { locale } = useI18n();
   return (
     <Pressable
       accessibilityRole="button"
@@ -125,6 +124,7 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
 
 export function PrivacyExperience() {
   const { colors, visual } = useAppearance();
+  const { locale } = useI18n();
   const [center, setCenter] = useState<PrivacyCenter | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
