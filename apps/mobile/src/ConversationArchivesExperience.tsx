@@ -33,7 +33,7 @@ export function ConversationArchivesExperience({
   currentUserId: string;
   onOpenConversation?: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [archives, setArchives] = useState<Archive[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export function ConversationArchivesExperience({
           {archives.map((archiveItem) => (
             <View
               key={archiveItem.conversationId}
-              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
             >
               <View style={styles.cardCopy}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>
@@ -181,7 +181,7 @@ export function ConversationArchivesExperience({
                     onPress={() => onOpenConversation(archiveItem.conversationId)}
                     style={[
                       styles.secondary,
-                      { borderColor: colors.border },
+                      { borderColor: colors.border, borderRadius: visual.controlRadius },
                       busyId !== null && styles.disabled
                     ]}
                   >
@@ -193,7 +193,7 @@ export function ConversationArchivesExperience({
                   onPress={() => void restore(archiveItem.conversationId)}
                   style={[
                     styles.primary,
-                    { backgroundColor: colors.accent },
+                    { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
                     busyId !== null && styles.disabled
                   ]}
                 >
@@ -210,7 +210,7 @@ export function ConversationArchivesExperience({
           {conversations.filter((conversation) => !archivedIds.has(conversation.id)).map((conversation) => (
             <View
               key={conversation.id}
-              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
             >
               <Pressable
                 disabled={!onOpenConversation || busyId !== null}
@@ -224,7 +224,7 @@ export function ConversationArchivesExperience({
                 onPress={() => void archive(conversation.id)}
                 style={[
                   styles.secondary,
-                  { borderColor: colors.border },
+                  { borderColor: colors.border, borderRadius: visual.controlRadius },
                   busyId !== null && styles.disabled
                 ]}
               >
