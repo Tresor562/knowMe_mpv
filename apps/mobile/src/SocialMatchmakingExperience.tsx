@@ -582,6 +582,7 @@ function SmallInput({
   placeholder: string;
   colors: { text: string; muted: string; border: string };
 }) {
+  const { colors: themeColors, visual } = useAppearance();
   return (
     <TextInput
       value={value}
@@ -589,7 +590,7 @@ function SmallInput({
       keyboardType="number-pad"
       placeholder={placeholder}
       placeholderTextColor={colors.muted}
-      style={[styles.smallInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
+      style={[styles.smallInput, { color: colors.text, borderColor: colors.border, backgroundColor: themeColors.backgroundAccent, borderRadius: visual.inputRadius }]}
     />
   );
 }
