@@ -27,7 +27,7 @@ type ReactionEvent = {
 };
 
 export function MessageReactionControl({ messageId }: { messageId: string }) {
-  const { colors, visual } = useAppearance();
+  const { colors } = useAppearance();
   const [snapshot, setSnapshot] = useState<ReactionSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
