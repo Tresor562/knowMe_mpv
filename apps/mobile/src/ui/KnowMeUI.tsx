@@ -474,7 +474,7 @@ export function FadeRise({
   distance?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { appearance } = useAppearance();
+  const { appearance, visual } = useAppearance();
   const enabled = appearance?.preference.animationsEnabled !== false;
   const progress = useRef(new Animated.Value(enabled ? 0 : 1)).current;
 
@@ -485,12 +485,12 @@ export function FadeRise({
     }
     Animated.timing(progress, {
       toValue: 1,
-      duration: 280,
+      duration: visual.transitionDuration,
       delay,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true
     }).start();
-  }, [delay, enabled, progress]);
+  }, [delay, enabled, progress, visual.transitionDuration]);
 
   return (
     <Animated.View
