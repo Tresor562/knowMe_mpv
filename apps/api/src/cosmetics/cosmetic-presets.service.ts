@@ -53,6 +53,7 @@ export class CosmeticPresetsService {
       hiddenSlotsRespected: true,
       unavailableItemsPruned: true,
       validated3DAssetsRequired: true,
+      avatarFrameUses2DAsset: true,
       maxItems: COSMETIC_SLOTS.length,
       supportedSlots: COSMETIC_SLOTS
     };
@@ -66,12 +67,13 @@ export class CosmeticPresetsService {
     return item.active && item.startsAt <= now && (!item.endsAt || item.endsAt > now);
   }
 
-  private isAvatarSlot(slot: string) {
-    return AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]);
+  private requires3dAvatarAsset(slot: string) {
+    return slot !== 'AVATAR_FRAME' &&
+      AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]);
   }
 
   private isRuntimeAssetReady(item: RuntimeAssetCandidate) {
-    if (!this.isAvatarSlot(item.slot)) return true;
+    if (!this.requires3dAvatarAsset(item.slot)) return true;
     if (!item.avatarAssetManifest || !item.assetValidatedAt || !item.assetUrl) return false;
     try {
       const manifest = validateAvatarAssetManifest(
