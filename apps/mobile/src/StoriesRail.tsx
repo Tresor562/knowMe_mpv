@@ -182,7 +182,7 @@ export function StoriesRail({
           </Text>
         </PressScale>
 
-        {stories.slice(0, 12).map((story) => (
+        {stories.filter((story) => !story.viewer.own).slice(0, 12).map((story) => (
           <PressScale
             key={story.id}
             onPress={() => void openStory(story)}
