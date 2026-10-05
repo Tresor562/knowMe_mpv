@@ -195,8 +195,6 @@ export function MessagesOrganizationExperience({
   }
 
   const rootStyle = [styles.root, { backgroundColor: colors.background }];
-  const secondaryButtonStyle = [styles.secondaryButton, { borderColor: colors.border }];
-  const secondaryTextStyle = [styles.secondaryText, { color: colors.text }];
   const mutedStyle = [styles.muted, { color: colors.muted }];
   const cardStyle = [
     styles.card,
