@@ -2,6 +2,7 @@ import {
   HERO_AVATAR_EXPRESSIONS,
   HERO_AVATAR_KEY,
   HERO_AVATAR_REQUIRED_VIEWS,
+  HeroAvatarProductionContract,
   validateHeroAvatarProductionContract,
 } from './hero-avatar.domain';
 import {
@@ -34,12 +35,12 @@ function body(): AvatarAssetManifest {
   };
 }
 
-function contract() {
+function contract(): HeroAvatarProductionContract {
   return {
     contractVersion: 1 as const,
     heroKey: HERO_AVATAR_KEY,
     baseBody: body(),
-    referenceViews: Object.fromEntries(HERO_AVATAR_REQUIRED_VIEWS.map(v => [v, `https://cdn.knowme.test/hero/reference/${v}.webp`])) as any,
+    referenceViews: Object.fromEntries(HERO_AVATAR_REQUIRED_VIEWS.map(v => [v, `https://cdn.knowme.test/hero/reference/${v}.webp`])) as HeroAvatarProductionContract['referenceViews'],
     expressions: [...HERO_AVATAR_EXPRESSIONS],
     skeletonKey: AVATAR_CANONICAL_SKELETON,
     facialRigKey: AVATAR_CANONICAL_FACIAL_RIG,
