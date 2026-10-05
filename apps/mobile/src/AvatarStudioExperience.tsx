@@ -18,22 +18,24 @@ import {
   MobileAvatarManifest,
   MobileAvatarStudioState
 } from './avatar-studio';
+import { useAppearance } from './AppearanceProvider';
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
 function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
+  const { colors, visual } = useAppearance();
   const visibleLayers = manifest.layers.filter((layer) => layer.item);
   return (
-    <View style={styles.preview} accessibilityLabel="Aperçu de l’avatar composé">
+    <View style={[styles.preview, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: Math.max(visual.cardRadius, 30) }]} accessibilityLabel="Aperçu de l’avatar composé">
       {visibleLayers.length === 0 && manifest.legacyAvatarUrl ? (
         <Image source={{ uri: manifest.legacyAvatarUrl }} style={styles.legacyAvatar} />
       ) : null}
       {visibleLayers.length === 0 && !manifest.legacyAvatarUrl ? (
         <View style={styles.fallback}>
-          <Text style={styles.fallbackInitials}>{manifest.fallback.initials}</Text>
-          <Text style={styles.fallbackToken}>{manifest.fallback.paletteToken}</Text>
+          <Text style={[styles.fallbackInitials, { color: colors.text }]}>{manifest.fallback.initials}</Text>
+          <Text style={[styles.fallbackToken, { color: colors.muted }]}>{manifest.fallback.paletteToken}</Text>
         </View>
       ) : null}
       {visibleLayers.map((layer) => (
@@ -50,6 +52,7 @@ function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
 }
 
 export function AvatarStudioExperience() {
+  const { colors, visual } = useAppearance();
   const [studio, setStudio] = useState<MobileAvatarStudioState | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -110,11 +113,11 @@ export function AvatarStudioExperience() {
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Studio d’avatar</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.title, { color: colors.text }]}>Studio d’avatar</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
             Assemble uniquement les couches présentes dans ton inventaire KnowMe. Le serveur valide
             chaque équipement et résout l’ordre de rendu.
           </Text>
@@ -122,49 +125,54 @@ export function AvatarStudioExperience() {
         <Pressable
           disabled={refreshing}
           onPress={() => void load(true)}
-          style={({ pressed }) => [styles.refresh, (pressed || refreshing) && styles.mutedButton]}
+          style={({ pressed }) => [
+            styles.refresh,
+            { borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius },
+            (pressed || refreshing) && styles.mutedButton
+          ]}
         >
-          <Text style={styles.refreshText}>{refreshing ? '…' : '↻'}</Text>
+          <Text style={[styles.refreshText, { color: colors.accent }]}>{refreshing ? '…' : '↻'}</Text>
         </Pressable>
       </View>
 
-      {status ? <Text style={styles.status}>{status}</Text> : null}
+      {status ? <Text style={[styles.status, { color: colors.accent }]}>{status}</Text> : null}
 
       {loading || !studio ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#7A5CFF" />
-          <Text style={styles.muted}>Chargement du rendu autoritaire…</Text>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={[styles.muted, { color: colors.muted }]}>Chargement du rendu autoritaire…</Text>
         </View>
       ) : (
         <>
           <AvatarPreview manifest={studio.manifest} />
-          <Text style={styles.profileName}>{studio.profile.displayName}</Text>
-          <Text style={styles.handle}>@{studio.profile.username}</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{studio.profile.displayName}</Text>
+          <Text style={[styles.handle, { color: colors.accent }]}>@{studio.profile.username}</Text>
 
           {MOBILE_AVATAR_LAYER_SLOTS.map((slot) => {
             const items = inventoryBySlot.get(slot) ?? [];
             const equipped = studio.equipment.find((entry) => entry.slot === slot)?.item ?? null;
             return (
-              <View key={slot} style={styles.layerSection}>
+              <View key={slot} style={[styles.layerSection, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
                 <View style={styles.layerHeader}>
                   <View style={styles.layerTitleBox}>
-                    <Text style={styles.layerTitle}>{MOBILE_AVATAR_LAYER_LABELS[slot]}</Text>
-                    <Text style={styles.muted}>{slot}</Text>
+                    <Text style={[styles.layerTitle, { color: colors.text }]}>{MOBILE_AVATAR_LAYER_LABELS[slot]}</Text>
+                    <Text style={[styles.muted, { color: colors.muted }]}>{slot}</Text>
                   </View>
                   <Pressable
                     disabled={!equipped || busySlot !== null}
                     onPress={() => void equip(slot, null)}
                     style={({ pressed }) => [
                       styles.removeButton,
+                      { borderColor: colors.danger, borderRadius: visual.controlRadius },
                       (pressed || !equipped || busySlot !== null) && styles.mutedButton
                     ]}
                   >
-                    <Text style={styles.removeButtonText}>Retirer</Text>
+                    <Text style={[styles.removeButtonText, { color: colors.danger }]}>Retirer</Text>
                   </Pressable>
                 </View>
 
                 {items.length === 0 ? (
-                  <Text style={styles.muted}>Aucun objet compatible dans l’inventaire.</Text>
+                  <Text style={[styles.muted, { color: colors.muted }]}>Aucun objet compatible dans l’inventaire.</Text>
                 ) : (
                   <ScrollView
                     horizontal
@@ -180,19 +188,23 @@ export function AvatarStudioExperience() {
                           onPress={() => void equip(slot, entry.item.id)}
                           style={({ pressed }) => [
                             styles.itemCard,
-                            selected && styles.itemSelected,
+                            {
+                              backgroundColor: colors.surface,
+                              borderColor: selected ? colors.accent : colors.border,
+                              borderRadius: visual.controlRadius
+                            },
                             (pressed || busySlot !== null) && styles.mutedButton
                           ]}
                         >
                           <Image
                             source={{ uri: entry.item.previewUrl ?? entry.item.assetUrl }}
-                            style={styles.itemImage}
+                            style={[styles.itemImage, { backgroundColor: colors.backgroundAccent }]}
                             resizeMode="contain"
                           />
-                          <Text style={styles.itemName} numberOfLines={1}>
+                          <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
                             {entry.item.name}
                           </Text>
-                          <Text style={[styles.itemRarity, selected && styles.selectedText]}>
+                          <Text style={[styles.itemRarity, { color: selected ? colors.accent : colors.muted }]}>
                             {selected ? 'Équipé' : entry.item.rarity}
                           </Text>
                         </Pressable>
@@ -204,7 +216,7 @@ export function AvatarStudioExperience() {
             );
           })}
 
-          <Text style={styles.policy}>
+          <Text style={[styles.policy, { color: colors.muted }]}>
             Aucun upload arbitraire · aucune couche non possédée · aucun effet de jeu · visibilité
             publique régie par les paramètres cosmétiques.
           </Text>
@@ -216,38 +228,30 @@ export function AvatarStudioExperience() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#101521',
-    borderColor: '#273044',
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 18,
+        borderWidth: 1,
+        padding: 18,
     gap: 14
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerText: { flex: 1, gap: 8 },
-  title: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
-  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
+  title: { fontSize: 19, fontWeight: '900' },
+  description: { fontSize: 14, lineHeight: 21 },
   refresh: {
     width: 42,
     height: 42,
-    borderRadius: 14,
-    borderColor: '#30394E',
-    borderWidth: 1,
+        borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { color: '#7A5CFF', fontSize: 22, fontWeight: '900' },
+  refreshText: { fontSize: 22, fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  status: { color: '#7A5CFF', fontSize: 13, lineHeight: 19 },
+  status: { fontSize: 13, lineHeight: 19 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  muted: { color: '#929BAD', fontSize: 12 },
+  muted: { fontSize: 12 },
   preview: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 30,
     overflow: 'hidden',
-    backgroundColor: '#0D111B',
-    borderColor: '#30394E',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -255,44 +259,36 @@ const styles = StyleSheet.create({
   },
   legacyAvatar: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', gap: 6 },
-  fallbackInitials: { color: '#F7F7FB', fontSize: 72, fontWeight: '900' },
-  fallbackToken: { color: '#737E93', fontSize: 11 },
+  fallbackInitials: { fontSize: 72, fontWeight: '900' },
+  fallbackToken: { fontSize: 11 },
   layer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
-  profileName: { color: '#F7F7FB', fontWeight: '900', fontSize: 18 },
-  handle: { color: '#7A5CFF', fontWeight: '800' },
+  profileName: { fontWeight: '900', fontSize: 18 },
+  handle: { fontWeight: '800' },
   layerSection: {
-    backgroundColor: '#0D111B',
-    borderColor: '#30394E',
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 13,
+        borderWidth: 1,
+        padding: 13,
     gap: 12
   },
   layerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   layerTitleBox: { flex: 1, gap: 3 },
-  layerTitle: { color: '#F7F7FB', fontWeight: '900' },
+  layerTitle: { fontWeight: '900' },
   removeButton: {
-    borderColor: '#FF6B73',
     borderWidth: 1,
-    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8
   },
-  removeButtonText: { color: '#FF6B73', fontWeight: '900', fontSize: 11 },
+  removeButtonText: { fontWeight: '900', fontSize: 11 },
   itemStrip: { gap: 10 },
   itemCard: {
     width: 116,
-    backgroundColor: '#101521',
-    borderColor: '#273044',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 10,
+        borderWidth: 1,
+        padding: 10,
     gap: 6
   },
-  itemSelected: { borderColor: '#7A5CFF' },
-  itemImage: { width: '100%', aspectRatio: 1, backgroundColor: '#0D111B', borderRadius: 12 },
-  itemName: { color: '#F7F7FB', fontWeight: '800', fontSize: 12 },
-  itemRarity: { color: '#929BAD', fontSize: 10 },
-  selectedText: { color: '#7A5CFF' },
-  policy: { color: '#737E93', fontSize: 11, lineHeight: 17 }
+  itemSelected: {},
+  itemImage: { width: '100%', aspectRatio: 1, borderRadius: 12 },
+  itemName: { fontWeight: '800', fontSize: 12 },
+  itemRarity: { fontSize: 10 },
+  selectedText: {},
+  policy: { fontSize: 11, lineHeight: 17 }
 });
