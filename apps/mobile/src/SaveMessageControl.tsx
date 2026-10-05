@@ -8,7 +8,7 @@ type SavedMessagesResponse = {
 };
 
 export function SaveMessageControl({ messageId }: { messageId: string }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ export function SaveMessageControl({ messageId }: { messageId: string }) {
         onPress={() => void toggle()}
         style={[
           styles.button,
-          { borderColor: saved ? colors.accent : colors.border },
+          { borderColor: saved ? colors.accent : colors.border, borderRadius: 999 },
           saved && { backgroundColor: colors.surfaceRaised },
           (busy || loading) && styles.disabled
         ]}
