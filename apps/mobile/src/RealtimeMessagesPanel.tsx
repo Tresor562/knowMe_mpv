@@ -936,8 +936,9 @@ function SecondaryButton({
 }
 
 function Empty({ text }: { text: string }) {
+  const { colors } = useAppearance();
   return (
-    <View style={styles.empty}>
+    <View style={[styles.empty, { backgroundColor: colors.surface }]}>
       <Text style={[styles.muted, { color: colors.muted }]}>{text}</Text>
     </View>
   );
