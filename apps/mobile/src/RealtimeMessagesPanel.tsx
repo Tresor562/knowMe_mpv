@@ -104,7 +104,7 @@ export function RealtimeMessagesPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -602,6 +602,7 @@ export function RealtimeMessagesPanel({
               <View
                 style={[
                   styles.bubble,
+                  { borderRadius: visual.bubbleRadius },
                   mine
                     ? [styles.bubbleMine, { backgroundColor: colors.accent }]
                     : nexus
@@ -667,6 +668,7 @@ export function RealtimeMessagesPanel({
             style={[
               styles.input,
               styles.composerInput,
+              { borderRadius: visual.inputRadius },
               {
                 backgroundColor: colors.backgroundAccent,
                 borderColor: colors.border,
