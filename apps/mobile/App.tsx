@@ -121,9 +121,11 @@ function PrimaryButton({
 }
 
 function AuthScreen({
-  onAuthenticated
+  onAuthenticated,
+  onBack
 }: {
   onAuthenticated: () => Promise<void>;
+  onBack?: () => void;
 }) {
   const { colors } = useAppearance();
   const { locale, setLocalLocale, refresh: refreshLocale, syncLocale, t } = useI18n();
@@ -257,9 +259,27 @@ function AuthScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.authTopRow}>
-          <View style={styles.brandInline}>
-            <BrandMark size={32} />
-            <Text style={[styles.brandInlineText, { color: colors.text }]}>KnowMe</Text>
+          <View style={styles.authTopLeft}>
+            {onBack ? (
+              <PressScale
+                accessibilityRole="button"
+                accessibilityLabel="Retour"
+                onPress={onBack}
+                style={[
+                  styles.authBack,
+                  {
+                    backgroundColor: colors.surfaceGlass,
+                    borderColor: colors.border
+                  }
+                ]}
+              >
+                <KnowMeIcon name="back" size={19} color={colors.text} strokeWidth={1.9} />
+              </PressScale>
+            ) : null}
+            <View style={styles.brandInline}>
+              <BrandMark size={30} />
+              <Text style={[styles.brandInlineText, { color: colors.text }]}>KnowMe</Text>
+            </View>
           </View>
           <View style={styles.authLanguage}>
             <LanguagePicker
@@ -276,7 +296,7 @@ function AuthScreen({
             borderRadius={32}
             style={styles.authLogoHalo}
           >
-            <BrandMark size={66} />
+            <BrandMark size={50} />
           </GlassSurface>
           <Text style={[styles.authTitle, { color: colors.text }]}>
             {t('auth.welcome')}
@@ -287,7 +307,7 @@ function AuthScreen({
         </FadeRise>
 
         <FadeRise delay={70}>
-          <GlassSurface style={styles.authCard} strength="strong" borderRadius={30}>
+          <GlassSurface style={styles.authCard} strength="medium" borderRadius={24}>
             {!challengeToken ? (
               <>
                 <View
@@ -1071,7 +1091,7 @@ function BottomNavigation({
   );
 }
 
-function AppContent() {
+function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const { colors, refresh: refreshAppearance } = useAppearance();
   const { ready: i18nReady } = useI18n();
   const [loading, setLoading] = useState(true);
@@ -1156,7 +1176,7 @@ function AppContent() {
     return (
       <>
         <StatusBar style={colors.statusBar} />
-        <AuthScreen onAuthenticated={loadSession} />
+        <AuthScreen onAuthenticated={loadSession} onBack={onExitAuth} />
       </>
     );
   }
@@ -1259,10 +1279,10 @@ function AppContent() {
   );
 }
 
-export default function App() {
+export default function App({ onExitAuth }: { onExitAuth?: () => void } = {}) {
   return (
     <AppearanceProvider>
-      <AppContent />
+      <AppContent onExitAuth={onExitAuth} />
     </AppearanceProvider>
   );
 }
@@ -1303,9 +1323,9 @@ const styles = StyleSheet.create({
   },
   authContent: {
     flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 14,
-    paddingBottom: 38
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 24
   },
   authTopRow: {
     minHeight: 48,
@@ -1319,61 +1339,74 @@ const styles = StyleSheet.create({
     gap: 9
   },
   brandInlineText: {
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: -0.4
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3
+  },
+  authTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
+  },
+  authBack: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   authLanguage: {
-    width: 132
+    width: 120
   },
   authHero: {
     alignItems: 'center',
-    paddingTop: 34,
-    paddingBottom: 28
+    paddingTop: 20,
+    paddingBottom: 18
   },
   authLogoHalo: {
-    width: 100,
-    height: 100,
-    borderRadius: 32,
-    borderWidth: 1,
+    width: 78,
+    height: 78,
+    borderRadius: 26,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 22
+    marginBottom: 16
   },
   authTitle: {
-    fontSize: 30,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '800',
     textAlign: 'center',
-    letterSpacing: -0.8
+    letterSpacing: -0.65
   },
   authLead: {
-    fontSize: 14.5,
-    lineHeight: 21,
+    fontSize: 13.5,
+    lineHeight: 19,
     textAlign: 'center',
-    maxWidth: 330,
-    marginTop: 9
+    maxWidth: 320,
+    marginTop: 7
   },
   authCard: {
-    padding: 16,
-    gap: 15,
-    borderRadius: 26
+    padding: 14,
+    gap: 12,
+    borderRadius: 24
   },
   segmented: {
     flexDirection: 'row',
-    borderRadius: 15,
-    padding: 4
+    borderRadius: 18,
+    padding: 3
   },
   segment: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
+    minHeight: 40,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   segmentText: {
-    fontSize: 14,
-    fontWeight: '800'
+    fontSize: 13,
+    fontWeight: '700'
   },
   segmentIndicator: {
     position: 'absolute',
@@ -1386,12 +1419,12 @@ const styles = StyleSheet.create({
     gap: 10
   },
   input: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderRadius: 28,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    fontSize: 15.5
+    minHeight: 50,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14.5
   },
   fieldHint: {
     fontSize: 11.5,
@@ -1407,18 +1440,18 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   primaryButton: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderRadius: 22,
-    paddingHorizontal: 18,
+    minHeight: 50,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9
   },
   primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '900'
+    fontSize: 14,
+    fontWeight: '800'
   },
   securityHeader: {
     flexDirection: 'row',
@@ -1470,9 +1503,9 @@ const styles = StyleSheet.create({
   },
   authFootnote: {
     textAlign: 'center',
-    fontSize: 11.5,
-    marginTop: 20,
-    letterSpacing: 0.3
+    fontSize: 10.5,
+    marginTop: 14,
+    letterSpacing: 0.2
   },
 
   homeContent: {
