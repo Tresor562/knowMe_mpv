@@ -729,84 +729,35 @@ function HomeScreen({
           </Text>
         </View>
 
-        <View style={styles.quickGrid}>
-          <PressScale
-            onPress={openSocial}
-            style={[
-              styles.quickCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <View
-              style={[
-                styles.quickIcon,
-                { backgroundColor: colors.backgroundAccent }
-              ]}
-            >
-              <KnowMeIcon name="messages" size={22} color={colors.accent} />
+        <GlassSurface strength="soft" borderRadius={22} style={styles.quickGrid}>
+          <PressScale onPress={openSocial} style={styles.quickCard}>
+            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="messages" size={19} color={colors.accent} />
             </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>
-              {messageUnread}
-            </Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>
-              {t('home.messages')}
-            </Text>
+            <Text style={[styles.quickValue, { color: colors.text }]}>{messageUnread}</Text>
+            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.messages')}</Text>
           </PressScale>
 
-          <PressScale
-            onPress={openSocial}
-            style={[
-              styles.quickCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <View
-              style={[
-                styles.quickIcon,
-                { backgroundColor: colors.backgroundAccent }
-              ]}
-            >
-              <KnowMeIcon name="bell" size={22} color={colors.secondary} />
+          <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
+
+          <PressScale onPress={openSocial} style={styles.quickCard}>
+            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="bell" size={19} color={colors.secondary} />
             </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>
-              {notificationUnread}
-            </Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>
-              {t('home.alerts')}
-            </Text>
+            <Text style={[styles.quickValue, { color: colors.text }]}>{notificationUnread}</Text>
+            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.alerts')}</Text>
           </PressScale>
 
-          <View
-            style={[
-              styles.quickCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <View
-              style={[
-                styles.quickIcon,
-                { backgroundColor: colors.backgroundAccent }
-              ]}
-            >
-              <KnowMeIcon name="coins" size={22} color="#F7C85A" />
+          <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.quickCard}>
+            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="coins" size={19} color="#F7C85A" />
             </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>
-              {user.knowCoins ?? 0}
-            </Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>
-              {t('home.coins')}
-            </Text>
+            <Text style={[styles.quickValue, { color: colors.text }]}>{user.knowCoins ?? 0}</Text>
+            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.coins')}</Text>
           </View>
-        </View>
+        </GlassSurface>
       </FadeRise>
 
       <FadeRise delay={155}>
@@ -1708,31 +1659,40 @@ const styles = StyleSheet.create({
   },
   quickGrid: {
     flexDirection: 'row',
-    gap: 9,
-    marginBottom: 24
+    alignItems: 'stretch',
+    padding: 4,
+    marginBottom: 20
   },
   quickCard: {
     flex: 1,
-    minHeight: 132,
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 13
+    minWidth: 0,
+    minHeight: 78,
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  quickDivider: {
+    width: StyleSheet.hairlineWidth,
+    marginVertical: 12
   },
   quickIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14
+    marginBottom: 5
   },
   quickValue: {
-    fontSize: 20,
-    fontWeight: '900'
+    fontSize: 15.5,
+    fontWeight: '800'
   },
   quickLabel: {
-    fontSize: 10.5,
-    marginTop: 3
+    fontSize: 9.5,
+    marginTop: 1,
+    textAlign: 'center'
   },
   exploreCard: {
     padding: 17,
