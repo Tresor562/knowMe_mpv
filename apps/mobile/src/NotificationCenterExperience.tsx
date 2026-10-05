@@ -163,7 +163,7 @@ export function NotificationCenterExperience({
   onClose: () => void;
   onOpenRoute?: (route: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const cursorRef = useRef<string | null>(null);
   const [center, setCenter] = useState<CenterResponse | null>(null);
   const [view, setView] = useState<CenterView>('ACTIVE');
@@ -380,7 +380,7 @@ export function NotificationCenterExperience({
         <Pressable
           accessibilityRole="button"
           onPress={onClose}
-          style={[styles.button, { borderColor: colors.border }]}
+          style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
         >
           <Text style={{ color: colors.text }}>Fermer</Text>
         </Pressable>
@@ -500,7 +500,7 @@ export function NotificationCenterExperience({
             onChangeText={setDailyTime}
             placeholder="08:00"
             placeholderTextColor={colors.muted}
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
           />
           <TextInput
             accessibilityLabel="Début des heures calmes"
@@ -508,7 +508,7 @@ export function NotificationCenterExperience({
             onChangeText={setQuietStart}
             placeholder="22:00"
             placeholderTextColor={colors.muted}
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
           />
           <TextInput
             accessibilityLabel="Fin des heures calmes"
@@ -516,7 +516,7 @@ export function NotificationCenterExperience({
             onChangeText={setQuietEnd}
             placeholder="07:00"
             placeholderTextColor={colors.muted}
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
           />
           <TextInput
             accessibilityLabel="Fuseau horaire"
@@ -525,13 +525,13 @@ export function NotificationCenterExperience({
             autoCapitalize="none"
             placeholder="Africa/Porto-Novo"
             placeholderTextColor={colors.muted}
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
           />
           <Pressable
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void saveTimes()}
-            style={[styles.button, { borderColor: colors.accent }]}
+            style={[styles.button, { borderColor: colors.accent, borderRadius: visual.controlRadius }]}
           >
             <Text style={{ color: colors.accent, fontWeight: '800' }}>
               Enregistrer les horaires
@@ -626,7 +626,7 @@ export function NotificationCenterExperience({
                 <Pressable
                   disabled={busy}
                   onPress={() => void markRead(group)}
-                  style={[styles.button, { borderColor: colors.border }]}
+                  style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
                 >
                   <Text style={{ color: colors.text }}>Ouvrir / lu</Text>
                 </Pressable>
@@ -636,21 +636,21 @@ export function NotificationCenterExperience({
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'SNOOZE')}
-                    style={[styles.button, { borderColor: colors.border }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
                   >
                     <Text style={{ color: colors.text }}>1 h</Text>
                   </Pressable>
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'ARCHIVE')}
-                    style={[styles.button, { borderColor: colors.border }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
                   >
                     <Text style={{ color: colors.text }}>Archiver</Text>
                   </Pressable>
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'DISMISS')}
-                    style={[styles.button, { borderColor: colors.border }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
                   >
                     <Text style={{ color: colors.text }}>Masquer</Text>
                   </Pressable>
@@ -660,7 +660,7 @@ export function NotificationCenterExperience({
                 <Pressable
                   disabled={busy}
                   onPress={() => void stateGroup(group, 'RESTORE')}
-                  style={[styles.button, { borderColor: colors.accent }]}
+                  style={[styles.button, { borderColor: colors.accent, borderRadius: visual.controlRadius }]}
                 >
                   <Text style={{ color: colors.accent }}>Restaurer</Text>
                 </Pressable>
@@ -675,7 +675,7 @@ export function NotificationCenterExperience({
           accessibilityRole="button"
           disabled={loadingMore || busy}
           onPress={() => void load(true)}
-          style={[styles.button, { borderColor: colors.border }]}
+          style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
         >
           <Text style={{ color: colors.text }}>
             {loadingMore ? 'Chargement…' : 'Charger plus'}
