@@ -12,6 +12,7 @@ import {
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { MobileUser } from './ProfileExperience';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Evidence = {
   id: string;
@@ -40,6 +41,32 @@ type VerificationRequest = {
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+function verificationStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    SUBMITTED: 'Envoyée',
+    UNDER_REVIEW: 'En cours',
+    APPROVED: 'Vérifiée',
+    REJECTED: 'Refusée',
+    REVOKED: 'Révoquée',
+    EXPIRED: 'Expirée',
+    WITHDRAWN: 'Retirée'
+  };
+  return labels[value] ?? value;
+}
+
+function decisionLabel(value: string) {
+  const labels: Record<string, string> = {
+    SUBMIT: 'Demande envoyée',
+    START_REVIEW: 'Examen commencé',
+    APPROVE: 'Identité vérifiée',
+    REJECT: 'Demande refusée',
+    REVOKE: 'Vérification révoquée',
+    WITHDRAW: 'Demande retirée',
+    EXPIRE: 'Vérification expirée'
+  };
+  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
 }
 
 function Button({
@@ -94,6 +121,9 @@ export function VerificationExperience({
   const [digest, setDigest] = useState('');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [withdrawTargetId, setWithdrawTargetId] = useState<string | null>(null);
+  const [withdrawReason, setWithdrawReason] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -160,21 +190,8 @@ export function VerificationExperience({
 
   function confirmWithdraw(item: VerificationRequest) {
     if (busy) return;
-    Alert.prompt(
-      'Retirer la demande',
-      'Indique le motif du retrait.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Retirer',
-          style: 'destructive',
-          onPress: (value) => {
-            if (value?.trim()) void withdraw(item, value.trim());
-          }
-        }
-      ],
-      'plain-text'
-    );
+    setWithdrawTargetId(item.id);
+    setWithdrawReason('');
   }
 
   async function withdraw(item: VerificationRequest, reason: string) {
@@ -185,6 +202,8 @@ export function VerificationExperience({
         body: JSON.stringify({ reason })
       });
       await Promise.all([load(), onUpdated()]);
+      setWithdrawTargetId(null);
+      setWithdrawReason('');
       Alert.alert('Demande retirée');
     } catch (cause) {
       Alert.alert('Retrait impossible', message(cause, 'Réessaie.'));
