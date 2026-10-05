@@ -20,7 +20,7 @@ const LABELS: Record<MediaKind, string> = {
 };
 
 export function MediaDownloadSettingsExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [preference, setPreference] = useState<ServerPreference | null>(null);
   const [bytes, setBytes] = useState(0);
   const [count, setCount] = useState(0);
@@ -69,7 +69,7 @@ export function MediaDownloadSettingsExperience() {
 
   if (!preference) return null;
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <Text style={[styles.title, { color: colors.text }]}>Téléchargements et cache média</Text>
       <Text style={{ color: colors.muted }}>Wi‑Fi, données mobiles et itinérance sont contrôlés séparément.</Text>
       {(['wifiKinds', 'cellularKinds', 'roamingKinds'] as const).map((network) => (
@@ -87,11 +87,11 @@ export function MediaDownloadSettingsExperience() {
           </View>
         </View>
       ))}
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Arrière-plan</Text><Switch value={preference.backgroundDownloads} disabled={busy} onValueChange={(value) => void save({ ...preference, backgroundDownloads: value })} /></View>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Respecter l’économie de données</Text><Switch value={preference.respectDataSaver} disabled={busy} onValueChange={(value) => void save({ ...preference, respectDataSaver: value })} /></View>
+      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Arrière-plan</Text><Switch trackColor={{ false: colors.backgroundAccent, true: colors.accent }} thumbColor={colors.surface} value={preference.backgroundDownloads} disabled={busy} onValueChange={(value) => void save({ ...preference, backgroundDownloads: value })} /></View>
+      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Respecter l’économie de données</Text><Switch trackColor={{ false: colors.backgroundAccent, true: colors.accent }} thumbColor={colors.surface} value={preference.respectDataSaver} disabled={busy} onValueChange={(value) => void save({ ...preference, respectDataSaver: value })} /></View>
       <Text style={{ color: colors.muted }}>Quota : {preference.maxCacheMb} Mo · {count} copie(s) · {(bytes / 1024 / 1024).toFixed(1)} Mo utilisés</Text>
       <View style={styles.wrap}>{[128, 512, 1024, 2048].map((value) => <Pressable key={value} disabled={busy} onPress={() => void save({ ...preference, maxCacheMb: value })} style={[styles.pill, { borderColor: colors.border, backgroundColor: preference.maxCacheMb === value ? colors.accent : colors.surfaceRaised }]}><Text style={{ color: preference.maxCacheMb === value ? colors.accentText : colors.text }}>{value} Mo</Text></Pressable>)}</View>
-      <Pressable disabled={busy || count === 0} onPress={() => void (async () => { setBusy(true); await clearMobileMediaCache(); setBytes(0); setCount(0); setBusy(false); setMessage('Copies locales supprimées.'); })()} style={[styles.clear, { borderColor: colors.danger }]}><Text style={{ color: colors.danger, fontWeight: '900' }}>Supprimer les copies locales</Text></Pressable>
+      <Pressable disabled={busy || count === 0} onPress={() => void (async () => { setBusy(true); await clearMobileMediaCache(); setBytes(0); setCount(0); setBusy(false); setMessage('Copies locales supprimées.'); })()} style={[styles.clear, { borderColor: colors.danger, borderRadius: visual.controlRadius }]}><Text style={{ color: colors.danger, fontWeight: '900' }}>Supprimer les copies locales</Text></Pressable>
       {message ? <Text style={{ color: colors.secondary }}>{message}</Text> : null}
     </View>
   );

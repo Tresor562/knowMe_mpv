@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
-import { Avatar, BrandMark, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { Avatar, BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type StoryAuthor = {
   id: string;
@@ -54,7 +54,7 @@ export function StoriesRail({
   };
   onOpenDiscover: () => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [stories, setStories] = useState<Story[]>([]);
   const [selected, setSelected] = useState<Story | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -188,7 +188,7 @@ export function StoriesRail({
             onPress={() => void openStory(story)}
             style={styles.item}
           >
-            <View style={styles.storyRing}>
+            <View style={[styles.storyRing, { borderColor: colors.accent }]}>
               <Avatar
                 uri={story.author?.avatarUrl}
                 name={story.author?.displayName ?? 'KnowMe'}
@@ -271,7 +271,7 @@ export function StoriesRail({
               onPress={() => setSelected(null)}
               style={[
                 styles.closeButton,
-                { backgroundColor: colors.surfaceRaised }
+                { backgroundColor: colors.surfaceGlass, borderRadius: visual.controlRadius }
               ]}
             >
               <Text style={[styles.closeText, { color: colors.text }]}>×</Text>
@@ -353,16 +353,8 @@ export function StoriesRail({
           onPress={() => setCreateOpen(false)}
         >
           <View style={styles.createWrap}>
-            <Pressable
-              onPress={(event) => event.stopPropagation()}
-              style={[
-                styles.createSheet,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border
-                }
-              ]}
-            >
+            <Pressable onPress={(event) => event.stopPropagation()}>
+              <GlassSurface strength="strong" borderRadius={visual.cardRadius} style={styles.createSheet}>
               <View style={styles.createHeader}>
                 <View>
                   <Text style={[styles.createTitle, { color: colors.text }]}>
@@ -462,6 +454,7 @@ export function StoriesRail({
                   color={colors.accentText}
                 />
               </PressScale>
+              </GlassSurface>
             </Pressable>
           </View>
         </Pressable>
@@ -493,8 +486,7 @@ const styles = StyleSheet.create({
     height: 62,
     borderRadius: 31,
     borderWidth: 2,
-    borderColor: '#B45CFF',
-    alignItems: 'center',
+        alignItems: 'center',
     justifyContent: 'center'
   },
   plus: {
@@ -572,7 +564,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 420,
     marginTop: 16,
-    borderRadius: 30,
     borderWidth: 1,
     padding: 28,
     alignItems: 'center',

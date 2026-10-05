@@ -88,7 +88,7 @@ function operationKey(prefix: string) {
 }
 
 export function SocialMatchmakingExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [status, setStatus] = useState<MatchStatus | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
@@ -264,7 +264,7 @@ export function SocialMatchmakingExperience() {
     });
   }
 
-  const card = { backgroundColor: colors.surface, borderColor: colors.border };
+  const card = { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius };
   const raised = {
     backgroundColor: colors.surfaceRaised,
     borderColor: colors.border
@@ -582,6 +582,7 @@ function SmallInput({
   placeholder: string;
   colors: { text: string; muted: string; border: string };
 }) {
+  const { colors: themeColors, visual } = useAppearance();
   return (
     <TextInput
       value={value}
@@ -589,7 +590,7 @@ function SmallInput({
       keyboardType="number-pad"
       placeholder={placeholder}
       placeholderTextColor={colors.muted}
-      style={[styles.smallInput, { color: colors.text, borderColor: colors.border }]}
+      style={[styles.smallInput, { color: colors.text, borderColor: colors.border, backgroundColor: themeColors.backgroundAccent, borderRadius: visual.inputRadius }]}
     />
   );
 }

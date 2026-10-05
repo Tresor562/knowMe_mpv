@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { useAppearance } from './AppearanceProvider';
 import { MobileUser } from './ProfileExperience';
 
 type Evidence = {
@@ -52,17 +53,23 @@ function Button({
   disabled?: boolean;
   secondary?: boolean;
 }) {
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        secondary && styles.secondaryButton,
+        {
+          borderRadius: visual.controlRadius,
+          backgroundColor: secondary ? 'transparent' : colors.accent,
+          borderColor: secondary ? colors.accent : colors.accent
+        },
+        secondary && { borderWidth: 1 },
         (pressed || disabled) && styles.mutedButton
       ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.secondaryButtonText]}>
+      <Text style={[styles.buttonText, { color: secondary ? colors.accent : colors.accentText }]}>
         {title}
       </Text>
     </Pressable>
@@ -78,6 +85,7 @@ export function VerificationExperience({
   onBack: () => void;
   onUpdated: () => Promise<void>;
 }) {
+  const { colors, visual } = useAppearance();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [displayNameClaim, setDisplayNameClaim] = useState(user.displayName);
   const [countryCode, setCountryCode] = useState('');
@@ -200,6 +208,8 @@ export function VerificationExperience({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -210,38 +220,38 @@ export function VerificationExperience({
       keyboardShouldPersistTaps="handled"
     >
       <Button title="Retour au profil" secondary onPress={onBack} />
-      <Text style={styles.eyebrow}>IDENTITÉ KNOWME</Text>
-      <Text style={styles.heading}>Vérification autoritaire</Text>
-      <Text style={styles.description}>
+      <Text style={[styles.eyebrow, { color: colors.accent }]}>IDENTITÉ KNOWME</Text>
+      <Text style={[styles.heading, { color: colors.text }]}>Vérification autoritaire</Text>
+      <Text style={[styles.description, { color: colors.muted }]}>
         Le badge Vérifié est décidé côté serveur. Il reste indépendant de Premium et du badge
         officiel Équipe KnowMe.
       </Text>
 
       <View style={styles.badgeGrid}>
-        <View style={styles.badgeCard}>
-          <Text style={styles.badgeLabel}>IDENTITÉ</Text>
-          <Text style={[styles.badgeValue, user.verification && styles.verified]}>
+        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>IDENTITÉ</Text>
+          <Text style={[styles.badgeValue, { color: user.verification ? '#65B7FF' : colors.muted }]}>
             {user.verification ? 'Vérifiée' : 'Non vérifiée'}
           </Text>
         </View>
-        <View style={styles.badgeCard}>
-          <Text style={styles.badgeLabel}>PREMIUM</Text>
-          <Text style={[styles.badgeValue, user.premium && styles.premium]}>
+        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>PREMIUM</Text>
+          <Text style={[styles.badgeValue, { color: user.premium ? '#D8A7FF' : colors.muted }]}>
             {user.premium ? 'Actif' : 'Inactif'}
           </Text>
         </View>
-        <View style={styles.badgeCard}>
-          <Text style={styles.badgeLabel}>ÉQUIPE</Text>
-          <Text style={[styles.badgeValue, user.staff && styles.staff]}>
+        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>ÉQUIPE</Text>
+          <Text style={[styles.badgeValue, { color: user.staff ? '#F4C95D' : colors.muted }]}>
             {user.staff ? 'Officiel' : 'Utilisateur'}
           </Text>
         </View>
       </View>
 
       {!pending && !approved ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Nouvelle demande</Text>
-          <Text style={styles.description}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Nouvelle demande</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
             Aucun document brut n’est envoyé ici. Saisis seulement les valeurs générées par le
             futur flux de capture sécurisé ou le prestataire KYC autorisé.
           </Text>
@@ -249,8 +259,17 @@ export function VerificationExperience({
             value={displayNameClaim}
             onChangeText={setDisplayNameClaim}
             placeholder="Nom à vérifier"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={countryCode}
@@ -258,24 +277,51 @@ export function VerificationExperience({
             autoCapitalize="characters"
             maxLength={2}
             placeholder="Pays ISO, ex. BJ"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={provider}
             onChangeText={setProvider}
             autoCapitalize="characters"
             placeholder="Prestataire"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={opaqueReference}
             onChangeText={setOpaqueReference}
             autoCapitalize="none"
             placeholder="Référence opaque"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={digest}
@@ -283,8 +329,17 @@ export function VerificationExperience({
             autoCapitalize="none"
             maxLength={64}
             placeholder="Empreinte SHA-256"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <Button
             title={busy ? 'Soumission…' : 'Soumettre pour examen'}
@@ -299,38 +354,38 @@ export function VerificationExperience({
         </View>
       ) : null}
 
-      <Text style={styles.sectionTitle}>Historique immuable</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
       {requests.map((item) => (
-        <View style={styles.card} key={item.id}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]} key={item.id}>
           <View style={styles.rowBetween}>
-            <Text style={styles.cardTitle}>Demande #{item.submissionNumber}</Text>
-            <Text style={item.status === 'APPROVED' ? styles.verified : styles.warning}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Demande #{item.submissionNumber}</Text>
+            <Text style={[item.status === 'APPROVED' ? styles.verified : styles.warning, { color: item.status === 'APPROVED' ? colors.accent : colors.danger }]}>
               {item.status}
             </Text>
           </View>
-          <Text style={styles.description}>
+          <Text style={[styles.description, { color: colors.muted }]}>
             Soumise le {new Date(item.submittedAt).toLocaleString('fr-FR')} · {item.evidenceCount}{' '}
             référence(s)
           </Text>
           {item.expiresAt ? (
-            <Text style={styles.description}>
+            <Text style={[styles.description, { color: colors.muted }]}>
               Échéance : {new Date(item.expiresAt).toLocaleString('fr-FR')}
             </Text>
           ) : null}
           {item.decisionReason ? (
-            <Text style={styles.description}>Motif : {item.decisionReason}</Text>
+            <Text style={[styles.description, { color: colors.muted }]}>Motif : {item.decisionReason}</Text>
           ) : null}
           {item.evidence.map((evidence) => (
-            <View key={evidence.id} style={styles.evidence}>
-              <Text style={styles.evidenceTitle}>
+            <View key={evidence.id} style={[styles.evidence, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
+              <Text style={[styles.evidenceTitle, { color: colors.text }]}>
                 {evidence.type} · {evidence.provider}
               </Text>
-              <Text selectable style={styles.code}>{evidence.opaqueReference}</Text>
-              <Text selectable style={styles.code}>{evidence.digest}</Text>
+              <Text selectable style={[styles.code, { color: colors.muted }]}>{evidence.opaqueReference}</Text>
+              <Text selectable style={[styles.code, { color: colors.muted }]}>{evidence.digest}</Text>
             </View>
           ))}
           {item.decisions.map((decision) => (
-            <Text key={decision.id} style={styles.timeline}>
+            <Text key={decision.id} style={[styles.timeline, { color: colors.muted }]}>
               {new Date(decision.createdAt).toLocaleString('fr-FR')} · {decision.action} ·{' '}
               {decision.reason}
             </Text>
@@ -346,8 +401,8 @@ export function VerificationExperience({
         </View>
       ))}
       {!requests.length ? (
-        <View style={styles.card}>
-          <Text style={styles.description}>Aucune demande enregistrée.</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <Text style={[styles.description, { color: colors.muted }]}>Aucune demande enregistrée.</Text>
         </View>
       ) : null}
     </ScrollView>
@@ -356,29 +411,27 @@ export function VerificationExperience({
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 42, gap: 14 },
-  eyebrow: { color: '#65b7ff', fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
-  heading: { color: '#F7F7FB', fontSize: 30, fontWeight: '900' },
-  sectionTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginTop: 8 },
-  description: { color: '#B8C0CE', fontSize: 15, lineHeight: 22 },
+  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.5 },
+  heading: { fontSize: 30, fontWeight: '900' },
+  sectionTitle: { fontSize: 22, fontWeight: '900', marginTop: 8 },
+  description: { fontSize: 15, lineHeight: 22 },
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCard: { flexGrow: 1, minWidth: 100, backgroundColor: '#101521', borderRadius: 18, padding: 14 },
-  badgeLabel: { color: '#737E93', fontSize: 11, fontWeight: '800' },
-  badgeValue: { color: '#929BAD', fontSize: 17, fontWeight: '900', marginTop: 5 },
+  badgeCard: { flexGrow: 1, minWidth: 100, padding: 14 },
+  badgeLabel: { fontSize: 11, fontWeight: '800' },
+  badgeValue: { fontSize: 17, fontWeight: '900', marginTop: 5 },
   verified: { color: '#65b7ff' },
   premium: { color: '#d8a7ff' },
   staff: { color: '#f4c95d' },
   warning: { color: '#FF6B73', fontWeight: '900' },
-  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
+  card: { borderWidth: 1, padding: 18, gap: 12 },
+  cardTitle: { fontSize: 19, fontWeight: '900' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
-  input: { minHeight: 52, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16 },
-  button: { backgroundColor: '#7A5CFF', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { color: '#FFFFFF', fontWeight: '900' },
-  secondaryButton: { backgroundColor: 'transparent', borderColor: '#65b7ff', borderWidth: 1 },
-  secondaryButtonText: { color: '#65b7ff' },
+  input: { minHeight: 52, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16 },
+  button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  buttonText: { fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  evidence: { backgroundColor: '#0D111B', borderRadius: 14, padding: 12, gap: 6 },
-  evidenceTitle: { color: '#F7F7FB', fontWeight: '800' },
-  code: { color: '#929BAD', fontSize: 11 },
-  timeline: { color: '#929BAD', fontSize: 12, lineHeight: 18 }
+  evidence: { padding: 12, gap: 6 },
+  evidenceTitle: { fontWeight: '800' },
+  code: { fontSize: 11 },
+  timeline: { fontSize: 12, lineHeight: 18 }
 });

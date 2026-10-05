@@ -8,7 +8,7 @@ import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperien
 import { LanguagePicker } from './LanguagePicker';
 
 export function LanguageSettingsExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const { locale, version, persisted, syncLocale, t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -29,7 +29,7 @@ export function LanguageSettingsExperience() {
 
   return (
     <>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.title, { color: colors.text }]}>{t('settings.languageTitle')}</Text>
         <Text style={[styles.description, { color: colors.muted }]}>{t('settings.languageDescription')}</Text>
         <LanguagePicker

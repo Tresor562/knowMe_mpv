@@ -81,7 +81,7 @@ function operationKey(prefix: string) {
 }
 
 export function AffinityGameExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [preference, setPreference] = useState<Preference | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selected, setSelected] = useState<Session | null>(null);
@@ -243,7 +243,7 @@ export function AffinityGameExperience() {
     });
   }
 
-  const card = { backgroundColor: colors.surface, borderColor: colors.border };
+  const card = { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius };
   const raised = {
     backgroundColor: colors.surfaceRaised,
     borderColor: colors.border
@@ -384,7 +384,7 @@ export function AffinityGameExperience() {
             <Pressable
               disabled={busy}
               onPress={join}
-              style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+              style={[styles.primaryButton, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }]}
             >
               <Text style={{ color: colors.accentText, fontWeight: '900' }}>
                 Rejoindre volontairement
@@ -441,7 +441,7 @@ export function AffinityGameExperience() {
                     key={option}
                     disabled={busy}
                     onPress={() => answer(index)}
-                    style={[styles.option, { borderColor: colors.border }]}
+                    style={[styles.option, { borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}
                   >
                     <Text style={{ color: colors.text, fontWeight: '700' }}>
                       {option}
@@ -456,7 +456,7 @@ export function AffinityGameExperience() {
               <Pressable
                 disabled={busy}
                 onPress={leave}
-                style={[styles.secondaryButton, { borderColor: colors.secondary }]}
+                style={[styles.secondaryButton, { borderColor: colors.secondary, borderRadius: visual.controlRadius }]}
               >
                 <Text style={{ color: colors.secondary, fontWeight: '900' }}>
                   Quitter le jeu
@@ -476,7 +476,7 @@ export function AffinityGameExperience() {
               {summary.categories.map((category) => (
                 <View
                   key={category.key}
-                  style={[styles.resultCard, { borderColor: colors.border }]}
+                  style={[styles.resultCard, { borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '900' }}>
                     {category.label} · {category.score}/100
@@ -507,7 +507,7 @@ export function AffinityGameExperience() {
               <Pressable
                 disabled={busy}
                 onPress={verifyReplay}
-                style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                style={[styles.primaryButton, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }]}
               >
                 <Text style={{ color: colors.accentText, fontWeight: '900' }}>
                   Vérifier le replay privé

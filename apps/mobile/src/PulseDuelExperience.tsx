@@ -49,7 +49,7 @@ function operationKey(prefix: string) {
 }
 
 export function PulseDuelExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [selected, setSelected] = useState<GameSession | null>(null);
   const [username, setUsername] = useState('');
@@ -185,8 +185,8 @@ export function PulseDuelExperience() {
     });
   }
 
-  const card = { backgroundColor: colors.surface, borderColor: colors.border };
-  const raised = { backgroundColor: colors.surfaceRaised, borderColor: colors.border };
+  const card = { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius };
+  const raised = { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: visual.controlRadius };
 
   return (
     <View style={[styles.card, card]}>
@@ -203,7 +203,7 @@ export function PulseDuelExperience() {
           maxLength={30}
           placeholder="Pseudo de l’adversaire"
           placeholderTextColor={colors.muted}
-          style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
+          style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.inputRadius }]}
         />
         <Pressable
           disabled={busy || username.trim().length < 3}
@@ -258,7 +258,7 @@ export function PulseDuelExperience() {
           </View>
 
           {selected.status === 'WAITING' && viewer?.status === 'INVITED' ? (
-            <Pressable disabled={busy} onPress={join} style={[styles.primaryButton, { backgroundColor: colors.accent }]}>
+            <Pressable disabled={busy} onPress={join} style={[styles.primaryButton, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }]}>
               <Text style={{ color: colors.accentText, fontWeight: '900' }}>Rejoindre</Text>
             </Pressable>
           ) : null}
@@ -285,19 +285,19 @@ export function PulseDuelExperience() {
                       </Pressable>
                     ))}
                   </View>
-                  <Pressable disabled={busy} onPress={play} style={[styles.primaryButton, { backgroundColor: colors.accent }]}>
+                  <Pressable disabled={busy} onPress={play} style={[styles.primaryButton, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }]}>
                     <Text style={{ color: colors.accentText, fontWeight: '900' }}>Envoyer mon choix</Text>
                   </Pressable>
                 </>
               ) : null}
-              <Pressable disabled={busy} onPress={abandon} style={[styles.secondaryButton, { borderColor: colors.secondary }]}>
+              <Pressable disabled={busy} onPress={abandon} style={[styles.secondaryButton, { borderColor: colors.secondary, borderRadius: visual.controlRadius }]}>
                 <Text style={{ color: colors.secondary, fontWeight: '900' }}>Abandonner</Text>
               </Pressable>
             </View>
           ) : null}
 
           {selected.status === 'WAITING' && selected.viewerPosition === 0 ? (
-            <Pressable disabled={busy} onPress={cancel} style={[styles.secondaryButton, { borderColor: colors.secondary }]}>
+            <Pressable disabled={busy} onPress={cancel} style={[styles.secondaryButton, { borderColor: colors.secondary, borderRadius: visual.controlRadius }]}>
               <Text style={{ color: colors.secondary, fontWeight: '900' }}>Annuler l’invitation</Text>
             </Pressable>
           ) : null}
@@ -305,7 +305,7 @@ export function PulseDuelExperience() {
           {TERMINAL.has(selected.status) ? (
             <View style={styles.stack}>
               <Text style={{ color: colors.muted }}>{JSON.stringify(selected.result)}</Text>
-              <Pressable disabled={busy} onPress={verifyReplay} style={[styles.primaryButton, { backgroundColor: colors.accent }]}>
+              <Pressable disabled={busy} onPress={verifyReplay} style={[styles.primaryButton, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }]}>
                 <Text style={{ color: colors.accentText, fontWeight: '900' }}>Vérifier le replay</Text>
               </Pressable>
               {replay ? (

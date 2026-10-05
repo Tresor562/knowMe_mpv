@@ -22,7 +22,7 @@ type Props = {
 };
 
 export function AccountRecoveryExperience({ onBack }: Props) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');

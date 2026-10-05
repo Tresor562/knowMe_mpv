@@ -26,6 +26,7 @@ import {
   nativePurchasesAvailable,
   requestNativePurchase
 } from './native-purchases';
+import { useAppearance } from './AppearanceProvider';
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -37,11 +38,11 @@ function providerLabel(provider: string) {
   return provider;
 }
 
-function statusColor(status: string) {
-  if (['PAID', 'FULFILLED'].includes(status)) return '#7A5CFF';
-  if (['FAILED', 'INIT_FAILED', 'CANCELED'].includes(status)) return '#FF6B73';
-  if (['REFUNDED', 'REVIEW_REQUIRED'].includes(status)) return '#f4c95d';
-  return '#929BAD';
+function statusColor(status: string, colors: { accent: string; danger: string; muted: string }) {
+  if (['PAID', 'FULFILLED'].includes(status)) return colors.accent;
+  if (['FAILED', 'INIT_FAILED', 'CANCELED'].includes(status)) return colors.danger;
+  if (['REFUNDED', 'REVIEW_REQUIRED'].includes(status)) return '#F4C95D';
+  return colors.muted;
 }
 
 function PurchaseButton({
@@ -53,21 +54,24 @@ function PurchaseButton({
   disabled: boolean;
   onPress: () => void;
 }) {
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
         (pressed || disabled) && styles.buttonDisabled
       ]}
     >
-      <Text style={styles.buttonText}>{title}</Text>
+      <Text style={[styles.buttonText, { color: colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
 
 export function PaymentsExperience() {
+  const { colors, visual } = useAppearance();
   const [catalog, setCatalog] = useState<MobileCommerceProduct[]>([]);
   const [orders, setOrders] = useState<MobilePaymentOrder[]>([]);
   const [providers, setProviders] = useState<MobileProviderConfiguration | null>(null);
@@ -151,11 +155,11 @@ export function PaymentsExperience() {
   );
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <Text style={styles.cardTitle}>Paiements et abonnements</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Paiements et abonnements</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
             Les prix et attributions restent autoritaires côté serveur. Aucune preuve d’achat brute
             n’est saisie manuellement dans l’application.
           </Text>
@@ -163,52 +167,56 @@ export function PaymentsExperience() {
         <Pressable
           disabled={refreshing}
           onPress={() => void load(true)}
-          style={({ pressed }) => [styles.refreshButton, pressed && styles.buttonDisabled]}
+          style={({ pressed }) => [
+            styles.refreshButton,
+            { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius },
+            pressed && styles.buttonDisabled
+          ]}
         >
-          <Text style={styles.refreshText}>{refreshing ? '…' : '↻'}</Text>
+          <Text style={[styles.refreshText, { color: colors.accent }]}>{refreshing ? '…' : '↻'}</Text>
         </Pressable>
       </View>
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color="#7A5CFF" />
-          <Text style={styles.muted}>Chargement du catalogue sécurisé…</Text>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={[styles.muted, { color: colors.muted }]}>Chargement du catalogue sécurisé…</Text>
         </View>
       ) : (
         <>
-          <View style={styles.policyBox}>
-            <Text style={styles.policyTitle}>
+          <View style={[styles.policyBox, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
+            <Text style={[styles.policyTitle, { color: colors.text }]}>
               {platformProvider ? providerLabel(platformProvider) : 'Boutique native indisponible'}
             </Text>
-            <Text style={styles.policyText}>
+            <Text style={[styles.policyText, { color: colors.muted }]}>
               Fournisseur : {providerConfigured ? 'configuré' : 'désactivé'} · pont natif :{' '}
               {bridgeAvailable ? 'installé' : 'absent'}
             </Text>
             {accountReference ? (
-              <Text style={styles.accountReference} numberOfLines={1}>
+              <Text style={[styles.accountReference, { color: colors.muted }]} numberOfLines={1}>
                 Référence de compte liée : {accountReference.accountReference}
               </Text>
             ) : null}
           </View>
 
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          {message ? <Text style={[styles.message, { color: colors.accent }]}>{message}</Text> : null}
 
-          <Text style={styles.sectionTitle}>Catalogue mobile</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Catalogue mobile</Text>
           {catalog.length === 0 ? (
-            <Text style={styles.muted}>
+            <Text style={[styles.muted, { color: colors.muted }]}>
               Aucun produit mobile actif n’est mappé pour cette plateforme.
             </Text>
           ) : (
             catalog.map((product) => (
-              <View key={product.key} style={styles.productCard}>
+              <View key={product.key} style={[styles.productCard, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
                 <View style={styles.productHeader}>
                   <View style={styles.productText}>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productDescription}>
+                    <Text style={[styles.productName, { color: colors.text }]}>{product.name}</Text>
+                    <Text style={[styles.productDescription, { color: colors.muted }]}>
                       {product.description ?? 'Produit KnowMe vérifié par la boutique.'}
                     </Text>
                   </View>
-                  {product.highlighted ? <Text style={styles.highlight}>CHOIX</Text> : null}
+                  {product.highlighted ? <Text style={[styles.highlight, { backgroundColor: colors.accent, color: colors.accentText }]}>CHOIX</Text> : null}
                 </View>
                 {product.requiresVerification ? (
                   <Text style={styles.warning}>Identité vérifiée requise avant l’achat.</Text>
@@ -222,12 +230,12 @@ export function PaymentsExperience() {
                   );
                   const busy = busyPriceId === price.id;
                   return (
-                    <View key={price.id} style={styles.priceRow}>
+                    <View key={price.id} style={[styles.priceRow, { borderTopColor: colors.border }]}>
                       <View style={styles.priceText}>
-                        <Text style={styles.price}>
+                        <Text style={[styles.price, { color: colors.text }]}>
                           {formatMobileMinorAmount(price.unitAmount, price.currency)}
                         </Text>
-                        <Text style={styles.muted}>{providerLabel(price.provider)}</Text>
+                        <Text style={[styles.muted, { color: colors.muted }]}>{providerLabel(price.provider)}</Text>
                       </View>
                       <PurchaseButton
                         disabled={!canPurchase}
@@ -248,25 +256,25 @@ export function PaymentsExperience() {
           )}
 
           {!purchaseReady ? (
-            <Text style={styles.helper}>
+            <Text style={[styles.helper, { color: colors.muted }]}>
               Les boutons restent bloqués tant que la configuration fournisseur et le pont natif signé
               ne sont pas tous les deux disponibles. L’application ne simule jamais un achat réussi.
             </Text>
           ) : null}
 
-          <Text style={styles.sectionTitle}>Commandes récentes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Commandes récentes</Text>
           {orders.length === 0 ? (
-            <Text style={styles.muted}>Aucune commande enregistrée.</Text>
+            <Text style={[styles.muted, { color: colors.muted }]}>Aucune commande enregistrée.</Text>
           ) : (
             orders.map((order) => (
-              <View key={order.id} style={styles.orderRow}>
+              <View key={order.id} style={[styles.orderRow, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
                 <View style={styles.orderText}>
-                  <Text style={styles.orderName}>{order.productName}</Text>
+                  <Text style={[styles.orderName, { color: colors.text }]}>{order.productName}</Text>
                   <Text style={styles.muted} numberOfLines={1}>
                     {order.reference} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}
                   </Text>
                 </View>
-                <Text style={[styles.orderStatus, { color: statusColor(order.status) }]}>
+                <Text style={[styles.orderStatus, { color: statusColor(order.status, colors) }]}>
                   {mobilePaymentStatus(order.status)}
                 </Text>
               </View>
@@ -280,59 +288,46 @@ export function PaymentsExperience() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#101521',
-    borderColor: '#273044',
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 18,
+        borderWidth: 1,
+        padding: 18,
     gap: 14
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   headerText: { flex: 1, gap: 8 },
-  cardTitle: { color: '#F7F7FB', fontSize: 19, fontWeight: '900' },
-  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 21 },
+  cardTitle: { fontSize: 19, fontWeight: '900' },
+  description: { fontSize: 14, lineHeight: 21 },
   refreshButton: {
     width: 42,
     height: 42,
-    borderRadius: 14,
-    borderColor: '#30394E',
-    borderWidth: 1,
+        borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { color: '#7A5CFF', fontSize: 22, fontWeight: '900' },
+  refreshText: { fontSize: 22, fontWeight: '900' },
   buttonDisabled: { opacity: 0.45 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  muted: { color: '#929BAD', fontSize: 12 },
+  muted: { fontSize: 12 },
   policyBox: {
-    backgroundColor: '#0D111B',
-    borderColor: '#30394E',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+        borderWidth: 1,
+        padding: 14,
     gap: 5
   },
-  policyTitle: { color: '#F7F7FB', fontWeight: '900' },
-  policyText: { color: '#B8C0CE', fontSize: 12, lineHeight: 18 },
-  accountReference: { color: '#737E93', fontSize: 11 },
-  message: { color: '#7A5CFF', fontSize: 13, lineHeight: 19 },
-  sectionTitle: { color: '#F7F7FB', fontWeight: '900', fontSize: 16, marginTop: 4 },
+  policyTitle: { fontWeight: '900' },
+  policyText: { fontSize: 12, lineHeight: 18 },
+  accountReference: { fontSize: 11 },
+  message: { fontSize: 13, lineHeight: 19 },
+  sectionTitle: { fontWeight: '900', fontSize: 16, marginTop: 4 },
   productCard: {
-    backgroundColor: '#0D111B',
-    borderRadius: 18,
-    borderColor: '#30394E',
-    borderWidth: 1,
+        borderWidth: 1,
     padding: 14,
     gap: 12
   },
   productHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   productText: { flex: 1, gap: 5 },
-  productName: { color: '#F7F7FB', fontWeight: '900', fontSize: 16 },
-  productDescription: { color: '#B8C0CE', fontSize: 12, lineHeight: 18 },
+  productName: { fontWeight: '900', fontSize: 16 },
+  productDescription: { fontSize: 12, lineHeight: 18 },
   highlight: {
-    color: '#FFFFFF',
-    backgroundColor: '#7A5CFF',
-    borderRadius: 999,
+        borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 5,
     fontSize: 10,
@@ -344,31 +339,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    borderTopColor: '#18372d',
-    borderTopWidth: 1,
+        borderTopWidth: 1,
     paddingTop: 12
   },
   priceText: { flex: 1, gap: 3 },
-  price: { color: '#F7F7FB', fontWeight: '900', fontSize: 17 },
+  price: { fontWeight: '900', fontSize: 17 },
   button: {
     minWidth: 104,
-    backgroundColor: '#7A5CFF',
-    borderRadius: 14,
-    paddingVertical: 11,
+        paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  buttonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
-  helper: { color: '#737E93', fontSize: 11, lineHeight: 17 },
+  buttonText: { fontWeight: '900', fontSize: 12 },
+  helper: { fontSize: 11, lineHeight: 17 },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#0D111B',
-    borderRadius: 16,
-    padding: 13
+        padding: 13
   },
   orderText: { flex: 1, gap: 4 },
-  orderName: { color: '#F7F7FB', fontWeight: '800' },
+  orderName: { fontWeight: '800' },
   orderStatus: { fontWeight: '900', fontSize: 12 }
 });

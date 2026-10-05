@@ -38,7 +38,7 @@ type Dashboard = {
 const CATEGORIES = ['TECH', 'EDUCATION', 'GAMING', 'LIFESTYLE', 'ART', 'MUSIC', 'SPORT', 'COMMUNITY', 'OTHER'];
 
 export function CreatorSettingsExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [slug, setSlug] = useState('');
@@ -98,7 +98,7 @@ export function CreatorSettingsExperience() {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <Text style={[styles.title, { color: colors.text }]}>Profil créateur</Text>
       <Text style={[styles.description, { color: colors.muted }]}>
         Volontaire, révocable et distinct de Premium, de la vérification et des rôles staff.
@@ -111,7 +111,7 @@ export function CreatorSettingsExperience() {
             ['Vues profil', dashboard.totals.profileViews],
             ['Vues contenus', dashboard.totals.postViews]
           ].map(([label, value]) => (
-            <View key={String(label)} style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+            <View key={String(label)} style={[styles.metric, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
               <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
               <Text style={{ color: colors.muted, fontSize: 12 }}>{label}</Text>
             </View>
@@ -125,7 +125,7 @@ export function CreatorSettingsExperience() {
         maxLength={40}
         placeholder="identifiant-public"
         placeholderTextColor={colors.muted}
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
       />
       <TextInput
         value={title}
@@ -133,7 +133,7 @@ export function CreatorSettingsExperience() {
         maxLength={80}
         placeholder="Titre du profil"
         placeholderTextColor={colors.muted}
-        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+        style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
       />
       <TextInput
         value={bio}
@@ -142,7 +142,7 @@ export function CreatorSettingsExperience() {
         multiline
         placeholder="Présentation"
         placeholderTextColor={colors.muted}
-        style={[styles.input, styles.multiline, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+        style={[styles.input, styles.multiline, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
       />
       <View style={styles.wrap}>
         {CATEGORIES.map((item) => (
