@@ -12,12 +12,12 @@ type AvatarRuntimeCandidate = { slot: string; assetUrl?: string | null; avatarAs
 @Injectable()
 export class CosmeticsService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
-  policy() { return { visualOnly:true,gameplayEffectsAllowed:false,purchasesEnabled:true,paidPriorityAllowed:false,ownershipRequired:true,oneItemPerSlot:true,serverAuthoritativeInventory:true,immutablePublishedVersions:true,serverAuthoritativeAcquisition:true,validated3DAssetsRequired:true,supportedSlots:COSMETIC_SLOTS }; }
+  policy() { return { visualOnly:true,gameplayEffectsAllowed:false,purchasesEnabled:true,paidPriorityAllowed:false,ownershipRequired:true,oneItemPerSlot:true,serverAuthoritativeInventory:true,immutablePublishedVersions:true,serverAuthoritativeAcquisition:true,validated3DAssetsRequired:true,avatarFrameUses2DAsset:true,supportedSlots:COSMETIC_SLOTS }; }
   isAvailable(item:AvailabilityCandidate,now=new Date()){ return item.active&&item.startsAt<=now&&(!item.endsAt||item.endsAt>now); }
   slotMatches(itemSlot:string,requestedSlot:string){ return itemSlot===requestedSlot; }
-  private isAvatarSlot(slot:string){ return AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]); }
+  private requires3dAvatarAsset(slot:string){ return slot!=='AVATAR_FRAME'&&AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number]); }
   private assertAvatarRuntimeReady(item:AvatarRuntimeCandidate){
-    if(!this.isAvatarSlot(item.slot)) return;
+    if(!this.requires3dAvatarAsset(item.slot)) return;
     if(!item.avatarAssetManifest||!item.assetValidatedAt||!item.assetUrl) throw new BadRequestException('Cet objet avatar ne possède pas d’asset 3D runtime validé.');
     try {
       const manifest=validateAvatarAssetManifest(item.avatarAssetManifest as unknown as AvatarAssetManifest);
@@ -53,7 +53,7 @@ export class CosmeticsService {
     const startsAt=dto.startsAt?new Date(dto.startsAt):new Date(), endsAt=dto.endsAt?new Date(dto.endsAt):null;
     if(endsAt&&endsAt<=startsAt) throw new BadRequestException('La fin de disponibilité doit suivre son début.');
     let validatedManifest:AvatarAssetManifest|undefined;
-    if(this.isAvatarSlot(dto.slot)){
+    if(this.requires3dAvatarAsset(dto.slot)){
       if(!dto.avatarAssetManifest) throw new BadRequestException('Un objet avatar exige un manifest 3D GLB/glTF validable.');
       try { validatedManifest=validateAvatarAssetManifest(dto.avatarAssetManifest as unknown as AvatarAssetManifest); } catch(error){ throw new BadRequestException(error instanceof Error?error.message:'Manifest 3D avatar invalide.'); }
       if(validatedManifest.slot!==dto.slot) throw new BadRequestException('Le slot du manifest 3D doit correspondre au slot Cosmetics.');
