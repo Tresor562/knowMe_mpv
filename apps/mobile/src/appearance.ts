@@ -141,6 +141,23 @@ export type MobileVisualStyle = {
   transitionDuration: number;
 };
 
+export type MobileChatStyle = {
+  wallpaperKind:
+    | 'classic'
+    | 'nature'
+    | 'weather'
+    | 'universe'
+    | 'future'
+    | 'anime'
+    | 'gaming'
+    | 'fantasy'
+    | 'artistic';
+  wallpaperOpacity: number;
+  wallpaperDensity: number;
+  wallpaperGlow: boolean;
+  bubbleBorderWidth: number;
+};
+
 const STORAGE_KEY = 'knowme.appearance.v2';
 
 const SYSTEM_LIGHT: MobileThemePalette = {
@@ -277,6 +294,75 @@ export function resolveMobileVisualStyle(
     ),
     elevation: premiumDepth ? 10 : 6,
     transitionDuration
+  };
+}
+
+
+const DEFAULT_CHAT_STYLE: MobileChatStyle = {
+  wallpaperKind: 'classic',
+  wallpaperOpacity: 0.045,
+  wallpaperDensity: 12,
+  wallpaperGlow: true,
+  bubbleBorderWidth: 0
+};
+
+export function resolveMobileChatStyle(
+  appearance: AppearanceResponse | null
+): MobileChatStyle {
+  if (!appearance) return DEFAULT_CHAT_STYLE;
+
+  const theme = appearance.themes.find(
+    (candidate) => candidate.key === appearance.preference.effectiveThemeKey
+  );
+  if (!theme) return DEFAULT_CHAT_STYLE;
+
+  const category = theme.category.toUpperCase();
+  const wallpaperKind: MobileChatStyle['wallpaperKind'] =
+    category === 'NATURE' || category === 'SEASON'
+      ? 'nature'
+      : category === 'WEATHER'
+        ? 'weather'
+        : category === 'UNIVERSE'
+          ? 'universe'
+          : category === 'FUTURISTIC'
+            ? 'future'
+            : category === 'ANIME'
+              ? 'anime'
+              : category === 'GAMING'
+                ? 'gaming'
+                : category === 'FANTASY'
+                  ? 'fantasy'
+                  : category === 'ARTISTIC'
+                    ? 'artistic'
+                    : 'classic';
+
+  const intensity =
+    appearance.preference.effectIntensity === 'HIGH'
+      ? 0.075
+      : appearance.preference.effectIntensity === 'LOW'
+        ? 0.032
+        : 0.052;
+
+  const wallpaperOpacity = appearance.preference.reduceTransparency
+    ? Math.min(intensity, 0.034)
+    : intensity;
+
+  const wallpaperDensity =
+    wallpaperKind === 'universe' || wallpaperKind === 'gaming'
+      ? 16
+      : wallpaperKind === 'classic'
+        ? 10
+        : 13;
+
+  return {
+    wallpaperKind,
+    wallpaperOpacity,
+    wallpaperDensity,
+    wallpaperGlow:
+      appearance.preference.reduceTransparency !== true &&
+      appearance.preference.animationsEnabled !== false,
+    bubbleBorderWidth:
+      category === 'FUTURISTIC' || category === 'GAMING' ? 1 : 0
   };
 }
 
