@@ -119,7 +119,7 @@ export function MobileGameCenterExperience() {
         </GlassSurface>
       ) : null}
 
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
         <KnowMeIcon name="search" size={18} color={colors.muted} />
         <TextInput
         accessibilityLabel="Rechercher un jeu"
@@ -215,6 +215,7 @@ const styles = StyleSheet.create({
   searchWrap: {
     minHeight: 46,
     borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
