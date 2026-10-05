@@ -486,39 +486,40 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 18, paddingTop: 12, gap: 10 },
-  headerTop: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerSub: { fontSize: 11.5, marginTop: 1 },
-  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
+  header: { paddingHorizontal: 16, paddingTop: 7, gap: 8 },
+  headerTop: { minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  headerSub: { fontSize: 10.5, marginTop: 0 },
+  headerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  heading: { fontSize: 20, fontWeight: '800', letterSpacing: -0.35 },
   segmented: {
     flexDirection: 'row',
-    borderRadius: 22,
-    padding: 4
+    borderRadius: 19,
+    padding: 3
   },
   segment: {
     flex: 1,
-    paddingVertical: 10,
+    minWidth: 0,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 11
+    borderRadius: 16
   },
   segmentActive: {},
-  segmentText: { fontWeight: '800', fontSize: 12 },
+  segmentText: { fontWeight: '700', fontSize: 10.5 },
   segmentTextActive: {},
-  content: { padding: 20, paddingBottom: 40, gap: 12 },
+  content: { padding: 16, paddingBottom: 28, gap: 10 },
   card: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 16,
-    gap: 10
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
+    padding: 14,
+    gap: 9
   },
   unreadCard: {},
   cardTitle: { fontSize: 17, fontWeight: '800' },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    marginTop: 8
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 6
   },
   muted: { lineHeight: 20 },
   bio: { marginTop: 4 },

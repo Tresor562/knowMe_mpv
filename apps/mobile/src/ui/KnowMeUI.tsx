@@ -718,8 +718,20 @@ export function GlassSurface({
     90,
     (strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48) + visual.glassBoost
   );
-  const shadowOpacity = strength === 'soft' ? 0.07 : strength === 'strong' ? 0.16 : 0.11;
+  const shadowOpacity = strength === 'soft' ? 0.045 : strength === 'strong' ? 0.11 : 0.075;
   const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
+  const glassTint =
+    colors.statusBar === 'dark'
+      ? strength === 'strong'
+        ? 'rgba(255,255,255,0.56)'
+        : strength === 'medium'
+          ? 'rgba(255,255,255,0.42)'
+          : 'rgba(255,255,255,0.28)'
+      : strength === 'strong'
+        ? 'rgba(10,14,24,0.48)'
+        : strength === 'medium'
+          ? 'rgba(10,14,24,0.34)'
+          : 'rgba(10,14,24,0.22)';
 
   return (
     <View
@@ -771,9 +783,12 @@ export function GlassSurface({
           StyleSheet.absoluteFillObject,
           {
             borderRadius,
-            backgroundColor: reduceTransparency ? 'transparent' : colors.surfaceGlass,
+            backgroundColor: reduceTransparency ? 'transparent' : glassTint,
             borderWidth: StyleSheet.hairlineWidth,
-            borderColor: colors.border
+            borderColor:
+              colors.statusBar === 'dark'
+                ? 'rgba(255,255,255,0.46)'
+                : 'rgba(255,255,255,0.12)'
           }
         ]}
       />

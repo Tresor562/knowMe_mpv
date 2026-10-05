@@ -3,8 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
+  StatusBar as NativeStatusBar,
   Platform,
   Pressable,
   RefreshControl,
@@ -231,7 +233,13 @@ function AuthScreen({
 
   return (
     <KeyboardAvoidingView
-      style={[styles.authRoot, { backgroundColor: colors.background }]}
+      style={[
+        styles.authRoot,
+        {
+          backgroundColor: colors.background,
+          paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
+        }
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View
@@ -989,6 +997,10 @@ function BottomNavigation({
           strokeWidth={active ? 2.05 : 1.8}
         />
         <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          maxFontSizeMultiplier={1.08}
           style={[
             styles.bottomLabel,
             { color: active ? colors.accent : colors.muted }
@@ -1033,7 +1045,13 @@ function BottomNavigation({
               strokeWidth={2.1}
             />
           </PressScale>
-          <Text style={[styles.createNavLabel, { color: colors.accent }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            maxFontSizeMultiplier={1.08}
+            style={[styles.createNavLabel, { color: colors.accent }]}
+          >
             {t('nav.create')}
           </Text>
         </View>
@@ -1060,6 +1078,16 @@ function AppContent() {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
   const [createOpen, setCreateOpen] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const loadSession = useCallback(async () => {
     try {
@@ -1135,7 +1163,13 @@ function AppContent() {
 
   return (
     <SafeAreaView
-      style={[styles.root, { backgroundColor: colors.background }]}
+      style={[
+        styles.root,
+        {
+          backgroundColor: colors.background,
+          paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
+        }
+      ]}
     >
       <StatusBar style={colors.statusBar} />
       <View
@@ -1201,7 +1235,7 @@ function AppContent() {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' ? (
+      {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}
@@ -1237,7 +1271,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
   body: { flex: 1 },
-  bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 82 : 76 },
+  bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
@@ -1442,26 +1476,26 @@ const styles = StyleSheet.create({
   },
 
   homeContent: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 122
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 96
   },
   homeTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 20
+    minHeight: 54,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 14
   },
   topBrandTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: -0.3
+    fontSize: 16.5,
+    fontWeight: '800',
+    letterSpacing: -0.25
   },
   topBrandTag: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     marginTop: -1
   },
   homeTopActions: {
@@ -1473,9 +1507,9 @@ const styles = StyleSheet.create({
     borderRadius: 21
   },
   iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
@@ -1502,17 +1536,17 @@ const styles = StyleSheet.create({
   greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18
+    marginBottom: 14
   },
   homeGreeting: {
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.8
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.65
   },
   homeSubtitle: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 4
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 3
   },
   storyRail: {
     gap: 15,
@@ -1557,12 +1591,12 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   heroCard: {
-    minHeight: 210,
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 20,
+    minHeight: 172,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
     overflow: 'hidden',
-    marginBottom: 26
+    marginBottom: 20
   },
   heroAccent: {
     position: 'absolute',
@@ -1579,9 +1613,9 @@ const styles = StyleSheet.create({
     gap: 10
   },
   heroIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -1592,11 +1626,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   heroTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    lineHeight: 27,
-    letterSpacing: -0.45,
-    marginTop: 17,
+    fontSize: 19,
+    fontWeight: '800',
+    lineHeight: 24,
+    letterSpacing: -0.35,
+    marginTop: 13,
     maxWidth: 290
   },
   heroBody: {
@@ -1773,40 +1807,44 @@ const styles = StyleSheet.create({
 
   bottomDockWrap: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: Platform.OS === 'ios' ? 10 : 9,
+    left: 14,
+    right: 14,
+    bottom: Platform.OS === 'ios' ? 9 : 8,
     zIndex: 50
   },
   bottomBar: {
-    minHeight: 68,
-    borderRadius: 30,
+    minHeight: 60,
+    borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 7
+    paddingHorizontal: 6,
+    paddingVertical: 5
   },
   bottomItem: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 20,
+    minWidth: 0,
+    minHeight: 46,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3
+    gap: 2
   },
   bottomLabel: {
-    fontSize: 9.5,
-    fontWeight: '800'
+    width: '100%',
+    textAlign: 'center',
+    fontSize: 8.5,
+    fontWeight: '700'
   },
   createSlot: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
-    marginTop: -20
+    marginTop: -14
   },
   createNavButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1817,8 +1855,10 @@ const styles = StyleSheet.create({
     elevation: 9
   },
   createNavLabel: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    marginTop: 3
+    width: '100%',
+    textAlign: 'center',
+    fontSize: 8.5,
+    fontWeight: '800',
+    marginTop: 2
   }
 });
