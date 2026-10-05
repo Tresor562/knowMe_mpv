@@ -18,9 +18,9 @@ const sourceReport=():HeroBlockoutReport=>({
  measuredCombinationCaseCount:HERO_COMBINATION_CASE_NAMES.length,measuredMaxCombinedVertexDeltaMeters:.2,measuredMaxSelfIntersectionCount:0,
  lodsVerified:true,lodCanonicalArmatureName:'RIG_HUMANOID',lodShapeKeyNames:['Basis',...HERO_DNA_MORPH_NAMES,...HERO_EXPRESSION_MORPH_NAMES],
  lodMetrics:[
-  {level:0,objectName:'BODY_LOD0',vertices:30000,triangles:45000,maxBonesPerVertex:4,reductionFromPrevious:0},
-  {level:1,objectName:'BODY_LOD1',vertices:18000,triangles:26000,maxBonesPerVertex:4,reductionFromPrevious:Number((1-26000/45000).toFixed(6))},
-  {level:2,objectName:'BODY_LOD2',vertices:7000,triangles:10000,maxBonesPerVertex:4,reductionFromPrevious:Number((1-10000/26000).toFixed(6))}
+  {level:0,objectName:'BODY_LOD0',vertices:30000,triangles:50000,maxBonesPerVertex:4,reductionFromPrevious:0},
+  {level:1,objectName:'BODY_LOD1',vertices:15000,triangles:25000,maxBonesPerVertex:4,reductionFromPrevious:0.5},
+  {level:2,objectName:'BODY_LOD2',vertices:6000,triangles:10000,maxBonesPerVertex:4,reductionFromPrevious:0.6}
  ],
  objects:[
   {role:'BODY',vertices:30000,triangles:45000,manifold:true,unappliedTransforms:false,fusedClothingOrAccessories:false},
