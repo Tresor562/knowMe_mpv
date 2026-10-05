@@ -4,6 +4,48 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
+
+const hairManifest = {
+  manifestVersion: 1,
+  assetKey: 'knowme.e2e.midnight-hair.v1',
+  kind: 'HAIR',
+  slot: 'AVATAR_HAIR',
+  format: 'GLB',
+  materialProfileKey: 'knowme.pbr.mobile.v1',
+  morphTargets: [],
+  lods: [
+    {
+      level: 0,
+      uri: 'https://assets.knowme.test/avatar/hair-midnight-lod0.glb',
+      triangles: 28000,
+      vertices: 18000,
+      downloadBytes: 4_000_000
+    },
+    {
+      level: 1,
+      uri: 'https://assets.knowme.test/avatar/hair-midnight-lod1.glb',
+      triangles: 18000,
+      vertices: 12000,
+      downloadBytes: 2_000_000
+    },
+    {
+      level: 2,
+      uri: 'https://assets.knowme.test/avatar/hair-midnight-lod2.glb',
+      triangles: 8000,
+      vertices: 5000,
+      downloadBytes: 900_000
+    }
+  ],
+  textures: {
+    baseColor: 'asset://textures/hair-midnight-base',
+    normal: 'asset://textures/hair-midnight-normal',
+    maxResolution: 1024
+  },
+  geometry: { skinned: false, hairCards: true },
+  pbr: true,
+  originalDesign: true
+} as const;
+
 describe('Avatar studio manifests (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -55,8 +97,11 @@ describe('Avatar studio manifests (e2e)', () => {
         description: 'Couche de test autoritaire.',
         slot: 'AVATAR_HAIR',
         rarity: 'RARE',
-        assetUrl: 'https://assets.knowme.test/avatar/hair-midnight.png',
+        acquisitionMode: 'EVENT',
+        assetUrl: hairManifest.lods[0].uri,
         previewUrl: 'https://assets.knowme.test/avatar/hair-midnight-preview.png',
+        avatarAssetManifest: hairManifest,
+        assetValidatedAt: new Date(),
         active: true,
         createdById: owner.body.user.id,
         reason: 'Test E2E du studio d’avatar'
@@ -109,7 +154,7 @@ describe('Avatar studio manifests (e2e)', () => {
         (layer: { slot: string }) => layer.slot === 'AVATAR_HAIR'
       )
     ).toMatchObject({
-      zIndex: 20,
+      zIndex: 30,
       fallback: false,
       item: {
         id: hair.id,

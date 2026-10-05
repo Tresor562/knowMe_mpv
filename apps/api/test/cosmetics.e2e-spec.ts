@@ -61,6 +61,7 @@ describe('KnowMe cosmetics inventory (e2e)', () => {
       description: 'Un cadre purement visuel aux reflets doux.',
       slot: 'AVATAR_FRAME',
       rarity: 'RARE',
+      acquisitionMode: 'EVENT',
       assetUrl: '/assets/cosmetics/aurora-frame-v1.json',
       previewUrl: '/assets/cosmetics/aurora-frame-v1.webp',
       active: true,

@@ -39,6 +39,10 @@ function artifact() {
   };
 }
 
+function cliValidUntil() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function cliArgs(artifactPath, outputPath) {
   return [
     cliPath,
@@ -47,7 +51,7 @@ function cliArgs(artifactPath, outputPath) {
     '--scope', 'WEB_V1',
     '--verifier', 'release-governance',
     '--ref', 'evidence://privacy-legal-review/cli',
-    '--valid-until', '2026-09-27T21:30:00.000Z',
+    '--valid-until', cliValidUntil(),
   ];
 }
 

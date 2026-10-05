@@ -1,11 +1,33 @@
 import {AVATAR_CANONICAL_SKELETON} from './avatar-asset-manifest.domain';
-import {HERO_BLOCKOUT_ASSET_KEY,HERO_DNA_MORPH_NAMES,HERO_EXPRESSION_MORPH_NAMES,HeroBlockoutReport} from './hero-blockout-report-v12.domain';
+import {HERO_BLOCKOUT_ASSET_KEY,HERO_DNA_MORPH_NAMES,HERO_EXPRESSION_MORPH_NAMES,HERO_COMBINATION_CASE_NAMES,HeroBlockoutReport} from './hero-blockout-report-v12.domain';
 import {HERO_RUNTIME_BUNDLE_VERSION,HERO_RUNTIME_MORPH_TARGETS,HeroRuntimeBundle,inspectHeroRuntimeGlb,sha256RuntimeBytes,validateHeroRuntimeBundle,verifyHeroRuntimeBundleBytes} from './hero-runtime-bundle-v13.domain';
 
 const LOD_VERTICES=[30000,15000,6000] as const,LOD_TRIANGLES=[50000,25000,10000] as const;
 const sourceReport=():HeroBlockoutReport=>({
- reportVersion:12,assetKey:HERO_BLOCKOUT_ASSET_KEY,unitSystem:'METERS',authoringUpAxis:'Z',runtimeUpAxis:'Y',pose:'A_POSE',geometryMeasured:true,sourceObjectNames:['BODY','EYE_L','EYE_R'],stableVertexOrder:true,deformationTopologyReady:true,centeredAtWorldOrigin:true,bodyVertices:1000,bodyTriangles:1800,totalVertices:1200,totalTriangles:2000,skinningVerified:true,canonicalArmatureName:'Armature',measuredMaxBonesPerVertex:4,requiredBoneNames:[],uvVerified:true,bodyUvLayerName:'UVMap',bodyUvCoverage:1,bodyUvOverlapRatio:0,pbrVerified:true,pbrMaterialNames:[],pbrMaxTextureResolution:2048,pbrMissingTextureSlots:[],dnaMorphsVerified:true,dnaMorphNames:[...HERO_DNA_MORPH_NAMES],measuredDnaMorphCount:HERO_DNA_MORPH_NAMES.length,measuredMaxDnaVertexDeltaMeters:0.1,expressionsVerified:true,expressionMorphNames:[...HERO_EXPRESSION_MORPH_NAMES],measuredExpressionMorphCount:HERO_EXPRESSION_MORPH_NAMES.length,measuredMaxExpressionVertexDeltaMeters:0.05,combinedDeformationsVerified:true,combinationCaseNames:['body_tall_wide','torso_hips','face_wide_smile','nose_pucker','eyes_blink_brows','jaw_frown'],measuredCombinationCaseCount:6,measuredMaxCombinedVertexDeltaMeters:0.2,measuredMaxSelfIntersectionCount:0,lodsVerified:true,lodCanonicalArmatureName:'Armature',lodShapeKeyNames:['Basis',...HERO_DNA_MORPH_NAMES,...HERO_EXPRESSION_MORPH_NAMES],lodMetrics:[{level:0,objectName:'BODY_LOD0',vertices:30000,triangles:50000,maxBonesPerVertex:4,reductionFromPrevious:0},{level:1,objectName:'BODY_LOD1',vertices:15000,triangles:25000,maxBonesPerVertex:4,reductionFromPrevious:0.5},{level:2,objectName:'BODY_LOD2',vertices:6000,triangles:10000,maxBonesPerVertex:4,reductionFromPrevious:0.6}]
-} as HeroBlockoutReport);
+ reportVersion:12,assetKey:HERO_BLOCKOUT_ASSET_KEY,unitSystem:'METERS',authoringUpAxis:'Z',runtimeUpAxis:'Y',pose:'A_POSE',
+ poseVerified:true,measuredLeftUpperArmAngleDeg:40,measuredRightUpperArmAngleDeg:40,centeredWorldOrigin:true,measuredBodyCenterX:0,
+ groundContactY:0,measuredGroundContactMeters:0,groundContactVerified:true,bodyHeightMeters:1.68,skeletonTarget:AVATAR_CANONICAL_SKELETON,
+ stableVertexOrder:true,deformationTopologyReady:true,skinningVerified:true,measuredUnweightedBodyVertices:0,measuredMaxBodyBoneInfluences:4,
+ measuredMaxBodyWeightSumError:.001,uvVerified:true,measuredBodyUvLayers:1,measuredBodyUvOutOfBoundsLoops:0,pbrMaterialsVerified:true,
+ measuredMaterialSlots:3,measuredMaxMaterialsPerObject:1,texturesVerified:true,bodyBaseColorTextureVerified:true,bodyNormalTextureVerified:true,
+ bodyOrmTextureVerified:true,textureColorSpacesVerified:true,measuredTextureCount:3,measuredMaxTextureDimension:2048,
+ measuredTotalTexturePixels:12582912,dnaMorphsVerified:true,dnaMorphNames:[...HERO_DNA_MORPH_NAMES],
+ measuredDnaMorphCount:HERO_DNA_MORPH_NAMES.length,measuredMaxDnaVertexDeltaMeters:.12,expressionsVerified:true,
+ expressionMorphNames:[...HERO_EXPRESSION_MORPH_NAMES],measuredExpressionMorphCount:HERO_EXPRESSION_MORPH_NAMES.length,
+ measuredMaxExpressionVertexDeltaMeters:.04,combinedDeformationsVerified:true,combinationCaseNames:[...HERO_COMBINATION_CASE_NAMES],
+ measuredCombinationCaseCount:HERO_COMBINATION_CASE_NAMES.length,measuredMaxCombinedVertexDeltaMeters:.2,measuredMaxSelfIntersectionCount:0,
+ lodsVerified:true,lodCanonicalArmatureName:'RIG_HUMANOID',lodShapeKeyNames:['Basis',...HERO_DNA_MORPH_NAMES,...HERO_EXPRESSION_MORPH_NAMES],
+ lodMetrics:[
+  {level:0,objectName:'BODY_LOD0',vertices:30000,triangles:50000,maxBonesPerVertex:4,reductionFromPrevious:0},
+  {level:1,objectName:'BODY_LOD1',vertices:15000,triangles:25000,maxBonesPerVertex:4,reductionFromPrevious:0.5},
+  {level:2,objectName:'BODY_LOD2',vertices:6000,triangles:10000,maxBonesPerVertex:4,reductionFromPrevious:0.6}
+ ],
+ objects:[
+  {role:'BODY',vertices:30000,triangles:45000,manifold:true,unappliedTransforms:false,fusedClothingOrAccessories:false},
+  {role:'EYE_L',vertices:800,triangles:1400,manifold:true,unappliedTransforms:false,fusedClothingOrAccessories:false},
+  {role:'EYE_R',vertices:800,triangles:1400,manifold:true,unappliedTransforms:false,fusedClothingOrAccessories:false}
+ ]
+});
 
 type DocMutator=(doc:any)=>void;type BinMutator=(bin:Uint8Array,doc:any)=>void;
 const makeGlb=(vertices:number,triangles:number,targetNames:string[]=[...HERO_RUNTIME_MORPH_TARGETS],mutate?:DocMutator,mutateBin?:BinMutator)=>{
@@ -22,7 +44,7 @@ const replace=(b:HeroRuntimeBundle,index:number,forged:Uint8Array)=>{b.lods[inde
 const forge=(doc?:DocMutator,bin?:BinMutator)=>makeGlb(6000,10000,undefined,doc,bin);
 
 describe('Hero runtime bundle v13',()=>{
- it('accepts certified manifest bound to structurally and numerically valid GLB bytes',()=>{const b=bundle();expect(validateHeroRuntimeBundle(b)).toBe(b);expect(verifyHeroRuntimeBundleBytes(b,new Map(b.lods.map((l,i)=>[l.fileName,bytes[i]]))).toBe(true);});
+ it('accepts certified manifest bound to structurally and numerically valid GLB bytes',()=>{const b=bundle();expect(validateHeroRuntimeBundle(b)).toBe(b);expect(verifyHeroRuntimeBundleBytes(b,new Map(b.lods.map((l,i)=>[l.fileName,bytes[i]])))).toBe(true);});
  it('recomputes geometry from GLB accessors',()=>expect(inspectHeroRuntimeGlb(bytes[0])).toEqual({meshCount:1,skinCount:1,morphTargetCount:HERO_RUNTIME_MORPH_TARGETS.length,vertices:30000,triangles:50000}));
  it('rejects substituted GLB bytes',()=>{const b=bundle();const files=new Map(b.lods.map((l,i)=>[l.fileName,bytes[i]]));files.set('knowme-hero-lod1.glb',new Uint8Array([9,9]));expect(()=>verifyHeroRuntimeBundleBytes(b,files)).toThrow();});
  it('rejects forged geometry copied into runtime manifest',()=>{const b=bundle();b.lods[1].triangles++;expect(()=>validateHeroRuntimeBundle(b)).toThrow(/geometry/);});

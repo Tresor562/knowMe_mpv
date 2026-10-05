@@ -66,13 +66,13 @@ describe('avatar universe domain', () => {
         hasPremiumEntitlement: true,
         knowCoinBalance: 1
       })
-    ).toThrow('Solde KnowCoins insuffisant');
+    ).toThrow(/KnowCoins/);
 
     expect(
       assertAvatarPurchaseAllowed(item, {
         hasPremiumEntitlement: true,
         knowCoinBalance: 100_000
-      })
+      }).priceKnowCoins
     ).toBe(calculateAvatarItemPrice(item));
   });
 

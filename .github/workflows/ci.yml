@@ -40,7 +40,13 @@ jobs:
         run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs scripts/runtime-container-lockfile-preflight.test.mjs scripts/runtime-container-security-preflight.test.mjs scripts/runtime-container-healthcheck-preflight.test.mjs scripts/runtime-container-boot-preflight.test.mjs scripts/runtime-media-production-config-preflight.test.mjs scripts/runtime-account-security-production-config-preflight.test.mjs scripts/runtime-media-workers-production-config-preflight.test.mjs
       - run: pnpm install --frozen-lockfile
       - name: Audit production dependencies for high and critical advisories
-        run: pnpm audit --prod --audit-level=high
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/pnpm-audit.json"
+          status=0
+          pnpm audit --prod --audit-level=high --json > "$report" || status=$?
+          node scripts/production-dependency-audit.mjs "$report" "$status"
       - run: pnpm --filter @knowme/api prisma:generate
       - run: pnpm db:migrate:deploy
       - name: Verify committed migrations match Prisma datamodel

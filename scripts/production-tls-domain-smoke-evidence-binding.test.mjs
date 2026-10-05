@@ -34,8 +34,12 @@ function artifact(overrides={}) {
   };
 }
 function bytes(value=artifact()) { return Buffer.from(`${JSON.stringify(value,null,2)}\n`,'utf8'); }
+function cliValidUntil() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function cliArgs(artifactPath,outputPath) {
-  return [cliPath,'--artifact',artifactPath,'--output',outputPath,'--scope','WEB_V1','--verifier','release-operator','--ref','evidence://knowme/tls-domain/cli','--valid-until',VALID_UNTIL];
+  return [cliPath,'--artifact',artifactPath,'--output',outputPath,'--scope','WEB_V1','--verifier','release-operator','--ref','evidence://knowme/tls-domain/cli','--valid-until',cliValidUntil()];
 }
 
 test('accepts exact passed TLS/domain artifact',()=>{

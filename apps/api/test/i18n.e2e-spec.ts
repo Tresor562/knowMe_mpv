@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request = require('supertest');
+import { SUPPORTED_LOCALES } from '@knowme/i18n-contract';
 import { AccountService } from '../src/account/account.service';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -32,16 +33,21 @@ describe('KnowMe internationalization foundation (e2e)', () => {
       .expect(200);
     expect(catalog.body).toEqual(
       expect.objectContaining({
-        contractVersion: 1,
+        contractVersion: 2,
         fallbackLocale: 'fr',
+        serverMessagesAreFallbackOnly: true,
         clientErrorLocalizationByCode: true,
         userGeneratedContentTranslated: false
       })
     );
-    expect(catalog.body.supportedLocales).toEqual([
-      { locale: 'fr', nativeName: 'Français', direction: 'ltr' },
-      { locale: 'en', nativeName: 'English', direction: 'ltr' }
-    ]);
+    expect(catalog.body.supportedLocales).toHaveLength(SUPPORTED_LOCALES.length);
+    expect(catalog.body.supportedLocales).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: 'fr', direction: 'ltr' }),
+        expect.objectContaining({ locale: 'en', direction: 'ltr' }),
+        expect.objectContaining({ locale: 'arb-Arab', direction: 'rtl' })
+      ])
+    );
 
     const registered = await request(app.getHttpServer())
       .post('/auth/register')
@@ -64,7 +70,7 @@ describe('KnowMe internationalization foundation (e2e)', () => {
     expect(detected.body).toEqual(
       expect.objectContaining({
         userId,
-        locale: 'en',
+        locale: 'por-Latn',
         direction: 'ltr',
         source: 'DETECTED',
         version: 0,
@@ -133,7 +139,7 @@ describe('KnowMe internationalization foundation (e2e)', () => {
       expect.objectContaining({
         formatVersion: 1,
         fallbackLocale: 'fr',
-        supportedLocales: ['fr', 'en'],
+        supportedLocales: [...SUPPORTED_LOCALES],
         preference: expect.objectContaining({
           userId,
           locale: 'en',

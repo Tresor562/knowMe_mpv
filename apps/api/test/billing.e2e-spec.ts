@@ -95,6 +95,12 @@ describe('KnowMe authoritative billing (e2e)', () => {
         })
       ])
     );
+    const premiumPlan = catalog.body.find(
+      (plan: { key?: string }) => plan.key === 'premium_monthly'
+    );
+    expect(premiumPlan).toBeDefined();
+    const premiumEntitlementCount = premiumPlan.entitlements.length as number;
+    expect(premiumEntitlementCount).toBeGreaterThan(0);
 
     const initial = await request(app.getHttpServer())
       .get('/billing/me')
@@ -157,7 +163,7 @@ describe('KnowMe authoritative billing (e2e)', () => {
     expect(activeState.body.subscriptions[0]).toEqual(
       expect.objectContaining({ status: 'ACTIVE', grantsAccess: true })
     );
-    expect(activeState.body.entitlements).toHaveLength(9);
+    expect(activeState.body.entitlements).toHaveLength(premiumEntitlementCount);
 
     await request(app.getHttpServer())
       .get('/exclusive/premium-insights')
@@ -179,7 +185,7 @@ describe('KnowMe authoritative billing (e2e)', () => {
           revokedAt: null
         }
       })
-    ).toBe(9);
+    ).toBe(premiumEntitlementCount);
 
     const conflictingReplay = { ...activeEvent, status: 'REFUNDED' as const };
     await signedEvent(conflictingReplay).expect(409);
@@ -241,7 +247,7 @@ describe('KnowMe authoritative billing (e2e)', () => {
         revokedAt: null
       }
     });
-    expect(renewedGrants).toHaveLength(9);
+    expect(renewedGrants).toHaveLength(premiumEntitlementCount);
     expect(
       renewedGrants.every(
         (grant) => grant.expiresAt?.getTime() === renewedEnd.getTime()
@@ -362,7 +368,7 @@ describe('KnowMe authoritative billing (e2e)', () => {
 
     expect(subscription?.status).toBe('REFUNDED');
     expect(activeGrants).toBe(0);
-    expect(totalGrants).toBe(18);
+    expect(totalGrants).toBe(premiumEntitlementCount * 2);
     expect(auditCount).toBe(7);
   });
 });

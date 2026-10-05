@@ -54,7 +54,57 @@ const clampScore=(value:number)=>Math.max(0,Math.min(100,Math.round(value)));
 export function validateMorphology(m:AvatarMorphology){ for(const value of Object.values(m)){ if(!Number.isFinite(value)||value<0||value>100) throw new Error('Avatar morphology values must be between 0 and 100.'); } return m; }
 export function calculateAvatarItemPrice(item:AvatarItemDefinition){ if(item.acquisitionMode==='FREE'||item.acquisitionMode==='ACHIEVEMENT'||item.acquisitionMode==='EVENT') return 0; const rarityBase={COMMON:40,UNCOMMON:70,RARE:120,EPIC:220,LEGENDARY:420,MYTHIC:750}[item.rarity]; const quality=clampScore(item.styleScore)+clampScore(item.craftsmanshipScore)+clampScore(item.animationComplexity); return Math.max(1,Math.round((rarityBase+quality)*Math.max(1000,item.scarcityMultiplierBps)/10000)); }
 export function assertAvatarPurchaseAllowed(item:AvatarItemDefinition,ctx:AvatarPurchaseContext){ const price=calculateAvatarItemPrice(item); if(!item.active) throw new Error('Avatar item is inactive.'); if(item.acquisitionMode==='PREMIUM_KNOWCOINS'&&!ctx.hasPremiumEntitlement) throw new Error('Premium entitlement required.'); if(price>ctx.knowCoinBalance) throw new Error('Insufficient KnowCoins.'); return {priceKnowCoins:price}; }
-export function calculateReadyAvatarBundlePrice(items:AvatarItemDefinition[],discountBps:number){ const subtotal=items.reduce((sum,item)=>sum+calculateAvatarItemPrice(item),0); const safe=Math.max(0,Math.min(5000,Math.round(discountBps))); return Math.max(0,Math.round(subtotal*(10000-safe)/10000)); }
+export function calculateReadyAvatarBundlePrice(items:AvatarItemDefinition[],discountBps:number){ const subtotal=items.reduce((sum,item)=>sum+calculateAvatarItemPrice(item),0); const safe=Math.max(0,Math.min(2500,Math.round(discountBps))); return Math.max(0,Math.round(subtotal*(10000-safe)/10000)); }
 export function hasCompleteFreeNormalAvatar(items:AvatarItemDefinition[]){ return AVATAR_ESSENTIAL_SLOTS.every(slot=>items.some(item=>item.slot===slot&&item.acquisitionMode==='FREE'&&item.active)); }
 export const AVATAR_FREE_STARTER_KIT:AvatarItemDefinition[] = AVATAR_ESSENTIAL_SLOTS.map((slot,index)=>({key:`starter-${slot.toLowerCase()}`,name:`Starter ${slot}`,slot,rarity:'COMMON',themeFamily:'EVERYDAY',acquisitionMode:'FREE',styleScore:40+index,craftsmanshipScore:45,animationComplexity:10,scarcityMultiplierBps:10000,originalDesign:true,gameplayEffectsAllowed:false,active:true}));
-export function avatarUniversePolicy(){ return {serverAuthoritative:true,visualOnly:true,gameplayEffectsAllowed:false,freeCompleteAvatarRequired:true,premiumKnowCoinsSupported:true,renderTiers:AVATAR_RENDER_TIERS,slots:AVATAR_ALL_SLOTS}; }
+
+function assertProfileScore(value:number,label:string){
+  if(!Number.isFinite(value)||value<0||value>100) throw new Error(`${label} must be between 0 and 100.`);
+}
+function assertNonEmptyKey(value:string,label:string){
+  if(typeof value!=='string'||!value.trim()) throw new Error(`${label} is required.`);
+}
+
+export function validatePersonality(profile:AvatarPersonalityProfile){
+  if(!AVATAR_PERSONALITIES.includes(profile.archetype)) throw new Error('Unsupported Avatar personality archetype.');
+  for(const [label,value] of [
+    ['confidence',profile.confidence],
+    ['expressiveness',profile.expressiveness],
+    ['energy',profile.energy],
+    ['warmth',profile.warmth],
+    ['humor',profile.humor],
+    ['mystery',profile.mystery],
+  ] as const) assertProfileScore(value,label);
+  assertNonEmptyKey(profile.idleAnimation,'Avatar idle animation');
+  assertNonEmptyKey(profile.signaturePose,'Avatar signature pose');
+  assertNonEmptyKey(profile.greetingStyle,'Avatar greeting style');
+  assertNonEmptyKey(profile.emotePackKey,'Avatar emote pack');
+  return profile;
+}
+
+export function validateAvatarItem(item:AvatarItemDefinition){
+  if(!AVATAR_ALL_SLOTS.includes(item.slot)) throw new Error('Unsupported Avatar item slot.');
+  assertNonEmptyKey(item.key,'Avatar item key');
+  assertNonEmptyKey(item.name,'Avatar item name');
+  assertProfileScore(item.styleScore,'Avatar style score');
+  assertProfileScore(item.craftsmanshipScore,'Avatar craftsmanship score');
+  assertProfileScore(item.animationComplexity,'Avatar animation complexity');
+  if(!Number.isSafeInteger(item.scarcityMultiplierBps)||item.scarcityMultiplierBps<1000) throw new Error('Avatar scarcity multiplier is invalid.');
+  if(item.originalDesign!==true&&!item.licensedReferenceId?.trim()) throw new Error('Une licence explicite est requise pour toute référence culturelle non originale.');
+  if(item.gameplayEffectsAllowed!==false) throw new Error('Avatar cosmetics must remain visual-only.');
+  return item;
+}
+
+export function avatarUniversePolicy(){ return {
+  serverAuthoritative:true,
+  premiumFlagsTrustedFromClient:false,
+  visualOnly:true,
+  gameplayEffectsAllowed:false,
+  freeCompleteAvatarRequired:true,
+  premiumKnowCoinsSupported:true,
+  directFranchiseCopiesAllowed:false,
+  fictionalStylizedWeaponsAllowed:true,
+  realWeaponPerformanceSimulationAllowed:false,
+  renderTiers:AVATAR_RENDER_TIERS,
+  slots:AVATAR_ALL_SLOTS
+}; }

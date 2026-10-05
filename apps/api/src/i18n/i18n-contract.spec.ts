@@ -15,14 +15,14 @@ describe('KMD-049 shared i18n contract', () => {
   it('normalizes regional tags and falls back deterministically', () => {
     expect(normalizeLocale('en-US')).toBe('en');
     expect(normalizeLocale('fr_BJ')).toBe('fr');
-    expect(normalizeLocale('pt-BR')).toBe(DEFAULT_LOCALE);
+    expect(normalizeLocale('pt-BR')).toBe('por-Latn');
     expect(normalizeLocale(null)).toBe(DEFAULT_LOCALE);
   });
 
-  it('honors Accept-Language quality while ignoring unsupported languages', () => {
-    expect(parseAcceptLanguage('pt-BR;q=1, en-US;q=0.8, fr;q=0.4')).toBe('en');
+  it('honors Accept-Language quality across the expanded Meta locale set', () => {
+    expect(parseAcceptLanguage('pt-BR;q=1, en-US;q=0.8, fr;q=0.4')).toBe('por-Latn');
     expect(parseAcceptLanguage('en;q=0.2, fr-BJ;q=0.9')).toBe('fr');
-    expect(parseAcceptLanguage('de, es;q=0.7')).toBe('fr');
+    expect(parseAcceptLanguage('de, es;q=0.7')).toBe('deu-Latn');
   });
 
   it('interpolates messages and applies locale plural rules', () => {

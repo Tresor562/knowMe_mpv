@@ -41,6 +41,10 @@ function bytes(value = artifact()) {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function cliValidUntil() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function cliArgs(artifactPath, outputPath) {
   return [
     cliPath,
@@ -49,7 +53,7 @@ function cliArgs(artifactPath, outputPath) {
     '--scope', 'WEB_V1',
     '--verifier', 'release-operator',
     '--ref', 'evidence://knowme/data-export-delete/cli',
-    '--valid-until', '2026-09-27T19:00:00.000Z',
+    '--valid-until', cliValidUntil(),
   ];
 }
 

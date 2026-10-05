@@ -76,6 +76,7 @@ describe('KnowMe cosmetic shop (e2e)', () => {
         description: 'Une bulle de discussion purement visuelle.',
         slot: 'CHAT_BUBBLE',
         rarity: 'EPIC',
+        acquisitionMode: 'KNOWCOINS',
         assetUrl: '/assets/cosmetics/nebula-chat-bubble-v1.json',
         previewUrl: '/assets/cosmetics/nebula-chat-bubble-v1.webp',
         active: true,
