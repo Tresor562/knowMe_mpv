@@ -24,7 +24,7 @@ export function ConversationArchiveTimelineExperience({
   currentUserId: string;
   onOpenConversation?: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [archives, setArchives] = useState<Archive[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ export function ConversationArchiveTimelineExperience({
                   onPress={() => onOpenConversation?.(archive.conversationId)}
                   style={({ pressed }) => [
                     styles.card,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius },
                     pressed && styles.pressed
                   ]}
                 >
