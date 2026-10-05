@@ -36,7 +36,7 @@ export function ConversationFoldersExperience({
   currentUserId: string;
   onOpenConversation?: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [name, setName] = useState('');
@@ -183,7 +183,7 @@ export function ConversationFoldersExperience({
       <Text style={[styles.muted, { color: colors.muted }]}>Ton classement reste privé et ne change jamais les membres d'une conversation.</Text>
 
       {authorityValid ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -191,12 +191,12 @@ export function ConversationFoldersExperience({
             placeholder="Nouveau dossier"
             placeholderTextColor={colors.muted}
             editable={!busy}
-            style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+            style={[styles.input, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius }]}
           />
           <Pressable
             disabled={busy || !name.trim()}
             onPress={() => void createFolder()}
-            style={[styles.primary, { backgroundColor: colors.accent }, (busy || !name.trim()) && styles.disabled]}
+            style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, (busy || !name.trim()) && styles.disabled]}
           >
             <Text style={{ color: colors.accentText, fontWeight: '900' }}>Créer</Text>
           </Pressable>
@@ -219,7 +219,7 @@ export function ConversationFoldersExperience({
         const assigned = new Set(folders.flatMap((candidate) => candidate.conversationIds));
         const unassigned = conversations.filter((conversation) => !assigned.has(conversation.id));
         return (
-          <View key={folder.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View key={folder.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <View style={styles.folderHeader}>
               <View style={styles.folderCopy}>
                 <Text style={[styles.folderName, { color: colors.text }]}>{folder.name}</Text>
@@ -228,7 +228,7 @@ export function ConversationFoldersExperience({
               <Pressable
                 disabled={busy}
                 onPress={() => void removeFolder(folder.id)}
-                style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}
+                style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
               >
                 <Text style={{ color: colors.text, fontWeight: '800' }}>Supprimer</Text>
               </Pressable>
@@ -248,7 +248,7 @@ export function ConversationFoldersExperience({
                 <Pressable
                   disabled={busy}
                   onPress={() => void unassign(conversationId)}
-                  style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}
+                  style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
                 >
                   <Text style={{ color: colors.text }}>Retirer</Text>
                 </Pressable>
@@ -263,7 +263,7 @@ export function ConversationFoldersExperience({
                     key={conversation.id}
                     disabled={busy}
                     onPress={() => void assign(folder.id, conversation.id)}
-                    style={[styles.assignment, { borderColor: colors.border }, busy && styles.disabled]}
+                    style={[styles.assignment, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
                   >
                     <Text style={{ color: colors.text }}>{conversationNames.get(conversation.id)}</Text>
                   </Pressable>
@@ -275,7 +275,7 @@ export function ConversationFoldersExperience({
       }) : null}
 
       {authorityValid && !folders.length ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <Text style={[styles.folderName, { color: colors.text }]}>Aucun dossier</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>Crée ton premier dossier pour organiser tes conversations.</Text>
         </View>
