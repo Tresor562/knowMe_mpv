@@ -362,7 +362,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               <View style={styles.flex}>
                 <Text style={[styles.editAvatarTitle, { color: colors.text }]}>Photo de profil</Text>
                 <Text style={[styles.helper, { color: colors.muted }]}>
-                  La photo actuelle est conservée. La sélection locale remplacera l’ancien champ URL dans la prochaine étape média.
+                  Ta photo actuelle reste inchangée.
                 </Text>
               </View>
             </View>
@@ -599,7 +599,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           />
           <ProfileMenuRow
             title="Modifier mon profil"
-            description="Nom, bio et photo de profil."
+            description="Nom et biographie."
             icon="profile"
             tone="secondary"
             onPress={() => setPanel('edit')}
