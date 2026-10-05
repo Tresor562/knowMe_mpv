@@ -6,6 +6,8 @@ These repository-level instructions apply to any coding assistant, agent, or fut
 
 Before modifying KnowMe:
 
+For mobile UI, theming, chat appearance, motion, profiles, navigation or glass/blur work, also read `docs/TELEGRAM_UI_REFERENCE.md`. It is the durable Telegram-derived design reference for KnowMe and must be treated as a quality reference, not a pixel-copy specification.
+
 1. Read `docs/NEXUS_INTEGRATION_CHECKPOINT.md` completely.
 2. Read `docs/roadmap/CURRENT_DELIVERY_CHECKPOINT.md` when present.
 3. Inspect current `main`, open PRs, active branches, and CI live on GitHub.
