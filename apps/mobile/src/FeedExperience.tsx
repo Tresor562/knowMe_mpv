@@ -12,7 +12,8 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
-import { Avatar, BrandMark, KnowMeIcon } from './ui/KnowMeUI';
+import { useAppearance } from './AppearanceProvider';
+import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
   id: string;
@@ -50,13 +51,29 @@ function ActionButton({ title, onPress, disabled = false, danger = false }: {
   disabled?: boolean;
   danger?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.action, danger && styles.dangerAction, (pressed || disabled) && styles.mutedAction]}
+      style={({ pressed }) => [
+        styles.action,
+        {
+          backgroundColor: danger ? 'transparent' : colors.backgroundAccent,
+          borderColor: danger ? colors.danger : colors.border
+        },
+        danger && styles.dangerAction,
+        (pressed || disabled) && styles.mutedAction
+      ]}
     >
-      <Text style={[styles.actionText, danger && styles.dangerText]}>{title}</Text>
+      <Text
+        style={[
+          styles.actionText,
+          { color: danger ? colors.danger : colors.text }
+        ]}
+      >
+        {title}
+      </Text>
     </Pressable>
   );
 }
@@ -67,6 +84,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   onBack: () => void;
   onDeleted: (postId: string) => void;
 }) {
+  const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -205,29 +223,34 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
 
   if (loading || !post) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.muted}>{loading ? 'Chargement de la discussion…' : 'Publication introuvable.'}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.muted, { color: colors.muted }]}>{loading ? 'Chargement de la discussion…' : 'Publication introuvable.'}</Text>
         <ActionButton title="Retour" onPress={onBack} />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.eyebrow}>DISCUSSION</Text>
-          <Text style={styles.heading}>Publication</Text>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>DISCUSSION</Text>
+          <Text style={[styles.heading, { color: colors.text }]}>Publication</Text>
         </View>
         <ActionButton title="Retour" onPress={onBack} />
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
-          <View style={styles.flex}><Text style={styles.title}>{post.author.displayName}</Text><Text style={styles.muted}>@{post.author.username}</Text></View>
+          <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
         </View>
-        <Text style={styles.postText}>{post.content}</Text>
+        <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
         {post.imageUrl ? (
           <Image
             source={{ uri: post.imageUrl }}
@@ -235,38 +258,46 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
             resizeMode="cover"
           />
         ) : null}
-        <Text style={styles.muted}>{new Date(post.createdAt).toLocaleString('fr-FR')}</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>{new Date(post.createdAt).toLocaleString('fr-FR')}</Text>
         <View style={styles.actionsRow}>
           <ActionButton title={`J’aime · ${post._count.likes}`} onPress={() => void toggleLike()} />
-          <Text style={styles.muted}>Commentaires · {post._count.comments}</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>Commentaires · {post._count.comments}</Text>
           {post.authorId === userId && (
             <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
           )}
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Ajouter un commentaire</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.text }]}>Ajouter un commentaire</Text>
         <TextInput
           value={commentText}
           onChangeText={setCommentText}
           multiline
           maxLength={500}
           placeholder="Écris ce que tu penses…"
-          placeholderTextColor="#737E93"
-          style={styles.input}
+          placeholderTextColor={colors.muted}
+          selectionColor={colors.accent}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.backgroundAccent,
+              borderColor: colors.border,
+              color: colors.text
+            }
+          ]}
         />
         <ActionButton title={sending ? 'Envoi…' : 'Commenter'} disabled={sending || !commentText.trim()} onPress={() => void sendComment()} />
       </View>
 
-      <Text style={styles.sectionTitle}>Commentaires</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Commentaires</Text>
       {comments.map((comment) => {
         const canDelete = comment.author.id === userId || post.authorId === userId;
         return (
-          <View key={comment.id} style={styles.commentCard}>
+          <View key={comment.id} style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.authorRow}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
-              <View style={styles.flex}><Text style={styles.title}>{comment.author.displayName}</Text><Text style={styles.muted}>@{comment.author.username}</Text></View>
+              <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
               {canDelete && (
                 <ActionButton
                   title={busyId === comment.id ? '…' : 'Supprimer'}
@@ -276,18 +307,19 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
                 />
               )}
             </View>
-            <Text style={styles.commentText}>{comment.content}</Text>
-            <Text style={styles.muted}>{new Date(comment.createdAt).toLocaleString('fr-FR')}</Text>
+            <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
+            <Text style={[styles.muted, { color: colors.muted }]}>{new Date(comment.createdAt).toLocaleString('fr-FR')}</Text>
           </View>
         );
       })}
-      {!comments.length && <Text style={styles.muted}>Aucun commentaire pour le moment.</Text>}
+      {!comments.length && <Text style={[styles.muted, { color: colors.muted }]}>Aucun commentaire pour le moment.</Text>}
       {hasMore && <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus'} disabled={loadingMore} onPress={() => void loadMore()} />}
     </ScrollView>
   );
 }
 
 export function FeedExperience({ userId }: { userId: string }) {
+  const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -368,50 +400,79 @@ export function FeedExperience({ userId }: { userId: string }) {
 
   return (
     <FlatList
+      style={{ backgroundColor: colors.background }}
       data={posts}
       keyExtractor={(item) => item.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+          onRefresh={() => { setRefreshing(true); void load(); }}
+        />
+      }
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <View style={styles.discoverHeader}>
+          <GlassSurface strength="soft" borderRadius={28} style={styles.discoverHeader}>
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={styles.heading}>Discover</Text>
-                <Text style={styles.discoverSub}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
               </View>
             </View>
-            <View style={styles.discoverIcon}>
-              <KnowMeIcon name="discover" size={22} color="#7A5CFF" />
-            </View>
-          </View>
-          <View style={[styles.card, styles.composerCard]}>
+            <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
+              <KnowMeIcon name="discover" size={22} color={colors.accent} />
+            </GlassSurface>
+          </GlassSurface>
+          <View
+            style={[
+              styles.card,
+              styles.composerCard,
+              { backgroundColor: colors.surface, borderColor: colors.border }
+            ]}
+          >
             <TextInput
               multiline
               maxLength={1000}
               value={content}
               onChangeText={setContent}
               placeholder="Partage une découverte, une question ou un défi…"
-              placeholderTextColor="#737E93"
-              style={styles.input}
+              placeholderTextColor={colors.muted}
+              selectionColor={colors.accent}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.backgroundAccent,
+                  borderColor: colors.border,
+                  color: colors.text
+                }
+              ]}
             />
             <View style={styles.composerFooter}>
-              <Text style={styles.composerHint}>{content.length}/1000</Text>
+              <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
           </View>
         </View>
       )}
-      ListEmptyComponent={<View style={styles.card}><Text style={styles.title}>Le fil est calme</Text><Text style={styles.muted}>Sois la première personne à partager quelque chose.</Text></View>}
+      ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
       ListFooterComponent={hasMore ? <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus de publications'} disabled={loadingMore} onPress={() => void loadMore()} /> : null}
       renderItem={({ item }) => (
-        <Pressable onPress={() => setSelectedPostId(item.id)} style={[styles.card, styles.postCard]}>
+        <Pressable
+          onPress={() => setSelectedPostId(item.id)}
+          style={[
+            styles.card,
+            styles.postCard,
+            { backgroundColor: colors.surface, borderColor: colors.border }
+          ]}
+        >
           <View style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={styles.title}>{item.author.displayName}</Text><Text style={styles.muted}>@{item.author.username}</Text></View>
+            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
           </View>
-          <Text style={styles.postText}>{item.content}</Text>
+          <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
             <Image
               source={{ uri: item.imageUrl }}
@@ -421,7 +482,7 @@ export function FeedExperience({ userId }: { userId: string }) {
           ) : null}
           <View style={styles.actionsRow}>
             <ActionButton title={`J’aime · ${item._count.likes}`} onPress={() => void like(item.id)} />
-            <Text style={styles.muted}>Commentaires · {item._count.comments}</Text>
+            <Text style={[styles.muted, { color: colors.muted }]}>Commentaires · {item._count.comments}</Text>
             <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString('fr-FR')}</Text>
           </View>
         </Pressable>
@@ -433,34 +494,34 @@ export function FeedExperience({ userId }: { userId: string }) {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 14 },
   headerBlock: { gap: 14, marginBottom: 4 },
-  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 2 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  discoverSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
-  discoverIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  discoverSub: { fontSize: 11.5, marginTop: 1 },
+  discoverIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   composerCard: { padding: 14, borderRadius: 20 },
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  composerHint: { color: '#737E93', fontSize: 11 },
+  composerHint: { fontSize: 11 },
   postCard: { borderRadius: 22 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
-  sectionTitle: { color: '#F7F7FB', fontSize: 22, fontWeight: '900', marginTop: 4 },
-  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  commentCard: { backgroundColor: '#0D111B', borderColor: '#273044', borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
+  sectionTitle: { fontSize: 22, fontWeight: '900', marginTop: 4 },
+  card: { borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
+  commentCard: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   flex: { flex: 1 },
-  title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
-  postText: { color: '#E8ECF4', fontSize: 16.5, lineHeight: 24 },
-  postImage: { width: '100%', aspectRatio: 1.2, borderRadius: 18, backgroundColor: '#171E2C' },
-  commentText: { color: '#DCE2EC', fontSize: 15, lineHeight: 22 },
-  muted: { color: '#929BAD' },
-  date: { color: '#929BAD', marginLeft: 'auto' },
-  input: { minHeight: 56, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
-  action: { backgroundColor: '#171E2C', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
-  actionText: { color: '#F7F7FB', fontWeight: '800' },
-  dangerAction: { backgroundColor: 'transparent', borderColor: '#FF6B73', borderWidth: 1 },
-  dangerText: { color: '#FF6B73' },
+  title: { fontSize: 17, fontWeight: '800' },
+  postText: { fontSize: 16.5, lineHeight: 24 },
+  postImage: { width: '100%', aspectRatio: 1.2, borderRadius: 18 },
+  commentText: { fontSize: 15, lineHeight: 22 },
+  muted: {},
+  date: { marginLeft: 'auto' },
+  input: { minHeight: 56, borderWidth: 1, borderRadius: 28, paddingHorizontal: 16, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
+  action: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center' },
+  actionText: { fontWeight: '800' },
+  dangerAction: { borderWidth: 1 },
+  dangerText: {},
   mutedAction: { opacity: 0.45 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 18 },
