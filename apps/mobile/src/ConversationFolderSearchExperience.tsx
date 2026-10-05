@@ -17,7 +17,7 @@ export function ConversationFolderSearchExperience({
   currentUserId: string;
   onOpenConversation?: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [query, setQuery] = useState('');
@@ -101,7 +101,7 @@ export function ConversationFolderSearchExperience({
         autoCorrect={false}
         style={[
           styles.input,
-          { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }
+          { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius }
         ]}
       />
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
@@ -114,7 +114,7 @@ export function ConversationFolderSearchExperience({
         ? filtered.map((folder) => (
             <View
               key={folder.id}
-              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
             >
               <Text style={[styles.title, { color: colors.text }]}>{folder.name}</Text>
               <Text style={[styles.small, { color: colors.muted }]}>{folder.conversationIds.length} conversation(s)</Text>
