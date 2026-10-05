@@ -42,7 +42,7 @@ export function UniversalSearchExperience({
 }: {
   onOpenResult?: (item: SearchItem) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [query, setQuery] = useState('');
   const [activeKinds, setActiveKinds] = useState<SearchKind[]>(SEARCH_KINDS);
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -126,7 +126,7 @@ export function UniversalSearchExperience({
         Seuls les résultats déjà autorisés par le serveur KnowMe sont affichés.
       </Text>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -174,7 +174,7 @@ export function UniversalSearchExperience({
           onPress={() => void search()}
           style={({ pressed }) => [
             styles.primaryButton,
-            { backgroundColor: colors.accent },
+            { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
             (pressed || busy || query.trim().length < 2) && styles.disabled
           ]}
         >
@@ -226,7 +226,7 @@ export function UniversalSearchExperience({
         <Pressable
           disabled={busy}
           onPress={() => void loadMore()}
-          style={[styles.secondaryButton, { borderColor: colors.border }, busy && styles.disabled]}
+          style={[styles.secondaryButton, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
         >
           <Text style={[styles.secondaryText, { color: colors.text }]}>
             {busy ? 'Chargement…' : 'Charger plus'}
