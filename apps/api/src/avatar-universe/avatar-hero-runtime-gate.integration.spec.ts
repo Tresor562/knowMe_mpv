@@ -72,7 +72,7 @@ describe('Hero BASE_BODY runtime certification gate', () => {
   it('fails closed when the canonical facial rig is replaced', () => {
     const body = heroBody();
     body.facialRigKey = 'client.fake.face';
-    expect(() => validateHeroAvatarProductionContract(heroContract(body))).toThrow(/canonical|facial rig/i);
+    expect(() => validateHeroAvatarProductionContract(heroContract(body))).toThrow(/canonical|facial rig|rig metadata/i);
   });
 
   it('fails closed when a required DNA facial morph disappears', () => {
