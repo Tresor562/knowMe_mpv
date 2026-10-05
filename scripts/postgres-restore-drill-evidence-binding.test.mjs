@@ -40,8 +40,12 @@ function artifact(overrides = {}) {
   };
 }
 
+function cliValidUntil() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function cliArgs(artifactPath, outputPath) {
-  return [cliPath, '--artifact', artifactPath, '--output', outputPath, '--scope', 'WEB_V1', '--verifier', 'release-operator', '--ref', 'evidence://release/restore-drill-cli', '--valid-until', '2026-09-27T11:00:10.000Z'];
+  return [cliPath, '--artifact', artifactPath, '--output', outputPath, '--scope', 'WEB_V1', '--verifier', 'release-operator', '--ref', 'evidence://release/restore-drill-cli', '--valid-until', cliValidUntil()];
 }
 
 test('accepts a canonical passing restore drill artifact', () => {
