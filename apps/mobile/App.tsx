@@ -37,6 +37,7 @@ import {
   Avatar,
   BrandMark,
   FadeRise,
+  GlassSurface,
   KnowMeIcon,
   PressScale,
   SoftSurface
@@ -282,7 +283,7 @@ function AuthScreen({
         </FadeRise>
 
         <FadeRise delay={70}>
-          <SoftSurface style={styles.authCard} strong>
+          <GlassSurface style={styles.authCard} strength="strong" borderRadius={30}>
             {!challengeToken ? (
               <>
                 <View
@@ -488,7 +489,7 @@ function AuthScreen({
                 </Pressable>
               </>
             )}
-          </SoftSurface>
+          </GlassSurface>
         </FadeRise>
 
         <Text style={[styles.authFootnote, { color: colors.muted }]}>
@@ -564,8 +565,9 @@ function HomeScreen({
       }
       contentContainerStyle={styles.homeContent}
     >
-      <FadeRise style={styles.homeTopBar}>
-        <View style={styles.brandInline}>
+      <FadeRise>
+        <GlassSurface strength="soft" borderRadius={28} style={styles.homeTopBar}>
+          <View style={styles.brandInline}>
           <BrandMark size={34} />
           <View>
             <Text style={[styles.topBrandTitle, { color: colors.text }]}>KnowMe</Text>
@@ -577,27 +579,27 @@ function HomeScreen({
         <View style={styles.homeTopActions}>
           <PressScale
             onPress={openSocial}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
+            style={styles.iconButtonPress}
           >
-            <KnowMeIcon name="bell" size={22} color={colors.text} />
-            {notificationUnread > 0 ? (
-              <View
-                style={[
-                  styles.notificationBadge,
-                  { backgroundColor: colors.secondary }
-                ]}
-              >
-                <Text style={styles.notificationBadgeText}>
-                  {notificationUnread > 9 ? '9+' : notificationUnread}
-                </Text>
-              </View>
-            ) : null}
+            <GlassSurface
+              strength="soft"
+              borderRadius={21}
+              style={styles.iconButton}
+            >
+              <KnowMeIcon name="bell" size={22} color={colors.text} />
+              {notificationUnread > 0 ? (
+                <View
+                  style={[
+                    styles.notificationBadge,
+                    { backgroundColor: colors.secondary }
+                  ]}
+                >
+                  <Text style={styles.notificationBadgeText}>
+                    {notificationUnread > 9 ? '9+' : notificationUnread}
+                  </Text>
+                </View>
+              ) : null}
+            </GlassSurface>
           </PressScale>
           <PressScale onPress={openProfile} style={styles.headerAvatarButton}>
             <Avatar
@@ -606,7 +608,8 @@ function HomeScreen({
               size={38}
             />
           </PressScale>
-        </View>
+          </View>
+        </GlassSurface>
       </FadeRise>
 
       <FadeRise delay={35} style={styles.greetingRow}>
@@ -969,107 +972,88 @@ function BottomNavigation({
     { key: 'profile', label: t('nav.profile'), icon: 'profile' }
   ];
 
-  return (
-    <View
-      style={[
-        styles.bottomBar,
-        {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border
-        }
-      ]}
-    >
-      {items.slice(0, 2).map((item) => {
-        const active = screen === item.key;
-        return (
-          <PressScale
-            key={item.key}
-            onPress={() => onNavigate(item.key)}
-            style={styles.bottomItem}
-          >
-            <KnowMeIcon
-              name={item.icon}
-              size={23}
-              color={active ? colors.accent : colors.muted}
-            />
-            <Text
-              style={[
-                styles.bottomLabel,
-                { color: active ? colors.accent : colors.muted }
-              ]}
-            >
-              {item.label}
-            </Text>
-            {active ? (
-              <View
-                style={[
-                  styles.bottomIndicator,
-                  { backgroundColor: colors.accent }
-                ]}
-              />
-            ) : null}
-          </PressScale>
-        );
-      })}
-
-      <View style={styles.createSlot}>
-        <PressScale
-          onPress={onCreate}
+  function NavItem({
+    item,
+    active
+  }: {
+    item: (typeof items)[number];
+    active: boolean;
+  }) {
+    return (
+      <PressScale
+        onPress={() => onNavigate(item.key)}
+        style={[
+          styles.bottomItem,
+          active ? { backgroundColor: colors.backgroundAccent } : null
+        ]}
+      >
+        <KnowMeIcon
+          name={item.icon}
+          size={23}
+          color={active ? colors.accent : colors.muted}
+          strokeWidth={active ? 2.05 : 1.8}
+        />
+        <Text
           style={[
-            styles.createNavButton,
-            {
-              backgroundColor: colors.accent,
-              borderColor: colors.background
-            }
+            styles.bottomLabel,
+            { color: active ? colors.accent : colors.muted }
           ]}
         >
-          <KnowMeIcon
-            name="create"
-            size={27}
-            color={colors.accentText}
-            strokeWidth={2.1}
-          />
-        </PressScale>
-        <Text style={[styles.createNavLabel, { color: colors.accent }]}>
-          {t('nav.create')}
+          {item.label}
         </Text>
-      </View>
+      </PressScale>
+    );
+  }
 
-      {items.slice(2).map((item) => {
-        const active =
-          screen === item.key ||
-          (item.key === 'profile' && screen === 'verification');
-
-        return (
-          <PressScale
+  return (
+    <View pointerEvents="box-none" style={styles.bottomDockWrap}>
+      <GlassSurface
+        strength="medium"
+        borderRadius={30}
+        style={styles.bottomBar}
+      >
+        {items.slice(0, 2).map((item) => (
+          <NavItem
             key={item.key}
-            onPress={() => onNavigate(item.key)}
-            style={styles.bottomItem}
+            item={item}
+            active={screen === item.key}
+          />
+        ))}
+
+        <View style={styles.createSlot}>
+          <PressScale
+            onPress={onCreate}
+            style={[
+              styles.createNavButton,
+              {
+                backgroundColor: colors.accent,
+                borderColor: colors.surfaceGlass
+              }
+            ]}
           >
             <KnowMeIcon
-              name={item.icon}
-              size={23}
-              color={active ? colors.accent : colors.muted}
+              name="create"
+              size={27}
+              color={colors.accentText}
+              strokeWidth={2.1}
             />
-            <Text
-              style={[
-                styles.bottomLabel,
-                { color: active ? colors.accent : colors.muted }
-              ]}
-            >
-              {item.label}
-            </Text>
-            {active ? (
-              <View
-                style={[
-                  styles.bottomIndicator,
-                  { backgroundColor: colors.accent }
-                ]}
-              />
-            ) : null}
           </PressScale>
-        );
-      })}
+          <Text style={[styles.createNavLabel, { color: colors.accent }]}>
+            {t('nav.create')}
+          </Text>
+        </View>
+
+        {items.slice(2).map((item) => (
+          <NavItem
+            key={item.key}
+            item={item}
+            active={
+              screen === item.key ||
+              (item.key === 'profile' && screen === 'verification')
+            }
+          />
+        ))}
+      </GlassSurface>
     </View>
   );
 }
@@ -1162,7 +1146,10 @@ function AppContent() {
       <View
         style={[
           styles.body,
-          { backgroundColor: colors.background }
+          { backgroundColor: colors.background },
+          screen !== 'challenges' && screen !== 'verification'
+            ? styles.bodyWithDock
+            : null
         ]}
       >
         {screen === 'home' ? (
@@ -1255,6 +1242,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
   body: { flex: 1 },
+  bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 82 : 76 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
@@ -1371,7 +1359,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 54,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 28,
     paddingHorizontal: 15,
     paddingVertical: 13,
     fontSize: 15.5
@@ -1392,7 +1380,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 54,
     borderWidth: 1,
-    borderRadius: 17,
+    borderRadius: 22,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1467,7 +1455,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 26
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20
   },
   topBrandTitle: {
     fontSize: 18,
@@ -1483,11 +1474,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10
   },
+  iconButtonPress: {
+    borderRadius: 21
+  },
   iconButton: {
     width: 42,
     height: 42,
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
@@ -1783,46 +1776,50 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
 
+  bottomDockWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: Platform.OS === 'ios' ? 10 : 9,
+    zIndex: 50
+  },
   bottomBar: {
-    minHeight: Platform.OS === 'ios' ? 82 : 72,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    minHeight: 68,
+    borderRadius: 30,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 17 : 7,
-    paddingHorizontal: 6
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 7
   },
   bottomItem: {
     flex: 1,
     minHeight: 52,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    position: 'relative'
+    gap: 3
   },
   bottomLabel: {
     fontSize: 9.5,
     fontWeight: '800'
   },
-  bottomIndicator: {
-    position: 'absolute',
-    bottom: -2,
-    width: 18,
-    height: 2.5,
-    borderRadius: 3
-  },
   createSlot: {
     flex: 1,
     alignItems: 'center',
-    marginTop: -23
+    marginTop: -20
   },
   createNavButton: {
-    width: 55,
-    height: 55,
-    borderRadius: 19,
-    borderWidth: 4,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 9
   },
   createNavLabel: {
     fontSize: 9.5,
