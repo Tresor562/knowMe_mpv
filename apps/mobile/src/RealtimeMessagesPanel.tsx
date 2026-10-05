@@ -14,7 +14,7 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
-import { GlassSurface } from './ui/KnowMeUI';
+import { ChatWallpaper, GlassSurface } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
@@ -104,7 +104,7 @@ export function RealtimeMessagesPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
-  const { colors, visual } = useAppearance();
+  const { colors, visual, chat } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -553,7 +553,8 @@ export function RealtimeMessagesPanel({
 
     return (
       <View style={[styles.conversationRoot, { backgroundColor: colors.background }]}>
-        <GlassSurface strength="soft" borderRadius={28} style={styles.conversationHeader}>
+        <ChatWallpaper />
+        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.conversationHeader}>
           <SecondaryButton title="Retour" onPress={closeConversation} />
           <View style={styles.flex}>
             <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{isNexusPrivate ? '✦ Nexus' : name}</Text>
@@ -604,18 +605,30 @@ export function RealtimeMessagesPanel({
                   styles.bubble,
                   { borderRadius: visual.bubbleRadius },
                   mine
-                    ? [styles.bubbleMine, { backgroundColor: colors.accent }]
+                    ? [
+                        styles.bubbleMine,
+                        {
+                          backgroundColor: colors.accent,
+                          borderWidth: chat.bubbleBorderWidth,
+                          borderColor: colors.accent
+                        }
+                      ]
                     : nexus
                       ? [
                           styles.bubbleNexus,
                           {
                             backgroundColor: colors.surfaceRaised,
-                            borderColor: colors.secondary
+                            borderColor: colors.secondary,
+                            borderWidth: Math.max(1, chat.bubbleBorderWidth)
                           }
                         ]
                       : [
                           styles.bubbleOther,
-                          { backgroundColor: colors.surface }
+                          {
+                            backgroundColor: colors.surface,
+                            borderWidth: chat.bubbleBorderWidth,
+                            borderColor: colors.border
+                          }
                         ]
                 ]}
               >
@@ -656,7 +669,7 @@ export function RealtimeMessagesPanel({
           ) : null}
         />
 
-        <GlassSurface strength="medium" borderRadius={28} style={styles.composer}>
+        <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
           <TextInput
             value={draft}
             onChangeText={changeDraft}
@@ -717,7 +730,7 @@ export function RealtimeMessagesPanel({
         {live ? '● Messages en direct' : '○ Reconnexion au temps réel…'}
       </Text>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Nexus</Text>
         <Text style={[styles.muted, { color: colors.muted }]}>
           Conversation privée avec Nexus. Dans les groupes, écris @Nexus pour l’invoquer uniquement sur ce tour.
@@ -730,7 +743,7 @@ export function RealtimeMessagesPanel({
       </View>
 
       {friends.length > 0 ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Nouvelle discussion</Text>
           <ScrollView
             horizontal
@@ -744,6 +757,7 @@ export function RealtimeMessagesPanel({
                 style={[
                   styles.friendChoice,
                   {
+                    borderRadius: visual.controlRadius,
                     borderColor: selectedFriend === user.id ? colors.accent : colors.border,
                     backgroundColor: selectedFriend === user.id
                       ? colors.surfaceRaised
@@ -808,7 +822,8 @@ export function RealtimeMessagesPanel({
               styles.card,
               {
                 backgroundColor: unread ? colors.surfaceRaised : colors.surface,
-                borderColor: unread ? colors.accent : colors.border
+                borderColor: unread ? colors.accent : colors.border,
+                borderRadius: visual.cardRadius
               }
             ]}
           >
@@ -892,14 +907,14 @@ function ActionButton({
   disabled?: boolean;
   compact?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={[
         styles.actionButton,
-        { backgroundColor: colors.accent },
+        { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
         compact && styles.compactButton,
         disabled && styles.disabled
       ]}
@@ -918,7 +933,7 @@ function SecondaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
@@ -927,7 +942,8 @@ function SecondaryButton({
         styles.secondaryButton,
         {
           backgroundColor: colors.backgroundAccent,
-          borderColor: colors.border
+          borderColor: colors.border,
+          borderRadius: visual.controlRadius
         },
         disabled && styles.disabled
       ]}
@@ -938,9 +954,9 @@ function SecondaryButton({
 }
 
 function Empty({ text }: { text: string }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
-    <View style={[styles.empty, { backgroundColor: colors.surface }]}>
+    <View style={[styles.empty, { backgroundColor: colors.surface, borderRadius: visual.cardRadius }]}>
       <Text style={[styles.muted, { color: colors.muted }]}>{text}</Text>
     </View>
   );
@@ -1054,7 +1070,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7
   },
   unreadBadgeText: { fontWeight: '900', fontSize: 12 },
-  conversationRoot: { flex: 1, paddingTop: 12 },
+  conversationRoot: { flex: 1, paddingTop: 12, position: 'relative', overflow: 'hidden' },
   conversationHeader: {
     marginHorizontal: 12,
     paddingHorizontal: 12,
