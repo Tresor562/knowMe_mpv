@@ -588,6 +588,117 @@ export function Avatar({
 }
 
 
+
+const CHAT_WALLPAPER_POINTS = [
+  { left: '5%', top: '6%', rotate: '-12deg', scale: 0.86 },
+  { left: '34%', top: '4%', rotate: '9deg', scale: 1.02 },
+  { left: '72%', top: '8%', rotate: '-7deg', scale: 0.9 },
+  { left: '16%', top: '20%', rotate: '14deg', scale: 0.98 },
+  { left: '56%', top: '23%', rotate: '-16deg', scale: 0.82 },
+  { left: '84%', top: '29%', rotate: '11deg', scale: 1.06 },
+  { left: '3%', top: '39%', rotate: '-8deg', scale: 1.02 },
+  { left: '40%', top: '43%', rotate: '16deg', scale: 0.88 },
+  { left: '70%', top: '48%', rotate: '-13deg', scale: 1.04 },
+  { left: '18%', top: '58%', rotate: '8deg', scale: 0.92 },
+  { left: '53%', top: '62%', rotate: '-10deg', scale: 1.08 },
+  { left: '86%', top: '66%', rotate: '12deg', scale: 0.84 },
+  { left: '5%', top: '76%', rotate: '13deg', scale: 0.9 },
+  { left: '35%', top: '80%', rotate: '-15deg', scale: 1.04 },
+  { left: '68%', top: '85%', rotate: '7deg', scale: 0.94 },
+  { left: '88%', top: '91%', rotate: '-11deg', scale: 0.84 }
+] as const;
+
+function chatWallpaperIcons(kind: string): KnowMeIconName[] {
+  if (kind === 'nature') return ['spark', 'discover', 'messages', 'profile'];
+  if (kind === 'weather') return ['spark', 'bell', 'messages', 'discover'];
+  if (kind === 'universe') return ['spark', 'discover', 'create', 'messages'];
+  if (kind === 'future') return ['settings', 'spark', 'messages', 'check'];
+  if (kind === 'anime') return ['profile', 'spark', 'messages', 'create'];
+  if (kind === 'gaming') return ['challenge', 'coins', 'spark', 'check'];
+  if (kind === 'fantasy') return ['spark', 'challenge', 'coins', 'discover'];
+  if (kind === 'artistic') return ['create', 'spark', 'messages', 'discover'];
+  return ['messages', 'spark', 'check', 'discover'];
+}
+
+export function ChatWallpaper({
+  style
+}: {
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { colors, chat } = useAppearance();
+  const icons = chatWallpaperIcons(chat.wallpaperKind);
+  const points = CHAT_WALLPAPER_POINTS.slice(0, chat.wallpaperDensity);
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFillObject,
+        { overflow: 'hidden' },
+        style
+      ]}
+    >
+      {chat.wallpaperGlow ? (
+        <>
+          <View
+            style={{
+              position: 'absolute',
+              width: 280,
+              height: 280,
+              borderRadius: 140,
+              right: -120,
+              top: -100,
+              backgroundColor: colors.accent,
+              opacity: chat.wallpaperOpacity * 0.58
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              width: 240,
+              height: 240,
+              borderRadius: 120,
+              left: -110,
+              bottom: -80,
+              backgroundColor: colors.secondary,
+              opacity: chat.wallpaperOpacity * 0.46
+            }}
+          />
+        </>
+      ) : null}
+
+      {points.map((point, index) => (
+        <View
+          key={`${point.left}-${point.top}-${index}`}
+          style={{
+            position: 'absolute',
+            left: point.left,
+            top: point.top,
+            opacity: chat.wallpaperOpacity,
+            transform: [
+              { rotate: point.rotate },
+              { scale: point.scale }
+            ]
+          }}
+        >
+          <KnowMeIcon
+            name={icons[index % icons.length]!}
+            size={26}
+            color={
+              index % 3 === 0
+                ? colors.accent
+                : index % 3 === 1
+                  ? colors.secondary
+                  : colors.muted
+            }
+            strokeWidth={1.55}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export type GlassStrength = 'soft' | 'medium' | 'strong';
 
 export function GlassSurface({
