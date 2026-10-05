@@ -60,34 +60,34 @@ function PublicChoice({
 
         <View style={styles.hero}>
           <GlassSurface strength="soft" borderRadius={34} style={styles.logoGlass}>
-            <BrandMark size={70} />
+            <BrandMark size={58} />
           </GlassSurface>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>
-            PLAY · DISCOVER · CONNECT
+            MESSAGES · PLAY · DISCOVER
           </Text>
           <Text style={[styles.title, { color: colors.text }]}>
-            Entre dans KnowMe.
+            Bienvenue sur KnowMe.
           </Text>
           <Text style={[styles.copy, { color: colors.muted }]}>
-            Joue, découvre et rencontre. Crée ton compte quand tu veux garder ton identité, tes messages et ton univers.
+            Une messagerie sociale rapide, personnelle et vivante — avec ton identité, tes conversations et ton univers au même endroit.
           </Text>
         </View>
 
-        <GlassSurface strength="strong" borderRadius={30} style={styles.actionsCard}>
+        <GlassSurface strength="medium" borderRadius={28} style={styles.actionsCard}>
           <PressScale
             accessibilityRole="button"
-            onPress={onGuest}
+            onPress={onAccount}
             style={[styles.primary, { backgroundColor: colors.accent }]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
-              Jouer sans compte
+              Connexion / Inscription
             </Text>
             <KnowMeIcon name="arrow" size={18} color={colors.accentText} />
           </PressScale>
 
           <PressScale
             accessibilityRole="button"
-            onPress={onAccount}
+            onPress={onGuest}
             style={[
               styles.secondary,
               {
@@ -97,7 +97,7 @@ function PublicChoice({
             ]}
           >
             <Text style={[styles.secondaryText, { color: colors.text }]}>
-              Connexion / Inscription
+              Essayer PLAY sans compte
             </Text>
           </PressScale>
 
@@ -112,7 +112,7 @@ function PublicChoice({
           </PressScale>
 
           <Text style={[styles.note, { color: colors.muted }]}>
-            Le mode invité reste temporaire et séparé des données d’un compte.
+            La langue suit ton appareil par défaut et reste modifiable à tout moment.
           </Text>
         </GlassSurface>
       </View>
@@ -224,9 +224,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24
+    paddingHorizontal: 18,
+    paddingTop: 6,
+    paddingBottom: 18
   },
   topRow: {
     minHeight: 52,
@@ -245,49 +245,49 @@ const styles = StyleSheet.create({
     letterSpacing: -0.45
   },
   languageWrap: {
-    width: 132
+    width: 120
   },
   hero: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingTop: 18
+    paddingHorizontal: 10,
+    paddingTop: 10
   },
   logoGlass: {
-    width: 112,
-    height: 112,
+    width: 92,
+    height: 92,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 26
+    marginBottom: 20
   },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.35,
-    marginBottom: 12
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.15,
+    marginBottom: 10
   },
   title: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '900',
-    letterSpacing: -1,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '800',
+    letterSpacing: -0.8,
     textAlign: 'center'
   },
   copy: {
     maxWidth: 350,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: 'center',
-    marginTop: 10
+    marginTop: 8
   },
   actionsCard: {
-    padding: 14,
-    gap: 10
+    padding: 12,
+    gap: 9
   },
   primary: {
-    minHeight: 56,
-    borderRadius: 22,
+    minHeight: 52,
+    borderRadius: 20,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,9 +299,9 @@ const styles = StyleSheet.create({
     fontSize: 15.5
   },
   secondary: {
-    minHeight: 54,
-    borderWidth: 1,
-    borderRadius: 22,
+    minHeight: 50,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center'
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     fontSize: 15
   },
   textButton: {
-    minHeight: 42,
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center'
   },
