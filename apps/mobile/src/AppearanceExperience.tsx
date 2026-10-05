@@ -87,6 +87,7 @@ function ThemeButton({
   onPress: () => void;
   colors: MobileThemePalette;
 }) {
+  const { visual } = useAppearance();
   return (
     <Pressable
       accessibilityRole="button"
@@ -95,6 +96,7 @@ function ThemeButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.themeButton,
+        { borderRadius: visual.controlRadius },
         {
           backgroundColor: selected ? colors.surfaceRaised : colors.surface,
           borderColor: selected ? colors.accent : colors.border,
@@ -175,7 +177,7 @@ function ToggleOption({
 }
 
 export function AppearanceExperience() {
-  const { appearance, colors, loading, busy, refresh, update } = useAppearance();
+  const { appearance, colors, visual, loading, busy, refresh, update } = useAppearance();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('ALL');
   const [tier, setTier] = useState<'ALL' | 'FREE' | 'PREMIUM'>('ALL');
@@ -207,7 +209,7 @@ export function AppearanceExperience() {
 
   if (loading && !appearance) {
     return (
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <ActivityIndicator color={colors.accent} />
         <Text style={[styles.loadingText, { color: colors.muted }]}>Chargement de la personnalisation…</Text>
       </View>
@@ -220,7 +222,7 @@ export function AppearanceExperience() {
   const renderedThemes = showAll ? filteredThemes : filteredThemes.slice(0, 12);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <View>
         <Text style={[styles.eyebrow, { color: colors.accent }]}>IDENTITÉ VISUELLE KNOWME</Text>
         <Text style={[styles.heading, { color: colors.text }]}>Ton univers personnel</Text>
@@ -255,7 +257,7 @@ export function AppearanceExperience() {
         placeholderTextColor={colors.muted}
         style={[
           styles.search,
-          { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }
+          { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius }
         ]}
       />
 
@@ -309,7 +311,7 @@ export function AppearanceExperience() {
       {filteredThemes.length > 12 ? (
         <Pressable
           onPress={() => setShowAll((current) => !current)}
-          style={[styles.secondaryButton, { borderColor: colors.accent }]}
+          style={[styles.secondaryButton, { borderColor: colors.accent, borderRadius: visual.controlRadius }]}
         >
           <Text style={[styles.secondaryButtonText, { color: colors.accent }]}> 
             {showAll ? 'Réduire la liste' : `Afficher les ${filteredThemes.length} thèmes`}
