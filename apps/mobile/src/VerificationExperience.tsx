@@ -302,109 +302,130 @@ export function VerificationExperience({
       </GlassSurface>
 
       {!pending && !approved ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Nouvelle demande</Text>
-          <Text style={[styles.description, { color: colors.muted }]}>
-            Aucun document brut n’est envoyé ici. Saisis seulement les valeurs générées par le
-            futur flux de capture sécurisé ou le prestataire KYC autorisé.
-          </Text>
-          <TextInput
-            value={displayNameClaim}
-            onChangeText={setDisplayNameClaim}
-            placeholder="Nom à vérifier"
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: visual.inputRadius
-              }
-            ]}
-          />
-          <TextInput
-            value={countryCode}
-            onChangeText={setCountryCode}
-            autoCapitalize="characters"
-            maxLength={2}
-            placeholder="Pays ISO, ex. BJ"
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: visual.inputRadius
-              }
-            ]}
-          />
-          <TextInput
-            value={provider}
-            onChangeText={setProvider}
-            autoCapitalize="characters"
-            placeholder="Prestataire"
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: visual.inputRadius
-              }
-            ]}
-          />
-          <TextInput
-            value={opaqueReference}
-            onChangeText={setOpaqueReference}
-            autoCapitalize="none"
-            placeholder="Référence opaque"
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: visual.inputRadius
-              }
-            ]}
-          />
-          <TextInput
-            value={digest}
-            onChangeText={setDigest}
-            autoCapitalize="none"
-            maxLength={64}
-            placeholder="Empreinte SHA-256"
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text,
-                borderRadius: visual.inputRadius
-              }
-            ]}
-          />
+        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+          <View style={styles.secureNoticeRow}>
+            <View style={[styles.secureNoticeIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="settings" size={20} color={colors.accent} />
+            </View>
+            <View style={styles.secureNoticeCopy}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Vérification sécurisée</Text>
+              <Text style={[styles.description, { color: colors.muted }]}>
+                Aucun prestataire de vérification mobile n’est encore connecté à ce build. KnowMe ne te demandera pas de saisir ou d’envoyer une photo de document ici.
+              </Text>
+            </View>
+          </View>
+
           <Button
-            title={busy ? 'Soumission…' : 'Soumettre pour examen'}
-            disabled={
-              busy ||
-              displayNameClaim.trim().length < 2 ||
-              opaqueReference.trim().length < 8 ||
-              digest.trim().length !== 64
-            }
-            onPress={() => void submit()}
+            title={advancedOpen ? 'Masquer l’import avancé' : 'Importer une preuve déjà générée'}
+            secondary
+            onPress={() => setAdvancedOpen((current) => !current)}
           />
-        </View>
+
+          {advancedOpen ? (
+            <View style={styles.advancedBox}>
+              <Text style={[styles.advancedTitle, { color: colors.text }]}>Import avancé</Text>
+              <Text style={[styles.helper, { color: colors.muted }]}>
+                Réservé à une preuve produite par un prestataire autorisé. Ne saisis jamais de numéro de document ni de donnée biométrique brute.
+              </Text>
+              <TextInput
+                value={displayNameClaim}
+                onChangeText={setDisplayNameClaim}
+                placeholder="Nom à vérifier"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  }
+                ]}
+              />
+              <TextInput
+                value={countryCode}
+                onChangeText={setCountryCode}
+                autoCapitalize="characters"
+                maxLength={2}
+                placeholder="Pays, ex. BJ"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  }
+                ]}
+              />
+              <TextInput
+                value={provider}
+                onChangeText={setProvider}
+                autoCapitalize="characters"
+                placeholder="Identifiant du prestataire autorisé"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  }
+                ]}
+              />
+              <TextInput
+                value={opaqueReference}
+                onChangeText={setOpaqueReference}
+                autoCapitalize="none"
+                placeholder="Référence sécurisée"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  }
+                ]}
+              />
+              <TextInput
+                value={digest}
+                onChangeText={setDigest}
+                autoCapitalize="none"
+                maxLength={64}
+                placeholder="Empreinte de preuve"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  }
+                ]}
+              />
+              <Button
+                title={busy ? 'Soumission…' : 'Importer la preuve'}
+                disabled={
+                  busy ||
+                  displayNameClaim.trim().length < 2 ||
+                  opaqueReference.trim().length < 8 ||
+                  digest.trim().length !== 64
+                }
+                onPress={() => void submit()}
+              />
+            </View>
+          ) : null}
+        </GlassSurface>
       ) : null}
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
