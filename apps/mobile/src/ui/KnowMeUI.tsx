@@ -27,6 +27,8 @@ export type KnowMeIconName =
   | 'challenge'
   | 'coins'
   | 'arrow'
+  | 'back'
+  | 'refresh'
   | 'check'
   | 'settings';
 
@@ -369,6 +371,39 @@ export function KnowMeIcon({
         <Line width={13 * s} height={sw} left={4 * s} top={11 * s} color={color} />
         <Line width={8 * s} height={sw} left={11 * s} top={8.2 * s} rotate="40deg" color={color} />
         <Line width={8 * s} height={sw} left={11 * s} top={13.8 * s} rotate="-40deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'back') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={13 * s} height={sw} left={7 * s} top={11 * s} color={color} />
+        <Line width={8 * s} height={sw} left={4.2 * s} top={8.2 * s} rotate="-40deg" color={color} />
+        <Line width={8 * s} height={sw} left={4.2 * s} top={13.8 * s} rotate="40deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'refresh') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 4.2 * s,
+              top: 4.2 * s,
+              width: 15.6 * s,
+              height: 15.6 * s,
+              borderRadius: 8 * s,
+              borderRightColor: 'transparent'
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={6.5 * s} height={sw} left={14.2 * s} top={5.1 * s} rotate="20deg" color={color} />
+        <Line width={6.5 * s} height={sw} left={15.2 * s} top={7.8 * s} rotate="-58deg" color={color} />
       </View>
     );
   }

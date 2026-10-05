@@ -22,7 +22,6 @@ import { SecurityExperience } from './SecurityExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
 import {
   Avatar,
-  BrandMark,
   FadeRise,
   GlassSurface,
   KnowMeIcon,
@@ -206,7 +205,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
   const [bio, setBio] = useState(user.bio ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
   const [password, setPassword] = useState('');
   const [deleteCode, setDeleteCode] = useState('');
   const [saving, setSaving] = useState(false);
@@ -216,7 +214,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   useEffect(() => {
     setDisplayName(user.displayName);
     setBio(user.bio ?? '');
-    setAvatarUrl(user.avatarUrl ?? '');
   }, [user]);
 
   async function save() {
@@ -227,8 +224,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         method: 'PATCH',
         body: JSON.stringify({
           displayName: displayName.trim(),
-          bio: bio.trim(),
-          ...(avatarUrl.trim() ? { avatarUrl: avatarUrl.trim() } : {})
+          bio: bio.trim()
         })
       });
       await onUpdated();
@@ -310,7 +306,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               }
             ]}
           >
-            <KnowMeIcon name="arrow" size={18} color={colors.text} />
+            <KnowMeIcon name="back" size={18} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>Profil</Text>
           </PressScale>
           <Text style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
@@ -330,43 +326,69 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
         {panel === 'edit' ? (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Modifier mon profil</Text>
-            <TextInput value={displayName} onChangeText={setDisplayName} maxLength={60} placeholder="Nom affiché" placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]} />
-            <TextInput value={bio}
-              onChangeText={setBio}
-              maxLength={500}
-              multiline
-              placeholder="Biographie"
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                styles.multiline,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]} />
-            <View style={styles.editAvatarRow}>
-              <Avatar uri={user.avatarUrl} name={displayName || user.displayName} size={46} />
+            <View style={styles.editIdentityRow}>
+              <Avatar uri={user.avatarUrl} name={displayName || user.displayName} size={50} />
               <View style={styles.flex}>
-                <Text style={[styles.editAvatarTitle, { color: colors.text }]}>Photo de profil</Text>
+                <Text style={[styles.editIdentityName, { color: colors.text }]}>
+                  {displayName || user.displayName}
+                </Text>
+                <Text style={[styles.editIdentityHandle, { color: colors.accent }]}>
+                  @{user.username}
+                </Text>
                 <Text style={[styles.helper, { color: colors.muted }]}>
-                  Ta photo actuelle reste inchangée.
+                  Nom d’utilisateur unique
                 </Text>
               </View>
             </View>
-            <Text style={[styles.helper, { color: colors.muted }]}>Le nom doit contenir au moins 2 caractères.</Text>
+
+            <View style={styles.fieldBlock}>
+              <Text style={[styles.fieldLabel, { color: colors.muted }]}>Nom affiché</Text>
+              <TextInput
+                value={displayName}
+                onChangeText={setDisplayName}
+                maxLength={60}
+                placeholder="Ton nom visible"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <View style={styles.fieldLabelRow}>
+                <Text style={[styles.fieldLabel, { color: colors.muted }]}>Biographie</Text>
+                <Text style={[styles.fieldCounter, { color: colors.muted }]}>{bio.length}/500</Text>
+              </View>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                maxLength={500}
+                multiline
+                placeholder="Parle un peu de toi"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  styles.multiline,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+            </View>
+
+            <Text style={[styles.helper, { color: colors.muted }]}>
+              Le nom affiché doit contenir au moins 2 caractères.
+            </Text>
             <Button title={saving ? 'Enregistrement…' : 'Enregistrer'} disabled={saving || displayName.trim().length < 2} onPress={() => void save()} />
           </View>
         ) : null}
@@ -438,13 +460,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         <View style={[styles.cover, { backgroundColor: colors.backgroundAccent }]}>
           <View style={[styles.coverOrbOne, { backgroundColor: colors.accent }]} />
           <View style={[styles.coverOrbTwo, { backgroundColor: colors.secondary }]} />
-          <View style={styles.coverBrand}>
-            <BrandMark size={34} />
-            <View>
-              <Text style={[styles.coverBrandTitle, { color: colors.text }]}>KnowMe</Text>
-              <Text style={[styles.coverBrandSub, { color: colors.muted }]}>Be Real. Belong.</Text>
-            </View>
-          </View>
+          <View style={[styles.coverGlassLine, { backgroundColor: colors.surfaceGlass }]} />
+          <View style={[styles.coverGlassDot, { backgroundColor: colors.accent }]} />
         </View>
 
         <View style={styles.profileAvatarRow}>
@@ -562,21 +579,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               </Text>
             </View>
           ) : null}
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={[styles.stat, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{user.knowCoins ?? 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>KnowCoins</Text>
-          </View>
-          <View style={[styles.stat, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{user.verification ? 'Vérifié' : 'Actif'}</Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Identité</Text>
-          </View>
-          <View style={[styles.stat, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>{user.role ?? 'Membre'}</Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Rôle</Text>
-          </View>
         </View>
 
         </GlassSurface>
@@ -709,12 +711,11 @@ const styles = StyleSheet.create({
   panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
   content: { padding: 16, paddingBottom: 30, gap: 12 },
   profileHero: { overflow: 'hidden', paddingBottom: 14 },
-  cover: { height: 104, position: 'relative', overflow: 'hidden', padding: 14, justifyContent: 'flex-end' },
+  cover: { height: 104, position: 'relative', overflow: 'hidden' },
   coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, opacity: 0.22, right: -40, top: -72 },
   coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, opacity: 0.14, left: -30, bottom: -75 },
-  coverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  coverBrandTitle: { fontSize: 17, fontWeight: '900' },
-  coverBrandSub: { fontSize: 10.5, marginTop: 1 },
+  coverGlassLine: { position: 'absolute', width: 170, height: 24, borderRadius: 12, right: -28, bottom: 16, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
+  coverGlassDot: { position: 'absolute', width: 14, height: 14, borderRadius: 7, left: 22, top: 22, opacity: 0.34 },
   profileAvatarRow: { marginTop: -36, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
   profileActions: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 11 },
   profileActionPress: { flex: 1, borderRadius: 18 },
@@ -729,10 +730,6 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingHorizontal: 18, marginTop: 13 },
   identityBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   identityBadgeText: { fontWeight: '900', fontSize: 11.5 },
-  statsRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 12 },
-  stat: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 9, minWidth: 0 },
-  statValue: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
-  statLabel: { fontSize: 9, fontWeight: '600' },
   profileMenuSection: { gap: 9 },
   profileMenuHeading: { fontSize: 18, fontWeight: '800', marginTop: 3, marginBottom: 1 },
   profileGroupLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginTop: 8, marginLeft: 4 },
@@ -749,8 +746,13 @@ const styles = StyleSheet.create({
   helper: { fontSize: 12, lineHeight: 18 },
   input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14.5, textAlignVertical: 'top' },
   multiline: { minHeight: 84 },
-  editAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 3 },
-  editAvatarTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  editIdentityRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 3, marginBottom: 2 },
+  editIdentityName: { fontSize: 15, fontWeight: '800' },
+  editIdentityHandle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
+  fieldBlock: { gap: 6 },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  fieldLabel: { fontSize: 11.5, fontWeight: '700', paddingHorizontal: 2 },
+  fieldCounter: { fontSize: 10.5 },
   button: { borderRadius: 20, paddingVertical: 12, paddingHorizontal: 15, alignItems: 'center' },
   buttonText: { fontWeight: '900' },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 1 },

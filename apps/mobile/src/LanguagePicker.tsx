@@ -16,6 +16,7 @@ import {
 } from '@knowme/i18n-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
+import { KnowMeIcon } from './ui/KnowMeUI';
 
 export function LanguagePicker({
   value,
@@ -61,7 +62,7 @@ export function LanguagePicker({
         style={[
           compact ? styles.compactButton : styles.button,
           {
-            backgroundColor: colors.surface,
+            backgroundColor: colors.surfaceGlass,
             borderColor: colors.border,
             borderRadius: compact ? visual.controlRadius : visual.cardRadius
           }
@@ -82,7 +83,9 @@ export function LanguagePicker({
             </Text>
           ) : null}
         </View>
-        <Text style={[styles.chevron, { color: colors.accent }]}>⌄</Text>
+        <View style={styles.chevron}>
+          <KnowMeIcon name="arrow" size={17} color={colors.accent} strokeWidth={1.9} />
+        </View>
       </Pressable>
 
       <Modal
@@ -161,7 +164,9 @@ export function LanguagePicker({
                     </Text>
                   </View>
                   {selected ? (
-                    <Text style={[styles.check, { color: colors.accent }]}>✓</Text>
+                    <View style={[styles.check, { backgroundColor: colors.backgroundAccent }]}>
+                      <KnowMeIcon name="check" size={17} color={colors.accent} strokeWidth={2} />
+                    </View>
                   ) : null}
                 </Pressable>
               );
@@ -175,21 +180,21 @@ export function LanguagePicker({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 64,
-    borderWidth: 1,
+    minHeight: 56,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 18,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12
   },
   compactButton: {
-    minHeight: 46,
-    borderWidth: 1,
+    minHeight: 38,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 14,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10
@@ -202,51 +207,51 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 2
   },
-  selected: { fontSize: 15, fontWeight: '900' },
+  selected: { fontSize: 13.5, fontWeight: '800' },
   secondary: { fontSize: 11, marginTop: 1 },
-  chevron: { fontSize: 21, fontWeight: '900' },
+  chevron: { transform: [{ rotate: '90deg' }] },
   modalRoot: { flex: 1 },
   header: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12
   },
   headerText: { flex: 1 },
-  title: { fontSize: 22, fontWeight: '900' },
+  title: { fontSize: 20, fontWeight: '800' },
   count: { fontSize: 12, marginTop: 2 },
   close: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center'
   },
   closeText: { fontSize: 26, lineHeight: 28 },
   search: {
-    margin: 16,
-    marginBottom: 8,
-    minHeight: 50,
-    borderWidth: 1,
+    margin: 14,
+    marginBottom: 7,
+    minHeight: 46,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
     paddingHorizontal: 15,
     fontSize: 15
   },
-  list: { padding: 16, paddingTop: 6, gap: 9 },
+  list: { padding: 14, paddingTop: 5, gap: 7 },
   row: {
-    minHeight: 64,
-    borderWidth: 1,
-    borderRadius: 17,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    minHeight: 56,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12
   },
   rowText: { flex: 1 },
-  nativeName: { fontSize: 15, fontWeight: '900' },
+  nativeName: { fontSize: 14, fontWeight: '800' },
   englishName: { fontSize: 11, marginTop: 2 },
-  check: { fontSize: 20, fontWeight: '900' }
+  check: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }
 });
