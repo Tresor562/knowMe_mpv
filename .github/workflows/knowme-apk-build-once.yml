@@ -2,7 +2,7 @@ name: KnowMe APK Build Once
 
 on:
   push:
-    branches: [main, feat/knowme-soft-glass-ui-foundation]
+    branches: [main]
     paths:
       - '.github/workflows/knowme-apk-build-once.yml'
       - 'apps/mobile/**'
