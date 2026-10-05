@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -31,6 +31,7 @@ export class MessagingService {
       data: {
         title: dto.title,
         isGroup: memberIds.length > 2,
+        encryptionMode: 'CLOUD',
         members: { create: memberIds.map((id) => ({ userId: id })) }
       },
       include: {
@@ -174,7 +175,7 @@ export class MessagingService {
     cursor?: string,
     limit = 30
   ) {
-    await this.assertMember(userId, conversationId);
+    await this.assertCloudConversation(userId, conversationId);
 
     const safeLimit = Math.min(Math.max(limit, 1), 100);
     const cursorPoint = cursor
@@ -271,7 +272,7 @@ export class MessagingService {
   }
 
   async markRead(userId: string, conversationId: string) {
-    await this.assertMember(userId, conversationId);
+    await this.assertCloudConversation(userId, conversationId);
 
     const [latestHuman, latestNexus] = await Promise.all([
       this.prisma.message.findFirst({
@@ -302,7 +303,7 @@ export class MessagingService {
   }
 
   async send(userId: string, conversationId: string, content: string) {
-    await this.assertMember(userId, conversationId);
+    await this.assertCloudConversation(userId, conversationId);
     return this.sendAuthorized(userId, conversationId, content);
   }
 
@@ -312,7 +313,7 @@ export class MessagingService {
     packKey: string;
     stickerKey: string;
   }) {
-    await this.assertMember(input.userId, input.conversationId);
+    await this.assertCloudConversation(input.userId, input.conversationId);
     const content = this.stickerTokens.create({
       conversationId: input.conversationId,
       packKey: input.packKey,
@@ -500,6 +501,26 @@ export class MessagingService {
       sourceId: row.id,
       createdAt: row.createdAt
     };
+  }
+
+  async assertCloudConversation(userId: string, conversationId: string) {
+    const member = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+      select: {
+        id: true,
+        conversation: {
+          select: { encryptionMode: true }
+        }
+      }
+    });
+
+    if (!member) {
+      throw new ForbiddenException('Accès interdit à cette conversation.');
+    }
+    if (member.conversation.encryptionMode !== 'CLOUD') {
+      throw new ConflictException('SECRET_CHAT_CIPHERTEXT_ENDPOINT_REQUIRED');
+    }
+    return member;
   }
 
   private async assertMember(userId: string, conversationId: string) {
