@@ -131,6 +131,16 @@ export type MobileThemePalette = {
   statusBar: 'light' | 'dark';
 };
 
+export type MobileVisualStyle = {
+  cardRadius: number;
+  controlRadius: number;
+  inputRadius: number;
+  bubbleRadius: number;
+  glassBoost: number;
+  elevation: number;
+  transitionDuration: number;
+};
+
 const STORAGE_KEY = 'knowme.appearance.v2';
 
 const SYSTEM_LIGHT: MobileThemePalette = {
@@ -215,6 +225,58 @@ function mergePalette(
     secondary: secondary.secondary,
     accentText: secondary.accentText,
     border: secondary.border
+  };
+}
+
+
+const DEFAULT_VISUAL_STYLE: MobileVisualStyle = {
+  cardRadius: 26,
+  controlRadius: 22,
+  inputRadius: 28,
+  bubbleRadius: 18,
+  glassBoost: 0,
+  elevation: 6,
+  transitionDuration: 260
+};
+
+export function resolveMobileVisualStyle(
+  appearance: AppearanceResponse | null
+): MobileVisualStyle {
+  if (!appearance) return DEFAULT_VISUAL_STYLE;
+
+  const theme = appearance.themes.find(
+    (candidate) => candidate.key === appearance.preference.effectiveThemeKey
+  );
+  if (!theme) return DEFAULT_VISUAL_STYLE;
+
+  const category = theme.category.toUpperCase();
+  const premiumDepth = theme.cardStyle === 'premium-depth';
+
+  const categoryShape: Partial<MobileVisualStyle> =
+    category === 'FUTURISTIC' || category === 'GAMING'
+      ? { cardRadius: 22, controlRadius: 20, inputRadius: 24, bubbleRadius: 16 }
+      : category === 'ANIME' || category === 'FANTASY' || category === 'NATURE'
+        ? { cardRadius: 30, controlRadius: 24, inputRadius: 30, bubbleRadius: 21 }
+        : category === 'ARTISTIC'
+          ? { cardRadius: 28, controlRadius: 23, inputRadius: 29, bubbleRadius: 20 }
+          : {};
+
+  const transitionDuration =
+    theme.transitionPreset === 'premium-fluid'
+      ? 300
+      : theme.transitionPreset === 'standard-fluid'
+        ? 260
+        : 220;
+
+  return {
+    ...DEFAULT_VISUAL_STYLE,
+    ...categoryShape,
+    glassBoost: Math.min(
+      20,
+      (premiumDepth ? 10 : 0) + Math.min(theme.effects.length * 2, 10)
+    ),
+    elevation: premiumDepth ? 10 : 6,
+    transitionDuration
   };
 }
 
