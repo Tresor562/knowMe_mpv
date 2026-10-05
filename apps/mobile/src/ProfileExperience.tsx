@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -19,7 +20,15 @@ import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
 import { SecurityExperience } from './SecurityExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
-import { Avatar, BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import {
+  Avatar,
+  BrandMark,
+  FadeRise,
+  GlassSurface,
+  KnowMeIcon,
+  KnowMeIconName,
+  PressScale
+} from './ui/KnowMeUI';
 
 export type MobileUser = {
   id: string;
@@ -116,6 +125,77 @@ function Button({ title, onPress, disabled = false, danger = false, secondary = 
   );
 }
 
+function ProfileMenuRow({
+  title,
+  description,
+  icon,
+  tone = 'accent',
+  onPress,
+  last = false
+}: {
+  title: string;
+  description: string;
+  icon: KnowMeIconName;
+  tone?: 'accent' | 'secondary' | 'danger';
+  onPress: () => void;
+  last?: boolean;
+}) {
+  const { colors } = useAppearance();
+  const iconColor =
+    tone === 'danger'
+      ? colors.danger
+      : tone === 'secondary'
+        ? colors.secondary
+        : colors.accent;
+
+  return (
+    <PressScale onPress={onPress} style={styles.profileMenuPress}>
+      <View style={styles.profileMenuRow}>
+        <View
+          style={[
+            styles.profileMenuIcon,
+            { backgroundColor: colors.backgroundAccent }
+          ]}
+        >
+          <KnowMeIcon name={icon} size={20} color={iconColor} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={[styles.profileMenuTitle, { color: colors.text }]}>
+            {title}
+          </Text>
+          <Text style={[styles.profileMenuText, { color: colors.muted }]}>
+            {description}
+          </Text>
+        </View>
+        <KnowMeIcon name="arrow" size={17} color={colors.muted} />
+      </View>
+      {!last ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.profileMenuDivider,
+            { backgroundColor: colors.border }
+          ]}
+        />
+      ) : null}
+    </PressScale>
+  );
+}
+
+// Keep related profile destinations inside one native glass section.
+function ProfileMenuGroup({ children }: { children: ReactNode }) {
+  const { visual } = useAppearance();
+  return (
+    <GlassSurface
+      strength="soft"
+      borderRadius={visual.cardRadius}
+      style={styles.profileMenuGroup}
+    >
+      {children}
+    </GlassSurface>
+  );
+}
+
 export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
@@ -123,7 +203,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
   const [bio, setBio] = useState(user.bio ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
@@ -350,12 +430,12 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View
-        style={[
-          styles.profileHero,
-          { backgroundColor: colors.surface, borderColor: colors.border }
-        ]}
-      >
+      <FadeRise>
+        <GlassSurface
+          strength="medium"
+          borderRadius={visual.cardRadius}
+          style={styles.profileHero}
+        >
         <View style={[styles.cover, { backgroundColor: colors.backgroundAccent }]}>
           <View style={[styles.coverOrbOne, { backgroundColor: colors.accent }]} />
           <View style={[styles.coverOrbTwo, { backgroundColor: colors.secondary }]} />
@@ -375,23 +455,58 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             size={96}
             ring
           />
-          <PressScale
-            onPress={onOpenVerification}
-            style={[
-              styles.profileTrustButton,
-              {
-                backgroundColor: colors.surfaceGlass,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <KnowMeIcon name="check" size={20} color={colors.accent} />
-            <Text style={[styles.profileTrustText, { color: colors.text }]}>Identité</Text>
-          </PressScale>
         </View>
 
         <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
         <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
+
+        <View style={styles.profileActions}>
+          <PressScale
+            onPress={() => setPanel('edit')}
+            style={styles.profileActionPress}
+          >
+            <GlassSurface
+              strength="soft"
+              borderRadius={21}
+              style={styles.profileAction}
+            >
+              <KnowMeIcon name="profile" size={19} color={colors.accent} />
+              <Text style={[styles.profileActionText, { color: colors.text }]}>
+                Modifier
+              </Text>
+            </GlassSurface>
+          </PressScale>
+          <PressScale
+            onPress={onOpenVerification}
+            style={styles.profileActionPress}
+          >
+            <GlassSurface
+              strength="soft"
+              borderRadius={21}
+              style={styles.profileAction}
+            >
+              <KnowMeIcon name="check" size={19} color={colors.accent} />
+              <Text style={[styles.profileActionText, { color: colors.text }]}>
+                Identité
+              </Text>
+            </GlassSurface>
+          </PressScale>
+          <PressScale
+            onPress={() => setPanel('appearance')}
+            style={styles.profileActionPress}
+          >
+            <GlassSurface
+              strength="soft"
+              borderRadius={21}
+              style={styles.profileAction}
+            >
+              <KnowMeIcon name="spark" size={19} color={colors.secondary} />
+              <Text style={[styles.profileActionText, { color: colors.text }]}>
+                Style
+              </Text>
+            </GlassSurface>
+          </PressScale>
+        </View>
 
         {user.bio ? (
           <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>
@@ -401,18 +516,51 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
         <View style={styles.badges}>
           {user.verification ? (
-            <View style={styles.verificationBadge} accessibilityLabel={user.verification.label}>
-              <Text style={styles.verificationBadgeText}>VERIFIED · {user.verification.label}</Text>
+            <View
+              style={[
+                styles.identityBadge,
+                {
+                  borderColor: colors.accent,
+                  backgroundColor: colors.backgroundAccent
+                }
+              ]}
+              accessibilityLabel={user.verification.label}
+            >
+              <Text style={[styles.identityBadgeText, { color: colors.accent }]}>
+                VERIFIED · {user.verification.label}
+              </Text>
             </View>
           ) : null}
           {user.premium ? (
-            <View style={styles.premiumBadge} accessibilityLabel={user.premium.label}>
-              <Text style={styles.premiumBadgeText}>PREMIUM · {user.premium.label}</Text>
+            <View
+              style={[
+                styles.identityBadge,
+                {
+                  borderColor: colors.secondary,
+                  backgroundColor: colors.backgroundAccent
+                }
+              ]}
+              accessibilityLabel={user.premium.label}
+            >
+              <Text style={[styles.identityBadgeText, { color: colors.secondary }]}>
+                PREMIUM · {user.premium.label}
+              </Text>
             </View>
           ) : null}
           {user.staff ? (
-            <View style={styles.staffBadge} accessibilityLabel={user.staff.label + ', ' + user.staff.role}>
-              <Text style={styles.staffBadgeText}>STAFF · {user.staff.label} · {user.staff.role}</Text>
+            <View
+              style={[
+                styles.identityBadge,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.backgroundAccent
+                }
+              ]}
+              accessibilityLabel={user.staff.label + ', ' + user.staff.role}
+            >
+              <Text style={[styles.identityBadgeText, { color: colors.text }]}>
+                STAFF · {user.staff.label} · {user.staff.role}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -437,111 +585,122 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           <Text style={[styles.accountMetaDot, { color: colors.border }]}>·</Text>
           <Text style={[styles.accountMetaText, { color: colors.muted }]} numberOfLines={1}>ID {user.accountId ?? user.id}</Text>
         </View>
-      </View>
+        </GlassSurface>
+      </FadeRise>
 
-      <View style={styles.profileMenuSection}>
-        <Text style={[styles.profileMenuHeading, { color: colors.text }]}>Mon espace</Text>
-        <View style={styles.profileMenuGrid}>
-          <PressScale onPress={onOpenVerification} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="check" size={20} color={colors.accent} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Identité et confiance</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Vérification et preuves de confiance.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
+      <FadeRise delay={70} style={styles.profileMenuSection}>
+        <Text style={[styles.profileMenuHeading, { color: colors.text }]}>
+          Mon espace
+        </Text>
 
-          <PressScale onPress={() => setPanel('edit')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="profile" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Modifier mon profil</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Nom, bio et photo de profil.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
+        <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
+          IDENTITÉ
+        </Text>
+        <ProfileMenuGroup>
+          <ProfileMenuRow
+            title="Identité et confiance"
+            description="Vérification et preuves de confiance."
+            icon="check"
+            onPress={onOpenVerification}
+          />
+          <ProfileMenuRow
+            title="Modifier mon profil"
+            description="Nom, bio et photo de profil."
+            icon="profile"
+            tone="secondary"
+            onPress={() => setPanel('edit')}
+          />
+          <ProfileMenuRow
+            title="Avatar Studio"
+            description="Construis ton identité visuelle."
+            icon="profile"
+            tone="secondary"
+            onPress={() => setPanel('avatar')}
+            last
+          />
+        </ProfileMenuGroup>
 
-          <PressScale onPress={() => setPanel('appearance')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="spark" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Apparence</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Thèmes, animations et personnalisation.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
+        <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
+          PERSONNALISATION
+        </Text>
+        <ProfileMenuGroup>
+          <ProfileMenuRow
+            title="Apparence"
+            description="Thèmes, glass, animations et personnalisation."
+            icon="spark"
+            tone="secondary"
+            onPress={() => setPanel('appearance')}
+          />
+          <ProfileMenuRow
+            title="Langue et région"
+            description="Choisis la langue de toute l’interface."
+            icon="discover"
+            onPress={() => setPanel('language')}
+            last
+          />
+        </ProfileMenuGroup>
 
-          <PressScale onPress={() => setPanel('language')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="discover" size={20} color={colors.accent} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Langue et région</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Choisis la langue de toute l’interface.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
+        <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
+          UNIVERS
+        </Text>
+        <ProfileMenuGroup>
+          <ProfileMenuRow
+            title="KnowCoins & paiements"
+            description="Solde, achats et avantages."
+            icon="coins"
+            onPress={() => setPanel('payments')}
+          />
+          <ProfileMenuRow
+            title="Cadeaux sociaux"
+            description="Envoie et gère tes cadeaux."
+            icon="spark"
+            tone="secondary"
+            onPress={() => setPanel('gifts')}
+          />
+          <ProfileMenuRow
+            title="PLAY"
+            description="Jeux, récompenses et défis ludiques."
+            icon="challenge"
+            onPress={() => setPanel('games')}
+          />
+          <ProfileMenuRow
+            title="Plateforme de jeux"
+            description="Réglages et expérience de la plateforme PLAY."
+            icon="challenge"
+            tone="secondary"
+            onPress={() => setPanel('platform')}
+            last
+          />
+        </ProfileMenuGroup>
 
-          <PressScale onPress={() => setPanel('avatar')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="profile" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Avatar Studio</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Construis ton identité visuelle.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('payments')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="coins" size={20} color="#F7C85A" /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>KnowCoins & paiements</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Solde, achats et avantages.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('gifts')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="spark" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Cadeaux sociaux</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Envoie et gère tes cadeaux.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('games')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="challenge" size={20} color={colors.accent} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>PLAY</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Jeux, récompenses et défis ludiques.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('security')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="settings" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Sécurité</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Sessions, 2FA et appareils de confiance.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('privacy')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="settings" size={20} color={colors.secondary} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Confidentialité</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Contrôle ce que les autres peuvent voir.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-
-          <PressScale onPress={() => setPanel('session')} style={[
-              styles.profileMenuRow,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}>
-            <View style={[styles.profileMenuIcon, { backgroundColor: colors.backgroundAccent }]}><KnowMeIcon name="settings" size={20} color={colors.danger} /></View>
-            <View style={styles.flex}><Text style={[styles.profileMenuTitle, { color: colors.text }]}>Session & compte</Text><Text style={[styles.profileMenuText, { color: colors.muted }]}>Déconnexion et gestion du compte.</Text></View>
-            <KnowMeIcon name="arrow" size={17} color={colors.muted} />
-          </PressScale>
-        </View>
-      </View>
+        <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
+          CONTRÔLES
+        </Text>
+        <ProfileMenuGroup>
+          <ProfileMenuRow
+            title="Sécurité"
+            description="Sessions, 2FA et appareils de confiance."
+            icon="settings"
+            tone="secondary"
+            onPress={() => setPanel('security')}
+          />
+          <ProfileMenuRow
+            title="Confidentialité"
+            description="Contrôle ce que les autres peuvent voir."
+            icon="settings"
+            tone="secondary"
+            onPress={() => setPanel('privacy')}
+          />
+          <ProfileMenuRow
+            title="Session & compte"
+            description="Déconnexion et gestion du compte."
+            icon="settings"
+            tone="danger"
+            onPress={() => setPanel('session')}
+            last
+          />
+        </ProfileMenuGroup>
+      </FadeRise>
     </ScrollView>
   );
 }
@@ -555,16 +714,18 @@ const styles = StyleSheet.create({
   backButtonText: { fontSize: 12, fontWeight: '800' },
   panelTitle: { fontSize: 22, fontWeight: '900', flex: 1 },
   content: { padding: 16, paddingBottom: 42, gap: 14 },
-  profileHero: { overflow: 'hidden', borderWidth: 1, borderRadius: 28, paddingBottom: 18 },
+  profileHero: { overflow: 'hidden', paddingBottom: 18 },
   cover: { height: 132, position: 'relative', overflow: 'hidden', padding: 18, justifyContent: 'flex-end' },
   coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, opacity: 0.22, right: -40, top: -72 },
   coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, opacity: 0.14, left: -30, bottom: -75 },
   coverBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   coverBrandTitle: { fontSize: 17, fontWeight: '900' },
   coverBrandSub: { fontSize: 10.5, marginTop: 1 },
-  profileAvatarRow: { marginTop: -43, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  profileTrustButton: { minHeight: 38, borderRadius: 19, paddingHorizontal: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
-  profileTrustText: { fontSize: 12, fontWeight: '800' },
+  profileAvatarRow: { marginTop: -43, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'flex-end' },
+  profileActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 14 },
+  profileActionPress: { flex: 1, borderRadius: 21 },
+  profileAction: { minHeight: 42, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  profileActionText: { fontSize: 11.5, fontWeight: '800' },
   heading: { fontSize: 28, fontWeight: '900', paddingHorizontal: 18, marginTop: 12, letterSpacing: -0.6 },
   handle: { fontWeight: '800', paddingHorizontal: 18, marginTop: 3 },
   bio: { fontSize: 14, lineHeight: 20, paddingHorizontal: 18, marginTop: 11 },
@@ -572,12 +733,8 @@ const styles = StyleSheet.create({
   muted: {},
   accountId: { fontSize: 12 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingHorizontal: 18, marginTop: 13 },
-  verificationBadge: { borderColor: '#65b7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(101,183,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
-  verificationBadgeText: { color: '#65b7ff', fontWeight: '900', fontSize: 13 },
-  premiumBadge: { borderColor: '#d8a7ff', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(216,167,255,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
-  premiumBadgeText: { color: '#d8a7ff', fontWeight: '900', fontSize: 13 },
-  staffBadge: { borderColor: '#f4c95d', borderWidth: 1, borderRadius: 999, backgroundColor: 'rgba(244,201,93,0.08)', paddingHorizontal: 12, paddingVertical: 8 },
-  staffBadgeText: { color: '#f4c95d', fontWeight: '900', fontSize: 13 },
+  identityBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
+  identityBadgeText: { fontWeight: '900', fontSize: 11.5 },
   statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginTop: 15 },
   stat: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 11, minWidth: 0 },
   statValue: { fontSize: 16, fontWeight: '900', marginBottom: 3 },
@@ -585,11 +742,14 @@ const styles = StyleSheet.create({
   accountMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, marginTop: 13 },
   accountMetaText: { fontSize: 10.5, flexShrink: 1 },
   accountMetaDot: { fontSize: 12 },
-  profileMenuSection: { gap: 11 },
-  profileMenuHeading: { fontSize: 18, fontWeight: '900', marginTop: 4 },
-  profileMenuGrid: { gap: 8 },
-  profileMenuRow: { minHeight: 72, borderWidth: 1, borderRadius: 22, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  profileMenuIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  profileMenuSection: { gap: 9 },
+  profileMenuHeading: { fontSize: 20, fontWeight: '900', marginTop: 4, marginBottom: 2 },
+  profileGroupLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginTop: 8, marginLeft: 4 },
+  profileMenuGroup: { overflow: 'hidden' },
+  profileMenuPress: { width: '100%' },
+  profileMenuRow: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  profileMenuDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64, marginRight: 12 },
+  profileMenuIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   profileMenuTitle: { fontSize: 14, fontWeight: '900' },
   profileMenuText: { fontSize: 10.5, lineHeight: 15, marginTop: 2 },
   card: { borderWidth: 1, borderRadius: 26, padding: 18, gap: 12 },
