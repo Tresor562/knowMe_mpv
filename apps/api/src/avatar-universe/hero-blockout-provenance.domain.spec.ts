@@ -13,7 +13,7 @@ describe('Hero blockout source provenance gate',()=>{
  it('revalidates expressions',()=>{const x=valid();x.report.expressionMorphNames[0]='expr_forged';expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/non-canonical/);});
  it('revalidates combined stress matrix',()=>{const x=valid();x.report.combinationCaseNames[0]='skip_qa';expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/stress matrix/);});
  it('revalidates self-intersection evidence',()=>{const x=valid();x.report.measuredMaxSelfIntersectionCount=1;expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/self-intersections/);});
- it('revalidates LOD reduction',()=>{const x=valid();x.report.lodMetrics[1].triangles=44000;expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/reduction/);});
+ it('revalidates LOD reduction',()=>{const x=valid();x.report.lodMetrics[1].reductionFromPrevious=0.1;expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/reduction/);});
  it('revalidates LOD skinning',()=>{const x=valid();x.report.lodMetrics[2].maxBonesPerVertex=5;expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/skinning/);});
  it('revalidates LOD shape keys',()=>{const x=valid();x.report.lodShapeKeyNames[1]='dna_forged';expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/shape-key/);});
  it('rejects non-canonical timestamps',()=>{const x=valid();x.exportedAt='2026-09-18 07:00:00';expect(()=>validateHeroBlockoutProvenance(x)).toThrow(/ISO-8601/);});
