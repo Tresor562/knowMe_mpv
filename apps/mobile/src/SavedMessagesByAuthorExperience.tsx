@@ -26,7 +26,7 @@ export function SavedMessagesByAuthorExperience({
 }: {
   onOpenMessage?: (conversationId: string, messageId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [items, setItems] = useState<SavedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,7 +75,7 @@ export function SavedMessagesByAuthorExperience({
       {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
 
       {groups.map((group) => (
-        <View key={group.id} style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View key={group.id} style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: colors.text }]}>{group.displayName}</Text>
