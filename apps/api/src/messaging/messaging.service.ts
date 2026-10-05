@@ -361,11 +361,6 @@ export class MessagingService {
     });
 
     const sticker = this.stickerTokens.resolve(content, { conversationId });
-    const preview = sticker
-      ? `Sticker : ${sticker.sticker.label}`
-      : content.length > 120
-        ? `${content.slice(0, 117)}…`
-        : content;
     const presented = this.presentMessage(message, sticker);
 
     await Promise.all([
@@ -375,7 +370,8 @@ export class MessagingService {
               userId: recipient.userId,
               type: 'MESSAGE',
               title: `Nouveau message de ${message.sender.displayName}`,
-              body: preview,
+              // Do not duplicate private message content into Notification rows.
+              body: 'Tu as reçu un nouveau message.',
               data: {
                 route: `/messages/${conversationId}`,
                 entityType: 'CONVERSATION',
