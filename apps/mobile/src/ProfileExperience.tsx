@@ -206,7 +206,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
   const [bio, setBio] = useState(user.bio ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? '');
   const [password, setPassword] = useState('');
   const [deleteCode, setDeleteCode] = useState('');
   const [saving, setSaving] = useState(false);
@@ -216,7 +215,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   useEffect(() => {
     setDisplayName(user.displayName);
     setBio(user.bio ?? '');
-    setAvatarUrl(user.avatarUrl ?? '');
   }, [user]);
 
   async function save() {
@@ -227,8 +225,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         method: 'PATCH',
         body: JSON.stringify({
           displayName: displayName.trim(),
-          bio: bio.trim(),
-          ...(avatarUrl.trim() ? { avatarUrl: avatarUrl.trim() } : {})
+          bio: bio.trim()
         })
       });
       await onUpdated();
@@ -310,7 +307,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               }
             ]}
           >
-            <KnowMeIcon name="arrow" size={18} color={colors.text} />
+            <KnowMeIcon name="back" size={18} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>Profil</Text>
           </PressScale>
           <Text style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
@@ -330,43 +327,69 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
         {panel === 'edit' ? (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Modifier mon profil</Text>
-            <TextInput value={displayName} onChangeText={setDisplayName} maxLength={60} placeholder="Nom affiché" placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]} />
-            <TextInput value={bio}
-              onChangeText={setBio}
-              maxLength={500}
-              multiline
-              placeholder="Biographie"
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                styles.multiline,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]} />
-            <View style={styles.editAvatarRow}>
-              <Avatar uri={user.avatarUrl} name={displayName || user.displayName} size={46} />
+            <View style={styles.editIdentityRow}>
+              <Avatar uri={user.avatarUrl} name={displayName || user.displayName} size={50} />
               <View style={styles.flex}>
-                <Text style={[styles.editAvatarTitle, { color: colors.text }]}>Photo de profil</Text>
+                <Text style={[styles.editIdentityName, { color: colors.text }]}>
+                  {displayName || user.displayName}
+                </Text>
+                <Text style={[styles.editIdentityHandle, { color: colors.accent }]}>
+                  @{user.username}
+                </Text>
                 <Text style={[styles.helper, { color: colors.muted }]}>
-                  Ta photo actuelle reste inchangée.
+                  Nom d’utilisateur unique
                 </Text>
               </View>
             </View>
-            <Text style={[styles.helper, { color: colors.muted }]}>Le nom doit contenir au moins 2 caractères.</Text>
+
+            <View style={styles.fieldBlock}>
+              <Text style={[styles.fieldLabel, { color: colors.muted }]}>Nom affiché</Text>
+              <TextInput
+                value={displayName}
+                onChangeText={setDisplayName}
+                maxLength={60}
+                placeholder="Ton nom visible"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <View style={styles.fieldLabelRow}>
+                <Text style={[styles.fieldLabel, { color: colors.muted }]}>Biographie</Text>
+                <Text style={[styles.fieldCounter, { color: colors.muted }]}>{bio.length}/500</Text>
+              </View>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                maxLength={500}
+                multiline
+                placeholder="Parle un peu de toi"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  styles.multiline,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+            </View>
+
+            <Text style={[styles.helper, { color: colors.muted }]}>
+              Le nom affiché doit contenir au moins 2 caractères.
+            </Text>
             <Button title={saving ? 'Enregistrement…' : 'Enregistrer'} disabled={saving || displayName.trim().length < 2} onPress={() => void save()} />
           </View>
         ) : null}
@@ -749,8 +772,13 @@ const styles = StyleSheet.create({
   helper: { fontSize: 12, lineHeight: 18 },
   input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14.5, textAlignVertical: 'top' },
   multiline: { minHeight: 84 },
-  editAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 3 },
-  editAvatarTitle: { fontSize: 14, fontWeight: '800', marginBottom: 2 },
+  editIdentityRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 3, marginBottom: 2 },
+  editIdentityName: { fontSize: 15, fontWeight: '800' },
+  editIdentityHandle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
+  fieldBlock: { gap: 6 },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  fieldLabel: { fontSize: 11.5, fontWeight: '700', paddingHorizontal: 2 },
+  fieldCounter: { fontSize: 10.5 },
   button: { borderRadius: 20, paddingVertical: 12, paddingHorizontal: 15, alignItems: 'center' },
   buttonText: { fontWeight: '900' },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 1 },
