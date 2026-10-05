@@ -11,8 +11,9 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { useAppearance } from './AppearanceProvider';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
-import { Avatar, BrandMark, KnowMeIcon } from './ui/KnowMeUI';
+import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
@@ -39,6 +40,7 @@ function errorMessage(cause: unknown, fallback: string) {
 }
 
 export function SocialHub({ userId }: { userId: string }) {
+  const { colors } = useAppearance();
   const [section, setSection] = useState<Section>('friends');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -48,21 +50,21 @@ export function SocialHub({ userId }: { userId: string }) {
   }, [userId]);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
+        <GlassSurface strength="soft" borderRadius={28} style={styles.headerTop}>
           <View style={styles.headerBrand}>
             <BrandMark size={31} />
             <View>
-              <Text style={styles.heading}>Messages</Text>
-              <Text style={styles.headerSub}>Ton cercle, en direct.</Text>
+              <Text style={[styles.heading, { color: colors.text }]}>Messages</Text>
+              <Text style={[styles.headerSub, { color: colors.muted }]}>Ton cercle, en direct.</Text>
             </View>
           </View>
-          <View style={styles.headerIcon}>
-            <KnowMeIcon name="messages" size={22} color="#7A5CFF" />
-          </View>
-        </View>
-        <View style={styles.segmented}>
+          <GlassSurface strength="soft" borderRadius={21} style={styles.headerIcon}>
+            <KnowMeIcon name="messages" size={22} color={colors.accent} />
+          </GlassSurface>
+        </GlassSurface>
+        <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
             <Pressable
               key={value}
@@ -70,11 +72,16 @@ export function SocialHub({ userId }: { userId: string }) {
                 setRefreshing(false);
                 setSection(value);
               }}
-              style={[styles.segment, section === value && styles.segmentActive]}
+              style={[
+                styles.segment,
+                section === value && {
+                  backgroundColor: colors.backgroundAccent
+                }
+              ]}
             >
               <Text style={[
                 styles.segmentText,
-                section === value && styles.segmentTextActive
+                { color: section === value ? colors.accent : colors.muted }
               ]}>
                 {value === 'friends'
                   ? 'Amis'
@@ -84,7 +91,7 @@ export function SocialHub({ userId }: { userId: string }) {
               </Text>
             </Pressable>
           ))}
-        </View>
+        </GlassSurface>
       </View>
 
       {section === 'friends' && (
@@ -120,6 +127,7 @@ function FriendsPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
+  const { colors } = useAppearance();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [results, setResults] = useState<UserSummary[]>([]);
@@ -202,6 +210,8 @@ function FriendsPanel({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -211,14 +221,22 @@ function FriendsPanel({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Trouver une personne</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Trouver une personne</Text>
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Nom ou pseudo"
-          placeholderTextColor="#737E93"
-          style={styles.input}
+          placeholderTextColor={colors.muted}
+          selectionColor={colors.accent}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.backgroundAccent,
+              borderColor: colors.border,
+              color: colors.text
+            }
+          ]}
           autoCapitalize="none"
         />
         <ActionButton
@@ -229,10 +247,10 @@ function FriendsPanel({
       </View>
 
       {requests.length > 0 && (
-        <Text style={styles.sectionTitle}>Demandes reçues</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Demandes reçues</Text>
       )}
       {requests.map(({ id, requester }) => (
-        <View key={id} style={styles.card}>
+        <View key={id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Identity user={requester} />
           <View style={styles.row}>
             <ActionButton
@@ -250,9 +268,9 @@ function FriendsPanel({
         </View>
       ))}
 
-      <Text style={styles.sectionTitle}>Mes amis ({friends.length})</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
-        <View key={friendshipId} style={styles.card}>
+        <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Identity user={user} />
           <SecondaryButton
             title="Retirer"
@@ -264,10 +282,10 @@ function FriendsPanel({
       {!friends.length && <Empty text="Aucun ami pour le moment." />}
 
       {results.length > 0 && (
-        <Text style={styles.sectionTitle}>Résultats</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats</Text>
       )}
       {results.map((user) => (
-        <View key={user.id} style={styles.card}>
+        <View key={user.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Identity user={user} />
           <ActionButton
             title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
@@ -287,6 +305,7 @@ function NotificationsPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
+  const { colors } = useAppearance();
   const [items, setItems] = useState<Notification[]>([]);
 
   const load = useCallback(async () => {
@@ -341,6 +360,8 @@ function NotificationsPanel({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -360,13 +381,19 @@ function NotificationsPanel({
       renderItem={({ item }) => (
         <Pressable
           onPress={() => !item.readAt && void markRead(item.id)}
-          style={[styles.card, !item.readAt && styles.unreadCard]}
+          style={[
+            styles.card,
+            {
+              backgroundColor: item.readAt ? colors.surface : colors.surfaceRaised,
+              borderColor: item.readAt ? colors.border : colors.accent
+            }
+          ]}
         >
-          <Text style={styles.cardTitle}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
             {item.title}
           </Text>
-          <Text style={styles.muted}>{item.body}</Text>
-          <Text style={styles.date}>
+          <Text style={[styles.muted, { color: colors.muted }]}>{item.body}</Text>
+          <Text style={[styles.date, { color: colors.muted }]}>
             {new Date(item.createdAt).toLocaleString('fr-FR')}
           </Text>
         </Pressable>
@@ -376,11 +403,12 @@ function NotificationsPanel({
 }
 
 function Identity({ user }: { user: UserSummary }) {
+  const { colors } = useAppearance();
   return (
     <View style={styles.identity}>
       <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
-        <Text style={styles.cardTitle}>{user.displayName}</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{user.displayName}</Text>
         <Text style={styles.muted}>@{user.username}</Text>
         {user.bio ? (
           <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text>
@@ -401,17 +429,19 @@ function ActionButton({
   disabled?: boolean;
   compact?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={[
         styles.actionButton,
+        { backgroundColor: colors.accent },
         compact && styles.compactButton,
         disabled && styles.disabled
       ]}
     >
-      <Text style={styles.actionText}>{title}</Text>
+      <Text style={[styles.actionText, { color: colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -425,38 +455,46 @@ function SecondaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.secondaryButton, disabled && styles.disabled]}
+      style={[
+        styles.secondaryButton,
+        {
+          backgroundColor: colors.backgroundAccent,
+          borderColor: colors.border
+        },
+        disabled && styles.disabled
+      ]}
     >
-      <Text style={styles.secondaryText}>{title}</Text>
+      <Text style={[styles.secondaryText, { color: colors.text }]}>{title}</Text>
     </Pressable>
   );
 }
 
 function Empty({ text }: { text: string }) {
+  const { colors } = useAppearance();
   return (
-    <View style={styles.empty}>
-      <Text style={styles.muted}>{text}</Text>
+    <View style={[styles.empty, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.muted, { color: colors.muted }]}>{text}</Text>
     </View>
   );
 }
 
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#090C14' },
-  header: { paddingHorizontal: 18, paddingTop: 12, gap: 14 },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  root: { flex: 1 },
+  header: { paddingHorizontal: 18, paddingTop: 12, gap: 10 },
+  headerTop: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
-  headerIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
+  headerSub: { fontSize: 11.5, marginTop: 1 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#0D111B',
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 4
   },
   segment: {
@@ -465,57 +503,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 11
   },
-  segmentActive: { backgroundColor: '#171E2C' },
-  segmentText: { color: '#737E93', fontWeight: '700', fontSize: 12 },
-  segmentTextActive: { color: '#F7F7FB' },
+  segmentActive: {},
+  segmentText: { fontWeight: '800', fontSize: 12 },
+  segmentTextActive: {},
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   card: {
-    backgroundColor: '#101521',
-    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 22,
     padding: 16,
     gap: 10
   },
-  unreadCard: { borderColor: '#7A5CFF', backgroundColor: '#17152A' },
-  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
+  unreadCard: {},
+  cardTitle: { fontSize: 17, fontWeight: '800' },
   sectionTitle: {
-    color: '#F7F7FB',
     fontSize: 20,
     fontWeight: '900',
     marginTop: 8
   },
-  muted: { color: '#929BAD', lineHeight: 20 },
-  bio: { color: '#B8C0CE', marginTop: 4 },
-  date: { color: '#737E93', fontSize: 11 },
+  muted: { lineHeight: 20 },
+  bio: { marginTop: 4 },
+  date: { fontSize: 11 },
   input: {
-    backgroundColor: '#0D111B',
-    borderColor: '#30394E',
     borderWidth: 1,
-    borderRadius: 15,
-    color: '#F7F7FB',
+    borderRadius: 28,
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 48
   },
   actionButton: {
-    backgroundColor: '#7A5CFF',
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { color: '#FFFFFF', fontWeight: '900' },
+  actionText: { fontWeight: '900' },
   secondaryButton: {
-    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  secondaryText: { color: '#DCE2EC', fontWeight: '800' },
+  secondaryText: { fontWeight: '800' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
   identity: { flexDirection: 'row', gap: 12, alignItems: 'center' },
@@ -530,7 +560,6 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#7A5CFF', fontSize: 18, fontWeight: '900' },
   empty: {
-    backgroundColor: '#101521',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center'
