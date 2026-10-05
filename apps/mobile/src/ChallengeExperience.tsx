@@ -10,7 +10,8 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
-import { BrandMark, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { useAppearance } from './AppearanceProvider';
+import { BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
 type Person = {
@@ -91,17 +92,23 @@ function Button({
   disabled?: boolean;
   danger?: boolean;
 }) {
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        danger && styles.dangerButton,
+        {
+          borderRadius: visual.controlRadius,
+          backgroundColor: danger ? 'transparent' : colors.accent,
+          borderColor: danger ? colors.danger : colors.accent
+        },
+        danger && { borderWidth: 1 },
         (pressed || disabled) && styles.buttonMuted
       ]}
     >
-      <Text style={[styles.buttonText, danger && styles.dangerText]}>{title}</Text>
+      <Text style={[styles.buttonText, { color: danger ? colors.danger : colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -110,6 +117,7 @@ function VisibilityPicker({ value, onChange }: {
   value: Visibility;
   onChange: (value: Visibility) => void;
 }) {
+  const { colors, visual } = useAppearance();
   const choices: Array<[Visibility, string]> = [
     ['PRIVATE', 'Privé'],
     ['FRIENDS', 'Amis'],
@@ -121,9 +129,16 @@ function VisibilityPicker({ value, onChange }: {
         <Pressable
           key={key}
           onPress={() => onChange(key)}
-          style={[styles.visibilityChoice, value === key && styles.visibilityChoiceActive]}
+          style={[
+            styles.visibilityChoice,
+            {
+              backgroundColor: value === key ? colors.surfaceRaised : colors.backgroundAccent,
+              borderColor: value === key ? colors.accent : colors.border,
+              borderRadius: visual.controlRadius
+            }
+          ]}
         >
-          <Text style={[styles.visibilityText, value === key && styles.visibilityTextActive]}>
+          <Text style={[styles.visibilityText, { color: value === key ? colors.accent : colors.muted }]}>
             {label}
           </Text>
         </Pressable>
@@ -143,6 +158,7 @@ function ChallengeDetail({
   onBack: () => void;
   onChanged: () => Promise<void>;
 }) {
+  const { colors, visual } = useAppearance();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -308,8 +324,8 @@ function ChallengeDetail({
 
   if (loading || !challenge) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.muted}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.muted, { color: colors.muted }]}>
           {loading ? 'Chargement du défi…' : 'Défi introuvable.'}
         </Text>
         <Button title="Retour" onPress={onBack} />
@@ -322,28 +338,33 @@ function ChallengeDetail({
   const viewerVersion = challenge.viewerVersion ?? challenge.currentVersion;
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerRow}>
         <View style={styles.flex}>
-          <Text style={styles.eyebrow}>DÉFI KNOWME</Text>
-          <Text style={styles.heading}>{challenge.title}</Text>
+          <Text style={[styles.eyebrow, { color: colors.accent }]}>DÉFI KNOWME</Text>
+          <Text style={[styles.heading, { color: colors.text }]}>{challenge.title}</Text>
         </View>
         <Button title="Retour" onPress={onBack} />
       </View>
 
       {challenge.isCurrentVersion === false && (
-        <View style={styles.historyBanner}>
+        <View style={[styles.historyBanner, { backgroundColor: colors.surfaceRaised, borderColor: '#F4C95D', borderRadius: visual.cardRadius }]}>
           <Text style={styles.historyTitle}>Partie historique · v{viewerVersion}</Text>
-          <Text style={styles.muted}>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             La version actuelle est la v{challenge.currentVersion}. Tes réponses restent
             attachées à leur version d’origine.
           </Text>
         </View>
       )}
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         {challenge.description ? (
-          <Text style={styles.description}>{challenge.description}</Text>
+          <Text style={[styles.description, { color: colors.text }]}>{challenge.description}</Text>
         ) : null}
         <View style={styles.badgesRow}>
           <Text style={[styles.badge, isActive ? styles.activeBadge : styles.closedBadge]}>
@@ -354,7 +375,7 @@ function ChallengeDetail({
           <Text style={styles.badge}>{challenge.questions.length} question(s)</Text>
         </View>
         {challenge.creator && (
-          <Text style={styles.muted}>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             Créé par {challenge.creator.displayName} (@{challenge.creator.username})
           </Text>
         )}
@@ -366,7 +387,7 @@ function ChallengeDetail({
           />
         )}
         {participant && (
-          <Text style={styles.success}>
+          <Text style={[styles.success, { color: colors.accent }]}>
             Version de ta participation : v{participant.challengeVersion} ·{' '}
             {participant.completedAt
               ? 'réponses complètes'
@@ -390,9 +411,9 @@ function ChallengeDetail({
       </View>
 
       {editing && challenge.canEdit && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Version {challenge.currentVersion + 1}</Text>
-          <Text style={styles.muted}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Version {challenge.currentVersion + 1}</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             La version actuelle ne sera pas modifiée. Cette publication crée un nouvel
             instantané complet.
           </Text>
@@ -401,8 +422,17 @@ function ChallengeDetail({
             onChangeText={setEditTitle}
             maxLength={100}
             placeholder="Titre"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={editDescription}
@@ -410,8 +440,17 @@ function ChallengeDetail({
             maxLength={500}
             multiline
             placeholder="Description"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <VisibilityPicker value={editVisibility} onChange={setEditVisibility} />
           <TextInput
@@ -419,8 +458,18 @@ function ChallengeDetail({
             onChangeText={setEditQuestions}
             multiline
             placeholder="Une question par ligne"
-            placeholderTextColor="#737E93"
-            style={[styles.input, styles.questionsInput]}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              styles.questionsInput,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <TextInput
             value={editReason}
@@ -428,8 +477,17 @@ function ChallengeDetail({
             multiline
             maxLength={500}
             placeholder="Motif de la modification"
-            placeholderTextColor="#737E93"
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: visual.inputRadius
+              }
+            ]}
           />
           <Button
             title={saving ? 'Publication…' : `Publier la v${challenge.currentVersion + 1}`}
@@ -440,12 +498,12 @@ function ChallengeDetail({
       )}
 
       {participant && challenge.canAnswer && (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Tes réponses · v{participant.challengeVersion}</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tes réponses · v{participant.challengeVersion}</Text>
           {challenge.questions.map((question, index) => (
-            <View key={question.id} style={styles.questionBlock}>
-              <Text style={styles.questionLabel}>Question {index + 1}</Text>
-              <Text style={styles.question}>{question.prompt}</Text>
+            <View key={question.id} style={[styles.questionBlock, { borderTopColor: colors.border }]}>
+              <Text style={[styles.questionLabel, { color: colors.accent }]}>Question {index + 1}</Text>
+              <Text style={[styles.question, { color: colors.text }]}>{question.prompt}</Text>
               <TextInput
                 editable={isActive}
                 multiline
@@ -455,8 +513,18 @@ function ChallengeDetail({
                   setAnswers((current) => ({ ...current, [question.id]: value }))
                 }
                 placeholder="Ta réponse…"
-                placeholderTextColor="#737E93"
-                style={[styles.input, !isActive && styles.disabledInput]}
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    borderRadius: visual.inputRadius
+                  },
+                  !isActive && styles.disabledInput
+                ]}
               />
             </View>
           ))}
@@ -477,30 +545,30 @@ function ChallengeDetail({
       )}
 
       {participant && !challenge.canAnswer && isActive && (
-        <View style={styles.historyBanner}>
+        <View style={[styles.historyBanner, { backgroundColor: colors.surfaceRaised, borderColor: '#F4C95D', borderRadius: visual.cardRadius }]}>
           <Text style={styles.historyTitle}>Participation conservée</Text>
-          <Text style={styles.muted}>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             Cette participation est figée sur la v{participant.challengeVersion} et ne peut
             pas être déplacée automatiquement.
           </Text>
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Participants</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Participants</Text>
       {challenge.participants.map((item) => (
-        <View key={item.id} style={styles.participantCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+        <View key={item.id} style={[styles.participantCard, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={[styles.avatarText, { color: colors.accentText }]}>
               {item.user.displayName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.flex}>
-            <Text style={styles.title}>{item.user.displayName}</Text>
-            <Text style={styles.muted}>
+            <Text style={[styles.title, { color: colors.text }]}>{item.user.displayName}</Text>
+            <Text style={[styles.muted, { color: colors.muted }]}>
               @{item.user.username} · v{item.challengeVersion}
             </Text>
           </View>
-          <Text style={item.completedAt ? styles.success : styles.muted}>
+          <Text style={[item.completedAt ? styles.success : styles.muted, { color: item.completedAt ? colors.accent : colors.muted }]}>
             {item.completedAt ? 'Terminé' : 'En cours'}
           </Text>
         </View>
@@ -508,19 +576,19 @@ function ChallengeDetail({
 
       {isCreator && Boolean(challenge.versions?.length) && (
         <>
-          <Text style={styles.sectionTitle}>Historique immuable</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
           {challenge.versions?.map((version) => (
-            <View key={version.id} style={styles.card}>
+            <View key={version.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
               <View style={styles.headerRow}>
-                <Text style={styles.title}>
+                <Text style={[styles.title, { color: colors.text }]}>
                   Version {version.version}
                   {version.version === challenge.currentVersion ? ' · actuelle' : ''}
                 </Text>
-                <Text style={styles.muted}>{version.questionCount} question(s)</Text>
+                <Text style={[styles.muted, { color: colors.muted }]}>{version.questionCount} question(s)</Text>
               </View>
-              <Text style={styles.muted}>{version.visibility}</Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>{version.visibility}</Text>
               {version.changeReason ? (
-                <Text style={styles.description}>{version.changeReason}</Text>
+                <Text style={[styles.description, { color: colors.text }]}>{version.changeReason}</Text>
               ) : null}
             </View>
           ))}
@@ -531,6 +599,7 @@ function ChallengeDetail({
 }
 
 export function ChallengeExperience({ userId }: { userId: string }) {
+  const { colors, visual } = useAppearance();
   const [items, setItems] = useState<Challenge[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -602,6 +671,8 @@ export function ChallengeExperience({ userId }: { userId: string }) {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -609,27 +680,27 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         />
       }
     >
-      <View style={styles.challengeHeader}>
+      <GlassSurface strength="soft" borderRadius={28} style={styles.challengeHeader}>
         <View style={styles.challengeBrand}>
           <BrandMark size={31} />
           <View>
-            <Text style={styles.heading}>Défis</Text>
-            <Text style={styles.challengeSub}>Le cœur de KnowMe.</Text>
+            <Text style={[styles.heading, { color: colors.text }]}>Défis</Text>
+            <Text style={[styles.challengeSub, { color: colors.muted }]}>Le cœur de KnowMe.</Text>
           </View>
         </View>
-        <View style={styles.challengeHeaderIcon}>
-          <KnowMeIcon name="challenge" size={23} color="#FF9B57" />
-        </View>
-      </View>
+        <GlassSurface strength="soft" borderRadius={21} style={styles.challengeHeaderIcon}>
+          <KnowMeIcon name="challenge" size={23} color={colors.secondary} />
+        </GlassSurface>
+      </GlassSurface>
 
-      <View style={[styles.card, styles.createCard]}>
+      <View style={[styles.card, styles.createCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <View style={styles.createTitleRow}>
-          <View style={styles.createIcon}>
-            <KnowMeIcon name="create" size={20} color="#FFFFFF" />
+          <View style={[styles.createIcon, { backgroundColor: colors.accent }]}>
+            <KnowMeIcon name="create" size={20} color={colors.accentText} />
           </View>
           <View style={styles.flex}>
-            <Text style={styles.sectionTitle}>Créer un défi</Text>
-            <Text style={styles.createHint}>Pose les questions qui comptent vraiment.</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Créer un défi</Text>
+            <Text style={[styles.createHint, { color: colors.muted }]}>Pose les questions qui comptent vraiment.</Text>
           </View>
         </View>
         <TextInput
@@ -637,8 +708,16 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           onChangeText={setTitle}
           maxLength={100}
           placeholder="Titre du défi"
-          placeholderTextColor="#737E93"
-          style={styles.input}
+          placeholderTextColor={colors.muted}
+          style={[
+          styles.input,
+          {
+            backgroundColor: colors.backgroundAccent,
+            borderColor: colors.border,
+            color: colors.text,
+            borderRadius: visual.inputRadius
+          }
+        ]}
         />
         <TextInput
           value={description}
@@ -646,8 +725,16 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           maxLength={500}
           multiline
           placeholder="Description facultative"
-          placeholderTextColor="#737E93"
-          style={styles.input}
+          placeholderTextColor={colors.muted}
+          style={[
+          styles.input,
+          {
+            backgroundColor: colors.backgroundAccent,
+            borderColor: colors.border,
+            color: colors.text,
+            borderRadius: visual.inputRadius
+          }
+        ]}
         />
         <VisibilityPicker value={visibility} onChange={setVisibility} />
         <TextInput
@@ -655,8 +742,17 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           onChangeText={setQuestions}
           multiline
           placeholder={'Une question par ligne\nQuel est mon plus grand rêve ?'}
-          placeholderTextColor="#737E93"
-          style={[styles.input, styles.questionsInput]}
+          placeholderTextColor={colors.muted}
+          style={[
+          styles.input,
+          styles.questionsInput,
+          {
+            backgroundColor: colors.backgroundAccent,
+            borderColor: colors.border,
+            color: colors.text,
+            borderRadius: visual.inputRadius
+          }
+        ]}
         />
         <Button
           title={creating ? 'Création…' : 'Créer et répondre'}
@@ -665,17 +761,17 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Mes défis</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes défis</Text>
       {items.map((item) => {
         const participant = item.participants.find((entry) => entry.userId === userId);
         return (
-          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard]}>
+          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <View style={styles.headerRow}>
               <View style={styles.challengeListTitleRow}>
-                <View style={styles.challengeMiniIcon}>
-                  <KnowMeIcon name="challenge" size={18} color="#FF9B57" />
+                <View style={[styles.challengeMiniIcon, { backgroundColor: colors.backgroundAccent }]}>
+                  <KnowMeIcon name="challenge" size={18} color={colors.secondary} />
                 </View>
-                <Text style={[styles.title, styles.flex]}>{item.title}</Text>
+                <Text style={[styles.title, styles.flex, { color: colors.text }]}>{item.title}</Text>
               </View>
               <Text
                 style={[
@@ -686,12 +782,12 @@ export function ChallengeExperience({ userId }: { userId: string }) {
                 {item.status}
               </Text>
             </View>
-            {item.description ? <Text style={styles.description}>{item.description}</Text> : null}
-            <Text style={styles.muted}>
+            {item.description ? <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text> : null}
+            <Text style={[styles.muted, { color: colors.muted }]}>
               v{item.currentVersion} · {item.visibility} · {item.questions.length} question(s) ·{' '}
               {item.participants.length} participant(s)
             </Text>
-            <Text style={participant?.completedAt ? styles.success : styles.muted}>
+            <Text style={[participant?.completedAt ? styles.success : styles.muted, { color: participant?.completedAt ? colors.accent : colors.muted }]}>
               {participant?.completedAt
                 ? `Tu as terminé la v${participant.challengeVersion}.`
                 : participant
@@ -702,8 +798,8 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         );
       })}
       {!items.length && (
-        <View style={styles.card}>
-          <Text style={styles.muted}>Aucun défi pour le moment. Crée le premier.</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <Text style={[styles.muted, { color: colors.muted }]}>Aucun défi pour le moment. Crée le premier.</Text>
         </View>
       )}
     </ScrollView>
@@ -712,51 +808,49 @@ export function ChallengeExperience({ userId }: { userId: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: 18, paddingBottom: 40, gap: 14 },
-  challengeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  challengeHeader: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   challengeBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  challengeSub: { color: '#929BAD', fontSize: 11.5, marginTop: 1 },
-  challengeHeaderIcon: { width: 43, height: 43, borderRadius: 14, backgroundColor: '#171E2C', borderColor: '#273044', borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  challengeSub: { fontSize: 11.5, marginTop: 1 },
+  challengeHeaderIcon: { width: 43, height: 43, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   createCard: { borderRadius: 26, padding: 16 },
   createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  createIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
-  createHint: { color: '#929BAD', fontSize: 11.5, marginTop: 2 },
+  createIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  createHint: { fontSize: 11.5, marginTop: 2 },
   challengeListCard: { borderRadius: 22 },
   challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  challengeMiniIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#171E2C', alignItems: 'center', justifyContent: 'center' },
+  challengeMiniIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   flex: { flex: 1 },
-  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { color: '#F7F7FB', fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
-  sectionTitle: { color: '#F7F7FB', fontSize: 21, fontWeight: '900' },
-  title: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
-  description: { color: '#DCE2EC', fontSize: 15, lineHeight: 22 },
-  muted: { color: '#929BAD', lineHeight: 20 },
-  success: { color: '#7A5CFF', fontWeight: '800' },
-  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  historyBanner: { backgroundColor: '#1f2117', borderColor: '#6f6330', borderWidth: 1, borderRadius: 20, padding: 16, gap: 8 },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
+  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
+  sectionTitle: { fontSize: 21, fontWeight: '900' },
+  title: { fontSize: 17, fontWeight: '800' },
+  description: { fontSize: 15, lineHeight: 22 },
+  muted: { lineHeight: 20 },
+  success: { fontWeight: '800' },
+  card: { borderWidth: 1, padding: 18, gap: 12 },
+  historyBanner: { borderWidth: 1, padding: 16, gap: 8 },
   historyTitle: { color: '#f4c95d', fontSize: 17, fontWeight: '900' },
-  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#0D111B', borderRadius: 18, padding: 14 },
-  questionBlock: { gap: 8, borderTopColor: '#273044', borderTopWidth: 1, paddingTop: 14 },
-  questionLabel: { color: '#7A5CFF', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  question: { color: '#F7F7FB', fontSize: 17, lineHeight: 24, fontWeight: '700' },
-  input: { minHeight: 52, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 16, color: '#F7F7FB', paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
+  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  questionBlock: { gap: 8, borderTopWidth: 1, paddingTop: 14 },
+  questionLabel: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  question: { fontSize: 17, lineHeight: 24, fontWeight: '700' },
+  input: { minHeight: 52, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
   questionsInput: { minHeight: 128 },
   disabledInput: { opacity: 0.65 },
   badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { color: '#B8C0CE', backgroundColor: '#0D111B', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
   activeBadge: { color: '#7A5CFF' },
   closedBadge: { color: '#FF6B73' },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#7A5CFF', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 17 },
-  button: { backgroundColor: '#7A5CFF', borderRadius: 15, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { color: '#FFFFFF', fontWeight: '900' },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontWeight: '900', fontSize: 17 },
+  button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
+  buttonText: { fontWeight: '900' },
   buttonMuted: { opacity: 0.45 },
-  dangerButton: { backgroundColor: 'transparent', borderColor: '#FF6B73', borderWidth: 1 },
-  dangerText: { color: '#FF6B73' },
   visibilityRow: { flexDirection: 'row', gap: 8 },
-  visibilityChoice: { flex: 1, backgroundColor: '#0D111B', borderRadius: 14, paddingVertical: 11, alignItems: 'center', borderColor: '#30394E', borderWidth: 1 },
-  visibilityChoiceActive: { backgroundColor: '#171E2C', borderColor: '#7A5CFF' },
-  visibilityText: { color: '#737E93', fontWeight: '800' },
-  visibilityTextActive: { color: '#F7F7FB' }
+  visibilityChoice: { flex: 1, paddingVertical: 11, alignItems: 'center', borderWidth: 1 },
+  visibilityChoiceActive: {},
+  visibilityText: { fontWeight: '800' },
+  visibilityTextActive: {}
 });
