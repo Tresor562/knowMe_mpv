@@ -14,7 +14,9 @@ import {
   fetchAppearance,
   loadCachedAppearance,
   MobileThemePalette,
+  MobileVisualStyle,
   resolveMobilePalette,
+  resolveMobileVisualStyle,
   updateAppearance
 } from './appearance';
 import { I18nProvider } from './I18nProvider';
@@ -22,6 +24,7 @@ import { I18nProvider } from './I18nProvider';
 type AppearanceContextValue = {
   appearance: AppearanceResponse | null;
   colors: MobileThemePalette;
+  visual: MobileVisualStyle;
   loading: boolean;
   busy: boolean;
   refresh: () => Promise<AppearanceResponse | null>;
@@ -39,6 +42,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const colors = useMemo(
     () => resolveMobilePalette(appearance, systemColorScheme),
     [appearance, systemColorScheme]
+  );
+  const visual = useMemo(
+    () => resolveMobileVisualStyle(appearance),
+    [appearance]
   );
 
   const refresh = useCallback(async () => {
@@ -83,8 +90,8 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ appearance, colors, loading, busy, refresh, update }),
-    [appearance, colors, loading, busy, refresh, update]
+    () => ({ appearance, colors, visual, loading, busy, refresh, update }),
+    [appearance, colors, visual, loading, busy, refresh, update]
   );
 
   return (
