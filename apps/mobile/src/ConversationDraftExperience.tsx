@@ -30,7 +30,7 @@ export function ConversationDraftExperience({
   conversationId: string;
   onDraftChanged?: (content: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [content, setContent] = useState('');
   const [version, setVersion] = useState(0);
   const [status, setStatus] = useState<DraftStatus>('loading');
@@ -142,7 +142,7 @@ export function ConversationDraftExperience({
     loadedConversation.current === conversationId && (status === 'ready' || status === 'saved');
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <View style={styles.headingRow}>
         <View style={styles.headingCopy}>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>BROUILLON SYNCHRONISÉ</Text>
@@ -161,7 +161,7 @@ export function ConversationDraftExperience({
         maxLength={8000}
         style={[
           styles.input,
-          { backgroundColor: colors.background, borderColor: colors.border, color: colors.text },
+          { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius },
           (status === 'error' || status === 'saving') && styles.disabled
         ]}
       />
@@ -176,7 +176,7 @@ export function ConversationDraftExperience({
         <Pressable
           disabled={!canMutate}
           onPress={() => void save()}
-          style={[styles.primary, { backgroundColor: colors.accent }, !canMutate && styles.disabled]}
+          style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, !canMutate && styles.disabled]}
         >
           <Text style={{ color: colors.accentText, fontWeight: '900' }}>
             {status === 'saving' ? 'Synchronisation…' : 'Synchroniser'}
@@ -185,7 +185,7 @@ export function ConversationDraftExperience({
         {status === 'conflict' || status === 'error' ? (
           <Pressable
             onPress={() => void load()}
-            style={[styles.secondary, { borderColor: colors.border }]}
+            style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
           >
             <Text style={{ color: colors.text, fontWeight: '800' }}>Recharger</Text>
           </Pressable>

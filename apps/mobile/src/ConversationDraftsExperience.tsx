@@ -37,7 +37,7 @@ export function ConversationDraftsExperience({
   currentUserId: string;
   onOpenConversation: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [drafts, setDrafts] = useState<ConversationDraft[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);

@@ -48,7 +48,7 @@ export function ConversationOrganizationDetail({
   currentUserId: string;
   onOpenTool?: (tool: Tool) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [archives, setArchives] = useState<Archive[]>([]);
@@ -225,7 +225,7 @@ export function ConversationOrganizationDetail({
               onPress={() => onOpenTool?.(card.tool)}
               style={({ pressed }) => [
                 styles.card,
-                { backgroundColor: colors.surface, borderColor: colors.border },
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius },
                 !card.available && styles.unavailable,
                 pressed && card.available && styles.pressed
               ]}

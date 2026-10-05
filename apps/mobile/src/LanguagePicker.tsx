@@ -26,7 +26,7 @@ export function LanguagePicker({
   onChange: (locale: SupportedLocale) => void | Promise<void>;
   compact?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,7 +62,8 @@ export function LanguagePicker({
           compact ? styles.compactButton : styles.button,
           {
             backgroundColor: colors.surface,
-            borderColor: colors.border
+            borderColor: colors.border,
+            borderRadius: compact ? visual.controlRadius : visual.cardRadius
           }
         ]}
       >
@@ -102,7 +103,7 @@ export function LanguagePicker({
             <Pressable
               accessibilityRole="button"
               onPress={() => setOpen(false)}
-              style={[styles.close, { backgroundColor: colors.surfaceRaised }]}
+              style={[styles.close, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}
             >
               <Text style={[styles.closeText, { color: colors.text }]}>×</Text>
             </Pressable>
@@ -118,9 +119,10 @@ export function LanguagePicker({
             style={[
               styles.search,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.backgroundAccent,
                 borderColor: colors.border,
-                color: colors.text
+                color: colors.text,
+                borderRadius: visual.inputRadius
               }
             ]}
           />
@@ -145,7 +147,8 @@ export function LanguagePicker({
                     styles.row,
                     {
                       backgroundColor: selected ? colors.surfaceRaised : colors.surface,
-                      borderColor: selected ? colors.accent : colors.border
+                      borderColor: selected ? colors.accent : colors.border,
+                      borderRadius: visual.controlRadius
                     }
                   ]}
                 >

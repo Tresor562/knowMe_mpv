@@ -64,7 +64,7 @@ export function SaveMessageControl({ messageId }: { messageId: string }) {
         onPress={() => void toggle()}
         style={[
           styles.button,
-          { borderColor: saved ? colors.accent : colors.border },
+          { borderColor: saved ? colors.accent : colors.border, borderRadius: 999 },
           saved && { backgroundColor: colors.surfaceRaised },
           (busy || loading) && styles.disabled
         ]}

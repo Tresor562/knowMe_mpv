@@ -115,7 +115,7 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
               onPress={() => void choose(emoji)}
               style={[
                 styles.button,
-                { borderColor: selected ? colors.accent : colors.border },
+                { borderColor: selected ? colors.accent : colors.border, borderRadius: 999 },
                 selected && { backgroundColor: colors.surfaceRaised },
                 busy && styles.disabled
               ]}

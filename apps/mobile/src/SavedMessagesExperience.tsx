@@ -35,7 +35,7 @@ export function SavedMessagesExperience({
 }: {
   onOpenMessage?: (conversationId: string, messageId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [items, setItems] = useState<SavedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -109,7 +109,7 @@ export function SavedMessagesExperience({
           disabled={loading || busyId !== null}
           style={[
             styles.refreshButton,
-            { borderColor: colors.border },
+            { borderColor: colors.border, borderRadius: visual.controlRadius },
             (loading || busyId !== null) && styles.disabled
           ]}
         >
@@ -121,7 +121,7 @@ export function SavedMessagesExperience({
       {loading ? <ActivityIndicator color={colors.accent} /> : null}
 
       {!loading && !error && authorityValid && !items.length ? (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Aucune référence visible dans le lot récent</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
             Ce résultat borné ne prouve pas qu’aucun autre message enregistré existe. Un message devenu inaccessible n'est jamais reconstruit localement.
@@ -133,7 +133,7 @@ export function SavedMessagesExperience({
         ? items.map((item) => (
             <View
               key={item.messageId}
-              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
             >
               <View style={styles.authorRow}>
                 <View style={styles.authorCopy}>
@@ -157,7 +157,7 @@ export function SavedMessagesExperience({
                   onPress={() => onOpenMessage?.(item.message.conversationId, item.message.id)}
                   style={[
                     styles.primaryButton,
-                    { backgroundColor: colors.accent },
+                    { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
                     (!onOpenMessage || busyId !== null) && styles.disabled
                   ]}
                 >
@@ -168,7 +168,7 @@ export function SavedMessagesExperience({
                   onPress={() => void remove(item.messageId)}
                   style={[
                     styles.secondaryButton,
-                    { borderColor: colors.border },
+                    { borderColor: colors.border, borderRadius: visual.controlRadius },
                     busyId !== null && styles.disabled
                   ]}
                 >

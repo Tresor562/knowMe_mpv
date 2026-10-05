@@ -9,6 +9,7 @@ import {
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
+import { GlassSurface } from './ui/KnowMeUI';
 
 type EditedMessage = {
   id: string;
@@ -33,7 +34,7 @@ export function MessageEditControl({
   onUpdated?: (message: EditedMessage) => void;
   onCancel?: () => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [content, setContent] = useState(initialContent);
   const [baseContent, setBaseContent] = useState(initialContent);
   const [editedAt, setEditedAt] = useState<string | null>(initialEditedAt);
@@ -114,7 +115,7 @@ export function MessageEditControl({
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.card}>
       <Text style={[styles.eyebrow, { color: colors.accent }]}>MODIFIER TON MESSAGE</Text>
       <TextInput
         value={content}
@@ -127,9 +128,10 @@ export function MessageEditControl({
         style={[
           styles.input,
           {
-            backgroundColor: colors.background,
+            backgroundColor: colors.backgroundAccent,
             borderColor: colors.border,
-            color: colors.text
+            color: colors.text,
+            borderRadius: visual.inputRadius
           }
         ]}
       />
@@ -141,7 +143,7 @@ export function MessageEditControl({
           onPress={() => void save()}
           style={[
             styles.primary,
-            { backgroundColor: colors.accent },
+            { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
             (busy || conflict || !content.trim()) && styles.disabled
           ]}
         >
@@ -153,7 +155,7 @@ export function MessageEditControl({
           <Pressable
             disabled={busy}
             onPress={resetToServer}
-            style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}
+            style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
           >
             <Text style={{ color: colors.text, fontWeight: '800' }}>Version serveur</Text>
           </Pressable>
@@ -162,13 +164,13 @@ export function MessageEditControl({
           <Pressable
             disabled={busy}
             onPress={onCancel}
-            style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}
+            style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
           >
             <Text style={{ color: colors.text, fontWeight: '800' }}>Annuler</Text>
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
