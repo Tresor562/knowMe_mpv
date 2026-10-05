@@ -37,7 +37,7 @@ function GiftVisual({ gift }: { gift: MobileSocialGiftDefinition }) {
   return (
     <View style={[styles.giftVisual, { backgroundColor: colors.surface, borderRadius: visual.controlRadius }]} accessibilityLabel={`${gift.name}, ${gift.rarity}`}>
       <Text style={styles.giftEmoji}>{gift.emoji}</Text>
-    </GlassSurface>
+    </View>
   );
 }
 
@@ -349,7 +349,7 @@ export function SocialGiftsExperience() {
           ) : null}
         </>
       )}
-    </View>
+    </GlassSurface>
   );
 }
 
