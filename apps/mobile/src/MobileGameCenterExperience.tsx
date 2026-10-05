@@ -16,7 +16,7 @@ function message(cause: unknown, fallback: string) {
 }
 
 export function MobileGameCenterExperience() {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [catalog, setCatalog] = useState<GameCenterCard[]>([]);
   const [library, setLibrary] = useState<GameCenterLibrary>(EMPTY_GAME_LIBRARY);
   const [query, setQuery] = useState('');
@@ -65,7 +65,7 @@ export function MobileGameCenterExperience() {
 
   return (
     <View
-      style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
       accessibilityLabel="Game Center KnowMe"
     >
       <View style={styles.header}>
@@ -79,7 +79,7 @@ export function MobileGameCenterExperience() {
       {status ? <Text accessibilityRole="alert" style={[styles.status, { color: colors.danger }]}>{status}</Text> : null}
 
       {library.continuePlaying.length ? (
-        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
           <Text style={[styles.panelTitle, { color: colors.text }]}>Continuer</Text>
           {library.continuePlaying.map((item) => (
             <View key={item.sessionId} style={styles.libraryRow}>
@@ -91,7 +91,7 @@ export function MobileGameCenterExperience() {
       ) : null}
 
       {library.invitations.length ? (
-        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
           <Text style={[styles.panelTitle, { color: colors.text }]}>Invitations</Text>
           {library.invitations.map((item) => (
             <View key={item.sessionId} style={styles.libraryRow}>
@@ -109,7 +109,7 @@ export function MobileGameCenterExperience() {
         value={query}
         onChangeText={setQuery}
         autoCapitalize="none"
-        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+        style={[styles.input, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius }]}
       />
 
       <View style={styles.categories} accessibilityLabel="Catégories de jeux">
@@ -144,7 +144,7 @@ export function MobileGameCenterExperience() {
 
       <View style={styles.catalog} accessibilityLabel="Catalogue de jeux">
         {visibleGames.map((game) => (
-          <View key={`${game.key}:${game.version}`} style={[styles.gameCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View key={`${game.key}:${game.version}`} style={[styles.gameCard, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
             <View style={styles.gameHeader}>
               <Text style={[styles.gameName, { color: colors.text }]}>{game.name}</Text>
               <Text style={[styles.meta, { color: colors.muted }]}>{game.estimatedMinutes} min · {game.modes.join(' / ')}</Text>
