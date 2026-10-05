@@ -31,7 +31,7 @@ type Props = {
 };
 
 export function GuestQuickMathExperience({ onBack }: Props) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [guest, setGuest] = useState<GuestIdentity | null>(null);
@@ -161,14 +161,14 @@ export function GuestQuickMathExperience({ onBack }: Props) {
         <Text style={[styles.copy, { color: colors.muted }]}>Joue avant de créer un compte. Le score et le résultat restent calculés par le serveur.</Text>
 
         {!guest ? (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Session temporaire</Text>
             <TextInput
               value={alias}
               onChangeText={setAlias}
               placeholder="Pseudo temporaire (facultatif)"
               placeholderTextColor={colors.muted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+              style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
             />
             <Text style={[styles.label, { color: colors.muted }]}>Choisis la situation adaptée :</Text>
             {([
@@ -180,7 +180,7 @@ export function GuestQuickMathExperience({ onBack }: Props) {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: ageGateState === value }}
                 onPress={() => setAgeGateState(value)}
-                style={[styles.option, { borderColor: ageGateState === value ? colors.accent : colors.border }]}
+                style={[styles.option, { borderColor: ageGateState === value ? colors.accent : colors.border, backgroundColor: ageGateState === value ? colors.surfaceRaised : colors.backgroundAccent, borderRadius: visual.controlRadius }]}
               >
                 <Text style={{ color: colors.text }}>{label}</Text>
               </Pressable>
@@ -197,27 +197,27 @@ export function GuestQuickMathExperience({ onBack }: Props) {
             <Pressable
               disabled={busy || !ageGateState || !temporaryConfirmed}
               onPress={() => void startGuest()}
-              style={[styles.primary, { backgroundColor: colors.accent }, (busy || !ageGateState || !temporaryConfirmed) && styles.disabled]}
+              style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, (busy || !ageGateState || !temporaryConfirmed) && styles.disabled]}
             >
               <Text style={[styles.primaryText, { color: colors.accentText }]}>{busy ? 'Création…' : 'Continuer en invité'}</Text>
             </Pressable>
           </View>
         ) : !session ? (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>Prêt à jouer{guest.publicAlias ? `, ${guest.publicAlias}` : ''} ?</Text>
             <Text style={[styles.copy, { color: colors.muted }]}>5 manches. Addition ou soustraction. Aucun compte requis.</Text>
-            <Pressable disabled={busy} onPress={() => void newGame()} style={[styles.primary, { backgroundColor: colors.accent }, busy && styles.disabled]}>
+            <Pressable disabled={busy} onPress={() => void newGame()} style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, busy && styles.disabled]}>
               <Text style={[styles.primaryText, { color: colors.accentText }]}>{busy ? 'Démarrage…' : 'Lancer Quick Math'}</Text>
             </Pressable>
           </View>
         ) : (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <View style={styles.scoreRow}>
               <Text style={[styles.score, { color: colors.text }]}>{session.state.score} pts</Text>
               <Text style={[styles.round, { color: colors.muted }]}>{session.state.round}/{session.state.maxRounds}</Text>
             </View>
             {session.state.phase === 'READY' ? (
-              <Pressable disabled={busy} onPress={() => void applyAction('START')} style={[styles.primary, { backgroundColor: colors.accent }, busy && styles.disabled]}>
+              <Pressable disabled={busy} onPress={() => void applyAction('START')} style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, busy && styles.disabled]}>
                 <Text style={[styles.primaryText, { color: colors.accentText }]}>Commencer</Text>
               </Pressable>
             ) : session.state.phase === 'ACTIVE' && session.state.question ? (
@@ -229,14 +229,14 @@ export function GuestQuickMathExperience({ onBack }: Props) {
                   keyboardType="number-pad"
                   placeholder="Ta réponse"
                   placeholderTextColor={colors.muted}
-                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                  style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.inputRadius }]}
                 />
                 {session.state.lastOutcome ? (
                   <Text style={[styles.copy, { color: session.state.lastOutcome.correct ? colors.accent : colors.danger }]}>
                     {session.state.lastOutcome.correct ? 'Bonne réponse.' : `Réponse correcte : ${session.state.lastOutcome.correctAnswer}`}
                   </Text>
                 ) : null}
-                <Pressable disabled={busy || !answer.trim()} onPress={() => void applyAction('ANSWER')} style={[styles.primary, { backgroundColor: colors.accent }, (busy || !answer.trim()) && styles.disabled]}>
+                <Pressable disabled={busy || !answer.trim()} onPress={() => void applyAction('ANSWER')} style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, (busy || !answer.trim()) && styles.disabled]}>
                   <Text style={[styles.primaryText, { color: colors.accentText }]}>Valider</Text>
                 </Pressable>
               </>
@@ -244,7 +244,7 @@ export function GuestQuickMathExperience({ onBack }: Props) {
               <>
                 <Text style={[styles.question, { color: colors.text }]}>Partie terminée</Text>
                 <Text style={[styles.copy, { color: colors.muted }]}>Score final : {session.result?.score ?? session.state.score} · {session.result?.correctAnswers ?? session.state.score} bonne(s) réponse(s).</Text>
-                <Pressable disabled={busy} onPress={() => void newGame()} style={[styles.primary, { backgroundColor: colors.accent }, busy && styles.disabled]}>
+                <Pressable disabled={busy} onPress={() => void newGame()} style={[styles.primary, { backgroundColor: colors.accent, borderRadius: visual.controlRadius }, busy && styles.disabled]}>
                   <Text style={[styles.primaryText, { color: colors.accentText }]}>Rejouer</Text>
                 </Pressable>
               </>
@@ -256,7 +256,7 @@ export function GuestQuickMathExperience({ onBack }: Props) {
         {guest ? (
           <View style={styles.revokeBlock}>
             <Text style={[styles.copy, { color: colors.muted }]}>Terminer la session demande d’abord au serveur de la révoquer. En cas d’échec réseau, le credential reste sur cet appareil pour pouvoir réessayer.</Text>
-            <Pressable disabled={busy} onPress={() => void resetGuest()} style={[styles.secondary, { borderColor: colors.border }, busy && styles.disabled]}>
+            <Pressable disabled={busy} onPress={() => void resetGuest()} style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}>
               <Text style={{ color: colors.muted }}>Terminer et effacer la session invitée</Text>
             </Pressable>
           </View>
