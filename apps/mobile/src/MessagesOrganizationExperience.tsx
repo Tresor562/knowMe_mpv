@@ -21,6 +21,7 @@ import {
 import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 import { SavedMessagesExperience } from './SavedMessagesExperience';
+import { GlassSurface } from './ui/KnowMeUI';
 
 type Conversation = {
   id: string;
@@ -397,17 +398,18 @@ export function MessagesOrganizationExperience({
   return (
     <View style={rootStyle}>
       <View style={styles.entrypoint}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={openOrganization}
-          style={({ pressed }) => [
-            styles.organizationButton,
-            { borderColor: colors.border },
-            pressed && styles.pressed
-          ]}
-        >
-          <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
-        </Pressable>
+        <GlassSurface strength="soft" borderRadius={22}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={openOrganization}
+            style={({ pressed }) => [
+              styles.organizationButton,
+              pressed && styles.pressed
+            ]}
+          >
+            <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
+          </Pressable>
+        </GlassSurface>
       </View>
       <View style={styles.messages}>
         <RealtimeMessagesPanel
@@ -425,8 +427,7 @@ const styles = StyleSheet.create({
   messages: { flex: 1 },
   entrypoint: { paddingHorizontal: 20, paddingTop: 10 },
   organizationButton: {
-    borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 22,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'

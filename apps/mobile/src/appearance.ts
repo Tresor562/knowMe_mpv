@@ -120,6 +120,7 @@ export type MobileThemePalette = {
   backgroundAccent: string;
   surface: string;
   surfaceRaised: string;
+  surfaceGlass: string;
   text: string;
   muted: string;
   accent: string;
@@ -130,25 +131,45 @@ export type MobileThemePalette = {
   statusBar: 'light' | 'dark';
 };
 
+export type MobileVisualStyle = {
+  cardRadius: number;
+  controlRadius: number;
+  inputRadius: number;
+  bubbleRadius: number;
+  glassBoost: number;
+  elevation: number;
+  transitionDuration: number;
+};
+
 const STORAGE_KEY = 'knowme.appearance.v2';
 
 const SYSTEM_LIGHT: MobileThemePalette = {
-  background: '#f6fbf8', backgroundAccent: '#d9f5e9', surface: '#ffffff',
-  surfaceRaised: '#e4f3ec', text: '#102019', muted: '#53655d', accent: '#087f5b',
-  secondary: '#c5570b', accentText: '#ffffff', border: '#9bc9b8', danger: '#b42318',
+  background: '#FFFFFF',
+  backgroundAccent: '#F5F6F7',
+  surface: '#FFFFFF',
+  surfaceRaised: '#F8F9FA',
+  surfaceGlass: 'rgba(255,255,255,0.72)',
+  text: '#17181B',
+  muted: '#8A8D93',
+  accent: '#2A9DF4',
+  secondary: '#7065FF',
+  accentText: '#FFFFFF',
+  border: 'rgba(23,24,27,0.08)',
+  danger: '#D92D3A',
   statusBar: 'dark'
 };
 const SYSTEM_DARK: MobileThemePalette = {
-  background: '#090C14',
-  backgroundAccent: '#14182A',
-  surface: '#101521',
-  surfaceRaised: '#171E2C',
-  text: '#F7F7FB',
-  muted: '#929BAD',
-  accent: '#7A5CFF',
-  secondary: '#FF9B57',
+  background: '#171925',
+  backgroundAccent: '#202331',
+  surface: '#202331',
+  surfaceRaised: '#292D3D',
+  surfaceGlass: 'rgba(34,37,52,0.68)',
+  text: '#F5F6F8',
+  muted: '#969BAB',
+  accent: '#4DAAFF',
+  secondary: '#7065FF',
   accentText: '#FFFFFF',
-  border: '#273044',
+  border: 'rgba(255,255,255,0.08)',
   danger: '#FF6B73',
   statusBar: 'light'
 };
@@ -169,6 +190,7 @@ function themePalette(
     backgroundAccent: theme.palette.backgroundAccent,
     surface: theme.palette.surface,
     surfaceRaised: theme.palette.surfaceRaised,
+    surfaceGlass: theme.palette.surfaceGlass,
     text: theme.palette.text,
     muted: theme.palette.muted,
     accent: theme.palette.accent,
@@ -198,10 +220,63 @@ function mergePalette(
     ...primary,
     backgroundAccent: secondary.backgroundAccent,
     surfaceRaised: secondary.surfaceRaised,
+    surfaceGlass: secondary.surfaceGlass,
     accent: secondary.accent,
     secondary: secondary.secondary,
     accentText: secondary.accentText,
     border: secondary.border
+  };
+}
+
+
+const DEFAULT_VISUAL_STYLE: MobileVisualStyle = {
+  cardRadius: 26,
+  controlRadius: 22,
+  inputRadius: 28,
+  bubbleRadius: 18,
+  glassBoost: 0,
+  elevation: 6,
+  transitionDuration: 260
+};
+
+export function resolveMobileVisualStyle(
+  appearance: AppearanceResponse | null
+): MobileVisualStyle {
+  if (!appearance) return DEFAULT_VISUAL_STYLE;
+
+  const theme = appearance.themes.find(
+    (candidate) => candidate.key === appearance.preference.effectiveThemeKey
+  );
+  if (!theme) return DEFAULT_VISUAL_STYLE;
+
+  const category = theme.category.toUpperCase();
+  const premiumDepth = theme.cardStyle === 'premium-depth';
+
+  const categoryShape: Partial<MobileVisualStyle> =
+    category === 'FUTURISTIC' || category === 'GAMING'
+      ? { cardRadius: 22, controlRadius: 20, inputRadius: 24, bubbleRadius: 16 }
+      : category === 'ANIME' || category === 'FANTASY' || category === 'NATURE'
+        ? { cardRadius: 30, controlRadius: 24, inputRadius: 30, bubbleRadius: 21 }
+        : category === 'ARTISTIC'
+          ? { cardRadius: 28, controlRadius: 23, inputRadius: 29, bubbleRadius: 20 }
+          : {};
+
+  const transitionDuration =
+    theme.transitionPreset === 'premium-fluid'
+      ? 300
+      : theme.transitionPreset === 'standard-fluid'
+        ? 260
+        : 220;
+
+  return {
+    ...DEFAULT_VISUAL_STYLE,
+    ...categoryShape,
+    glassBoost: Math.min(
+      20,
+      (premiumDepth ? 10 : 0) + Math.min(theme.effects.length * 2, 10)
+    ),
+    elevation: premiumDepth ? 10 : 6,
+    transitionDuration
   };
 }
 

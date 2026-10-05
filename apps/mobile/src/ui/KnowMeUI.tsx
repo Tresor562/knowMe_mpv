@@ -1,10 +1,13 @@
+import { BlurView } from 'expo-blur';
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
   Image,
   ImageStyle,
+  Platform,
   Pressable,
+  PressableProps,
   StyleProp,
   StyleSheet,
   Text,
@@ -413,12 +416,16 @@ export function PressScale({
   children,
   onPress,
   disabled = false,
-  style
+  style,
+  accessibilityRole,
+  accessibilityLabel
 }: {
   children: ReactNode;
   onPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  accessibilityRole?: PressableProps['accessibilityRole'];
+  accessibilityLabel?: string;
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
@@ -436,6 +443,8 @@ export function PressScale({
 
   return (
     <Pressable
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
       onPressIn={() => to(0.97)}
@@ -465,7 +474,7 @@ export function FadeRise({
   distance?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { appearance } = useAppearance();
+  const { appearance, visual } = useAppearance();
   const enabled = appearance?.preference.animationsEnabled !== false;
   const progress = useRef(new Animated.Value(enabled ? 0 : 1)).current;
 
@@ -476,12 +485,12 @@ export function FadeRise({
     }
     Animated.timing(progress, {
       toValue: 1,
-      duration: 280,
+      duration: visual.transitionDuration,
       delay,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true
     }).start();
-  }, [delay, enabled, progress]);
+  }, [delay, enabled, progress, visual.transitionDuration]);
 
   return (
     <Animated.View
@@ -578,6 +587,90 @@ export function Avatar({
   );
 }
 
+
+export type GlassStrength = 'soft' | 'medium' | 'strong';
+
+export function GlassSurface({
+  children,
+  style,
+  strength = 'medium',
+  borderRadius = 26
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  strength?: GlassStrength;
+  borderRadius?: number;
+}) {
+  const { colors, appearance, visual } = useAppearance();
+  const reduceTransparency = appearance?.preference.reduceTransparency === true;
+  const intensity = Math.min(
+    90,
+    (strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48) + visual.glassBoost
+  );
+  const shadowOpacity = strength === 'soft' ? 0.07 : strength === 'strong' ? 0.16 : 0.11;
+  const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
+
+  return (
+    <View
+      style={[
+        {
+          position: 'relative',
+          borderRadius,
+          shadowColor: '#000000',
+          shadowOpacity,
+          shadowRadius: strength === 'strong' ? 22 : 16,
+          shadowOffset: { width: 0, height: strength === 'strong' ? 10 : 7 },
+          elevation: Math.max(strength === 'strong' ? 10 : 6, visual.elevation)
+        },
+        style
+      ]}
+    >
+      {reduceTransparency ? (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius,
+              backgroundColor:
+                strength === 'strong' ? colors.surfaceRaised : colors.surface
+            }
+          ]}
+        />
+      ) : (
+        <BlurView
+          pointerEvents="none"
+          tint={tint}
+          intensity={intensity}
+          experimentalBlurMethod={
+            Platform.OS === 'android' ? 'dimezisBlurView' : undefined
+          }
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius,
+              overflow: 'hidden'
+            }
+          ]}
+        />
+      )}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            borderRadius,
+            backgroundColor: reduceTransparency ? 'transparent' : colors.surfaceGlass,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border
+          }
+        ]}
+      />
+      {children}
+    </View>
+  );
+}
+
 export function SoftSurface({
   children,
   style,
@@ -587,7 +680,7 @@ export function SoftSurface({
   style?: StyleProp<ViewStyle>;
   strong?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <View
       style={[
@@ -595,7 +688,7 @@ export function SoftSurface({
           backgroundColor: strong ? colors.surfaceRaised : colors.surface,
           borderColor: colors.border,
           borderWidth: StyleSheet.hairlineWidth,
-          borderRadius: 22
+          borderRadius: visual.cardRadius
         },
         style
       ]}

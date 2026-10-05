@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
+import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
+import { GlassSurface } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
@@ -102,6 +104,7 @@ export function RealtimeMessagesPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
+  const { colors, visual } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -549,12 +552,15 @@ export function RealtimeMessagesPanel({
     const typingNames = Object.values(typingUsers);
 
     return (
-      <View style={styles.conversationRoot}>
-        <View style={styles.conversationHeader}>
+      <View style={[styles.conversationRoot, { backgroundColor: colors.background }]}>
+        <GlassSurface strength="soft" borderRadius={28} style={styles.conversationHeader}>
           <SecondaryButton title="Retour" onPress={closeConversation} />
           <View style={styles.flex}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{isNexusPrivate ? '✦ Nexus' : name}</Text>
-            <Text style={isNexusPrivate ? styles.online : online ? styles.online : styles.muted}>
+            <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{isNexusPrivate ? '✦ Nexus' : name}</Text>
+            <Text style={[
+              isNexusPrivate || online ? styles.online : styles.muted,
+              { color: isNexusPrivate || online ? colors.accent : colors.muted }
+            ]}>
               {isNexusPrivate
                 ? 'Assistant privé · invocation explicite'
                 : live
@@ -568,7 +574,7 @@ export function RealtimeMessagesPanel({
             title="Actualiser"
             onPress={() => void openConversation(active)}
           />
-        </View>
+        </GlassSurface>
 
         <FlatList
           data={history}
@@ -593,25 +599,44 @@ export function RealtimeMessagesPanel({
               : [];
 
             return (
-              <View style={[
-                styles.bubble,
-                mine ? styles.bubbleMine : nexus ? styles.bubbleNexus : styles.bubbleOther
-              ]}>
+              <View
+                style={[
+                  styles.bubble,
+                  { borderRadius: visual.bubbleRadius },
+                  mine
+                    ? [styles.bubbleMine, { backgroundColor: colors.accent }]
+                    : nexus
+                      ? [
+                          styles.bubbleNexus,
+                          {
+                            backgroundColor: colors.surfaceRaised,
+                            borderColor: colors.secondary
+                          }
+                        ]
+                      : [
+                          styles.bubbleOther,
+                          { backgroundColor: colors.surface }
+                        ]
+                ]}
+              >
                 {!mine ? (
-                  <Text style={styles.senderName}>
+                  <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
                     {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
                 ) : null}
-                <Text style={
-                  mine ? styles.bubbleMineText : styles.bubbleText
-                }>
+                <Text
+                  style={[
+                    mine ? styles.bubbleMineText : styles.bubbleText,
+                    { color: mine ? colors.accentText : colors.text }
+                  ]}
+                >
                   {item.content}
                 </Text>
-                <Text style={styles.bubbleDate}>
+                <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {new Date(item.createdAt).toLocaleString('fr-FR')}
                 </Text>
                 {mine && readers.length > 0 ? (
-                  <Text style={styles.receipt}>
+                  <Text style={[styles.receipt, { color: colors.accentText }]}>
                     Lu par {readers
                       .map((state) => state.user.displayName)
                       .join(', ')}
@@ -622,24 +647,34 @@ export function RealtimeMessagesPanel({
           }}
           ListEmptyComponent={<Empty text={isNexusPrivate ? 'Écris ton premier message à Nexus.' : 'Commence la conversation.'} />}
           ListFooterComponent={nexusPending ? (
-            <Text style={styles.typing}>✦ Nexus réfléchit…</Text>
+            <Text style={[styles.typing, { color: colors.accent }]}>✦ Nexus réfléchit…</Text>
           ) : typingNames.length ? (
-            <Text style={styles.typing}>
+            <Text style={[styles.typing, { color: colors.accent }]}>
               {typingNames.join(', ')}{' '}
               {typingNames.length > 1 ? 'écrivent' : 'écrit'}…
             </Text>
           ) : null}
         />
 
-        <View style={styles.composer}>
+        <GlassSurface strength="medium" borderRadius={28} style={styles.composer}>
           <TextInput
             value={draft}
             onChangeText={changeDraft}
             onBlur={stopTyping}
             maxLength={2000}
             placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-            placeholderTextColor="#737E93"
-            style={[styles.input, styles.composerInput]}
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              styles.composerInput,
+              { borderRadius: visual.inputRadius },
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text
+              }
+            ]}
           />
           <ActionButton
             title={sending ? '…' : nexusPending ? 'Nexus…' : 'Envoyer'}
@@ -647,7 +682,7 @@ export function RealtimeMessagesPanel({
             onPress={() => void send()}
             compact
           />
-        </View>
+        </GlassSurface>
       </View>
     );
   }
@@ -668,6 +703,8 @@ export function RealtimeMessagesPanel({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
           onRefresh={() => {
             setRefreshing(true);
             void load();
@@ -676,13 +713,13 @@ export function RealtimeMessagesPanel({
       }
       contentContainerStyle={styles.content}
     >
-      <Text style={styles.liveStatus}>
+      <Text style={[styles.liveStatus, { color: colors.accent }]}>
         {live ? '● Messages en direct' : '○ Reconnexion au temps réel…'}
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Nexus</Text>
-        <Text style={styles.muted}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Nexus</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>
           Conversation privée avec Nexus. Dans les groupes, écris @Nexus pour l’invoquer uniquement sur ce tour.
         </Text>
         <ActionButton
@@ -693,8 +730,8 @@ export function RealtimeMessagesPanel({
       </View>
 
       {friends.length > 0 ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Nouvelle discussion</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Nouvelle discussion</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -706,11 +743,16 @@ export function RealtimeMessagesPanel({
                 onPress={() => setSelectedFriend(user.id)}
                 style={[
                   styles.friendChoice,
-                  selectedFriend === user.id && styles.friendChoiceActive
+                  {
+                    borderColor: selectedFriend === user.id ? colors.accent : colors.border,
+                    backgroundColor: selectedFriend === user.id
+                      ? colors.surfaceRaised
+                      : colors.surface
+                  }
                 ]}
               >
-                <View style={styles.friendAvatarWrap}>
-                  <Text style={styles.avatarText}>
+                <View style={[styles.friendAvatarWrap, { backgroundColor: colors.backgroundAccent }]}>
+                  <Text style={[styles.avatarText, { color: colors.accent }]}>
                     {user.displayName.charAt(0).toUpperCase()}
                   </Text>
                   <View style={[
@@ -720,7 +762,7 @@ export function RealtimeMessagesPanel({
                       : styles.presenceOffline
                   ]} />
                 </View>
-                <Text style={styles.choiceLabel} numberOfLines={1}>
+                <Text style={[styles.choiceLabel, { color: colors.text }]} numberOfLines={1}>
                   {user.displayName}
                 </Text>
               </Pressable>
@@ -734,10 +776,10 @@ export function RealtimeMessagesPanel({
         </View>
       ) : null}
 
-      <Text style={styles.sectionTitle}>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
         Conversations · {totalUnread} non lu(s)
       </Text>
-      <Text style={styles.muted}>
+      <Text style={[styles.muted, { color: colors.muted }]}>
         {pinLimit === null
           ? 'Capacité d’épinglage indisponible : les nouveaux épinglages restent désactivés.'
           : `${pinnedConversationIds.size}/${pinLimit} conversation(s) épinglée(s).`}
@@ -762,15 +804,30 @@ export function RealtimeMessagesPanel({
         return (
           <View
             key={conversation.id}
-            style={[styles.card, unread && styles.unreadConversation]}
+            style={[
+              styles.card,
+              {
+                backgroundColor: unread ? colors.surfaceRaised : colors.surface,
+                borderColor: unread ? colors.accent : colors.border
+              }
+            ]}
           >
             <Pressable
               onPress={() => void openConversation(conversation)}
               style={styles.conversationOpen}
             >
               <View style={styles.conversationTitleRow}>
-                <View style={[styles.conversationAvatar, isNexus && styles.nexusAvatar]}>
-                  <Text style={styles.avatarText}>
+                <View
+                  style={[
+                    styles.conversationAvatar,
+                    {
+                      backgroundColor: colors.backgroundAccent,
+                      borderColor: isNexus ? colors.secondary : colors.border
+                    },
+                    isNexus && styles.nexusAvatar
+                  ]}
+                >
+                  <Text style={[styles.avatarText, { color: isNexus ? colors.secondary : colors.accent }]}>
                     {isNexus ? '✦' : name.charAt(0).toUpperCase()}
                   </Text>
                   {!isNexus ? <View style={[
@@ -779,21 +836,25 @@ export function RealtimeMessagesPanel({
                   ]} /> : null}
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.cardTitle}>{name}</Text>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>{name}</Text>
                   <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
                     {pinned ? '📌 épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
                 </View>
                 {unread ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>
+                  <View style={[styles.unreadBadge, { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.unreadBadgeText, { color: colors.accentText }]}>
                       {conversation.unreadCount}
                     </Text>
                   </View>
                 ) : null}
               </View>
               <Text
-                style={[styles.muted, unread && styles.unreadPreview]}
+                style={[
+                  styles.muted,
+                  unread && styles.unreadPreview,
+                  { color: unread ? colors.text : colors.muted }
+                ]}
                 numberOfLines={2}
               >
                 {last
@@ -801,7 +862,7 @@ export function RealtimeMessagesPanel({
                   : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
               </Text>
               {last ? (
-                <Text style={styles.date}>
+                <Text style={[styles.date, { color: colors.muted }]}>
                   {new Date(last.createdAt).toLocaleString('fr-FR')}
                 </Text>
               ) : null}
@@ -831,17 +892,19 @@ function ActionButton({
   disabled?: boolean;
   compact?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={[
         styles.actionButton,
+        { backgroundColor: colors.accent },
         compact && styles.compactButton,
         disabled && styles.disabled
       ]}
     >
-      <Text style={styles.actionText}>{title}</Text>
+      <Text style={[styles.actionText, { color: colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -855,21 +918,30 @@ function SecondaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { colors } = useAppearance();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.secondaryButton, disabled && styles.disabled]}
+      style={[
+        styles.secondaryButton,
+        {
+          backgroundColor: colors.backgroundAccent,
+          borderColor: colors.border
+        },
+        disabled && styles.disabled
+      ]}
     >
-      <Text style={styles.secondaryText}>{title}</Text>
+      <Text style={[styles.secondaryText, { color: colors.text }]}>{title}</Text>
     </Pressable>
   );
 }
 
 function Empty({ text }: { text: string }) {
+  const { colors } = useAppearance();
   return (
-    <View style={styles.empty}>
-      <Text style={styles.muted}>{text}</Text>
+    <View style={[styles.empty, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.muted, { color: colors.muted }]}>{text}</Text>
     </View>
   );
 }
@@ -877,61 +949,49 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 12 },
   flex: { flex: 1 },
-  liveStatus: { color: '#7A5CFF', fontSize: 12, fontWeight: '800' },
+  liveStatus: { fontSize: 12, fontWeight: '800' },
   card: {
-    backgroundColor: '#101521',
-    borderColor: '#273044',
     borderWidth: 1,
     borderRadius: 22,
     padding: 16,
     gap: 10
   },
-  unreadConversation: {
-    borderColor: '#7A5CFF',
-    backgroundColor: '#123027'
-  },
-  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '800' },
+  unreadConversation: {},
+  cardTitle: { fontSize: 17, fontWeight: '800' },
   sectionTitle: {
-    color: '#F7F7FB',
     fontSize: 20,
     fontWeight: '900',
     marginTop: 8
   },
-  muted: { color: '#929BAD', lineHeight: 20 },
-  online: { color: '#7A5CFF', lineHeight: 20, fontWeight: '700' },
-  unreadPreview: { color: '#e7f7f0', fontWeight: '700' },
-  date: { color: '#737E93', fontSize: 11 },
+  muted: { lineHeight: 20 },
+  online: { lineHeight: 20, fontWeight: '700' },
+  unreadPreview: { fontWeight: '700' },
+  date: { fontSize: 11 },
   input: {
-    backgroundColor: '#0D111B',
-    borderColor: '#30394E',
     borderWidth: 1,
-    borderRadius: 15,
-    color: '#F7F7FB',
+    borderRadius: 24,
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 48
   },
   actionButton: {
-    backgroundColor: '#7A5CFF',
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { color: '#FFFFFF', fontWeight: '900' },
+  actionText: { fontWeight: '900' },
   secondaryButton: {
-    borderColor: '#315449',
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
   },
-  secondaryText: { color: '#d9ebe4', fontWeight: '800' },
+  secondaryText: { fontWeight: '800' },
   disabled: { opacity: 0.45 },
   empty: {
-    backgroundColor: '#101521',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center'
@@ -939,27 +999,22 @@ const styles = StyleSheet.create({
   friendChoices: { gap: 10 },
   friendChoice: {
     width: 84,
-    borderColor: '#30394E',
     borderWidth: 1,
     borderRadius: 18,
     padding: 10,
     alignItems: 'center',
     gap: 6
   },
-  friendChoiceActive: {
-    borderColor: '#7A5CFF',
-    backgroundColor: '#123027'
-  },
+  friendChoiceActive: {},
   friendAvatarWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#171E2C',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
-  choiceLabel: { color: '#d9ebe4', fontSize: 11, maxWidth: 70 },
+  choiceLabel: { fontSize: 11, maxWidth: 70 },
   conversationOpen: { gap: 10 },
   conversationTitleRow: {
     flexDirection: 'row',
@@ -970,13 +1025,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#171E2C',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
-  nexusAvatar: { backgroundColor: '#253a3c', borderColor: '#776cff', borderWidth: 1 },
-  avatarText: { color: '#7A5CFF', fontSize: 18, fontWeight: '900' },
+  nexusAvatar: { borderWidth: 1 },
+  avatarText: { fontSize: 18, fontWeight: '900' },
   presenceDot: {
     position: 'absolute',
     right: -1,
@@ -985,23 +1040,25 @@ const styles = StyleSheet.create({
     height: 13,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#101521'
+    borderColor: 'transparent'
   },
-  presenceOnline: { backgroundColor: '#7A5CFF' },
-  presenceOffline: { backgroundColor: '#607a70' },
+  presenceOnline: { backgroundColor: '#37C977' },
+  presenceOffline: { backgroundColor: '#8A8D93' },
   unreadBadge: {
     minWidth: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#FF6B73',
+    
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 7
   },
-  unreadBadgeText: { color: '#281006', fontWeight: '900', fontSize: 12 },
+  unreadBadgeText: { fontWeight: '900', fontSize: 12 },
   conversationRoot: { flex: 1, paddingTop: 12 },
   conversationHeader: {
+    marginHorizontal: 12,
     paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
@@ -1013,26 +1070,24 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   bubble: { maxWidth: '82%', padding: 12, borderRadius: 18, gap: 5 },
-  bubbleMine: { backgroundColor: '#7A5CFF', alignSelf: 'flex-end' },
-  bubbleOther: { backgroundColor: '#101521', alignSelf: 'flex-start' },
+  bubbleMine: { alignSelf: 'flex-end' },
+  bubbleOther: { alignSelf: 'flex-start' },
   bubbleNexus: {
-    backgroundColor: '#17252a',
-    borderColor: '#776cff',
     borderWidth: 1,
     alignSelf: 'flex-start'
   },
-  bubbleText: { color: '#F7F7FB' },
-  bubbleMineText: { color: '#FFFFFF', fontWeight: '600' },
-  senderName: { color: '#7A5CFF', fontWeight: '800', fontSize: 11 },
-  bubbleDate: { color: '#607a70', fontSize: 9 },
-  receipt: { color: '#315d50', fontSize: 9, fontWeight: '700' },
-  typing: { color: '#7A5CFF', fontStyle: 'italic', paddingVertical: 8 },
+  bubbleText: {},
+  bubbleMineText: { fontWeight: '600' },
+  senderName: { fontWeight: '800', fontSize: 11 },
+  bubbleDate: { fontSize: 9 },
+  receipt: { fontSize: 9, fontWeight: '700' },
+  typing: { fontStyle: 'italic', paddingVertical: 8 },
   composer: {
+    marginHorizontal: 12,
+    marginBottom: 10,
     flexDirection: 'row',
     gap: 8,
-    padding: 12,
-    borderTopColor: '#273044',
-    borderTopWidth: 1
+    padding: 8
   },
   composerInput: { flex: 1 }
 });

@@ -172,6 +172,9 @@ importers:
       expo:
         specifier: 53.0.20
         version: 53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0)
+      expo-blur:
+        specifier: 14.1.5
+        version: 14.1.5(expo@53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0))(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0)
       expo-file-system:
         specifier: 18.1.11
         version: 18.1.11(expo@53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0))(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))
@@ -2775,6 +2778,13 @@ packages:
     resolution: {integrity: sha512-sOCeMN/BWLA7hBP6lMwoEQzFNgTopk6YY03sBAmwT216IHyL54TjNseg8CRU1IQQ/+qinJ2fYWCl7blx2TiNcA==}
     peerDependencies:
       expo: '*'
+      react-native: '*'
+
+  expo-blur@14.1.5:
+    resolution: {integrity: sha512-CCLJHxN4eoAl06ESKT3CbMasJ98WsjF9ZQEJnuxtDb9ffrYbZ+g9ru84fukjNUOTtc8A8yXE5z8NgY1l0OMrmQ==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
       react-native: '*'
 
   expo-file-system@18.1.11:
@@ -7937,6 +7947,12 @@ snapshots:
       react-native: 0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0)
     transitivePeerDependencies:
       - supports-color
+
+  expo-blur@14.1.5(expo@53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0))(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0):
+    dependencies:
+      expo: 53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0)
+      react: 19.0.0
+      react-native: 0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0)
 
   expo-file-system@18.1.11(expo@53.0.20(@babel/core@7.29.7)(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0))(react@19.0.0))(react-native@0.79.5(@babel/core@7.29.7)(@types/react@19.0.10)(react@19.0.0)):
     dependencies:
