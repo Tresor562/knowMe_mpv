@@ -824,8 +824,8 @@ function CreateHub({
             onPress={(event) => event.stopPropagation()}
           >
             <GlassSurface
-              strength="strong"
-              borderRadius={30}
+              strength="medium"
+              borderRadius={28}
               style={styles.createSheet}
             >
             <View style={styles.sheetHandleWrap}>
@@ -837,15 +837,28 @@ function CreateHub({
               />
             </View>
             <View style={styles.createSheetHeader}>
-              <View>
+              <View style={styles.flex}>
                 <Text style={[styles.createSheetTitle, { color: colors.text }]}>
                   {t('nav.create')}
                 </Text>
                 <Text style={[styles.createSheetSub, { color: colors.muted }]}>
-                  KnowMe
+                  Choisis ce que tu veux partager
                 </Text>
               </View>
-              <BrandMark size={32} />
+              <PressScale
+                accessibilityRole="button"
+                accessibilityLabel="Fermer"
+                onPress={onClose}
+                style={[
+                  styles.createSheetClose,
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border
+                  }
+                ]}
+              >
+                <KnowMeIcon name="close" size={18} color={colors.text} />
+              </PressScale>
             </View>
 
             <View style={styles.createChoices}>
@@ -1736,14 +1749,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   createSheetWrap: {
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 26 : 14
+    padding: 10,
+    paddingBottom: Platform.OS === 'ios' ? 22 : 12
   },
   createSheet: {
-    borderRadius: 30,
-    borderWidth: 1,
-    padding: 16,
-    paddingBottom: 18
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    paddingBottom: 16
   },
   sheetHandleWrap: {
     alignItems: 'center',
@@ -1757,44 +1770,52 @@ const styles = StyleSheet.create({
   createSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     paddingHorizontal: 3,
-    marginBottom: 15
+    marginBottom: 12
+  },
+  createSheetClose: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   createSheetTitle: {
-    fontSize: 22,
-    fontWeight: '900'
+    fontSize: 20,
+    fontWeight: '800'
   },
   createSheetSub: {
-    fontSize: 11,
+    fontSize: 10.5,
     marginTop: 1
   },
   createChoices: {
-    gap: 10
+    gap: 8
   },
   createChoice: {
-    minHeight: 76,
+    minHeight: 68,
     borderRadius: 20,
-    borderWidth: 1,
-    padding: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12
   },
   createChoiceIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center'
   },
   createChoiceTitle: {
-    fontSize: 15,
-    fontWeight: '900'
+    fontSize: 14,
+    fontWeight: '800'
   },
   createChoiceText: {
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontSize: 10.5,
+    lineHeight: 15,
     marginTop: 2
   },
 

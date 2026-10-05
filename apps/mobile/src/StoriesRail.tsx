@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
-import { Avatar, BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type StoryAuthor = {
   id: string;
@@ -267,23 +267,30 @@ export function StoriesRail({
                 </Text>
               </View>
             </View>
-            <Pressable
+            <PressScale
+              accessibilityRole="button"
+              accessibilityLabel="Fermer la Story"
               onPress={() => setSelected(null)}
               style={[
                 styles.closeButton,
-                { backgroundColor: colors.surfaceGlass, borderRadius: visual.controlRadius }
+                {
+                  backgroundColor: colors.surfaceGlass,
+                  borderColor: colors.border,
+                  borderRadius: visual.controlRadius
+                }
               ]}
             >
-              <Text style={[styles.closeText, { color: colors.text }]}>×</Text>
-            </Pressable>
+              <KnowMeIcon name="close" size={19} color={colors.text} />
+            </PressScale>
           </View>
 
           <View
             style={[
               styles.storyCanvas,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                borderRadius: visual.cardRadius
               }
             ]}
           >
@@ -299,9 +306,11 @@ export function StoriesRail({
                 { backgroundColor: colors.secondary }
               ]}
             />
-            <BrandMark size={54} />
+            <View style={[styles.storyMark, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+              <KnowMeIcon name="spark" size={20} color={colors.accent} />
+            </View>
             <Text style={[styles.storyCaption, { color: colors.text }]}>
-              {selected?.caption?.trim() || 'KnowMe'}
+              {selected?.caption?.trim() || 'Story'}
             </Text>
           </View>
 
@@ -312,12 +321,12 @@ export function StoriesRail({
                 style={[
                   styles.reactionButton,
                   {
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.surfaceGlass,
                     borderColor: colors.border
                   }
                 ]}
               >
-                <KnowMeIcon name="check" size={18} color={colors.accent} />
+                <KnowMeIcon name="heart" size={18} color={colors.accent} />
                 <Text style={[styles.reactionText, { color: colors.text }]}>
                   J’aime
                 </Text>
@@ -327,7 +336,7 @@ export function StoriesRail({
                 style={[
                   styles.reactionButton,
                   {
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.surfaceGlass,
                     borderColor: colors.border
                   }
                 ]}
@@ -354,24 +363,34 @@ export function StoriesRail({
         >
           <View style={styles.createWrap}>
             <Pressable onPress={(event) => event.stopPropagation()}>
-              <GlassSurface strength="strong" borderRadius={visual.cardRadius} style={styles.createSheet}>
+              <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.createSheet}>
               <View style={styles.createHeader}>
-                <View>
+                <View style={styles.flex}>
                   <Text style={[styles.createTitle, { color: colors.text }]}>
                     Nouvelle Story
                   </Text>
                   <Text style={[styles.createSub, { color: colors.muted }]}>
-                    24 heures · KnowMe
+                    Visible pendant 24 heures
                   </Text>
                 </View>
-                <BrandMark size={34} />
+                <PressScale
+                  accessibilityRole="button"
+                  accessibilityLabel="Fermer"
+                  onPress={() => setCreateOpen(false)}
+                  style={[
+                    styles.createClose,
+                    { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
+                  ]}
+                >
+                  <KnowMeIcon name="close" size={18} color={colors.text} />
+                </PressScale>
               </View>
 
               <View
                 style={[
                   styles.preview,
                   {
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.surfaceGlass,
                     borderColor: colors.border
                   }
                 ]}
@@ -392,6 +411,9 @@ export function StoriesRail({
                   selectionColor={colors.accent}
                   style={[styles.captionInput, { color: colors.text }]}
                 />
+                <Text style={[styles.captionCounter, { color: colors.muted }]}>
+                  {caption.length}/4000
+                </Text>
               </View>
 
               <View style={styles.audienceRow}>
@@ -516,9 +538,9 @@ const styles = StyleSheet.create({
   },
   viewer: {
     flex: 1,
-    paddingTop: 10,
-    paddingHorizontal: 14,
-    paddingBottom: 24
+    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 18
   },
   progressTrack: {
     height: 3,
@@ -550,22 +572,19 @@ const styles = StyleSheet.create({
     marginTop: 1
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
-  },
-  closeText: {
-    fontSize: 25,
-    lineHeight: 27
   },
   storyCanvas: {
     flex: 1,
     minHeight: 420,
-    marginTop: 16,
-    borderWidth: 1,
-    padding: 28,
+    marginTop: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden'
@@ -588,12 +607,20 @@ const styles = StyleSheet.create({
     bottom: -80,
     opacity: 0.12
   },
+  storyMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18
+  },
   storyCaption: {
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 34,
-    textAlign: 'center',
-    marginTop: 26
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 33,
+    textAlign: 'center'
   },
   reactions: {
     flexDirection: 'row',
@@ -602,17 +629,17 @@ const styles = StyleSheet.create({
   },
   reactionButton: {
     flex: 1,
-    minHeight: 50,
-    borderRadius: 17,
-    borderWidth: 1,
+    minHeight: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     alignItems: 'center',
     justifyContent: 'center'
   },
   reactionText: {
-    fontSize: 12,
-    fontWeight: '800'
+    fontSize: 11.5,
+    fontWeight: '700'
   },
   createBackdrop: {
     flex: 1,
@@ -620,34 +647,36 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   createWrap: {
-    padding: 12,
-    paddingBottom: 18
+    padding: 10,
+    paddingBottom: 14
   },
   createSheet: {
-    borderRadius: 30,
-    borderWidth: 1,
-    padding: 16,
-    gap: 14
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    gap: 12
   },
   createHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    gap: 10
   },
+  flex: { flex: 1 },
+  createClose: { width: 38, height: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   createTitle: {
-    fontSize: 21,
-    fontWeight: '900'
+    fontSize: 19,
+    fontWeight: '800'
   },
   createSub: {
     fontSize: 11,
     marginTop: 2
   },
   preview: {
-    minHeight: 260,
-    borderRadius: 25,
-    borderWidth: 1,
+    minHeight: 220,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    padding: 20,
+    padding: 18,
     justifyContent: 'center'
   },
   previewGlow: {
@@ -660,32 +689,33 @@ const styles = StyleSheet.create({
     opacity: 0.18
   },
   captionInput: {
-    minHeight: 180,
-    fontSize: 20,
-    fontWeight: '800',
-    lineHeight: 28,
+    minHeight: 150,
+    fontSize: 19,
+    fontWeight: '700',
+    lineHeight: 27,
     textAlignVertical: 'center',
     textAlign: 'center'
   },
+  captionCounter: { position: 'absolute', right: 12, bottom: 10, fontSize: 9.5 },
   audienceRow: {
     flexDirection: 'row',
     gap: 8
   },
   audienceButton: {
     flex: 1,
-    minHeight: 42,
-    borderWidth: 1,
-    borderRadius: 14,
+    minHeight: 40,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center'
   },
   audienceText: {
-    fontSize: 11.5,
-    fontWeight: '900'
+    fontSize: 11,
+    fontWeight: '700'
   },
   publishButton: {
-    minHeight: 52,
-    borderRadius: 17,
+    minHeight: 48,
+    borderRadius: 20,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -693,7 +723,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   publishText: {
-    fontSize: 14,
-    fontWeight: '900'
+    fontSize: 13,
+    fontWeight: '800'
   }
 });

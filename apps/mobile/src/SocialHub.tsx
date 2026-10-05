@@ -13,7 +13,7 @@ import {
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
-import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
@@ -52,17 +52,14 @@ export function SocialHub({ userId }: { userId: string }) {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <GlassSurface strength="soft" borderRadius={28} style={styles.headerTop}>
-          <View style={styles.headerBrand}>
-            <BrandMark size={31} />
-            <View>
-              <Text style={[styles.heading, { color: colors.text }]}>Messages</Text>
-              <Text style={[styles.headerSub, { color: colors.muted }]}>Ton cercle, en direct.</Text>
-            </View>
+        <GlassSurface strength="soft" borderRadius={24} style={styles.headerTop}>
+          <View style={styles.headerTitleBlock}>
+            <Text style={[styles.heading, { color: colors.text }]}>Messages</Text>
+            <Text style={[styles.headerSub, { color: colors.muted }]}>Ton cercle, en direct.</Text>
           </View>
-          <GlassSurface strength="soft" borderRadius={21} style={styles.headerIcon}>
-            <KnowMeIcon name="messages" size={22} color={colors.accent} />
-          </GlassSurface>
+          <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+            <KnowMeIcon name="messages" size={21} color={colors.accent} />
+          </View>
         </GlassSurface>
         <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
@@ -79,6 +76,12 @@ export function SocialHub({ userId }: { userId: string }) {
                 }
               ]}
             >
+              <KnowMeIcon
+                name={value === 'friends' ? 'profile' : value === 'messages' ? 'messages' : 'bell'}
+                size={16}
+                color={section === value ? colors.accent : colors.muted}
+                strokeWidth={section === value ? 2 : 1.75}
+              />
               <Text style={[
                 styles.segmentText,
                 { color: section === value ? colors.accent : colors.muted }
@@ -221,36 +224,56 @@ function FriendsPanel({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Trouver une personne</Text>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Nom ou pseudo"
-          placeholderTextColor={colors.muted}
-          selectionColor={colors.accent}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.backgroundAccent,
-              borderColor: colors.border,
-              color: colors.text
-            }
-          ]}
-          autoCapitalize="none"
-        />
-        <ActionButton
-          title="Rechercher"
-          disabled={query.trim().length < 2}
-          onPress={() => void search()}
-        />
-      </View>
+      <GlassSurface strength="soft" borderRadius={20} style={styles.searchCard}>
+        <Text style={[styles.searchLabel, { color: colors.muted }]}>Trouver une personne</Text>
+        <View style={styles.searchRow}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={() => void search()}
+            placeholder="Nom ou @username"
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            style={[
+              styles.input,
+              styles.searchInput,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                color: colors.text
+              }
+            ]}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Rechercher"
+            disabled={query.trim().length < 2}
+            onPress={() => void search()}
+            style={[
+              styles.searchButton,
+              {
+                backgroundColor: query.trim().length >= 2 ? colors.accent : colors.backgroundAccent,
+                borderColor: query.trim().length >= 2 ? colors.accent : colors.border
+              },
+              query.trim().length < 2 && styles.disabled
+            ]}
+          >
+            <KnowMeIcon
+              name="search"
+              size={19}
+              color={query.trim().length >= 2 ? colors.accentText : colors.muted}
+            />
+          </Pressable>
+        </View>
+      </GlassSurface>
 
       {requests.length > 0 && (
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Demandes reçues</Text>
       )}
       {requests.map(({ id, requester }) => (
-        <View key={id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View key={id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
           <Identity user={requester} />
           <View style={styles.row}>
             <ActionButton
@@ -270,7 +293,7 @@ function FriendsPanel({
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
-        <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
           <Identity user={user} />
           <SecondaryButton
             title="Retirer"
@@ -285,7 +308,7 @@ function FriendsPanel({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats</Text>
       )}
       {results.map((user) => (
-        <View key={user.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View key={user.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
           <Identity user={user} />
           <ActionButton
             title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
@@ -394,7 +417,7 @@ function NotificationsPanel({
           </Text>
           <Text style={[styles.muted, { color: colors.muted }]}>{item.body}</Text>
           <Text style={[styles.date, { color: colors.muted }]}>
-            {new Date(item.createdAt).toLocaleString('fr-FR')}
+            {new Date(item.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
           </Text>
         </Pressable>
       )}
@@ -409,9 +432,9 @@ function Identity({ user }: { user: UserSummary }) {
       <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>{user.displayName}</Text>
-        <Text style={styles.muted}>@{user.username}</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>@{user.username}</Text>
         {user.bio ? (
-          <Text style={styles.bio} numberOfLines={2}>{user.bio}</Text>
+          <Text style={[styles.bio, { color: colors.muted }]} numberOfLines={2}>{user.bio}</Text>
         ) : null}
       </View>
     </View>
@@ -486,12 +509,12 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 7, gap: 8 },
-  headerTop: { minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  header: { paddingHorizontal: 14, paddingTop: 6, gap: 7 },
+  headerTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTitleBlock: { flex: 1 },
   headerSub: { fontSize: 10.5, marginTop: 0 },
   headerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  heading: { fontSize: 20, fontWeight: '800', letterSpacing: -0.35 },
+  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
   segmented: {
     flexDirection: 'row',
     borderRadius: 19,
@@ -500,56 +523,64 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 8,
+    minHeight: 42,
+    paddingVertical: 6,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
     borderRadius: 16
   },
   segmentActive: {},
-  segmentText: { fontWeight: '700', fontSize: 10.5 },
+  segmentText: { fontWeight: '700', fontSize: 9.5 },
   segmentTextActive: {},
-  content: { padding: 16, paddingBottom: 28, gap: 10 },
+  content: { padding: 14, paddingBottom: 28, gap: 9 },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
-    padding: 14,
-    gap: 9
+    borderRadius: 19,
+    padding: 12,
+    gap: 8
   },
   unreadCard: {},
-  cardTitle: { fontSize: 17, fontWeight: '800' },
+  cardTitle: { fontSize: 15, fontWeight: '800' },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
     marginTop: 6
   },
-  muted: { lineHeight: 20 },
-  bio: { marginTop: 4 },
+  muted: { fontSize: 12, lineHeight: 17 },
+  bio: { marginTop: 3, fontSize: 11.5, lineHeight: 16 },
   date: { fontSize: 11 },
   input: {
-    borderWidth: 1,
-    borderRadius: 28,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 48
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    minHeight: 44
   },
+  searchCard: { padding: 10, gap: 6 },
+  searchLabel: { fontSize: 11, fontWeight: '700', paddingHorizontal: 2 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  searchInput: { flex: 1 },
+  searchButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   actionButton: {
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { fontWeight: '900' },
+  actionText: { fontSize: 12, fontWeight: '800' },
   secondaryButton: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     alignItems: 'center'
   },
-  secondaryText: { fontWeight: '800' },
+  secondaryText: { fontSize: 12, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
-  identity: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  identity: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   identityText: { flex: 1 },
   avatar: {
     width: 48,
@@ -562,7 +593,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#7A5CFF', fontSize: 18, fontWeight: '900' },
   empty: {
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     alignItems: 'center'
   }
 });
