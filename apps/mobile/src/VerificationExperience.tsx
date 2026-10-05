@@ -238,34 +238,68 @@ export function VerificationExperience({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Button title="Retour au profil" secondary onPress={onBack} />
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>IDENTITÉ KNOWME</Text>
-      <Text style={[styles.heading, { color: colors.text }]}>Vérification autoritaire</Text>
-      <Text style={[styles.description, { color: colors.muted }]}>
-        Le badge Vérifié est décidé côté serveur. Il reste indépendant de Premium et du badge
-        officiel Équipe KnowMe.
-      </Text>
-
-      <View style={styles.badgeGrid}>
-        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
-          <Text style={[styles.badgeLabel, { color: colors.muted }]}>IDENTITÉ</Text>
-          <Text style={[styles.badgeValue, { color: user.verification ? '#65B7FF' : colors.muted }]}>
-            {user.verification ? 'Vérifiée' : 'Non vérifiée'}
-          </Text>
-        </View>
-        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
-          <Text style={[styles.badgeLabel, { color: colors.muted }]}>PREMIUM</Text>
-          <Text style={[styles.badgeValue, { color: user.premium ? '#D8A7FF' : colors.muted }]}>
-            {user.premium ? 'Actif' : 'Inactif'}
-          </Text>
-        </View>
-        <View style={[styles.badgeCard, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
-          <Text style={[styles.badgeLabel, { color: colors.muted }]}>ÉQUIPE</Text>
-          <Text style={[styles.badgeValue, { color: user.staff ? '#F4C95D' : colors.muted }]}>
-            {user.staff ? 'Officiel' : 'Utilisateur'}
+      <View style={styles.topRow}>
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Retour au profil"
+          onPress={onBack}
+          style={[
+            styles.backButton,
+            { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
+          ]}
+        >
+          <KnowMeIcon name="back" size={18} color={colors.text} />
+        </PressScale>
+        <View style={styles.topCopy}>
+          <Text style={[styles.heading, { color: colors.text }]}>Identité</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Vérification du titulaire du compte
           </Text>
         </View>
       </View>
+
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.identityHero}>
+        <View style={[styles.identityHeroIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon
+            name="check"
+            size={24}
+            color={user.verification ? colors.accent : colors.muted}
+          />
+        </View>
+        <View style={styles.identityHeroCopy}>
+          <Text style={[styles.identityState, { color: colors.text }]}>
+            {user.verification ? 'Identité vérifiée' : pending ? 'Vérification en cours' : 'Identité non vérifiée'}
+          </Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            {user.verification
+              ? 'Ton badge Vérifié est actif sur KnowMe.'
+              : pending
+                ? 'Ta demande est en cours de traitement.'
+                : 'La vérification reste distincte de Premium et des rôles Équipe.'}
+          </Text>
+        </View>
+      </GlassSurface>
+
+      <GlassSurface strength="soft" borderRadius={20} style={styles.badgeGrid}>
+        <View style={styles.badgeCard}>
+          <Text style={[styles.badgeValue, { color: user.verification ? colors.accent : colors.text }]}>
+            {user.verification ? 'Vérifiée' : 'Non'}
+          </Text>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>Identité</Text>
+        </View>
+        <View style={styles.badgeCard}>
+          <Text style={[styles.badgeValue, { color: user.premium ? colors.secondary : colors.text }]}>
+            {user.premium ? 'Actif' : 'Non'}
+          </Text>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>Premium</Text>
+        </View>
+        <View style={styles.badgeCard}>
+          <Text style={[styles.badgeValue, { color: user.staff ? '#F4C95D' : colors.text }]}>
+            {user.staff ? 'Équipe' : 'Membre'}
+          </Text>
+          <Text style={[styles.badgeLabel, { color: colors.muted }]}>Compte</Text>
+        </View>
+      </GlassSurface>
 
       {!pending && !approved ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
