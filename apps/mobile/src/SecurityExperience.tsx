@@ -13,6 +13,7 @@ import {
   clearTrustedDeviceToken
 } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type SecurityStatus = {
   twoFactorEnabled: boolean;
@@ -98,7 +99,16 @@ function Input(props: React.ComponentProps<typeof TextInput>) {
 }
 
 function date(value?: string | null) {
-  return value ? new Date(value).toLocaleString('fr-FR') : '—';
+  return value
+    ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : '—';
+}
+
+function humanizeSecurityEvent(value: string) {
+  return value
+    .replaceAll('_', ' ')
+    .toLocaleLowerCase()
+    .replace(/^./, (letter) => letter.toLocaleUpperCase());
 }
 
 export function SecurityExperience({ onSessionClosed }: {
@@ -203,7 +213,7 @@ export function SecurityExperience({ onSessionClosed }: {
       });
       setReauthToken('');
       await Share.share({
-        title: `Export KnowMe ${new Date(data.exportedAt).toLocaleDateString('fr-FR')}`,
+        title: `Export KnowMe ${new Date(data.exportedAt).toLocaleDateString()}`,
         message: JSON.stringify(data, null, 2)
       });
     } catch (cause) {
@@ -268,15 +278,45 @@ export function SecurityExperience({ onSessionClosed }: {
   }
 
   if (!status) {
-    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.description, { color: colors.muted }]}>Chargement de la sécurité…</Text></View>;
+    return (
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+        <Text style={[styles.description, { color: colors.muted }]}>Chargement de la sécurité…</Text>
+      </GlassSurface>
+    );
   }
 
+  const activeTrustedDevices = status.trustedDevices.filter((item) => item.active).length;
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Sécurité du compte</Text>
-      <Text style={[styles.description, { color: colors.muted }]}>
-        2FA : {status.twoFactorEnabled ? 'activé' : 'non activé'} · {status.sessions.length} session(s) · {status.trustedDevices.filter((item) => item.active).length} appareil(s) fiable(s)
-      </Text>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+      <View style={styles.heroRow}>
+        <View style={[styles.heroIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="check" size={21} color={status.twoFactorEnabled ? colors.accent : colors.muted} />
+        </View>
+        <View style={styles.heroCopy}>
+          <Text style={[styles.title, { color: colors.text }]}>Sécurité du compte</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Protège ton accès, tes appareils et tes sessions.
+          </Text>
+        </View>
+      </View>
+
+      <GlassSurface strength="soft" borderRadius={20} style={styles.summaryStrip}>
+        <View style={styles.summaryMetric}>
+          <Text style={[styles.summaryValue, { color: status.twoFactorEnabled ? colors.accent : colors.text }]}>
+            {status.twoFactorEnabled ? 'Actif' : 'Inactif'}
+          </Text>
+          <Text style={[styles.summaryLabel, { color: colors.muted }]}>2FA</Text>
+        </View>
+        <View style={styles.summaryMetric}>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{status.sessions.length}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.muted }]}>Sessions</Text>
+        </View>
+        <View style={styles.summaryMetric}>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{activeTrustedDevices}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.muted }]}>Appareils fiables</Text>
+        </View>
+      </GlassSurface>
       {status.lockedUntil ? <Text style={[styles.warning, { color: colors.danger }]}>Second facteur verrouillé jusqu’au {date(status.lockedUntil)}</Text> : null}
 
       {!status.twoFactorEnabled && !setup ? (
@@ -291,7 +331,7 @@ export function SecurityExperience({ onSessionClosed }: {
         <View style={[styles.section, { borderTopColor: colors.border }]}>
           <Text style={[styles.subtitle, { color: colors.text }]}>Secret à ajouter dans l’application d’authentification</Text>
           <Text selectable style={[styles.secret, { backgroundColor: colors.backgroundAccent, color: colors.accent, borderRadius: visual.controlRadius }]}>{setup.secret}</Text>
-          <Text style={[styles.helper, { color: colors.muted }]}>URI avancée : {setup.otpauthUri}</Text>
+          <Text selectable style={[styles.helper, { color: colors.muted }]}>Lien d’authentification : {setup.otpauthUri}</Text>
           <Input value={setupCode} onChangeText={setSetupCode} keyboardType="number-pad" placeholder="Code à 6 chiffres" maxLength={6} />
           <Button title="Confirmer et activer" disabled={busy || setupCode.trim().length !== 6} onPress={() => void confirmSetup()} />
         </View>
@@ -323,7 +363,13 @@ export function SecurityExperience({ onSessionClosed }: {
               <Text style={[styles.helper, { color: colors.muted }]}>{session.userAgent || 'Appareil inconnu'}</Text>
               <Text style={[styles.helper, { color: colors.muted }]}>Expire : {date(session.expiresAt)}</Text>
             </View>
-            <Pressable onPress={() => void revokeSession(session.id, session.current)}><Text style={[styles.remove, { color: colors.danger }]}>Révoquer</Text></Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void revokeSession(session.id, session.current)}
+              style={[styles.removeButton, { backgroundColor: colors.backgroundAccent }]}
+            >
+              <Text style={[styles.remove, { color: colors.danger }]}>Révoquer</Text>
+            </Pressable>
           </View>
         ))}
       </View>
@@ -337,7 +383,15 @@ export function SecurityExperience({ onSessionClosed }: {
               <Text style={[styles.helper, { color: colors.muted }]}>{device.platform || 'UNKNOWN'} · {device.active ? 'actif' : 'révoqué/expiré'}</Text>
               <Text style={[styles.helper, { color: colors.muted }]}>Jusqu’au {date(device.trustedUntil)}</Text>
             </View>
-            {device.active ? <Pressable onPress={() => void revokeDevice(device.id)}><Text style={[styles.remove, { color: colors.danger }]}>Révoquer</Text></Pressable> : null}
+            {device.active ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void revokeDevice(device.id)}
+                style={[styles.removeButton, { backgroundColor: colors.backgroundAccent }]}
+              >
+                <Text style={[styles.remove, { color: colors.danger }]}>Révoquer</Text>
+              </Pressable>
+            ) : null}
           </View>
         ))}
         {!status.trustedDevices.length ? <Text style={[styles.helper, { color: colors.muted }]}>Aucun appareil de confiance.</Text> : null}
@@ -356,33 +410,43 @@ export function SecurityExperience({ onSessionClosed }: {
         <Text style={[styles.subtitle, { color: colors.text }]}>Journal récent</Text>
         {status.events.slice(0, 12).map((event) => (
           <View key={event.id} style={[styles.event, { borderLeftColor: colors.accent }]}>
-            <Text style={[styles.rowTitle, { color: colors.text }]}>{event.type}</Text>
-            <Text style={[styles.helper, { color: colors.muted }]}>{event.severity} · {date(event.createdAt)}</Text>
+            <Text style={[styles.rowTitle, { color: colors.text }]}>{humanizeSecurityEvent(event.type)}</Text>
+            <Text style={[styles.helper, { color: colors.muted }]}>
+              {humanizeSecurityEvent(event.severity)} · {date(event.createdAt)}
+            </Text>
           </View>
         ))}
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, padding: 18, gap: 16 },
-  title: { fontSize: 19, fontWeight: '900' },
-  subtitle: { fontSize: 16, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 21 },
-  section: { borderTopWidth: 1, paddingTop: 14, gap: 10 },
-  input: { minHeight: 50, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 12, fontSize: 15 },
-  button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { fontWeight: '900' },
+  card: { padding: 15, gap: 14 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  heroIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  heroCopy: { flex: 1 },
+  title: { fontSize: 18, fontWeight: '800' },
+  subtitle: { fontSize: 14.5, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  summaryStrip: { flexDirection: 'row', padding: 5 },
+  summaryMetric: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
+  summaryValue: { fontSize: 13.5, fontWeight: '800' },
+  summaryLabel: { fontSize: 9, marginTop: 1, textAlign: 'center' },
+  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 13, gap: 9 },
+  input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14.5 },
+  button: { minHeight: 46, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 12.5, fontWeight: '800' },
   muted: { opacity: 0.45 },
-  secret: { padding: 12, fontWeight: '900', letterSpacing: 1 },
+  secret: { padding: 11, fontWeight: '800', letterSpacing: 0.8 },
   helper: { fontSize: 12, lineHeight: 18 },
   warning: { fontWeight: '900' },
   recoveryBox: {},
   recoveryCode: { borderRadius: 10, padding: 8, fontFamily: 'monospace' },
-  row: { flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, paddingBottom: 10 },
+  row: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 9 },
   rowText: { flex: 1 },
   rowTitle: { fontWeight: '800' },
-  remove: { fontWeight: '900' },
+  removeButton: { minHeight: 32, borderRadius: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  remove: { fontSize: 11, fontWeight: '800' },
   event: { borderLeftWidth: 2, paddingLeft: 10, gap: 3 }
 });
