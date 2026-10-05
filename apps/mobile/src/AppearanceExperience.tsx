@@ -311,6 +311,11 @@ export function AppearanceExperience() {
   if (!appearance) return null;
 
   const preference = appearance.preference;
+  const activeTheme = appearance.themes.find((theme) => theme.key === preference.effectiveThemeKey);
+  const activeIconPack = appearance.iconPacks.find((pack) => pack.key === preference.effectiveIconPackKey);
+  const activeAppIcon = preference.effectiveAppIconKey
+    ? appearance.appIcons.find((icon) => icon.key === preference.effectiveAppIconKey)
+    : null;
   const renderedThemes = showAll ? filteredThemes : filteredThemes.slice(0, 12);
 
   return (
@@ -345,7 +350,7 @@ export function AppearanceExperience() {
         <View style={styles.chatPreviewHeader}>
           <Text style={[styles.chatPreviewTitle, { color: colors.text }]}>Aperçu du chat</Text>
           <Text style={[styles.chatPreviewMeta, { color: colors.muted }]}>
-            {appearance.themes.find((theme) => theme.key === preference.effectiveThemeKey)?.name ?? 'KnowMe'}
+            {activeTheme?.name ?? 'KnowMe'}
           </Text>
         </View>
         <View
@@ -483,8 +488,8 @@ export function AppearanceExperience() {
             />
           ))}
         </ScrollView>
-        <Text style={[styles.version, { color: colors.muted }]}> 
-          Pack effectif : {preference.effectiveIconPackKey}
+        <Text style={[styles.version, { color: colors.muted }]}>
+          Actif : {activeIconPack?.name ?? 'Pack du thème'}
         </Text>
       </View>
 
@@ -509,8 +514,8 @@ export function AppearanceExperience() {
             />
           ))}
         </ScrollView>
-        <Text style={[styles.version, { color: colors.muted }]}> 
-          Icône effective : {preference.effectiveAppIconKey ?? 'défaut de la plateforme'}.
+        <Text style={[styles.version, { color: colors.muted }]}>
+          Active : {activeAppIcon?.name ?? 'Icône KnowMe par défaut'}.
           Le changement natif s’applique sans réinstallation sur les plateformes compatibles.
         </Text>
       </View>
@@ -658,10 +663,12 @@ export function AppearanceExperience() {
         </View>
       </View>
 
-      <Text style={[styles.version, { color: colors.muted }]}> 
-        Thème effectif : {preference.effectiveThemeKey} · fusion :{' '}
-        {preference.effectiveThemeBlendMode} · version serveur : {preference.version}
-      </Text>
+      <View style={[styles.syncNote, { backgroundColor: colors.backgroundAccent }]}>
+        <KnowMeIcon name="check" size={16} color={colors.accent} />
+        <Text style={[styles.syncNoteText, { color: colors.muted }]}>
+          Tes choix d’apparence sont synchronisés avec ton compte.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -757,5 +764,7 @@ const styles = StyleSheet.create({
   seasonName: { fontSize: 12, fontWeight: '900' },
   seasonStatus: { fontSize: 10, fontWeight: '800' },
   seasonEffects: { fontSize: 10, lineHeight: 14 },
-  version: { fontSize: 11, lineHeight: 16 }
+  version: { fontSize: 11, lineHeight: 16 },
+  syncNote: { minHeight: 40, borderRadius: 18, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  syncNoteText: { flex: 1, fontSize: 11, lineHeight: 16 }
 });
