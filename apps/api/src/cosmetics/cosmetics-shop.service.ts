@@ -13,11 +13,11 @@ type RuntimeAssetDefinition = { slot?: string | null; assetUrl?: string | null; 
 @Injectable()
 export class CosmeticsShopService {
   constructor(private readonly prisma: PrismaService, private readonly wallet: WalletService, private readonly audit: AuditService) {}
-  policy() { return { currency: 'KNOWCOINS', verifiedLedgerRequired: true, atomicDebitAndOwnership: true, idempotentPurchases: true, onePurchasePerItemPerAccount: true, visualOnly: true, gameplayEffectsAllowed: false, paidPriorityAllowed: false, socialVisibilityBoostAllowed: false, premiumBypassAllowed: false, premiumEntitlementKey: 'premium.core', serverAuthoritativePricing: true, serverAuthoritativeAcquisition: true, validated3DAssetsRequired: true }; }
+  policy() { return { currency: 'KNOWCOINS', verifiedLedgerRequired: true, atomicDebitAndOwnership: true, idempotentPurchases: true, onePurchasePerItemPerAccount: true, visualOnly: true, gameplayEffectsAllowed: false, paidPriorityAllowed: false, socialVisibilityBoostAllowed: false, premiumBypassAllowed: false, premiumEntitlementKey: 'premium.core', serverAuthoritativePricing: true, serverAuthoritativeAcquisition: true, validated3DAssetsRequired: true, avatarFrameUses2DAsset: true }; }
   isAvailable(definition: AvailableDefinition, now = new Date()) { return definition.active && definition.startsAt <= now && (!definition.endsAt || definition.endsAt > now); }
-  private isAvatarSlot(slot?: string | null) { return Boolean(slot && AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number])); }
+  private requires3dAvatarAsset(slot?: string | null) { return Boolean(slot && slot !== 'AVATAR_FRAME' && AVATAR_ALL_SLOTS.includes(slot as (typeof AVATAR_ALL_SLOTS)[number])); }
   private isRuntimeAssetReady(item: RuntimeAssetDefinition) {
-    if (!this.isAvatarSlot(item.slot)) return true;
+    if (!this.requires3dAvatarAsset(item.slot)) return true;
     if (!item.avatarAssetManifest || !item.assetValidatedAt || !item.assetUrl) return false;
     try {
       const manifest = validateAvatarAssetManifest(item.avatarAssetManifest as unknown as AvatarAssetManifest);
