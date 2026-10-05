@@ -79,7 +79,6 @@ export function MobileGameCenterExperience() {
       strength="soft"
       borderRadius={visual.cardRadius}
       style={styles.section}
-      accessibilityLabel="Game Center KnowMe"
     >
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
