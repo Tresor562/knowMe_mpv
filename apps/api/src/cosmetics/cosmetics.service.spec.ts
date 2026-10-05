@@ -18,7 +18,7 @@ describe('CosmeticsService', () => {
   const service = new CosmeticsService({} as never, {} as never);
 
   it('keeps cosmetics visual-only and server-authoritative', () => {
-    expect(service.policy()).toEqual(expect.objectContaining({ visualOnly:true, gameplayEffectsAllowed:false, purchasesEnabled:true, paidPriorityAllowed:false, ownershipRequired:true, oneItemPerSlot:true, serverAuthoritativeInventory:true, immutablePublishedVersions:true }));
+    expect(service.policy()).toEqual(expect.objectContaining({ visualOnly:true, gameplayEffectsAllowed:false, purchasesEnabled:true, paidPriorityAllowed:false, ownershipRequired:true, oneItemPerSlot:true, serverAuthoritativeInventory:true, immutablePublishedVersions:true, validated3DAssetsRequired:true, avatarFrameUses2DAsset:true }));
   });
 
   it('keeps Cosmetics aligned with every Avatar Universe slot', () => {
