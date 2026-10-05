@@ -59,7 +59,7 @@ function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
           accessibilityLabel={layer.item!.name}
         />
       ))}
-    </GlassSurface>
+    </View>
   );
 }
 
@@ -240,7 +240,7 @@ export function AvatarStudioExperience() {
           </Text>
         </>
       )}
-    </View>
+    </GlassSurface>
   );
 }
 
