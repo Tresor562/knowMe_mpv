@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { useAppearance } from './AppearanceProvider';
 
 type Policy = {
   id: string;
@@ -62,6 +63,7 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
   disabled?: boolean;
   secondary?: boolean;
 }) {
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
       accessibilityRole="button"
@@ -69,16 +71,22 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        secondary && styles.secondaryButton,
+        {
+          borderRadius: visual.controlRadius,
+          backgroundColor: secondary ? 'transparent' : colors.accent,
+          borderColor: colors.accent
+        },
+        secondary && { borderWidth: 1 },
         (pressed || disabled) && styles.mutedButton
       ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.secondaryButtonText]}>{title}</Text>
+      <Text style={[styles.buttonText, { color: secondary ? colors.accent : colors.accentText }]}>{title}</Text>
     </Pressable>
   );
 }
 
 export function PrivacyExperience() {
+  const { colors, visual } = useAppearance();
   const [center, setCenter] = useState<PrivacyCenter | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -174,7 +182,7 @@ export function PrivacyExperience() {
   }
 
   if (loading || !center) {
-    return <View style={styles.card}><Text style={styles.muted}>Chargement de la confidentialité…</Text></View>;
+    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.muted, { color: colors.muted }]}>Chargement de la confidentialité…</Text></View>;
   }
 
   const toggles: Array<[keyof Preferences, string, string]> = [
@@ -187,25 +195,25 @@ export function PrivacyExperience() {
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.content} nestedScrollEnabled>
+    <ScrollView contentContainerStyle={styles.content} nestedScrollEnabled showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>CONFIDENTIALITÉ</Text>
-        <Text style={styles.heading}>Mes données, mes choix</Text>
-        <Text style={styles.description}>
+        <Text style={[styles.eyebrow, { color: colors.accent }]}>CONFIDENTIALITÉ</Text>
+        <Text style={[styles.heading, { color: colors.text }]}>Mes données, mes choix</Text>
+        <Text style={[styles.description, { color: colors.muted }]}>
           Les choix sont enregistrés par le serveur avec la version exacte de chaque politique.
         </Text>
       </View>
 
       {center.policies.map((policy) => (
-        <View key={`${policy.key}-${policy.version}`} style={styles.card}>
+        <View key={`${policy.key}-${policy.version}`} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
-            <Text style={styles.cardTitle}>{policy.title}</Text>
-            <Text style={policy.granted ? styles.active : styles.warning}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{policy.title}</Text>
+            <Text style={[policy.granted ? styles.active : styles.warning, { color: policy.granted ? colors.accent : colors.danger }]}>
               {policy.granted ? 'Acceptée' : policy.required ? 'Requise' : 'Facultative'}
             </Text>
           </View>
-          <Text style={styles.description}>{policy.summary}</Text>
-          <Text style={styles.muted}>
+          <Text style={[styles.description, { color: colors.muted }]}>{policy.summary}</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             Version {policy.version} · {new Date(policy.effectiveAt).toLocaleDateString('fr-FR')}
           </Text>
           {!policy.granted ? (
@@ -216,8 +224,8 @@ export function PrivacyExperience() {
         </View>
       ))}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Visibilité du profil</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Visibilité du profil</Text>
         <View style={styles.segmentRow}>
           {(['PRIVATE', 'FRIENDS', 'PUBLIC'] as const).map((value) => (
             <Pressable
@@ -226,23 +234,32 @@ export function PrivacyExperience() {
               onPress={() => void updatePreference('profileVisibility', value)}
               style={[
                 styles.segment,
-                center.preferences.profileVisibility === value && styles.segmentActive
+                {
+                  borderColor: center.preferences.profileVisibility === value ? colors.accent : colors.border,
+                  backgroundColor: center.preferences.profileVisibility === value ? colors.backgroundAccent : colors.surfaceRaised,
+                  borderRadius: visual.controlRadius
+                }
               ]}
             >
-              <Text style={center.preferences.profileVisibility === value ? styles.segmentActiveText : styles.muted}>
+              <Text style={[
+                center.preferences.profileVisibility === value ? styles.segmentActiveText : styles.muted,
+                { color: center.preferences.profileVisibility === value ? colors.accent : colors.muted }
+              ]}>
                 {value === 'PRIVATE' ? 'Privé' : value === 'FRIENDS' ? 'Amis' : 'Public'}
               </Text>
             </Pressable>
           ))}
         </View>
         {toggles.map(([field, title, description]) => (
-          <View key={field} style={styles.toggleRow}>
+          <View key={field} style={[styles.toggleRow, { borderTopColor: colors.border }]}>
             <View style={styles.toggleCopy}>
-              <Text style={styles.label}>{title}</Text>
-              <Text style={styles.muted}>{description}</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{title}</Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>{description}</Text>
             </View>
             <Switch
               disabled={busy}
+              trackColor={{ false: colors.backgroundAccent, true: colors.accent }}
+              thumbColor={colors.surface}
               value={Boolean(center.preferences[field])}
               onValueChange={(value) => void updatePreference(field, value)}
             />
@@ -250,16 +267,26 @@ export function PrivacyExperience() {
         ))}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Exercer mes droits</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Exercer mes droits</Text>
         <View style={styles.segmentRow}>
           {['EXPORT', 'CORRECT', 'RESTRICT', 'OBJECT', 'DELETE'].map((value) => (
             <Pressable
               key={value}
               onPress={() => setRequestType(value)}
-              style={[styles.requestChip, requestType === value && styles.segmentActive]}
+              style={[
+                styles.requestChip,
+                {
+                  borderColor: requestType === value ? colors.accent : colors.border,
+                  backgroundColor: requestType === value ? colors.backgroundAccent : colors.surfaceRaised,
+                  borderRadius: visual.controlRadius
+                }
+              ]}
             >
-              <Text style={requestType === value ? styles.segmentActiveText : styles.muted}>{value}</Text>
+              <Text style={[
+                requestType === value ? styles.segmentActiveText : styles.muted,
+                { color: requestType === value ? colors.accent : colors.muted }
+              ]}>{value}</Text>
             </Pressable>
           ))}
         </View>
@@ -269,19 +296,28 @@ export function PrivacyExperience() {
           maxLength={1000}
           multiline
           placeholder="Précision facultative"
-          placeholderTextColor="#737E93"
-          style={styles.input}
+          placeholderTextColor={colors.muted}
+          selectionColor={colors.accent}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.backgroundAccent,
+              borderColor: colors.border,
+              color: colors.text,
+              borderRadius: visual.inputRadius
+            }
+          ]}
         />
         <ActionButton title="Créer la demande" disabled={busy} onPress={() => void createRequest()} />
       </View>
 
       {center.requests.map((item) => (
-        <View key={item.id} style={styles.card}>
+        <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
-            <Text style={styles.cardTitle}>{item.type}</Text>
-            <Text style={styles.active}>{item.status}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{item.type}</Text>
+            <Text style={[styles.active, { color: colors.accent }]}>{item.status}</Text>
           </View>
-          <Text style={styles.muted}>
+          <Text style={[styles.muted, { color: colors.muted }]}>
             Créée le {new Date(item.requestedAt).toLocaleString('fr-FR')} · échéance {new Date(item.dueAt).toLocaleDateString('fr-FR')}
           </Text>
           {item.status === 'PENDING' ? (
@@ -296,27 +332,25 @@ export function PrivacyExperience() {
 const styles = StyleSheet.create({
   content: { gap: 14, paddingBottom: 20 },
   header: { gap: 7 },
-  eyebrow: { color: '#7A5CFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
-  heading: { color: '#F7F7FB', fontSize: 24, fontWeight: '900' },
-  description: { color: '#B8C0CE', fontSize: 14, lineHeight: 20 },
-  muted: { color: '#737E93', fontSize: 12, lineHeight: 18 },
-  active: { color: '#7A5CFF', fontWeight: '900', fontSize: 12 },
-  warning: { color: '#FF6B73', fontWeight: '900', fontSize: 12 },
-  card: { backgroundColor: '#101521', borderColor: '#273044', borderWidth: 1, borderRadius: 22, padding: 17, gap: 12 },
-  cardTitle: { color: '#F7F7FB', fontSize: 17, fontWeight: '900', flexShrink: 1 },
+  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
+  heading: { fontSize: 24, fontWeight: '900' },
+  description: { fontSize: 14, lineHeight: 20 },
+  muted: { fontSize: 12, lineHeight: 18 },
+  active: { fontWeight: '900', fontSize: 12 },
+  warning: { fontWeight: '900', fontSize: 12 },
+  card: { borderWidth: 1, padding: 17, gap: 12 },
+  cardTitle: { fontSize: 17, fontWeight: '900', flexShrink: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  button: { backgroundColor: '#7A5CFF', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
-  secondaryButton: { backgroundColor: 'transparent', borderColor: '#7A5CFF', borderWidth: 1 },
-  buttonText: { color: '#FFFFFF', fontWeight: '900' },
-  secondaryButtonText: { color: '#7A5CFF' },
+  button: { paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
+  buttonText: { fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: { flex: 1, minWidth: 80, borderColor: '#30394E', borderWidth: 1, borderRadius: 13, paddingVertical: 10, alignItems: 'center' },
-  requestChip: { borderColor: '#30394E', borderWidth: 1, borderRadius: 13, paddingVertical: 9, paddingHorizontal: 11 },
-  segmentActive: { borderColor: '#7A5CFF', backgroundColor: 'rgba(69,230,189,0.1)' },
-  segmentActiveText: { color: '#7A5CFF', fontWeight: '900', fontSize: 12 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopColor: '#273044', borderTopWidth: 1, paddingTop: 12 },
+  segment: { flex: 1, minWidth: 80, borderWidth: 1, paddingVertical: 10, alignItems: 'center' },
+  requestChip: { borderWidth: 1, paddingVertical: 9, paddingHorizontal: 11 },
+  segmentActive: {},
+  segmentActiveText: { fontWeight: '900', fontSize: 12 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1, paddingTop: 12 },
   toggleCopy: { flex: 1, gap: 3 },
-  label: { color: '#F7F7FB', fontWeight: '800' },
-  input: { minHeight: 86, backgroundColor: '#0D111B', borderColor: '#30394E', borderWidth: 1, borderRadius: 15, color: '#F7F7FB', padding: 13, textAlignVertical: 'top' }
+  label: { fontWeight: '800' },
+  input: { minHeight: 86, borderWidth: 1, padding: 13, textAlignVertical: 'top' }
 });
