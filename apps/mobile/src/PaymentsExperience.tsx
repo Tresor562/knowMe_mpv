@@ -27,6 +27,7 @@ import {
   requestNativePurchase
 } from './native-purchases';
 import { useAppearance } from './AppearanceProvider';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -155,26 +156,29 @@ export function PaymentsExperience() {
   );
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.headerRow}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="coins" size={21} color={colors.accent} />
+        </View>
         <View style={styles.headerText}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Paiements et abonnements</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>KnowCoins & paiements</Text>
           <Text style={[styles.description, { color: colors.muted }]}>
-            Les prix et attributions restent autoritaires côté serveur. Aucune preuve d’achat brute
-            n’est saisie manuellement dans l’application.
+            Achats sécurisés via la boutique de ton appareil.
           </Text>
         </View>
-        <Pressable
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Actualiser"
           disabled={refreshing}
           onPress={() => void load(true)}
-          style={({ pressed }) => [
+          style={[
             styles.refreshButton,
-            { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius },
-            pressed && styles.buttonDisabled
+            { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
           ]}
         >
-          <Text style={[styles.refreshText, { color: colors.accent }]}>{refreshing ? '…' : '↻'}</Text>
-        </Pressable>
+          <KnowMeIcon name="refresh" size={18} color={refreshing ? colors.muted : colors.accent} />
+        </PressScale>
       </View>
 
       {loading ? (
@@ -184,27 +188,30 @@ export function PaymentsExperience() {
         </View>
       ) : (
         <>
-          <View style={[styles.policyBox, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
-            <Text style={[styles.policyTitle, { color: colors.text }]}>
-              {platformProvider ? providerLabel(platformProvider) : 'Boutique native indisponible'}
-            </Text>
-            <Text style={[styles.policyText, { color: colors.muted }]}>
-              Fournisseur : {providerConfigured ? 'configuré' : 'désactivé'} · pont natif :{' '}
-              {bridgeAvailable ? 'installé' : 'absent'}
-            </Text>
-            {accountReference ? (
-              <Text style={[styles.accountReference, { color: colors.muted }]} numberOfLines={1}>
-                Référence de compte liée : {accountReference.accountReference}
+          <View style={[styles.policyBox, { backgroundColor: colors.backgroundAccent }]}>
+            <View style={[styles.storeStateIcon, { backgroundColor: purchaseReady ? colors.surfaceGlass : colors.surfaceRaised }]}>
+              <KnowMeIcon name={purchaseReady ? 'check' : 'settings'} size={18} color={purchaseReady ? colors.accent : colors.muted} />
+            </View>
+            <View style={styles.policyCopy}>
+              <Text style={[styles.policyTitle, { color: colors.text }]}>
+                {purchaseReady
+                  ? `Achats disponibles via ${providerLabel(platformProvider!)}`
+                  : 'Achats temporairement indisponibles'}
               </Text>
-            ) : null}
+              <Text style={[styles.policyText, { color: colors.muted }]}>
+                {purchaseReady
+                  ? 'Les achats sont vérifiés automatiquement avant attribution.'
+                  : 'KnowMe réactivera les achats lorsque la boutique de cet appareil sera prête.'}
+              </Text>
+            </View>
           </View>
 
           {message ? <Text style={[styles.message, { color: colors.accent }]}>{message}</Text> : null}
 
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Catalogue mobile</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Boutique</Text>
           {catalog.length === 0 ? (
             <Text style={[styles.muted, { color: colors.muted }]}>
-              Aucun produit mobile actif n’est mappé pour cette plateforme.
+              Aucun produit n’est disponible pour le moment.
             </Text>
           ) : (
             catalog.map((product) => (
@@ -257,8 +264,7 @@ export function PaymentsExperience() {
 
           {!purchaseReady ? (
             <Text style={[styles.helper, { color: colors.muted }]}>
-              Les boutons restent bloqués tant que la configuration fournisseur et le pont natif signé
-              ne sont pas tous les deux disponibles. L’application ne simule jamais un achat réussi.
+              Les achats restent désactivés tant que la boutique de l’appareil n’est pas disponible.
             </Text>
           ) : null}
 
@@ -270,8 +276,8 @@ export function PaymentsExperience() {
               <View key={order.id} style={[styles.orderRow, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
                 <View style={styles.orderText}>
                   <Text style={[styles.orderName, { color: colors.text }]}>{order.productName}</Text>
-                  <Text style={styles.muted} numberOfLines={1}>
-                    {order.reference} · {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                  <Text style={[styles.muted, { color: colors.muted }]} numberOfLines={1}>
+                    {new Date(order.createdAt).toLocaleDateString()}
                   </Text>
                 </View>
                 <Text style={[styles.orderStatus, { color: statusColor(order.status, colors) }]}>
@@ -282,49 +288,54 @@ export function PaymentsExperience() {
           )}
         </>
       )}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-        borderWidth: 1,
-        padding: 18,
-    gap: 14
+    padding: 14,
+    gap: 12
   },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  headerText: { flex: 1, gap: 8 },
-  cardTitle: { fontSize: 19, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 21 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1, gap: 3 },
+  cardTitle: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
   refreshButton: {
-    width: 42,
-    height: 42,
-        borderWidth: 1,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { fontSize: 22, fontWeight: '900' },
   buttonDisabled: { opacity: 0.45 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   muted: { fontSize: 12 },
   policyBox: {
-        borderWidth: 1,
-        padding: 14,
-    gap: 5
+    minHeight: 62,
+    borderRadius: 20,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
   },
-  policyTitle: { fontWeight: '900' },
-  policyText: { fontSize: 12, lineHeight: 18 },
+  storeStateIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  policyCopy: { flex: 1 },
+  policyTitle: { fontSize: 13, fontWeight: '800' },
+  policyText: { fontSize: 11, lineHeight: 16, marginTop: 1 },
   accountReference: { fontSize: 11 },
-  message: { fontSize: 13, lineHeight: 19 },
-  sectionTitle: { fontWeight: '900', fontSize: 16, marginTop: 4 },
+  message: { fontSize: 11.5, lineHeight: 17 },
+  sectionTitle: { fontWeight: '800', fontSize: 15, marginTop: 3 },
   productCard: {
-        borderWidth: 1,
-    padding: 14,
-    gap: 12
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    gap: 10
   },
   productHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   productText: { flex: 1, gap: 5 },
-  productName: { fontWeight: '900', fontSize: 16 },
+  productName: { fontWeight: '800', fontSize: 14.5 },
   productDescription: { fontSize: 12, lineHeight: 18 },
   highlight: {
         borderRadius: 999,
@@ -338,27 +349,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-        borderTopWidth: 1,
-    paddingTop: 12
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 10
   },
   priceText: { flex: 1, gap: 3 },
-  price: { fontWeight: '900', fontSize: 17 },
+  price: { fontWeight: '800', fontSize: 15 },
   button: {
-    minWidth: 104,
-        paddingVertical: 11,
-    paddingHorizontal: 14,
-    alignItems: 'center'
+    minWidth: 92,
+    minHeight: 40,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   buttonText: { fontWeight: '900', fontSize: 12 },
   helper: { fontSize: 11, lineHeight: 17 },
   orderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-        padding: 13
+    gap: 10,
+    padding: 11
   },
   orderText: { flex: 1, gap: 4 },
   orderName: { fontWeight: '800' },
-  orderStatus: { fontWeight: '900', fontSize: 12 }
+  orderStatus: { fontWeight: '800', fontSize: 11 }
 });

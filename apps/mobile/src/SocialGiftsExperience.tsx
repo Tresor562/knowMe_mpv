@@ -26,6 +26,7 @@ import {
   sendMobileSocialGift
 } from './social-gifts';
 import { useAppearance } from './AppearanceProvider';
+import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -152,31 +153,39 @@ export function SocialGiftsExperience() {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.headerRow}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="spark" size={21} color={colors.secondary} />
+        </View>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.text }]}>Cadeaux sociaux</Text>
           <Text style={[styles.description, { color: colors.muted }]}>
-            Offre un souvenir visuel à un ami. Le destinataire ne reçoit ni solde, ni bonus de jeu,
-            ni permission.
+            Envoie un petit souvenir à un ami avec tes KnowCoins.
           </Text>
         </View>
-        <Pressable
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Actualiser"
           disabled={refreshing}
           onPress={() => void load(true)}
-          style={({ pressed }) => [
+          style={[
             styles.refresh,
-            { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius },
-            (pressed || refreshing) && styles.mutedButton
+            { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
           ]}
         >
-          <Text style={[styles.refreshText, { color: colors.accent }]}>{refreshing ? '…' : '↻'}</Text>
-        </Pressable>
+          <KnowMeIcon name="refresh" size={18} color={refreshing ? colors.muted : colors.accent} />
+        </PressScale>
       </View>
 
-      <View style={[styles.balanceBox, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
-        <Text style={[styles.muted, { color: colors.muted }]}>Solde KnowCoins</Text>
-        <Text style={[styles.balance, { color: colors.accent }]}>{balance}</Text>
+      <View style={[styles.balanceBox, { backgroundColor: colors.backgroundAccent }]}>
+        <View style={[styles.balanceIcon, { backgroundColor: colors.surfaceGlass }]}>
+          <KnowMeIcon name="coins" size={20} color={colors.accent} />
+        </View>
+        <View>
+          <Text style={[styles.balance, { color: colors.text }]}>{balance}</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>KnowCoins disponibles</Text>
+        </View>
       </View>
 
       {status ? <Text style={[styles.status, { color: colors.accent }]}>{status}</Text> : null}
@@ -207,9 +216,11 @@ export function SocialGiftsExperience() {
                       pressed && styles.mutedButton
                     ]}
                   >
-                    <Text style={[styles.friendInitial, { backgroundColor: colors.accent, color: colors.accentText }]}>
-                      {friend.user.displayName.charAt(0).toUpperCase()}
-                    </Text>
+                    <Avatar
+                      uri={friend.user.avatarUrl}
+                      name={friend.user.displayName}
+                      size={38}
+                    />
                     <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>
                       {friend.user.displayName}
                     </Text>
@@ -253,7 +264,7 @@ export function SocialGiftsExperience() {
                   <Text style={[styles.rarity, { color: colors.muted }]}>{mobileSocialGiftRarity(gift.rarity)}</Text>
                   <Text style={[styles.giftDescription, { color: colors.muted }]}>{gift.description}</Text>
                   <Text style={[styles.price, { color: colors.accent }]}>{gift.priceKnowCoins} KnowCoins</Text>
-                  <Text style={[styles.safety, { color: colors.muted }]}>Visuel · non revendable · aucun solde reçu</Text>
+                  <Text style={[styles.safety, { color: colors.muted }]}>Souvenir visuel · non revendable</Text>
                 </View>
                 <Pressable
                   disabled={disabled}
@@ -292,7 +303,7 @@ export function SocialGiftsExperience() {
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{item.gift.name}</Text>
                   <Text style={[styles.muted, { color: colors.muted }]}>
                     {item.sender?.displayName ?? 'Compte indisponible'} ·{' '}
-                    {new Date(item.sentAt).toLocaleDateString('fr-FR')}
+                    {new Date(item.sentAt).toLocaleDateString()}
                   </Text>
                   {item.message ? <Text style={[styles.historyMessage, { color: colors.muted }]}>“{item.message}”</Text> : null}
                 </View>
@@ -319,7 +330,7 @@ export function SocialGiftsExperience() {
               <View key={item.id} style={[styles.historyRow, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
                 <Text style={styles.historyEmoji}>{item.gift.emoji}</Text>
                 <View style={styles.historyText}>
-                  <Text style={styles.historyTitle}>{item.gift.name}</Text>
+                  <Text style={[styles.historyTitle, { color: colors.text }]}>{item.gift.name}</Text>
                   <Text style={[styles.muted, { color: colors.muted }]}>
                     {item.recipient?.displayName ?? 'Compte indisponible'} ·{' '}
                     {item.priceKnowCoins} KC
@@ -333,100 +344,94 @@ export function SocialGiftsExperience() {
 
           {policy ? (
             <Text style={[styles.policy, { color: colors.muted }]}>
-              Limite serveur : {policy.dailyGiftCountLimit} cadeaux et{' '}
-              {policy.dailySpendLimitKnowCoins} KnowCoins par jour.
+              Jusqu’à {policy.dailyGiftCountLimit} cadeaux et {policy.dailySpendLimitKnowCoins} KnowCoins par jour.
             </Text>
           ) : null}
         </>
       )}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-        borderWidth: 1,
-        padding: 18,
-    gap: 14
+    padding: 14,
+    gap: 12
   },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  headerText: { flex: 1, gap: 8 },
-  title: { fontSize: 19, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 21 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1, gap: 3 },
+  title: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
   refresh: {
-    width: 42,
-    height: 42,
-        borderWidth: 1,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { fontSize: 22, fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  balanceBox: { padding: 14, gap: 3 },
-  balance: { fontSize: 26, fontWeight: '900' },
-  status: { fontSize: 13, lineHeight: 19 },
+  balanceBox: { minHeight: 62, borderRadius: 20, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  balanceIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  balance: { fontSize: 18, fontWeight: '800' },
+  status: { fontSize: 11.5, lineHeight: 17 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionTitle: { fontWeight: '900', fontSize: 16, marginTop: 4 },
+  sectionTitle: { fontWeight: '800', fontSize: 15, marginTop: 3 },
   muted: { fontSize: 12 },
   friendGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   friendButton: {
-    minWidth: 92,
-    maxWidth: 130,
-        borderWidth: 1,
-        padding: 10,
+    minWidth: 84,
+    maxWidth: 118,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 8,
     alignItems: 'center',
-    gap: 6
+    gap: 5
   },
   friendSelected: {},
-  friendInitial: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-        fontWeight: '900'
-  },
-  friendName: { fontWeight: '800', fontSize: 12 },
+  friendName: { fontWeight: '700', fontSize: 11 },
   input: {
-    minHeight: 50,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12
+    minHeight: 46,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 13,
+    paddingVertical: 10
   },
   giftCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-        borderWidth: 1,
-        padding: 13
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 11
   },
   giftVisual: {
-    width: 54,
-    height: 54,
+    width: 48,
+    height: 48,
     borderRadius: 18,
-        alignItems: 'center',
+    alignItems: 'center',
     justifyContent: 'center'
   },
-  giftEmoji: { fontSize: 29 },
+  giftEmoji: { fontSize: 25 },
   giftText: { flex: 1, gap: 3 },
-  giftName: { fontWeight: '900' },
+  giftName: { fontWeight: '800' },
   rarity: { fontSize: 11 },
   giftDescription: { fontSize: 11, lineHeight: 16 },
-  price: { fontWeight: '900', fontSize: 12 },
+  price: { fontWeight: '800', fontSize: 11.5 },
   safety: { fontSize: 10 },
   sendButton: {
-    minWidth: 72,
-        paddingHorizontal: 11,
-    paddingVertical: 10,
-    alignItems: 'center'
+    minWidth: 68,
+    minHeight: 38,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  sendButtonText: { fontWeight: '900', fontSize: 11 },
+  sendButtonText: { fontWeight: '800', fontSize: 10.5 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-        borderWidth: 1,
-        padding: 12
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 10
   },
   unreadRow: {},
   historyEmoji: { fontSize: 27 },
@@ -434,10 +439,10 @@ const styles = StyleSheet.create({
   historyTitle: { fontWeight: '900' },
   historyMessage: { fontSize: 12, lineHeight: 17 },
   viewButton: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 10,
-    paddingVertical: 8
+    paddingVertical: 7
   },
-  viewButtonText: { fontWeight: '900', fontSize: 11 },
+  viewButtonText: { fontWeight: '800', fontSize: 10.5 },
   policy: { fontSize: 11, lineHeight: 17 }
 });
