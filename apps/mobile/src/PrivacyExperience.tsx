@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,8 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import { KnowMeIcon } from './ui/KnowMeUI';
 
 type Policy = {
   id: string;
@@ -57,6 +60,40 @@ function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : 'Une erreur est survenue.';
 }
 
+function requestTypeLabel(value: string, locale: string) {
+  const french: Record<string, string> = {
+    EXPORT: 'Exporter mes données',
+    CORRECT: 'Corriger mes données',
+    RESTRICT: 'Limiter le traitement',
+    OBJECT: 'M’opposer',
+    DELETE: 'Supprimer mes données'
+  };
+  const english: Record<string, string> = {
+    EXPORT: 'Export my data',
+    CORRECT: 'Correct my data',
+    RESTRICT: 'Restrict processing',
+    OBJECT: 'Object',
+    DELETE: 'Delete my data'
+  };
+  return (locale.startsWith('fr') ? french : english)[value] ?? value;
+}
+
+function requestStatusLabel(value: string, locale: string) {
+  const french: Record<string, string> = {
+    PENDING: 'En cours',
+    COMPLETED: 'Terminée',
+    CANCELLED: 'Annulée',
+    REJECTED: 'Refusée'
+  };
+  const english: Record<string, string> = {
+    PENDING: 'Pending',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    REJECTED: 'Rejected'
+  };
+  return (locale.startsWith('fr') ? french : english)[value] ?? value;
+}
+
 function ActionButton({ title, onPress, disabled = false, secondary = false }: {
   title: string;
   onPress: () => void;
@@ -64,6 +101,7 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
   secondary?: boolean;
 }) {
   const { colors, visual } = useAppearance();
+  const { locale } = useI18n();
   return (
     <Pressable
       accessibilityRole="button"
@@ -95,13 +133,13 @@ export function PrivacyExperience() {
 
   const load = useCallback(async () => {
     try {
-      setCenter(await apiFetch<PrivacyCenter>('/privacy/center?locale=fr'));
+      setCenter(await apiFetch<PrivacyCenter>(`/privacy/center?locale=${encodeURIComponent(locale)}`));
     } catch (cause) {
       Alert.alert('Confidentialité indisponible', errorMessage(cause));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();
@@ -118,7 +156,7 @@ export function PrivacyExperience() {
           policyVersion: policy.version,
           locale: policy.locale,
           action,
-          source: 'ANDROID',
+          source: Platform.OS === 'ios' ? 'IOS' : Platform.OS === 'web' ? 'WEB' : 'ANDROID',
           idempotencyKey: requestKey(`consent-${policy.key}`)
         })
       });
@@ -182,7 +220,7 @@ export function PrivacyExperience() {
   }
 
   if (loading || !center) {
-    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.muted, { color: colors.muted }]}>Chargement de la confidentialité…</Text></View>;
+    return <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.muted, { color: colors.muted }]}>Chargement de la confidentialité…</Text></View>;
   }
 
   const toggles: Array<[keyof Preferences, string, string]> = [
@@ -197,15 +235,19 @@ export function PrivacyExperience() {
   return (
     <ScrollView contentContainerStyle={styles.content} nestedScrollEnabled showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>CONFIDENTIALITÉ</Text>
-        <Text style={[styles.heading, { color: colors.text }]}>Mes données, mes choix</Text>
-        <Text style={[styles.description, { color: colors.muted }]}>
-          Les choix sont enregistrés par le serveur avec la version exacte de chaque politique.
-        </Text>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="settings" size={20} color={colors.accent} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.heading, { color: colors.text }]}>Confidentialité</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Choisis ce que tu partages et comment tes données sont utilisées.
+          </Text>
+        </View>
       </View>
 
       {center.policies.map((policy) => (
-        <View key={`${policy.key}-${policy.version}`} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <View key={`${policy.key}-${policy.version}`} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{policy.title}</Text>
             <Text style={[policy.granted ? styles.active : styles.warning, { color: policy.granted ? colors.accent : colors.danger }]}>
@@ -214,7 +256,7 @@ export function PrivacyExperience() {
           </View>
           <Text style={[styles.description, { color: colors.muted }]}>{policy.summary}</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            Version {policy.version} · {new Date(policy.effectiveAt).toLocaleDateString('fr-FR')}
+            En vigueur depuis {new Date(policy.effectiveAt).toLocaleDateString(locale)}
           </Text>
           {!policy.granted ? (
             <ActionButton title="Accepter cette version" disabled={busy} onPress={() => void decide(policy, 'GRANT')} />
@@ -224,7 +266,7 @@ export function PrivacyExperience() {
         </View>
       ))}
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Visibilité du profil</Text>
         <View style={styles.segmentRow}>
           {(['PRIVATE', 'FRIENDS', 'PUBLIC'] as const).map((value) => (
@@ -267,7 +309,7 @@ export function PrivacyExperience() {
         ))}
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Exercer mes droits</Text>
         <View style={styles.segmentRow}>
           {['EXPORT', 'CORRECT', 'RESTRICT', 'OBJECT', 'DELETE'].map((value) => (
@@ -283,10 +325,15 @@ export function PrivacyExperience() {
                 }
               ]}
             >
-              <Text style={[
-                requestType === value ? styles.segmentActiveText : styles.muted,
-                { color: requestType === value ? colors.accent : colors.muted }
-              ]}>{value}</Text>
+              <Text
+                numberOfLines={1}
+                style={[
+                  requestType === value ? styles.segmentActiveText : styles.muted,
+                  { color: requestType === value ? colors.accent : colors.muted }
+                ]}
+              >
+                {requestTypeLabel(value, locale)}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -312,13 +359,13 @@ export function PrivacyExperience() {
       </View>
 
       {center.requests.map((item) => (
-        <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <View key={item.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{item.type}</Text>
-            <Text style={[styles.active, { color: colors.accent }]}>{item.status}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{requestTypeLabel(item.type, locale)}</Text>
+            <Text style={[styles.active, { color: colors.accent }]}>{requestStatusLabel(item.status, locale)}</Text>
           </View>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            Créée le {new Date(item.requestedAt).toLocaleString('fr-FR')} · échéance {new Date(item.dueAt).toLocaleDateString('fr-FR')}
+            {new Date(item.requestedAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })} · échéance {new Date(item.dueAt).toLocaleDateString(locale)}
           </Text>
           {item.status === 'PENDING' ? (
             <ActionButton title="Annuler la demande" secondary disabled={busy} onPress={() => void cancelRequest(item.id)} />
@@ -330,27 +377,29 @@ export function PrivacyExperience() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 14, paddingBottom: 20 },
-  header: { gap: 7 },
-  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
-  heading: { fontSize: 24, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 20 },
+  content: { gap: 11, paddingBottom: 18 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 2 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1 },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  heading: { fontSize: 19, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
   muted: { fontSize: 12, lineHeight: 18 },
-  active: { fontWeight: '900', fontSize: 12 },
-  warning: { fontWeight: '900', fontSize: 12 },
-  card: { borderWidth: 1, padding: 17, gap: 12 },
-  cardTitle: { fontSize: 17, fontWeight: '900', flexShrink: 1 },
+  active: { fontWeight: '800', fontSize: 11 },
+  warning: { fontWeight: '800', fontSize: 11 },
+  card: { borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
+  cardTitle: { fontSize: 15, fontWeight: '800', flexShrink: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  button: { paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center' },
-  buttonText: { fontWeight: '900' },
+  button: { minHeight: 44, paddingVertical: 9, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 12, fontWeight: '800' },
   mutedButton: { opacity: 0.45 },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: { flex: 1, minWidth: 80, borderWidth: 1, paddingVertical: 10, alignItems: 'center' },
-  requestChip: { borderWidth: 1, paddingVertical: 9, paddingHorizontal: 11 },
+  segment: { flex: 1, minWidth: 80, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 9, alignItems: 'center' },
+  requestChip: { borderWidth: StyleSheet.hairlineWidth, paddingVertical: 8, paddingHorizontal: 10, maxWidth: '100%' },
   segmentActive: {},
-  segmentActiveText: { fontWeight: '900', fontSize: 12 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1, paddingTop: 12 },
+  segmentActiveText: { fontWeight: '800', fontSize: 11 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11 },
   toggleCopy: { flex: 1, gap: 3 },
   label: { fontWeight: '800' },
-  input: { minHeight: 86, borderWidth: 1, padding: 13, textAlignVertical: 'top' }
+  input: { minHeight: 78, borderWidth: StyleSheet.hairlineWidth, padding: 12, textAlignVertical: 'top' }
 });
