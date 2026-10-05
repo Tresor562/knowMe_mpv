@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -181,7 +181,7 @@ function ProfileMenuRow({
   );
 }
 
-function ProfileMenuGroup({ children }: { children: React.ReactNode }) {
+function ProfileMenuGroup({ children }: { children: ReactNode }) {
   const { visual } = useAppearance();
   return (
     <GlassSurface
