@@ -29,6 +29,8 @@ export type KnowMeIconName =
   | 'coins'
   | 'arrow'
   | 'back'
+  | 'close'
+  | 'search'
   | 'refresh'
   | 'check'
   | 'settings';
@@ -419,6 +421,36 @@ export function KnowMeIcon({
         <Line width={13 * s} height={sw} left={7 * s} top={11 * s} color={color} />
         <Line width={8 * s} height={sw} left={4.2 * s} top={8.2 * s} rotate="-40deg" color={color} />
         <Line width={8 * s} height={sw} left={4.2 * s} top={13.8 * s} rotate="40deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'close') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={15 * s} height={sw} left={4.5 * s} top={11 * s} rotate="45deg" color={color} />
+        <Line width={15 * s} height={sw} left={4.5 * s} top={11 * s} rotate="-45deg" color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'search') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 4.2 * s,
+              top: 4.2 * s,
+              width: 11.5 * s,
+              height: 11.5 * s,
+              borderRadius: 6 * s
+            },
+            commonBorder
+          ]}
+        />
+        <Line width={8.5 * s} height={sw} left={13.4 * s} top={16.1 * s} rotate="45deg" color={color} />
       </View>
     );
   }
