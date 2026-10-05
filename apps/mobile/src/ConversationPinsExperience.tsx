@@ -33,7 +33,7 @@ export function ConversationPinsExperience({
   currentUserId: string;
   onOpenConversation?: (conversationId: string) => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const [pins, setPins] = useState<Pin[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [limit, setLimit] = useState<number | null>(null);
@@ -213,7 +213,7 @@ export function ConversationPinsExperience({
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Épinglées</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>Utilise les flèches pour définir l’ordre affiché. Le serveur reste l’autorité de l’ordre enregistré.</Text>
           {pins.map((pinItem, index) => (
-            <View key={pinItem.conversationId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View key={pinItem.conversationId} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
               <View style={styles.cardCopy}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>
                   {names.get(pinItem.conversationId) ?? 'Conversation'}
@@ -225,7 +225,7 @@ export function ConversationPinsExperience({
                   accessibilityLabel={`Monter ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
                   disabled={mutationBusy || index === 0}
                   onPress={() => void movePin(index, -1)}
-                  style={[styles.secondary, { borderColor: colors.border }, (mutationBusy || index === 0) && styles.disabled]}
+                  style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, (mutationBusy || index === 0) && styles.disabled]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '800' }}>↑</Text>
                 </Pressable>
@@ -233,7 +233,7 @@ export function ConversationPinsExperience({
                   accessibilityLabel={`Descendre ${names.get(pinItem.conversationId) ?? 'la conversation'}`}
                   disabled={mutationBusy || index === pins.length - 1}
                   onPress={() => void movePin(index, 1)}
-                  style={[styles.secondary, { borderColor: colors.border }, (mutationBusy || index === pins.length - 1) && styles.disabled]}
+                  style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, (mutationBusy || index === pins.length - 1) && styles.disabled]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '800' }}>↓</Text>
                 </Pressable>
@@ -241,7 +241,7 @@ export function ConversationPinsExperience({
                   <Pressable
                     disabled={mutationBusy}
                     onPress={() => onOpenConversation(pinItem.conversationId)}
-                    style={[styles.secondary, { borderColor: colors.border }, mutationBusy && styles.disabled]}
+                    style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, mutationBusy && styles.disabled]}
                   >
                     <Text style={{ color: colors.text, fontWeight: '800' }}>Ouvrir</Text>
                   </Pressable>
@@ -249,7 +249,7 @@ export function ConversationPinsExperience({
                 <Pressable
                   disabled={mutationBusy}
                   onPress={() => void unpin(pinItem.conversationId)}
-                  style={[styles.secondary, { borderColor: colors.border }, mutationBusy && styles.disabled]}
+                  style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, mutationBusy && styles.disabled]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '800' }}>
                     {busyId === pinItem.conversationId ? 'Retrait…' : 'Désépingler'}
@@ -265,7 +265,7 @@ export function ConversationPinsExperience({
             <Text style={[styles.muted, { color: colors.muted }]}>La limite de {limit} est atteinte. Désépingle une conversation avant d'en ajouter une autre.</Text>
           ) : null}
           {conversations.filter((conversation) => !pinnedIds.has(conversation.id)).map((conversation) => (
-            <View key={conversation.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View key={conversation.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
               <Pressable
                 disabled={!onOpenConversation || mutationBusy}
                 onPress={() => onOpenConversation?.(conversation.id)}
@@ -278,7 +278,7 @@ export function ConversationPinsExperience({
                 onPress={() => void pin(conversation.id)}
                 style={[
                   styles.primary,
-                  { backgroundColor: colors.accent },
+                  { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
                   (mutationBusy || !capacityKnown || !canPinMore) && styles.disabled
                 ]}
               >
