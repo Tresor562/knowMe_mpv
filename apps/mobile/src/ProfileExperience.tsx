@@ -182,6 +182,7 @@ function ProfileMenuRow({
   );
 }
 
+// Keep related profile destinations inside one native glass section.
 function ProfileMenuGroup({ children }: { children: ReactNode }) {
   const { visual } = useAppearance();
   return (
