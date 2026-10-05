@@ -45,6 +45,13 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
+function formatPostDate(value: string, withTime = false) {
+  const date = new Date(value);
+  return withTime
+    ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
 function ActionButton({ title, onPress, disabled = false, danger = false }: {
   title: string;
   onPress: () => void;
@@ -74,6 +81,36 @@ function ActionButton({ title, onPress, disabled = false, danger = false }: {
       >
         {title}
       </Text>
+    </Pressable>
+  );
+}
+
+function MetricButton({
+  icon,
+  count,
+  label,
+  onPress
+}: {
+  icon: 'heart' | 'messages';
+  count: number;
+  label: string;
+  onPress?: () => void;
+}) {
+  const { colors } = useAppearance();
+  return (
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${label} : ${count}`}
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.metricAction,
+        { backgroundColor: colors.backgroundAccent },
+        pressed && onPress ? styles.metricPressed : null
+      ]}
+    >
+      <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />
+      <Text style={[styles.metricCount, { color: colors.muted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -258,10 +295,10 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
             resizeMode="cover"
           />
         ) : null}
-        <Text style={[styles.muted, { color: colors.muted }]}>{new Date(post.createdAt).toLocaleString('fr-FR')}</Text>
+        <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(post.createdAt, true)}</Text>
         <View style={styles.actionsRow}>
-          <ActionButton title={`J’aime · ${post._count.likes}`} onPress={() => void toggleLike()} />
-          <Text style={[styles.muted, { color: colors.muted }]}>Commentaires · {post._count.comments}</Text>
+          <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
+          <MetricButton icon="messages" count={post._count.comments} label="Commentaires" />
           {post.authorId === userId && (
             <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
           )}
@@ -308,7 +345,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
               )}
             </View>
             <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
-            <Text style={[styles.muted, { color: colors.muted }]}>{new Date(comment.createdAt).toLocaleString('fr-FR')}</Text>
+            <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(comment.createdAt, true)}</Text>
           </View>
         );
       })}
@@ -426,12 +463,10 @@ export function FeedExperience({ userId }: { userId: string }) {
               <KnowMeIcon name="discover" size={22} color={colors.accent} />
             </GlassSurface>
           </GlassSurface>
-          <View
-            style={[
-              styles.card,
-              styles.composerCard,
-              { backgroundColor: colors.surface, borderColor: colors.border }
-            ]}
+          <GlassSurface
+            strength="soft"
+            borderRadius={20}
+            style={styles.composerCard}
           >
             <TextInput
               multiline
@@ -454,7 +489,7 @@ export function FeedExperience({ userId }: { userId: string }) {
               <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
-          </View>
+          </GlassSurface>
         </View>
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
@@ -465,7 +500,7 @@ export function FeedExperience({ userId }: { userId: string }) {
           style={[
             styles.card,
             styles.postCard,
-            { backgroundColor: colors.surface, borderColor: colors.border }
+            { backgroundColor: colors.surfaceGlass, borderColor: colors.border }
           ]}
         >
           <View style={styles.authorRow}>
@@ -481,9 +516,9 @@ export function FeedExperience({ userId }: { userId: string }) {
             />
           ) : null}
           <View style={styles.actionsRow}>
-            <ActionButton title={`J’aime · ${item._count.likes}`} onPress={() => void like(item.id)} />
-            <Text style={[styles.muted, { color: colors.muted }]}>Commentaires · {item._count.comments}</Text>
-            <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString('fr-FR')}</Text>
+            <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
+            <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
+            <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
       )}
@@ -498,10 +533,10 @@ const styles = StyleSheet.create({
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  composerCard: { padding: 12, borderRadius: 20 },
+  composerCard: { padding: 10, borderRadius: 20 },
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   composerHint: { fontSize: 11 },
-  postCard: { borderRadius: 22 },
+  postCard: { borderRadius: 20, paddingVertical: 13 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
   heading: { fontSize: 20, fontWeight: '800', letterSpacing: -0.35 },
@@ -509,17 +544,21 @@ const styles = StyleSheet.create({
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 10 },
   commentCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, gap: 9 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
   flex: { flex: 1 },
   title: { fontSize: 17, fontWeight: '800' },
-  postText: { fontSize: 16.5, lineHeight: 24 },
+  postText: { fontSize: 15.5, lineHeight: 22 },
   postImage: { width: '100%', aspectRatio: 1.2, borderRadius: 18 },
   commentText: { fontSize: 15, lineHeight: 22 },
   muted: {},
-  date: { marginLeft: 'auto' },
+  date: { marginLeft: 'auto', fontSize: 10.5 },
+  dateText: { fontSize: 10.5 },
   input: { minHeight: 50, borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14.5, textAlignVertical: 'top' },
   action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, alignItems: 'center' },
   actionText: { fontWeight: '800' },
+  metricAction: { minHeight: 34, borderRadius: 17, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metricCount: { fontSize: 11.5, fontWeight: '700' },
+  metricPressed: { opacity: 0.68 },
   dangerAction: { borderWidth: 1 },
   dangerText: {},
   mutedAction: { opacity: 0.45 },
