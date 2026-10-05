@@ -601,9 +601,12 @@ export function GlassSurface({
   strength?: GlassStrength;
   borderRadius?: number;
 }) {
-  const { colors, appearance } = useAppearance();
+  const { colors, appearance, visual } = useAppearance();
   const reduceTransparency = appearance?.preference.reduceTransparency === true;
-  const intensity = strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48;
+  const intensity = Math.min(
+    90,
+    (strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48) + visual.glassBoost
+  );
   const shadowOpacity = strength === 'soft' ? 0.07 : strength === 'strong' ? 0.16 : 0.11;
   const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
 
@@ -617,7 +620,7 @@ export function GlassSurface({
           shadowOpacity,
           shadowRadius: strength === 'strong' ? 22 : 16,
           shadowOffset: { width: 0, height: strength === 'strong' ? 10 : 7 },
-          elevation: strength === 'strong' ? 10 : 6
+          elevation: Math.max(strength === 'strong' ? 10 : 6, visual.elevation)
         },
         style
       ]}
@@ -677,7 +680,7 @@ export function SoftSurface({
   style?: StyleProp<ViewStyle>;
   strong?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <View
       style={[
@@ -685,7 +688,7 @@ export function SoftSurface({
           backgroundColor: strong ? colors.surfaceRaised : colors.surface,
           borderColor: colors.border,
           borderWidth: StyleSheet.hairlineWidth,
-          borderRadius: 22
+          borderRadius: visual.cardRadius
         },
         style
       ]}
