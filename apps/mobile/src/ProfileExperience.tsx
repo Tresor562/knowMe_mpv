@@ -13,8 +13,10 @@ import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
+import { CreatorSettingsExperience } from './CreatorSettingsExperience';
 import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
+import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
@@ -64,6 +66,8 @@ type ProfilePanel =
   | 'main'
   | 'appearance'
   | 'language'
+  | 'downloads'
+  | 'creator'
   | 'avatar'
   | 'payments'
   | 'gifts'
@@ -277,6 +281,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
     const titleByPanel: Record<Exclude<ProfilePanel, 'main'>, string> = {
       appearance: 'Apparence',
       language: 'Langue et région',
+      downloads: 'Téléchargements & stockage',
+      creator: 'Mode créateur',
       avatar: 'Avatar Studio',
       payments: 'KnowCoins & paiements',
       gifts: 'Cadeaux sociaux',
@@ -314,6 +320,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
         {panel === 'appearance' ? <AppearanceExperience /> : null}
         {panel === 'language' ? <LanguageSettingsExperience /> : null}
+        {panel === 'downloads' ? <MediaDownloadSettingsExperience /> : null}
+        {panel === 'creator' ? <CreatorSettingsExperience /> : null}
         {panel === 'avatar' ? <AvatarStudioExperience /> : null}
         {panel === 'payments' ? <PaymentsExperience /> : null}
         {panel === 'gifts' ? <SocialGiftsExperience /> : null}
@@ -632,6 +640,12 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             description="Choisis la langue de toute l’interface."
             icon="discover"
             onPress={() => setPanel('language')}
+          />
+          <ProfileMenuRow
+            title="Téléchargements & stockage"
+            description="Médias, données mobiles et cache local."
+            icon="settings"
+            onPress={() => setPanel('downloads')}
             last
           />
         </ProfileMenuGroup>
@@ -640,6 +654,13 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           UNIVERS
         </Text>
         <ProfileMenuGroup>
+          <ProfileMenuRow
+            title="Mode créateur"
+            description="Profil public, catégorie et statistiques."
+            icon="profile"
+            tone="secondary"
+            onPress={() => setPanel('creator')}
+          />
           <ProfileMenuRow
             title="KnowCoins & paiements"
             description="Solde, achats et avantages."
