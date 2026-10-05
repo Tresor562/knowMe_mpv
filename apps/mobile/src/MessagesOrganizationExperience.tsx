@@ -398,17 +398,18 @@ export function MessagesOrganizationExperience({
   return (
     <View style={rootStyle}>
       <View style={styles.entrypoint}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={openOrganization}
-          style={({ pressed }) => [
-            styles.organizationButton,
-            { borderColor: colors.border },
-            pressed && styles.pressed
-          ]}
-        >
-          <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
-        </Pressable>
+        <GlassSurface strength="soft" borderRadius={22}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={openOrganization}
+            style={({ pressed }) => [
+              styles.organizationButton,
+              pressed && styles.pressed
+            ]}
+          >
+            <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organisation privée</Text>
+          </Pressable>
+        </GlassSurface>
       </View>
       <View style={styles.messages}>
         <RealtimeMessagesPanel
