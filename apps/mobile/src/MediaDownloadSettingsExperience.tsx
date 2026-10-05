@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { apiFetch, type ApiError } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { clearMobileMediaCache, mobileMediaCacheStats } from './media-cache';
+import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type ServerPreference = MediaDownloadPreference & {
   version: number;
@@ -69,9 +70,18 @@ export function MediaDownloadSettingsExperience() {
 
   if (!preference) return null;
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Téléchargements et cache média</Text>
-      <Text style={{ color: colors.muted }}>Wi‑Fi, données mobiles et itinérance sont contrôlés séparément.</Text>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+      <View style={styles.header}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="settings" size={20} color={colors.accent} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.title, { color: colors.text }]}>Téléchargements & stockage</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Choisis ce que KnowMe peut télécharger selon le réseau.
+          </Text>
+        </View>
+      </View>
       {(['wifiKinds', 'cellularKinds', 'roamingKinds'] as const).map((network) => (
         <View key={network} style={styles.group}>
           <Text style={[styles.label, { color: colors.text }]}>{network === 'wifiKinds' ? 'Wi‑Fi' : network === 'cellularKinds' ? 'Données mobiles' : 'Itinérance'}</Text>
@@ -89,21 +99,41 @@ export function MediaDownloadSettingsExperience() {
       ))}
       <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Arrière-plan</Text><Switch trackColor={{ false: colors.backgroundAccent, true: colors.accent }} thumbColor={colors.surface} value={preference.backgroundDownloads} disabled={busy} onValueChange={(value) => void save({ ...preference, backgroundDownloads: value })} /></View>
       <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>Respecter l’économie de données</Text><Switch trackColor={{ false: colors.backgroundAccent, true: colors.accent }} thumbColor={colors.surface} value={preference.respectDataSaver} disabled={busy} onValueChange={(value) => void save({ ...preference, respectDataSaver: value })} /></View>
-      <Text style={{ color: colors.muted }}>Quota : {preference.maxCacheMb} Mo · {count} copie(s) · {(bytes / 1024 / 1024).toFixed(1)} Mo utilisés</Text>
+      <View style={[styles.cacheSummary, { backgroundColor: colors.backgroundAccent }]}>
+        <View>
+          <Text style={[styles.cacheValue, { color: colors.text }]}>{(bytes / 1024 / 1024).toFixed(1)} Mo</Text>
+          <Text style={[styles.cacheLabel, { color: colors.muted }]}>utilisés</Text>
+        </View>
+        <View>
+          <Text style={[styles.cacheValue, { color: colors.text }]}>{count}</Text>
+          <Text style={[styles.cacheLabel, { color: colors.muted }]}>copies locales</Text>
+        </View>
+        <View>
+          <Text style={[styles.cacheValue, { color: colors.text }]}>{preference.maxCacheMb} Mo</Text>
+          <Text style={[styles.cacheLabel, { color: colors.muted }]}>limite</Text>
+        </View>
+      </View>
       <View style={styles.wrap}>{[128, 512, 1024, 2048].map((value) => <Pressable key={value} disabled={busy} onPress={() => void save({ ...preference, maxCacheMb: value })} style={[styles.pill, { borderColor: colors.border, backgroundColor: preference.maxCacheMb === value ? colors.accent : colors.surfaceRaised }]}><Text style={{ color: preference.maxCacheMb === value ? colors.accentText : colors.text }}>{value} Mo</Text></Pressable>)}</View>
       <Pressable disabled={busy || count === 0} onPress={() => void (async () => { setBusy(true); await clearMobileMediaCache(); setBytes(0); setCount(0); setBusy(false); setMessage('Copies locales supprimées.'); })()} style={[styles.clear, { borderColor: colors.danger, borderRadius: visual.controlRadius }]}><Text style={{ color: colors.danger, fontWeight: '900' }}>Supprimer les copies locales</Text></Pressable>
       {message ? <Text style={{ color: colors.secondary }}>{message}</Text> : null}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 24, padding: 18, gap: 14 },
-  title: { fontSize: 19, fontWeight: '900' },
-  group: { gap: 8 },
-  label: { fontWeight: '900' },
+  card: { padding: 14, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1 },
+  title: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  group: { gap: 7 },
+  label: { fontSize: 13, fontWeight: '800' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  clear: { borderWidth: 1, borderRadius: 15, padding: 12, alignItems: 'center' }
+  pill: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 42 },
+  cacheSummary: { minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cacheValue: { fontSize: 13.5, fontWeight: '800', textAlign: 'center' },
+  cacheLabel: { fontSize: 9.5, marginTop: 1, textAlign: 'center' },
+  clear: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 10, alignItems: 'center', justifyContent: 'center' }
 });
