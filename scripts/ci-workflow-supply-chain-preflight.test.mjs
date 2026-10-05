@@ -70,9 +70,14 @@ test('CI Node runtime is pinned to the audited exact patch version', async () =>
 
 test('production dependency audit cannot suppress individual advisories', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
-  assert.match(workflow, /pnpm audit --prod --audit-level=high/);
+  assert.match(workflow, /pnpm audit --prod --audit-level=high --json/);
+  assert.match(
+    workflow,
+    /node scripts\/production-dependency-audit\.mjs "\$report" "\$status"/
+  );
   assert.doesNotMatch(workflow, /pnpm audit[^\n]*--ignore\b/);
   assert.doesNotMatch(workflow, /^\s*--ignore\s+GHSA-/m);
+  assert.doesNotMatch(workflow, /continue-on-error:\s*true/);
 });
 
 test('Metro image-size dependency is replaced by the reviewed patched compatibility fork', async () => {
