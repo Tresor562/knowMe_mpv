@@ -21,6 +21,7 @@ import {
 import { ConversationPinsExperience } from './ConversationPinsExperience';
 import { RealtimeMessagesPanel } from './RealtimeMessagesPanel';
 import { SavedMessagesExperience } from './SavedMessagesExperience';
+import { GlassSurface } from './ui/KnowMeUI';
 
 type Conversation = {
   id: string;
@@ -425,8 +426,7 @@ const styles = StyleSheet.create({
   messages: { flex: 1 },
   entrypoint: { paddingHorizontal: 20, paddingTop: 10 },
   organizationButton: {
-    borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 22,
     paddingVertical: 11,
     paddingHorizontal: 14,
     alignItems: 'center'
