@@ -7,6 +7,7 @@ import {
   ImageStyle,
   Platform,
   Pressable,
+  PressableProps,
   StyleProp,
   StyleSheet,
   Text,
@@ -415,12 +416,16 @@ export function PressScale({
   children,
   onPress,
   disabled = false,
-  style
+  style,
+  accessibilityRole,
+  accessibilityLabel
 }: {
   children: ReactNode;
   onPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  accessibilityRole?: PressableProps['accessibilityRole'];
+  accessibilityLabel?: string;
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
@@ -438,6 +443,8 @@ export function PressScale({
 
   return (
     <Pressable
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
       onPressIn={() => to(0.97)}
