@@ -1,9 +1,11 @@
+import { BlurView } from 'expo-blur';
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
   Image,
   ImageStyle,
+  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -574,6 +576,87 @@ export function Avatar({
       }}
     >
       {body}
+    </View>
+  );
+}
+
+
+export type GlassStrength = 'soft' | 'medium' | 'strong';
+
+export function GlassSurface({
+  children,
+  style,
+  strength = 'medium',
+  borderRadius = 26
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  strength?: GlassStrength;
+  borderRadius?: number;
+}) {
+  const { colors, appearance } = useAppearance();
+  const reduceTransparency = appearance?.preference.reduceTransparency === true;
+  const intensity = strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48;
+  const shadowOpacity = strength === 'soft' ? 0.07 : strength === 'strong' ? 0.16 : 0.11;
+  const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
+
+  return (
+    <View
+      style={[
+        {
+          position: 'relative',
+          borderRadius,
+          shadowColor: '#000000',
+          shadowOpacity,
+          shadowRadius: strength === 'strong' ? 22 : 16,
+          shadowOffset: { width: 0, height: strength === 'strong' ? 10 : 7 },
+          elevation: strength === 'strong' ? 10 : 6
+        },
+        style
+      ]}
+    >
+      {reduceTransparency ? (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius,
+              backgroundColor:
+                strength === 'strong' ? colors.surfaceRaised : colors.surface
+            }
+          ]}
+        />
+      ) : (
+        <BlurView
+          pointerEvents="none"
+          tint={tint}
+          intensity={intensity}
+          experimentalBlurMethod={
+            Platform.OS === 'android' ? 'dimezisBlurView' : undefined
+          }
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius,
+              overflow: 'hidden'
+            }
+          ]}
+        />
+      )}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            borderRadius,
+            backgroundColor: reduceTransparency ? 'transparent' : colors.surfaceGlass,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border
+          }
+        ]}
+      />
+      {children}
     </View>
   );
 }
