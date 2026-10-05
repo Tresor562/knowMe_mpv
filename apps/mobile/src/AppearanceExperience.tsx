@@ -16,7 +16,7 @@ import {
   MobileThemePalette
 } from './appearance';
 import { useAppearance } from './AppearanceProvider';
-import { ChatWallpaper } from './ui/KnowMeUI';
+import { ChatWallpaper, KnowMeIcon } from './ui/KnowMeUI';
 
 const CATEGORY_LABELS: Record<string, string> = {
   ALL: 'Tout',
@@ -38,6 +38,106 @@ function errorMessage(cause: unknown) {
 
 function visibleColor(value: string, fallback: string) {
   return value === 'adaptive' ? fallback : value;
+}
+
+function previewGeometry(theme: AppearanceTheme) {
+  const category = theme.category.toUpperCase();
+  if (category === 'FUTURISTIC' || category === 'GAMING') {
+    return { panelRadius: 12, bubbleRadius: 8, inset: 7 };
+  }
+  if (category === 'ANIME' || category === 'FANTASY' || category === 'NATURE' || category === 'SEASON') {
+    return { panelRadius: 20, bubbleRadius: 13, inset: 8 };
+  }
+  if (category === 'ARTISTIC') {
+    return { panelRadius: 17, bubbleRadius: 11, inset: 9 };
+  }
+  return { panelRadius: 15, bubbleRadius: 10, inset: 8 };
+}
+
+function ThemePreview({
+  theme,
+  colors
+}: {
+  theme: AppearanceTheme;
+  colors: MobileThemePalette;
+}) {
+  const geometry = previewGeometry(theme);
+  const category = theme.category.toUpperCase();
+  const background = visibleColor(theme.palette.background, colors.background);
+  const surface = visibleColor(theme.palette.surface, colors.surface);
+  const raised = visibleColor(theme.palette.surfaceRaised, colors.surfaceRaised);
+  const accent = theme.palette.accent;
+  const secondary = theme.palette.secondary;
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        styles.preview,
+        {
+          backgroundColor: background,
+          borderColor: theme.palette.border === 'adaptive' ? colors.border : theme.palette.border,
+          borderRadius: geometry.panelRadius,
+          padding: geometry.inset
+        }
+      ]}
+    >
+      <View style={styles.previewTopBar}>
+        <View style={[styles.previewAvatar, { backgroundColor: accent }]} />
+        <View style={[styles.previewTitleLine, { backgroundColor: visibleColor(theme.palette.muted, colors.muted) }]} />
+        <View style={[styles.previewTinyDot, { backgroundColor: secondary }]} />
+      </View>
+
+      <View style={styles.previewScene}>
+        {(category === 'UNIVERSE' || category === 'WEATHER' || category === 'ARTISTIC') ? (
+          <>
+            <View style={[styles.previewDecorOne, { backgroundColor: secondary }]} />
+            <View style={[styles.previewDecorTwo, { backgroundColor: accent }]} />
+          </>
+        ) : null}
+        {(category === 'FUTURISTIC' || category === 'GAMING') ? (
+          <>
+            <View style={[styles.previewGridLine, styles.previewGridLineOne, { backgroundColor: accent }]} />
+            <View style={[styles.previewGridLine, styles.previewGridLineTwo, { backgroundColor: secondary }]} />
+          </>
+        ) : null}
+
+        <View
+          style={[
+            styles.previewBubbleMini,
+            styles.previewBubbleMiniIncoming,
+            {
+              backgroundColor: surface,
+              borderRadius: geometry.bubbleRadius
+            }
+          ]}
+        />
+        <View
+          style={[
+            styles.previewBubbleMini,
+            styles.previewBubbleMiniOutgoing,
+            {
+              backgroundColor: accent,
+              borderRadius: geometry.bubbleRadius
+            }
+          ]}
+        />
+        <View
+          style={[
+            styles.previewComposer,
+            {
+              backgroundColor: raised,
+              borderRadius: Math.max(7, geometry.bubbleRadius)
+            }
+          ]}
+        >
+          <View style={[styles.previewComposerLine, { backgroundColor: visibleColor(theme.palette.muted, colors.muted) }]} />
+          <View style={[styles.previewSend, { backgroundColor: accent }]} />
+        </View>
+      </View>
+    </View>
+  );
 }
 
 function ChoiceChip({
@@ -105,40 +205,31 @@ function ThemeButton({
         }
       ]}
     >
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[
-          styles.preview,
-          {
-            backgroundColor: visibleColor(theme.palette.background, colors.background),
-            borderColor: theme.palette.accent
-          }
-        ]}
-      >
-        <View style={[styles.previewAccent, { backgroundColor: theme.palette.accent }]} />
-        <View
-          style={[
-            styles.previewSurface,
-            { backgroundColor: visibleColor(theme.palette.surface, colors.surface) }
-          ]}
-        />
-        <View style={[styles.previewDot, { backgroundColor: theme.palette.secondary }]} />
-      </View>
+      <ThemePreview theme={theme} colors={colors} />
       <View style={styles.themeCopy}>
-        <Text style={[styles.themeMeta, { color: colors.accent }]}> 
-          #{theme.order} · {theme.tier} · {CATEGORY_LABELS[theme.category] ?? theme.category}
-        </Text>
+        <View style={styles.themeMetaRow}>
+          <Text style={[styles.themeMeta, { color: colors.accent }]}>
+            {CATEGORY_LABELS[theme.category] ?? theme.category}
+          </Text>
+          {theme.tier === 'PREMIUM' ? (
+            <View style={[styles.premiumPill, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name="spark" size={12} color={colors.secondary} />
+              <Text style={[styles.premiumPillText, { color: colors.secondary }]}>Premium</Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={[styles.themeName, { color: colors.text }]}>{theme.name}</Text>
         <Text style={[styles.themeDescription, { color: colors.muted }]} numberOfLines={2}>
           {theme.description}
         </Text>
-        <Text style={[styles.themeStatus, { color: colors.accent }]} numberOfLines={1}>
+        <Text style={[styles.themeStatus, { color: selected ? colors.accent : colors.muted }]} numberOfLines={1}>
           {theme.locked
-            ? 'Premium ou possession requise'
+            ? 'À débloquer'
             : selected
-              ? 'Sélectionné'
-              : `${theme.iconPackKey} · ${theme.effects.length} effet(s)`}
+              ? 'Actif sur KnowMe'
+              : theme.effects.length > 0
+                ? 'Fond, bulles et effets adaptés'
+                : 'Interface et bulles adaptées'}
         </Text>
       </View>
     </Pressable>
@@ -225,19 +316,11 @@ export function AppearanceExperience() {
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
       <View>
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>IDENTITÉ VISUELLE KNOWME</Text>
-        <Text style={[styles.heading, { color: colors.text }]}>Ton univers personnel</Text>
-        <Text style={[styles.description, { color: colors.muted }]}> 
-          100 thèmes synchronisés transforment couleurs, icônes, bulles, cartes, transitions,
-          effets et sons optionnels sans changer l’ergonomie ni les avantages du compte.
+        <Text style={[styles.eyebrow, { color: colors.accent }]}>APPARENCE</Text>
+        <Text style={[styles.heading, { color: colors.text }]}>Fais de KnowMe ton espace</Text>
+        <Text style={[styles.description, { color: colors.muted }]}>
+          Chaque famille peut modifier la géométrie, le verre, les bulles, le fond du chat et les effets — pas seulement la palette.
         </Text>
-        <View style={styles.summaryRow}>
-          {['40 gratuits', '60 Premium', '25 packs', '10 saisons'].map((label) => (
-            <View key={label} style={[styles.summaryBadge, { backgroundColor: colors.surfaceRaised }]}>
-              <Text style={[styles.summaryText, { color: colors.text }]}>{label}</Text>
-            </View>
-          ))}
-        </View>
       </View>
 
       {preference.fallbackReason ? (
@@ -343,9 +426,14 @@ export function AppearanceExperience() {
         ))}
       </View>
 
-      <Text style={[styles.resultCount, { color: colors.muted }]}>
-        {filteredThemes.length} thème(s) · {renderedThemes.length} affiché(s)
-      </Text>
+      <View style={styles.resultRow}>
+        <Text style={[styles.resultCount, { color: colors.muted }]}>
+          {filteredThemes.length} thème(s)
+        </Text>
+        <Text style={[styles.resultHint, { color: colors.muted }]}>
+          Appuie sur un thème pour l’appliquer
+        </Text>
+      </View>
 
       <View style={styles.themeGrid}>
         {renderedThemes.map((theme) => (
@@ -614,38 +702,53 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600'
   },
-  card: { borderWidth: 1, borderRadius: 24, padding: 18, gap: 16 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 14 },
   loadingText: { textAlign: 'center' },
-  eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  heading: { fontSize: 22, fontWeight: '900', marginTop: 5 },
-  description: { fontSize: 14, lineHeight: 20, marginTop: 7 },
-  summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
-  summaryBadge: { borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5 },
-  summaryText: { fontSize: 11, fontWeight: '800' },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  heading: { fontSize: 20, fontWeight: '800', marginTop: 4 },
+  description: { fontSize: 13, lineHeight: 19, marginTop: 6 },
   notice: { borderWidth: 1, borderRadius: 14, padding: 12 },
   noticeText: { fontSize: 13, lineHeight: 19 },
-  search: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  search: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 9 },
-  chipText: { fontSize: 12, fontWeight: '800' },
-  resultCount: { fontSize: 12, fontWeight: '700' },
+  chip: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8 },
+  chipText: { fontSize: 11.5, fontWeight: '700' },
+  resultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  resultCount: { fontSize: 11.5, fontWeight: '700' },
+  resultHint: { fontSize: 10.5, flexShrink: 1, textAlign: 'right' },
   themeGrid: { gap: 10 },
-  themeButton: { borderWidth: 1, borderRadius: 17, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  preview: { width: 70, height: 64, borderWidth: 1, borderRadius: 13, padding: 8, gap: 7 },
-  previewAccent: { width: '75%', height: 8, borderRadius: 99 },
-  previewSurface: { width: '52%', height: 7, borderRadius: 99 },
-  previewDot: { width: 10, height: 10, borderRadius: 99, alignSelf: 'flex-end' },
+  themeButton: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 10, flexDirection: 'row', gap: 11, alignItems: 'center' },
+  preview: { width: 82, height: 96, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  previewTopBar: { height: 15, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  previewAvatar: { width: 10, height: 10, borderRadius: 5 },
+  previewTitleLine: { width: 26, height: 4, borderRadius: 2, opacity: 0.55 },
+  previewTinyDot: { width: 5, height: 5, borderRadius: 3, marginLeft: 'auto' },
+  previewScene: { flex: 1, position: 'relative', justifyContent: 'flex-end', gap: 4 },
+  previewBubbleMini: { height: 13, width: '63%' },
+  previewBubbleMiniIncoming: { alignSelf: 'flex-start' },
+  previewBubbleMiniOutgoing: { alignSelf: 'flex-end' },
+  previewComposer: { height: 16, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 5, gap: 4 },
+  previewComposerLine: { height: 3, borderRadius: 2, flex: 1, opacity: 0.45 },
+  previewSend: { width: 8, height: 8, borderRadius: 4 },
+  previewDecorOne: { position: 'absolute', width: 22, height: 22, borderRadius: 11, right: -7, top: 2, opacity: 0.11 },
+  previewDecorTwo: { position: 'absolute', width: 13, height: 13, borderRadius: 7, left: 4, top: 11, opacity: 0.1 },
+  previewGridLine: { position: 'absolute', height: StyleSheet.hairlineWidth, opacity: 0.18, transform: [{ rotate: '-18deg' }] },
+  previewGridLineOne: { width: 56, top: 17, left: 5 },
+  previewGridLineTwo: { width: 42, top: 28, right: 0 },
   themeCopy: { flex: 1, gap: 3 },
-  themeMeta: { fontSize: 10, fontWeight: '900' },
-  themeName: { fontSize: 15, fontWeight: '900' },
-  themeDescription: { fontSize: 12, lineHeight: 17 },
-  themeStatus: { fontSize: 11, fontWeight: '800' },
+  themeMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  themeMeta: { fontSize: 9.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  premiumPill: { minHeight: 20, borderRadius: 10, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  premiumPillText: { fontSize: 9, fontWeight: '800' },
+  themeName: { fontSize: 14.5, fontWeight: '800' },
+  themeDescription: { fontSize: 11.5, lineHeight: 16 },
+  themeStatus: { fontSize: 10.5, fontWeight: '700' },
   secondaryButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: 'center' },
   secondaryButtonText: { fontSize: 13, fontWeight: '900' },
-  section: { borderTopWidth: 1, paddingTop: 16, gap: 12 },
+  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, gap: 11 },
   sectionTitle: { fontSize: 17, fontWeight: '900' },
   sectionDescription: { fontSize: 12, lineHeight: 17 },
-  optionRow: { borderTopWidth: 1, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  optionRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, flexDirection: 'row', alignItems: 'center', gap: 13 },
   optionCopy: { flex: 1 },
   optionTitle: { fontSize: 14, fontWeight: '800' },
   optionDescription: { fontSize: 12, lineHeight: 17, marginTop: 3 },
