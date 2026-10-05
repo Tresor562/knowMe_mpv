@@ -155,7 +155,11 @@ function EntryContent() {
   }
 
   if (mode === 'account') {
-    return <App />;
+    return (
+      <App
+        onExitAuth={() => setMode((current) => selectMobileEntry(current, 'choice'))}
+      />
+    );
   }
 
   if (mode === 'guest') {
