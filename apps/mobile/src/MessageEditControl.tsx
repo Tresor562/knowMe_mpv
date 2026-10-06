@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -45,14 +44,18 @@ export function MessageEditControl({
   useEffect(() => {
     let active = true;
     let connectedSocket: Awaited<ReturnType<typeof getRealtimeSocket>> = null;
+
     const onMessageUpdated = (message: EditedMessage) => {
       if (message.id !== messageId || message.conversationId !== conversationId) return;
+
       setEditedAt(message.editedAt);
       setBaseContent(message.content);
       setContent((current) => {
         if (current !== baseContent && current !== message.content) {
           setConflict(true);
-          setError('Ce message a été modifié ailleurs pendant ta saisie. Garde ton texte ou reprends la version serveur.');
+          setError(
+            'Ce message a été modifié ailleurs pendant ta saisie. Garde ton texte ou reprends la version serveur.'
+          );
           return current;
         }
         setConflict(false);
@@ -68,12 +71,68 @@ export function MessageEditControl({
       socket.on('message:updated', onMessageUpdated);
     });
 
-    return (
-    <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.card}>
+    return () => {
+      active = false;
+      connectedSocket?.off('message:updated', onMessageUpdated);
+    };
+  }, [baseContent, conversationId, messageId, onUpdated]);
+
+  async function save() {
+    const normalized = content.trim();
+    if (!normalized || normalized.length > 4000 || busy || conflict) return;
+
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await apiFetch<EditedMessage>(
+        `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            content: normalized,
+            expectedEditedAt: editedAt
+          })
+        }
+      );
+      setContent(updated.content);
+      setBaseContent(updated.content);
+      setEditedAt(updated.editedAt);
+      setConflict(false);
+      onUpdated?.(updated);
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : 'Modification impossible.';
+      if (message.includes('MESSAGE_EDIT_VERSION_CONFLICT')) {
+        setConflict(true);
+        setError(
+          'Ce message a déjà été modifié ailleurs. Reprends la version serveur avant de réessayer.'
+        );
+      } else {
+        setError(message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function resetToServer() {
+    setContent(baseContent);
+    setConflict(false);
+    setError('');
+  }
+
+  return (
+    <GlassSurface
+      strength="medium"
+      borderRadius={visual.cardRadius}
+      style={styles.card}
+    >
       <View style={styles.header}>
         <View style={[styles.editMarker, { backgroundColor: colors.accent }]} />
         <View style={styles.headerCopy}>
-          <Text style={[styles.title, { color: colors.text }]}>Modification du message</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Modification du message
+          </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
             Le brouillon actuel reste disponible si tu annules.
           </Text>
@@ -121,13 +180,18 @@ export function MessageEditControl({
 
       <View style={styles.metaRow}>
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={[styles.error, { color: colors.danger }]}>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.error, { color: colors.danger }]}
+          >
             {error}
           </Text>
         ) : (
           <View style={styles.metaSpacer} />
         )}
-        <Text style={[styles.counter, { color: colors.muted }]}>{content.length}/4000</Text>
+        <Text style={[styles.counter, { color: colors.muted }]}>
+          {content.length}/4000
+        </Text>
       </View>
 
       <View style={styles.actions}>
@@ -139,11 +203,16 @@ export function MessageEditControl({
             onPress={resetToServer}
             style={[
               styles.secondary,
-              { borderColor: colors.border, borderRadius: visual.controlRadius },
+              {
+                borderColor: colors.border,
+                borderRadius: visual.controlRadius
+              },
               busy && styles.disabled
             ]}
           >
-            <Text style={[styles.secondaryText, { color: colors.text }]}>Version serveur</Text>
+            <Text style={[styles.secondaryText, { color: colors.text }]}>
+              Version serveur
+            </Text>
           </PressScale>
         ) : null}
 
@@ -154,7 +223,10 @@ export function MessageEditControl({
           onPress={() => void save()}
           style={[
             styles.primary,
-            { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
+            {
+              backgroundColor: colors.accent,
+              borderRadius: visual.controlRadius
+            },
             (busy || conflict || !content.trim()) && styles.disabled
           ]}
         >
