@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 import {
   EMPTY_GAME_LIBRARY,
   filterGameCenterCatalog,
@@ -13,6 +14,16 @@ import {
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+function gameStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Partie en cours',
+    WAITING: 'En attente',
+    COMPLETED: 'Terminée',
+    ABANDONED: 'Abandonnée'
+  };
+  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
 }
 
 export function MobileGameCenterExperience() {
@@ -64,34 +75,39 @@ export function MobileGameCenterExperience() {
   }
 
   return (
-    <View
-      style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
-      accessibilityLabel="Game Center KnowMe"
+    <GlassSurface
+      strength="soft"
+      borderRadius={visual.cardRadius}
+      style={styles.section}
     >
       <View style={styles.header}>
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>PLAY · GAME CENTER</Text>
-        <Text style={[styles.title, { color: colors.text }]}>Joue à ta façon</Text>
-        <Text style={[styles.description, { color: colors.muted }]}> 
-          Retrouve tes jeux, tes favoris, les parties à reprendre et tes invitations sans pression sociale.
-        </Text>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="challenge" size={21} color={colors.accent} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.title, { color: colors.text }]}>PLAY</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Retrouve tes jeux, tes favoris et les parties à reprendre.
+          </Text>
+        </View>
       </View>
 
       {status ? <Text accessibilityRole="alert" style={[styles.status, { color: colors.danger }]}>{status}</Text> : null}
 
       {library.continuePlaying.length ? (
-        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
+        <GlassSurface strength="soft" borderRadius={visual.controlRadius} style={styles.panel}>
           <Text style={[styles.panelTitle, { color: colors.text }]}>Continuer</Text>
           {library.continuePlaying.map((item) => (
             <View key={item.sessionId} style={styles.libraryRow}>
               <Text style={[styles.gameName, { color: colors.text }]}>{item.game.name}</Text>
-              <Text style={[styles.meta, { color: colors.muted }]}>{item.yourTurn ? 'À toi de jouer' : item.status}</Text>
+              <Text style={[styles.meta, { color: colors.muted }]}>{item.yourTurn ? 'À toi de jouer' : gameStatusLabel(item.status)}</Text>
             </View>
           ))}
-        </View>
+        </GlassSurface>
       ) : null}
 
       {library.invitations.length ? (
-        <View style={[styles.panel, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
+        <GlassSurface strength="soft" borderRadius={visual.controlRadius} style={styles.panel}>
           <Text style={[styles.panelTitle, { color: colors.text }]}>Invitations</Text>
           {library.invitations.map((item) => (
             <View key={item.sessionId} style={styles.libraryRow}>
@@ -99,18 +115,21 @@ export function MobileGameCenterExperience() {
               <Text style={[styles.meta, { color: colors.muted }]}>Invitation en attente</Text>
             </View>
           ))}
-        </View>
+        </GlassSurface>
       ) : null}
 
-      <TextInput
+      <View style={[styles.searchWrap, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
+        <KnowMeIcon name="search" size={18} color={colors.muted} />
+        <TextInput
         accessibilityLabel="Rechercher un jeu"
         placeholder="Rechercher un jeu"
         placeholderTextColor={colors.muted}
         value={query}
         onChangeText={setQuery}
         autoCapitalize="none"
-        style={[styles.input, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, color: colors.text, borderRadius: visual.inputRadius }]}
+        style={[styles.input, { color: colors.text }]}
       />
+      </View>
 
       <View style={styles.categories} accessibilityLabel="Catégories de jeux">
         <Pressable
@@ -144,56 +163,83 @@ export function MobileGameCenterExperience() {
 
       <View style={styles.catalog} accessibilityLabel="Catalogue de jeux">
         {visibleGames.map((game) => (
-          <View key={`${game.key}:${game.version}`} style={[styles.gameCard, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
+          <View key={`${game.key}:${game.version}`} style={[styles.gameCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
             <View style={styles.gameHeader}>
               <Text style={[styles.gameName, { color: colors.text }]}>{game.name}</Text>
               <Text style={[styles.meta, { color: colors.muted }]}>{game.estimatedMinutes} min · {game.modes.join(' / ')}</Text>
             </View>
             <Text style={[styles.description, { color: colors.muted }]}>{game.description}</Text>
-            <Text style={[styles.tags, { color: colors.muted }]}>{game.categories.map((item) => `#${item}`).join('  ')}</Text>
-            <Pressable
+            <Text style={[styles.tags, { color: colors.muted }]}>{game.categories.join(' · ')}</Text>
+            <PressScale
               accessibilityRole="button"
               disabled={busyKey === game.key}
               onPress={() => void toggleFavorite(game)}
-              style={({ pressed }) => [
+              style={[
                 styles.favoriteButton,
-                { borderColor: colors.accent },
-                (pressed || busyKey === game.key) && styles.muted
+                {
+                  backgroundColor: colors.backgroundAccent,
+                  borderColor: favoriteKeys.has(game.key) ? colors.accent : colors.border
+                },
+                busyKey === game.key && styles.muted
               ]}
             >
-              <Text style={[styles.favoriteText, { color: colors.accent }]}>
-                {favoriteKeys.has(game.key) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              <KnowMeIcon
+                name="heart"
+                size={17}
+                color={favoriteKeys.has(game.key) ? colors.accent : colors.muted}
+              />
+              <Text style={[styles.favoriteText, { color: favoriteKeys.has(game.key) ? colors.accent : colors.muted }]}>
+                {favoriteKeys.has(game.key) ? 'Favori' : 'Ajouter'}
               </Text>
-            </Pressable>
+            </PressScale>
           </View>
         ))}
         {!visibleGames.length ? <Text style={[styles.description, { color: colors.muted }]}>Aucun jeu ne correspond à ces filtres.</Text> : null}
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: 12, borderWidth: 1, borderRadius: 24, padding: 18 },
-  header: { gap: 5 },
-  eyebrow: { fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 24, fontWeight: '800' },
-  description: { lineHeight: 20 },
-  status: { fontWeight: '700' },
-  panel: { borderWidth: 1, borderRadius: 14, padding: 12, gap: 8 },
-  panelTitle: { fontSize: 18, fontWeight: '800' },
+  section: { gap: 11, padding: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1 },
+  title: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  status: { fontSize: 11.5, lineHeight: 17, fontWeight: '700' },
+  panel: { padding: 11, gap: 7 },
+  panelTitle: { fontSize: 14.5, fontWeight: '800' },
   libraryRow: { gap: 2, paddingVertical: 4 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  chipText: { fontWeight: '700' },
-  catalog: { gap: 10 },
-  gameCard: { borderWidth: 1, borderRadius: 14, padding: 12, gap: 8 },
+  searchWrap: {
+    minHeight: 46,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  input: { flex: 1, minHeight: 44, paddingVertical: 9 },
+  categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  chip: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  chipText: { fontSize: 11, fontWeight: '700' },
+  catalog: { gap: 9 },
+  gameCard: { borderWidth: StyleSheet.hairlineWidth, padding: 11, gap: 7 },
   gameHeader: { gap: 2 },
-  gameName: { fontSize: 17, fontWeight: '800' },
-  meta: { fontSize: 12 },
-  tags: { fontSize: 12 },
-  favoriteButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8 },
-  favoriteText: { fontWeight: '700' },
+  gameName: { fontSize: 14.5, fontWeight: '800' },
+  meta: { fontSize: 10.5 },
+  tags: { fontSize: 10.5 },
+  favoriteButton: {
+    alignSelf: 'flex-start',
+    minHeight: 34,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 17,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5
+  },
+  favoriteText: { fontSize: 10.5, fontWeight: '700' },
   muted: { opacity: 0.5 }
 });

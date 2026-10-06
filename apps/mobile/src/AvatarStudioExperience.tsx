@@ -19,9 +19,21 @@ import {
   MobileAvatarStudioState
 } from './avatar-studio';
 import { useAppearance } from './AppearanceProvider';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+function rarityLabel(value: string) {
+  const labels: Record<string, string> = {
+    COMMON: 'Commun',
+    UNCOMMON: 'Peu commun',
+    RARE: 'Rare',
+    EPIC: 'Épique',
+    LEGENDARY: 'Légendaire'
+  };
+  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
 }
 
 function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
@@ -113,26 +125,29 @@ export function AvatarStudioExperience() {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.headerRow}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="profile" size={21} color={colors.secondary} />
+        </View>
         <View style={styles.headerText}>
-          <Text style={[styles.title, { color: colors.text }]}>Studio d’avatar</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Avatar Studio</Text>
           <Text style={[styles.description, { color: colors.muted }]}>
-            Assemble uniquement les couches présentes dans ton inventaire KnowMe. Le serveur valide
-            chaque équipement et résout l’ordre de rendu.
+            Compose ton avatar avec les éléments de ton inventaire.
           </Text>
         </View>
-        <Pressable
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Actualiser"
           disabled={refreshing}
           onPress={() => void load(true)}
-          style={({ pressed }) => [
+          style={[
             styles.refresh,
-            { borderColor: colors.border, backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius },
-            (pressed || refreshing) && styles.mutedButton
+            { borderColor: colors.border, backgroundColor: colors.backgroundAccent }
           ]}
         >
-          <Text style={[styles.refreshText, { color: colors.accent }]}>{refreshing ? '…' : '↻'}</Text>
-        </Pressable>
+          <KnowMeIcon name="refresh" size={18} color={refreshing ? colors.muted : colors.accent} />
+        </PressScale>
       </View>
 
       {status ? <Text style={[styles.status, { color: colors.accent }]}>{status}</Text> : null}
@@ -140,7 +155,7 @@ export function AvatarStudioExperience() {
       {loading || !studio ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={[styles.muted, { color: colors.muted }]}>Chargement du rendu autoritaire…</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>Chargement du studio…</Text>
         </View>
       ) : (
         <>
@@ -152,23 +167,27 @@ export function AvatarStudioExperience() {
             const items = inventoryBySlot.get(slot) ?? [];
             const equipped = studio.equipment.find((entry) => entry.slot === slot)?.item ?? null;
             return (
-              <View key={slot} style={[styles.layerSection, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
+              <View key={slot} style={[styles.layerSection, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
                 <View style={styles.layerHeader}>
                   <View style={styles.layerTitleBox}>
                     <Text style={[styles.layerTitle, { color: colors.text }]}>{MOBILE_AVATAR_LAYER_LABELS[slot]}</Text>
-                    <Text style={[styles.muted, { color: colors.muted }]}>{slot}</Text>
+                    <Text style={[styles.muted, { color: colors.muted }]}>
+                      {equipped ? `${equipped.name} équipé` : `${items.length} option(s)`}
+                    </Text>
                   </View>
-                  <Pressable
+                  <PressScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Retirer ${MOBILE_AVATAR_LAYER_LABELS[slot]}`}
                     disabled={!equipped || busySlot !== null}
                     onPress={() => void equip(slot, null)}
-                    style={({ pressed }) => [
+                    style={[
                       styles.removeButton,
-                      { borderColor: colors.danger, borderRadius: visual.controlRadius },
-                      (pressed || !equipped || busySlot !== null) && styles.mutedButton
+                      { borderColor: colors.border, backgroundColor: colors.backgroundAccent },
+                      (!equipped || busySlot !== null) && styles.mutedButton
                     ]}
                   >
-                    <Text style={[styles.removeButtonText, { color: colors.danger }]}>Retirer</Text>
-                  </Pressable>
+                    <KnowMeIcon name="close" size={15} color={equipped ? colors.danger : colors.muted} />
+                  </PressScale>
                 </View>
 
                 {items.length === 0 ? (
@@ -189,7 +208,7 @@ export function AvatarStudioExperience() {
                           style={({ pressed }) => [
                             styles.itemCard,
                             {
-                              backgroundColor: colors.surface,
+                              backgroundColor: selected ? colors.backgroundAccent : colors.surfaceGlass,
                               borderColor: selected ? colors.accent : colors.border,
                               borderRadius: visual.controlRadius
                             },
@@ -205,7 +224,7 @@ export function AvatarStudioExperience() {
                             {entry.item.name}
                           </Text>
                           <Text style={[styles.itemRarity, { color: selected ? colors.accent : colors.muted }]}>
-                            {selected ? 'Équipé' : entry.item.rarity}
+                            {selected ? 'Équipé' : rarityLabel(entry.item.rarity)}
                           </Text>
                         </Pressable>
                       );
@@ -217,78 +236,74 @@ export function AvatarStudioExperience() {
           })}
 
           <Text style={[styles.policy, { color: colors.muted }]}>
-            Aucun upload arbitraire · aucune couche non possédée · aucun effet de jeu · visibilité
-            publique régie par les paramètres cosmétiques.
+            Seuls les éléments de ton inventaire peuvent être équipés. La visibilité de ton avatar suit tes réglages de confidentialité.
           </Text>
         </>
       )}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-        borderWidth: 1,
-        padding: 18,
-    gap: 14
-  },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  headerText: { flex: 1, gap: 8 },
-  title: { fontSize: 19, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 21 },
+  card: { padding: 14, gap: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerText: { flex: 1, gap: 3 },
+  title: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
   refresh: {
-    width: 42,
-    height: 42,
-        borderWidth: 1,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  refreshText: { fontSize: 22, fontWeight: '900' },
   mutedButton: { opacity: 0.45 },
-  status: { fontSize: 13, lineHeight: 19 },
+  status: { fontSize: 11.5, lineHeight: 17 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  muted: { fontSize: 12 },
+  muted: { fontSize: 10.5, lineHeight: 15 },
   preview: {
     width: '100%',
     aspectRatio: 1,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   legacyAvatar: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', gap: 6 },
-  fallbackInitials: { fontSize: 72, fontWeight: '900' },
-  fallbackToken: { fontSize: 11 },
+  fallbackInitials: { fontSize: 64, fontWeight: '800' },
+  fallbackToken: { fontSize: 10 },
   layer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
-  profileName: { fontWeight: '900', fontSize: 18 },
-  handle: { fontWeight: '800' },
+  profileName: { fontWeight: '800', fontSize: 16 },
+  handle: { fontSize: 11.5, fontWeight: '700' },
   layerSection: {
-        borderWidth: 1,
-        padding: 13,
-    gap: 12
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 10,
+    gap: 9
   },
-  layerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  layerTitleBox: { flex: 1, gap: 3 },
-  layerTitle: { fontWeight: '900' },
+  layerHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  layerTitleBox: { flex: 1, gap: 2 },
+  layerTitle: { fontSize: 13, fontWeight: '800' },
   removeButton: {
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  removeButtonText: { fontWeight: '900', fontSize: 11 },
-  itemStrip: { gap: 10 },
+  itemStrip: { gap: 8 },
   itemCard: {
-    width: 116,
-        borderWidth: 1,
-        padding: 10,
-    gap: 6
+    width: 104,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 8,
+    gap: 5
   },
-  itemSelected: {},
   itemImage: { width: '100%', aspectRatio: 1, borderRadius: 12 },
-  itemName: { fontWeight: '800', fontSize: 12 },
-  itemRarity: { fontSize: 10 },
-  selectedText: {},
-  policy: { fontSize: 11, lineHeight: 17 }
+  itemName: { fontWeight: '700', fontSize: 11 },
+  itemRarity: { fontSize: 9.5 },
+  policy: { fontSize: 10.5, lineHeight: 15 }
 });
