@@ -532,7 +532,7 @@ export function PressScale({
   accessibilityRole?: PressableProps['accessibilityRole'];
   accessibilityLabel?: string;
 }) {
-  const { appearance } = useAppearance();
+  const { appearance, visual } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
   const motion = appearance?.preference.animationsEnabled !== false;
 
@@ -550,10 +550,17 @@ export function PressScale({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       disabled={disabled}
+      hitSlop={Platform.OS === 'ios' ? 4 : 2}
       onPress={onPress}
       onPressIn={() => to(0.97)}
       onPressOut={() => to(1)}
+      style={({ pressed }) => ({
+        minWidth: visual.touchTarget,
+        minHeight: visual.touchTarget,
+        opacity: pressed && !disabled ? 0.84 : 1
+      })}
     >
       <Animated.View
         style={[
@@ -823,7 +830,7 @@ export function GlassSurface({
     90,
     (strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48) + visual.glassBoost
   );
-  const shadowOpacity = strength === 'soft' ? 0.045 : strength === 'strong' ? 0.11 : 0.075;
+  const shadowOpacity = strength === 'soft' ? 0.028 : strength === 'strong' ? 0.085 : 0.052;
   const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
   const glassTint =
     colors.statusBar === 'dark'
@@ -846,9 +853,15 @@ export function GlassSurface({
           borderRadius,
           shadowColor: '#000000',
           shadowOpacity,
-          shadowRadius: strength === 'strong' ? 22 : 16,
-          shadowOffset: { width: 0, height: strength === 'strong' ? 10 : 7 },
-          elevation: Math.max(strength === 'strong' ? 10 : 6, visual.elevation)
+          shadowRadius: strength === 'strong' ? 18 : strength === 'medium' ? 12 : 8,
+          shadowOffset: {
+            width: 0,
+            height: strength === 'strong' ? 8 : strength === 'medium' ? 5 : 3
+          },
+          elevation: Math.max(
+            strength === 'strong' ? 7 : strength === 'medium' ? 4 : 2,
+            visual.elevation
+          )
         },
         style
       ]}
