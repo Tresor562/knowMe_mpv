@@ -83,6 +83,27 @@ function formatMessageTime(value: string) {
   });
 }
 
+function dateKey(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatDateSeparator(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (dateKey(value) === dateKey(today.toISOString())) return 'Aujourd’hui';
+  if (dateKey(value) === dateKey(yesterday.toISOString())) return 'Hier';
+
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric'
+  });
+}
+
 function normalizeConversation(
   conversation: Partial<Conversation> & Pick<Conversation, 'id' | 'members'>
 ): Conversation {
@@ -117,6 +138,8 @@ export function RealtimeMessagesPanel({
 }) {
   const { colors, visual, chat } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
+  const listRef = useRef<FlatList<ConversationMessage> | null>(null);
+  const atBottomRef = useRef(true);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingActive = useRef(false);
@@ -136,6 +159,8 @@ export function RealtimeMessagesPanel({
   const [draft, setDraft] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [editingMessage, setEditingMessage] = useState<ConversationMessage | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [pendingNewCount, setPendingNewCount] = useState(0);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
   const [creatingNexus, setCreatingNexus] = useState(false);
@@ -235,6 +260,12 @@ export function RealtimeMessagesPanel({
 
       if (activeRef.current?.id === created.conversationId) {
         setHistory((current) => mergeMessages(current, [created]));
+        if (!atBottomRef.current && created.senderId !== userId) {
+          setPendingNewCount((current) => current + 1);
+          setShowJumpToBottom(true);
+        } else if (atBottomRef.current) {
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 0);
+        }
         if (created.senderId !== userId) {
           void markRead(created.conversationId).catch(() => undefined);
         }
@@ -370,6 +401,9 @@ export function RealtimeMessagesPanel({
       setTypingUsers({});
       setSelectedMessageId(null);
       setEditingMessage(null);
+      setPendingNewCount(0);
+      setShowJumpToBottom(false);
+      atBottomRef.current = true;
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -546,6 +580,10 @@ export function RealtimeMessagesPanel({
           : state
       ));
       setDraft('');
+      setPendingNewCount(0);
+      setShowJumpToBottom(false);
+      atBottomRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 0);
       if (isNexusPrivate || NEXUS_MENTION.test(content)) {
         await invokeNexus(active, created);
       }
@@ -569,6 +607,9 @@ export function RealtimeMessagesPanel({
     setTypingUsers({});
     setSelectedMessageId(null);
     setEditingMessage(null);
+    setPendingNewCount(0);
+    setShowJumpToBottom(false);
+    atBottomRef.current = true;
     setNextCursor(null);
     setNexusPending(false);
     void load();
@@ -627,9 +668,20 @@ export function RealtimeMessagesPanel({
         </GlassSurface>
 
         <FlatList
+          ref={listRef}
           data={history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
+          onScroll={({ nativeEvent }) => {
+            const distanceFromBottom =
+              nativeEvent.contentSize.height -
+              (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
+            const atBottom = distanceFromBottom < 72;
+            atBottomRef.current = atBottom;
+            setShowJumpToBottom(!atBottom);
+            if (atBottom) setPendingNewCount(0);
+          }}
+          scrollEventThrottle={80}
           ListHeaderComponent={nextCursor ? (
             <SecondaryButton
               title={loadingOlder ? 'Chargement…' : 'Messages précédents'}
@@ -642,6 +694,7 @@ export function RealtimeMessagesPanel({
             const nexus = item.nexusAuthored === true;
             const selected = selectedMessageId === item.id;
             const previous = history[index - 1];
+            const startsNewDay = !previous || dateKey(previous.createdAt) !== dateKey(item.createdAt);
             const next = history[index + 1];
             const groupedWithPrevious =
               previous?.senderId === item.senderId &&
@@ -668,6 +721,19 @@ export function RealtimeMessagesPanel({
 
             return (
               <View style={styles.messageBlock}>
+                {startsNewDay ? (
+                  <View style={styles.dateSeparatorWrap}>
+                    <GlassSurface
+                      strength="soft"
+                      borderRadius={999}
+                      style={styles.dateSeparator}
+                    >
+                      <Text style={[styles.dateSeparatorText, { color: colors.muted }]}>
+                        {formatDateSeparator(item.createdAt)}
+                      </Text>
+                    </GlassSurface>
+                  </View>
+                ) : null}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Message de ${mine ? 'toi' : item.sender?.displayName ?? 'utilisateur'}`}
@@ -801,6 +867,40 @@ export function RealtimeMessagesPanel({
             </Text>
           ) : null}
         />
+
+        {showJumpToBottom ? (
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              pendingNewCount > 0
+                ? `Revenir en bas, ${pendingNewCount} nouveau${pendingNewCount > 1 ? 'x' : ''} message${pendingNewCount > 1 ? 's' : ''}`
+                : 'Revenir en bas'
+            }
+            onPress={() => {
+              listRef.current?.scrollToEnd({ animated: true });
+              atBottomRef.current = true;
+              setShowJumpToBottom(false);
+              setPendingNewCount(0);
+            }}
+            style={[
+              styles.jumpToBottom,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                borderRadius: 999
+              }
+            ]}
+          >
+            <KnowMeIcon name="arrow" size={18} color={colors.accent} />
+            {pendingNewCount > 0 ? (
+              <View style={[styles.jumpBadge, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.jumpBadgeText, { color: colors.accentText }]}>
+                  {pendingNewCount > 99 ? '99+' : pendingNewCount}
+                </Text>
+              </View>
+            ) : null}
+          </PressScale>
+        ) : null}
 
         {editingMessage ? (
           <MessageEditControl
@@ -1306,6 +1406,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   messageBlock: { width: '100%' },
+  dateSeparatorWrap: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 3
+  },
+  dateSeparator: {
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  dateSeparatorText: {
+    fontSize: 11.5,
+    fontWeight: '600'
+  },
   bubble: {
     maxWidth: '84%',
     paddingHorizontal: 11,
@@ -1325,6 +1438,32 @@ const styles = StyleSheet.create({
   bubbleDate: { fontSize: 11 },
   receipt: { fontSize: 11, fontWeight: '600' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
+  jumpToBottom: {
+    position: 'absolute',
+    right: 14,
+    bottom: 76,
+    minWidth: 48,
+    minHeight: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20
+  },
+  jumpBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  jumpBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700'
+  },
   composer: {
     marginHorizontal: 10,
     marginBottom: 8,
