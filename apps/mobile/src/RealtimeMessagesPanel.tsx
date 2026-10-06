@@ -83,8 +83,8 @@ function formatMessageTime(value: string) {
   });
 }
 
-function dateKey(value: string) {
-  const date = new Date(value);
+function dateKey(value: string | Date) {
+  const date = typeof value === 'string' ? new Date(value) : value;
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
@@ -94,8 +94,8 @@ function formatDateSeparator(value: string) {
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
-  if (dateKey(value) === dateKey(today.toISOString())) return 'Aujourd’hui';
-  if (dateKey(value) === dateKey(yesterday.toISOString())) return 'Hier';
+  if (dateKey(value) === dateKey(today)) return 'Aujourd’hui';
+  if (dateKey(value) === dateKey(yesterday)) return 'Hier';
 
   return date.toLocaleDateString(undefined, {
     day: 'numeric',
@@ -161,6 +161,7 @@ export function RealtimeMessagesPanel({
   const [editingMessage, setEditingMessage] = useState<ConversationMessage | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [pendingNewCount, setPendingNewCount] = useState(0);
+  const [unreadMarker, setUnreadMarker] = useState<{ messageId: string; count: number } | null>(null);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
   const [creatingNexus, setCreatingNexus] = useState(false);
@@ -404,6 +405,17 @@ export function RealtimeMessagesPanel({
       setPendingNewCount(0);
       setShowJumpToBottom(false);
       atBottomRef.current = true;
+      if (conversation.unreadCount > 0 && data.items.length > 0) {
+        const firstUnreadIndex = Math.max(0, data.items.length - conversation.unreadCount);
+        const firstUnread = data.items[firstUnreadIndex];
+        setUnreadMarker(
+          firstUnread
+            ? { messageId: firstUnread.id, count: conversation.unreadCount }
+            : null
+        );
+      } else {
+        setUnreadMarker(null);
+      }
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -609,6 +621,7 @@ export function RealtimeMessagesPanel({
     setEditingMessage(null);
     setPendingNewCount(0);
     setShowJumpToBottom(false);
+    setUnreadMarker(null);
     atBottomRef.current = true;
     setNextCursor(null);
     setNexusPending(false);
@@ -721,6 +734,13 @@ export function RealtimeMessagesPanel({
 
             return (
               <View style={styles.messageBlock}>
+                {unreadMarker?.messageId === item.id ? (
+                  <View style={[styles.unreadMarker, { borderColor: colors.accent }]}>
+                    <Text style={[styles.unreadMarkerText, { color: colors.accent }]}>
+                      {unreadMarker.count} nouveau{unreadMarker.count > 1 ? 'x' : ''} message{unreadMarker.count > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                ) : null}
                 {startsNewDay ? (
                   <View style={styles.dateSeparatorWrap}>
                     <GlassSurface
@@ -891,7 +911,9 @@ export function RealtimeMessagesPanel({
               }
             ]}
           >
-            <KnowMeIcon name="arrow" size={18} color={colors.accent} />
+            <View style={styles.downArrow}>
+              <KnowMeIcon name="arrow" size={18} color={colors.accent} />
+            </View>
             {pendingNewCount > 0 ? (
               <View style={[styles.jumpBadge, { backgroundColor: colors.accent }]}>
                 <Text style={[styles.jumpBadgeText, { color: colors.accentText }]}>
@@ -1419,6 +1441,18 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600'
   },
+  unreadMarker: {
+    marginTop: 9,
+    marginBottom: 3,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center'
+  },
+  unreadMarkerText: {
+    marginTop: -9,
+    paddingHorizontal: 8,
+    fontSize: 11.5,
+    fontWeight: '600'
+  },
   bubble: {
     maxWidth: '84%',
     paddingHorizontal: 11,
@@ -1448,6 +1482,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20
+  },
+  downArrow: {
+    transform: [{ rotate: '90deg' }]
   },
   jumpBadge: {
     position: 'absolute',
