@@ -33,7 +33,7 @@ import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
-import { SocialHub } from './src/SocialHub';
+import { SocialHub, type SocialSection } from './src/SocialHub';
 import { StoriesRail } from './src/StoriesRail';
 import {
   Avatar,
@@ -533,6 +533,7 @@ function AuthScreen({
 function HomeScreen({
   user,
   openSocial,
+  openNotifications,
   openDiscover,
   openChallenges,
   openCreate,
@@ -540,6 +541,7 @@ function HomeScreen({
 }: {
   user: MobileUser;
   openSocial: () => void;
+  openNotifications: () => void;
   openDiscover: () => void;
   openChallenges: () => void;
   openCreate: () => void;
@@ -608,7 +610,9 @@ function HomeScreen({
         </View>
         <View style={styles.homeTopActions}>
           <PressScale
-            onPress={openSocial}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={openNotifications}
             style={styles.iconButtonPress}
           >
             <GlassSurface
@@ -746,7 +750,12 @@ function HomeScreen({
 
           <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
 
-          <PressScale onPress={openSocial} style={styles.quickCard}>
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir les notifications"
+            onPress={openNotifications}
+            style={styles.quickCard}
+          >
             <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
               <KnowMeIcon name="bell" size={19} color={colors.secondary} />
             </View>
@@ -1066,7 +1075,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const { ready: i18nReady } = useI18n();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>('social');
+  const [socialSection, setSocialSection] = useState<SocialSection>('messages');
   const [createOpen, setCreateOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -1104,14 +1114,16 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }, [loadSession]);
 
   useEffect(() => {
-    setScreen('home');
+    setSocialSection('messages');
+    setScreen('social');
   }, [user?.id]);
 
   async function resetLocalSession() {
     disconnectRealtimeSocket();
     await clearSession();
     setUser(null);
-    setScreen('home');
+    setSocialSection('messages');
+    setScreen('social');
   }
 
   async function logout() {
@@ -1175,7 +1187,14 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <HomeScreen
             key={'home:' + user.id}
             user={user}
-            openSocial={() => setScreen('social')}
+            openSocial={() => {
+              setSocialSection('messages');
+              setScreen('social');
+            }}
+            openNotifications={() => {
+              setSocialSection('notifications');
+              setScreen('social');
+            }}
             openDiscover={() => setScreen('discover')}
             openChallenges={() => setScreen('challenges')}
             openCreate={() => setCreateOpen(true)}
@@ -1192,8 +1211,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'social' ? (
           <SocialHub
-            key={'social:' + user.id}
+            key={'social:' + user.id + ':' + socialSection}
             userId={user.id}
+            initialSection={socialSection}
           />
         ) : null}
 
@@ -1228,7 +1248,10 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
-          onNavigate={(next) => setScreen(next)}
+          onNavigate={(next) => {
+            if (next === 'social') setSocialSection('messages');
+            setScreen(next);
+          }}
           onCreate={() => setCreateOpen(true)}
         />
       ) : null}
