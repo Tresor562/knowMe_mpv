@@ -6,7 +6,7 @@ import {
   Text,
   View
 } from 'react-native';
-import App from '../App';
+import { AppContent } from '../App';
 import { AccountRecoveryExperience } from './AccountRecoveryExperience';
 import { hasSession, subscribeToSessionPresence } from './api';
 import { AppearanceProvider, useAppearance } from './AppearanceProvider';
@@ -156,7 +156,7 @@ function EntryContent() {
 
   if (mode === 'account') {
     return (
-      <App
+      <AppContent
         onExitAuth={() => setMode((current) => selectMobileEntry(current, 'choice'))}
       />
     );

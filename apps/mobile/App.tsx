@@ -1055,7 +1055,7 @@ function BottomNavigation({
   );
 }
 
-function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
+export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const { colors, refresh: refreshAppearance } = useAppearance();
   const { ready: i18nReady } = useI18n();
   const [loading, setLoading] = useState(true);
