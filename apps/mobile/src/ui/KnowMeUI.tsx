@@ -21,6 +21,7 @@ export type KnowMeIconName =
   | 'discover'
   | 'create'
   | 'messages'
+  | 'call'
   | 'heart'
   | 'profile'
   | 'bell'
@@ -230,6 +231,42 @@ export function KnowMeIcon({
         <Line width={6 * s} height={sw} left={4.2 * s} top={17.6 * s} rotate="-36deg" color={color} />
         <Line width={6.7 * s} height={sw} left={7.3 * s} top={9 * s} color={color} />
         <Line width={4.8 * s} height={sw} left={7.3 * s} top={12.4 * s} color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'call') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={13 * s} height={sw * 1.15} left={5.4 * s} top={11.2 * s} rotate="45deg" color={color} />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 3.2 * s,
+              top: 3.4 * s,
+              width: 7.2 * s,
+              height: 5.4 * s,
+              borderRadius: 2.7 * s,
+              transform: [{ rotate: '45deg' }]
+            },
+            commonBorder
+          ]}
+        />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              right: 3.2 * s,
+              bottom: 3.4 * s,
+              width: 7.2 * s,
+              height: 5.4 * s,
+              borderRadius: 2.7 * s,
+              transform: [{ rotate: '45deg' }]
+            },
+            commonBorder
+          ]}
+        />
       </View>
     );
   }
