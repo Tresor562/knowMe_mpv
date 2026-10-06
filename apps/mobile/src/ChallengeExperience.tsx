@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
-import { BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
 type Person = {
@@ -79,6 +79,25 @@ type Submission = Participant & { reward?: RewardResult | null };
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+function challengeStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Actif',
+    COMPLETED: 'Terminé',
+    CLOSED: 'Terminé',
+    ARCHIVED: 'Archivé'
+  };
+  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
+}
+
+function visibilityLabel(value: Visibility) {
+  const labels: Record<Visibility, string> = {
+    PRIVATE: 'Privé',
+    FRIENDS: 'Amis',
+    PUBLIC: 'Public'
+  };
+  return labels[value];
 }
 
 function Button({
@@ -344,12 +363,21 @@ function ChallengeDetail({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
+      <View style={styles.detailHeader}>
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Retour aux défis"
+          onPress={onBack}
+          style={[styles.backButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
+        >
+          <KnowMeIcon name="back" size={18} color={colors.text} />
+        </PressScale>
         <View style={styles.flex}>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>DÉFI KNOWME</Text>
-          <Text style={[styles.heading, { color: colors.text }]}>{challenge.title}</Text>
+          <Text style={[styles.heading, { color: colors.text }]} numberOfLines={2}>{challenge.title}</Text>
+          <Text style={[styles.detailSub, { color: colors.muted }]}>
+            {challenge.questions.length} question(s) · {challenge.participants.length} participant(s)
+          </Text>
         </View>
-        <Button title="Retour" onPress={onBack} />
       </View>
 
       {challenge.isCurrentVersion === false && (
@@ -362,16 +390,16 @@ function ChallengeDetail({
         </View>
       )}
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
         {challenge.description ? (
           <Text style={[styles.description, { color: colors.text }]}>{challenge.description}</Text>
         ) : null}
         <View style={styles.badgesRow}>
           <Text style={[styles.badge, isActive ? styles.activeBadge : styles.closedBadge]}>
-            {challenge.status}
+            {challengeStatusLabel(challenge.status)}
           </Text>
           <Text style={styles.badge}>v{viewerVersion}</Text>
-          <Text style={styles.badge}>{challenge.visibility}</Text>
+          <Text style={styles.badge}>{visibilityLabel(challenge.visibility)}</Text>
           <Text style={styles.badge}>{challenge.questions.length} question(s)</Text>
         </View>
         {challenge.creator && (
@@ -408,7 +436,7 @@ function ChallengeDetail({
             />
           </>
         )}
-      </View>
+      </GlassSurface>
 
       {editing && challenge.canEdit && (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
@@ -557,11 +585,11 @@ function ChallengeDetail({
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Participants</Text>
       {challenge.participants.map((item) => (
         <View key={item.id} style={[styles.participantCard, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.avatarText, { color: colors.accentText }]}>
-              {item.user.displayName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Avatar
+            uri={item.user.avatarUrl}
+            name={item.user.displayName}
+            size={42}
+          />
           <View style={styles.flex}>
             <Text style={[styles.title, { color: colors.text }]}>{item.user.displayName}</Text>
             <Text style={[styles.muted, { color: colors.muted }]}>
@@ -576,7 +604,7 @@ function ChallengeDetail({
 
       {isCreator && Boolean(challenge.versions?.length) && (
         <>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique</Text>
           {challenge.versions?.map((version) => (
             <View key={version.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
               <View style={styles.headerRow}>
@@ -586,7 +614,7 @@ function ChallengeDetail({
                 </Text>
                 <Text style={[styles.muted, { color: colors.muted }]}>{version.questionCount} question(s)</Text>
               </View>
-              <Text style={[styles.muted, { color: colors.muted }]}>{version.visibility}</Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>{visibilityLabel(version.visibility)}</Text>
               {version.changeReason ? (
                 <Text style={[styles.description, { color: colors.text }]}>{version.changeReason}</Text>
               ) : null}
@@ -680,17 +708,16 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         />
       }
     >
-      <GlassSurface strength="soft" borderRadius={28} style={styles.challengeHeader}>
+      <GlassSurface strength="soft" borderRadius={24} style={styles.challengeHeader}>
         <View style={styles.challengeBrand}>
-          <BrandMark size={31} />
-          <View>
+          <View style={[styles.challengeHeaderIcon, { backgroundColor: colors.backgroundAccent }]}>
+            <KnowMeIcon name="challenge" size={22} color={colors.secondary} />
+          </View>
+          <View style={styles.flex}>
             <Text style={[styles.heading, { color: colors.text }]}>Défis</Text>
-            <Text style={[styles.challengeSub, { color: colors.muted }]}>Le cœur de KnowMe.</Text>
+            <Text style={[styles.challengeSub, { color: colors.muted }]}>Questions, réponses et souvenirs à partager.</Text>
           </View>
         </View>
-        <GlassSurface strength="soft" borderRadius={21} style={styles.challengeHeaderIcon}>
-          <KnowMeIcon name="challenge" size={23} color={colors.secondary} />
-        </GlassSurface>
       </GlassSurface>
 
       <View style={[styles.card, styles.createCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
@@ -779,12 +806,12 @@ export function ChallengeExperience({ userId }: { userId: string }) {
                   item.status === 'ACTIVE' ? styles.activeBadge : styles.closedBadge
                 ]}
               >
-                {item.status}
+                {challengeStatusLabel(item.status)}
               </Text>
             </View>
             {item.description ? <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text> : null}
             <Text style={[styles.muted, { color: colors.muted }]}>
-              v{item.currentVersion} · {item.visibility} · {item.questions.length} question(s) ·{' '}
+              v{item.currentVersion} · {visibilityLabel(item.visibility)} · {item.questions.length} question(s) ·{' '}
               {item.participants.length} participant(s)
             </Text>
             <Text style={[participant?.completedAt ? styles.success : styles.muted, { color: participant?.completedAt ? colors.accent : colors.muted }]}>
