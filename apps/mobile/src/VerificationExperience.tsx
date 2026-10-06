@@ -83,6 +83,9 @@ function Button({
   const { colors, visual } = useAppearance();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -533,29 +536,29 @@ export function VerificationExperience({
 
 const styles = StyleSheet.create({
   content: { padding: 14, paddingBottom: 30, gap: 11 },
-  topRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
   },
   topCopy: { flex: 1 },
-  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', marginTop: 4 },
+  heading: { fontSize: 20, fontWeight: '700', letterSpacing: -0.35 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 4 },
   description: { fontSize: 12.5, lineHeight: 18 },
   identityHero: { minHeight: 82, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11 },
   identityHeroIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   identityHeroCopy: { flex: 1 },
-  identityState: { fontSize: 15, fontWeight: '800', marginBottom: 2 },
+  identityState: { fontSize: 15.5, fontWeight: '700', marginBottom: 2 },
   badgeGrid: { flexDirection: 'row', padding: 5 },
   badgeCard: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
   badgeLabel: { fontSize: 9, fontWeight: '600', marginTop: 1 },
   badgeValue: { fontSize: 13, fontWeight: '800' },
   card: { padding: 14, gap: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '800' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
   statusText: { fontSize: 11, fontWeight: '800' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'center' },
   secureNoticeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -571,8 +574,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14
   },
-  button: { minHeight: 44, paddingVertical: 9, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { fontSize: 12, fontWeight: '800' },
+  button: { minHeight: 48, paddingVertical: 9, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 13, fontWeight: '700' },
   mutedButton: { opacity: 0.45 },
   evidence: { minHeight: 48, padding: 9, gap: 8, flexDirection: 'row', alignItems: 'center' },
   evidenceCopy: { flex: 1 },
