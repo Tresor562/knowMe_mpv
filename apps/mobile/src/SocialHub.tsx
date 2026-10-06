@@ -33,7 +33,8 @@ type Notification = {
   readAt?: string | null;
   createdAt: string;
 };
-type Section = 'friends' | 'messages' | 'calls' | 'notifications';
+export type SocialSection = 'friends' | 'messages' | 'calls' | 'notifications';
+type Section = SocialSection;
 
 type CallHistoryItem = {
   id: string;
@@ -50,15 +51,21 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId }: { userId: string }) {
+export function SocialHub({
+  userId,
+  initialSection = 'messages'
+}: {
+  userId: string;
+  initialSection?: SocialSection;
+}) {
   const { colors } = useAppearance();
-  const [section, setSection] = useState<Section>('friends');
+  const [section, setSection] = useState<Section>(initialSection);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setRefreshing(false);
-    setSection('friends');
-  }, [userId]);
+    setSection(initialSection);
+  }, [initialSection, userId]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
