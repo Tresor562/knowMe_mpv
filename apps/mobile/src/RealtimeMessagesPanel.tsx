@@ -609,9 +609,26 @@ export function RealtimeMessagesPanel({
               onPress={() => void loadOlder()}
             />
           ) : null}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
+            const previous = history[index - 1];
+            const next = history[index + 1];
+            const groupedWithPrevious =
+              previous?.senderId === item.senderId &&
+              previous?.nexusAuthored === item.nexusAuthored;
+            const groupedWithNext =
+              next?.senderId === item.senderId &&
+              next?.nexusAuthored === item.nexusAuthored;
+            const groupedShape = mine
+              ? {
+                  borderTopRightRadius: groupedWithPrevious ? 7 : visual.bubbleRadius,
+                  borderBottomRightRadius: groupedWithNext ? 7 : visual.bubbleRadius
+                }
+              : {
+                  borderTopLeftRadius: groupedWithPrevious ? 7 : visual.bubbleRadius,
+                  borderBottomLeftRadius: groupedWithNext ? 7 : visual.bubbleRadius
+                };
             const readers = mine
               ? readStates.filter((state) =>
                   state.userId !== userId &&
@@ -624,7 +641,11 @@ export function RealtimeMessagesPanel({
               <View
                 style={[
                   styles.bubble,
-                  { borderRadius: visual.bubbleRadius },
+                  {
+                    borderRadius: visual.bubbleRadius,
+                    marginTop: groupedWithPrevious ? 2 : 7,
+                    ...groupedShape
+                  },
                   mine
                     ? [
                         styles.bubbleMine,
@@ -653,7 +674,7 @@ export function RealtimeMessagesPanel({
                         ]
                 ]}
               >
-                {!mine ? (
+                {!mine && !groupedWithPrevious ? (
                   <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
                     {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
@@ -849,12 +870,10 @@ export function RealtimeMessagesPanel({
           <View
             key={conversation.id}
             style={[
-              styles.card,
-              styles.conversationCard,
+              styles.conversationRow,
               {
-                backgroundColor: unread ? colors.surfaceRaised : colors.surfaceGlass,
-                borderColor: unread ? colors.accent : colors.border,
-                borderRadius: visual.cardRadius
+                backgroundColor: unread ? colors.surfaceRaised : 'transparent',
+                borderBottomColor: colors.border
               }
             ]}
           >
@@ -1159,23 +1178,30 @@ const styles = StyleSheet.create({
     gap: 8
   },
   messages: {
-    padding: 12,
-    gap: 7,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
-  bubble: { maxWidth: '84%', paddingHorizontal: 11, paddingVertical: 9, borderRadius: 18, gap: 4 },
+  bubble: {
+    maxWidth: '84%',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 18,
+    gap: 3
+  },
   bubbleMine: { alignSelf: 'flex-end' },
   bubbleOther: { alignSelf: 'flex-start' },
   bubbleNexus: {
     borderWidth: 1,
     alignSelf: 'flex-start'
   },
-  bubbleText: {},
-  bubbleMineText: { fontWeight: '600' },
-  senderName: { fontWeight: '800', fontSize: 11 },
-  bubbleDate: { fontSize: 9 },
-  receipt: { fontSize: 9, fontWeight: '700' },
+  bubbleText: { fontSize: 15.5, lineHeight: 20 },
+  bubbleMineText: { fontSize: 15.5, lineHeight: 20, fontWeight: '500' },
+  senderName: { fontWeight: '700', fontSize: 12 },
+  bubbleDate: { fontSize: 11 },
+  receipt: { fontSize: 11, fontWeight: '600' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
   composer: {
     marginHorizontal: 10,
@@ -1185,7 +1211,7 @@ const styles = StyleSheet.create({
     gap: 7,
     padding: 6
   },
-  composerInput: { flex: 1 },
+  composerInput: { flex: 1, minHeight: 48 },
   iconButton: {
     width: 42,
     height: 42,
@@ -1207,7 +1233,9 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999
   },
-  conversationCard: {
-    paddingVertical: 12
+  conversationRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 4,
+    paddingVertical: 10
   }
 });
