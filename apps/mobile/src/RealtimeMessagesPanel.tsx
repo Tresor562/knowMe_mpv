@@ -15,6 +15,8 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
+import { MessageEditControl } from './MessageEditControl';
+import { MessageReactionControl } from './MessageReactionControl';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type UserSummary = {
@@ -35,6 +37,7 @@ type ConversationMessage = {
   conversationId: string;
   content: string;
   createdAt: string;
+  editedAt?: string | null;
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
@@ -131,6 +134,8 @@ export function RealtimeMessagesPanel({
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ConversationMessage | null>(null);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
   const [creatingNexus, setCreatingNexus] = useState(false);
@@ -250,6 +255,23 @@ export function RealtimeMessagesPanel({
         ));
       }
     };
+    const onMessageUpdated = (updated: ConversationMessage) => {
+      setHistory((current) =>
+        current.map((message) => message.id === updated.id ? { ...message, ...updated } : message)
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === updated.conversationId
+            ? {
+                ...conversation,
+                messages: conversation.messages.map((message) =>
+                  message.id === updated.id ? { ...message, ...updated } : message
+                )
+              }
+            : conversation
+        )
+      );
+    };
     const onTyping = (event: TypingEvent) => {
       if (
         event.userId === userId ||
@@ -292,6 +314,7 @@ export function RealtimeMessagesPanel({
       connectedSocket.on('disconnect', onDisconnect);
       connectedSocket.on('connect_error', onConnectError);
       connectedSocket.on('message:created', onMessage);
+      connectedSocket.on('message:updated', onMessageUpdated);
       connectedSocket.on('conversation:read', onRead);
       connectedSocket.on('typing:update', onTyping);
       connectedSocket.on('presence:update', onPresence);
@@ -312,6 +335,7 @@ export function RealtimeMessagesPanel({
       socket?.off('disconnect', onDisconnect);
       socket?.off('connect_error', onConnectError);
       socket?.off('message:created', onMessage);
+      socket?.off('message:updated', onMessageUpdated);
       socket?.off('conversation:read', onRead);
       socket?.off('typing:update', onTyping);
       socket?.off('presence:update', onPresence);
@@ -344,6 +368,8 @@ export function RealtimeMessagesPanel({
       setReadStates(data.readStates);
       setNextCursor(data.nextCursor ?? null);
       setTypingUsers({});
+      setSelectedMessageId(null);
+      setEditingMessage(null);
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -541,6 +567,8 @@ export function RealtimeMessagesPanel({
     setHistory([]);
     setReadStates([]);
     setTypingUsers({});
+    setSelectedMessageId(null);
+    setEditingMessage(null);
     setNextCursor(null);
     setNexusPending(false);
     void load();
@@ -612,6 +640,7 @@ export function RealtimeMessagesPanel({
           renderItem={({ item, index }) => {
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
+            const selected = selectedMessageId === item.id;
             const previous = history[index - 1];
             const next = history[index + 1];
             const groupedWithPrevious =
@@ -638,64 +667,126 @@ export function RealtimeMessagesPanel({
               : [];
 
             return (
-              <View
-                style={[
-                  styles.bubble,
-                  {
-                    borderRadius: visual.bubbleRadius,
-                    marginTop: groupedWithPrevious ? 2 : 7,
-                    ...groupedShape
-                  },
-                  mine
-                    ? [
-                        styles.bubbleMine,
-                        {
-                          backgroundColor: colors.accent,
-                          borderWidth: chat.bubbleBorderWidth,
-                          borderColor: colors.accent
-                        }
-                      ]
-                    : nexus
-                      ? [
-                          styles.bubbleNexus,
-                          {
-                            backgroundColor: colors.surfaceRaised,
-                            borderColor: colors.secondary,
-                            borderWidth: Math.max(1, chat.bubbleBorderWidth)
-                          }
-                        ]
-                      : [
-                          styles.bubbleOther,
-                          {
-                            backgroundColor: colors.surface,
-                            borderWidth: chat.bubbleBorderWidth,
-                            borderColor: colors.border
-                          }
-                        ]
-                ]}
-              >
-                {!mine && !groupedWithPrevious ? (
-                  <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
-                    {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
-                  </Text>
-                ) : null}
-                <Text
+              <View style={styles.messageBlock}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Message de ${mine ? 'toi' : item.sender?.displayName ?? 'utilisateur'}`}
+                  accessibilityHint="Appui long pour ouvrir les actions du message"
+                  delayLongPress={280}
+                  onLongPress={() => {
+                    setSelectedMessageId((current) => current === item.id ? null : item.id);
+                  }}
                   style={[
-                    mine ? styles.bubbleMineText : styles.bubbleText,
-                    { color: mine ? colors.accentText : colors.text }
+                    styles.bubble,
+                    {
+                      borderRadius: visual.bubbleRadius,
+                      marginTop: groupedWithPrevious ? 2 : 7,
+                      ...groupedShape
+                    },
+                    mine
+                      ? [
+                          styles.bubbleMine,
+                          {
+                            backgroundColor: colors.accent,
+                            borderWidth: selected ? 1.5 : chat.bubbleBorderWidth,
+                            borderColor: selected ? colors.accentText : colors.accent
+                          }
+                        ]
+                      : nexus
+                        ? [
+                            styles.bubbleNexus,
+                            {
+                              backgroundColor: colors.surfaceRaised,
+                              borderColor: selected ? colors.accent : colors.secondary,
+                              borderWidth: Math.max(selected ? 1.5 : 1, chat.bubbleBorderWidth)
+                            }
+                          ]
+                        : [
+                            styles.bubbleOther,
+                            {
+                              backgroundColor: colors.surface,
+                              borderWidth: selected ? 1.5 : chat.bubbleBorderWidth,
+                              borderColor: selected ? colors.accent : colors.border
+                            }
+                          ]
                   ]}
                 >
-                  {item.content}
-                </Text>
-                <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
-                  {formatMessageTime(item.createdAt)}
-                </Text>
-                {mine && readers.length > 0 ? (
-                  <Text style={[styles.receipt, { color: colors.accentText }]}>
-                    Lu par {readers
-                      .map((state) => state.user.displayName)
-                      .join(', ')}
+                  {!mine && !groupedWithPrevious ? (
+                    <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
+                      {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
+                    </Text>
+                  ) : null}
+                  <Text
+                    style={[
+                      mine ? styles.bubbleMineText : styles.bubbleText,
+                      { color: mine ? colors.accentText : colors.text }
+                    ]}
+                  >
+                    {item.content}
                   </Text>
+                  <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
+                    {formatMessageTime(item.createdAt)}{item.editedAt ? ' · modifié' : ''}
+                  </Text>
+                  {mine && readers.length > 0 ? (
+                    <Text style={[styles.receipt, { color: colors.accentText }]}>
+                      Lu par {readers
+                        .map((state) => state.user.displayName)
+                        .join(', ')}
+                    </Text>
+                  ) : null}
+                </Pressable>
+
+                {selected ? (
+                  <GlassSurface
+                    strength="strong"
+                    borderRadius={visual.radiusSecondary}
+                    style={[
+                      styles.messageContext,
+                      mine ? styles.messageContextMine : styles.messageContextOther
+                    ]}
+                  >
+                    <MessageReactionControl messageId={item.id} />
+                    <View style={styles.contextActions}>
+                      {mine ? (
+                        <PressScale
+                          accessibilityRole="button"
+                          accessibilityLabel="Modifier le message"
+                          onPress={() => {
+                            setEditingMessage(item);
+                            setSelectedMessageId(null);
+                          }}
+                          style={[
+                            styles.contextPrimary,
+                            {
+                              backgroundColor: colors.accent,
+                              borderRadius: visual.controlRadius
+                            }
+                          ]}
+                        >
+                          <Text style={[styles.contextPrimaryText, { color: colors.accentText }]}>
+                            Modifier
+                          </Text>
+                        </PressScale>
+                      ) : null}
+                      <PressScale
+                        accessibilityRole="button"
+                        accessibilityLabel="Fermer les actions"
+                        onPress={() => setSelectedMessageId(null)}
+                        style={[
+                          styles.contextSecondary,
+                          {
+                            backgroundColor: colors.backgroundAccent,
+                            borderColor: colors.border,
+                            borderRadius: visual.controlRadius
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.contextSecondaryText, { color: colors.text }]}>
+                          Fermer
+                        </Text>
+                      </PressScale>
+                    </View>
+                  </GlassSurface>
                 ) : null}
               </View>
             );
@@ -711,34 +802,64 @@ export function RealtimeMessagesPanel({
           ) : null}
         />
 
-        <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
-          <TextInput
-            value={draft}
-            onChangeText={changeDraft}
-            onBlur={stopTyping}
-            maxLength={2000}
-            placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              styles.composerInput,
-              { borderRadius: visual.inputRadius },
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text
-              }
-            ]}
+        {editingMessage ? (
+          <MessageEditControl
+            conversationId={editingMessage.conversationId}
+            messageId={editingMessage.id}
+            initialContent={editingMessage.content}
+            initialEditedAt={editingMessage.editedAt ?? null}
+            onUpdated={(updated) => {
+              setHistory((current) =>
+                current.map((message) =>
+                  message.id === updated.id ? { ...message, ...updated } : message
+                )
+              );
+              setConversations((current) =>
+                current.map((conversation) =>
+                  conversation.id === updated.conversationId
+                    ? {
+                        ...conversation,
+                        messages: conversation.messages.map((message) =>
+                          message.id === updated.id ? { ...message, ...updated } : message
+                        )
+                      }
+                    : conversation
+                )
+              );
+              setEditingMessage(null);
+            }}
+            onCancel={() => setEditingMessage(null)}
           />
-          <IconButton
-            icon="arrow"
-            accessibilityLabel="Envoyer"
-            disabled={sending || nexusPending || !draft.trim()}
-            onPress={() => void send()}
-            filled
-          />
-        </GlassSurface>
+        ) : (
+          <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+            <TextInput
+              value={draft}
+              onChangeText={changeDraft}
+              onBlur={stopTyping}
+              maxLength={2000}
+              placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
+              placeholderTextColor={colors.muted}
+              selectionColor={colors.accent}
+              style={[
+                styles.input,
+                styles.composerInput,
+                { borderRadius: visual.inputRadius },
+                {
+                  backgroundColor: colors.backgroundAccent,
+                  borderColor: colors.border,
+                  color: colors.text
+                }
+              ]}
+            />
+            <IconButton
+              icon="arrow"
+              accessibilityLabel="Envoyer"
+              disabled={sending || nexusPending || !draft.trim()}
+              onPress={() => void send()}
+              filled
+            />
+          </GlassSurface>
+        )}
       </View>
     );
   }
@@ -1184,6 +1305,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
+  messageBlock: { width: '100%' },
   bubble: {
     maxWidth: '84%',
     paddingHorizontal: 11,
@@ -1237,5 +1359,33 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 4,
     paddingVertical: 10
-  }
+  },
+  messageContext: {
+    width: '82%',
+    marginTop: 6,
+    padding: 10,
+    gap: 8
+  },
+  messageContextMine: { alignSelf: 'flex-end' },
+  messageContextOther: { alignSelf: 'flex-start' },
+  contextActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 7
+  },
+  contextPrimary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  contextSecondary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  contextPrimaryText: { fontSize: 13, fontWeight: '700' },
+  contextSecondaryText: { fontSize: 13, fontWeight: '600' }
 });
