@@ -706,6 +706,12 @@ export function RealtimeMessagesPanel({
             if (atBottom) setPendingNewCount(0);
           }}
           scrollEventThrottle={80}
+          onScrollToIndexFailed={({ index, averageItemLength }) => {
+            listRef.current?.scrollToOffset({
+              offset: Math.max(0, index * averageItemLength - averageItemLength * 2),
+              animated: true
+            });
+          }}
           ListHeaderComponent={nextCursor ? (
             <SecondaryButton
               title={loadingOlder ? 'Chargement…' : 'Messages précédents'}
@@ -717,6 +723,9 @@ export function RealtimeMessagesPanel({
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
             const selected = selectedMessageId === item.id;
+            const replyTargetIndex = item.replyTo
+              ? history.findIndex((message) => message.id === item.replyTo?.id)
+              : -1;
             const previous = history[index - 1];
             const startsNewDay = !previous || dateKey(previous.createdAt) !== dateKey(item.createdAt);
             const next = history[index + 1];
@@ -814,7 +823,22 @@ export function RealtimeMessagesPanel({
                     </Text>
                   ) : null}
                   {item.replyTo ? (
-                    <View
+                    <Pressable
+                      accessibilityRole={replyTargetIndex >= 0 ? 'button' : undefined}
+                      accessibilityLabel={
+                        replyTargetIndex >= 0
+                          ? `Voir le message cité de ${item.replyTo.authorName}`
+                          : undefined
+                      }
+                      disabled={replyTargetIndex < 0}
+                      onPress={() => {
+                        if (replyTargetIndex < 0) return;
+                        listRef.current?.scrollToIndex({
+                          index: replyTargetIndex,
+                          animated: true,
+                          viewPosition: 0.4
+                        });
+                      }}
                       style={[
                         styles.replyQuote,
                         {
@@ -841,7 +865,7 @@ export function RealtimeMessagesPanel({
                       >
                         {item.replyTo.preview}
                       </Text>
-                    </View>
+                    </Pressable>
                   ) : null}
                   <Text
                     style={[
@@ -904,14 +928,15 @@ export function RealtimeMessagesPanel({
                             setSelectedMessageId(null);
                           }
                           style={[
-                            styles.contextPrimary,
+                            styles.contextSecondary,
                             {
-                              backgroundColor: colors.accent,
+                              backgroundColor: colors.backgroundAccent,
+                              borderColor: colors.border,
                               borderRadius: visual.controlRadius
                             }
                           ]}
                         >
-                          <Text style={[styles.contextPrimaryText, { color: colors.accentText }]}>
+                          <Text style={[styles.contextSecondaryText, { color: colors.text }]}>
                             Modifier
                           </Text>
                         </PressScale>
@@ -1672,6 +1697,7 @@ const styles = StyleSheet.create({
   messageContextOther: { alignSelf: 'flex-start' },
   contextActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
     gap: 7
   },
