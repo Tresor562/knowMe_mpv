@@ -301,7 +301,7 @@ function FriendsPanel({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Demandes reçues</Text>
       )}
       {requests.map(({ id, requester }) => (
-        <View key={id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={id} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={requester} />
           <View style={styles.row}>
             <ActionButton
@@ -321,7 +321,7 @@ function FriendsPanel({
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
-        <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={friendshipId} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={user} />
           <SecondaryButton
             title="Retirer"
@@ -336,7 +336,7 @@ function FriendsPanel({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats</Text>
       )}
       {results.map((user) => (
-        <View key={user.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={user.id} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={user} />
           <ActionButton
             title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
@@ -535,8 +535,8 @@ function NotificationsPanel({
           style={[
             styles.card,
             {
-              backgroundColor: item.readAt ? colors.surface : colors.surfaceRaised,
-              borderColor: item.readAt ? colors.border : colors.accent
+              backgroundColor: item.readAt ? 'transparent' : colors.surfaceRaised,
+              borderBottomColor: item.readAt ? colors.border : colors.accent
             }
           ]}
         >
@@ -638,11 +638,11 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 14, paddingTop: 6, gap: 7 },
-  headerTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTop: { minHeight: 52, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitleBlock: { flex: 1 },
   headerSub: { fontSize: 10.5, marginTop: 0 },
   headerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
+  heading: { fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
   segmented: {
     flexDirection: 'row',
     borderRadius: 19,
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     borderRadius: 16
   },
   segmentActive: {},
-  segmentText: { fontWeight: '700', fontSize: 9.5 },
+  segmentText: { fontWeight: '600', fontSize: 9.5 },
   segmentTextActive: {},
   content: { padding: 14, paddingBottom: 28, gap: 9 },
   callRow: {
@@ -676,16 +676,16 @@ const styles = StyleSheet.create({
   callMeta: { flex: 1, fontSize: 11.5, lineHeight: 16 },
   callDate: { fontSize: 10.5 },
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 19,
-    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 2,
+    paddingVertical: 11,
     gap: 8
   },
   unreadCard: {},
-  cardTitle: { fontSize: 15, fontWeight: '800' },
+  cardTitle: { fontSize: 15, fontWeight: '600' },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     marginTop: 6
   },
   muted: { fontSize: 12, lineHeight: 17 },
@@ -704,21 +704,23 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1 },
   searchButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   actionButton: {
-    borderRadius: 16,
-    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: 18,
     paddingHorizontal: 14,
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { fontSize: 12, fontWeight: '800' },
+  actionText: { fontSize: 12.5, fontWeight: '700' },
   secondaryButton: {
+    minHeight: 44,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingVertical: 9,
+    borderRadius: 18,
     paddingHorizontal: 12,
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  secondaryText: { fontSize: 12, fontWeight: '700' },
+  secondaryText: { fontSize: 12.5, fontWeight: '600' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
   identity: { flexDirection: 'row', gap: 10, alignItems: 'center' },
