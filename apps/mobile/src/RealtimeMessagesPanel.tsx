@@ -38,6 +38,11 @@ type ConversationMessage = {
   content: string;
   createdAt: string;
   editedAt?: string | null;
+  replyTo?: {
+    id: string;
+    authorName: string;
+    preview: string;
+  } | null;
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
@@ -158,6 +163,7 @@ export function RealtimeMessagesPanel({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ConversationMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<ConversationMessage | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [pendingNewCount, setPendingNewCount] = useState(0);
@@ -401,6 +407,7 @@ export function RealtimeMessagesPanel({
       setNextCursor(data.nextCursor ?? null);
       setTypingUsers({});
       setSelectedMessageId(null);
+      setReplyingTo(null);
       setEditingMessage(null);
       setPendingNewCount(0);
       setShowJumpToBottom(false);
@@ -582,7 +589,10 @@ export function RealtimeMessagesPanel({
         `/conversations/${active.id}/messages`,
         {
           method: 'POST',
-          body: JSON.stringify({ content })
+          body: JSON.stringify({
+            content,
+            replyToId: replyingTo?.id
+          })
         }
       );
       setHistory((current) => mergeMessages(current, [created]));
@@ -592,6 +602,7 @@ export function RealtimeMessagesPanel({
           : state
       ));
       setDraft('');
+      setReplyingTo(null);
       setPendingNewCount(0);
       setShowJumpToBottom(false);
       atBottomRef.current = true;
@@ -802,6 +813,36 @@ export function RealtimeMessagesPanel({
                       {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                     </Text>
                   ) : null}
+                  {item.replyTo ? (
+                    <View
+                      style={[
+                        styles.replyQuote,
+                        {
+                          borderLeftColor: mine ? colors.accentText : colors.accent,
+                          backgroundColor: mine ? 'rgba(255,255,255,0.12)' : colors.backgroundAccent
+                        }
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.replyQuoteAuthor,
+                          { color: mine ? colors.accentText : colors.accent }
+                        ]}
+                      >
+                        {item.replyTo.authorName}
+                      </Text>
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.replyQuotePreview,
+                          { color: mine ? 'rgba(255,255,255,0.82)' : colors.muted }
+                        ]}
+                      >
+                        {item.replyTo.preview}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text
                     style={[
                       mine ? styles.bubbleMineText : styles.bubbleText,
@@ -833,14 +874,35 @@ export function RealtimeMessagesPanel({
                   >
                     <MessageReactionControl messageId={item.id} />
                     <View style={styles.contextActions}>
+                      <PressScale
+                        accessibilityRole="button"
+                        accessibilityLabel="Répondre au message"
+                        onPress={() => {
+                          setReplyingTo(item);
+                          setEditingMessage(null);
+                          setSelectedMessageId(null);
+                        }}
+                        style={[
+                          styles.contextPrimary,
+                          {
+                            backgroundColor: colors.accent,
+                            borderRadius: visual.controlRadius
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.contextPrimaryText, { color: colors.accentText }]}>
+                          Répondre
+                        </Text>
+                      </PressScale>
                       {mine ? (
                         <PressScale
                           accessibilityRole="button"
                           accessibilityLabel="Modifier le message"
                           onPress={() => {
+                            setReplyingTo(null);
                             setEditingMessage(item);
                             setSelectedMessageId(null);
-                          }}
+                          }
                           style={[
                             styles.contextPrimary,
                             {
@@ -954,32 +1016,62 @@ export function RealtimeMessagesPanel({
           />
         ) : (
           <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
-            <TextInput
-              value={draft}
-              onChangeText={changeDraft}
-              onBlur={stopTyping}
-              maxLength={2000}
-              placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                styles.composerInput,
-                { borderRadius: visual.inputRadius },
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]}
-            />
-            <IconButton
-              icon="arrow"
-              accessibilityLabel="Envoyer"
-              disabled={sending || nexusPending || !draft.trim()}
-              onPress={() => void send()}
-              filled
-            />
+            {replyingTo ? (
+              <View style={styles.replyComposer}>
+                <View style={[styles.replyComposerMarker, { backgroundColor: colors.accent }]} />
+                <View style={styles.replyComposerCopy}>
+                  <Text style={[styles.replyComposerTitle, { color: colors.accent }]} numberOfLines={1}>
+                    Réponse à {replyingTo.nexusAuthored ? 'Nexus' : replyingTo.sender?.displayName ?? 'ce message'}
+                  </Text>
+                  <Text style={[styles.replyComposerPreview, { color: colors.muted }]} numberOfLines={1}>
+                    {replyingTo.content}
+                  </Text>
+                </View>
+                <PressScale
+                  accessibilityRole="button"
+                  accessibilityLabel="Annuler la réponse"
+                  onPress={() => setReplyingTo(null)}
+                  style={[
+                    styles.replyComposerClose,
+                    {
+                      backgroundColor: colors.backgroundAccent,
+                      borderColor: colors.border,
+                      borderRadius: visual.controlRadius
+                    }
+                  ]}
+                >
+                  <KnowMeIcon name="close" size={17} color={colors.text} />
+                </PressScale>
+              </View>
+            ) : null}
+            <View style={styles.composerRow}>
+              <TextInput
+                value={draft}
+                onChangeText={changeDraft}
+                onBlur={stopTyping}
+                maxLength={2000}
+                placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  styles.composerInput,
+                  { borderRadius: visual.inputRadius },
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+              <IconButton
+                icon="arrow"
+                accessibilityLabel="Envoyer"
+                disabled={sending || nexusPending || !draft.trim()}
+                onPress={() => void send()}
+                filled
+              />
+            </View>
           </GlassSurface>
         )}
       </View>
@@ -1469,6 +1561,15 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 15.5, lineHeight: 20 },
   bubbleMineText: { fontSize: 15.5, lineHeight: 20, fontWeight: '500' },
   senderName: { fontWeight: '700', fontSize: 12 },
+  replyQuote: {
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 2
+  },
+  replyQuoteAuthor: { fontSize: 11.5, fontWeight: '700' },
+  replyQuotePreview: { fontSize: 11.5, lineHeight: 15, marginTop: 1 },
   bubbleDate: { fontSize: 11 },
   receipt: { fontSize: 11, fontWeight: '600' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
@@ -1504,12 +1605,37 @@ const styles = StyleSheet.create({
   composer: {
     marginHorizontal: 10,
     marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 7,
+    gap: 6,
     padding: 6
   },
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 7
+  },
   composerInput: { flex: 1, minHeight: 48 },
+  replyComposer: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 7
+  },
+  replyComposerMarker: {
+    width: 3,
+    height: 32,
+    borderRadius: 3
+  },
+  replyComposerCopy: { flex: 1, minWidth: 0 },
+  replyComposerTitle: { fontSize: 12.5, fontWeight: '700' },
+  replyComposerPreview: { fontSize: 11.5, marginTop: 2 },
+  replyComposerClose: {
+    width: 40,
+    height: 40,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   iconButton: {
     width: 42,
     height: 42,
