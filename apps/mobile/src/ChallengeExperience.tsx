@@ -266,7 +266,7 @@ function ChallengeDetail({
           : 'Progression enregistrée',
         reward?.status === 'AWARDED'
           ? `Toutes tes réponses sont enregistrées. +${reward.amount} KnowCoins.`
-          : reward?.explanation || 'Ta progression a été enregistrée sur le serveur.'
+          : reward?.explanation || 'Ta progression a été enregistrée.'
       );
     } catch (cause) {
       Alert.alert('Enregistrement impossible', errorMessage(cause, 'Réessaie.'));
@@ -442,8 +442,7 @@ function ChallengeDetail({
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Version {challenge.currentVersion + 1}</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            La version actuelle ne sera pas modifiée. Cette publication crée un nouvel
-            instantané complet.
+            La version actuelle reste intacte. Les nouvelles réponses utiliseront cette version.
           </Text>
           <TextInput
             value={editTitle}
@@ -720,7 +719,7 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         </View>
       </GlassSurface>
 
-      <View style={[styles.card, styles.createCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={[styles.card, styles.createCard]}>
         <View style={styles.createTitleRow}>
           <View style={[styles.createIcon, { backgroundColor: colors.accent }]}>
             <KnowMeIcon name="create" size={20} color={colors.accentText} />
@@ -786,13 +785,13 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           disabled={creating || !title.trim() || !questions.trim()}
           onPress={() => void create()}
         />
-      </View>
+      </GlassSurface>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes défis</Text>
       {items.map((item) => {
         const participant = item.participants.find((entry) => entry.userId === userId);
         return (
-          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <View style={styles.headerRow}>
               <View style={styles.challengeListTitleRow}>
                 <View style={[styles.challengeMiniIcon, { backgroundColor: colors.backgroundAccent }]}>
@@ -834,50 +833,51 @@ export function ChallengeExperience({ userId }: { userId: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 18, paddingBottom: 40, gap: 14 },
-  challengeHeader: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  challengeBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  challengeSub: { fontSize: 11.5, marginTop: 1 },
-  challengeHeaderIcon: { width: 43, height: 43, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  createCard: { borderRadius: 26, padding: 16 },
-  createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  createIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  createHint: { fontSize: 11.5, marginTop: 2 },
-  challengeListCard: { borderRadius: 22 },
-  challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  challengeMiniIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  content: { padding: 14, paddingBottom: 32, gap: 11 },
+  challengeHeader: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  challengeBrand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  challengeSub: { fontSize: 10.5, marginTop: 1 },
+  challengeHeaderIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  createCard: { padding: 12 },
+  createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  createIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  createHint: { fontSize: 10.5, marginTop: 1 },
+  challengeListCard: { padding: 11 },
+  challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  challengeMiniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14, padding: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  detailHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  backButton: { width: 38, height: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  detailSub: { fontSize: 10.5, marginTop: 1 },
   flex: { flex: 1 },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
-  sectionTitle: { fontSize: 21, fontWeight: '900' },
-  title: { fontSize: 17, fontWeight: '800' },
-  description: { fontSize: 15, lineHeight: 22 },
-  muted: { lineHeight: 20 },
-  success: { fontWeight: '800' },
-  card: { borderWidth: 1, padding: 18, gap: 12 },
-  historyBanner: { borderWidth: 1, padding: 16, gap: 8 },
-  historyTitle: { color: '#f4c95d', fontSize: 17, fontWeight: '900' },
-  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  questionBlock: { gap: 8, borderTopWidth: 1, paddingTop: 14 },
-  questionLabel: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  question: { fontSize: 17, lineHeight: 24, fontWeight: '700' },
-  input: { minHeight: 52, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
-  questionsInput: { minHeight: 128 },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '800' },
+  title: { fontSize: 14, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  muted: { fontSize: 10.5, lineHeight: 16 },
+  success: { fontSize: 11, fontWeight: '800' },
+  card: { borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 9 },
+  historyBanner: { borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 6 },
+  historyTitle: { color: '#f4c95d', fontSize: 13, fontWeight: '800' },
+  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
+  questionBlock: { gap: 7, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11 },
+  questionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  question: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  input: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, paddingVertical: 10, fontSize: 14, textAlignVertical: 'top' },
+  questionsInput: { minHeight: 104 },
   disabledInput: { opacity: 0.65 },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, overflow: 'hidden', fontSize: 10.5, fontWeight: '700' },
   activeBadge: { color: '#7A5CFF' },
   closedBadge: { color: '#FF6B73' },
-  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontWeight: '900', fontSize: 17 },
-  button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { fontWeight: '900' },
+  button: { minHeight: 42, paddingVertical: 9, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 11.5, fontWeight: '800' },
   buttonMuted: { opacity: 0.45 },
-  visibilityRow: { flexDirection: 'row', gap: 8 },
-  visibilityChoice: { flex: 1, paddingVertical: 11, alignItems: 'center', borderWidth: 1 },
+  visibilityRow: { flexDirection: 'row', gap: 7 },
+  visibilityChoice: { flex: 1, minHeight: 40, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   visibilityChoiceActive: {},
-  visibilityText: { fontWeight: '800' },
+  visibilityText: { fontSize: 11, fontWeight: '700' },
   visibilityTextActive: {}
 });
