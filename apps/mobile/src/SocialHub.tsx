@@ -33,7 +33,18 @@ type Notification = {
   readAt?: string | null;
   createdAt: string;
 };
-type Section = 'friends' | 'messages' | 'notifications';
+type Section = 'friends' | 'messages' | 'calls' | 'notifications';
+
+type CallHistoryItem = {
+  id: string;
+  direction: 'OUTGOING' | 'INCOMING';
+  media: 'audio' | 'video';
+  status: 'RINGING' | 'ACTIVE' | 'ENDED' | 'REJECTED' | 'MISSED' | 'CANCELLED';
+  peer: UserSummary | null;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  createdAt: string;
+};
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -62,7 +73,7 @@ export function SocialHub({ userId }: { userId: string }) {
           </View>
         </GlassSurface>
         <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
-          {(['friends', 'messages', 'notifications'] as const).map((value) => (
+          {(['friends', 'messages', 'calls', 'notifications'] as const).map((value) => (
             <Pressable
               key={value}
               onPress={() => {
@@ -77,7 +88,15 @@ export function SocialHub({ userId }: { userId: string }) {
               ]}
             >
               <KnowMeIcon
-                name={value === 'friends' ? 'profile' : value === 'messages' ? 'messages' : 'bell'}
+                name={
+                  value === 'friends'
+                    ? 'profile'
+                    : value === 'messages'
+                      ? 'messages'
+                      : value === 'calls'
+                        ? 'call'
+                        : 'bell'
+                }
                 size={16}
                 color={section === value ? colors.accent : colors.muted}
                 strokeWidth={section === value ? 2 : 1.75}
@@ -90,7 +109,9 @@ export function SocialHub({ userId }: { userId: string }) {
                   ? 'Amis'
                   : value === 'messages'
                     ? 'Messages'
-                    : 'Alertes'}
+                    : value === 'calls'
+                      ? 'Appels'
+                      : 'Alertes'}
               </Text>
             </Pressable>
           ))}
@@ -108,6 +129,13 @@ export function SocialHub({ userId }: { userId: string }) {
         <MessagesOrganizationExperience
           key={`messages:${userId}`}
           userId={userId}
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
+      )}
+      {section === 'calls' && (
+        <CallsPanel
+          key={`calls:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
@@ -321,6 +349,106 @@ function FriendsPanel({
   );
 }
 
+function formatCallDuration(answeredAt?: string | null, endedAt?: string | null) {
+  if (!answeredAt || !endedAt) return null;
+  const seconds = Math.max(
+    0,
+    Math.round((new Date(endedAt).getTime() - new Date(answeredAt).getTime()) / 1000)
+  );
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0
+    ? `${minutes} min ${String(remainder).padStart(2, '0')} s`
+    : `${remainder} s`;
+}
+
+function callStateLabel(item: CallHistoryItem) {
+  if (item.status === 'MISSED') return 'Appel manqué';
+  if (item.status === 'REJECTED') return 'Appel refusé';
+  if (item.status === 'CANCELLED') return 'Appel annulé';
+  if (item.status === 'ACTIVE') return 'En cours';
+  if (item.status === 'RINGING') return 'Sonnerie';
+  return item.direction === 'OUTGOING' ? 'Sortant' : 'Entrant';
+}
+
+function CallsPanel({
+  refreshing,
+  setRefreshing
+}: {
+  refreshing: boolean;
+  setRefreshing: (value: boolean) => void;
+}) {
+  const { colors } = useAppearance();
+  const [items, setItems] = useState<CallHistoryItem[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      setItems(await apiFetch<CallHistoryItem[]>('/calls/history?take=50'));
+    } catch (cause) {
+      Alert.alert('Appels indisponibles', errorMessage(cause, 'Réessaie.'));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [setRefreshing]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <FlatList
+      data={items}
+      keyExtractor={(item) => item.id}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load();
+          }}
+        />
+      }
+      contentContainerStyle={styles.content}
+      ListEmptyComponent={<Empty text="Aucun appel pour le moment." />}
+      renderItem={({ item }) => {
+        const duration = formatCallDuration(item.answeredAt, item.endedAt);
+        const missed = item.status === 'MISSED';
+        const peerName = item.peer?.displayName ?? 'Compte indisponible';
+
+        return (
+          <View style={[styles.callRow, { borderBottomColor: colors.border }]}>
+            <Avatar uri={item.peer?.avatarUrl} name={peerName} size={44} />
+            <View style={styles.callCopy}>
+              <Text style={[styles.callName, { color: colors.text }]} numberOfLines={1}>
+                {peerName}
+              </Text>
+              <View style={styles.callMetaRow}>
+                <KnowMeIcon
+                  name="call"
+                  size={15}
+                  color={missed ? colors.danger : colors.muted}
+                />
+                <Text style={[styles.callMeta, { color: missed ? colors.danger : colors.muted }]}>
+                  {callStateLabel(item)} · {item.media === 'video' ? 'Vidéo' : 'Audio'}
+                  {duration ? ` · ${duration}` : ''}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.callDate, { color: colors.muted }]}>
+              {new Date(item.createdAt).toLocaleDateString(undefined, {
+                day: '2-digit',
+                month: '2-digit'
+              })}
+            </Text>
+          </View>
+        );
+      }}
+    />
+  );
+}
+
 function NotificationsPanel({
   refreshing,
   setRefreshing
@@ -523,7 +651,7 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     minWidth: 0,
-    minHeight: 42,
+    minHeight: 44,
     paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,6 +662,19 @@ const styles = StyleSheet.create({
   segmentText: { fontWeight: '700', fontSize: 9.5 },
   segmentTextActive: {},
   content: { padding: 14, paddingBottom: 28, gap: 9 },
+  callRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8
+  },
+  callCopy: { flex: 1, minWidth: 0 },
+  callName: { fontSize: 14.5, fontWeight: '600' },
+  callMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  callMeta: { flex: 1, fontSize: 11.5, lineHeight: 16 },
+  callDate: { fontSize: 10.5 },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 19,
