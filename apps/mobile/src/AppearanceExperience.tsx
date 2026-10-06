@@ -158,6 +158,7 @@ function ChoiceChip({
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
@@ -252,7 +253,10 @@ function ToggleOption({
   onValueChange: (enabled: boolean) => void;
 }) {
   return (
-    <View style={[styles.optionRow, { borderColor: colors.border }]}>
+    <View
+      accessibilityRole="none"
+      style={[styles.optionRow, { borderColor: colors.border }]}
+    >
       <View style={styles.optionCopy}>
         <Text style={[styles.optionTitle, { color: colors.text }]}>{title}</Text>
         <Text style={[styles.optionDescription, { color: colors.muted }]}>{description}</Text>
@@ -319,12 +323,11 @@ export function AppearanceExperience() {
   const renderedThemes = showAll ? filteredThemes : filteredThemes.slice(0, 12);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-      <View>
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>APPARENCE</Text>
-        <Text style={[styles.heading, { color: colors.text }]}>Fais de KnowMe ton espace</Text>
+    <View style={styles.rootSection}>
+      <View style={styles.headingBlock}>
+        <Text style={[styles.heading, { color: colors.text }]}>Thème et apparence</Text>
         <Text style={[styles.description, { color: colors.muted }]}>
-          Chaque famille peut modifier la géométrie, le verre, les bulles, le fond du chat et les effets — pas seulement la palette.
+          Thème, accent, bulles, fond du chat, transparence et mouvement.
         </Text>
       </View>
 
@@ -674,20 +677,22 @@ export function AppearanceExperience() {
 }
 
 const styles = StyleSheet.create({
+  rootSection: { gap: 14 },
+  headingBlock: { gap: 4, paddingHorizontal: 2 },
   chatPreview: {
-    minHeight: 220,
+    minHeight: 188,
     borderWidth: 1,
     overflow: 'hidden',
-    padding: 16,
+    padding: 14,
     gap: 10,
     position: 'relative'
   },
   chatPreviewHeader: {
-    marginBottom: 12
+    marginBottom: 8
   },
   chatPreviewTitle: {
-    fontSize: 16,
-    fontWeight: '900'
+    fontSize: 15.5,
+    fontWeight: '700'
   },
   chatPreviewMeta: {
     fontSize: 11,
@@ -711,14 +716,13 @@ const styles = StyleSheet.create({
   },
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 14 },
   loadingText: { textAlign: 'center' },
-  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-  heading: { fontSize: 20, fontWeight: '800', marginTop: 4 },
-  description: { fontSize: 13, lineHeight: 19, marginTop: 6 },
+  heading: { fontSize: 20, fontWeight: '700' },
+  description: { fontSize: 13, lineHeight: 18 },
   notice: { borderWidth: 1, borderRadius: 14, padding: 12 },
   noticeText: { fontSize: 13, lineHeight: 19 },
-  search: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  search: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8 },
+  chip: { minHeight: 40, borderWidth: StyleSheet.hairlineWidth, borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
   chipText: { fontSize: 11.5, fontWeight: '700' },
   resultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   resultCount: { fontSize: 11.5, fontWeight: '700' },
@@ -747,17 +751,17 @@ const styles = StyleSheet.create({
   themeMeta: { fontSize: 9.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   premiumPill: { minHeight: 20, borderRadius: 10, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', gap: 3 },
   premiumPillText: { fontSize: 9, fontWeight: '800' },
-  themeName: { fontSize: 14.5, fontWeight: '800' },
+  themeName: { fontSize: 14.5, fontWeight: '700' },
   themeDescription: { fontSize: 11.5, lineHeight: 16 },
   themeStatus: { fontSize: 10.5, fontWeight: '700' },
-  secondaryButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: 'center' },
-  secondaryButtonText: { fontSize: 13, fontWeight: '900' },
+  secondaryButton: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  secondaryButtonText: { fontSize: 13, fontWeight: '700' },
   section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, gap: 11 },
-  sectionTitle: { fontSize: 17, fontWeight: '900' },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
   sectionDescription: { fontSize: 12, lineHeight: 17 },
-  optionRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, flexDirection: 'row', alignItems: 'center', gap: 13 },
+  optionRow: { minHeight: 56, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 9, paddingBottom: 3, flexDirection: 'row', alignItems: 'center', gap: 13 },
   optionCopy: { flex: 1 },
-  optionTitle: { fontSize: 14, fontWeight: '800' },
+  optionTitle: { fontSize: 14, fontWeight: '600' },
   optionDescription: { fontSize: 12, lineHeight: 17, marginTop: 3 },
   seasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   seasonCard: { width: '48%', borderRadius: 13, padding: 10, gap: 3 },
