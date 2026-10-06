@@ -185,12 +185,15 @@ model ConversationMember {
 }
 
 model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String
-  createdAt      DateTime @default(now())
-  editedAt       DateTime?
+  id                String   @id @default(cuid())
+  conversationId    String
+  senderId          String
+  content           String
+  replyToId         String?
+  replyToAuthorName String?
+  replyToPreview    String?
+  createdAt         DateTime @default(now())
+  editedAt          DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
