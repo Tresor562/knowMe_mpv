@@ -13,7 +13,7 @@ import {
   clearTrustedDeviceToken
 } from './api';
 import { useAppearance } from './AppearanceProvider';
-import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeIcon, SoftSurface } from './ui/KnowMeUI';
 
 type SecurityStatus = {
   twoFactorEnabled: boolean;
@@ -57,6 +57,9 @@ function Button({ title, onPress, disabled = false, secondary = false, danger = 
   const { colors, visual } = useAppearance();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -289,16 +292,16 @@ export function SecurityExperience({ onSessionClosed }: {
 
   if (!status) {
     return (
-      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+      <SoftSurface style={styles.loadingCard}>
         <Text style={[styles.description, { color: colors.muted }]}>Chargement de la sécurité…</Text>
-      </GlassSurface>
+      </SoftSurface>
     );
   }
 
   const activeTrustedDevices = status.trustedDevices.filter((item) => item.active).length;
 
   return (
-    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+    <View style={styles.root}>
       <View style={styles.heroRow}>
         <View style={[styles.heroIcon, { backgroundColor: colors.backgroundAccent }]}>
           <KnowMeIcon name="check" size={21} color={status.twoFactorEnabled ? colors.accent : colors.muted} />
@@ -311,7 +314,7 @@ export function SecurityExperience({ onSessionClosed }: {
         </View>
       </View>
 
-      <GlassSurface strength="soft" borderRadius={20} style={styles.summaryStrip}>
+      <SoftSurface style={styles.summaryStrip}>
         <View style={styles.summaryMetric}>
           <Text style={[styles.summaryValue, { color: status.twoFactorEnabled ? colors.accent : colors.text }]}>
             {status.twoFactorEnabled ? 'Actif' : 'Inactif'}
@@ -326,7 +329,7 @@ export function SecurityExperience({ onSessionClosed }: {
           <Text style={[styles.summaryValue, { color: colors.text }]}>{activeTrustedDevices}</Text>
           <Text style={[styles.summaryLabel, { color: colors.muted }]}>Appareils fiables</Text>
         </View>
-      </GlassSurface>
+      </SoftSurface>
       {status.lockedUntil ? <Text style={[styles.warning, { color: colors.danger }]}>Second facteur verrouillé jusqu’au {date(status.lockedUntil)}</Text> : null}
 
       {!status.twoFactorEnabled && !setup ? (
@@ -375,6 +378,8 @@ export function SecurityExperience({ onSessionClosed }: {
             </View>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={session.current ? 'Révoquer la session actuelle' : 'Révoquer cette session'}
+              hitSlop={2}
               onPress={() => void revokeSession(session.id, session.current)}
               style={[styles.removeButton, { backgroundColor: colors.backgroundAccent }]}
             >
@@ -396,6 +401,8 @@ export function SecurityExperience({ onSessionClosed }: {
             {device.active ? (
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel={`Révoquer l’appareil ${device.label}`}
+                hitSlop={2}
                 onPress={() => void revokeDevice(device.id)}
                 style={[styles.removeButton, { backgroundColor: colors.backgroundAccent }]}
               >
@@ -427,36 +434,37 @@ export function SecurityExperience({ onSessionClosed }: {
           </View>
         ))}
       </View>
-    </GlassSurface>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 15, gap: 14 },
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  heroIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  root: { gap: 14 },
+  loadingCard: { padding: 14 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 2 },
+  heroIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   heroCopy: { flex: 1 },
-  title: { fontSize: 18, fontWeight: '800' },
-  subtitle: { fontSize: 14.5, fontWeight: '800' },
+  title: { fontSize: 18, fontWeight: '700' },
+  subtitle: { fontSize: 15, fontWeight: '700' },
   description: { fontSize: 12.5, lineHeight: 18 },
   summaryStrip: { flexDirection: 'row', padding: 5 },
-  summaryMetric: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center' },
-  summaryValue: { fontSize: 13.5, fontWeight: '800' },
-  summaryLabel: { fontSize: 9, marginTop: 1, textAlign: 'center' },
+  summaryMetric: { flex: 1, minWidth: 0, minHeight: 56, alignItems: 'center', justifyContent: 'center' },
+  summaryValue: { fontSize: 14, fontWeight: '700' },
+  summaryLabel: { fontSize: 10, marginTop: 1, textAlign: 'center' },
   section: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 13, gap: 9 },
-  input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14.5 },
-  button: { minHeight: 46, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { fontSize: 12.5, fontWeight: '800' },
+  input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 },
+  button: { minHeight: 48, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 13.5, fontWeight: '700' },
   muted: { opacity: 0.45 },
-  secret: { padding: 11, fontWeight: '800', letterSpacing: 0.8 },
+  secret: { padding: 11, fontWeight: '600', letterSpacing: 0.8 },
   helper: { fontSize: 12, lineHeight: 18 },
-  warning: { fontWeight: '900' },
+  warning: { fontWeight: '700' },
   recoveryBox: {},
   recoveryCode: { borderRadius: 10, padding: 8, fontFamily: 'monospace' },
-  row: { flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 9 },
+  row: { minHeight: 56, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 7 },
   rowText: { flex: 1 },
-  rowTitle: { fontWeight: '800' },
-  removeButton: { minHeight: 32, borderRadius: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
-  remove: { fontSize: 11, fontWeight: '800' },
+  rowTitle: { fontWeight: '600', fontSize: 14 },
+  removeButton: { minHeight: 44, borderRadius: 22, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  remove: { fontSize: 12.5, fontWeight: '600' },
   event: { borderLeftWidth: 2, paddingLeft: 10, gap: 3 }
 });
