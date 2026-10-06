@@ -35,18 +35,15 @@ function PublicChoice({
   onGuest: () => void;
   onRecovery: () => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const { locale, setLocalLocale } = useI18n();
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
-      <View pointerEvents="none" style={[styles.glowOne, { backgroundColor: colors.accent }]} />
-      <View pointerEvents="none" style={[styles.glowTwo, { backgroundColor: colors.secondary }]} />
-
       <View style={styles.content}>
         <View style={styles.topRow}>
           <View style={styles.brandRow}>
-            <BrandMark size={32} />
+            <BrandMark size={30} />
             <Text style={[styles.brandName, { color: colors.text }]}>KnowMe</Text>
           </View>
           <View style={styles.languageWrap}>
@@ -59,25 +56,33 @@ function PublicChoice({
         </View>
 
         <View style={styles.hero}>
-          <GlassSurface strength="soft" borderRadius={34} style={styles.logoGlass}>
-            <BrandMark size={58} />
+          <GlassSurface
+            strength="soft"
+            borderRadius={visual.cardRadius}
+            style={styles.logoGlass}
+          >
+            <BrandMark size={48} />
           </GlassSurface>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>
-            MESSAGES · PLAY · DISCOVER
-          </Text>
           <Text style={[styles.title, { color: colors.text }]}>
-            Bienvenue sur KnowMe.
+            Bienvenue sur KnowMe
           </Text>
           <Text style={[styles.copy, { color: colors.muted }]}>
-            Une messagerie sociale rapide, personnelle et vivante — avec ton identité, tes conversations et ton univers au même endroit.
+            Messages, appels, groupes, chaînes et outils IA dans une expérience compacte, rapide et personnelle.
           </Text>
         </View>
 
-        <GlassSurface strength="medium" borderRadius={28} style={styles.actionsCard}>
+        <View style={styles.actions}>
           <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Connexion ou inscription"
             onPress={onAccount}
-            style={[styles.primary, { backgroundColor: colors.accent }]}
+            style={[
+              styles.primary,
+              {
+                backgroundColor: colors.accent,
+                borderRadius: visual.controlRadius
+              }
+            ]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
               Connexion / Inscription
@@ -87,12 +92,14 @@ function PublicChoice({
 
           <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Essayer PLAY sans compte"
             onPress={onGuest}
             style={[
               styles.secondary,
               {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: visual.controlRadius
               }
             ]}
           >
@@ -103,18 +110,19 @@ function PublicChoice({
 
           <PressScale
             accessibilityRole="button"
+            accessibilityLabel="Récupérer mon compte"
             onPress={onRecovery}
             style={styles.textButton}
           >
             <Text style={[styles.textButtonText, { color: colors.accent }]}>
-              Mot de passe oublié ?
+              Récupérer mon compte
             </Text>
           </PressScale>
 
           <Text style={[styles.note, { color: colors.muted }]}>
             La langue suit ton appareil par défaut et reste modifiable à tout moment.
           </Text>
-        </GlassSurface>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -208,32 +216,14 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 18
   },
-  glowOne: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    top: -165,
-    right: -120,
-    opacity: 0.1
-  },
-  glowTwo: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    bottom: -150,
-    left: -110,
-    opacity: 0.08
-  },
   content: {
     flex: 1,
-    paddingHorizontal: 18,
-    paddingTop: 6,
-    paddingBottom: 18
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 16
   },
   topRow: {
-    minHeight: 52,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -244,54 +234,48 @@ const styles = StyleSheet.create({
     gap: 9
   },
   brandName: {
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: -0.45
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.35
   },
   languageWrap: {
-    width: 120
+    width: 112
   },
   hero: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingTop: 10
+    paddingHorizontal: 12,
+    paddingTop: 6
   },
   logoGlass: {
-    width: 92,
-    height: 92,
+    width: 76,
+    height: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20
-  },
-  eyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.15,
-    marginBottom: 10
+    marginBottom: 18
   },
   title: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '800',
-    letterSpacing: -0.8,
+    fontSize: 25,
+    lineHeight: 31,
+    fontWeight: '700',
+    letterSpacing: -0.55,
     textAlign: 'center'
   },
   copy: {
-    maxWidth: 350,
-    fontSize: 14,
+    maxWidth: 340,
+    fontSize: 14.5,
     lineHeight: 21,
     textAlign: 'center',
     marginTop: 8
   },
-  actionsCard: {
-    padding: 12,
-    gap: 9
+  actions: {
+    gap: 8,
+    paddingTop: 4
   },
   primary: {
-    minHeight: 52,
-    borderRadius: 20,
+    minHeight: 50,
+    borderRadius: 22,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,33 +283,33 @@ const styles = StyleSheet.create({
     gap: 9
   },
   primaryText: {
-    fontWeight: '900',
-    fontSize: 15.5
+    fontWeight: '700',
+    fontSize: 15
   },
   secondary: {
-    minHeight: 50,
+    minHeight: 48,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center'
   },
   secondaryText: {
-    fontWeight: '800',
+    fontWeight: '600',
     fontSize: 15
   },
   textButton: {
-    minHeight: 38,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center'
   },
   textButtonText: {
-    fontWeight: '800',
+    fontWeight: '600',
     fontSize: 13.5
   },
   note: {
     fontSize: 11.5,
-    lineHeight: 17,
+    lineHeight: 16.5,
     textAlign: 'center',
     paddingHorizontal: 12,
     paddingBottom: 2
