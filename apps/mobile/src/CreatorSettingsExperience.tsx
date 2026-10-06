@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { apiFetch, type ApiError } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type CreatorProfile = {
   slug: string;
@@ -36,6 +37,18 @@ type Dashboard = {
 };
 
 const CATEGORIES = ['TECH', 'EDUCATION', 'GAMING', 'LIFESTYLE', 'ART', 'MUSIC', 'SPORT', 'COMMUNITY', 'OTHER'];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  TECH: 'Tech',
+  EDUCATION: 'Éducation',
+  GAMING: 'Gaming',
+  LIFESTYLE: 'Lifestyle',
+  ART: 'Art',
+  MUSIC: 'Musique',
+  SPORT: 'Sport',
+  COMMUNITY: 'Communauté',
+  OTHER: 'Autre'
+};
 
 export function CreatorSettingsExperience() {
   const { colors, visual } = useAppearance();
@@ -98,25 +111,32 @@ export function CreatorSettingsExperience() {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Profil créateur</Text>
-      <Text style={[styles.description, { color: colors.muted }]}>
-        Volontaire, révocable et distinct de Premium, de la vérification et des rôles staff.
-      </Text>
+    <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
+      <View style={styles.header}>
+        <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="profile" size={20} color={colors.secondary} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.title, { color: colors.text }]}>Mode créateur</Text>
+          <Text style={[styles.description, { color: colors.muted }]}>
+            Gère ton profil public et tes contenus sans changer ton compte principal.
+          </Text>
+        </View>
+      </View>
       {dashboard ? (
-        <View style={styles.metrics}>
+        <GlassSurface strength="soft" borderRadius={20} style={styles.metrics}>
           {[
             ['Abonnés', dashboard.totals.followers],
-            ['Publications', dashboard.totals.posts],
-            ['Vues profil', dashboard.totals.profileViews],
-            ['Vues contenus', dashboard.totals.postViews]
+            ['Posts', dashboard.totals.posts],
+            ['Profil', dashboard.totals.profileViews],
+            ['Contenus', dashboard.totals.postViews]
           ].map(([label, value]) => (
-            <View key={String(label)} style={[styles.metric, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}>
+            <View key={String(label)} style={styles.metric}>
               <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
-              <Text style={{ color: colors.muted, fontSize: 12 }}>{label}</Text>
+              <Text style={[styles.metricLabel, { color: colors.muted }]}>{label}</Text>
             </View>
           ))}
-        </View>
+        </GlassSurface>
       ) : null}
       <TextInput
         value={slug}
@@ -152,7 +172,7 @@ export function CreatorSettingsExperience() {
             onPress={() => setCategory(item)}
             style={[styles.pill, { borderColor: colors.border, backgroundColor: category === item ? colors.accent : colors.surfaceRaised }]}
           >
-            <Text style={{ color: category === item ? colors.accentText : colors.text, fontWeight: '800' }}>{item}</Text>
+            <Text style={{ color: category === item ? colors.accentText : colors.text, fontWeight: '700' }}>{CATEGORY_LABELS[item] ?? item}</Text>
           </Pressable>
         ))}
       </View>
@@ -180,26 +200,31 @@ export function CreatorSettingsExperience() {
         </Text>
       </Pressable>
       {dashboard ? (
-        <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-          Les identités brutes des visiteurs ne sont pas stockées. Les reçus hachés expirent après {dashboard.privacy.receiptRetentionDays} jours.
+        <Text style={[styles.privacyNote, { color: colors.muted }]}>
+          Les visiteurs restent anonymisés dans les statistiques. Les données techniques expirent après {dashboard.privacy.receiptRetentionDays} jours.
         </Text>
       ) : null}
       {message ? <Text style={{ color: colors.secondary, fontWeight: '800' }}>{message}</Text> : null}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 24, padding: 18, gap: 12 },
-  title: { fontSize: 19, fontWeight: '900' },
-  description: { fontSize: 14, lineHeight: 21 },
-  input: { minHeight: 50, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, paddingVertical: 12 },
-  multiline: { minHeight: 90, textAlignVertical: 'top' },
+  card: { padding: 14, gap: 11 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1 },
+  title: { fontSize: 18, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  input: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10 },
+  multiline: { minHeight: 82, textAlignVertical: 'top' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 },
-  button: { borderRadius: 15, padding: 13, alignItems: 'center' },
+  pill: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  button: { minHeight: 46, borderRadius: 20, padding: 10, alignItems: 'center', justifyContent: 'center' },
   muted: { opacity: 0.5 },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  metric: { width: '47%', borderRadius: 14, padding: 12 },
-  metricValue: { fontSize: 22, fontWeight: '900' }
+  metrics: { flexDirection: 'row', padding: 5 },
+  metric: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  metricValue: { fontSize: 14, fontWeight: '800' },
+  metricLabel: { fontSize: 8.5, marginTop: 1, textAlign: 'center' },
+  privacyNote: { fontSize: 11, lineHeight: 16 }
 });
