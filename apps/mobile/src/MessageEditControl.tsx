@@ -9,7 +9,7 @@ import {
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
-import { GlassSurface } from './ui/KnowMeUI';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type EditedMessage = {
   id: string;
@@ -68,77 +68,88 @@ export function MessageEditControl({
       socket.on('message:updated', onMessageUpdated);
     });
 
-    return () => {
-      active = false;
-      connectedSocket?.off('message:updated', onMessageUpdated);
-    };
-  }, [baseContent, conversationId, messageId, onUpdated]);
-
-  async function save() {
-    const normalized = content.trim();
-    if (!normalized || normalized.length > 4000 || busy || conflict) return;
-    setBusy(true);
-    setError('');
-    try {
-      const updated = await apiFetch<EditedMessage>(
-        `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            content: normalized,
-            expectedEditedAt: editedAt
-          })
-        }
-      );
-      setContent(updated.content);
-      setBaseContent(updated.content);
-      setEditedAt(updated.editedAt);
-      setConflict(false);
-      onUpdated?.(updated);
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Modification impossible.';
-      if (message.includes('MESSAGE_EDIT_VERSION_CONFLICT')) {
-        setConflict(true);
-        setError('Ce message a déjà été modifié ailleurs. Reprends la version serveur avant de réessayer.');
-      } else {
-        setError(message);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function resetToServer() {
-    setContent(baseContent);
-    setConflict(false);
-    setError('');
-  }
-
-  return (
+    return (
     <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.card}>
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>MODIFIER TON MESSAGE</Text>
+      <View style={styles.header}>
+        <View style={[styles.editMarker, { backgroundColor: colors.accent }]} />
+        <View style={styles.headerCopy}>
+          <Text style={[styles.title, { color: colors.text }]}>Modification du message</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
+            Le brouillon actuel reste disponible si tu annules.
+          </Text>
+        </View>
+        {onCancel ? (
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel="Annuler la modification"
+            disabled={busy}
+            onPress={onCancel}
+            style={[
+              styles.closeButton,
+              {
+                backgroundColor: colors.backgroundAccent,
+                borderColor: colors.border,
+                borderRadius: visual.controlRadius
+              }
+            ]}
+          >
+            <KnowMeIcon name="close" size={18} color={colors.text} />
+          </PressScale>
+        ) : null}
+      </View>
+
       <TextInput
         value={content}
         onChangeText={setContent}
         multiline
         maxLength={4000}
         editable={!busy}
-        placeholder="Corrige ton message…"
+        autoFocus
+        placeholder="Modifier le message…"
         placeholderTextColor={colors.muted}
+        selectionColor={colors.accent}
         style={[
           styles.input,
           {
             backgroundColor: colors.backgroundAccent,
-            borderColor: colors.border,
+            borderColor: conflict ? colors.danger : colors.border,
             color: colors.text,
             borderRadius: visual.inputRadius
           }
         ]}
       />
-      <Text style={[styles.counter, { color: colors.muted }]}>{content.length}/4000</Text>
-      {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+
+      <View style={styles.metaRow}>
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={[styles.error, { color: colors.danger }]}>
+            {error}
+          </Text>
+        ) : (
+          <View style={styles.metaSpacer} />
+        )}
+        <Text style={[styles.counter, { color: colors.muted }]}>{content.length}/4000</Text>
+      </View>
+
       <View style={styles.actions}>
-        <Pressable
+        {conflict ? (
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel="Reprendre la version serveur"
+            disabled={busy}
+            onPress={resetToServer}
+            style={[
+              styles.secondary,
+              { borderColor: colors.border, borderRadius: visual.controlRadius },
+              busy && styles.disabled
+            ]}
+          >
+            <Text style={[styles.secondaryText, { color: colors.text }]}>Version serveur</Text>
+          </PressScale>
+        ) : null}
+
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Enregistrer la modification"
           disabled={busy || conflict || !content.trim()}
           onPress={() => void save()}
           style={[
@@ -147,41 +158,82 @@ export function MessageEditControl({
             (busy || conflict || !content.trim()) && styles.disabled
           ]}
         >
-          <Text style={{ color: colors.accentText, fontWeight: '900' }}>
+          <Text style={[styles.primaryText, { color: colors.accentText }]}>
             {busy ? 'Modification…' : 'Enregistrer'}
           </Text>
-        </Pressable>
-        {conflict ? (
-          <Pressable
-            disabled={busy}
-            onPress={resetToServer}
-            style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
-          >
-            <Text style={{ color: colors.text, fontWeight: '800' }}>Version serveur</Text>
-          </Pressable>
-        ) : null}
-        {onCancel ? (
-          <Pressable
-            disabled={busy}
-            onPress={onCancel}
-            style={[styles.secondary, { borderColor: colors.border, borderRadius: visual.controlRadius }, busy && styles.disabled]}
-          >
-            <Text style={{ color: colors.text, fontWeight: '800' }}>Annuler</Text>
-          </Pressable>
-        ) : null}
+        </PressScale>
       </View>
     </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 },
-  eyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  input: { minHeight: 112, borderWidth: 1, borderRadius: 15, padding: 13, textAlignVertical: 'top' },
-  counter: { fontSize: 11, textAlign: 'right' },
-  error: { fontSize: 13, lineHeight: 19 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  primary: { borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11 },
-  secondary: { borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, paddingVertical: 11 },
+  card: {
+    marginHorizontal: 10,
+    marginBottom: 8,
+    padding: 10,
+    gap: 8
+  },
+  header: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9
+  },
+  editMarker: {
+    width: 3,
+    height: 30,
+    borderRadius: 3
+  },
+  headerCopy: { flex: 1 },
+  title: { fontSize: 13.5, fontWeight: '700' },
+  subtitle: { fontSize: 11, lineHeight: 15, marginTop: 1 },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  input: {
+    minHeight: 52,
+    maxHeight: 132,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    textAlignVertical: 'top',
+    fontSize: 15,
+    lineHeight: 20
+  },
+  metaRow: {
+    minHeight: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8
+  },
+  metaSpacer: { flex: 1 },
+  counter: { fontSize: 11, marginLeft: 'auto' },
+  error: { flex: 1, fontSize: 12, lineHeight: 17 },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8
+  },
+  primary: {
+    minHeight: 44,
+    minWidth: 112,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  secondary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  primaryText: { fontSize: 13.5, fontWeight: '700' },
+  secondaryText: { fontSize: 13, fontWeight: '600' },
   disabled: { opacity: 0.45 }
 });
