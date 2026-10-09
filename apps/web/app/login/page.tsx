@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { KnowMeBrand } from '../../components/knowme-brand';
-import { apiFetch, getTrustedDeviceToken, saveSession, saveTrustedDeviceToken } from '../../lib/api';
+import { apiFetch, getTrustedDeviceToken, saveSession, saveTrustedDeviceToken, type ApiError } from '../../lib/api';
 
 type SessionResult = { accessToken: string; refreshToken?: string; trustedDeviceToken?: string };
 type ChallengeResult = { requiresTwoFactor: true; challengeToken: string; expiresAt: string; expiresIn: number };
@@ -45,7 +45,14 @@ export default function LoginPage() {
       saveSession(data.accessToken,data.refreshToken);
       window.location.replace('/messages');
     }catch(cause){
-      setMessage(cause instanceof Error ? cause.message : 'Impossible de se connecter pour le moment.');
+      const error = cause as ApiError;
+      if (error.status === 401) {
+        setMessage('Identifiant ou mot de passe incorrect. Si vous avez oublié votre mot de passe, utilisez la récupération de compte.');
+      } else if (error.status === 429) {
+        setMessage('Trop de tentatives. Attendez quelques minutes avant de réessayer.');
+      } else {
+        setMessage(cause instanceof Error ? cause.message : 'Impossible de se connecter pour le moment.');
+      }
     }finally{setSubmitting(false);}
   }
 
