@@ -33,7 +33,7 @@ export function BottomNavigation() {
     };
   }, [pathname]);
 
-  if (!hasSession || HIDDEN_PATHS.includes(pathname) || pathname.startsWith('/m/') || pathname.startsWith('/play/')) return null;
+  if (!hasSession || HIDDEN_PATHS.includes(pathname) || pathname.startsWith('/m/') || pathname.startsWith('/play/') || /^\/messages\/[^/]+/.test(pathname)) return null;
 
   const items: { href: string; label: string; icon: IconName; matches: string[] }[] = [
     { href: '/messages', label: locale === 'fr' ? 'Discussions' : 'Chats', icon: 'chats', matches: ['/messages', '/conversation-pins', '/saved-messages'] },
