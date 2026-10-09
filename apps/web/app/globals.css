@@ -437,3 +437,45 @@ body:has(.km-auth)::before { display: none; }
   .km-msg-eyebrow {font-size:11px;}
 }
 @media(prefers-reduced-motion:reduce) {.km-compose-form,.km-rotate{animation:none;} }
+
+/* Immersive message threads. Distinct read/write surfaces with no persistent global tabs. */
+body:has(.km-chat-screen) { padding-bottom:0; }
+.km-chat-screen { width:min(100%,940px); min-height:100dvh; margin:auto; display:flex; flex-direction:column; background:var(--bg); }
+.km-chat-header {
+  position:sticky; top:0; z-index:30; display:flex; align-items:center;gap:11px;
+  height:76px; flex-shrink:0; padding:8px 18px; border-bottom:1px solid var(--soft-border);
+  background:var(--nav-glass); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+}
+.km-chat-back { flex-shrink:0; width:38px; height:42px; border:none; background:transparent; }
+.km-chat-header-details { flex:1; min-width:0; }
+.km-chat-header-details h1 { margin:0; font-size:17px; font-weight:680; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.km-chat-header-details p { color:var(--muted); margin:3px 0 0; font-size:12px; }
+.km-chat-transcript {
+  flex:1; min-height:calc(100dvh - 156px);
+  padding:24px clamp(12px,3vw,28px);
+  display:flex; flex-direction:column; gap:7px;
+  background:radial-gradient(ellipse 80% 65% at 50% 15%,color-mix(in srgb,var(--mint) 6%,transparent),transparent);
+}
+.km-message-bubble { max-width:min(72%,560px); width:max-content; min-width:60px; padding:9px 12px 6px; border-radius:17px; font-size:14px; line-height:1.5; overflow-wrap:anywhere; animation:km-bubble-in .18s ease-out both; }
+.km-message-other { background:var(--surface-2); align-self:flex-start; border-bottom-left-radius:5px; }
+.km-message-mine { background:color-mix(in srgb,var(--mint) 25%,var(--surface)); align-self:flex-end; border-bottom-right-radius:5px; }
+.km-message-nexus { background:color-mix(in srgb,var(--mint) 11%,var(--surface)); border:1px solid color-mix(in srgb,var(--mint) 20%,transparent); align-self:flex-start; border-bottom-left-radius:5px; }
+.km-message-author { display:block; color:var(--mint); font-size:12px; font-weight:650; margin-bottom:4px; }
+.km-message-meta { display:flex; justify-content:flex-end; align-items:center; gap:5px; color:var(--muted); font-size:10px; min-height:14px; margin-top:3px; }
+.km-message-meta span { color:var(--mint); font-weight:700; }
+.km-chat-transcript-empty { color:var(--muted); align-self:center; margin:auto; text-align:center; background:var(--surface-glass); border-radius:18px; padding:12px 18px; font-size:13px; }
+.km-typing-indicator { align-self:flex-start; margin:0; font-size:12px; color:var(--mint); font-weight:580; }
+.km-history-button { display:block; align-self:center; border:0; background:var(--surface-glass);color:var(--muted);border-radius:999px;padding:9px 16px;cursor:pointer;font-size:12px;margin-bottom:10px; }
+.km-chat-composer { position:sticky; bottom:0; z-index:40; display:flex; align-items:center; gap:8px; padding:10px clamp(12px,3vw,22px) calc(10px + env(safe-area-inset-bottom,0px));background:var(--nav-glass);border-top:1px solid var(--soft-border);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px); }
+.km-chat-composer .km-chat-compose-input { flex:1;min-width:0; width:auto; height:46px; min-height:46px; padding:10px 16px; border-radius:999px; background:var(--input-bg); border:1px solid var(--soft-border); color:var(--text); }
+.km-chat-composer .km-chat-compose-input:focus { border-color:var(--mint); outline:none; }
+.km-send-button { flex-shrink:0; display:grid;place-items:center; height:46px;width:46px;border:0;border-radius:50%;color:var(--on-primary);background:var(--mint);cursor:pointer; }
+.km-send-button:disabled { opacity:.45; cursor:not-allowed; }
+@keyframes km-bubble-in { from {opacity:.3;transform:translateY(4px) scale(.98)} to {opacity:1;transform:translateY(0) scale(1)} }
+@media(max-width:560px) {
+  .km-chat-header { height:64px;padding:7px 10px;gap:8px;}
+  .km-chat-transcript { min-height:calc(100dvh - 137px);padding:16px 10px; }
+  .km-message-bubble { max-width:87%;font-size:14px; }
+  .km-chat-composer {padding:8px 10px calc(9px + env(safe-area-inset-bottom,0px));}
+}
+@media(prefers-reduced-motion:reduce) { .km-message-bubble{animation:none} }
