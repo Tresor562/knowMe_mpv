@@ -1,0 +1,59 @@
+name: Publish KnowMe Android preview
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-knowme-android.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Find latest non-expired KnowMe APK artifact
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | [.created_at, .id] | @tsv' | sort -r | head -n1)"
+          if [[ -z "$data" ]]; then
+            echo "::error::No unexpired knowme-android-apk workflow artifact was found. Re-run the APK build workflow, then dispatch this workflow."
+            exit 1
+          fi
+          id="$(printf '%s' "$data" | cut -f2)"
+          echo "artifact_id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Download and validate APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > artifact.zip
+          unzip -j -o artifact.zip '*KnowMe-1.0.0-preview.apk' -d dist
+          test -s dist/KnowMe-1.0.0-preview.apk
+          bytes="$(stat -c %s dist/KnowMe-1.0.0-preview.apk)"
+          test "$bytes" -gt 10000000
+          unzip -tqq dist/KnowMe-1.0.0-preview.apk
+          sha256sum dist/KnowMe-1.0.0-preview.apk > dist/KnowMe-1.0.0-preview.apk.sha256
+          ls -lh dist/*
+
+      - name: Publish public prerelease download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v1.0.0-preview"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --clobber
+          else
+            gh release create "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --prerelease --title "KnowMe Android — version de prévisualisation 1.0.0" --notes "Aperçu Android de KnowMe pour tests. Cette version n'est pas la sortie publique finale. Installez uniquement si vous acceptez de tester une application en développement."
+          fi
+          gh release view "$TAG" --json url -q .url
