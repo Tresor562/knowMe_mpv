@@ -506,3 +506,15 @@ body:has(.km-chat-screen) { padding-bottom:0; }
 .km-hub-logout { margin:22px 2px; color:var(--muted);background:transparent;border:0;cursor:pointer;padding:12px 2px;font-size:13px; }
 .km-hub-logout:hover {color:var(--danger)}
 @media(max-width:560px) {.km-hub{padding-inline:16px}.km-hub-summary a{font-size:14px}.km-hub-summary span{font-size:11px}.km-hub-account-copy{display:none}}
+
+/* Account recovery: a successful generic response is not an outage. */
+.km-recovery-success {
+  margin-top: 15px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--mint) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--mint) 26%, var(--soft-border));
+  font-size: 13px;
+  line-height: 1.6;
+}

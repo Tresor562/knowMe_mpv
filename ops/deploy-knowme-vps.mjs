@@ -200,8 +200,9 @@ const env = {
   DATABASE_URL: 'postgresql://knowme:' + dbPassword + '@knowme-postgres:5432/knowme?schema=public',
   JWT_SECRET: oldEnv.JWT_SECRET || randomHex(48),
   PORT: '4000',
-  WEB_URL: 'https://knowmempv.vercel.app',
-  CORS_ALLOWED_ORIGINS_JSON: '["https://knowmempv.vercel.app"]',
+  // Prefer the current KnowMe Web origin for reset links while preserving the legacy site for connected clients.
+  WEB_URL: 'https://knowme-nextech.vercel.app',
+  CORS_ALLOWED_ORIGINS_JSON: '["https://knowme-nextech.vercel.app","https://knowmempv.vercel.app"]',
   TRUSTED_PROXY_HOPS: '1',
   API_INSTANCE_COUNT: '1',
   API_RATE_LIMIT_TTL_MS: '60000',
