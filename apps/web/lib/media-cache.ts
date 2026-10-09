@@ -9,7 +9,7 @@ import {
 } from '@knowme/media-cache-contract';
 import { apiFetch, getAccessToken } from './api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = '/api/knowme';
 const CACHE_NAME = 'knowme-private-media-v1';
 const CACHE_PREFIX = '/__knowme_private_media__/';
 

@@ -20,7 +20,7 @@ export default function MediaPage() {
     const form = new FormData(event.currentTarget);
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/media/upload`,
+      `/api/knowme/media/upload`,
       {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},

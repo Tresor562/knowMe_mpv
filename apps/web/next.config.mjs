@@ -63,6 +63,23 @@ const productionOnlyHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    // First-party REST entrypoint: avoids browser CORS failures without exposing backend credentials.
+    // Chat Socket.IO transport retains its separate WSS endpoint.
+    const raw = process.env.KNOWME_API_ORIGIN || process.env.NEXT_PUBLIC_API_URL;
+    if (!raw) return [];
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return [];
+      const prefix = url.pathname.replace(/\/$/, '');
+      return [{
+        source: '/api/knowme/:path*',
+        destination: `${url.origin}${prefix}/:path*`
+      }];
+    } catch {
+      return [];
+    }
+  },
   async headers() {
     return [
       {

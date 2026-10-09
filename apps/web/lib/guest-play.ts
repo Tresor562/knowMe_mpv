@@ -2,7 +2,7 @@
 
 import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = '/api/knowme';
 const GUEST_TOKEN_KEY = 'knowme_guest_token';
 const GUEST_GAME_SESSION_KEY = 'knowme_guest_quick_math_session';
 export const GUEST_CONSENT_VERSION = '2026-08-22';

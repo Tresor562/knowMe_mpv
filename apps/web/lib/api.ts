@@ -2,7 +2,7 @@
 
 import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = '/api/knowme';
 const TRUSTED_DEVICE_KEY = 'knowme_trusted_device_token';
 
 export type ApiError = Error & {
@@ -111,11 +111,19 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-    cache: 'no-store'
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      cache: 'no-store',
+      signal: init.signal ?? AbortSignal.timeout(16000)
+    });
+  } catch {
+    const error = new Error('Impossible de joindre KnowMe. Vérifiez votre connexion et réessayez.') as ApiError;
+    error.code = 'KNOWME_NETWORK_UNAVAILABLE';
+    throw error;
+  }
 
   if (response.status === 401 && retryAfterRefresh && !path.startsWith('/auth/')) {
     const refreshed = await refreshSession();
@@ -130,7 +138,7 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
     const requestId = data?.requestId ?? response.headers.get('x-request-id') ?? undefined;
     const fallback = Array.isArray(data?.message)
       ? data.message.join(', ')
-      : data?.message ?? 'Une erreur est survenue.';
+      : data?.message ?? (response.status >= 500 ? 'Le serveur KnowMe est momentanément indisponible. Réessayez dans un instant.' : 'Une erreur est survenue.');
     const error = new Error(
       localizeApiFailure(data?.code, fallback, requestId)
     ) as ApiError;
@@ -149,10 +157,18 @@ async function requestBlob(path: string, retryAfterRefresh: boolean): Promise<Bl
   const headers = new Headers({ 'Accept-Language': getRuntimeLocale() });
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(`${API_URL}${path}`, {
-    headers,
-    cache: 'no-store'
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(20000)
+    });
+  } catch {
+    const error = new Error('Téléchargement impossible : serveur KnowMe inaccessible.') as ApiError;
+    error.code = 'KNOWME_NETWORK_UNAVAILABLE';
+    throw error;
+  }
 
   if (response.status === 401 && retryAfterRefresh && !path.startsWith('/auth/')) {
     const refreshed = await refreshSession();

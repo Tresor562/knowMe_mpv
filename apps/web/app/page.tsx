@@ -1,18 +1,28 @@
+'use client';
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { KnowMeBrand } from '../components/knowme-brand';
 
-export default function Home() {
+export default function Home(){
+  useEffect(()=>{
+    if(window.localStorage.getItem('knowme_token'))window.location.replace('/messages');
+  },[]);
   return (
-    <main className="shell" style={{display:'grid',placeItems:'center'}}>
-      <section className="card" style={{maxWidth:760,padding:36,textAlign:'center'}}>
-        <div style={{fontSize:64}}>🧠✨</div>
-        <h1 style={{fontSize:'clamp(44px,8vw,88px)',margin:'8px 0'}}>KnowMe</h1>
-        <p style={{color:'var(--muted)',fontSize:20}}>
-          Des défis, des jeux et des conversations pour découvrir les personnes qui comptent.
-        </p>
-        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap',marginTop:26}}>
-          <Link className="btn btn-primary" href="/register">Créer un compte</Link>
-          <Link className="btn btn-accent" href="/login">Se connecter</Link>
+    <main className="km-auth">
+      <section className="km-auth-intro">
+        <KnowMeBrand />
+        <div className="km-auth-visual">
+          <h2>Une autre façon<br/><span>de rester proches.</span></h2>
+          <p>Des messages, des communautés et des expériences partagées. Retrouvez vos proches dans KnowMe, partout où vous êtes.</p>
         </div>
+        <span className="km-auth-pill">KnowMe · par NexTech</span>
+      </section>
+      <section className="km-auth-panel">
+        <h1>Bienvenue sur KnowMe</h1>
+        <p className="km-auth-subtitle">Accédez à votre compte ou rejoignez la communauté.</p>
+        <Link className="km-auth-submit" href="/login">Se connecter</Link>
+        <Link className="btn" href="/register" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:47,marginTop:12}}>Créer un compte</Link>
+        <p className="km-auth-help" style={{textAlign:'center',marginTop:20}}>Un espace personnel pour vos conversations.</p>
       </section>
     </main>
   );
