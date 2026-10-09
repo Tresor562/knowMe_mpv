@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { KnowMeBrand } from '../../components/knowme-brand';
-import { apiFetch, saveSession } from '../../lib/api';
+import { apiFetch, saveSession, type ApiError } from '../../lib/api';
 
 type RegisterResult={accessToken:string;refreshToken?:string};
 export default function RegisterPage(){
@@ -22,7 +22,16 @@ export default function RegisterPage(){
       })});
       saveSession(data.accessToken,data.refreshToken);
       window.location.replace('/messages');
-    }catch(cause){setMessage(cause instanceof Error?cause.message:'Inscription impossible pour le moment.');}
+    }catch(cause){
+      const error = cause as ApiError;
+      if (error.status === 409) {
+        setMessage('Ce nom d’utilisateur ou cette adresse e-mail est déjà utilisé. Si vous avez déjà un compte, connectez-vous plutôt que d’en créer un autre.');
+      } else if (error.status === 429) {
+        setMessage('Trop de tentatives. Attendez quelques minutes avant de réessayer.');
+      } else {
+        setMessage(cause instanceof Error ? cause.message : 'Inscription impossible pour le moment.');
+      }
+    }
     finally{setSubmitting(false);}
   }
 
@@ -51,7 +60,7 @@ export default function RegisterPage(){
           </span></label>
         </div>
         <button className="km-auth-submit" disabled={submitting}>{submitting&&<span className="km-spinner" aria-hidden="true"/>}{submitting?'Création en cours…':'Créer mon compte'}</button>
-        {message&&<p className="km-auth-error" role="alert">{message}</p>}
+        {message&&<div className="km-auth-error" role="alert"><p style={{margin:0}}>{message}</p><p style={{margin:'10px 0 0'}}><Link href="/login" style={{fontWeight:700,textDecoration:'underline'}}>Se connecter à mon compte →</Link></p></div>}
         <p className="km-auth-alternate">Déjà un compte ? <Link href="/login">Se connecter</Link></p>
       </form>
     </section>
