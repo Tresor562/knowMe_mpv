@@ -334,126 +334,54 @@ export default function ConversationPage() {
   const peers=readStates.filter(state=>state.userId!==user?.id);
 
   return(
-    <main className="shell" style={{maxWidth:820,margin:'0 auto'}}>
-      <header style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-        <div>
-          <small style={{color:'var(--mint)'}}>
-            {isNexusPrivate?'NEXUS · PRIVÉ':`DISCUSSION · ${socketStatus==='connected'
-              ?'EN DIRECT'
-              :socketStatus==='connecting'
-                ?'CONNEXION…'
-                :'HORS LIGNE'}`}
-          </small>
-          <h1>{isNexusPrivate?'Nexus':'Conversation'}</h1>
-          {isNexusPrivate&&<p style={{color:'var(--muted)',margin:0}}>Conversation explicite avec Nexus. Aucun accès caché à tes autres discussions.</p>}
-          {peers.length>0&&(
-            <p style={{color:'var(--muted)',margin:0}}>
-              {peers.map(peer=>
-                `${onlineUserIds.has(peer.userId)?'●':'○'} ${peer.user.displayName}`
-              ).join(' · ')}
-            </p>
-          )}
+    <main className="km-chat-screen">
+      <header className="km-chat-header">
+        <Link href="/messages" className="km-action km-chat-back" aria-label="Retour aux discussions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+        </Link>
+        <div className={`km-chat-avatar ${isNexusPrivate?'km-chat-ai':''}`} aria-hidden="true">
+          {isNexusPrivate?'N':(peers[0]?.user?.displayName||'D').slice(0,1).toUpperCase()}
         </div>
-        <div style={{display:'flex',gap:8}}>
-          <button
-            className="btn"
-            disabled={refreshing}
-            onClick={()=>void load()}
-          >
-            {refreshing?'Actualisation…':'Actualiser'}
-          </button>
-          <Link href="/messages" className="btn">Retour</Link>
+        <div className="km-chat-header-details">
+          <h1>{isNexusPrivate?'Nexus':peers.map(peer=>peer.user.displayName).join(', ')||'Conversation'}</h1>
+          <p>
+            {isNexusPrivate?'Assistant KnowMe':socketStatus==='connected'?
+              peers.some(peer=>onlineUserIds.has(peer.userId))?'En ligne':'Connecté':
+              socketStatus==='connecting'?'Connexion…':'En attente du réseau'}
+          </p>
         </div>
-      </header>
-
-      {message&&(
-        <p role="alert" style={{color:'var(--orange)'}}>{message}</p>
-      )}
-      {nextCursor&&(
-        <button
-          className="btn"
-          disabled={loadingOlder}
-          onClick={()=>void load(nextCursor)}
-        >
-          {loadingOlder?'Chargement…':'Charger les messages précédents'}
+        <button className="km-action" disabled={refreshing} onClick={()=>void load()} aria-label={refreshing?'Actualisation':'Actualiser la discussion'} title="Actualiser">
+          <svg className={refreshing?'km-rotate':''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 0-14.5-5.8L3.5 8.3M3.5 3.5v4.8h4.8M3.5 12.5a8.5 8.5 0 0 0 14.5 5.8l2.5-2.6M20.5 20.5v-4.8h-4.8"/></svg>
         </button>
-      )}
-
-      <section className="card" style={{padding:18,minHeight:420,display:'flex',flexDirection:'column',gap:12,marginTop:14}}>
+      </header>
+      {message&&<p className="km-auth-error" role="alert" style={{margin:'10px 20px'}}>{message}</p>}
+      <section className="km-chat-transcript" aria-label="Messages de la conversation">
+        {nextCursor&&<button className="km-history-button" disabled={loadingOlder} onClick={()=>void load(nextCursor)}>{loadingOlder?'Chargement…':'Afficher les messages précédents'}</button>}
         {items.map(item=>{
           const mine=item.senderId===user?.id;
           const nexus=item.nexusAuthored===true;
-          const readers=mine
-            ?readStates.filter(state=>
-                state.userId!==user?.id&&
-                new Date(state.lastReadAt).getTime()>=
-                  new Date(item.createdAt).getTime()
-              )
-            :[];
-          return(
-            <article
-              key={item.id}
-              style={{
-                alignSelf:mine?'flex-end':'flex-start',
-                maxWidth:'78%',
-                background:mine?'var(--mint)':nexus?'linear-gradient(135deg,rgba(69,230,189,.15),rgba(119,108,255,.15))':'var(--surface-2)',
-                border:nexus?'1px solid rgba(119,108,255,.35)':'none',
-                color:mine?'#06110e':'inherit',
-                padding:'12px 14px',
-                borderRadius:18
-              }}
-            >
-              {!mine&&(
-                <strong style={{display:'block',marginBottom:4,color:nexus?'var(--mint)':'inherit'}}>
-                  {nexus?'✦ Nexus':item.sender.displayName}
-                </strong>
-              )}
-              <MessageContent item={item}/>
-              <small style={{display:'block',marginTop:6,opacity:.7}}>
-                {new Date(item.createdAt).toLocaleString('fr-FR')}
-              </small>
-              {mine&&readers.length>0&&(
-                <small style={{display:'block',marginTop:3,opacity:.75}}>
-                  Lu par {readers.map(reader=>reader.user.displayName).join(', ')}
-                </small>
-              )}
-            </article>
-          );
+          const readers=mine?readStates.filter(state=>
+            state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
+          ):[];
+          return <article className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id}>
+            {!mine&&<strong className="km-message-author">{nexus?'Nexus':item.sender.displayName}</strong>}
+            <MessageContent item={item}/>
+            <div className="km-message-meta">
+              <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
+              {mine&&readers.length>0&&<span aria-label="Message lu">✓✓</span>}
+            </div>
+          </article>;
         })}
-        {!items.length&&(
-          <p style={{color:'var(--muted)'}}>{isNexusPrivate?'Écris ton premier message à Nexus.':'Commence la conversation.'}</p>
-        )}
-        {nexusPending&&<p aria-live="polite" style={{color:'var(--mint)',fontStyle:'italic',margin:0}}>✦ Nexus réfléchit…</p>}
-        {typingNames.length>0&&(
-          <p aria-live="polite" style={{color:'var(--mint)',fontStyle:'italic',margin:0}}>
-            {typingNames.join(', ')}{' '}
-            {typingNames.length>1?'écrivent':'écrit'}…
-          </p>
-        )}
+        {!items.length&&<div className="km-chat-transcript-empty">Dites bonjour pour commencer la conversation.</div>}
+        {nexusPending&&<p className="km-typing-indicator" aria-live="polite">Nexus réfléchit<span aria-hidden="true">…</span></p>}
+        {typingNames.length>0&&<p className="km-typing-indicator" aria-live="polite">{typingNames.join(', ')} {typingNames.length>1?'écrivent':'écrit'}…</p>}
       </section>
-
-      <form
-        onSubmit={send}
-        className="card"
-        style={{padding:14,display:'flex',gap:10,marginTop:14,flexWrap:'wrap',alignItems:'center'}}
-      >
-        {!isNexusPrivate&&<StickerPicker<Message>
-          conversationId={conversationId}
-          onSent={acceptSent}
-        />}
-        <input
-          className="input"
-          value={draft}
-          onChange={event=>changeDraft(event.target.value)}
-          onBlur={stopTyping}
-          maxLength={2000}
-          placeholder={isNexusPrivate?'Écris à Nexus…':'Écris un message… Utilise @Nexus pour l’invoquer.'}
-          required
-          style={{flex:'1 1 260px'}}
-          autoComplete="off"
-        />
-        <button className="btn btn-primary" disabled={sending||nexusPending}>
-          {sending?'Envoi…':nexusPending?'Nexus…':'Envoyer'}
+      <form className="km-chat-composer" onSubmit={send}>
+        {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent}/>}
+        <input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)} onBlur={stopTyping} maxLength={2000}
+          placeholder={isNexusPrivate?'Message à Nexus':'Écrire un message…'} required autoComplete="off" aria-label="Votre message"/>
+        <button className="km-send-button" disabled={sending||nexusPending||!draft.trim()} aria-label={sending?'Envoi du message':'Envoyer le message'}>
+          {sending?<span className="km-spinner" aria-hidden="true"/>:<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7zM12 13l8-9"/></svg>}
         </button>
       </form>
     </main>
