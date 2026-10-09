@@ -7,20 +7,11 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Mieux se connaître grâce aux défis, aux jeux et aux interactions.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#071410',
-    theme_color: '#45e6bd',
+    background_color: '#090e1c',
+    theme_color: '#92a9ff',
     orientation: 'portrait',
     icons: [
-      {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png'
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png'
-      }
+      { src: '/brand/knowme-logo.svg', sizes: 'any', type: 'image/svg+xml' }
     ]
   };
 }
