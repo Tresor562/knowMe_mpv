@@ -479,3 +479,30 @@ body:has(.km-chat-screen) { padding-bottom:0; }
   .km-chat-composer {padding:8px 10px calc(9px + env(safe-area-inset-bottom,0px));}
 }
 @media(prefers-reduced-motion:reduce) { .km-message-bubble{animation:none} }
+
+/* Home hub: no wall of oversized cards; compact, familiar native settings-style rows. */
+.km-hub { max-width:920px; padding-bottom:130px; }
+.km-hub-header { display:flex;align-items:center;justify-content:space-between;gap:15px;min-height:60px;border-bottom:1px solid var(--soft-border);padding:0 2px 15px; }
+.km-hub-account { display:flex;align-items:center;gap:11px; }
+.km-hub-account-copy { display:grid; gap:1px;text-align:right; }
+.km-hub-account-copy strong { font-size:13px;font-weight:660; }
+.km-hub-account-copy span { color:var(--muted);font-size:11px; }
+.km-hub-avatar { display:grid;place-items:center;border-radius:50%;width:42px;height:42px;background:color-mix(in srgb,var(--mint) 19%,var(--surface));font-weight:680;color:var(--mint); }
+.km-hub-welcome { padding:25px 2px 24px; }
+.km-hub-welcome > p { margin:0 0 5px; color:var(--mint);font-size:12px;letter-spacing:.02em;font-weight:650; }
+.km-hub-welcome h1 { margin:0 0 19px;font-size:clamp(25px,4vw,35px);font-weight:710;letter-spacing:-.04em; }
+.km-hub-summary { display:flex;gap:8px; flex-wrap:wrap; }
+.km-hub-summary a { display:flex;align-items:baseline;gap:7px;padding:9px 13px;background:var(--surface-glass);border:1px solid var(--soft-border);border-radius:14px;color:var(--text);font-size:16px;font-weight:700; }
+.km-hub-summary span { color:var(--muted);font-size:12px;font-weight:500; }
+.km-hub-menu h2 { margin:0 0 13px;padding:0 2px;font-size:16px;letter-spacing:-.02em;font-weight:680; }
+.km-hub-action-list { border-top:1px solid var(--soft-border); }
+.km-hub-action { display:flex;align-items:center;gap:13px;min-height:70px;padding:10px 7px;border-bottom:1px solid var(--soft-border);transition:background .15s ease; }
+.km-hub-action:hover { background:color-mix(in srgb,var(--mint) 6%,transparent); }
+.km-hub-action-icon { width:42px;height:42px;border-radius:15px;display:grid;place-items:center;background:color-mix(in srgb,var(--mint) 11%,var(--surface));color:var(--mint); }
+.km-hub-action-text { display:grid;gap:3px;min-width:0;flex:1; }
+.km-hub-action-text strong { font-size:14px;font-weight:630; }
+.km-hub-action-text small { font-size:12px;color:var(--muted); }
+.km-hub-action>svg {color:var(--muted);flex-shrink:0;}
+.km-hub-logout { margin:22px 2px; color:var(--muted);background:transparent;border:0;cursor:pointer;padding:12px 2px;font-size:13px; }
+.km-hub-logout:hover {color:var(--danger)}
+@media(max-width:560px) {.km-hub{padding-inline:16px}.km-hub-summary a{font-size:14px}.km-hub-summary span{font-size:11px}.km-hub-account-copy{display:none}}
