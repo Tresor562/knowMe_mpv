@@ -170,7 +170,7 @@ async function main() {
   // No token, key, channel join link, user information or plaintext is logged.
   process.stdout.write(JSON.stringify({
     ok: true, archiveId, chunks: chunks.length, bytes: total,
-    manifestMessageId: receipt.messageId
+    manifestMessageId: receipt.messageId, manifestFileId: receipt.fileId
   }) + '\n');
 }
 
