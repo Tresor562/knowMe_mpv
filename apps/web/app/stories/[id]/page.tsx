@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 import { storyUi } from '../story-i18n';
+import { useI18n } from '../../../components/i18n-provider';
 
 type Story = {
   id: string;
@@ -37,7 +38,9 @@ type Feed = { stories: Story[]; nextCursor: string | null };
 const REACTIONS = ['❤', '😂', '🔥', '👏', '😮', '💯'];
 
 export default function StoryViewerPage() {
-  const ui = storyUi();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const ui = storyUi(en ? 'en' : 'fr');
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: sessionLoading } = useSession({ required: true });
@@ -46,6 +49,12 @@ export default function StoryViewerPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [progress, setProgress] = useState(0);
+  const [paused,setPaused] = useState(false);
+  const [mediaDurationMs,setMediaDurationMs] = useState(15000);
+  const elapsedMs = useRef(0);
+  const pressTimer = useRef<number|null>(null);
+  const suppressTap = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -114,25 +123,53 @@ export default function StoryViewerPage() {
     else router.push('/feed');
   }, [nextId, router]);
 
+  useEffect(() => { elapsedMs.current = 0; setProgress(0); setPaused(false); }, [story?.id]);
+
   useEffect(() => {
-    if (!story || loading || mediaLoading) return;
-    setProgress(0);
-    const startedAt = Date.now();
-    const durationMs = story.type === 'VIDEO' ? 15_000 : 7_000;
+    if (!story || loading || mediaLoading || paused) return;
+    let lastTick = Date.now();
+    const duration = story.type === 'VIDEO' ? mediaDurationMs : 7000;
     const timer = window.setInterval(() => {
-      const value = Math.min(1, (Date.now() - startedAt) / durationMs);
+      if (document.visibilityState !== 'visible') { lastTick = Date.now(); return; }
+      const now = Date.now();
+      elapsedMs.current += now - lastTick;
+      lastTick = now;
+      const value = Math.min(1, elapsedMs.current / duration);
       setProgress(value);
       if (value >= 1) {
         window.clearInterval(timer);
-        void apiFetch(`/stories/${story.id}/view`, {
-          method: 'POST',
-          body: JSON.stringify({ completionBps: 10_000 })
+        void apiFetch(`/stories/${story.id}/view`,{
+          method:'POST',body:JSON.stringify({ completionBps:10000 })
         }).catch(() => undefined);
         goNext();
       }
     }, 80);
     return () => window.clearInterval(timer);
-  }, [story?.id, loading, mediaLoading, goNext]);
+  }, [story?.id,loading,mediaLoading,paused,mediaDurationMs,goNext]);
+
+  function setPlaybackPaused(value:boolean) {
+    setPaused(value);
+    if (story?.type !== 'VIDEO') return;
+    if (value) videoRef.current?.pause();
+    else void videoRef.current?.play().catch(() => undefined);
+  }
+
+  function startHold() {
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    pressTimer.current = window.setTimeout(() => {
+      suppressTap.current = true;
+      setPlaybackPaused(true);
+    }, 230);
+  }
+  function releaseHold() {
+    if (pressTimer.current) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    if (paused) setPlaybackPaused(false);
+  }
+  function navigateStory(direction:'next'|'previous') {
+    if (suppressTap.current) { suppressTap.current = false; return; }
+    direction === 'next' ? goNext() : goPrevious();
+  }
 
   useEffect(() => {
     function keydown(event: KeyboardEvent) {
@@ -219,25 +256,16 @@ export default function StoryViewerPage() {
   if (!story) return <main className="shell"><p role="alert">{message || ui.unavailable}</p><Link href="/feed" className="btn">{ui.backFeed}</Link></main>;
 
   return (
-    <main style={{ minHeight: '100dvh', background: '#070910', display: 'grid', placeItems: 'center', padding: 12 }}>
-      <section
+    <main className="km-story-viewer">
+      <section className="km-story-viewer-surface"
+        onContextMenu={event=>event.preventDefault()}
         onTouchStart={(event) => touchStart(event.changedTouches[0]?.clientX ?? 0)}
         onTouchEnd={(event) => touchEnd(event.changedTouches[0]?.clientX ?? 0)}
-        style={{
-          width: 'min(100%, 520px)',
-          height: 'min(92dvh, 900px)',
-          borderRadius: 28,
-          overflow: 'hidden',
-          position: 'relative',
-          background: story.type === 'TEXT'
-            ? 'linear-gradient(145deg, #6d4aff, #177f87 55%, #10131c)'
-            : '#10131c',
-          boxShadow: '0 32px 90px rgba(0,0,0,.55)',
-          touchAction: 'pan-y'
-        }}
+        style={{ background: story.type === 'TEXT'
+          ? 'linear-gradient(145deg,#6d4aff,#177f87 55%,#10131c)' : '#10131c' }}
       >
         {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {mediaUrl && story.type === 'VIDEO' && <video src={mediaUrl} autoPlay muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={goNext} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
 
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2, background: story.type === 'TEXT' ? 'transparent' : 'linear-gradient(rgba(0,0,0,.22), transparent 35%, rgba(0,0,0,.45))' }}>
           <div style={{ display: 'flex', gap: 5, padding: '12px 12px 0' }}>
@@ -255,7 +283,12 @@ export default function StoryViewerPage() {
               <div style={{ fontSize: 12, opacity: .75 }}>@{story.author?.username ?? 'unknown'}</div>
             </div>
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
-            <Link href="/feed" style={{ color: '#fff', textDecoration: 'none', fontSize: 28 }} aria-label={ui.close}>×</Link>
+            <button type="button" className="km-story-pause" aria-label={paused?(en?'Resume story':'Reprendre la story'):(en?'Pause story':'Mettre la story en pause')}
+              onClick={()=>setPlaybackPaused(!paused)}>
+              {paused?<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7 4 14 8-14 8z"/></svg>
+                :<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>}
+            </button>
+            <Link href="/feed" className="km-story-viewer-close" aria-label={ui.close}>×</Link>
           </header>
 
           <div style={{ flex: 1, position: 'relative', display: 'grid', placeItems: 'center', padding: 28, color: '#fff' }}>
@@ -290,8 +323,8 @@ export default function StoryViewerPage() {
               </div>
             )}
 
-            <button aria-label="Previous Story" disabled={!previousId} onClick={goPrevious} style={{ position: 'absolute', inset: '0 50% 80px 0', opacity: 0, cursor: previousId ? 'pointer' : 'default' }} />
-            <button aria-label="Next Story" onClick={goNext} style={{ position: 'absolute', inset: '0 0 80px 50%', opacity: 0, cursor: 'pointer' }} />
+            <button aria-label={en?"Previous story":"Story précédente"} disabled={!previousId} onPointerDown={startHold} onPointerUp={releaseHold} onPointerCancel={releaseHold} onClick={()=>navigateStory("previous")} style={{ position: 'absolute', inset: '0 50% 80px 0', opacity: 0, cursor: previousId ? 'pointer' : 'default' }} />
+            <button aria-label={en?"Next story":"Story suivante"} onPointerDown={startHold} onPointerUp={releaseHold} onPointerCancel={releaseHold} onClick={()=>navigateStory("next")} style={{ position: 'absolute', inset: '0 0 80px 50%', opacity: 0, cursor: 'pointer' }} />
           </div>
 
           <footer style={{ padding: 14, color: '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,.65))' }}>
