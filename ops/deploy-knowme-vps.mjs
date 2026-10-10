@@ -187,8 +187,15 @@ function startApi() {
   return previousImage;
 }
 
-const storage = await currentTelegramStorage();
 const oldEnv = existsSync(ENV_FILE) ? parseEnv(readFileSync(ENV_FILE, 'utf8')) : {};
+// Preserve a verified existing KnowMe storage connection. Older NexAI Mongo
+// configuration is only a bootstrap fallback, not an availability dependency.
+const currentToken = String(oldEnv.MEDIA_TELEGRAM_BOT_TOKEN || '').trim();
+const currentChatId = String(oldEnv.MEDIA_TELEGRAM_CHAT_ID || '').trim();
+const storage = /^\d+:[A-Za-z0-9_-]{20,}$/.test(currentToken) &&
+  (/^-?\d+$/.test(currentChatId) || /^@[A-Za-z0-9_]{5,}$/.test(currentChatId))
+  ? { token: currentToken, chatId: currentChatId }
+  : await currentTelegramStorage();
 const dbPassword = oldEnv.KNOWME_DB_PASSWORD || randomHex(24);
 const env = {
   ...oldEnv,
