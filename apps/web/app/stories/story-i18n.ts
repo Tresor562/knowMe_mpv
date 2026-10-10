@@ -72,6 +72,6 @@ const EN: StoryUi = {
   viewers: 'Viewers', noViews: 'No views yet.'
 };
 
-export function storyUi(): StoryUi {
-  return getRuntimeLocale() === 'en' ? EN : FR;
+export function storyUi(locale: 'fr' | 'en' = getRuntimeLocale()): StoryUi {
+  return locale === 'en' ? EN : FR;
 }
