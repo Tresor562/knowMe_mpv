@@ -70,7 +70,7 @@ async function mockGuestCreationAndGame(page: Page) {
   let actionCount = 0;
   let revokeCount = 0;
 
-  await page.route('http://localhost:4000/guest/sessions', async (route) => {
+  await page.route('**/api/knowme/guest/sessions', async (route) => {
     expect(route.request().method()).toBe('POST');
     const body = route.request().postDataJSON() as Record<string, unknown>;
     expect(body).toEqual(expect.objectContaining({
@@ -90,7 +90,7 @@ async function mockGuestCreationAndGame(page: Page) {
     });
   });
 
-  await page.route('http://localhost:4000/guest/session', async (route) => {
+  await page.route('**/api/knowme/guest/session', async (route) => {
     expect(route.request().method()).toBe('DELETE');
     expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
     revokeCount += 1;
@@ -101,7 +101,7 @@ async function mockGuestCreationAndGame(page: Page) {
     });
   });
 
-  await page.route('http://localhost:4000/guest/games/quick-math/sessions', async (route) => {
+  await page.route('**/api/knowme/guest/games/quick-math/sessions', async (route) => {
     authorizationHeaders.push(route.request().headers()['authorization'] ?? '');
     const body = route.request().postDataJSON() as Record<string, unknown>;
     expect(body.idempotencyKey).toMatch(/^web:quick-math:/);
@@ -112,7 +112,7 @@ async function mockGuestCreationAndGame(page: Page) {
     });
   });
 
-  await page.route('http://localhost:4000/guest/games/sessions/guest-game-1/actions', async (route) => {
+  await page.route('**/api/knowme/guest/games/sessions/guest-game-1/actions', async (route) => {
     authorizationHeaders.push(route.request().headers()['authorization'] ?? '');
     const body = route.request().postDataJSON() as {
       actionType: string;
@@ -148,7 +148,7 @@ async function mockGuestCreationAndGame(page: Page) {
     });
   });
 
-  await page.route('http://localhost:4000/guest/games/sessions/guest-game-1', async (route) => {
+  await page.route('**/api/knowme/guest/games/sessions/guest-game-1', async (route) => {
     authorizationHeaders.push(route.request().headers()['authorization'] ?? '');
     await route.fulfill({
       status: 200,
@@ -217,7 +217,7 @@ test('Quick Math resumes a valid temporary Guest session after a browser refresh
     window.localStorage.setItem('knowme_guest_quick_math_session', 'guest-game-1');
   }, { token: guestToken });
 
-  await page.route('http://localhost:4000/guest/session', async (route) => {
+  await page.route('**/api/knowme/guest/session', async (route) => {
     expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
     await route.fulfill({
       status: 200,
@@ -225,7 +225,7 @@ test('Quick Math resumes a valid temporary Guest session after a browser refresh
       body: JSON.stringify(guestIdentityBody())
     });
   });
-  await page.route('http://localhost:4000/guest/games/sessions/guest-game-1', async (route) => {
+  await page.route('**/api/knowme/guest/games/sessions/guest-game-1', async (route) => {
     expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
     await route.fulfill({
       status: 200,
@@ -247,7 +247,7 @@ test('a transient revocation failure keeps the Guest credential so the user can 
     window.localStorage.setItem('knowme_guest_token', token);
   }, { token: guestToken });
 
-  await page.route('http://localhost:4000/guest/session', async (route) => {
+  await page.route('**/api/knowme/guest/session', async (route) => {
     expect(route.request().headers()['authorization']).toBe(`Bearer ${guestToken}`);
     if (route.request().method() === 'GET') {
       await route.fulfill({

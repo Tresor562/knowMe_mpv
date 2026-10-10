@@ -24,6 +24,11 @@ const auditedSecurityOverrides = {
   'engine.io': '6.6.11',
   'brace-expansion@1.1.18': '1.1.21',
   'brace-expansion@2.1.4': '2.1.7',
+  'source-map-js': '1.2.2',
+  'proxy-addr': '2.0.8',
+  'compression': '1.8.2',
+  'sharp': '0.35.5',
+  'shell-quote': '1.11.0',
 };
 
 async function readManifest(path) {

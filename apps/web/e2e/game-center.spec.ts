@@ -34,7 +34,7 @@ const catalog = [
 ];
 
 async function mockCatalog(page: Page) {
-  await page.route('http://localhost:4000/games/center**', async (route) => {
+  await page.route('**/api/knowme/games/center**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(catalog) });
   });
 }
@@ -64,16 +64,16 @@ test('authenticated Game Center renders private library without leaking game int
   const failures = collectPageFailures(page);
   await page.addInitScript(() => window.localStorage.setItem('knowme_token', 'game-center-browser-token'));
   await mockCatalog(page);
-  await page.route('http://localhost:4000/users/me**', async (route) => {
+  await page.route('**/api/knowme/users/me**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'user-1', username: 'player', displayName: 'Player' }) });
   });
-  await page.route('http://localhost:4000/appearance**', async (route) => {
+  await page.route('**/api/knowme/appearance**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ preference: { effectiveThemeKey: 'system' } }) });
   });
-  await page.route('http://localhost:4000/i18n/preferences**', async (route) => {
+  await page.route('**/api/knowme/i18n/preferences**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ locale: 'fr', direction: 'ltr', source: 'user', version: 1, persisted: true, updatedAt: '2026-08-22T00:00:00.000Z' }) });
   });
-  await page.route('http://localhost:4000/games/library**', async (route) => {
+  await page.route('**/api/knowme/games/library**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
