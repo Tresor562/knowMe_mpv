@@ -305,7 +305,7 @@ export default function MessagesPage() {
                   {pinned && <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" aria-label={en?'Pinned':'Épinglée'}><path d="m14 4 6 6-3 1-4 4-1 4-7-7 4-1 4-4z"/></svg>}
                   {unread && <span className="km-chat-badge">{conversation.unreadCount}</span>}
                 </div>
-                <p className="km-chat-preview">{last?`${last.senderId===user?.id?'Vous : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}`:isNexus?(en?'Chat with Nexus':'Discuter avec Nexus'):(en?'No messages yet':'Aucun message pour le moment')}</p>
+                <p className="km-chat-preview">{last?`${last.senderId===user?.id?(en?'You: ':'Vous : '):last.nexusAuthored?'Nexus : ':''}${preview(last)}`:isNexus?(en?'Chat with Nexus':'Discuter avec Nexus'):(en?'No messages yet':'Aucun message pour le moment')}</p>
               </div>
               <time className="km-chat-time" dateTime={last?.createdAt}>{last?new Date(last.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</time>
             </Link>
