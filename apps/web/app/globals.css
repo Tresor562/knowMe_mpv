@@ -723,3 +723,12 @@ html, body { min-width: 0; }
   .km-home-create-actions { gap:7px; }
   .km-home-create-actions > * { font-size:12px; padding-inline:6px; }
 }
+
+
+/* Native profile photo picker: camera roll/file selector instead of image URLs. */
+.km-profile-photo-picker { position:relative; display:flex!important; align-items:center; justify-content:center; gap:9px;
+  min-height:46px; padding:10px 14px; border-radius:14px; color:var(--mint)!important;
+  background:var(--surface-2); border:1px solid var(--soft-border); cursor:pointer; font-size:13px; font-weight:640; }
+.km-profile-photo-picker input { position:absolute!important; inset:0; width:100%!important; height:100%!important; opacity:0!important; cursor:pointer; }
+.km-profile-photo-picker:focus-within { outline:3px solid var(--mint); outline-offset:3px; }
+.km-profile-photo-picker.is-busy { opacity:.6; pointer-events:none; }
