@@ -9,6 +9,9 @@ import { MediaService } from './media.service';
 export class PublicAvatarController {
   constructor(private readonly media: MediaService) {}
 
+  @Get('avatar-capabilities')
+  capabilities() { return { upload: true, publicAvatar: true }; }
+
   @Get('avatar/:id')
   @Header('Cache-Control', 'public, max-age=60')
   async avatar(@Param('id') id: string) {
