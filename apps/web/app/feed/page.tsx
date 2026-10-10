@@ -156,21 +156,21 @@ export default function FeedPage() {
 
       <section className="grid">
         {authorityFresh && !loading && posts.length === 0 && (
-          <article className="card" style={{ padding: 22, textAlign: 'center' }}>
+          <article className="km-feed-empty">
             <h2>{en?'Nothing here yet':'Le fil est encore calme'}</h2>
             <p style={{ color: 'var(--muted)' }}>{en?'Be the first to share something.':'Sois la première personne à partager quelque chose.'}</p>
           </article>
         )}
 
         {authorityFresh && posts.map((post) => (
-          <article className="card" key={post.id} style={{ padding: 20 }}>
+          <article className="km-feed-post" key={post.id}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-                {post.author.displayName[0]}
+                {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/> : post.author.displayName[0]}
               </div>
               <div><strong>{post.author.displayName}</strong><div style={{ color: 'var(--muted)' }}>@{post.author.username}</div></div>
             </div>
-            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 18, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
+            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
             {post.imageUrl && <img src={post.imageUrl} alt={en?"Post media":"Média de la publication"} style={{ width: '100%', borderRadius: 18 }} />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
