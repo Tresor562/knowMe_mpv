@@ -229,8 +229,26 @@ export function validateProductionEnvironment(env = process.env) {
   const recoveryEnabled = parseBoolean(env.ACCOUNT_RECOVERY_ENABLED, true);
   if (recoveryEnabled) {
     requireSecret(env, 'ACCOUNT_RECOVERY_SECRET', 32, errors);
-    validateRecoveryEndpoint(env, errors);
-    requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
+    const recoveryTransport = env.ACCOUNT_RECOVERY_TRANSPORT || 'HTTPS_API';
+    if (recoveryTransport === 'GMAIL_SMTP') {
+      const mailbox = (env.ACCOUNT_RECOVERY_GMAIL_USER || '').trim();
+      if (!/^[^\s@<>]+@gmail\.com$/i.test(mailbox)) {
+        errors.push('ACCOUNT_RECOVERY_GMAIL_USER must be a valid Gmail address.');
+      }
+      if (!/^[A-Za-z0-9 ]{16,25}$/.test(env.ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD || '') ||
+          (env.ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD || '').replace(/ /g, '').length !== 16) {
+        errors.push('ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD must be a Google App Password.');
+      }
+      const sender = (env.ACCOUNT_RECOVERY_EMAIL_FROM || '').match(/<([^<>]+)>/);
+      if (!sender || sender[1].toLowerCase() !== mailbox.toLowerCase()) {
+        errors.push('ACCOUNT_RECOVERY_EMAIL_FROM must use the authorized Gmail mailbox.');
+      }
+    } else if (recoveryTransport === 'HTTPS_API') {
+      validateRecoveryEndpoint(env, errors);
+      requireSecret(env, 'ACCOUNT_RECOVERY_EMAIL_API_KEY', 16, errors);
+    } else {
+      errors.push('ACCOUNT_RECOVERY_TRANSPORT must be HTTPS_API or GMAIL_SMTP.');
+    }
     validateRecoverySender(env, errors);
     validateRecoveryWebUrl(env, errors);
     validateRequiredBoundedInteger(env, 'ACCOUNT_RECOVERY_ATTEMPT_RETENTION_DAYS', 1, 3650, errors);

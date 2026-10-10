@@ -229,6 +229,34 @@ test('checks optional integration secrets when those trust boundaries are config
   assert.ok(result.errors.some((error) => error.includes('PAYMENTS_FRAUD_HASH_SALT') && error.includes('PAYMENTS_DATA_ENCRYPTION_KEY')));
 });
 
+test('accepts a dedicated Gmail SMTP sender with a Google App Password without an HTTP provider', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_TRANSPORT = 'GMAIL_SMTP';
+  env.ACCOUNT_RECOVERY_GMAIL_USER = 'owner@gmail.com';
+  env.ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD = 'abcdefghijklmnop';
+  env.ACCOUNT_RECOVERY_EMAIL_FROM = 'KnowMe <owner@gmail.com>';
+  delete env.ACCOUNT_RECOVERY_EMAIL_ENDPOINT;
+  delete env.ACCOUNT_RECOVERY_EMAIL_API_KEY;
+  const result = validateProductionEnvironment(env);
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+});
+
+test('requires valid Gmail app authorization and rejects sender mismatch', () => {
+  const env = validEnv();
+  env.ACCOUNT_RECOVERY_TRANSPORT = 'GMAIL_SMTP';
+  env.ACCOUNT_RECOVERY_GMAIL_USER = 'owner@gmail.com';
+  env.ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD = '';
+  env.ACCOUNT_RECOVERY_EMAIL_FROM = 'KnowMe <other@gmail.com>';
+  let result = validateProductionEnvironment(env);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD')));
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_EMAIL_FROM')));
+
+  env.ACCOUNT_RECOVERY_TRANSPORT = 'UNKNOWN_MAIL';
+  result = validateProductionEnvironment(env);
+  assert.ok(result.errors.some((error) => error.includes('ACCOUNT_RECOVERY_TRANSPORT')));
+});
+
 test('does not permit disabling account recovery for a market release', () => {
   const env = validEnv();
   env.ACCOUNT_RECOVERY_ENABLED = 'false';
