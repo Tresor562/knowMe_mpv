@@ -1,230 +1,185 @@
 'use client';
 
 import Link from 'next/link';
-import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '../../../components/i18n-provider';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 import { storyUi } from '../story-i18n';
 
 type StoryResponse = { id: string };
 type UploadSession = { id: string; uploadToken: string };
-type UploadedAsset = { id: string };
+type UploadedAsset = { id: string; status: string };
 type StoryKind = 'TEXT' | 'PHOTO' | 'VIDEO' | 'LINK';
 
-const DURATIONS = [
-  [24, '24 h', false],
-  [48, '48 h · Premium', true],
-  [72, '72 h · Premium', true],
-  [168, '7 j / days · Premium', true],
-  [336, '14 j / days · Premium', true],
-  [720, '30 j / days · Premium', true]
-] as const;
+const PHOTO_MIMES = ['image/jpeg','image/png','image/webp','image/gif'];
+const VIDEO_MIMES = ['video/mp4'];
+const MAX_STORY_BYTES = 20 * 1024 * 1024;
+const DURATIONS = [24,48,72,168,336,720] as const;
 
 export default function NewStoryPage() {
-  const ui = storyUi();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const ui = storyUi(locale === 'en' ? 'en' : 'fr');
   const router = useRouter();
-  const { user, loading } = useSession({ required: true });
-  const [type, setType] = useState<StoryKind>('TEXT');
-  const [audience, setAudience] = useState('FRIENDS');
-  const [durationHours, setDurationHours] = useState(24);
-  const [permanent, setPermanent] = useState(false);
-  const [allowReplies, setAllowReplies] = useState(true);
-  const [allowReactions, setAllowReactions] = useState(true);
-  const [allowSharing, setAllowSharing] = useState(true);
-  const [publishing, setPublishing] = useState(false);
-  const [message, setMessage] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { user, loading } = useSession({required:true});
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+  const [type,setType] = useState<StoryKind>('TEXT');
+  const [audience,setAudience] = useState('FRIENDS');
+  const [durationHours,setDurationHours] = useState(24);
+  const [permanent,setPermanent] = useState(false);
+  const [allowReplies,setAllowReplies] = useState(true);
+  const [allowReactions,setAllowReactions] = useState(true);
+  const [allowSharing,setAllowSharing] = useState(true);
+  const [publishing,setPublishing] = useState(false);
+  const [message,setMessage] = useState('');
+  const [file,setFile] = useState<File|null>(null);
+  const [previewUrl,setPreviewUrl] = useState<string|null>(null);
+  const premium = Boolean(user?.premium);
 
-  const selectedDuration = useMemo(
-    () => DURATIONS.find(([hours]) => hours === durationHours),
-    [durationHours]
-  );
+  useEffect(() => {
+    return () => { if(previewUrl) URL.revokeObjectURL(previewUrl); };
+  },[previewUrl]);
 
-  const audiences = [
-    ['FRIENDS', ui.friends],
-    ['PUBLIC', ui.everyone],
-    ['FOLLOWERS', ui.followers],
-    ['BEST_FRIENDS', ui.bestFriends],
-    ['PRIVATE', ui.onlyMe]
-  ] as const;
-
-  function chooseFile(event: ChangeEvent<HTMLInputElement>) {
-    const selected = event.target.files?.[0] ?? null;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(selected);
-    setPreviewUrl(selected ? URL.createObjectURL(selected) : null);
-    if (!selected) return;
-    if (selected.type.startsWith('image/')) setType('PHOTO');
-    if (selected.type.startsWith('video/')) setType('VIDEO');
+  function chooseType(next:StoryKind) {
+    setMessage('');
+    if(next==='PHOTO') {photoRef.current?.click();return;}
+    if(next==='VIDEO') {videoRef.current?.click();return;}
+    setType(next);
+    setFile(null);
+    setPreviewUrl(null);
   }
 
-  async function uploadStoryMedia(): Promise<string | undefined> {
-    if (!file) return undefined;
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4'].includes(file.type)) {
-      throw new Error('Unsupported Story media format.');
+  function chooseFile(event:ChangeEvent<HTMLInputElement>,kind:'PHOTO'|'VIDEO') {
+    const selected=event.currentTarget.files?.[0];
+    event.currentTarget.value='';
+    if(!selected)return;
+    const allowed = kind==='PHOTO'?PHOTO_MIMES:VIDEO_MIMES;
+    if(!allowed.includes(selected.type) || selected.size>MAX_STORY_BYTES || selected.size<1024) {
+      setMessage(en?'Choose a supported file between 1 KB and 20 MB.':'Choisis un fichier compatible de 1 Ko à 20 Mo.');
+      return;
     }
-    if (file.size > 25 * 1024 * 1024) throw new Error('Story media exceeds 25 MB.');
+    setFile(selected);
+    setPreviewUrl(URL.createObjectURL(selected));
+    setType(kind);
+    setMessage('');
+  }
 
-    const session = await apiFetch<UploadSession>('/media/uploads', {
-      method: 'POST',
-      body: JSON.stringify({
-        purpose: 'STORY',
-        visibility: 'PRIVATE',
-        maxBytes: Math.max(1024, file.size),
-        allowedMime: [file.type]
+  async function uploadStoryMedia():Promise<string|undefined> {
+    if(type!=='PHOTO'&&type!=='VIDEO')return undefined;
+    if(!file)throw new Error(en?'Choose a photo or video first.':'Choisis une photo ou une vidéo.');
+    const session=await apiFetch<UploadSession>('/media/uploads',{
+      method:'POST',
+      body:JSON.stringify({
+        purpose:'STORY',visibility:'PRIVATE',maxBytes:Math.max(1024,file.size),allowedMime:[file.type]
       })
     });
-    const body = new FormData();
-    body.append('file', file);
-    const asset = await apiFetch<UploadedAsset>(`/media/uploads/${session.id}/complete`, {
-      method: 'POST',
-      headers: { 'x-upload-token': session.uploadToken },
-      body
+    const body=new FormData();
+    body.append('file',file,file.name);
+    const asset=await apiFetch<UploadedAsset>(`/media/uploads/${session.id}/complete`,{
+      method:'POST',headers:{'x-upload-token':session.uploadToken},body
     });
+    if(asset.status && asset.status!=='AVAILABLE')throw new Error(en?'The media needs to be approved before publishing.':'Le média doit être validé avant publication.');
     return asset.id;
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const caption = String(data.get('caption') ?? '').trim();
-    const linkUrl = String(data.get('linkUrl') ?? '').trim();
-    const hashtags = String(data.get('hashtags') ?? '')
-      .split(/[\s,]+/)
-      .map((item) => item.replace(/^#/, '').trim())
-      .filter(Boolean)
-      .slice(0, 30);
-    const locationLabel = String(data.get('locationLabel') ?? '').trim();
-    const musicAssetId = String(data.get('musicAssetId') ?? '').trim();
-
+    if(publishing)return;
+    const data=new FormData(event.currentTarget);
+    const caption=String(data.get('caption')??'').trim();
+    const linkUrl=String(data.get('linkUrl')??'').trim();
+    if(type==='TEXT'&&!caption){setMessage(en?'Write something first.':'Ajoute un texte avant de publier.');return;}
+    if(type==='LINK'&&!linkUrl){setMessage(en?'Add a link.':'Ajoute un lien.');return;}
+    if((type==='PHOTO'||type==='VIDEO')&&!file){setMessage(en?'Choose a file.':'Choisis un fichier.');return;}
+    const hashtags=String(data.get('hashtags')??'').split(/[\s,]+/).map(v=>v.replace(/^#/,'').trim()).filter(Boolean).slice(0,30);
     setPublishing(true);
     setMessage('');
-    try {
-      const assetId = await uploadStoryMedia();
-      const effectiveType = assetId ? type : type === 'PHOTO' || type === 'VIDEO' ? 'TEXT' : type;
-      const story = await apiFetch<StoryResponse>('/stories', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: effectiveType,
-          audience,
-          caption: caption || undefined,
-          assetId,
-          linkUrl: effectiveType === 'LINK' ? linkUrl : undefined,
+    try{
+      const assetId=await uploadStoryMedia();
+      const story=await apiFetch<StoryResponse>('/stories',{
+        method:'POST',
+        body:JSON.stringify({
+          type, audience,caption:caption||undefined,assetId,
+          linkUrl:type==='LINK'?linkUrl:undefined,
           hashtags,
-          locationLabel: locationLabel || undefined,
-          musicAssetId: musicAssetId || undefined,
-          durationHours: permanent ? undefined : durationHours,
-          permanent,
-          allowReplies,
-          allowReactions,
-          allowSharing,
-          background: effectiveType === 'TEXT' ? { preset: 'knowme-gradient', alignment: 'center' } : undefined
+          durationHours:permanent?undefined:durationHours,
+          permanent, allowReplies,allowReactions,allowSharing,
+          background:type==='TEXT'?{preset:'knowme-gradient',alignment:'center'}:undefined
         })
       });
       router.replace(`/stories/${story.id}`);
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
-    } finally {
-      setPublishing(false);
-    }
+    } catch(cause) {
+      setMessage(cause instanceof Error?cause.message:ui.unavailable);
+    } finally {setPublishing(false);}
   }
 
-  if (loading || !user) return <main className="shell"><p>{ui.loading}</p></main>;
+  if(loading||!user)return <main className="shell"><p>{ui.loading}</p></main>;
+  const audiences=[
+    ['FRIENDS',ui.friends],['PUBLIC',ui.everyone],['FOLLOWERS',ui.followers],
+    ['BEST_FRIENDS',ui.bestFriends],['PRIVATE',ui.onlyMe]
+  ] as const;
+  const durationText=(hours:number)=>hours===24?'24 h':hours===48?'48 h':hours===72?'72 h':hours===168?(en?'7 days':'7 jours'):hours===336?(en?'14 days':'14 jours'):(en?'30 days':'30 jours');
 
-  return (
-    <main className="shell" style={{ maxWidth: 680, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <Link href="/feed" className="btn" aria-label={ui.close}>×</Link>
-        <div style={{ flex: 1 }}>
-          <small style={{ color: 'var(--mint)' }}>@{user.username}</small>
-          <h1 style={{ margin: 0 }}>{ui.createTitle}</h1>
+  return <main className="shell km-story-editor">
+    <header className="km-story-editor-header">
+      <Link href="/feed" aria-label={ui.close} className="km-story-close">‹</Link>
+      <div><span>@{user.username}</span><h1>{ui.createTitle}</h1></div>
+      <button form="km-story-form" className="km-story-publish" type="submit" disabled={publishing}>
+        {publishing?ui.publishing:(en?'Share':'Publier')}
+      </button>
+    </header>
+    <form id="km-story-form" onSubmit={submit} className="km-story-editor-form">
+      <div className="km-story-kinds" role="group" aria-label={en?'Story type':'Type de story'}>
+        {(['TEXT','PHOTO','VIDEO','LINK'] as const).map(kind=><button key={kind}
+          type="button" aria-pressed={type===kind} className={type===kind?'selected':''}
+          onClick={()=>chooseType(kind)}>
+          {kind==='TEXT'?ui.text:kind==='PHOTO'?(en?'Photo':'Photo'):kind==='VIDEO'?(en?'Video':'Vidéo'):ui.link}
+        </button>)}
+        <input ref={photoRef} type="file" hidden accept={PHOTO_MIMES.join(',')} onChange={e=>chooseFile(e,'PHOTO')}/>
+        <input ref={videoRef} type="file" hidden accept={VIDEO_MIMES.join(',')} onChange={e=>chooseFile(e,'VIDEO')}/>
+      </div>
+
+      <section className={`km-story-canvas km-story-canvas-${type.toLowerCase()}`} aria-label={en?'Story preview':'Aperçu de la story'}>
+        {previewUrl&&type==='PHOTO'&&<img src={previewUrl} className="km-story-preview-image" alt=""/>}
+        {previewUrl&&type==='VIDEO'&&<video controls playsInline muted src={previewUrl} className="km-story-preview-image"/>}
+        {(type==='PHOTO'||type==='VIDEO')&&<button type="button" className="km-story-change-media"
+          onClick={()=>chooseType(type)}>{en?'Change media':'Changer le média'}</button>}
+        <textarea name="caption" rows={type==='TEXT'?4:2} maxLength={4000}
+          placeholder={type==='TEXT'?ui.shareMoment:en?'Add a caption…':'Ajouter une légende…'}
+          required={type==='TEXT'} />
+        {type==='LINK'&&<input name="linkUrl" type="url" required placeholder="https://…" aria-label={ui.link}/>}
+      </section>
+
+      <section className="km-story-options">
+        <label htmlFor="km-story-audience">{ui.audience}</label>
+        <select id="km-story-audience" value={audience} onChange={e=>setAudience(e.target.value)}>
+          {audiences.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+        </select>
+        <label htmlFor="km-story-duration">{ui.duration}</label>
+        <select id="km-story-duration" value={permanent?'PERMANENT':String(durationHours)}
+          onChange={e=>{setPermanent(e.target.value==='PERMANENT');if(e.target.value!=='PERMANENT')setDurationHours(Number(e.target.value));}}>
+          {DURATIONS.map(hours=><option key={hours} value={hours} disabled={hours>24&&!premium}>
+            {durationText(hours)}{hours>24?' · Premium':''}
+          </option>)}
+          <option value="PERMANENT" disabled={!premium}>{en?'Permanent':'Permanent'} · Premium</option>
+        </select>
+      </section>
+      <details className="km-story-advanced">
+        <summary>{en?'More options':'Plus d’options'}</summary>
+        <div className="km-story-advanced-body">
+          <label><input type="checkbox" checked={allowReplies} onChange={e=>setAllowReplies(e.target.checked)}/>{ui.allowReplies}</label>
+          <label><input type="checkbox" checked={allowReactions} onChange={e=>setAllowReactions(e.target.checked)}/>{ui.allowReactions}</label>
+          <label><input type="checkbox" checked={allowSharing} onChange={e=>setAllowSharing(e.target.checked)}/>{ui.allowSharing}</label>
+          <input name="hashtags" placeholder={en?'Hashtags (optional)':'Hashtags (facultatif)'} maxLength={300}/>
         </div>
-        <Link href="/stories/archive" className="btn">{ui.archive}</Link>
-      </header>
-
-      <form onSubmit={submit} className="grid" style={{ gap: 16 }}>
-        <section className="card" style={{ padding: 18 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <button type="button" className={type === 'TEXT' ? 'btn btn-primary' : 'btn'} onClick={() => setType('TEXT')}>{ui.text}</button>
-            <label className={type === 'PHOTO' ? 'btn btn-primary' : 'btn'} style={{ cursor: 'pointer' }}>
-              Photo<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseFile} hidden />
-            </label>
-            <label className={type === 'VIDEO' ? 'btn btn-primary' : 'btn'} style={{ cursor: 'pointer' }}>
-              Video<input type="file" accept="video/mp4" onChange={chooseFile} hidden />
-            </label>
-            <button type="button" className={type === 'LINK' ? 'btn btn-primary' : 'btn'} onClick={() => setType('LINK')}>{ui.link}</button>
-          </div>
-
-          <div style={{
-            minHeight: 420,
-            borderRadius: 28,
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            position: 'relative',
-            background: 'linear-gradient(145deg, rgba(121,87,255,.95), rgba(23,211,176,.5), rgba(18,20,29,.98))'
-          }}>
-            {previewUrl && type === 'PHOTO' && <img src={previewUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-            {previewUrl && type === 'VIDEO' && <video src={previewUrl} controls muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-            <textarea
-              name="caption"
-              className="input"
-              rows={7}
-              maxLength={4000}
-              placeholder={ui.shareMoment}
-              style={{ position: 'relative', zIndex: 2, fontSize: type === 'TEXT' ? 22 : 17, lineHeight: 1.35, resize: 'vertical', background: 'rgba(0,0,0,.32)' }}
-              required={type === 'TEXT'}
-            />
-            {type === 'LINK' && (
-              <input name="linkUrl" className="input" type="url" placeholder="https://…" required style={{ marginTop: 12, position: 'relative', zIndex: 2 }} />
-            )}
-          </div>
-
-          <div className="grid" style={{ gap: 10, marginTop: 14 }}>
-            <input name="hashtags" className="input" placeholder="#travel #gaming #knowme" />
-            <input name="locationLabel" className="input" maxLength={160} placeholder="Location (optional)" />
-            <input name="musicAssetId" className="input" placeholder="Music asset (optional)" />
-          </div>
-        </section>
-
-        <section className="card" style={{ padding: 18 }}>
-          <h2 style={{ marginTop: 0 }}>{ui.audience}</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {audiences.map(([value, label]) => (
-              <button key={value} type="button" className={audience === value ? 'btn btn-primary' : 'btn'} onClick={() => setAudience(value)}>{label}</button>
-            ))}
-          </div>
-        </section>
-
-        <section className="card" style={{ padding: 18 }}>
-          <h2 style={{ marginTop: 0 }}>{ui.duration}</h2>
-          <select className="input" value={permanent ? 'PERMANENT' : String(durationHours)} onChange={(event) => {
-            if (event.target.value === 'PERMANENT') setPermanent(true);
-            else {
-              setPermanent(false);
-              setDurationHours(Number(event.target.value));
-            }
-          }}>
-            {DURATIONS.map(([hours, label]) => <option key={hours} value={hours}>{label}</option>)}
-            <option value="PERMANENT">Permanent · Premium</option>
-          </select>
-          {(permanent || selectedDuration?.[2]) && <small style={{ color: 'var(--mint)' }}>{ui.premiumRequired}</small>}
-        </section>
-
-        <section className="card" style={{ padding: 18 }}>
-          <h2 style={{ marginTop: 0 }}>{ui.interactions}</h2>
-          <label style={{ display: 'flex', gap: 10, marginBottom: 10 }}><input type="checkbox" checked={allowReplies} onChange={(e) => setAllowReplies(e.target.checked)} /> {ui.allowReplies}</label>
-          <label style={{ display: 'flex', gap: 10, marginBottom: 10 }}><input type="checkbox" checked={allowReactions} onChange={(e) => setAllowReactions(e.target.checked)} /> {ui.allowReactions}</label>
-          <label style={{ display: 'flex', gap: 10 }}><input type="checkbox" checked={allowSharing} onChange={(e) => setAllowSharing(e.target.checked)} /> {ui.allowSharing}</label>
-        </section>
-
-        {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
-        <button className="btn btn-primary" disabled={publishing} style={{ minHeight: 52 }}>{publishing ? ui.publishing : ui.shareStory}</button>
-      </form>
-    </main>
-  );
+      </details>
+      {message&&<p role="alert" className="km-story-error">{message}</p>}
+      <button type="submit" className="btn btn-primary km-story-bottom-submit" disabled={publishing}>
+        {publishing?ui.publishing:ui.shareStory}
+      </button>
+    </form>
+  </main>;
 }

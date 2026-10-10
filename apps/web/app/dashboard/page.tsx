@@ -1,6 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useI18n } from '../../components/i18n-provider';
 import { KnowMeBrand } from '../../components/knowme-brand';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -24,6 +26,12 @@ function HubIcon({name}:{name:HubIconName}){
 
 export default function Dashboard(){
   const {user,loading,logout}=useSession({required:true});
+  const {locale}=useI18n();
+  const en=locale==='en';
+  const router=useRouter();
+  const [posting,setPosting]=useState(false);
+  const [postError,setPostError]=useState('');
+  const [composeOpen,setComposeOpen]=useState(false);
   const [challengeCount,setChallengeCount]=useState(0);
   const [notificationCount,setNotificationCount]=useState(0);
   const [messageCount,setMessageCount]=useState(0);
@@ -41,17 +49,31 @@ export default function Dashboard(){
     }).catch(()=>{});
   },[user]);
 
+  async function publishFromHome(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form=event.currentTarget;
+    const content=String(new FormData(form).get('content')??'').trim();
+    if(!content)return;
+    setPosting(true);setPostError('');
+    try {
+      await apiFetch('/posts',{method:'POST',body:JSON.stringify({content})});
+      router.push('/feed');
+    } catch(cause) {
+      setPostError(cause instanceof Error?cause.message:(en?'Could not publish.':'Publication impossible.'));
+    } finally {setPosting(false);}
+  }
+
   if(loading || !user) return <main className="shell"><span className="km-spinner" aria-label="Chargement"/></main>;
 
   const actions:{label:string;desc:string;href:string;icon:HubIconName;badge?:number}[]=[
-    {label:'Discussions',desc:'Vos conversations personnelles',href:'/messages',icon:'chats',badge:messageCount},
-    {label:'Fil d’actualité',desc:'Les dernières publications',href:'/feed',icon:'discover'},
-    {label:'Rechercher',desc:'Personnes, groupes et contenus',href:'/search',icon:'search'},
-    {label:'Défis',desc:'À découvrir ou à poursuivre',href:'/challenges',icon:'challenges',badge:challengeCount},
-    {label:'Amis',desc:'Retrouver vos proches',href:'/friends',icon:'friends'},
-    {label:'Messages enregistrés',desc:'Les éléments que vous conservez',href:'/saved-messages',icon:'bookmarks'},
-    {label:'Notifications',desc:'Vos nouvelles activités',href:'/notifications',icon:'notifications',badge:notificationCount},
-    {label:'Paramètres',desc:'Apparence, confidentialité et compte',href:'/settings',icon:'settings'}
+    {label:en?'Chats':'Discussions',desc:en?'Direct and group conversations':'Messages privés et groupes',href:'/messages',icon:'chats',badge:messageCount},
+    {label:en?'Explore feed':'Fil d’actualité',desc:en?'Stories and community posts':'Stories et publications',href:'/feed',icon:'discover'},
+    {label:en?'Search':'Rechercher',desc:en?'People, groups and channels':'Personnes, groupes et canaux',href:'/search',icon:'search'},
+    {label:en?'Challenges':'Défis',desc:en?'Earn experience points':'Gagner des points d’expérience',href:'/challenges',icon:'challenges',badge:challengeCount},
+    {label:en?'Friends':'Amis',desc:en?'Find your people':'Retrouver tes proches',href:'/friends',icon:'friends'},
+    {label:en?'Saved messages':'Messages enregistrés',desc:en?'What matters to you':'Ce que tu conserves',href:'/saved-messages',icon:'bookmarks'},
+    {label:en?'Notifications':'Notifications',desc:en?'Recent activity':'Activités récentes',href:'/notifications',icon:'notifications',badge:notificationCount},
+    {label:en?'Settings':'Paramètres',desc:en?'Language, privacy and account':'Langue, confidentialité et compte',href:'/settings',icon:'settings'}
   ];
 
   return <main className="shell km-hub">
@@ -66,16 +88,43 @@ export default function Dashboard(){
       </div>
     </header>
     <section className="km-hub-welcome">
-      <p>Votre univers KnowMe</p>
-      <h1>Bon retour, {user.displayName}.</h1>
+      <p>{en?'Your KnowMe universe':'Ton univers KnowMe'}</p>
+      <h1>{en?'Welcome back':'Bon retour'}, {user.displayName}.</h1>
       <div className="km-hub-summary">
-        <Link href="/messages">{messageCount}<span>Messages non lus</span></Link>
-        <Link href="/challenges">{challengeCount}<span>Défis actifs</span></Link>
+        <Link href="/messages">{messageCount}<span>{en?'Unread messages':'Messages non lus'}</span></Link>
+        <Link href="/challenges">{challengeCount}<span>{en?'Active challenges':'Défis actifs'}</span></Link>
         <Link href="/notifications">{notificationCount}<span>Notifications</span></Link>
       </div>
     </section>
+    <section className="km-home-create" aria-label={en?'Create content':'Créer du contenu'}>
+      <div className="km-home-create-header">
+        <strong>{en?'Share something':'Partager un moment'}</strong>
+        <span>{en?'A post or a story, in one tap':'Une publication ou une story en un geste'}</span>
+      </div>
+      <div className="km-home-create-actions">
+        <button className="km-home-create-primary" type="button" onClick={()=>setComposeOpen(value=>!value)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          {en?'Create post':'Créer une publication'}
+        </button>
+        <Link href="/stories/new" className="km-home-create-story">
+          <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8m-4-4h8"/></svg>
+          {en?'New story':'Créer une story'}
+        </Link>
+      </div>
+      {composeOpen && <form onSubmit={publishFromHome} className="km-home-compose">
+        <textarea name="content" autoFocus rows={3} maxLength={2000} required
+          placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}/>
+        <div className="km-home-compose-actions">
+          <button type="button" onClick={()=>setComposeOpen(false)}>{en?'Cancel':'Annuler'}</button>
+          <button type="submit" className="btn btn-primary" disabled={posting}>
+            {posting?(en?'Publishing…':'Publication…'):(en?'Publish':'Publier')}
+          </button>
+        </div>
+        {postError&&<p role="alert">{postError}</p>}
+      </form>}
+    </section>
     <section className="km-hub-menu" aria-label="Explorer KnowMe">
-      <h2>Accès rapide</h2>
+      <h2>{en?'Quick access':'Accès rapide'}</h2>
       <div className="km-hub-action-list">
         {actions.map(item=><Link className="km-hub-action" key={item.href} href={item.href}>
           <span className="km-hub-action-icon"><HubIcon name={item.icon}/></span>
@@ -85,6 +134,6 @@ export default function Dashboard(){
         </Link>)}
       </div>
     </section>
-    <button className="km-hub-logout" type="button" onClick={logout}>Se déconnecter</button>
+    <button className="km-hub-logout" type="button" onClick={logout}>{en?'Sign out':'Se déconnecter'}</button>
   </main>;
 }

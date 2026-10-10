@@ -34,7 +34,7 @@ export function BottomNavigation() {
     };
   }, [pathname]);
 
-  if (!hasSession || HIDDEN_PATHS.includes(pathname) || pathname.startsWith('/m/') || pathname.startsWith('/play/') || /^\/messages\/[^/]+/.test(pathname)) return null;
+  if (!hasSession || HIDDEN_PATHS.includes(pathname) || pathname.startsWith('/m/') || pathname.startsWith('/play/') || (pathname.startsWith('/stories/') && pathname !== '/stories/archive') || /^\/messages\/[^/]+/.test(pathname)) return null;
 
   const items: { href: string; label: string; icon: IconName; matches: string[] }[] = [
     { href: '/dashboard', label: locale === 'fr' ? 'Accueil' : 'Home', icon: 'home', matches: ['/dashboard'] },

@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
+import { useI18n } from '../../components/i18n-provider';
 
 type Post = {
   id: string;
@@ -19,6 +20,8 @@ const FEED_PAGE_SIZE = 20;
 
 export default function FeedPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -93,7 +96,7 @@ export default function FeedPage() {
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!authorityFresh) {
-      setMessage('Recharge le fil avant de publier.');
+      setMessage(en ? 'Refresh the feed before publishing.' : 'Recharge le fil avant de publier.');
       return;
     }
 
@@ -109,7 +112,7 @@ export default function FeedPage() {
       await loadFeed();
     } catch (cause) {
       invalidateFeedAuthority();
-      setMessage(cause instanceof Error ? cause.message : 'Publication impossible.');
+      setMessage(cause instanceof Error ? cause.message : (en ? 'Could not publish.' : 'Publication impossible.'));
     } finally {
       setPublishing(false);
     }
@@ -131,48 +134,48 @@ export default function FeedPage() {
   if (sessionLoading || !user) return <main className="shell"><p>Chargement du fil...</p></main>;
 
   return (
-    <main className="shell" style={{ maxWidth: 760, margin: '0 auto' }}>
-      <header>
-        <small style={{ color: 'var(--mint)' }}>ACTIVITÉ DE @{user.username}</small>
-        <h1>Fil KnowMe</h1>
+    <main className="shell km-feed-page">
+      <header className="km-feed-header">
+        <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
+        <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
       </header>
-
       <StoriesRail />
-
-      <form className="card" onSubmit={publish} style={{ padding: 18, marginBottom: 18 }}>
-        <textarea className="input" name="content" placeholder="Partage une découverte, une question ou un défi..." rows={4} maxLength={1000} required disabled={!authorityFresh || publishing} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 12 }}>
-          <Link href="/stories/new" className="btn">Add Story</Link>
-          <button className="btn btn-primary" disabled={!authorityFresh || publishing}>{publishing ? 'Publication...' : 'Publier'}</button>
+      <form id="compose" className="km-feed-composer" onSubmit={publish}>
+        <textarea name="content" placeholder={en?'Share an update, an idea or a question…':'Partage une nouvelle, une idée ou une question…'} rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+        <div className="km-feed-compose-actions">
+          <Link href="/stories/new">{en?'Create a story':'Créer une story'}</Link>
+          <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
+            {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
+          </button>
         </div>
       </form>
 
-      {!authorityFresh && !message && <p style={{ color: 'var(--muted)' }}>Validation du fil…</p>}
+      {!authorityFresh && !message && <p style={{ color: 'var(--muted)' }}>{en?'Validating feed…':'Validation du fil…'}</p>}
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
-      {loading && <p>Chargement des publications...</p>}
+      {loading && <p>{en?'Loading posts…':'Chargement des publications…'}</p>}
 
       <section className="grid">
         {authorityFresh && !loading && posts.length === 0 && (
-          <article className="card" style={{ padding: 22, textAlign: 'center' }}>
-            <h2>Le fil est encore calme</h2>
-            <p style={{ color: 'var(--muted)' }}>Sois la première personne à partager quelque chose.</p>
+          <article className="km-feed-empty">
+            <h2>{en?'Nothing here yet':'Le fil est encore calme'}</h2>
+            <p style={{ color: 'var(--muted)' }}>{en?'Be the first to share something.':'Sois la première personne à partager quelque chose.'}</p>
           </article>
         )}
 
         {authorityFresh && posts.map((post) => (
-          <article className="card" key={post.id} style={{ padding: 20 }}>
+          <article className="km-feed-post" key={post.id}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-                {post.author.displayName[0]}
+                {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/> : post.author.displayName[0]}
               </div>
               <div><strong>{post.author.displayName}</strong><div style={{ color: 'var(--muted)' }}>@{post.author.username}</div></div>
             </div>
-            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 18, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
-            {post.imageUrl && <img src={post.imageUrl} alt="Média de la publication" style={{ width: '100%', borderRadius: 18 }} />}
+            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
+            {post.imageUrl && <img src={post.imageUrl} alt={en?"Post media":"Média de la publication"} style={{ width: '100%', borderRadius: 18 }} />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
               <Link className="btn" href={`/feed/${post.id}`}>💬 {post._count.comments}</Link>
-              <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString('fr-FR')}</small>
+              <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
             </div>
           </article>
         ))}
@@ -181,7 +184,7 @@ export default function FeedPage() {
       {authorityFresh && hasMore && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
           <button className="btn" disabled={!authorityFresh || loadingMore} onClick={() => void loadMore()}>
-            {loadingMore ? 'Chargement…' : 'Afficher plus de publications'}
+            {loadingMore ? (en?'Loading…':'Chargement…') : (en?'Show more posts':'Afficher plus de publications')}
           </button>
         </div>
       )}
