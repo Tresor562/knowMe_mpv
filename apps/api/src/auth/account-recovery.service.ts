@@ -75,7 +75,7 @@ export class AccountRecoveryService {
     const subject = 'Réinitialise ton mot de passe KnowMe';
     const html = `<div style="font-family:Arial,sans-serif;background:#f7f8fe;padding:32px 16px">
       <div style="max-width:520px;margin:auto;background:#fff;border-radius:20px;padding:30px">
-        <p style="font-size:20px;font-weight:bold;color:#1b2543">KnowMe</p>
+        <p style="font-size:20px;font-weight:bold;color:#1b2543"><img src="https://knowme-nextech.vercel.app/brand/knowme-avatar.png" alt="KnowMe" width="44" height="44" style="width:44px;height:44px;border-radius:12px;vertical-align:middle;margin-right:10px" /> KnowMe</p>
         <h1 style="font-size:24px;color:#1b2543">Réinitialise ton mot de passe</h1>
         <p style="color:#515b70;line-height:1.6">Une demande de réinitialisation a été reçue pour ton compte KnowMe.</p>
         <p style="padding:18px 0"><a href="${this.escapeHtml(resetUrl)}" style="background:#485fd2;color:#fff;text-decoration:none;padding:13px 22px;border-radius:12px;font-weight:bold">Choisir un nouveau mot de passe</a></p>
