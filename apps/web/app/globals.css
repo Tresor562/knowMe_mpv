@@ -603,3 +603,15 @@ html, body { min-width: 0; }
   .km-profile-interests-form { flex-wrap: wrap; }
   .km-profile-interests-form .btn { width: 100%; }
 }
+
+
+/* Pages created before the native design system often embed desktop grid widths
+   in inline styles; constrain those grids at phone breakpoints, too. */
+@media (max-width: 680px) {
+  .shell [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .shell [style*="min-width: 290px"],
+  .shell [style*="min-width: 260px"] { min-width: 0 !important; }
+  .shell > header { min-width: 0; }
+  .shell > header h1 { font-size: clamp(23px, 6vw, 30px); line-height: 1.16; }
+  .shell :is(button,input,textarea,select) { max-width: 100%; }
+}
