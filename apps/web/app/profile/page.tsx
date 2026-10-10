@@ -112,7 +112,7 @@ export default function ProfilePage() {
       if (asset.status !== 'AVAILABLE') {
         throw new Error(tr('Ta photo est en attente de validation.', 'Your photo is pending validation.'));
       }
-      const avatarUrl = `${window.location.origin}/api/knowme/media/public/avatar/${encodeURIComponent(asset.id)}`;
+      const avatarUrl = `https://knowme-nextech.vercel.app/api/knowme/media/public/avatar/${encodeURIComponent(asset.id)}`;
       await apiFetch('/account/profile', { method:'PATCH', body:JSON.stringify({avatarUrl}) });
       await refresh();
       setMessage(tr('Photo de profil enregistrée.', 'Profile picture saved.'));
