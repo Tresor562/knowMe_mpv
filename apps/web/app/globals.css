@@ -4,7 +4,7 @@
   --bg-accent: #171d39;
   --surface: #131b30;
   --surface-2: #1e2945;
-  --surface-glass: rgba(16, 35, 29, .88);
+  --surface-glass: rgba(20, 27, 48, .72);
   --nav-glass: rgba(18, 27, 51, .72);
   --input-bg: #121b30;
   --text: #f1f4ff;
@@ -25,15 +25,15 @@
   --surface: #ffffff;
   --surface-2: #ecedf7;
   --surface-glass: rgba(255, 255, 255, .9);
-  --nav-glass: rgba(248, 255, 251, .94);
+  --nav-glass: rgba(255, 255, 255, .9);
   --input-bg: #ffffff;
   --text: #1c2440;
   --muted: #68748e;
   --mint: #485fd2;
   --orange: #7860ca;
-  --border: rgba(8, 127, 91, .28);
-  --soft-border: rgba(16, 32, 25, .14);
-  --shadow: rgba(25, 55, 43, .14);
+  --border: rgba(72, 95, 210, .16);
+  --soft-border: rgba(72, 95, 210, .12);
+  --shadow: rgba(25, 35, 75, .12);
   --on-primary: #ffffff;
   --on-accent: #ffffff;
   --danger: #b42318;
@@ -284,8 +284,8 @@ button, .btn, a { transition: color .18s ease, background-color .18s ease, borde
 :root[data-animations='false'] .bottom-nav-item { transition: none; }
 .bottom-nav {
   position: fixed; inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50%;
-  transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
-  width: min(444px, calc(100% - 24px));
+  transform: translateX(-50%); display: grid; grid-template-columns: repeat(5, minmax(0,1fr));
+  width: min(510px, calc(100% - 18px));
   min-height: 64px; padding: 5px; gap: 2px; border-radius: 22px;
   background: var(--nav-glass);
   border: 1px solid var(--soft-border);
@@ -517,4 +517,26 @@ body:has(.km-chat-screen) { padding-bottom:0; }
   border: 1px solid color-mix(in srgb, var(--mint) 26%, var(--soft-border));
   font-size: 13px;
   line-height: 1.6;
+}
+
+
+/* KnowMe shared mobile layout: prevent fixed desktop grids from overflowing phones. */
+html, body { min-width: 0; }
+.shell, .shell > *, .card { min-width: 0; }
+@media (max-width: 720px) {
+  body { overflow-x: clip; }
+  .shell { width: 100%; padding: 16px 14px 106px; }
+  .shell .grid,
+  .shell .appearance-settings-grid,
+  .shell .theme-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .shell .card { padding: clamp(14px, 4vw, 20px); max-width: 100%; }
+  .shell :is(h1,h2,h3,p) { overflow-wrap: anywhere; }
+  .shell :is(.btn, button) { max-width: 100%; white-space: normal; }
+  .bottom-nav { width: min(510px, calc(100% - 12px)); }
+  .bottom-nav-item { min-height: 52px; padding-inline: 1px; }
+  .bottom-nav-label { font-size: 10px; }
+}
+@media (max-width: 360px) {
+  .bottom-nav { gap: 0; }
+  .bottom-nav-label { font-size: 9px; }
 }
