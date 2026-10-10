@@ -12,6 +12,13 @@ export class PublicAvatarController {
   @Get('avatar-capabilities')
   capabilities() { return { upload: true, publicAvatar: true }; }
 
+  @Get('cover/:id')
+  @Header('Cache-Control', 'public, max-age=60')
+  async cover(@Param('id') id: string) {
+    const content = await this.media.readPublicProfileCover(id);
+    return new StreamableFile(content.buffer, { type: content.mimeType });
+  }
+
   @Get('avatar/:id')
   @Header('Cache-Control', 'public, max-age=60')
   async avatar(@Param('id') id: string) {
