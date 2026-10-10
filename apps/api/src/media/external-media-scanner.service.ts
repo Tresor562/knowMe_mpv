@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
+import { createConnection } from 'node:net';
 
 export type ExternalMediaScannerVerdict = 'CLEAN' | 'INFECTED' | 'UNAVAILABLE';
 
@@ -28,7 +29,10 @@ const MAX_REFERENCE_LENGTH = 128;
 export class ExternalMediaScannerService {
   async scan(buffer: Buffer, metadata: ExternalMediaScanMetadata): Promise<ExternalMediaScannerResult> {
     const config = this.readConfig();
-    if (!config) return this.unavailable('EXTERNAL_SCANNER_NOT_CONFIGURED');
+    if (!config) {
+      if (process.env.MEDIA_CLAMD_HOST?.trim()) return this.scanWithClamd(buffer);
+      return this.unavailable('EXTERNAL_SCANNER_NOT_CONFIGURED');
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -75,6 +79,65 @@ export class ExternalMediaScannerService {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  /**
+   * CLAMD INSTREAM protocol via the private Docker network.
+   * Strictly fail closed: a timeout, malformed response or unknown verdict is
+   * UNAVAILABLE and keeps the asset quarantined. No shell invocation or
+   * untrusted filenames enter the scanner.
+   */
+  private async scanWithClamd(buffer: Buffer): Promise<ExternalMediaScannerResult> {
+    const hostname = String(process.env.MEDIA_CLAMD_HOST || '').trim();
+    const portRaw = String(process.env.MEDIA_CLAMD_PORT || '3310');
+    const port = Number(portRaw);
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]{0,79}$/.test(hostname) ||
+        !Number.isInteger(port) || port < 1 || port > 65535) {
+      return this.unavailable('CLAMD_INVALID_CONFIG');
+    }
+    return new Promise<ExternalMediaScannerResult>((resolve) => {
+      const socket = createConnection({ host: hostname, port });
+      let finished = false;
+      let reply = '';
+      const finish = (result: ExternalMediaScannerResult) => {
+        if (finished) return;
+        finished = true;
+        socket.destroy();
+        resolve(result);
+      };
+      socket.setTimeout(20_000);
+      socket.on('timeout', () => finish(this.unavailable('CLAMD_TIMEOUT')));
+      socket.on('error', () => finish(this.unavailable('CLAMD_CONNECTION_ERROR')));
+      socket.on('data', (chunk: Buffer) => {
+        if (finished) return;
+        reply += chunk.toString('utf8');
+        if (reply.length > 1024) { finish(this.unavailable('CLAMD_INVALID_RESPONSE')); return; }
+        const response = reply.replace(/\0/g, '').trim();
+        if (/^stream: OK$/i.test(response)) {
+          finish({ verdict: 'CLEAN', reference: 'CLAMD:INSTREAM:OK' });
+        } else if (/^stream: .{1,90} FOUND$/i.test(response)) {
+          finish({ verdict: 'INFECTED', reference: 'CLAMD:INSTREAM:FOUND' });
+        } else if (/^stream: .{1,100} ERROR$/i.test(response)) {
+          finish(this.unavailable('CLAMD_SCAN_ERROR'));
+        }
+      });
+      socket.on('end', () => {
+        if (!finished) finish(this.unavailable('CLAMD_INCOMPLETE_RESPONSE'));
+      });
+      socket.on('connect', () => {
+        if (finished) return;
+        socket.write(Buffer.from('zINSTREAM\0', 'utf8'));
+        // Send framed fixed-size chunks, bounded by the API upload size limit.
+        for (let offset = 0; offset < buffer.length; offset += 64 * 1024) {
+          const slice = buffer.subarray(offset, Math.min(offset + 64 * 1024, buffer.length));
+          const size = Buffer.allocUnsafe(4);
+          size.writeUInt32BE(slice.length, 0);
+          socket.write(size);
+          socket.write(slice);
+        }
+        socket.end(Buffer.alloc(4));
+      });
+    });
   }
 
   private readConfig(): ExternalScannerConfig | null {
