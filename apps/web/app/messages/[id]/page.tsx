@@ -356,8 +356,8 @@ export default function ConversationPage() {
           <h1>{isNexusPrivate?'Nexus':peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation')}</h1>
           <p>
             {isNexusPrivate?'Assistant KnowMe':socketStatus==='connected'?
-              peers.some(peer=>onlineUserIds.has(peer.userId))?'En ligne':'Connecté':
-              socketStatus==='connecting'?'Connexion…':'En attente du réseau'}
+              peers.some(peer=>onlineUserIds.has(peer.userId))?(en?'Online':'En ligne'):(en?'Connected':'Connecté'):
+              socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
           </p>
         </div>
         <button className="km-action" type="button" onClick={()=>{setSearchOpen(value=>!value);setMenuOpen(false);}}
@@ -381,7 +381,7 @@ export default function ConversationPage() {
             </Link>
           </div>}
         </div>
-        <button className="km-action" disabled={refreshing} onClick={()=>void load()} aria-label={refreshing?'Actualisation':'Actualiser la discussion'} title="Actualiser">
+        <button className="km-action" disabled={refreshing} onClick={()=>void load()} aria-label={refreshing?(en?'Refreshing':'Actualisation'):(en?'Refresh conversation':'Actualiser la discussion')} title={en?'Refresh':'Actualiser'}>
           <svg className={refreshing?'km-rotate':''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 0-14.5-5.8L3.5 8.3M3.5 3.5v4.8h4.8M3.5 12.5a8.5 8.5 0 0 0 14.5 5.8l2.5-2.6M20.5 20.5v-4.8h-4.8"/></svg>
         </button>
       </header>
@@ -406,16 +406,16 @@ export default function ConversationPage() {
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
-              {mine&&readers.length>0&&<span aria-label="Message lu">✓✓</span>}
+              {mine&&readers.length>0&&<span aria-label={en?"Read":"Message lu"}>✓✓</span>}
             </div>
           </article>;
         })}
         {!visibleMessages.length&&<div className="km-chat-transcript-empty">{searchTerm.trim()?(en?'No matching messages':'Aucun message correspondant'):(en?'Say hello to start the conversation.':'Dis bonjour pour commencer la conversation.')}</div>}
-        {nexusPending&&<p className="km-typing-indicator" aria-live="polite">Nexus réfléchit<span aria-hidden="true">…</span></p>}
-        {typingNames.length>0&&<p className="km-typing-indicator" aria-live="polite">{typingNames.join(', ')} {typingNames.length>1?'écrivent':'écrit'}…</p>}
+        {nexusPending&&<p className="km-typing-indicator" aria-live="polite">{en?'Nexus is thinking':'Nexus réfléchit'}<span aria-hidden="true">…</span></p>}
+        {typingNames.length>0&&<p className="km-typing-indicator" aria-live="polite">{typingNames.join(', ')} {en?'typing…':typingNames.length>1?'écrivent…':'écrit…'}</p>}
       </section>
       <form className="km-chat-composer" onSubmit={send}>
-        {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent}/>}
+        {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent} onInsertEmoji={emoji => changeDraft(draft + emoji)}/>}
         <input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)} onBlur={stopTyping} maxLength={2000}
           placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):(en?'Message…':'Écrire un message…')} required autoComplete="off" aria-label={en?'Your message':'Votre message'}/>
         <button className="km-send-button" disabled={sending||nexusPending||!draft.trim()} aria-label={sending?(en?'Sending message':'Envoi du message'):(en?'Send message':'Envoyer le message')}>
