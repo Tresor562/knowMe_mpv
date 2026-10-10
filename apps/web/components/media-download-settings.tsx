@@ -7,6 +7,7 @@ import {
   type MediaKind
 } from '@knowme/media-cache-contract';
 import { useEffect, useState } from 'react';
+import { useI18n } from './i18n-provider';
 import { apiFetch, type ApiError } from '../lib/api';
 import { clearMediaCache, mediaCacheStats } from '../lib/media-cache';
 
@@ -16,14 +17,14 @@ type ServerPreference = MediaDownloadPreference & {
   updatedAt: string | null;
 };
 
-const LABELS: Record<MediaKind, string> = {
-  IMAGE: 'Photos',
-  VIDEO: 'Vidéos',
-  AUDIO: 'Audio',
-  FILE: 'Fichiers'
+const LABELS: Record<'fr' | 'en', Record<MediaKind, string>> = {
+  fr: { IMAGE: 'Photos', VIDEO: 'Vidéos', AUDIO: 'Audio', FILE: 'Fichiers' },
+  en: { IMAGE: 'Photos', VIDEO: 'Videos', AUDIO: 'Audio', FILE: 'Files' }
 };
 
 export function MediaDownloadSettings() {
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [preference, setPreference] = useState<ServerPreference | null>(null);
   const [bytes, setBytes] = useState(0);
   const [count, setCount] = useState(0);
@@ -54,7 +55,7 @@ export function MediaDownloadSettings() {
         body: JSON.stringify({ ...normalizeMediaDownloadPreference(next), expectedVersion: preference.version })
       });
       setPreference(saved);
-      setMessage('Préférences de téléchargement synchronisées.');
+      setMessage(en ? 'Download preferences synced.' : 'Préférences de téléchargement synchronisées.');
     } catch (cause) {
       if ((cause as ApiError)?.code === 'MEDIA_DOWNLOAD_VERSION_CONFLICT') {
         await refresh().catch(() => undefined);
@@ -80,73 +81,59 @@ export function MediaDownloadSettings() {
       await clearMediaCache();
       setBytes(0);
       setCount(0);
-      setMessage('Les copies locales ont été supprimées.');
+      setMessage(en ? 'Local copies removed.' : 'Les copies locales ont été supprimées.');
     } finally {
       setBusy(false);
     }
   }
 
-  if (!preference) return <section className="card" style={{ padding: 24 }}><p>Chargement des téléchargements…</p></section>;
+  if (!preference) return <p className="km-settings-hint">{en ? 'Loading download settings…' : 'Chargement des téléchargements…'}</p>;
+
+  const networks = [
+    ['wifiKinds', 'Wi-Fi'],
+    ['cellularKinds', en ? 'Mobile data' : 'Données mobiles'],
+    ['roamingKinds', en ? 'Roaming' : 'Itinérance']
+  ] as const;
 
   return (
-    <section className="card" style={{ padding: 24, marginBottom: 20 }}>
-      <h2>Téléchargements et cache média</h2>
-      <p style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
-        Les aperçus restent disponibles. Une copie complète n’est créée que lorsque le réseau, le type de média et le quota l’autorisent.
-      </p>
-      {(['wifiKinds', 'cellularKinds', 'roamingKinds'] as const).map((network) => (
-        <fieldset key={network} disabled={busy} style={{ border: 0, padding: 0, margin: '18px 0' }}>
-          <legend style={{ fontWeight: 800, marginBottom: 10 }}>
-            {network === 'wifiKinds' ? 'Wi‑Fi' : network === 'cellularKinds' ? 'Données mobiles' : 'Itinérance'}
-          </legend>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {MEDIA_KINDS.map((kind) => (
-              <label key={kind} className="btn" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" checked={preference[network].includes(kind)} onChange={() => toggle(network, kind)} />{' '}
-                {LABELS[kind]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ))}
-      <label style={{ display: 'flex', gap: 10, margin: '12px 0' }}>
-        <input
-          type="checkbox"
-          checked={preference.backgroundDownloads}
-          disabled={busy}
-          onChange={(event) => void save({ ...preference, backgroundDownloads: event.target.checked })}
-        />
-        Autoriser les téléchargements en arrière-plan
-      </label>
-      <label style={{ display: 'flex', gap: 10, margin: '12px 0' }}>
-        <input
-          type="checkbox"
-          checked={preference.respectDataSaver}
-          disabled={busy}
-          onChange={(event) => void save({ ...preference, respectDataSaver: event.target.checked })}
-        />
-        Respecter l’économie de données de l’appareil
-      </label>
-      <label style={{ display: 'grid', gap: 8, maxWidth: 340 }}>
-        Quota local : {preference.maxCacheMb} Mo
-        <input
-          type="range"
-          min={64}
-          max={4096}
-          step={64}
-          value={preference.maxCacheMb}
-          disabled={busy}
-          onChange={(event) => setPreference({ ...preference, maxCacheMb: Number(event.target.value) })}
-          onPointerUp={() => void save(preference)}
-        />
-      </label>
-      <p style={{ color: 'var(--muted)' }}>
-        {count} copie{count === 1 ? '' : 's'} locale{count === 1 ? '' : 's'} · {(bytes / 1024 / 1024).toFixed(1)} Mo
-      </p>
-      <button className="btn" disabled={busy || count === 0} onClick={() => void clear()}>
-        Supprimer toutes les copies locales
-      </button>
-      {message && <p role="status" style={{ color: 'var(--orange)' }}>{message}</p>}
-    </section>
+    <details className="km-settings-disclosure">
+      <summary>
+        <span>{en ? 'Media & downloads' : 'Médias et téléchargements'}</span>
+        <small>{en ? 'Network, storage and cache' : 'Réseau, stockage et cache'}</small>
+      </summary>
+      <div className="km-settings-disclosure-body">
+        {networks.map(([network, heading]) => (
+          <fieldset key={network} disabled={busy} className="km-settings-network">
+            <legend>{heading}</legend>
+            <div className="km-settings-chips">
+              {MEDIA_KINDS.map(kind => (
+                <label key={kind} className="km-settings-chip">
+                  <input type="checkbox" checked={preference[network].includes(kind)}
+                    onChange={() => toggle(network, kind)} />
+                  {LABELS[locale][kind]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <label className="km-settings-toggle"><input type="checkbox" checked={preference.backgroundDownloads}
+          disabled={busy} onChange={event => void save({ ...preference, backgroundDownloads: event.target.checked })} />
+          {en ? 'Allow background downloads' : 'Autoriser les téléchargements en arrière-plan'}
+        </label>
+        <label className="km-settings-toggle"><input type="checkbox" checked={preference.respectDataSaver}
+          disabled={busy} onChange={event => void save({ ...preference, respectDataSaver: event.target.checked })} />
+          {en ? 'Respect device data saver' : 'Respecter l’économie de données'}
+        </label>
+        <label className="km-settings-quota">{en ? 'Local cache limit' : 'Limite de cache local'} : {preference.maxCacheMb} MB
+          <input type="range" min={64} max={4096} step={64} value={preference.maxCacheMb}
+            disabled={busy} onChange={event => setPreference({ ...preference, maxCacheMb: Number(event.target.value) })}
+            onPointerUp={() => void save(preference)} />
+        </label>
+        <p className="km-settings-hint">{count} {en ? 'local copies' : 'copies locales'} · {(bytes / 1024 / 1024).toFixed(1)} MB</p>
+        <button type="button" className="km-settings-link-button" disabled={busy || count === 0}
+          onClick={() => void clear()}>{en ? 'Clear local copies' : 'Supprimer les copies locales'}</button>
+        {message && <p role="status" className="km-settings-hint">{message}</p>}
+      </div>
+    </details>
   );
 }
