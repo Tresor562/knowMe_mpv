@@ -291,7 +291,7 @@ export class TelegramMediaStorage {
     }
 
     const recoveryChatId = String(process.env.MEDIA_TELEGRAM_RECOVERY_CHAT_ID || '').trim();
-    if (recoveryChatId && !/^-?\\d+$/.test(recoveryChatId) && !/^@[A-Za-z0-9_]{5,}$/.test(recoveryChatId)) {
+    if (recoveryChatId && ! /^-?\d+$/.test(recoveryChatId) && !/^@[A-Za-z0-9_]{5,}$/.test(recoveryChatId)) {
       throw new Error('MEDIA_TELEGRAM_RECOVERY_CHAT_ID must be a numeric channel ID or public username, not an invite link.');
     }
 
