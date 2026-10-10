@@ -52,6 +52,7 @@ export default function StoryViewerPage() {
   const [paused,setPaused] = useState(false);
   const [mediaDurationMs,setMediaDurationMs] = useState(15000);
   const elapsedMs = useRef(0);
+  const advancing = useRef(false);
   const pressTimer = useRef<number|null>(null);
   const suppressTap = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -91,6 +92,7 @@ export default function StoryViewerPage() {
     let disposed = false;
     let objectUrl: string | null = null;
     setMediaUrl(null);
+    setMediaLoading(false);
     if (!story?.assetId) return;
     setMediaLoading(true);
     void apiFetchBlob(`/stories/${story.id}/media`)
@@ -100,7 +102,7 @@ export default function StoryViewerPage() {
         setMediaUrl(objectUrl);
       })
       .catch((cause) => {
-        if (!disposed) setMessage(cause instanceof Error ? cause.message : ui.unavailable);
+        if (!disposed) { setPaused(true); setMessage(cause instanceof Error ? cause.message : ui.unavailable); }
       })
       .finally(() => {
         if (!disposed) setMediaLoading(false);
@@ -123,7 +125,21 @@ export default function StoryViewerPage() {
     else router.push('/feed');
   }, [nextId, router]);
 
-  useEffect(() => { elapsedMs.current = 0; setProgress(0); setPaused(false); }, [story?.id]);
+  const completeAndAdvance = useCallback(() => {
+    if (!story || advancing.current) return;
+    advancing.current = true;
+    void apiFetch(`/stories/${story.id}/view`, {
+      method: 'POST', body: JSON.stringify({ completionBps: 10000 })
+    }).catch(() => undefined);
+    goNext();
+  }, [story?.id, goNext]);
+
+  useEffect(() => {
+    advancing.current = false;
+    elapsedMs.current = 0;
+    setProgress(0);
+    setPaused(false);
+  }, [story?.id]);
 
   useEffect(() => {
     if (!story || loading || mediaLoading || paused) return;
@@ -138,14 +154,11 @@ export default function StoryViewerPage() {
       setProgress(value);
       if (value >= 1) {
         window.clearInterval(timer);
-        void apiFetch(`/stories/${story.id}/view`,{
-          method:'POST',body:JSON.stringify({ completionBps:10000 })
-        }).catch(() => undefined);
-        goNext();
+        completeAndAdvance();
       }
     }, 80);
     return () => window.clearInterval(timer);
-  }, [story?.id,loading,mediaLoading,paused,mediaDurationMs,goNext]);
+  }, [story?.id,loading,mediaLoading,paused,mediaDurationMs,completeAndAdvance]);
 
   function setPlaybackPaused(value:boolean) {
     setPaused(value);
@@ -265,7 +278,7 @@ export default function StoryViewerPage() {
           ? 'linear-gradient(145deg,#6d4aff,#177f87 55%,#10131c)' : '#10131c' }}
       >
         {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={goNext} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={completeAndAdvance} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
 
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2, background: story.type === 'TEXT' ? 'transparent' : 'linear-gradient(rgba(0,0,0,.22), transparent 35%, rgba(0,0,0,.45))' }}>
           <div style={{ display: 'flex', gap: 5, padding: '12px 12px 0' }}>
@@ -295,7 +308,7 @@ export default function StoryViewerPage() {
             {mediaLoading && <div style={{ width: 46, height: 46, border: '3px solid rgba(255,255,255,.25)', borderTopColor: '#fff', borderRadius: '50%' }} />}
 
             {story.type === 'LINK' && (
-              <a href={story.linkUrl ?? '#'} target="_blank" rel="noreferrer" style={{ color: '#fff', width: '100%', maxWidth: 380, padding: 22, borderRadius: 22, background: 'rgba(0,0,0,.28)', textDecoration: 'none' }}>
+              <a href={story.linkUrl ?? '#'} target="_blank" rel="noreferrer" style={{ position: 'relative', zIndex: 3, color: '#fff', width: '100%', maxWidth: 380, padding: 22, borderRadius: 22, background: 'rgba(0,0,0,.28)', textDecoration: 'none' }}>
                 <strong>{ui.openLink}</strong>
                 <div style={{ opacity: .8, marginTop: 8, overflowWrap: 'anywhere' }}>{story.linkUrl}</div>
               </a>
@@ -338,7 +351,7 @@ export default function StoryViewerPage() {
 
             {!story.viewer.own && story.allowReplies && (
               <form onSubmit={reply} style={{ display: 'flex', gap: 8 }}>
-                <input name="content" className="input" maxLength={4000} placeholder={ui.reply} style={{ flex: 1, background: 'rgba(255,255,255,.09)', color: '#fff' }} />
+                <input name="content" className="input" maxLength={4000} onFocus={() => setPlaybackPaused(true)} onBlur={() => setPlaybackPaused(false)} placeholder={ui.reply} style={{ flex: 1, background: 'rgba(255,255,255,.09)', color: '#fff' }} />
                 <button className="btn btn-primary">{ui.send}</button>
               </form>
             )}
