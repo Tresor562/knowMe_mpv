@@ -271,6 +271,36 @@ export class MediaService {
     };
   }
 
+  /**
+   * Public avatar reads are allowed only for a clean AVATAR media asset that
+   * the owning account explicitly selected as its current profile picture.
+   * Other private uploads must never be exposed through this endpoint.
+   */
+  async readPublicAvatar(assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: assetId,
+        purpose: 'AVATAR',
+        deletedAt: null,
+        status: 'AVAILABLE',
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp'] }
+      },
+      select: { id: true, ownerId: true, storageKey: true, detectedMime: true }
+    });
+    if (!asset) throw new NotFoundException('Avatar indisponible.');
+
+    const activeUser = await this.prisma.user.findFirst({
+      where: {
+        id: asset.ownerId,
+        avatarUrl: { endsWith: `/media/public/avatar/${assetId}` }
+      },
+      select: { id: true }
+    });
+    if (!activeUser) throw new NotFoundException('Avatar indisponible.');
+
+    return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
+  }
+
   async grantAccess(ownerId: string, assetId: string, dto: GrantMediaAccessDto) {
     const asset = await this.prisma.mediaAsset.findFirst({
       where: { id: assetId, ownerId, deletedAt: null }
