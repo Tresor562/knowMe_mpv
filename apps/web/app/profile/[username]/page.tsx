@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { ProfileCover } from '../../../components/profile-cover';
+import { useI18n } from '../../../components/i18n-provider';
 import { useSession } from '../../../lib/use-session';
 
 type Access = { visible: boolean; reason: string };
@@ -87,6 +88,8 @@ function title(value: string) {
 }
 
 export default function PublicProfilePage() {
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const params = useParams<{ username: string }>();
   const { user, loading: sessionLoading } = useSession();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
@@ -185,77 +188,34 @@ export default function PublicProfilePage() {
   const initials = profile.header.displayName[0]?.toLocaleUpperCase('fr') ?? '?';
 
   return (
-    <main
-      className="shell"
-      style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 20 }}
-      data-profile-guard={profile.guard.protected ? 'protected' : 'off'}
-    >
-      <section
-        className="card"
-        style={{
-          minHeight: 330,
-          padding: 0,
-          overflow: 'hidden',
-          position: 'relative',
-          background: 'linear-gradient(145deg,var(--surface-2),var(--surface))'
-        }}
-      >
+    <main className="shell km-public-profile" data-profile-guard={profile.guard.protected ? 'protected' : 'off'}>
+      <section className="km-public-hero" aria-label={en?'Public profile':'Profil public'}>
         <ProfileCover assetId={profile.header.coverAssetId} />
-        <div style={{ padding: '0 26px 26px', display: 'flex', gap: 20, alignItems: 'end', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              width: 118,
-              height: 118,
-              borderRadius: '50%',
-              marginTop: -54,
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 42,
-              fontWeight: 900,
-              border: '5px solid var(--surface)',
-              background: 'linear-gradient(135deg,var(--mint),var(--orange))',
-              boxShadow: '0 16px 38px rgba(0,0,0,.28)'
-            }}
-          >
-            {profile.header.avatarUrl ? (
-              <img src={profile.header.avatarUrl} alt={`Photo de ${profile.header.displayName}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-            ) : initials}
+        <div className="km-public-identity">
+          <div className="km-public-avatar">
+            {profile.header.avatarUrl
+              ? <img src={profile.header.avatarUrl} alt={profile.header.displayName}/>
+              : <span>{initials}</span>}
           </div>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <small style={{ color: 'var(--mint)' }}>PROFIL KNOWME · {profile.header.themeKey}</small>
-            <h1 style={{ margin: '4px 0' }}>
-              {profile.privacy.profileLocked && '🔒 '}
-              {profile.header.displayName}
-            </h1>
-            <p style={{ color: 'var(--muted)', margin: 0 }}>
-              @{profile.header.username} · Vue {profile.viewer.relation}
-              {profile.header.joinedYear ? ` · Depuis ${profile.header.joinedYear}` : ''}
-            </p>
-            {profile.header.bio && <p>{profile.header.bio}</p>}
+          <div className="km-public-name">
+            <h1>{profile.privacy.profileLocked && <span aria-label={en?'Locked':'Verrouillé'}>♢ </span>}{profile.header.displayName}</h1>
+            <p>@{profile.header.username}{profile.header.joinedYear ? ` · ${en?'Since':'Depuis'} ${profile.header.joinedYear}` : ''}</p>
+            {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button className="btn" onClick={shareProfile}>Partager la carte</button>
-            {profile.header.secretLink && (
-              <Link className="btn btn-accent" href={profile.header.secretLink}>
-                🕵️ Message anonyme
-              </Link>
+          <div className="km-public-actions">
+            {profile.viewer.owner
+              ? <Link className="km-public-primary" href="/profile">{en?'Edit my profile':'Modifier mon profil'}</Link>
+              : <button type="button" className="km-public-primary" onClick={shareProfile}>{en?'Share profile':'Partager le profil'}</button>}
+            {!profile.viewer.owner && profile.header.secretLink && (
+              <Link href={profile.header.secretLink}>{en?'Anonymous message':'Message anonyme'}</Link>
             )}
-            {profile.viewer.owner && (
-              <Link className="btn btn-primary" href="/profile-studio">Modifier mon profil</Link>
-            )}
+            {profile.viewer.owner && <Link href="/profile-studio">{en?'Personalize':'Personnaliser'}</Link>}
           </div>
         </div>
-        {profile.guard.protected && (
-          <div
-            className="card"
-            style={{ margin: '0 26px 22px', padding: 14, borderStyle: 'dashed' }}
-          >
-            <strong>🛡️ Profil protégé · {profile.guard.style}</strong>
-            <p style={{ color: 'var(--muted)', marginBottom: 0 }}>
-              Sur le Web, cette protection avertit et limite l’exposition serveur, mais ne peut pas empêcher une photo prise avec un autre appareil. Les applications mobiles utiliseront les protections natives disponibles.
-            </p>
-          </div>
-        )}
+        {profile.guard.protected && <p className="km-public-protection">
+          {en?'Protected profile: download and access restrictions are enforced by the server. Screenshots cannot be prevented on the web.':
+            'Profil protégé : les restrictions d’accès sont contrôlées par le serveur. Les captures d’écran ne peuvent pas être empêchées sur le Web.'}
+        </p>}
       </section>
 
       {notice && <section className="card" style={{ padding: 14 }} role="status">{notice}</section>}
@@ -265,7 +225,7 @@ export default function PublicProfilePage() {
           <div style={{ fontSize: 46 }}>🔒</div>
           <h2>Profil verrouillé</h2>
           <p style={{ color: 'var(--muted)' }}>{profile.privacy.lockMessage}</p>
-          <button className="btn btn-primary">Ajouter en ami</button>
+          <Link className="btn btn-primary" href="/friends">{en?"Find friends":"Trouver des amis"}</Link>
         </section>
       )}
 

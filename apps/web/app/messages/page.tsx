@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
@@ -53,6 +54,11 @@ function preview(message:Message){
 
 export default function MessagesPage() {
   const { user, loading: sessionLoading } = useSession({ required:true });
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const composerRef = useRef<HTMLDetailsElement>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all'|'unread'|'pinned'>('all');
   const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
   const [friends,setFriends] = useState<Friend[]>([]);
@@ -206,7 +212,12 @@ export default function MessagesPage() {
   if (sessionLoading) return <main className="shell">Chargement…</main>;
 
   const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
-  const orderedConversations = [...conversations].sort((left,right) => {
+  const orderedConversations = [...conversations].filter(conversation => {
+    const participants = conversation.members.map(member => member.user.displayName+' '+member.user.username).join(' ');
+    const text = [conversation.title||'', participants, conversation.messages[0]?.content||''].join(' ').toLocaleLowerCase();
+    return (!search.trim() || text.includes(search.trim().toLocaleLowerCase())) &&
+      (filter==='all' || filter==='unread' && conversation.unreadCount>0 || filter==='pinned' && pinnedConversationIds.has(conversation.id));
+  }).sort((left,right) => {
     const leftPinned = pinnedConversationIds.has(left.id);
     const rightPinned = pinnedConversationIds.has(right.id);
     return leftPinned === rightPinned ? 0 : leftPinned ? -1 : 1;
@@ -216,11 +227,15 @@ export default function MessagesPage() {
     <main className="shell km-messages">
       <header className="km-messages-header">
         <div>
-          <div className="km-msg-eyebrow">KnowMe <span aria-hidden="true">/</span> Messagerie</div>
-          <h1>Discussions</h1>
-          <p className="km-msg-status"><span className={live?'km-live-dot':'km-offline-dot'}/> {live?'Connecté':'Connexion en attente'}{totalUnread>0 ? ` · ${totalUnread} non lu${totalUnread>1?'s':''}` : ''}</p>
+          <div className="km-msg-eyebrow">KnowMe</div>
+          <h1>{en?'Chats':'Discussions'}</h1>
+          <p className="km-msg-status"><span className={live?'km-live-dot':'km-offline-dot'}/> {live?(en?'Connected':'Connecté'):(en?'Connecting…':'Connexion en attente')}{totalUnread>0 ? ` · ${totalUnread} ${en?'unread':`non lu${totalUnread>1?'s':''}`}` : ''}</p>
         </div>
         <div className="km-msg-actions">
+          <button type="button" className="km-action" aria-label={en?'New message':'Nouveau message'} title={en?'New message':'Nouveau message'}
+            onClick={() => {if(composerRef.current){composerRef.current.open=true;composerRef.current.scrollIntoView({block:'nearest',behavior:'smooth'});composerRef.current.querySelector('select')?.focus();}}}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
           <Link href="/saved-messages" className="km-action" aria-label="Messages enregistrés" title="Messages enregistrés">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5h12v17L12 17l-6 3.5z"/></svg>
           </Link>
@@ -233,41 +248,55 @@ export default function MessagesPage() {
         </div>
       </header>
 
-      <details className="km-compose">
+      <div className="km-chat-search">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"/><path d="m16 16 5 5"/></svg>
+        <input type="search" value={search} onChange={event=>setSearch(event.target.value)}
+          placeholder={en?'Search chats':'Rechercher des discussions'}
+          aria-label={en?'Search chats':'Rechercher des discussions'} />
+      </div>
+      <div className="km-chat-filters" role="group" aria-label={en?'Chat filters':'Filtres des discussions'}>
+        {(['all','unread','pinned'] as const).map(key=><button key={key} type="button"
+          aria-pressed={filter===key} className={filter===key?'selected':''} onClick={()=>setFilter(key)}>
+          {key==='all'?(en?'All':'Toutes'):key==='unread'?(en?'Unread':'Non lues'):(en?'Pinned':'Épinglées')}
+          {key==='unread'&&totalUnread>0&&<span>{totalUnread}</span>}
+        </button>)}
+      </div>
+      <details ref={composerRef} className="km-compose">
         <summary className="km-compose-toggle">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          Nouvelle discussion
+          {en?'New message':'Nouvelle discussion'}
         </summary>
         <form onSubmit={createConversation} className="km-compose-form">
-          <label>Choisir un ami
+          <label>{en?'Choose a friend':'Choisir un ami'}
             <select className="input" name="memberId" required defaultValue="">
-              <option value="" disabled>Sélectionner une personne</option>
+              <option value="" disabled>{en?'Select a person':'Sélectionner une personne'}</option>
               {friends.map(({user:friend})=><option key={friend.id} value={friend.id}>{friend.displayName} (@{friend.username})</option>)}
             </select>
           </label>
-          <label>Nom de la discussion (facultatif)
-            <input className="input" name="title" placeholder="Discussion" />
+          <label>{en?'Chat title (optional)':'Nom de la discussion (facultatif)'}
+            <input className="input" name="title" placeholder={en?'Chat':'Discussion'} />
           </label>
-          <button className="btn btn-primary" disabled={creating}>{creating?'Création…':'Démarrer la discussion'}</button>
+          <button className="btn btn-primary" disabled={creating}>{creating?(en?'Creating…':'Création…'):(en?'Start chat':'Démarrer la discussion')}</button>
         </form>
       </details>
 
       {message && <p className="km-auth-error" role="alert">{message}</p>}
 
-      <section aria-label="Liste des conversations" className="km-chat-list">
+      <section aria-label={en?'Conversation list':'Liste des conversations'} className="km-chat-list">
         {orderedConversations.map((conversation) => {
           const otherMembers = conversation.members.filter(member=>member.user.id!==user?.id);
-          const name=conversation.title || otherMembers.map(member=>member.user.displayName).join(', ') || 'Conversation';
+          const name=conversation.title || otherMembers.map(member=>member.user.displayName).join(', ') || (en?'Conversation':'Conversation');
           const last=conversation.messages[0];
           const unread=conversation.unreadCount>0;
           const pinned=pinnedConversationIds.has(conversation.id);
           const isNexus=name==='Nexus'&&otherMembers.length===0;
+          const photo=!conversation.isGroup&&otherMembers.length===1?otherMembers[0]?.user.avatarUrl:null;
           const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
           const pinDisabled=pinBusyId!==null || (!pinned && (pinLimit===null || pinnedConversationIds.size>=pinLimit));
           return <article className={`km-chat-row${unread?' km-chat-unread':''}`} key={conversation.id}>
             <Link href={`/messages/${conversation.id}`} className="km-chat-main" aria-label={`Ouvrir la discussion ${name}`}>
               <div className={`km-chat-avatar${isNexus?' km-chat-ai':''}`}>
-                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : name.slice(0,1).toUpperCase()}
+                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : photo ? <img src={photo} alt="" className="km-chat-avatar-image" /> : name.slice(0,1).toUpperCase()}
                 {online && <span className="km-chat-online" aria-label="En ligne"/>}
               </div>
               <div className="km-chat-copy">
@@ -278,7 +307,7 @@ export default function MessagesPage() {
                 </div>
                 <p className="km-chat-preview">{last?`${last.senderId===user?.id?'Vous : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}`:isNexus?'Discuter avec Nexus':'Aucun message pour le moment'}</p>
               </div>
-              <time className="km-chat-time" dateTime={last?.createdAt}>{last?new Date(last.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</time>
+              <time className="km-chat-time" dateTime={last?.createdAt}>{last?new Date(last.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</time>
             </Link>
             <div className="km-chat-quick-actions">
               <Link href={`/messages/${conversation.id}/organization`} className="km-mini-action" title="Organisation de la discussion" aria-label={`Organisation de ${name}`}>
@@ -292,8 +321,8 @@ export default function MessagesPage() {
         })}
         {!orderedConversations.length && <div className="km-chat-empty">
           <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11.5a7.8 7.8 0 0 1-8.2 7.7 9 9 0 0 1-3.3-.7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/></svg>
-          <h2>Aucune discussion pour le moment</h2>
-          <p>Commencez une conversation ou retrouvez vos amis sur KnowMe.</p>
+          <h2>{search||filter!=='all'?(en?'No matching chats':'Aucune discussion correspondante'):(en?'No chats yet':'Aucune discussion pour le moment')}</h2>
+          <p>{en?'Start a conversation or find friends on KnowMe.':'Commence une conversation ou retrouve tes amis sur KnowMe.'}</p>
           <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?'Ouverture…':'Discuter avec Nexus'}</button>
         </div>}
       </section>
