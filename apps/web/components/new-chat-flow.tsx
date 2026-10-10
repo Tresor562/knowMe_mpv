@@ -64,6 +64,21 @@ export function NewChatFlow({ mode }: { mode: 'private' | 'group' }) {
     setSaving(true);
     setError('');
     try {
+      // Opening an existing private conversation should never create a duplicate.
+      if (mode === 'private' && ids.length === 1) {
+        const existing = await apiFetch<Array<{
+          id: string;
+          isGroup: boolean;
+          members: Array<{userId: string}>;
+        }>>('/conversations');
+        const known = existing.find(row => !row.isGroup && row.members.length === 2 &&
+          row.members.some(member => member.userId === ids[0]) &&
+          row.members.some(member => member.userId === user?.id));
+        if (known) {
+          router.replace(`/messages/${encodeURIComponent(known.id)}`);
+          return;
+        }
+      }
       const conversation = await apiFetch<{id:string}>('/conversations',{
         method: 'POST', body: JSON.stringify({ memberIds: ids, ...(name ? {title:name} : {}) })
       });
