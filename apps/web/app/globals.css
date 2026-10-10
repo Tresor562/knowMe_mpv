@@ -870,3 +870,39 @@ html, body { min-width: 0; }
   .km-chat-row { min-height:69px; }
   .km-messages { padding-top:8px; }
 }
+
+
+/* Public user profile: an actual profile sheet instead of a SaaS dashboard. */
+.km-public-profile { width:min(100%,820px);display:grid;gap:16px;padding-bottom:120px; }
+.km-public-hero { min-width:0;overflow:hidden;border-radius:24px;background:var(--surface);border:1px solid var(--soft-border); }
+.km-public-hero .km-profile-cover { min-height:170px;height:clamp(160px,27vw,225px); }
+.km-public-identity { display:grid;grid-template-columns:92px minmax(0,1fr);align-items:start;gap:12px;
+  padding:0 20px 19px;position:relative; }
+.km-public-avatar { margin-top:-40px;width:92px;height:92px;flex-shrink:0;border-radius:50%;border:4px solid var(--surface);
+  display:grid;place-items:center;background:var(--surface-2);color:var(--mint);font-size:33px;font-weight:700;
+  overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.13); }
+.km-public-avatar img { width:100%;height:100%;object-fit:cover; }
+.km-public-name { min-width:0;padding-top:12px; }
+.km-public-name h1 { margin:0;font-size:clamp(19px,4vw,26px);font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;line-height:1.2; }
+.km-public-name > p { margin:5px 0 0;font-size:13px;color:var(--muted);overflow-wrap:anywhere; }
+.km-public-name > .km-public-bio { margin-top:12px;color:var(--text);font-size:14px;line-height:1.5;white-space:pre-wrap; }
+.km-public-actions { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:8px; }
+.km-public-actions > * { display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 15px;
+  border-radius:13px;border:1px solid var(--soft-border);color:var(--text);background:var(--surface-2);
+  font-size:13px;font-weight:630;cursor:pointer; }
+.km-public-actions .km-public-primary { background:var(--mint);color:var(--on-primary);border-color:transparent; }
+.km-public-protection { font-size:12px;line-height:1.5;color:var(--muted);padding:12px 16px;
+  margin:0;border-top:1px solid var(--soft-border); }
+.km-public-profile > section.card { box-shadow:none!important;border:0!important;border-radius:0!important;
+  background:transparent!important;padding:15px 2px!important;border-top:1px solid var(--soft-border)!important; }
+.km-public-profile > section .grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important; }
+.km-public-profile > section .grid > .card { padding:13px!important;box-shadow:none;border-radius:15px; }
+@media(max-width:600px) {
+  .km-public-hero { border-radius:0 0 22px 22px;margin-inline:-14px;border-inline:0; }
+  .km-public-identity { grid-template-columns:80px minmax(0,1fr);padding:0 15px 16px;gap:10px; }
+  .km-public-avatar { width:80px;height:80px;margin-top:-36px;font-size:27px; }
+  .km-public-name { padding-top:8px; }
+  .km-public-name h1 { font-size:20px; }
+  .km-public-actions > * { flex:1; }
+  .km-public-profile > section .grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+}
