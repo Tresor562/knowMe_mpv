@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { translate } from '@knowme/i18n-contract';
 import { FormEvent, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { MediaDownloadSettings } from '../../components/media-download-settings';
@@ -20,10 +21,10 @@ export default function SettingsPage() {
     setLanguageBusy(true);
     setMessage('');
     try {
-      await syncLocale(nextLocale);
-      setMessage(t('settings.languageSaved'));
+      const saved = await syncLocale(nextLocale);
+      setMessage(translate(saved.locale, 'settings.languageSaved'));
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : t('settings.languageConflict'));
+      setMessage(cause instanceof Error ? cause.message : translate(nextLocale, 'settings.languageConflict'));
     } finally {
       setLanguageBusy(false);
     }
