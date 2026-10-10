@@ -21,7 +21,7 @@ All channels use the existing `@NexAiStorage_bot`, which must be added **by a hu
 - Existing primary-only v1 objects are **not automatically backfilled** to Recovery. Backfill and proof of retained copies remain required.
 - The current media upload API remains limited to <=25 MiB (20 MiB on the current public Bot API deployment). These changes do not enable multi-gigabyte files.
 
-## Database backup and integrity proof (not scheduled yet)
+## Database backup and integrity proof (scheduled on the verified VPS)
 
 Server-only configuration: `MEDIA_TELEGRAM_DATABASE_CHAT_ID` and a separate, durable `KNOWME_DB_BACKUP_KEY` (64 hex chars / 32 bytes). The deploy script preserves channel IDs from the existing protected VPS configuration and generates a key if absent.
 
@@ -50,4 +50,8 @@ This writes an integrity-checked `.dump` with file mode `0600` under `/var/lib/n
 5. **Only then** enable a serialized, scheduled runner (e.g. `flock` + systemd timer) with operational alerts, retention policy, off-platform copy, and periodic restoration tests.
 6. Validate recovery and database consistency after storage bot/channel loss. Keep independent off-Telegram backups to cover platform-wide failure.
 
-**Current status:** implementation committed for review; no live VPS channel IDs or running backup timer have been verified. Telegram is not a substitute for production object storage and database recovery controls.
+**Verified VPS state (2026-10-10):** the two new channels were validated using `@NexAiStorage_bot`, and private server configuration was provisioned without logging secrets. The KnowMe API was deployed at commit `738a867e9f345c3ee76b1773374360d157c9ea29` and returned healthy readiness. A real encrypted Database-channel archive was downloaded and authenticated, then restored into an isolated PostgreSQL instance (210 public tables; production untouched). A test encrypted media object was mirrored, downloaded, authenticated and deleted from both media channels. The systemd timer `knowme-telegram-db-backup.timer` is enabled and its first scheduled backup is subject to ongoing runtime confirmation.
+
+Evidence is retained in private NexControl tickets #34–#41 in repository `Tresor562/Nexus-lab`. Credentials and private channel IDs are deliberately not recorded here.
+
+**Remaining release limitations:** real user-facing multi-gigabyte file uploads are not implemented; per-upload limits remain. Telegram is not sufficient as an independent disaster-recovery provider. Restore rehearsals, key escrow, backup-retention policy, provider-independent backups, on-call alert verification and verified data deletion after Telegram's Bot API time windows remain required before a high-assurance public release.
