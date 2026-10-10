@@ -110,12 +110,15 @@ describe('ExternalMediaScannerService', () => {
     ['stream: temporary ERROR\\0', 'UNAVAILABLE', 'CLAMD_SCAN_ERROR']
   ])('reads private ClamAV INSTREAM verdict and fails closed', async (wire, verdict, reference) => {
     delete process.env.MEDIA_SCANNER_URL;
-    const server = createServer({ allowHalfOpen: true }, connection => {
+    const server = createServer(connection => {
       let chunks = Buffer.alloc(0);
-      connection.on('data', data => { chunks = Buffer.concat([chunks, data]); });
-      connection.on('end', () => {
+      let answered = false;
+      connection.on('data', data => {
+        chunks = Buffer.concat([chunks, data]);
+        if (answered || chunks.length < 23 || !chunks.subarray(-4).equals(Buffer.alloc(4))) return;
+        answered = true;
         if (!chunks.subarray(0, 10).equals(Buffer.concat([Buffer.from('zINSTREAM'), Buffer.from([0])]))) {
-          connection.end('stream: malformed ERROR\\0');
+          connection.end('stream: malformed ERROR');
           return;
         }
         connection.end(wire.replaceAll(String.fromCharCode(92) + '0', String.fromCharCode(0)));
