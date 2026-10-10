@@ -3,11 +3,12 @@ import { ExternalMediaScannerService } from './external-media-scanner.service';
 import { MediaDownloadPreferenceController } from './media-download-preference.controller';
 import { MediaDownloadPreferenceService } from './media-download-preference.service';
 import { MediaController } from './media.controller';
+import { PublicAvatarController } from './public-avatar.controller';
 import { MediaService } from './media.service';
 import { MediaStorageService } from './media-storage.service';
 
 @Module({
-  controllers: [MediaController, MediaDownloadPreferenceController],
+  controllers: [PublicAvatarController, MediaController, MediaDownloadPreferenceController],
   providers: [ExternalMediaScannerService, MediaStorageService, MediaService, MediaDownloadPreferenceService],
   exports: [ExternalMediaScannerService, MediaStorageService, MediaService, MediaDownloadPreferenceService]
 })
