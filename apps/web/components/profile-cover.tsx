@@ -27,16 +27,31 @@ export function ProfileCover({ assetId, className = '' }: {
 
     async function loadImage() {
       try {
-        const grant = await apiFetch<DownloadGrant>(
-          `/media/${encodeURIComponent(assetId!)}/download-grant`,
-          { method: 'POST' }
+        // Public cover is allowed only while the owner actively selects this
+        // scanned asset. The backend must enforce that policy.
+        const publicResponse = await fetch(
+          `/api/knowme/media/public/cover/${encodeURIComponent(assetId!)}`,
+          { cache: 'no-store' }
         );
-        const blob = await apiFetchBlob(grant.path);
-        if (cancelled || !blob.type.startsWith('image/')) return;
-        objectUrl = URL.createObjectURL(blob);
+        if (!publicResponse.ok) throw new Error('Public cover unavailable');
+        const publicBlob = await publicResponse.blob();
+        if (cancelled || !publicBlob.type.startsWith('image/')) return;
+        objectUrl = URL.createObjectURL(publicBlob);
         setSource(objectUrl);
       } catch {
-        // The owner may see a private image; visitors without a grant see the fallback.
+        // Backwards-compatible owner view while API servers are being updated.
+        try {
+          const grant = await apiFetch<DownloadGrant>(
+            `/media/${encodeURIComponent(assetId!)}/download-grant`,
+            { method: 'POST' }
+          );
+          const blob = await apiFetchBlob(grant.path);
+          if (cancelled || !blob.type.startsWith('image/')) return;
+          objectUrl = URL.createObjectURL(blob);
+          setSource(objectUrl);
+        } catch {
+          // No grant: keep the decorative fallback rather than disclosing media.
+        }
       }
     }
     void loadImage();
