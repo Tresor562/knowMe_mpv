@@ -13,6 +13,18 @@ type AvatarQuickActionsProps = {
   busy?: boolean;
 };
 
+type GlyphName = 'story' | 'view' | 'photo' | 'cover' | 'design';
+
+function ActionIcon({name}:{name:GlyphName}) {
+  const base = {viewBox:'0 0 24 24',width:21,height:21,fill:'none',stroke:'currentColor',
+    strokeWidth:1.8,strokeLinecap:'round' as const,strokeLinejoin:'round' as const,'aria-hidden':true as const};
+  if(name==='story') return <svg {...base}><circle cx="12" cy="12" r="9" strokeDasharray="4 2"/><path d="M12 8v8m-4-4h8"/></svg>;
+  if(name==='view') return <svg {...base}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
+  if(name==='photo') return <svg {...base}><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.3"/><path d="m4 17 5-5 3 3 3-3 5 5"/></svg>;
+  if(name==='cover') return <svg {...base}><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="m3 16 6-6 4 4 3-3 5 5"/></svg>;
+  return <svg {...base}><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3Z"/><path d="m19 17 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>;
+}
+
 /** Native-style anchored actions for the current account, not a fake context menu. */
 export function AvatarQuickActions({
   username, displayName, avatarUrl, locale, onSelectPhoto, onSelectCover, busy
@@ -55,19 +67,19 @@ export function AvatarQuickActions({
       </button>
       {open && <div className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
-          <span aria-hidden="true">◎</span>{en ? 'Add a story' : 'Ajouter une story'}
+          <ActionIcon name="story" />{en ? 'Add a story' : 'Ajouter une story'}
         </Link>
         <button type="button" role="menuitem" onClick={() => act(() => setPreview(true))} disabled={!avatarUrl}>
-          <span aria-hidden="true">◉</span>{en ? 'View profile picture' : 'Voir la photo de profil'}
+          <ActionIcon name="view" />{en ? 'View profile picture' : 'Voir la photo de profil'}
         </button>
         <button type="button" role="menuitem" onClick={() => act(onSelectPhoto)}>
-          <span aria-hidden="true">↥</span>{en ? 'Change picture' : 'Changer la photo'}
+          <ActionIcon name="photo" />{en ? 'Change picture' : 'Changer la photo'}
         </button>
         <button type="button" role="menuitem" onClick={() => act(onSelectCover)}>
-          <span aria-hidden="true">▧</span>{en ? 'Change cover' : 'Changer la couverture'}
+          <ActionIcon name="cover" />{en ? 'Change cover' : 'Changer la couverture'}
         </button>
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
-          <span aria-hidden="true">✧</span>{en ? 'Edit profile design' : 'Personnaliser le profil'}
+          <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
       </div>}
       {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
