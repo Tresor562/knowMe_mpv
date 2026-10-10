@@ -16,7 +16,7 @@ type StoryKind = 'TEXT' | 'PHOTO' | 'VIDEO' | 'LINK';
 const PHOTO_MIMES = ['image/jpeg','image/png','image/webp','image/gif'];
 const VIDEO_MIMES = ['video/mp4'];
 const MAX_STORY_BYTES = 20 * 1024 * 1024;
-const DURATIONS = [24,48,72,168,336,720] as const;
+const DURATIONS = [6,12,24,48,72,168,336,720] as const;
 
 export default function NewStoryPage() {
   const { locale } = useI18n();
@@ -26,6 +26,7 @@ export default function NewStoryPage() {
   const { user, loading } = useSession({required:true});
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [type,setType] = useState<StoryKind>('TEXT');
   const [audience,setAudience] = useState('FRIENDS');
   const [durationHours,setDurationHours] = useState(24);
@@ -81,7 +82,7 @@ export default function NewStoryPage() {
     const asset=await apiFetch<UploadedAsset>(`/media/uploads/${session.id}/complete`,{
       method:'POST',headers:{'x-upload-token':session.uploadToken},body
     });
-    if(asset.status && asset.status!=='AVAILABLE')throw new Error(en?'The media needs to be approved before publishing.':'Le média doit être validé avant publication.');
+    if(asset.status && asset.status!=='AVAILABLE')throw new Error(en?'Security analysis is unavailable or this media was rejected. The story was not published.':'Analyse de sécurité indisponible ou média refusé. La story n’a pas été publiée.');
     return asset.id;
   }
 
@@ -121,7 +122,7 @@ export default function NewStoryPage() {
     ['FRIENDS',ui.friends],['PUBLIC',ui.everyone],['FOLLOWERS',ui.followers],
     ['BEST_FRIENDS',ui.bestFriends],['PRIVATE',ui.onlyMe]
   ] as const;
-  const durationText=(hours:number)=>hours===24?'24 h':hours===48?'48 h':hours===72?'72 h':hours===168?(en?'7 days':'7 jours'):hours===336?(en?'14 days':'14 jours'):(en?'30 days':'30 jours');
+  const durationText=(hours:number)=>hours<72?`${hours} h`:hours===72?'72 h':hours===168?(en?'7 days':'7 jours'):hours===336?(en?'14 days':'14 jours'):(en?'30 days':'30 jours');
 
   return <main className="shell km-story-editor">
     <header className="km-story-editor-header">
@@ -140,8 +141,20 @@ export default function NewStoryPage() {
         </button>)}
         <input ref={photoRef} type="file" hidden accept={PHOTO_MIMES.join(',')} onChange={e=>chooseFile(e,'PHOTO')}/>
         <input ref={videoRef} type="file" hidden accept={VIDEO_MIMES.join(',')} onChange={e=>chooseFile(e,'VIDEO')}/>
+        <input ref={cameraRef} type="file" hidden accept="image/*" capture="environment" onChange={e=>chooseFile(e,'PHOTO')}/>
       </div>
 
+      <div className="km-story-toolbar" role="group" aria-label={en?'Media tools':'Outils média'}>
+        <button type="button" onClick={()=>photoRef.current?.click()} aria-label={en?'Choose photo':'Choisir une photo'}>
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m4 17 5-5 3 3 3-3 5 5"/><circle cx="9" cy="9" r="1.5"/></svg><span>{en?'Gallery':'Galerie'}</span>
+        </button>
+        <button type="button" onClick={()=>cameraRef.current?.click()} aria-label={en?'Take a photo':'Prendre une photo'}>
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="14" r="4"/></svg><span>{en?'Camera':'Caméra'}</span>
+        </button>
+        <button type="button" onClick={()=>videoRef.current?.click()} aria-label={en?'Choose a video':'Choisir une vidéo'}>
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><span>{en?'Video':'Vidéo'}</span>
+        </button>
+      </div>
       <section className={`km-story-canvas km-story-canvas-${type.toLowerCase()}`} aria-label={en?'Story preview':'Aperçu de la story'}>
         {previewUrl&&type==='PHOTO'&&<img src={previewUrl} className="km-story-preview-image" alt=""/>}
         {previewUrl&&type==='VIDEO'&&<video controls playsInline muted src={previewUrl} className="km-story-preview-image"/>}
@@ -161,8 +174,8 @@ export default function NewStoryPage() {
         <label htmlFor="km-story-duration">{ui.duration}</label>
         <select id="km-story-duration" value={permanent?'PERMANENT':String(durationHours)}
           onChange={e=>{setPermanent(e.target.value==='PERMANENT');if(e.target.value!=='PERMANENT')setDurationHours(Number(e.target.value));}}>
-          {DURATIONS.map(hours=><option key={hours} value={hours} disabled={hours>24&&!premium}>
-            {durationText(hours)}{hours>24?' · Premium':''}
+          {DURATIONS.map(hours=><option key={hours} value={hours} disabled={hours!==24&&!premium}>
+            {durationText(hours)}{hours!==24?' · Premium':''}
           </option>)}
           <option value="PERMANENT" disabled={!premium}>{en?'Permanent':'Permanent'} · Premium</option>
         </select>
