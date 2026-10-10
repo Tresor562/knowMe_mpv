@@ -29,11 +29,11 @@ test('login renders as a usable public entrypoint without browser errors', async
 
   const response = await page.goto('/login');
   expect(response?.ok()).toBeTruthy();
-  await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
-  await expect(page.getByPlaceholder('Email ou pseudo')).toBeEditable();
-  await expect(page.getByPlaceholder('Mot de passe')).toBeEditable();
-  await expect(page.getByRole('button', { name: 'Entrer dans KnowMe' })).toBeEnabled();
-  await expect(page.getByRole('link', { name: 'Créer mon profil' })).toHaveAttribute('href', '/register');
+  await expect(page.getByRole('heading', { name: 'Bon retour' })).toBeVisible();
+  await expect(page.getByPlaceholder('Votre identifiant')).toBeEditable();
+  await expect(page.getByPlaceholder('Votre mot de passe')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
+  await expect(page.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', '/register');
   await expect(page.getByRole('link', { name: 'Mot de passe oublié ?' })).toHaveAttribute('href', '/forgot-password');
   expect(failures).toEqual([]);
 });
@@ -43,16 +43,16 @@ test('registration renders as a usable public entrypoint and links back to login
 
   const response = await page.goto('/register');
   expect(response?.ok()).toBeTruthy();
-  await expect(page.getByRole('heading', { name: 'Créer ton profil' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Créer votre compte' })).toBeVisible();
   await expect(page.getByPlaceholder('Nom affiché')).toBeEditable();
-  await expect(page.getByPlaceholder('Pseudo')).toBeEditable();
-  await expect(page.getByPlaceholder('Email')).toBeEditable();
-  await expect(page.getByPlaceholder('Mot de passe sécurisé')).toBeEditable();
-  await expect(page.getByRole('button', { name: 'Commencer' })).toBeEnabled();
+  await expect(page.getByPlaceholder('Votre pseudo')).toBeEditable();
+  await expect(page.getByPlaceholder('vous@exemple.com')).toBeEditable();
+  await expect(page.getByPlaceholder('Au moins 8 caractères')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Créer mon compte' })).toBeEnabled();
 
   await page.getByRole('link', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bon retour' })).toBeVisible();
   expect(failures).toEqual([]);
 });
 
@@ -61,11 +61,11 @@ test('password recovery request is a usable privacy-safe public entrypoint', asy
 
   const response = await page.goto('/forgot-password');
   expect(response?.ok()).toBeTruthy();
-  await expect(page.getByRole('heading', { name: 'Mot de passe oublié' })).toBeVisible();
-  await expect(page.getByPlaceholder('Adresse e-mail')).toBeEditable();
-  await expect(page.getByRole('button', { name: 'Recevoir un lien de récupération' })).toBeEnabled();
-  await expect(page.getByText(/la réponse sera la même qu’un compte existe ou non/i)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Retour à la connexion' })).toHaveAttribute('href', '/login');
+  await expect(page.getByRole('heading', { name: 'Mot de passe oublié ?' })).toBeVisible();
+  await expect(page.getByPlaceholder('vous@exemple.com')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Recevoir un lien' })).toBeEnabled();
+  await expect(page.getByText(/Indiquez l’adresse e-mail de votre compte/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Retour à la connexion/ })).toHaveAttribute('href', '/login');
   expect(failures).toEqual([]);
 });
 
