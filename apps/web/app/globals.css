@@ -906,3 +906,34 @@ html, body { min-width: 0; }
   .km-public-actions > * { flex:1; }
   .km-public-profile > section .grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
 }
+
+
+/* Portrait-first story editor: functional canvas and a light toolbar, not stacked forms. */
+.km-story-editor { width:min(100%,600px); }
+.km-story-toolbar { display:flex;align-items:center;justify-content:center;gap:8px; }
+.km-story-toolbar > button { display:flex;justify-content:center;align-items:center;gap:6px;
+  min-height:44px;flex:1;min-width:0;padding:9px 7px;border:0;border-radius:13px;
+  background:var(--surface-2);color:var(--text);cursor:pointer;font-size:12px;font-weight:610; }
+.km-story-toolbar svg { flex-shrink:0;color:var(--mint); }
+.km-story-toolbar > button:focus-visible { outline:2px solid var(--mint);outline-offset:2px; }
+.km-story-canvas { width:min(100%,370px);min-height:300px;max-height:min(62dvh,650px);height:auto;
+  aspect-ratio:9/16;margin-inline:auto; padding:18px; border-radius:22px;
+  box-shadow:0 9px 26px rgba(0,0,0,.12); }
+.km-story-preview-image { object-fit:cover; }
+.km-story-canvas textarea { font-size:clamp(18px,4vw,26px);font-weight:650;
+  background:rgba(5,9,22,.2);color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.7);border:0;
+  max-height:50%; }
+.km-story-canvas textarea::placeholder { color:rgba(255,255,255,.7); }
+.km-story-canvas:not(.km-story-canvas-text) textarea { margin-top:auto;margin-bottom:4px;
+  min-height:46px;font-size:14px;background:rgba(10,13,28,.55);border-radius:13px; }
+.km-story-canvas input { width:100%;min-width:0; }
+@media(max-width:560px) {
+  .km-story-toolbar { gap:5px; }
+  .km-story-toolbar > button { min-height:42px;padding:8px 4px;font-size:11px; }
+  .km-story-canvas { width:min(100%,335px);max-height:min(53dvh,560px);min-height:270px; }
+  .km-story-editor-form { gap:12px;padding-top:10px; }
+  .km-story-options select { min-height:42px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .km-story-canvas,.km-story-toolbar > button { animation:none;transition:none; }
+}
