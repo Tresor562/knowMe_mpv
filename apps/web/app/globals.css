@@ -540,3 +540,66 @@ html, body { min-width: 0; }
   .bottom-nav { gap: 0; }
   .bottom-nav-label { font-size: 9px; }
 }
+
+
+/* Unified profile surfaces — native-sized on phones and comfortably centered on desktop. */
+.km-profile-page { max-width: 900px; display: grid; gap: 18px; padding-bottom: 120px; }
+.km-profile-hero { min-width: 0; overflow: hidden; border: 1px solid var(--soft-border); border-radius: 26px; background: var(--surface); }
+.km-profile-cover { position: relative; min-height: 196px; overflow: hidden; background: radial-gradient(circle at 15% 25%, color-mix(in srgb, var(--mint) 45%, transparent), transparent 49%), radial-gradient(circle at 87% 16%, color-mix(in srgb, var(--orange) 32%, transparent), transparent 45%), var(--surface-2); }
+.km-profile-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.km-profile-details { position: relative; display: grid; grid-template-columns: 104px minmax(0,1fr); align-items: start; column-gap: 16px; padding: 0 22px 23px; }
+.km-profile-avatar { width: 100px; height: 100px; margin-top: -45px; border: 4px solid var(--surface); border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; font-size: 37px; font-weight: 700; color: var(--mint); box-shadow: 0 6px 22px rgba(0,0,0,.12); }
+.km-profile-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.km-profile-heading { min-width: 0; padding-top: 10px; }
+.km-profile-heading h1 { margin: 4px 0; font-size: clamp(22px, 4vw, 29px); font-weight: 700; line-height: 1.18; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.km-profile-eyebrow { margin: 0; color: var(--mint); font-size: 11px; font-weight: 700; letter-spacing: .07em; }
+.km-profile-handle { margin: 7px 0; color: var(--muted); font-size: 13px; }
+.km-profile-bio { margin: 10px 0 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.km-profile-hero-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 20px; }
+.km-profile-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: 13px; }
+.km-profile-cover-upload { position: relative; cursor: pointer; }
+.km-profile-cover-upload input { position: absolute; width: 1px !important; height: 1px !important; padding: 0 !important; opacity: 0; overflow: hidden; }
+.km-profile-cover-upload:focus-within { outline: 3px solid var(--mint); outline-offset: 2px; }
+.km-profile-cover-upload.is-busy { opacity: .6; pointer-events: none; }
+.km-profile-notice { margin: 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; font-size: 13px; }
+.km-profile-editor { display: grid; gap: 12px; padding: 22px; }
+.km-profile-editor h2 { margin: 0; font-size: 18px; }
+.km-profile-editor form label { display: grid; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.km-profile-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.km-profile-progress { border: 1px solid var(--soft-border); background: var(--surface-glass); backdrop-filter: blur(18px); padding: 20px 22px; border-radius: 24px; }
+.km-profile-progress-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.km-profile-progress-top h2 { font-size: 21px; margin: 5px 0 12px; }
+.km-profile-progress-top strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.km-profile-progress-track { height: 9px; overflow: hidden; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--soft-border); }
+.km-profile-progress-track span { display: block; height: 100%; background: linear-gradient(90deg,var(--mint),var(--orange)); border-radius: inherit; transition: width .25s ease; }
+.km-profile-progress p { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+.km-profile-text-link { display: inline-block; margin-top: 12px; color: var(--mint); font-size: 13px; font-weight: 650; }
+.km-profile-shortcuts { border-block: 1px solid var(--soft-border); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.km-profile-shortcuts a { min-width: 0; padding: 15px 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; border-bottom: 1px solid var(--soft-border); font-size: 14px; }
+.km-profile-shortcuts a:nth-child(2n+1) { border-right: 1px solid var(--soft-border); }
+.km-profile-shortcuts a:hover { background: var(--surface-2); }
+.km-profile-shortcuts a span { color: var(--mint); font-size: 19px; }
+.km-profile-interests { display: grid; gap: 14px; padding: 2px 0 24px; }
+.km-profile-interests h2 { margin: 0; font-size: 20px; }
+.km-profile-interests-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.km-profile-interests-list span { padding: 8px 12px; border: 1px solid var(--soft-border); border-radius: 100px; background: var(--surface-2); font-size: 13px; }
+.km-profile-interests-list p { color: var(--muted); font-size: 13px; }
+.km-profile-interests form { display: grid; gap: 9px; }
+.km-profile-interests form label { font-size: 12px; color: var(--muted); }
+.km-profile-interests-form { display: flex; align-items: center; gap: 8px; }
+.km-profile-interests-form input { flex: 1; min-width: 0; }
+@media (max-width: 600px) {
+  .km-profile-page { gap: 14px; }
+  .km-profile-hero { border-radius: 0 0 22px 22px; margin-inline: -14px; border-inline: 0; }
+  .km-profile-cover { min-height: 160px; }
+  .km-profile-details { grid-template-columns: 82px minmax(0,1fr); gap: 11px; padding: 0 16px 18px; }
+  .km-profile-avatar { width: 82px; height: 82px; margin-top: -34px; font-size: 28px; }
+  .km-profile-heading h1 { font-size: 22px; }
+  .km-profile-bio { font-size: 13px; }
+  .km-profile-hero-actions { margin-top: 12px; }
+  .km-profile-hero-actions .btn { flex: 1; min-width: 0; }
+  .km-profile-shortcuts { grid-template-columns: minmax(0,1fr); }
+  .km-profile-shortcuts a:nth-child(n) { border-right: 0; }
+  .km-profile-interests-form { flex-wrap: wrap; }
+  .km-profile-interests-form .btn { width: 100%; }
+}
