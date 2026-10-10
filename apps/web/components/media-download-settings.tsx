@@ -110,7 +110,7 @@ export function MediaDownloadSettings() {
                 <label key={kind} className="km-settings-chip">
                   <input type="checkbox" checked={preference[network].includes(kind)}
                     onChange={() => toggle(network, kind)} />
-                  {LABELS[locale][kind]}
+                  {LABELS[en ? 'en' : 'fr'][kind]}
                 </label>
               ))}
             </div>
