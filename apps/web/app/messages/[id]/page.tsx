@@ -109,6 +109,7 @@ export default function ConversationPage() {
 
   const [items,setItems]=useState<Message[]>([]);
   const [readStates,setReadStates]=useState<ReadState[]>([]);
+  const [threadInfo,setThreadInfo]=useState<{title:string|null;isGroup:boolean;memberCount:number}|null>(null);
   const [onlineUserIds,setOnlineUserIds]=useState<Set<string>>(new Set());
   const [typingUsers,setTypingUsers]=useState<Record<string,string>>({});
   const [draft,setDraft]=useState('');
@@ -162,6 +163,23 @@ export default function ConversationPage() {
   useEffect(()=>{
     if(!sessionLoading)void load();
   },[load,sessionLoading]);
+
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    let active = true;
+    setThreadInfo(null);
+    void apiFetch<Array<{id:string;title:string|null;isGroup:boolean;members:Array<{userId:string}>}>>('/conversations')
+      .then(rows => {
+        if (!active) return;
+        const current = rows.find(row => row.id === conversationId);
+        if (current) setThreadInfo({
+          title: current.title, isGroup: current.isGroup, memberCount: current.members.length
+        });
+      }).catch(() => {
+        // Message history still works when metadata is temporarily unavailable.
+      });
+    return () => { active = false; };
+  }, [conversationId,sessionLoading,user?.id]);
 
   useEffect(()=>{
     if(sessionLoading||!user)return;
@@ -350,12 +368,12 @@ export default function ConversationPage() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
         </Link>
         <div className={`km-chat-avatar ${isNexusPrivate?'km-chat-ai':''}`} aria-hidden="true">
-          {isNexusPrivate?'N':peer?.avatarUrl?<img src={peer.avatarUrl} alt="" className="km-chat-avatar-image" />:(peer?.displayName||'D').slice(0,1).toUpperCase()}
+          {isNexusPrivate?'N':threadInfo?.isGroup?(threadInfo.title||'G').slice(0,1).toUpperCase():peer?.avatarUrl?<img src={peer.avatarUrl} alt="" className="km-chat-avatar-image" />:(peer?.displayName||'D').slice(0,1).toUpperCase()}
         </div>
         <div className="km-chat-header-details">
-          <h1>{isNexusPrivate?'Nexus':peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation')}</h1>
+          <h1>{isNexusPrivate?'Nexus':threadInfo?.isGroup && threadInfo.title ? threadInfo.title : peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation')}</h1>
           <p>
-            {isNexusPrivate?'Assistant KnowMe':socketStatus==='connected'?
+            {isNexusPrivate?'Assistant KnowMe':threadInfo?.isGroup ? `${threadInfo.memberCount} ${en?'members':'membres'}` : socketStatus==='connected'?
               peers.some(peer=>onlineUserIds.has(peer.userId))?(en?'Online':'En ligne'):(en?'Connected':'Connecté'):
               socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
           </p>
