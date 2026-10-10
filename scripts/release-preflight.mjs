@@ -232,7 +232,7 @@ export function validateProductionEnvironment(env = process.env) {
     const recoveryTransport = env.ACCOUNT_RECOVERY_TRANSPORT || 'HTTPS_API';
     if (recoveryTransport === 'GMAIL_SMTP') {
       const mailbox = (env.ACCOUNT_RECOVERY_GMAIL_USER || '').trim();
-      if (!/^[^\\s@<>]+@gmail\\.com$/i.test(mailbox)) {
+      if (!/^[^\s@<>]+@gmail\.com$/i.test(mailbox)) {
         errors.push('ACCOUNT_RECOVERY_GMAIL_USER must be a valid Gmail address.');
       }
       if (!/^[A-Za-z0-9 ]{16,25}$/.test(env.ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD || '') ||
