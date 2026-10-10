@@ -294,26 +294,26 @@ export default function MessagesPage() {
           const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
           const pinDisabled=pinBusyId!==null || (!pinned && (pinLimit===null || pinnedConversationIds.size>=pinLimit));
           return <article className={`km-chat-row${unread?' km-chat-unread':''}`} key={conversation.id}>
-            <Link href={`/messages/${conversation.id}`} className="km-chat-main" aria-label={`Ouvrir la discussion ${name}`}>
+            <Link href={`/messages/${conversation.id}`} className="km-chat-main" aria-label={`${en?'Open chat':'Ouvrir la discussion'} ${name}`}>
               <div className={`km-chat-avatar${isNexus?' km-chat-ai':''}`}>
-                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : photo ? <img src={photo} alt="" className="km-chat-avatar-image" /> : name.slice(0,1).toUpperCase()}
-                {online && <span className="km-chat-online" aria-label="En ligne"/>}
+                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : photo ? <img src={photo} alt="" className="km-chat-avatar-image" /> : (Array.from(name)[0] || '?').toUpperCase()}
+                {online && <span className="km-chat-online" aria-label={en?'Online':'En ligne'}/>}
               </div>
               <div className="km-chat-copy">
                 <div className="km-chat-firstline">
                   <strong>{name}</strong>
-                  {pinned && <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" aria-label="Épinglée"><path d="m14 4 6 6-3 1-4 4-1 4-7-7 4-1 4-4z"/></svg>}
+                  {pinned && <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" aria-label={en?'Pinned':'Épinglée'}><path d="m14 4 6 6-3 1-4 4-1 4-7-7 4-1 4-4z"/></svg>}
                   {unread && <span className="km-chat-badge">{conversation.unreadCount}</span>}
                 </div>
-                <p className="km-chat-preview">{last?`${last.senderId===user?.id?'Vous : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}`:isNexus?'Discuter avec Nexus':'Aucun message pour le moment'}</p>
+                <p className="km-chat-preview">{last?`${last.senderId===user?.id?'Vous : ':last.nexusAuthored?'Nexus : ':''}${preview(last)}`:isNexus?(en?'Chat with Nexus':'Discuter avec Nexus'):(en?'No messages yet':'Aucun message pour le moment')}</p>
               </div>
               <time className="km-chat-time" dateTime={last?.createdAt}>{last?new Date(last.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</time>
             </Link>
             <div className="km-chat-quick-actions">
-              <Link href={`/messages/${conversation.id}/organization`} className="km-mini-action" title="Organisation de la discussion" aria-label={`Organisation de ${name}`}>
+              <Link href={`/messages/${conversation.id}/organization`} className="km-mini-action" title={en?'Chat organization':'Organisation de la discussion'} aria-label={`${en?'Organize':'Organisation de'} ${name}`}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16M8 4v7M16 4v7M5 20h14V11H5z"/></svg>
               </Link>
-              <button type="button" className="km-mini-action" aria-pressed={pinned} aria-label={pinned?`Désépingler ${name}`:`Épingler ${name}`} title={pinned?'Désépingler':'Épingler'} disabled={pinDisabled} onClick={()=>void togglePin(conversation.id)}>
+              <button type="button" className="km-mini-action" aria-pressed={pinned} aria-label={pinned?`${en?'Unpin':'Désépingler'} ${name}`:`${en?'Pin':'Épingler'} ${name}`} title={pinned?(en?'Unpin':'Désépingler'):(en?'Pin':'Épingler')} disabled={pinDisabled} onClick={()=>void togglePin(conversation.id)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-3 1-4 4-1 4-7-7 4-1 4-4zM4 20l6-6"/></svg>
               </button>
             </div>
@@ -323,7 +323,7 @@ export default function MessagesPage() {
           <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11.5a7.8 7.8 0 0 1-8.2 7.7 9 9 0 0 1-3.3-.7L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/></svg>
           <h2>{search||filter!=='all'?(en?'No matching chats':'Aucune discussion correspondante'):(en?'No chats yet':'Aucune discussion pour le moment')}</h2>
           <p>{en?'Start a conversation or find friends on KnowMe.':'Commence une conversation ou retrouve tes amis sur KnowMe.'}</p>
-          <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?'Ouverture…':'Discuter avec Nexus'}</button>
+          <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?(en?'Opening…':'Ouverture…'):(en?'Chat with Nexus':'Discuter avec Nexus')}</button>
         </div>}
       </section>
     </main>
