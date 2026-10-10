@@ -1,4 +1,5 @@
 import { ExternalMediaScannerService } from './external-media-scanner.service';
+import { createServer } from 'node:net';
 
 describe('ExternalMediaScannerService', () => {
   const originalFetch = global.fetch;
@@ -103,4 +104,34 @@ describe('ExternalMediaScannerService', () => {
       reference: 'EXTERNAL_SCANNER_HTTP_ERROR'
     });
   });
+  it.each([
+    ['stream: OK\\0', 'CLEAN', 'CLAMD:INSTREAM:OK'],
+    ['stream: Eicar-Test-Signature FOUND\\0', 'INFECTED', 'CLAMD:INSTREAM:FOUND'],
+    ['stream: temporary ERROR\\0', 'UNAVAILABLE', 'CLAMD_SCAN_ERROR']
+  ])('reads private ClamAV INSTREAM verdict and fails closed', async (wire, verdict, reference) => {
+    delete process.env.MEDIA_SCANNER_URL;
+    const server = createServer({ allowHalfOpen: true }, connection => {
+      let chunks = Buffer.alloc(0);
+      connection.on('data', data => { chunks = Buffer.concat([chunks, data]); });
+      connection.on('end', () => {
+        if (!chunks.subarray(0, 10).equals(Buffer.from('zINSTREAM\\0'))) {
+          connection.end('stream: malformed ERROR\\0');
+          return;
+        }
+        connection.end(wire.replace('\\0', '\\0'));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()));
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('TCP test server unavailable');
+      process.env.MEDIA_CLAMD_HOST = '127.0.0.1';
+      process.env.MEDIA_CLAMD_PORT = String(address.port);
+      await expect(new ExternalMediaScannerService().scan(Buffer.from('test-payload'), { mimeType: 'image/png' }))
+        .resolves.toEqual({ verdict, reference });
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  });
+
 });
