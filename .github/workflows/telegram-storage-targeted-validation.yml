@@ -22,5 +22,5 @@ jobs:
           node --check ops/backup-knowme-postgres-telegram.mjs
           node --check ops/verify-knowme-postgres-telegram-backup.mjs
       - run: pnpm --filter @knowme/api prisma:generate
-      - run: pnpm --filter @knowme/api build
+      - run: pnpm exec turbo build --filter=@knowme/api...
       - run: pnpm --filter @knowme/api exec jest src/media/telegram-media-storage.spec.ts --runInBand
