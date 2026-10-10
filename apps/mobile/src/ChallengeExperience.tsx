@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
-import { BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
 type Person = {
@@ -79,6 +79,25 @@ type Submission = Participant & { reward?: RewardResult | null };
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
+}
+
+function challengeStatusLabel(value: string) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Actif',
+    COMPLETED: 'Terminé',
+    CLOSED: 'Terminé',
+    ARCHIVED: 'Archivé'
+  };
+  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
+}
+
+function visibilityLabel(value: Visibility) {
+  const labels: Record<Visibility, string> = {
+    PRIVATE: 'Privé',
+    FRIENDS: 'Amis',
+    PUBLIC: 'Public'
+  };
+  return labels[value];
 }
 
 function Button({
@@ -247,7 +266,7 @@ function ChallengeDetail({
           : 'Progression enregistrée',
         reward?.status === 'AWARDED'
           ? `Toutes tes réponses sont enregistrées. +${reward.amount} KnowCoins.`
-          : reward?.explanation || 'Ta progression a été enregistrée sur le serveur.'
+          : reward?.explanation || 'Ta progression a été enregistrée.'
       );
     } catch (cause) {
       Alert.alert('Enregistrement impossible', errorMessage(cause, 'Réessaie.'));
@@ -344,12 +363,21 @@ function ChallengeDetail({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
+      <View style={styles.detailHeader}>
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Retour aux défis"
+          onPress={onBack}
+          style={[styles.backButton, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}
+        >
+          <KnowMeIcon name="back" size={18} color={colors.text} />
+        </PressScale>
         <View style={styles.flex}>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>DÉFI KNOWME</Text>
-          <Text style={[styles.heading, { color: colors.text }]}>{challenge.title}</Text>
+          <Text style={[styles.heading, { color: colors.text }]} numberOfLines={2}>{challenge.title}</Text>
+          <Text style={[styles.detailSub, { color: colors.muted }]}>
+            {challenge.questions.length} question(s) · {challenge.participants.length} participant(s)
+          </Text>
         </View>
-        <Button title="Retour" onPress={onBack} />
       </View>
 
       {challenge.isCurrentVersion === false && (
@@ -362,16 +390,16 @@ function ChallengeDetail({
         </View>
       )}
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
         {challenge.description ? (
           <Text style={[styles.description, { color: colors.text }]}>{challenge.description}</Text>
         ) : null}
         <View style={styles.badgesRow}>
           <Text style={[styles.badge, isActive ? styles.activeBadge : styles.closedBadge]}>
-            {challenge.status}
+            {challengeStatusLabel(challenge.status)}
           </Text>
           <Text style={styles.badge}>v{viewerVersion}</Text>
-          <Text style={styles.badge}>{challenge.visibility}</Text>
+          <Text style={styles.badge}>{visibilityLabel(challenge.visibility)}</Text>
           <Text style={styles.badge}>{challenge.questions.length} question(s)</Text>
         </View>
         {challenge.creator && (
@@ -408,14 +436,13 @@ function ChallengeDetail({
             />
           </>
         )}
-      </View>
+      </GlassSurface>
 
       {editing && challenge.canEdit && (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Version {challenge.currentVersion + 1}</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
-            La version actuelle ne sera pas modifiée. Cette publication crée un nouvel
-            instantané complet.
+            La version actuelle reste intacte. Les nouvelles réponses utiliseront cette version.
           </Text>
           <TextInput
             value={editTitle}
@@ -557,11 +584,11 @@ function ChallengeDetail({
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Participants</Text>
       {challenge.participants.map((item) => (
         <View key={item.id} style={[styles.participantCard, { backgroundColor: colors.backgroundAccent, borderRadius: visual.controlRadius }]}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.avatarText, { color: colors.accentText }]}>
-              {item.user.displayName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Avatar
+            uri={item.user.avatarUrl}
+            name={item.user.displayName}
+            size={42}
+          />
           <View style={styles.flex}>
             <Text style={[styles.title, { color: colors.text }]}>{item.user.displayName}</Text>
             <Text style={[styles.muted, { color: colors.muted }]}>
@@ -576,7 +603,7 @@ function ChallengeDetail({
 
       {isCreator && Boolean(challenge.versions?.length) && (
         <>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique immuable</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Historique</Text>
           {challenge.versions?.map((version) => (
             <View key={version.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
               <View style={styles.headerRow}>
@@ -586,7 +613,7 @@ function ChallengeDetail({
                 </Text>
                 <Text style={[styles.muted, { color: colors.muted }]}>{version.questionCount} question(s)</Text>
               </View>
-              <Text style={[styles.muted, { color: colors.muted }]}>{version.visibility}</Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>{visibilityLabel(version.visibility)}</Text>
               {version.changeReason ? (
                 <Text style={[styles.description, { color: colors.text }]}>{version.changeReason}</Text>
               ) : null}
@@ -680,20 +707,19 @@ export function ChallengeExperience({ userId }: { userId: string }) {
         />
       }
     >
-      <GlassSurface strength="soft" borderRadius={28} style={styles.challengeHeader}>
+      <GlassSurface strength="soft" borderRadius={24} style={styles.challengeHeader}>
         <View style={styles.challengeBrand}>
-          <BrandMark size={31} />
-          <View>
+          <View style={[styles.challengeHeaderIcon, { backgroundColor: colors.backgroundAccent }]}>
+            <KnowMeIcon name="challenge" size={22} color={colors.secondary} />
+          </View>
+          <View style={styles.flex}>
             <Text style={[styles.heading, { color: colors.text }]}>Défis</Text>
-            <Text style={[styles.challengeSub, { color: colors.muted }]}>Le cœur de KnowMe.</Text>
+            <Text style={[styles.challengeSub, { color: colors.muted }]}>Questions, réponses et souvenirs à partager.</Text>
           </View>
         </View>
-        <GlassSurface strength="soft" borderRadius={21} style={styles.challengeHeaderIcon}>
-          <KnowMeIcon name="challenge" size={23} color={colors.secondary} />
-        </GlassSurface>
       </GlassSurface>
 
-      <View style={[styles.card, styles.createCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={[styles.card, styles.createCard]}>
         <View style={styles.createTitleRow}>
           <View style={[styles.createIcon, { backgroundColor: colors.accent }]}>
             <KnowMeIcon name="create" size={20} color={colors.accentText} />
@@ -759,13 +785,13 @@ export function ChallengeExperience({ userId }: { userId: string }) {
           disabled={creating || !title.trim() || !questions.trim()}
           onPress={() => void create()}
         />
-      </View>
+      </GlassSurface>
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes défis</Text>
       {items.map((item) => {
         const participant = item.participants.find((entry) => entry.userId === userId);
         return (
-          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+          <PressScale key={item.id} onPress={() => setSelectedId(item.id)} style={[styles.card, styles.challengeListCard, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
             <View style={styles.headerRow}>
               <View style={styles.challengeListTitleRow}>
                 <View style={[styles.challengeMiniIcon, { backgroundColor: colors.backgroundAccent }]}>
@@ -779,12 +805,12 @@ export function ChallengeExperience({ userId }: { userId: string }) {
                   item.status === 'ACTIVE' ? styles.activeBadge : styles.closedBadge
                 ]}
               >
-                {item.status}
+                {challengeStatusLabel(item.status)}
               </Text>
             </View>
             {item.description ? <Text style={[styles.description, { color: colors.text }]}>{item.description}</Text> : null}
             <Text style={[styles.muted, { color: colors.muted }]}>
-              v{item.currentVersion} · {item.visibility} · {item.questions.length} question(s) ·{' '}
+              v{item.currentVersion} · {visibilityLabel(item.visibility)} · {item.questions.length} question(s) ·{' '}
               {item.participants.length} participant(s)
             </Text>
             <Text style={[participant?.completedAt ? styles.success : styles.muted, { color: participant?.completedAt ? colors.accent : colors.muted }]}>
@@ -807,50 +833,51 @@ export function ChallengeExperience({ userId }: { userId: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 18, paddingBottom: 40, gap: 14 },
-  challengeHeader: { minHeight: 64, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  challengeBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  challengeSub: { fontSize: 11.5, marginTop: 1 },
-  challengeHeaderIcon: { width: 43, height: 43, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  createCard: { borderRadius: 26, padding: 16 },
-  createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  createIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  createHint: { fontSize: 11.5, marginTop: 2 },
-  challengeListCard: { borderRadius: 22 },
-  challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  challengeMiniIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 24 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  content: { padding: 14, paddingBottom: 32, gap: 11 },
+  challengeHeader: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  challengeBrand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  challengeSub: { fontSize: 10.5, marginTop: 1 },
+  challengeHeaderIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  createCard: { padding: 12 },
+  createTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  createIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  createHint: { fontSize: 10.5, marginTop: 1 },
+  challengeListCard: { padding: 11 },
+  challengeListTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  challengeMiniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14, padding: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  detailHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  backButton: { width: 38, height: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  detailSub: { fontSize: 10.5, marginTop: 1 },
   flex: { flex: 1 },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { fontSize: 23, fontWeight: '900', letterSpacing: -0.45 },
-  sectionTitle: { fontSize: 21, fontWeight: '900' },
-  title: { fontSize: 17, fontWeight: '800' },
-  description: { fontSize: 15, lineHeight: 22 },
-  muted: { lineHeight: 20 },
-  success: { fontWeight: '800' },
-  card: { borderWidth: 1, padding: 18, gap: 12 },
-  historyBanner: { borderWidth: 1, padding: 16, gap: 8 },
-  historyTitle: { color: '#f4c95d', fontSize: 17, fontWeight: '900' },
-  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  questionBlock: { gap: 8, borderTopWidth: 1, paddingTop: 14 },
-  questionLabel: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  question: { fontSize: 17, lineHeight: 24, fontWeight: '700' },
-  input: { minHeight: 52, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, fontSize: 16, textAlignVertical: 'top' },
-  questionsInput: { minHeight: 128 },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '800' },
+  title: { fontSize: 14, fontWeight: '800' },
+  description: { fontSize: 12.5, lineHeight: 18 },
+  muted: { fontSize: 10.5, lineHeight: 16 },
+  success: { fontSize: 11, fontWeight: '800' },
+  card: { borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 9 },
+  historyBanner: { borderWidth: StyleSheet.hairlineWidth, padding: 12, gap: 6 },
+  historyTitle: { color: '#f4c95d', fontSize: 13, fontWeight: '800' },
+  participantCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
+  questionBlock: { gap: 7, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11 },
+  questionLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  question: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  input: { minHeight: 46, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 13, paddingVertical: 10, fontSize: 14, textAlignVertical: 'top' },
+  questionsInput: { minHeight: 104 },
   disabledInput: { opacity: 0.65 },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, overflow: 'hidden', fontSize: 10.5, fontWeight: '700' },
   activeBadge: { color: '#7A5CFF' },
   closedBadge: { color: '#FF6B73' },
-  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontWeight: '900', fontSize: 17 },
-  button: { paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center' },
-  buttonText: { fontWeight: '900' },
+  button: { minHeight: 42, paddingVertical: 9, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 11.5, fontWeight: '800' },
   buttonMuted: { opacity: 0.45 },
-  visibilityRow: { flexDirection: 'row', gap: 8 },
-  visibilityChoice: { flex: 1, paddingVertical: 11, alignItems: 'center', borderWidth: 1 },
+  visibilityRow: { flexDirection: 'row', gap: 7 },
+  visibilityChoice: { flex: 1, minHeight: 40, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   visibilityChoiceActive: {},
-  visibilityText: { fontWeight: '800' },
+  visibilityText: { fontSize: 11, fontWeight: '700' },
   visibilityTextActive: {}
 });
