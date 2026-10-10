@@ -165,7 +165,7 @@ export function StickerPicker<T>({
         </>}
         {tab === 'stickers' && <>
           {loading && <p role="status" className="km-picker-status">{en ? 'Loading stickers…' : 'Chargement des stickers…'}</p>}
-          {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={() => setError('')}>{en ? 'Retry' : 'Réessayer'}</button></div>
+          {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={() => setError('')}>{en ? 'Retry' : 'Réessayer'}</button></div>}
           {!loading && !error && matchingPacks.length === 0 && <p className="km-picker-status">
             {en ? 'No stickers found.' : 'Aucun sticker trouvé.'}
           </p>}
