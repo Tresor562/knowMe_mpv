@@ -62,7 +62,7 @@ export default function Dashboard(){
           <strong>{user.displayName}</strong>
           <span>@{user.username}</span>
         </div>
-        <Link href="/profile" className="km-hub-avatar" aria-label="Ouvrir mon profil">{user.displayName.slice(0,1).toUpperCase()}</Link>
+        <Link href="/profile" className="km-hub-avatar" aria-label="Ouvrir mon profil" style={{ overflow: "hidden" }}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : user.displayName.slice(0,1).toUpperCase()}</Link>
       </div>
     </header>
     <section className="km-hub-welcome">
