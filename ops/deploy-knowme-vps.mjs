@@ -215,6 +215,11 @@ const env = {
   MEDIA_UPLOAD_MAX_BYTES: '20971520',
   MEDIA_TELEGRAM_BOT_TOKEN: storage.token,
   MEDIA_TELEGRAM_CHAT_ID: storage.chatId,
+  // The two private channel IDs must be provisioned by an operator.
+  // Never derive Bot API chat IDs from Telegram invite links.
+  MEDIA_TELEGRAM_RECOVERY_CHAT_ID: oldEnv.MEDIA_TELEGRAM_RECOVERY_CHAT_ID || '',
+  MEDIA_TELEGRAM_DATABASE_CHAT_ID: oldEnv.MEDIA_TELEGRAM_DATABASE_CHAT_ID || '',
+  KNOWME_DB_BACKUP_KEY: oldEnv.KNOWME_DB_BACKUP_KEY || randomHex(32),
   MEDIA_TELEGRAM_EXPECTED_BOT_USERNAME: 'NexAiStorage_bot',
   MEDIA_TELEGRAM_API_BASE_URL: 'https://api.telegram.org',
   MEDIA_TELEGRAM_TIMEOUT_MS: '30000',
