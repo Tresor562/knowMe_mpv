@@ -157,9 +157,9 @@ export default function ProfilePage() {
         body: JSON.stringify({ coverAssetId: asset.id })
       });
       setCoverId(asset.id);
-      setMessage('Couverture enregistrée. Elle est visible depuis ton compte.');
+      setMessage(tr('Couverture enregistrée. Elle est visible depuis ton compte.','Cover saved. It is visible from your account.'));
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Envoi de la couverture impossible.');
+      setMessage(cause instanceof Error ? cause.message : tr('Envoi de la couverture impossible.','Could not upload cover.'));
     } finally {
       setCoverBusy(false);
     }
@@ -176,9 +176,9 @@ export default function ProfilePage() {
         body: JSON.stringify({ interests: values })
       });
       setInterests(updated);
-      setMessage('Centres d’intérêt enregistrés.');
+      setMessage(tr('Centres d’intérêt enregistrés.','Interests saved.'));
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Enregistrement impossible.');
+      setMessage(cause instanceof Error ? cause.message : tr('Enregistrement impossible.','Could not save.'));
     }
   }
 
@@ -200,7 +200,7 @@ export default function ProfilePage() {
             <h1>{user.displayName}</h1>
             <AccountBadges staff={user.staff} verification={user.verification} premium={user.premium} />
             <p className="km-profile-handle">@{user.username}</p>
-            <p className="km-profile-bio">{user.bio?.trim() || '{en?'Add a bio to introduce yourself.':'Ajoute une bio pour te présenter à ta communauté.'}'}</p>
+            <p className="km-profile-bio">{user.bio?.trim() || (en?'Add a bio to introduce yourself.':'Ajoute une bio pour te présenter à ta communauté.')}</p>
           </div>
           <div className="km-profile-hero-actions">
             <button className="btn btn-primary" type="button" onClick={() => setEditing(value => !value)}>
@@ -259,11 +259,11 @@ export default function ProfilePage() {
             </div>
             <p>{progression.xpToNextLevel.toLocaleString('fr-FR')} {en?'XP until next level':'XP avant le prochain niveau'}</p>
           </>
-        ) : <p>Le niveau et les XP apparaîtront lorsque la progression sera disponible.</p>}
+        ) : <p>{en?'Your level and XP will appear when progression is available.':'Le niveau et les XP apparaîtront lorsque la progression sera disponible.'}</p>}
         <Link href="/progression" className="km-profile-text-link">{en?'See all progress →':'Voir toute ma progression →'}</Link>
       </section>
 
-      <nav className="km-profile-shortcuts" aria-label="{en?'My profile shortcuts':'Raccourcis de mon profil'}">
+      <nav className="km-profile-shortcuts" aria-label={en?'My profile shortcuts':'Raccourcis de mon profil'}>
         <Link href={`/profile/${encodeURIComponent(user.username)}`}>{en?'View my public profile':'Voir mon profil public'} <span>↗</span></Link>
         <Link href="/profile-studio">{en?'Profile studio':'Studio de profil'} <span>›</span></Link>
         <Link href="/avatar-studio">{en?'Avatar and photo':'Avatar et photo'} <span>›</span></Link>
@@ -283,7 +283,7 @@ export default function ProfilePage() {
           <label htmlFor="interests">{en?'Edit interests, separated by commas':'Modifier mes centres d’intérêt, séparés par des virgules'}</label>
           <div className="km-profile-interests-form">
             <input id="interests" name="interests" defaultValue={interests.map(item => item.interest.name).join(', ')} placeholder={tr('Musique, jeux, informatique…','Music, games, technology…')} required />
-            <button className="btn" type="submit">Enregistrer</button>
+            <button className="btn" type="submit">{en?'Save':'Enregistrer'}</button>
           </div>
         </form>
       </section>
