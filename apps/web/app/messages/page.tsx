@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
@@ -39,7 +39,6 @@ type ConversationPinsResponse = {
   items:Array<{ conversationId:string }>;
   limit:number;
 };
-type Friend = { user:{ id:string; displayName:string; username:string } };
 type ReadEvent = { conversationId:string; userId:string; lastReadAt:string };
 type PresenceEvent = { userId:string; online:boolean };
 type PresenceSnapshot = { onlineUserIds:string[] };
@@ -56,19 +55,16 @@ export default function MessagesPage() {
   const { user, loading: sessionLoading } = useSession({ required:true });
   const { locale } = useI18n();
   const en = locale === 'en';
-  const composerRef = useRef<HTMLDetailsElement>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all'|'unread'|'pinned'>('all');
   const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
-  const [friends,setFriends] = useState<Friend[]>([]);
   const [pinnedConversationIds,setPinnedConversationIds] = useState<Set<string>>(new Set());
   const [pinLimit,setPinLimit] = useState<number|null>(null);
   const [pinBusyId,setPinBusyId] = useState<string|null>(null);
   const [onlineUserIds,setOnlineUserIds] = useState<Set<string>>(new Set());
   const [message,setMessage] = useState('');
   const [live,setLive] = useState(false);
-  const [creating,setCreating] = useState(false);
   const [creatingNexus,setCreatingNexus] = useState(false);
   const [refreshing,setRefreshing] = useState(false);
 
@@ -80,13 +76,11 @@ export default function MessagesPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [conversationData, friendData, pinData] = await Promise.all([
+      const [conversationData, pinData] = await Promise.all([
         apiFetch<Conversation[]>('/conversations'),
-        apiFetch<Friend[]>('/social/friends'),
         apiFetch<ConversationPinsResponse>('/conversation-pins')
       ]);
       setConversations(conversationData);
-      setFriends(friendData);
       applyPinData(pinData);
       setMessage('');
     } catch (cause) {
@@ -154,26 +148,6 @@ export default function MessagesPage() {
     if(peerIds.length)socket.emit('presence:query',{userIds:peerIds});
   },[conversations,socket,user]);
 
-  async function createConversation(event:FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const memberId = String(form.get('memberId') ?? '');
-    const title = String(form.get('title') ?? '').trim();
-    if (!memberId) return;
-    setCreating(true);
-    try {
-      const conversation = await apiFetch<Conversation>('/conversations',{
-        method:'POST',
-        body:JSON.stringify({ memberIds:[memberId], title:title || undefined })
-      });
-      window.location.href = `/messages/${conversation.id}`;
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Création impossible.');
-    } finally {
-      setCreating(false);
-    }
-  }
-
   async function openNexusConversation() {
     if (creatingNexus) return;
     setCreatingNexus(true);
@@ -209,7 +183,7 @@ export default function MessagesPage() {
     }
   }
 
-  if (sessionLoading) return <main className="shell">Chargement…</main>;
+  if (sessionLoading) return <main className="shell">{en?'Loading…':'Chargement…'}</main>;
 
   const totalUnread = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
   const orderedConversations = [...conversations].filter(conversation => {
@@ -232,17 +206,16 @@ export default function MessagesPage() {
           <p className="km-msg-status"><span className={live?'km-live-dot':'km-offline-dot'}/> {live?(en?'Connected':'Connecté'):(en?'Connecting…':'Connexion en attente')}{totalUnread>0 ? ` · ${totalUnread} ${en?'unread':`non lu${totalUnread>1?'s':''}`}` : ''}</p>
         </div>
         <div className="km-msg-actions">
-          <button type="button" className="km-action" aria-label={en?'New message':'Nouveau message'} title={en?'New message':'Nouveau message'}
-            onClick={() => {if(composerRef.current){composerRef.current.open=true;composerRef.current.scrollIntoView({block:'nearest',behavior:'smooth'});composerRef.current.querySelector('select')?.focus();}}}>
+          <Link href="/messages/new" className="km-action" aria-label={en?'New message':'Nouveau message'} title={en?'New message':'Nouveau message'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
-          <Link href="/saved-messages" className="km-action" aria-label="Messages enregistrés" title="Messages enregistrés">
+          </Link>
+          <Link href="/saved-messages" className="km-action" aria-label={en?'Saved messages':'Messages enregistrés'} title={en?'Saved messages':'Messages enregistrés'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5h12v17L12 17l-6 3.5z"/></svg>
           </Link>
-          <Link href="/conversation-pins" className="km-action" aria-label="Discussions épinglées" title="Discussions épinglées">
+          <Link href="/conversation-pins" className="km-action" aria-label={en?'Pinned chats':'Discussions épinglées'} title={en?'Pinned chats':'Discussions épinglées'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 3 6 6-3 1-4 4-1 4-7-7 4-1 4-4zM3 21l7-7"/></svg>
           </Link>
-          <button type="button" className="km-action" onClick={()=>void load()} disabled={refreshing} aria-label={refreshing?'Actualisation en cours':'Actualiser'} title="Actualiser">
+          <button type="button" className="km-action" onClick={()=>void load()} disabled={refreshing} aria-label={refreshing?(en?'Refreshing':'Actualisation en cours'):(en?'Refresh':'Actualiser')} title={en?'Refresh':'Actualiser'}>
             <svg className={refreshing?'km-rotate':''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 0-14.5-5.8L3.5 8.3M3.5 3.5v4.8h4.8M3.5 12.5a8.5 8.5 0 0 0 14.5 5.8l2.5-2.6M20.5 20.5v-4.8h-4.8"/></svg>
           </button>
         </div>
@@ -261,25 +234,6 @@ export default function MessagesPage() {
           {key==='unread'&&totalUnread>0&&<span>{totalUnread}</span>}
         </button>)}
       </div>
-      <details ref={composerRef} className="km-compose">
-        <summary className="km-compose-toggle">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          {en?'New message':'Nouvelle discussion'}
-        </summary>
-        <form onSubmit={createConversation} className="km-compose-form">
-          <label>{en?'Choose a friend':'Choisir un ami'}
-            <select className="input" name="memberId" required defaultValue="">
-              <option value="" disabled>{en?'Select a person':'Sélectionner une personne'}</option>
-              {friends.map(({user:friend})=><option key={friend.id} value={friend.id}>{friend.displayName} (@{friend.username})</option>)}
-            </select>
-          </label>
-          <label>{en?'Chat title (optional)':'Nom de la discussion (facultatif)'}
-            <input className="input" name="title" placeholder={en?'Chat':'Discussion'} />
-          </label>
-          <button className="btn btn-primary" disabled={creating}>{creating?(en?'Creating…':'Création…'):(en?'Start chat':'Démarrer la discussion')}</button>
-        </form>
-      </details>
-
       {message && <p className="km-auth-error" role="alert">{message}</p>}
 
       <section aria-label={en?'Conversation list':'Liste des conversations'} className="km-chat-list">
