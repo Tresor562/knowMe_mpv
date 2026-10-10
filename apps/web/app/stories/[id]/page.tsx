@@ -52,7 +52,7 @@ export default function StoryViewerPage() {
   const [paused,setPaused] = useState(false);
   const [mediaDurationMs,setMediaDurationMs] = useState(15000);
   const elapsedMs = useRef(0);
-  const pressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const pressTimer = useRef<number|null>(null);
   const suppressTap = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
