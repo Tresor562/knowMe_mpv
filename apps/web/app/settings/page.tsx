@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { translate } from '@knowme/i18n-contract';
 import { FormEvent, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { MediaDownloadSettings } from '../../components/media-download-settings';
@@ -20,10 +21,13 @@ export default function SettingsPage() {
     setLanguageBusy(true);
     setMessage('');
     try {
-      await syncLocale(nextLocale);
-      setMessage(t('settings.languageSaved'));
+      // Awaiting the server does not update this callback's captured "t".
+      // Translate against the locale actually saved by the API, not the
+      // stale pre-click locale: French->English and English->French both work.
+      const preference = await syncLocale(nextLocale);
+      setMessage(translate(preference.locale, 'settings.languageSaved'));
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : t('settings.languageConflict'));
+      setMessage(translate(locale, 'settings.languageConflict'));
     } finally {
       setLanguageBusy(false);
     }
