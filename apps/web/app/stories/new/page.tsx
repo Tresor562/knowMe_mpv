@@ -15,7 +15,7 @@ type StoryKind = 'TEXT' | 'PHOTO' | 'VIDEO' | 'LINK';
 
 const PHOTO_MIMES = ['image/jpeg','image/png','image/webp','image/gif'];
 const VIDEO_MIMES = ['video/mp4'];
-const MAX_STORY_BYTES = 25 * 1024 * 1024;
+const MAX_STORY_BYTES = 20 * 1024 * 1024;
 const DURATIONS = [24,48,72,168,336,720] as const;
 
 export default function NewStoryPage() {
@@ -58,7 +58,7 @@ export default function NewStoryPage() {
     if(!selected)return;
     const allowed = kind==='PHOTO'?PHOTO_MIMES:VIDEO_MIMES;
     if(!allowed.includes(selected.type) || selected.size>MAX_STORY_BYTES || selected.size<1024) {
-      setMessage(en?'Choose a supported file between 1 KB and 25 MB.':'Choisis un fichier compatible de 1 Ko à 25 Mo.');
+      setMessage(en?'Choose a supported file between 1 KB and 20 MB.':'Choisis un fichier compatible de 1 Ko à 20 Mo.');
       return;
     }
     setFile(selected);
