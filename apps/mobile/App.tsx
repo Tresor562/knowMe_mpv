@@ -33,7 +33,7 @@ import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
-import { SocialHub } from './src/SocialHub';
+import { SocialHub, type SocialSection } from './src/SocialHub';
 import { StoriesRail } from './src/StoriesRail';
 import {
   Avatar,
@@ -72,7 +72,7 @@ function isTwoFactorChallenge(value: LoginResult): value is TwoFactorChallenge {
 }
 
 function Field(props: React.ComponentProps<typeof TextInput>) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <TextInput
       placeholderTextColor={colors.muted}
@@ -82,7 +82,8 @@ function Field(props: React.ComponentProps<typeof TextInput>) {
         {
           backgroundColor: colors.backgroundAccent,
           borderColor: colors.border,
-          color: colors.text
+          color: colors.text,
+          borderRadius: visual.inputRadius
         }
       ]}
       {...props}
@@ -99,16 +100,19 @@ function PrimaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <PressScale
+      accessibilityRole="button"
+      accessibilityLabel={title}
       disabled={disabled}
       onPress={onPress}
       style={[
         styles.primaryButton,
         {
           backgroundColor: colors.accent,
-          borderColor: colors.accent
+          borderColor: colors.accent,
+          borderRadius: visual.controlRadius
         }
       ]}
     >
@@ -127,7 +131,7 @@ function AuthScreen({
   onAuthenticated: () => Promise<void>;
   onBack?: () => void;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   const { locale, setLocalLocale, refresh: refreshLocale, syncLocale, t } = useI18n();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [identifier, setIdentifier] = useState('');
@@ -244,15 +248,6 @@ function AuthScreen({
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View
-        pointerEvents="none"
-        style={[styles.authGlowOne, { backgroundColor: colors.accent }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[styles.authGlowTwo, { backgroundColor: colors.secondary }]}
-      />
-
       <ScrollView
         contentContainerStyle={styles.authContent}
         keyboardShouldPersistTaps="handled"
@@ -293,10 +288,10 @@ function AuthScreen({
         <FadeRise style={styles.authHero}>
           <GlassSurface
             strength="soft"
-            borderRadius={32}
+            borderRadius={visual.cardRadius}
             style={styles.authLogoHalo}
           >
-            <BrandMark size={50} />
+            <BrandMark size={44} />
           </GlassSurface>
           <Text style={[styles.authTitle, { color: colors.text }]}>
             {t('auth.welcome')}
@@ -306,8 +301,8 @@ function AuthScreen({
           </Text>
         </FadeRise>
 
-        <FadeRise delay={70}>
-          <GlassSurface style={styles.authCard} strength="medium" borderRadius={24}>
+        <FadeRise delay={visual.motionMicro}>
+          <SoftSurface style={styles.authCard}>
             {!challengeToken ? (
               <>
                 <View
@@ -326,6 +321,8 @@ function AuthScreen({
                           setError('');
                           resetChallenge();
                         }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
                         style={[
                           styles.segment,
                           active && { backgroundColor: colors.surfaceRaised }
@@ -409,6 +406,7 @@ function AuthScreen({
 
                 {error ? (
                   <View
+                    accessibilityLiveRegion="polite"
                     style={[
                       styles.inlineError,
                       { borderColor: colors.danger }
@@ -458,7 +456,12 @@ function AuthScreen({
                   onChangeText={setSecurityCode}
                   autoCapitalize="characters"
                   autoCorrect={false}
+                  autoFocus
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  maxLength={12}
                   placeholder={t('auth.securityCode')}
+                  style={styles.securityCodeInput}
                 />
 
                 <Pressable
@@ -489,7 +492,10 @@ function AuthScreen({
                 </Pressable>
 
                 {error ? (
-                  <Text style={[styles.errorText, { color: colors.danger }]}>
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={[styles.errorText, { color: colors.danger }]}
+                  >
                     {error}
                   </Text>
                 ) : null}
@@ -513,7 +519,7 @@ function AuthScreen({
                 </Pressable>
               </>
             )}
-          </GlassSurface>
+          </SoftSurface>
         </FadeRise>
 
         <Text style={[styles.authFootnote, { color: colors.muted }]}>
@@ -527,6 +533,7 @@ function AuthScreen({
 function HomeScreen({
   user,
   openSocial,
+  openNotifications,
   openDiscover,
   openChallenges,
   openCreate,
@@ -534,6 +541,7 @@ function HomeScreen({
 }: {
   user: MobileUser;
   openSocial: () => void;
+  openNotifications: () => void;
   openDiscover: () => void;
   openChallenges: () => void;
   openCreate: () => void;
@@ -602,7 +610,9 @@ function HomeScreen({
         </View>
         <View style={styles.homeTopActions}>
           <PressScale
-            onPress={openSocial}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={openNotifications}
             style={styles.iconButtonPress}
           >
             <GlassSurface
@@ -740,7 +750,12 @@ function HomeScreen({
 
           <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
 
-          <PressScale onPress={openSocial} style={styles.quickCard}>
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir les notifications"
+            onPress={openNotifications}
+            style={styles.quickCard}
+          >
             <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
               <KnowMeIcon name="bell" size={19} color={colors.secondary} />
             </View>
@@ -1060,7 +1075,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const { ready: i18nReady } = useI18n();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen] = useState<Screen>('social');
+  const [socialSection, setSocialSection] = useState<SocialSection>('messages');
   const [createOpen, setCreateOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -1098,14 +1114,16 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }, [loadSession]);
 
   useEffect(() => {
-    setScreen('home');
+    setSocialSection('messages');
+    setScreen('social');
   }, [user?.id]);
 
   async function resetLocalSession() {
     disconnectRealtimeSocket();
     await clearSession();
     setUser(null);
-    setScreen('home');
+    setSocialSection('messages');
+    setScreen('social');
   }
 
   async function logout() {
@@ -1169,7 +1187,14 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <HomeScreen
             key={'home:' + user.id}
             user={user}
-            openSocial={() => setScreen('social')}
+            openSocial={() => {
+              setSocialSection('messages');
+              setScreen('social');
+            }}
+            openNotifications={() => {
+              setSocialSection('notifications');
+              setScreen('social');
+            }}
             openDiscover={() => setScreen('discover')}
             openChallenges={() => setScreen('challenges')}
             openCreate={() => setCreateOpen(true)}
@@ -1186,8 +1211,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'social' ? (
           <SocialHub
-            key={'social:' + user.id}
+            key={'social:' + user.id + ':' + socialSection}
             userId={user.id}
+            initialSection={socialSection}
           />
         ) : null}
 
@@ -1222,7 +1248,10 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
-          onNavigate={(next) => setScreen(next)}
+          onNavigate={(next) => {
+            if (next === 'social') setSocialSection('messages');
+            setScreen(next);
+          }}
           onCreate={() => setCreateOpen(true)}
         />
       ) : null}
@@ -1267,29 +1296,11 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden'
   },
-  authGlowOne: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    top: -140,
-    right: -110,
-    opacity: 0.12
-  },
-  authGlowTwo: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    bottom: -120,
-    left: -120,
-    opacity: 0.1
-  },
   authContent: {
     flexGrow: 1,
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 24
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 20
   },
   authTopRow: {
     minHeight: 48,
@@ -1304,7 +1315,7 @@ const styles = StyleSheet.create({
   },
   brandInlineText: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.3
   },
   authTopLeft: {
@@ -1313,33 +1324,33 @@ const styles = StyleSheet.create({
     gap: 9
   },
   authBack: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
   },
   authLanguage: {
-    width: 120
+    width: 112
   },
   authHero: {
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 18
+    paddingTop: 14,
+    paddingBottom: 14
   },
   authLogoHalo: {
-    width: 78,
-    height: 78,
+    width: 68,
+    height: 68,
     borderRadius: 26,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16
+    marginBottom: 14
   },
   authTitle: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     textAlign: 'center',
     letterSpacing: -0.65
   },
@@ -1347,13 +1358,12 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 19,
     textAlign: 'center',
-    maxWidth: 320,
-    marginTop: 7
+    maxWidth: 330,
+    marginTop: 6
   },
   authCard: {
     padding: 14,
-    gap: 12,
-    borderRadius: 24
+    gap: 12
   },
   segmented: {
     flexDirection: 'row',
@@ -1362,7 +1372,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1383,12 +1393,18 @@ const styles = StyleSheet.create({
     gap: 10
   },
   input: {
-    minHeight: 50,
+    minHeight: 48,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 22,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    fontSize: 14.5
+    fontSize: 15
+  },
+  securityCodeInput: {
+    textAlign: 'center',
+    letterSpacing: 4,
+    fontSize: 18,
+    fontWeight: '600'
   },
   fieldHint: {
     fontSize: 11.5,
@@ -1406,7 +1422,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     minHeight: 50,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1414,8 +1430,8 @@ const styles = StyleSheet.create({
     gap: 9
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '800'
+    fontSize: 15,
+    fontWeight: '700'
   },
   securityHeader: {
     flexDirection: 'row',
@@ -1423,15 +1439,15 @@ const styles = StyleSheet.create({
     gap: 12
   },
   securityIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center'
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '900'
+    fontSize: 17,
+    fontWeight: '700'
   },
   cardText: {
     fontSize: 13.5,
@@ -1439,9 +1455,10 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   checkboxRow: {
+    minHeight: 48,
     flexDirection: 'row',
     gap: 10,
-    alignItems: 'flex-start'
+    alignItems: 'center'
   },
   checkbox: {
     width: 24,

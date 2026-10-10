@@ -28,7 +28,8 @@ import {
   GlassSurface,
   KnowMeIcon,
   KnowMeIconName,
-  PressScale
+  PressScale,
+  SoftSurface
 } from './ui/KnowMeUI';
 
 export type MobileUser = {
@@ -95,16 +96,20 @@ function Button({ title, onPress, disabled = false, danger = false, secondary = 
   danger?: boolean;
   secondary?: boolean;
 }) {
-  const { colors } = useAppearance();
+  const { colors, visual } = useAppearance();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         {
           backgroundColor: danger || secondary ? 'transparent' : colors.accent,
-          borderColor: danger ? colors.danger : secondary ? colors.accent : colors.accent
+          borderColor: danger ? colors.danger : secondary ? colors.accent : colors.accent,
+          borderRadius: visual.controlRadius
         },
         (danger || secondary) && { borderWidth: 1 },
         (pressed || disabled) && styles.buttonMuted
@@ -152,7 +157,12 @@ function ProfileMenuRow({
         : colors.accent;
 
   return (
-    <PressScale onPress={onPress} style={styles.profileMenuPress}>
+    <PressScale
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={styles.profileMenuPress}
+    >
       <View style={styles.profileMenuRow}>
         <View
           style={[
@@ -187,15 +197,10 @@ function ProfileMenuRow({
 
 // Keep related profile destinations inside one native glass section.
 function ProfileMenuGroup({ children }: { children: ReactNode }) {
-  const { visual } = useAppearance();
   return (
-    <GlassSurface
-      strength="soft"
-      borderRadius={visual.cardRadius}
-      style={styles.profileMenuGroup}
-    >
+    <SoftSurface style={styles.profileMenuGroup}>
       {children}
-    </GlassSurface>
+    </SoftSurface>
   );
 }
 
@@ -460,23 +465,14 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       showsVerticalScrollIndicator={false}
     >
       <FadeRise>
-        <GlassSurface
-          strength="medium"
-          borderRadius={visual.cardRadius}
-          style={styles.profileHero}
-        >
-        <View style={[styles.cover, { backgroundColor: colors.backgroundAccent }]}>
-          <View style={[styles.coverOrbOne, { backgroundColor: colors.accent }]} />
-          <View style={[styles.coverOrbTwo, { backgroundColor: colors.secondary }]} />
-          <View style={[styles.coverGlassLine, { backgroundColor: colors.surfaceGlass }]} />
-          <View style={[styles.coverGlassDot, { backgroundColor: colors.accent }]} />
-        </View>
+        <SoftSurface strong style={styles.profileHero}>
+        <View style={[styles.cover, { backgroundColor: colors.backgroundAccent }]} />
 
         <View style={styles.profileAvatarRow}>
           <Avatar
             uri={user.avatarUrl}
             name={user.displayName}
-            size={96}
+            size={84}
             ring
           />
         </View>
@@ -551,7 +547,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               accessibilityLabel={user.verification.label}
             >
               <Text style={[styles.identityBadgeText, { color: colors.accent }]}>
-                VERIFIED · {user.verification.label}
+                Vérifié · {user.verification.label}
               </Text>
             </View>
           ) : null}
@@ -567,7 +563,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               accessibilityLabel={user.premium.label}
             >
               <Text style={[styles.identityBadgeText, { color: colors.secondary }]}>
-                PREMIUM · {user.premium.label}
+                Premium · {user.premium.label}
               </Text>
             </View>
           ) : null}
@@ -583,13 +579,13 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               accessibilityLabel={user.staff.label + ', ' + user.staff.role}
             >
               <Text style={[styles.identityBadgeText, { color: colors.text }]}>
-                STAFF · {user.staff.label} · {user.staff.role}
+                Équipe · {user.staff.label} · {user.staff.role}
               </Text>
             </View>
           ) : null}
         </View>
 
-        </GlassSurface>
+        </SoftSurface>
       </FadeRise>
 
       <FadeRise delay={70} style={styles.profileMenuSection}>
@@ -598,7 +594,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </Text>
 
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
-          IDENTITÉ
+          Identité
         </Text>
         <ProfileMenuGroup>
           <ProfileMenuRow
@@ -625,7 +621,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </ProfileMenuGroup>
 
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
-          PERSONNALISATION
+          Personnalisation
         </Text>
         <ProfileMenuGroup>
           <ProfileMenuRow
@@ -651,7 +647,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </ProfileMenuGroup>
 
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
-          UNIVERS
+          Univers
         </Text>
         <ProfileMenuGroup>
           <ProfileMenuRow
@@ -691,7 +687,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </ProfileMenuGroup>
 
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
-          CONTRÔLES
+          Contrôles
         </Text>
         <ProfileMenuGroup>
           <ProfileMenuRow
@@ -726,40 +722,36 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
   panelContent: { padding: 16, paddingBottom: 30, gap: 12 },
-  panelHeader: { minHeight: 52, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
-  backButton: { minHeight: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  panelHeader: { minHeight: 52, padding: 6, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  backButton: { minHeight: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
   backButtonText: { fontSize: 11.5, fontWeight: '700' },
-  panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
+  panelTitle: { fontSize: 19, fontWeight: '700', flex: 1 },
   content: { padding: 16, paddingBottom: 30, gap: 12 },
   profileHero: { overflow: 'hidden', paddingBottom: 14 },
-  cover: { height: 104, position: 'relative', overflow: 'hidden' },
-  coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, opacity: 0.22, right: -40, top: -72 },
-  coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, opacity: 0.14, left: -30, bottom: -75 },
-  coverGlassLine: { position: 'absolute', width: 170, height: 24, borderRadius: 12, right: -28, bottom: 16, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
-  coverGlassDot: { position: 'absolute', width: 14, height: 14, borderRadius: 7, left: 22, top: 22, opacity: 0.34 },
-  profileAvatarRow: { marginTop: -36, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
+  cover: { height: 84, position: 'relative', overflow: 'hidden' },
+  profileAvatarRow: { marginTop: -30, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
   profileActions: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 11 },
   profileActionPress: { flex: 1, borderRadius: 18 },
-  profileAction: { minHeight: 38, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  profileAction: { minHeight: 44, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   profileActionText: { fontSize: 10.5, fontWeight: '700' },
-  heading: { fontSize: 24, fontWeight: '800', paddingHorizontal: 16, marginTop: 10, letterSpacing: -0.5 },
-  handle: { fontWeight: '800', paddingHorizontal: 18, marginTop: 3 },
+  heading: { fontSize: 22, fontWeight: '700', paddingHorizontal: 16, marginTop: 10, letterSpacing: -0.45 },
+  handle: { fontWeight: '600', paddingHorizontal: 18, marginTop: 3 },
   bio: { fontSize: 14, lineHeight: 20, paddingHorizontal: 18, marginTop: 11 },
   bioMuted: { fontSize: 13, lineHeight: 19, paddingHorizontal: 18, marginTop: 11 },
   muted: {},
   accountId: { fontSize: 12 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingHorizontal: 18, marginTop: 13 },
   identityBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
-  identityBadgeText: { fontWeight: '900', fontSize: 11.5 },
+  identityBadgeText: { fontWeight: '600', fontSize: 11.5 },
   profileMenuSection: { gap: 9 },
-  profileMenuHeading: { fontSize: 18, fontWeight: '800', marginTop: 3, marginBottom: 1 },
-  profileGroupLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginTop: 8, marginLeft: 4 },
+  profileMenuHeading: { fontSize: 18, fontWeight: '700', marginTop: 3, marginBottom: 1 },
+  profileGroupLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.2, marginTop: 8, marginLeft: 4 },
   profileMenuGroup: { overflow: 'hidden' },
   profileMenuPress: { width: '100%' },
   profileMenuRow: { minHeight: 60, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
   profileMenuDivider: { height: StyleSheet.hairlineWidth, marginLeft: 58, marginRight: 11 },
   profileMenuIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  profileMenuTitle: { fontSize: 13.5, fontWeight: '800' },
+  profileMenuTitle: { fontSize: 14, fontWeight: '600' },
   profileMenuText: { fontSize: 10, lineHeight: 14, marginTop: 1 },
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 11 },
   cardTitle: { fontSize: 17.5, fontWeight: '800' },
@@ -774,8 +766,8 @@ const styles = StyleSheet.create({
   fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   fieldLabel: { fontSize: 11.5, fontWeight: '700', paddingHorizontal: 2 },
   fieldCounter: { fontSize: 10.5 },
-  button: { borderRadius: 20, paddingVertical: 12, paddingHorizontal: 15, alignItems: 'center' },
-  buttonText: { fontWeight: '900' },
+  button: { minHeight: 48, borderRadius: 22, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 14, fontWeight: '700' },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 1 },
   secondaryButtonText: {},
   buttonMuted: { opacity: 0.45 },

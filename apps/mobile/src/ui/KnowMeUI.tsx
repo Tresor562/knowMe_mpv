@@ -21,6 +21,7 @@ export type KnowMeIconName =
   | 'discover'
   | 'create'
   | 'messages'
+  | 'call'
   | 'heart'
   | 'profile'
   | 'bell'
@@ -230,6 +231,42 @@ export function KnowMeIcon({
         <Line width={6 * s} height={sw} left={4.2 * s} top={17.6 * s} rotate="-36deg" color={color} />
         <Line width={6.7 * s} height={sw} left={7.3 * s} top={9 * s} color={color} />
         <Line width={4.8 * s} height={sw} left={7.3 * s} top={12.4 * s} color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'call') {
+    return (
+      <View style={{ width: size, height: size }}>
+        <Line width={13 * s} height={sw * 1.15} left={5.4 * s} top={11.2 * s} rotate="45deg" color={color} />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: 3.2 * s,
+              top: 3.4 * s,
+              width: 7.2 * s,
+              height: 5.4 * s,
+              borderRadius: 2.7 * s,
+              transform: [{ rotate: '45deg' }]
+            },
+            commonBorder
+          ]}
+        />
+        <View
+          style={[
+            {
+              position: 'absolute',
+              right: 3.2 * s,
+              bottom: 3.4 * s,
+              width: 7.2 * s,
+              height: 5.4 * s,
+              borderRadius: 2.7 * s,
+              transform: [{ rotate: '45deg' }]
+            },
+            commonBorder
+          ]}
+        />
       </View>
     );
   }
@@ -532,7 +569,7 @@ export function PressScale({
   accessibilityRole?: PressableProps['accessibilityRole'];
   accessibilityLabel?: string;
 }) {
-  const { appearance } = useAppearance();
+  const { appearance, visual } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
   const motion = appearance?.preference.animationsEnabled !== false;
 
@@ -550,10 +587,17 @@ export function PressScale({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       disabled={disabled}
+      hitSlop={Platform.OS === 'ios' ? 4 : 2}
       onPress={onPress}
       onPressIn={() => to(0.97)}
       onPressOut={() => to(1)}
+      style={({ pressed }) => ({
+        minWidth: visual.touchTarget,
+        minHeight: visual.touchTarget,
+        opacity: pressed && !disabled ? 0.84 : 1
+      })}
     >
       <Animated.View
         style={[
@@ -823,7 +867,7 @@ export function GlassSurface({
     90,
     (strength === 'soft' ? 28 : strength === 'strong' ? 68 : 48) + visual.glassBoost
   );
-  const shadowOpacity = strength === 'soft' ? 0.045 : strength === 'strong' ? 0.11 : 0.075;
+  const shadowOpacity = strength === 'soft' ? 0.028 : strength === 'strong' ? 0.085 : 0.052;
   const tint = colors.statusBar === 'dark' ? 'light' : 'dark';
   const glassTint =
     colors.statusBar === 'dark'
@@ -846,9 +890,15 @@ export function GlassSurface({
           borderRadius,
           shadowColor: '#000000',
           shadowOpacity,
-          shadowRadius: strength === 'strong' ? 22 : 16,
-          shadowOffset: { width: 0, height: strength === 'strong' ? 10 : 7 },
-          elevation: Math.max(strength === 'strong' ? 10 : 6, visual.elevation)
+          shadowRadius: strength === 'strong' ? 18 : strength === 'medium' ? 12 : 8,
+          shadowOffset: {
+            width: 0,
+            height: strength === 'strong' ? 8 : strength === 'medium' ? 5 : 3
+          },
+          elevation: Math.max(
+            strength === 'strong' ? 7 : strength === 'medium' ? 4 : 2,
+            visual.elevation
+          )
         },
         style
       ]}

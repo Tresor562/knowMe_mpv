@@ -33,21 +33,39 @@ type Notification = {
   readAt?: string | null;
   createdAt: string;
 };
-type Section = 'friends' | 'messages' | 'notifications';
+export type SocialSection = 'friends' | 'messages' | 'calls' | 'notifications';
+type Section = SocialSection;
+
+type CallHistoryItem = {
+  id: string;
+  direction: 'OUTGOING' | 'INCOMING';
+  media: 'audio' | 'video';
+  status: 'RINGING' | 'ACTIVE' | 'ENDED' | 'REJECTED' | 'MISSED' | 'CANCELLED';
+  peer: UserSummary | null;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  createdAt: string;
+};
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId }: { userId: string }) {
+export function SocialHub({
+  userId,
+  initialSection = 'messages'
+}: {
+  userId: string;
+  initialSection?: SocialSection;
+}) {
   const { colors } = useAppearance();
-  const [section, setSection] = useState<Section>('friends');
+  const [section, setSection] = useState<Section>(initialSection);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setRefreshing(false);
-    setSection('friends');
-  }, [userId]);
+    setSection(initialSection);
+  }, [initialSection, userId]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -62,7 +80,7 @@ export function SocialHub({ userId }: { userId: string }) {
           </View>
         </GlassSurface>
         <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
-          {(['friends', 'messages', 'notifications'] as const).map((value) => (
+          {(['friends', 'messages', 'calls', 'notifications'] as const).map((value) => (
             <Pressable
               key={value}
               onPress={() => {
@@ -77,7 +95,15 @@ export function SocialHub({ userId }: { userId: string }) {
               ]}
             >
               <KnowMeIcon
-                name={value === 'friends' ? 'profile' : value === 'messages' ? 'messages' : 'bell'}
+                name={
+                  value === 'friends'
+                    ? 'profile'
+                    : value === 'messages'
+                      ? 'messages'
+                      : value === 'calls'
+                        ? 'call'
+                        : 'bell'
+                }
                 size={16}
                 color={section === value ? colors.accent : colors.muted}
                 strokeWidth={section === value ? 2 : 1.75}
@@ -90,7 +116,9 @@ export function SocialHub({ userId }: { userId: string }) {
                   ? 'Amis'
                   : value === 'messages'
                     ? 'Messages'
-                    : 'Alertes'}
+                    : value === 'calls'
+                      ? 'Appels'
+                      : 'Alertes'}
               </Text>
             </Pressable>
           ))}
@@ -108,6 +136,13 @@ export function SocialHub({ userId }: { userId: string }) {
         <MessagesOrganizationExperience
           key={`messages:${userId}`}
           userId={userId}
+          refreshing={refreshing}
+          setRefreshing={setRefreshing}
+        />
+      )}
+      {section === 'calls' && (
+        <CallsPanel
+          key={`calls:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
@@ -273,7 +308,7 @@ function FriendsPanel({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Demandes reçues</Text>
       )}
       {requests.map(({ id, requester }) => (
-        <View key={id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={id} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={requester} />
           <View style={styles.row}>
             <ActionButton
@@ -293,7 +328,7 @@ function FriendsPanel({
 
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
-        <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={friendshipId} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={user} />
           <SecondaryButton
             title="Retirer"
@@ -308,7 +343,7 @@ function FriendsPanel({
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats</Text>
       )}
       {results.map((user) => (
-        <View key={user.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+        <View key={user.id} style={[styles.card, { backgroundColor: 'transparent', borderBottomColor: colors.border }]}>
           <Identity user={user} />
           <ActionButton
             title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
@@ -318,6 +353,106 @@ function FriendsPanel({
         </View>
       ))}
     </ScrollView>
+  );
+}
+
+function formatCallDuration(answeredAt?: string | null, endedAt?: string | null) {
+  if (!answeredAt || !endedAt) return null;
+  const seconds = Math.max(
+    0,
+    Math.round((new Date(endedAt).getTime() - new Date(answeredAt).getTime()) / 1000)
+  );
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0
+    ? `${minutes} min ${String(remainder).padStart(2, '0')} s`
+    : `${remainder} s`;
+}
+
+function callStateLabel(item: CallHistoryItem) {
+  if (item.status === 'MISSED') return 'Appel manqué';
+  if (item.status === 'REJECTED') return 'Appel refusé';
+  if (item.status === 'CANCELLED') return 'Appel annulé';
+  if (item.status === 'ACTIVE') return 'En cours';
+  if (item.status === 'RINGING') return 'Sonnerie';
+  return item.direction === 'OUTGOING' ? 'Sortant' : 'Entrant';
+}
+
+function CallsPanel({
+  refreshing,
+  setRefreshing
+}: {
+  refreshing: boolean;
+  setRefreshing: (value: boolean) => void;
+}) {
+  const { colors } = useAppearance();
+  const [items, setItems] = useState<CallHistoryItem[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      setItems(await apiFetch<CallHistoryItem[]>('/calls/history?take=50'));
+    } catch (cause) {
+      Alert.alert('Appels indisponibles', errorMessage(cause, 'Réessaie.'));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [setRefreshing]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <FlatList
+      data={items}
+      keyExtractor={(item) => item.id}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load();
+          }}
+        />
+      }
+      contentContainerStyle={styles.content}
+      ListEmptyComponent={<Empty text="Aucun appel pour le moment." />}
+      renderItem={({ item }) => {
+        const duration = formatCallDuration(item.answeredAt, item.endedAt);
+        const missed = item.status === 'MISSED';
+        const peerName = item.peer?.displayName ?? 'Compte indisponible';
+
+        return (
+          <View style={[styles.callRow, { borderBottomColor: colors.border }]}>
+            <Avatar uri={item.peer?.avatarUrl} name={peerName} size={44} />
+            <View style={styles.callCopy}>
+              <Text style={[styles.callName, { color: colors.text }]} numberOfLines={1}>
+                {peerName}
+              </Text>
+              <View style={styles.callMetaRow}>
+                <KnowMeIcon
+                  name="call"
+                  size={15}
+                  color={missed ? colors.danger : colors.muted}
+                />
+                <Text style={[styles.callMeta, { color: missed ? colors.danger : colors.muted }]}>
+                  {callStateLabel(item)} · {item.media === 'video' ? 'Vidéo' : 'Audio'}
+                  {duration ? ` · ${duration}` : ''}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.callDate, { color: colors.muted }]}>
+              {new Date(item.createdAt).toLocaleDateString(undefined, {
+                day: '2-digit',
+                month: '2-digit'
+              })}
+            </Text>
+          </View>
+        );
+      }}
+    />
   );
 }
 
@@ -407,8 +542,8 @@ function NotificationsPanel({
           style={[
             styles.card,
             {
-              backgroundColor: item.readAt ? colors.surface : colors.surfaceRaised,
-              borderColor: item.readAt ? colors.border : colors.accent
+              backgroundColor: item.readAt ? 'transparent' : colors.surfaceRaised,
+              borderBottomColor: item.readAt ? colors.border : colors.accent
             }
           ]}
         >
@@ -510,11 +645,11 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 14, paddingTop: 6, gap: 7 },
-  headerTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTop: { minHeight: 52, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitleBlock: { flex: 1 },
   headerSub: { fontSize: 10.5, marginTop: 0 },
   headerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  heading: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
+  heading: { fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
   segmented: {
     flexDirection: 'row',
     borderRadius: 19,
@@ -523,7 +658,7 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     minWidth: 0,
-    minHeight: 42,
+    minHeight: 44,
     paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -531,20 +666,33 @@ const styles = StyleSheet.create({
     borderRadius: 16
   },
   segmentActive: {},
-  segmentText: { fontWeight: '700', fontSize: 9.5 },
+  segmentText: { fontWeight: '600', fontSize: 9.5 },
   segmentTextActive: {},
   content: { padding: 14, paddingBottom: 28, gap: 9 },
+  callRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8
+  },
+  callCopy: { flex: 1, minWidth: 0 },
+  callName: { fontSize: 14.5, fontWeight: '600' },
+  callMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  callMeta: { flex: 1, fontSize: 11.5, lineHeight: 16 },
+  callDate: { fontSize: 10.5 },
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 19,
-    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 2,
+    paddingVertical: 11,
     gap: 8
   },
   unreadCard: {},
-  cardTitle: { fontSize: 15, fontWeight: '800' },
+  cardTitle: { fontSize: 15, fontWeight: '600' },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     marginTop: 6
   },
   muted: { fontSize: 12, lineHeight: 17 },
@@ -563,21 +711,23 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1 },
   searchButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   actionButton: {
-    borderRadius: 16,
-    paddingVertical: 10,
+    minHeight: 44,
+    borderRadius: 18,
     paddingHorizontal: 14,
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   compactButton: { flex: 1 },
-  actionText: { fontSize: 12, fontWeight: '800' },
+  actionText: { fontSize: 12.5, fontWeight: '700' },
   secondaryButton: {
+    minHeight: 44,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingVertical: 9,
+    borderRadius: 18,
     paddingHorizontal: 12,
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  secondaryText: { fontSize: 12, fontWeight: '700' },
+  secondaryText: { fontSize: 12.5, fontWeight: '600' },
   disabled: { opacity: 0.45 },
   row: { flexDirection: 'row', gap: 10 },
   identity: { flexDirection: 'row', gap: 10, alignItems: 'center' },

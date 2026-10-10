@@ -97,6 +97,7 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
 
   return (
     <View style={styles.wrapper}>
+      <Text style={[styles.label, { color: colors.muted }]}>Réagir</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -112,12 +113,17 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
               accessibilityRole="button"
               accessibilityState={{ selected, disabled: busy }}
               disabled={busy}
+              hitSlop={4}
               onPress={() => void choose(emoji)}
-              style={[
+              style={({ pressed }) => [
                 styles.button,
-                { borderColor: selected ? colors.accent : colors.border, borderRadius: 999 },
+                {
+                  minHeight: 40,
+                  borderColor: selected ? colors.accent : colors.border,
+                  borderRadius: 999
+                },
                 selected && { backgroundColor: colors.surfaceRaised },
-                busy && styles.disabled
+                (pressed || busy) && styles.disabled
               ]}
             >
               <Text style={{ color: colors.text, fontWeight: '800' }}>
@@ -134,8 +140,16 @@ export function MessageReactionControl({ messageId }: { messageId: string }) {
 
 const styles = StyleSheet.create({
   wrapper: { gap: 6 },
-  row: { gap: 6, paddingRight: 10 },
-  button: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  disabled: { opacity: 0.5 },
+  label: { fontSize: 11.5, fontWeight: '600', paddingHorizontal: 2 },
+  row: { gap: 6, paddingRight: 10, paddingVertical: 2 },
+  button: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  disabled: { opacity: 0.58 },
   error: { fontSize: 12, lineHeight: 17 }
 });
