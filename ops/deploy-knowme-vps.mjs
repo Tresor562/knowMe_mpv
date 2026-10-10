@@ -220,6 +220,10 @@ const env = {
   MEDIA_STORAGE_DRIVER: 'telegram',
   MEDIA_ACCOUNT_QUOTA_BYTES: '524288000',
   MEDIA_UPLOAD_MAX_BYTES: '20971520',
+  // Scan uploads through the isolated, unexposed ClamAV sidecar on knowme-net.
+  // Unknown scanner results remain quarantined (fail closed).
+  MEDIA_CLAMD_HOST: oldEnv.MEDIA_CLAMD_HOST || 'knowme-clamav',
+  MEDIA_CLAMD_PORT: oldEnv.MEDIA_CLAMD_PORT || '3310',
   MEDIA_TELEGRAM_BOT_TOKEN: storage.token,
   MEDIA_TELEGRAM_CHAT_ID: storage.chatId,
   // The two private channel IDs must be provisioned by an operator.
