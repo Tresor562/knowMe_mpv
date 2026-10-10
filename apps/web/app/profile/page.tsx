@@ -28,7 +28,7 @@ type PublicProfile = {
 };
 
 type UploadSession = { id: string; uploadToken: string };
-type UploadedAsset = { id: string; status: string };
+type UploadedAsset = { id: string; status: string; scannerVerdict?: 'CLEAN' | 'INFECTED' | 'UNAVAILABLE' };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'];
@@ -113,7 +113,11 @@ export default function ProfilePage() {
         { method:'POST', headers:{'x-upload-token':session.uploadToken}, body }
       );
       if (asset.status !== 'AVAILABLE') {
-        throw new Error(tr('Ta photo est en attente de validation.', 'Your photo is pending validation.'));
+        throw new Error(asset.scannerVerdict === 'UNAVAILABLE'
+          ? tr('L’analyse de sécurité est indisponible. La photo n’a pas été publiée ; réessaie plus tard.',
+               'The security scan is unavailable. Your photo was not published; please try again later.')
+          : tr('Cette photo ne peut pas être publiée après la vérification de sécurité.',
+               'This photo cannot be published after the security check.'));
       }
       const avatarUrl = `https://knowme-nextech.vercel.app/api/knowme/media/public/avatar/${encodeURIComponent(asset.id)}`;
       await apiFetch('/account/profile', { method:'PATCH', body:JSON.stringify({avatarUrl}) });
@@ -131,7 +135,7 @@ export default function ProfilePage() {
     event.currentTarget.value = '';
     if (!image) return;
     if (!IMAGE_MIME.includes(image.type) || image.size < 1024 || image.size > MAX_IMAGE_BYTES) {
-      setMessage('Choisis une image JPEG, PNG ou WebP de 1 Ko à 5 Mo.');
+      setMessage(tr('Choisis une image JPEG, PNG ou WebP de 1 Ko à 5 Mo.','Choose a JPEG, PNG or WebP image between 1 KB and 5 MB.'));
       return;
     }
     setCoverBusy(true);
@@ -153,7 +157,11 @@ export default function ProfilePage() {
         { method: 'POST', headers: { 'x-upload-token': session.uploadToken }, body }
       );
       if (asset.status !== 'AVAILABLE') {
-        throw new Error('Cette image doit être validée avant de pouvoir devenir la couverture.');
+        throw new Error(asset.scannerVerdict === 'UNAVAILABLE'
+          ? tr('Analyse de sécurité indisponible : la couverture n’a pas été modifiée. Réessaie plus tard.',
+               'Security scan unavailable: your cover was not changed. Try again later.')
+          : tr('Cette image ne peut pas être publiée après la vérification de sécurité.',
+               'This image cannot be published after the security check.'));
       }
       await apiFetch('/profile-experience/me', {
         method: 'PATCH',
