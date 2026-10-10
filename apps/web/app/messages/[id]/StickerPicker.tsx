@@ -72,7 +72,7 @@ export function StickerPicker<T>({
   }, [open]);
 
   useEffect(() => {
-    if (!open || tab !== 'stickers' || catalog || loading) return;
+    if (!open || tab !== 'stickers' || catalog || loading || error) return;
     setLoading(true);
     void apiFetch<Catalog>('/stickers/catalog')
       .then(value => {
@@ -81,7 +81,7 @@ export function StickerPicker<T>({
       })
       .catch(cause => setError(cause instanceof Error ? cause.message : (en ? 'Sticker catalog unavailable.' : 'Catalogue des stickers indisponible.')))
       .finally(() => setLoading(false));
-  }, [catalog, loading, open, tab, en]);
+  }, [catalog, loading, open, tab, en, error]);
 
   const matchingPacks = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -122,7 +122,7 @@ export function StickerPicker<T>({
   return <div className="km-picker-anchor" ref={wrap}>
     <button type="button" className="km-picker-trigger" aria-expanded={open}
       aria-controls="knowme-sticker-picker" aria-label={en ? 'Emoji and stickers' : 'Emojis et stickers'}
-      onClick={() => setOpen(value => !value)}>
+      onClick={() => {if (!open) setError(''); setOpen(value => !value);}}>
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="6"/><path d="M8 14c2.1 3 5.9 3 8 0"/><path d="M8.5 10h.01M15.5 10h.01" strokeWidth="3"/>
       </svg>
@@ -137,7 +137,7 @@ export function StickerPicker<T>({
         <button type="button" role="tab" aria-selected={tab === 'emoji'} onClick={() => {setTab('emoji');setSearch('');}}>
           {en ? 'Emoji' : 'Emojis'}
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'stickers'} onClick={() => {setTab('stickers');setSearch('');}}>
+        <button type="button" role="tab" aria-selected={tab === 'stickers'} onClick={() => {setTab('stickers');setSearch('');setError('');}}>
           Stickers
         </button>
       </div>
@@ -165,7 +165,7 @@ export function StickerPicker<T>({
         </>}
         {tab === 'stickers' && <>
           {loading && <p role="status" className="km-picker-status">{en ? 'Loading stickers…' : 'Chargement des stickers…'}</p>}
-          {error && <p role="alert" className="km-picker-error">{error}</p>}
+          {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={() => setError('')}>{en ? 'Retry' : 'Réessayer'}</button></div>
           {!loading && !error && matchingPacks.length === 0 && <p className="km-picker-status">
             {en ? 'No stickers found.' : 'Aucun sticker trouvé.'}
           </p>}
