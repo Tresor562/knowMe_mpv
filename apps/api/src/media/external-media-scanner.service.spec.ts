@@ -114,11 +114,11 @@ describe('ExternalMediaScannerService', () => {
       let chunks = Buffer.alloc(0);
       connection.on('data', data => { chunks = Buffer.concat([chunks, data]); });
       connection.on('end', () => {
-        if (!chunks.subarray(0, 10).equals(Buffer.from('zINSTREAM\\0'))) {
+        if (!chunks.subarray(0, 10).equals(Buffer.concat([Buffer.from('zINSTREAM'), Buffer.from([0])]))) {
           connection.end('stream: malformed ERROR\\0');
           return;
         }
-        connection.end(wire.replace('\\0', '\\0'));
+        connection.end(wire.replaceAll(String.fromCharCode(92) + '0', String.fromCharCode(0)));
       });
     });
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()));
