@@ -135,7 +135,9 @@ export class ExternalMediaScannerService {
           socket.write(size);
           socket.write(slice);
         }
-        socket.end(Buffer.alloc(4));
+        // Protocol terminator is the zero-length frame; keep the socket open
+        // for ClamD's verdict instead of half-closing TCP early.
+        socket.write(Buffer.alloc(4));
       });
     });
   }
