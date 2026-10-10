@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityContext } from '../security/security.service';
+import { sendGmailRecoveryMail } from './gmail-smtp';
 
 type RecoveryPayload = {
   v: 1;
@@ -37,8 +38,15 @@ export class AccountRecoveryService {
     const apiKey = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_API_KEY');
     const from = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
     const webUrl = this.config.get<string>('WEB_URL');
+    const transport = this.config.get<string>('ACCOUNT_RECOVERY_TRANSPORT') ?? 'HTTPS_API';
+    const gmailUser = this.config.get<string>('ACCOUNT_RECOVERY_GMAIL_USER');
+    const gmailAppPassword = this.config.get<string>('ACCOUNT_RECOVERY_GMAIL_APP_PASSWORD');
+    const isGmail = transport === 'GMAIL_SMTP';
 
-    if (!secret || secret.length < 32 || !endpoint || !apiKey || !from || !webUrl) {
+    if (
+      !secret || secret.length < 32 || !from || !webUrl ||
+      (isGmail ? !gmailUser || !gmailAppPassword : !endpoint || !apiKey)
+    ) {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
     }
 
@@ -64,31 +72,47 @@ export class AccountRecoveryService {
     const token = `${encoded}.${signature}`;
     const resetUrl = `${audience}/reset-password#token=${encodeURIComponent(token)}`;
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from,
-          to: [user.email],
-          subject: 'Réinitialise ton mot de passe KnowMe',
-          html: `<p>Une réinitialisation de mot de passe a été demandée pour ton compte KnowMe.</p><p><a href="${this.escapeHtml(resetUrl)}">Réinitialiser mon mot de passe</a></p><p>Ce lien expire dans 15 minutes. Si tu n’es pas à l’origine de cette demande, ignore cet e-mail.</p>`
-        }),
-        signal: AbortSignal.timeout(8_000)
-      });
+    const subject = 'Réinitialise ton mot de passe KnowMe';
+    const html = `<div style="font-family:Arial,sans-serif;background:#f7f8fe;padding:32px 16px">
+      <div style="max-width:520px;margin:auto;background:#fff;border-radius:20px;padding:30px">
+        <p style="font-size:20px;font-weight:bold;color:#1b2543">KnowMe</p>
+        <h1 style="font-size:24px;color:#1b2543">Réinitialise ton mot de passe</h1>
+        <p style="color:#515b70;line-height:1.6">Une demande de réinitialisation a été reçue pour ton compte KnowMe.</p>
+        <p style="padding:18px 0"><a href="${this.escapeHtml(resetUrl)}" style="background:#485fd2;color:#fff;text-decoration:none;padding:13px 22px;border-radius:12px;font-weight:bold">Choisir un nouveau mot de passe</a></p>
+        <p style="color:#515b70;font-size:13px;line-height:1.6">Ce lien expire dans 15 minutes. Si tu n'as pas demandé ce changement, ignore ce message.</p>
+      </div>
+    </div>`;
 
-      if (!response.ok) {
-        await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
-          providerStatus: response.status
+    try {
+      if (isGmail) {
+        await sendGmailRecoveryMail({
+          username: gmailUser!,
+          appPassword: gmailAppPassword!,
+          from,
+          to: user.email,
+          subject,
+          html
         });
-        return { accepted: true };
+      } else {
+        const response = await fetch(endpoint!, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ from, to: [user.email], subject, html }),
+          signal: AbortSignal.timeout(8_000)
+        });
+        if (!response.ok) {
+          await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
+            providerStatus: response.status
+          });
+          return { accepted: true };
+        }
       }
     } catch {
       await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
-        providerStatus: 'NETWORK_ERROR'
+        providerStatus: 'TRANSPORT_ERROR'
       });
       return { accepted: true };
     }
