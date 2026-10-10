@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { AccountBadges } from '../../components/AccountBadges';
+import { AvatarQuickActions } from '../../components/avatar-quick-actions';
 import { ProfileCover } from '../../components/profile-cover';
 import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
@@ -44,6 +45,8 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+  const coverFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -187,13 +190,24 @@ export default function ProfilePage() {
 
   return (
     <main className="shell km-profile-page">
+      <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp"
+        className="km-visually-hidden-file" onChange={uploadAvatar} aria-label={tr('Choisir une photo de profil','Choose profile picture')}/>
+      <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp"
+        className="km-visually-hidden-file" onChange={uploadCover} aria-label={tr('Choisir une couverture','Choose cover image')}/>
       <section className="km-profile-hero" aria-label="Mon profil KnowMe">
         <ProfileCover assetId={coverId} />
         <div className="km-profile-details">
-          <div className="km-profile-avatar">
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt={`Photo de profil de ${user.displayName}`} />
-            ) : <span>{initials}</span>}
+          <div className="km-profile-avatar-wrap">
+            <div className="km-profile-avatar">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={`${en?'Profile photo of':'Photo de profil de'} ${user.displayName}`} />
+              ) : <span>{initials}</span>}
+            </div>
+            <AvatarQuickActions username={user.username} displayName={user.displayName}
+              avatarUrl={user.avatarUrl} locale={en ? 'en' : 'fr'}
+              busy={avatarBusy || coverBusy}
+              onSelectPhoto={() => avatarFileRef.current?.click()}
+              onSelectCover={() => coverFileRef.current?.click()}/>
           </div>
           <div className="km-profile-heading">
             <p className="km-profile-eyebrow">{en?'MY KNOWME SPACE':'MON ESPACE KNOWME'}</p>
@@ -206,10 +220,10 @@ export default function ProfilePage() {
             <button className="btn btn-primary" type="button" onClick={() => setEditing(value => !value)}>
               {editing ? (en?'Close':'Fermer') : (en?'Edit profile':'Modifier mon profil')}
             </button>
-            <label className={`btn km-profile-cover-upload ${coverBusy ? 'is-busy' : ''}`}>
-              {coverBusy ? (en?'Uploading…':'Envoi…') : (en?'Change cover':'Changer la couverture')}
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadCover} disabled={coverBusy} aria-label="Choisir une image de couverture" />
-            </label>
+            <button className="btn km-profile-cover-upload" type="button" disabled={coverBusy}
+              onClick={() => coverFileRef.current?.click()}>
+              {coverBusy ? tr('Envoi…','Uploading…') : tr('Changer la couverture','Change cover')}
+            </button>
           </div>
         </div>
       </section>
@@ -226,12 +240,10 @@ export default function ProfilePage() {
             <label >{en?'Biography':'Biographie'}
               <textarea className="input" name="bio" defaultValue={user.bio ?? ''} placeholder={tr('Parle de toi…','Tell us about yourself…')} rows={3} maxLength={500} />
             </label>
-            <label className={`km-profile-photo-picker ${avatarBusy?'is-busy':''}`}>
-              <span>{avatarBusy ? tr('Envoi de la photo…','Uploading photo…') : tr('Choisir une photo dans la galerie','Choose photo from gallery')}</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp"
-                aria-label={tr('Choisir une photo de profil','Choose profile picture')}
-                onChange={uploadAvatar} disabled={avatarBusy} />
-            </label>
+            <button className="km-profile-photo-picker" type="button" disabled={avatarBusy}
+              onClick={() => avatarFileRef.current?.click()}>
+              {avatarBusy ? tr('Envoi de la photo…','Uploading photo…') : tr('Choisir une photo dans la galerie','Choose photo from gallery')}
+            </button>
             <p className="km-settings-hint">{tr(
               'JPEG, PNG ou WebP · 5 Mo maximum. La photo de profil est publique.',
               'JPEG, PNG or WebP · 5 MB maximum. Your profile picture is public.'
