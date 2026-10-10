@@ -301,6 +301,32 @@ export class MediaService {
     return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
   }
 
+  /**
+   * A private POST media object becomes public only while the owner explicitly
+   * uses it as their profile cover. Revoking the selection revokes public read.
+   */
+  async readPublicProfileCover(assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: assetId,
+        purpose: 'POST',
+        deletedAt: null,
+        status: 'AVAILABLE',
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp'] }
+      },
+      select: { id: true, ownerId: true, storageKey: true, detectedMime: true }
+    });
+    if (!asset) throw new NotFoundException('Couverture indisponible.');
+
+    const selected = await this.prisma.profileExperience.findFirst({
+      where: { userId: asset.ownerId, coverAssetId: assetId },
+      select: { userId: true }
+    });
+    if (!selected) throw new NotFoundException('Couverture indisponible.');
+
+    return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
+  }
+
   async grantAccess(ownerId: string, assetId: string, dto: GrantMediaAccessDto) {
     const asset = await this.prisma.mediaAsset.findFirst({
       where: { id: assetId, ownerId, deletedAt: null }
