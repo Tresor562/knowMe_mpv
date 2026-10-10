@@ -1007,3 +1007,29 @@ html, body { min-width: 0; }
   .km-picker-scroll { min-height:110px; }
 }
 @media(prefers-reduced-motion:reduce) { .km-picker-sheet { animation:none; } }
+
+
+/* Untrusted Unicode chat text must never expand a row or overlap its controls. */
+.km-chat-main,.km-chat-copy,.km-chat-firstline,.km-chat-header-details {
+  min-width:0;
+}
+.km-chat-firstline strong,.km-chat-header-details h1,.km-chat-preview {
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.km-chat-time,.km-chat-badge { white-space:nowrap;flex-shrink:0; }
+.km-message-bubble { max-inline-size:min(88%,560px);min-inline-size:0;overflow-wrap:anywhere;word-break:break-word; }
+.km-message-bubble :is(p,span,strong,a,code,pre) {
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  max-inline-size:100%;
+}
+.km-message-bubble :is(img,video,iframe) {max-inline-size:100%;height:auto;}
+.km-message-author {overflow-wrap:anywhere;word-break:break-word;}
+@media(max-width:400px) {
+  .km-chat-firstline strong {font-size:14px;}
+  .km-chat-firstline {gap:4px;}
+  .km-message-bubble {max-inline-size:90%;}
+}
