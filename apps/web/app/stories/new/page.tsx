@@ -21,7 +21,7 @@ const DURATIONS = [24,48,72,168,336,720] as const;
 export default function NewStoryPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
-  const ui = storyUi(locale);
+  const ui = storyUi(locale === 'en' ? 'en' : 'fr');
   const router = useRouter();
   const { user, loading } = useSession({required:true});
   const photoRef = useRef<HTMLInputElement>(null);
