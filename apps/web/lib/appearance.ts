@@ -98,17 +98,19 @@ export type AppearanceResponse = {
 export const APPEARANCE_EVENT = 'knowme:appearance-changed';
 const STORAGE_KEY = 'knowme-appearance';
 
+// Keep the first paint and the authenticated system theme on the same KnowMe palette.
+// Deliberately selected custom themes are still applied by resolveTheme().
 const SYSTEM_LIGHT: ThemePalette = {
-  background: '#f6fbf8', backgroundAccent: '#d9f5e9', surface: '#ffffff',
-  surfaceRaised: '#e4f3ec', surfaceGlass: 'rgba(255,255,255,.9)', text: '#102019',
-  muted: '#53655d', accent: '#087f5b', secondary: '#c5570b',
-  border: 'rgba(8,127,91,.28)', danger: '#b42318', onAccent: '#ffffff', statusBar: 'dark'
+  background: '#f6f7fc', backgroundAccent: '#e7ebfd', surface: '#ffffff',
+  surfaceRaised: '#eff1fb', surfaceGlass: 'rgba(255,255,255,.9)', text: '#1b2543',
+  muted: '#6e7790', accent: '#485fd2', secondary: '#7463d2',
+  border: 'rgba(72,95,210,.16)', danger: '#b42318', onAccent: '#ffffff', statusBar: 'dark'
 };
 const SYSTEM_DARK: ThemePalette = {
-  background: '#071410', backgroundAccent: '#123529', surface: '#10231d',
-  surfaceRaised: '#17342a', surfaceGlass: 'rgba(16,35,29,.88)', text: '#f4fff9',
-  muted: '#a7b9b1', accent: '#45e6bd', secondary: '#ff8a3d',
-  border: 'rgba(69,230,189,.22)', danger: '#ff867a', onAccent: '#052017', statusBar: 'light'
+  background: '#090e1c', backgroundAccent: '#171d39', surface: '#131b30',
+  surfaceRaised: '#1e2945', surfaceGlass: 'rgba(20,27,48,.72)', text: '#f1f4ff',
+  muted: '#a3aec9', accent: '#92a9ff', secondary: '#a793fc',
+  border: 'rgba(153,171,255,.19)', danger: '#ff867a', onAccent: '#111a33', statusBar: 'light'
 };
 
 function resolveTheme(response: AppearanceResponse, key: string | null) {
