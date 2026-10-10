@@ -4,7 +4,7 @@
   --bg-accent: #171d39;
   --surface: #131b30;
   --surface-2: #1e2945;
-  --surface-glass: rgba(16, 35, 29, .88);
+  --surface-glass: rgba(20, 27, 48, .72);
   --nav-glass: rgba(18, 27, 51, .72);
   --input-bg: #121b30;
   --text: #f1f4ff;
@@ -25,15 +25,15 @@
   --surface: #ffffff;
   --surface-2: #ecedf7;
   --surface-glass: rgba(255, 255, 255, .9);
-  --nav-glass: rgba(248, 255, 251, .94);
+  --nav-glass: rgba(255, 255, 255, .9);
   --input-bg: #ffffff;
   --text: #1c2440;
   --muted: #68748e;
   --mint: #485fd2;
   --orange: #7860ca;
-  --border: rgba(8, 127, 91, .28);
-  --soft-border: rgba(16, 32, 25, .14);
-  --shadow: rgba(25, 55, 43, .14);
+  --border: rgba(72, 95, 210, .16);
+  --soft-border: rgba(72, 95, 210, .12);
+  --shadow: rgba(25, 35, 75, .12);
   --on-primary: #ffffff;
   --on-accent: #ffffff;
   --danger: #b42318;
@@ -284,8 +284,8 @@ button, .btn, a { transition: color .18s ease, background-color .18s ease, borde
 :root[data-animations='false'] .bottom-nav-item { transition: none; }
 .bottom-nav {
   position: fixed; inset: auto auto calc(8px + env(safe-area-inset-bottom, 0px)) 50%;
-  transform: translateX(-50%); display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
-  width: min(444px, calc(100% - 24px));
+  transform: translateX(-50%); display: grid; grid-template-columns: repeat(5, minmax(0,1fr));
+  width: min(510px, calc(100% - 18px));
   min-height: 64px; padding: 5px; gap: 2px; border-radius: 22px;
   background: var(--nav-glass);
   border: 1px solid var(--soft-border);
@@ -517,4 +517,101 @@ body:has(.km-chat-screen) { padding-bottom:0; }
   border: 1px solid color-mix(in srgb, var(--mint) 26%, var(--soft-border));
   font-size: 13px;
   line-height: 1.6;
+}
+
+
+/* KnowMe shared mobile layout: prevent fixed desktop grids from overflowing phones. */
+html, body { min-width: 0; }
+.shell, .shell > *, .card { min-width: 0; }
+@media (max-width: 720px) {
+  body { overflow-x: clip; }
+  .shell { width: 100%; padding: 16px 14px 106px; }
+  .shell .grid,
+  .shell .appearance-settings-grid,
+  .shell .theme-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .shell .card { padding: clamp(14px, 4vw, 20px); max-width: 100%; }
+  .shell :is(h1,h2,h3,p) { overflow-wrap: anywhere; }
+  .shell :is(.btn, button) { max-width: 100%; white-space: normal; }
+  .bottom-nav { width: min(510px, calc(100% - 12px)); }
+  .bottom-nav-item { min-height: 52px; padding-inline: 1px; }
+  .bottom-nav-label { font-size: 10px; }
+}
+@media (max-width: 360px) {
+  .bottom-nav { gap: 0; }
+  .bottom-nav-label { font-size: 9px; }
+}
+
+
+/* Unified profile surfaces — native-sized on phones and comfortably centered on desktop. */
+.km-profile-page { max-width: 900px; display: grid; gap: 18px; padding-bottom: 120px; }
+.km-profile-hero { min-width: 0; overflow: hidden; border: 1px solid var(--soft-border); border-radius: 26px; background: var(--surface); }
+.km-profile-cover { position: relative; min-height: 196px; overflow: hidden; background: radial-gradient(circle at 15% 25%, color-mix(in srgb, var(--mint) 45%, transparent), transparent 49%), radial-gradient(circle at 87% 16%, color-mix(in srgb, var(--orange) 32%, transparent), transparent 45%), var(--surface-2); }
+.km-profile-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.km-profile-details { position: relative; display: grid; grid-template-columns: 104px minmax(0,1fr); align-items: start; column-gap: 16px; padding: 0 22px 23px; }
+.km-profile-avatar { width: 100px; height: 100px; margin-top: -45px; border: 4px solid var(--surface); border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; font-size: 37px; font-weight: 700; color: var(--mint); box-shadow: 0 6px 22px rgba(0,0,0,.12); }
+.km-profile-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.km-profile-heading { min-width: 0; padding-top: 10px; }
+.km-profile-heading h1 { margin: 4px 0; font-size: clamp(22px, 4vw, 29px); font-weight: 700; line-height: 1.18; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.km-profile-eyebrow { margin: 0; color: var(--mint); font-size: 11px; font-weight: 700; letter-spacing: .07em; }
+.km-profile-handle { margin: 7px 0; color: var(--muted); font-size: 13px; }
+.km-profile-bio { margin: 10px 0 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.km-profile-hero-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 20px; }
+.km-profile-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: 13px; }
+.km-profile-cover-upload { position: relative; cursor: pointer; }
+.km-profile-cover-upload input { position: absolute; width: 1px !important; height: 1px !important; padding: 0 !important; opacity: 0; overflow: hidden; }
+.km-profile-cover-upload:focus-within { outline: 3px solid var(--mint); outline-offset: 2px; }
+.km-profile-cover-upload.is-busy { opacity: .6; pointer-events: none; }
+.km-profile-notice { margin: 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; font-size: 13px; }
+.km-profile-editor { display: grid; gap: 12px; padding: 22px; }
+.km-profile-editor h2 { margin: 0; font-size: 18px; }
+.km-profile-editor form label { display: grid; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.km-profile-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.km-profile-progress { border: 1px solid var(--soft-border); background: var(--surface-glass); backdrop-filter: blur(18px); padding: 20px 22px; border-radius: 24px; }
+.km-profile-progress-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.km-profile-progress-top h2 { font-size: 21px; margin: 5px 0 12px; }
+.km-profile-progress-top strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.km-profile-progress-track { height: 9px; overflow: hidden; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--soft-border); }
+.km-profile-progress-track span { display: block; height: 100%; background: linear-gradient(90deg,var(--mint),var(--orange)); border-radius: inherit; transition: width .25s ease; }
+.km-profile-progress p { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+.km-profile-text-link { display: inline-block; margin-top: 12px; color: var(--mint); font-size: 13px; font-weight: 650; }
+.km-profile-shortcuts { border-block: 1px solid var(--soft-border); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.km-profile-shortcuts a { min-width: 0; padding: 15px 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; border-bottom: 1px solid var(--soft-border); font-size: 14px; }
+.km-profile-shortcuts a:nth-child(2n+1) { border-right: 1px solid var(--soft-border); }
+.km-profile-shortcuts a:hover { background: var(--surface-2); }
+.km-profile-shortcuts a span { color: var(--mint); font-size: 19px; }
+.km-profile-interests { display: grid; gap: 14px; padding: 2px 0 24px; }
+.km-profile-interests h2 { margin: 0; font-size: 20px; }
+.km-profile-interests-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.km-profile-interests-list span { padding: 8px 12px; border: 1px solid var(--soft-border); border-radius: 100px; background: var(--surface-2); font-size: 13px; }
+.km-profile-interests-list p { color: var(--muted); font-size: 13px; }
+.km-profile-interests form { display: grid; gap: 9px; }
+.km-profile-interests form label { font-size: 12px; color: var(--muted); }
+.km-profile-interests-form { display: flex; align-items: center; gap: 8px; }
+.km-profile-interests-form input { flex: 1; min-width: 0; }
+@media (max-width: 600px) {
+  .km-profile-page { gap: 14px; }
+  .km-profile-hero { border-radius: 0 0 22px 22px; margin-inline: -14px; border-inline: 0; }
+  .km-profile-cover { min-height: 160px; }
+  .km-profile-details { grid-template-columns: 82px minmax(0,1fr); gap: 11px; padding: 0 16px 18px; }
+  .km-profile-avatar { width: 82px; height: 82px; margin-top: -34px; font-size: 28px; }
+  .km-profile-heading h1 { font-size: 22px; }
+  .km-profile-bio { font-size: 13px; }
+  .km-profile-hero-actions { margin-top: 12px; }
+  .km-profile-hero-actions .btn { flex: 1; min-width: 0; }
+  .km-profile-shortcuts { grid-template-columns: minmax(0,1fr); }
+  .km-profile-shortcuts a:nth-child(n) { border-right: 0; }
+  .km-profile-interests-form { flex-wrap: wrap; }
+  .km-profile-interests-form .btn { width: 100%; }
+}
+
+
+/* Pages created before the native design system often embed desktop grid widths
+   in inline styles; constrain those grids at phone breakpoints, too. */
+@media (max-width: 680px) {
+  .shell [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .shell [style*="min-width: 290px"],
+  .shell [style*="min-width: 260px"] { min-width: 0 !important; }
+  .shell > header { min-width: 0; }
+  .shell > header h1 { font-size: clamp(23px, 6vw, 30px); line-height: 1.16; }
+  .shell :is(button,input,textarea,select) { max-width: 100%; }
 }

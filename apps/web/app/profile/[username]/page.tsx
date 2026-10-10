@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
+import { ProfileCover } from '../../../components/profile-cover';
 import { useSession } from '../../../lib/use-session';
 
 type Access = { visible: boolean; reason: string };
@@ -199,14 +200,7 @@ export default function PublicProfilePage() {
           background: 'linear-gradient(145deg,var(--surface-2),var(--surface))'
         }}
       >
-        <div
-          style={{
-            minHeight: 150,
-            background: profile.header.coverAssetId
-              ? `linear-gradient(rgba(0,0,0,.2),rgba(0,0,0,.45)),url(${profile.header.coverAssetId}) center/cover`
-              : 'radial-gradient(circle at 20% 20%,var(--mint),transparent 48%),radial-gradient(circle at 85% 15%,var(--orange),transparent 42%),var(--surface-2)'
-          }}
-        />
+        <ProfileCover assetId={profile.header.coverAssetId} />
         <div style={{ padding: '0 26px 26px', display: 'flex', gap: 20, alignItems: 'end', flexWrap: 'wrap' }}>
           <div
             style={{
@@ -223,7 +217,9 @@ export default function PublicProfilePage() {
               boxShadow: '0 16px 38px rgba(0,0,0,.28)'
             }}
           >
-            {initials}
+            {profile.header.avatarUrl ? (
+              <img src={profile.header.avatarUrl} alt={`Photo de ${profile.header.displayName}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : initials}
           </div>
           <div style={{ flex: 1, minWidth: 240 }}>
             <small style={{ color: 'var(--mint)' }}>PROFIL KNOWME · {profile.header.themeKey}</small>

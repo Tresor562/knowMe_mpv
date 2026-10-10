@@ -5,10 +5,11 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useI18n } from './i18n-provider';
 
-type IconName = 'chats' | 'feed' | 'challenges' | 'profile';
+type IconName = 'home' | 'chats' | 'feed' | 'challenges' | 'profile';
 
 function NavIcon({ name }: { name: IconName }) {
   const base = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true as const };
+  if (name === 'home') return <svg {...base}><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /></svg>;
   if (name === 'chats') return <svg {...base}><path d="M20 11.5a7.8 7.8 0 0 1-8.2 7.7 9 9 0 0 1-3.3-.7L4 20l1.4-4A8 8 0 1 1 20 11.5Z" /><path d="M8.2 11.7h7.6M8.2 14.6h4.8" /></svg>;
   if (name === 'feed') return <svg {...base}><rect x="3" y="3" width="18" height="18" rx="5" /><path d="M8 7.8h8M8 12h8M8 16.2h4.5" /></svg>;
   if (name === 'challenges') return <svg {...base}><path d="m13.6 2.8-9 10.5h6.4l-1 7.9 9-10.6h-6.4z" /></svg>;
@@ -36,8 +37,9 @@ export function BottomNavigation() {
   if (!hasSession || HIDDEN_PATHS.includes(pathname) || pathname.startsWith('/m/') || pathname.startsWith('/play/') || /^\/messages\/[^/]+/.test(pathname)) return null;
 
   const items: { href: string; label: string; icon: IconName; matches: string[] }[] = [
+    { href: '/dashboard', label: locale === 'fr' ? 'Accueil' : 'Home', icon: 'home', matches: ['/dashboard'] },
     { href: '/messages', label: locale === 'fr' ? 'Discussions' : 'Chats', icon: 'chats', matches: ['/messages', '/conversation-pins', '/saved-messages'] },
-    { href: '/feed', label: locale === 'fr' ? 'Actualités' : 'Feed', icon: 'feed', matches: ['/feed', '/dashboard'] },
+    { href: '/feed', label: locale === 'fr' ? 'Actualités' : 'Feed', icon: 'feed', matches: ['/feed', '/stories'] },
     { href: '/challenges', label: locale === 'fr' ? 'Défis' : 'Challenges', icon: 'challenges', matches: ['/challenges', '/play', '/quests'] },
     { href: '/profile', label: locale === 'fr' ? 'Profil' : 'Profile', icon: 'profile', matches: ['/profile', '/settings', '/security'] }
   ];
