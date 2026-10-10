@@ -11,6 +11,7 @@ type Friend = {
   user: { id: string; displayName: string; username: string; avatarUrl?: string | null };
 };
 type NewConversation = { id: string };
+type ListedConversation = { id: string; isGroup: boolean; members: Array<{ userId: string }> };
 
 export default function NewMessagePage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
@@ -66,6 +67,20 @@ export default function NewMessagePage() {
     setCreating(true);
     setError('');
     try {
+      // Opening an existing 1:1 chat must not create a second copy each time
+      // someone taps the same contact. Group creation remains a new action.
+      if (memberIds.length === 1 && user) {
+        const conversations = await apiFetch<ListedConversation[]>('/conversations');
+        const found = conversations.find(chat =>
+          !chat.isGroup && chat.members.length === 2 &&
+          chat.members.some(member => member.userId === user.id) &&
+          chat.members.some(member => member.userId === memberIds[0])
+        );
+        if (found) {
+          router.push(`/messages/${encodeURIComponent(found.id)}`);
+          return;
+        }
+      }
       const chat = await apiFetch<NewConversation>('/conversations', {
         method: 'POST',
         body: JSON.stringify({ memberIds, ...(title ? { title } : {}) })
