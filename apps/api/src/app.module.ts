@@ -26,6 +26,7 @@ import { ConversationPinsModule } from './conversation-pins/conversation-pins.mo
 import { CosmeticsModule } from './cosmetics/cosmetics.module';
 import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
+import { DailyNotesModule } from './daily-notes/daily-notes.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { GamePlatformModule } from './games/game-platform.module';
@@ -95,6 +96,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     AchievementsModule,
     LeaderboardsModule,
     DailyChestModule,
+    DailyNotesModule,
     PositiveChallengesModule,
     ConceptKModule,
     ProfileExperienceModule,
