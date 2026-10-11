@@ -3,6 +3,9 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -371,12 +374,14 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [composerOpen, setComposerOpen] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
-    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen);
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen);
     return () => { onSecondaryModeChange?.(false); };
-  }, [selectedPostId, storiesOpen, onSecondaryModeChange]);
+  }, [selectedPostId, storiesOpen, composerOpen, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -416,11 +421,19 @@ export function FeedExperience({
 
   async function publish() {
     const value = content.trim();
+    const attachment = imageUrl.trim();
     if (!value || publishing) return;
+    if (attachment && !/^https:\/\/[^\s]+\.[^\s]+/i.test(attachment)) {
+      Alert.alert('Lien invalide', 'Utilise une URL HTTPS d’image accessible publiquement.');
+      return;
+    }
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content: value }) });
+      await apiFetch('/posts', { method: 'POST',
+        body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
       setContent('');
+      setImageUrl('');
+      setComposerOpen(false);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
@@ -453,6 +466,7 @@ export function FeedExperience({
   }
 
   return (
+    <>
     <FlatList
       style={{ backgroundColor: colors.background }}
       onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
@@ -490,33 +504,17 @@ export function FeedExperience({
               onComposerOpened={onStoryComposerOpened}
               onImmersiveChange={setStoriesOpen}/>
           ) : null}
-          <GlassSurface
-            strength="soft"
-            borderRadius={20}
-            style={styles.composerCard}
-          >
-            <TextInput
-              multiline
-              maxLength={1000}
-              value={content}
-              onChangeText={setContent}
-              placeholder="Partage une découverte, une question ou un défi…"
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]}
-            />
-            <View style={styles.composerFooter}>
-              <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
-              <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
-            </View>
-          </GlassSurface>
+          <Pressable accessibilityRole="button" accessibilityLabel="Créer une publication"
+            onPress={() => setComposerOpen(true)}
+            style={[styles.quickCompose,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+            {currentUser
+              ? <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={40}/>
+              : <KnowMeIcon name="profile" size={32} color={colors.muted}/>}
+            <Text style={[styles.quickComposePrompt,{color:colors.muted}]}>
+              Quoi de neuf ?
+            </Text>
+            <KnowMeIcon name="edit" size={20} color={colors.accent}/>
+          </Pressable>
         </View>
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
@@ -550,6 +548,76 @@ export function FeedExperience({
         </Pressable>
       )}
     />
+    <Modal visible={composerOpen} animationType="slide"
+      onRequestClose={() => { if (!publishing) setComposerOpen(false); }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.composerScreen,{backgroundColor:colors.background}]}>
+        <View style={[styles.composerTop,{borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fermer l’éditeur"
+            onPress={() => setComposerOpen(false)} disabled={publishing}
+            style={styles.composeClose}>
+            <KnowMeIcon name="back" size={24} color={colors.text}/>
+          </Pressable>
+          <Text style={[styles.composeTitle,{color:colors.text}]}>Créer une publication</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Publier"
+            disabled={!content.trim() || publishing}
+            onPress={() => void publish()}
+            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:content.trim()?1:0.5}]}>
+            <Text style={{color:colors.accent,fontWeight:'800'}}>{publishing ? 'Envoi…' : 'Publier'}</Text>
+          </Pressable>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.composeScroll}>
+          <View style={styles.composeAuthor}>
+            {currentUser ? <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={51}/> : null}
+            <View style={{flex:1}}>
+              <Text numberOfLines={1} style={{color:colors.text,fontSize:16,fontWeight:'800'}}>
+                {currentUser?.displayName || 'Moi'}
+              </Text>
+              <Text style={{color:colors.muted,fontSize:12}}>Public · KnowMe</Text>
+            </View>
+          </View>
+          <TextInput
+            accessibilityLabel="Texte de la publication"
+            multiline autoFocus
+            maxLength={2000}
+            value={content}
+            onChangeText={setContent}
+            placeholder="Quoi de neuf ?"
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            textAlignVertical="top"
+            style={[styles.composeInput,{color:colors.text}]}
+          />
+          <Text style={[styles.composerHint,{color:colors.muted,textAlign:'right'}]}>{content.length}/2000</Text>
+          <View style={[styles.composeAttachment,{borderColor:colors.border}]}>
+            <Text style={{fontSize:14,fontWeight:'700',color:colors.text}}>Image par lien HTTPS</Text>
+            <Text style={{fontSize:12,lineHeight:18,color:colors.muted}}>
+              L’import direct de photos, vidéos et fichiers nécessite encore la nouvelle API de publications.
+            </Text>
+            <TextInput accessibilityLabel="URL de l’image"
+              placeholder="https://…"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              keyboardType="url"
+              value={imageUrl} onChangeText={setImageUrl}
+              style={[styles.input,{color:colors.text,backgroundColor:colors.backgroundAccent,borderColor:colors.border}]}/>
+            {imageUrl.trim().startsWith('https://') ?
+              <Image source={{uri:imageUrl.trim()}} resizeMode="contain" style={styles.composeImagePreview}/> : null}
+          </View>
+        </ScrollView>
+        <View style={[styles.composeFooter,{borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Publier la publication"
+            disabled={!content.trim() || publishing}
+            onPress={() => void publish()}
+            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:content.trim()?1:0.5}]}>
+            <Text style={{fontSize:16,fontWeight:'800',color:colors.accentText}}>
+              {publishing ? 'Publication…' : 'Publier'}
+            </Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+    </>
   );
 }
 
@@ -561,6 +629,21 @@ const styles = StyleSheet.create({
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   composerCard: { padding: 10, borderRadius: 20 },
+  quickCompose: {flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:StyleSheet.hairlineWidth,borderRadius:20,paddingHorizontal:12,gap:11},
+  quickComposePrompt: {flex:1,fontSize:14},
+  composerScreen: {flex:1},
+  composerTop: {minHeight:58,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:9,borderBottomWidth:StyleSheet.hairlineWidth},
+  composeClose: {width:44,height:44,alignItems:'center',justifyContent:'center'},
+  composeTitle: {fontSize:17,fontWeight:'800',flex:1},
+  composePublish: {minWidth:72,minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:14},
+  composeScroll: {flexGrow:1,padding:18,gap:12},
+  composeAuthor: {flexDirection:'row',alignItems:'center',gap:11},
+  composeInput: {minHeight:210,fontSize:22,lineHeight:30,paddingVertical:12},
+  composeAttachment: {borderTopWidth:StyleSheet.hairlineWidth,paddingTop:18,gap:9},
+  composeImagePreview: {height:210,width:'100%',borderRadius:18},
+  composeFooter: {paddingHorizontal:16,paddingVertical:12,borderTopWidth:StyleSheet.hairlineWidth},
+  composeSend: {minHeight:50,alignItems:'center',justifyContent:'center',borderRadius:14},
+
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   composerHint: { fontSize: 11 },
   postCard: { borderRadius: 20, paddingVertical: 13 },
