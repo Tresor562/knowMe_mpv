@@ -15,6 +15,9 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
+import { AnimatedEmoji } from './AnimatedEmoji';
+import { EmojiPicker } from './EmojiPicker';
+import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -693,16 +696,23 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
                   ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
-                  : <Text
-                      style={[
-                        mine ? styles.bubbleMineText : styles.bubbleText,
-                        { color: mine ? colors.accentText : colors.text }
-                      ]}>
-                      {item.presentation?.kind==='STICKER'
-                        ? `${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`
-                        : item.presentation?.kind==='TEXT'
-                          ? item.presentation.text : item.content}
-                    </Text>}
+                  : item.presentation?.kind==='STICKER'
+                    ? <View style={{ alignItems:'center',alignSelf:'flex-start' }}>
+                        <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={48}/>
+                        <Text style={{color:mine?colors.accentText:colors.text,fontSize:12}}>
+                          {item.presentation.sticker.label}
+                        </Text>
+                      </View>
+                    : isStandaloneAnimatedEmojiText(item.presentation?.kind==='TEXT'
+                      ? item.presentation.text : item.content)
+                      ? <AnimatedEmoji size={52} glyph={(item.presentation?.kind==='TEXT'
+                          ? item.presentation.text : item.content).trim()}/>
+                      : <Text style={[
+                          mine ? styles.bubbleMineText : styles.bubbleText,
+                          {color:mine ? colors.accentText : colors.text}
+                        ]}>
+                          {item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
+                        </Text>}
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>
@@ -728,6 +738,7 @@ export function RealtimeMessagesPanel({
         />
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+          <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
           <ChatMediaPicker<ConversationMessage> conversationId={active.id}
             onSent={created=>{
               setHistory(current=>mergeMessages(current,[created]));
