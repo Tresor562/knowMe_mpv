@@ -18,6 +18,7 @@ import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
+import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
 import { KNOWME_PRODUCT_VERSION } from '@knowme/link-contract';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
@@ -76,6 +77,7 @@ type ProfilePanel =
   | 'games'
   | 'platform'
   | 'security'
+  | 'sync'
   | 'privacy'
   | 'edit'
   | 'session';
@@ -292,6 +294,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       games: 'PLAY',
       platform: 'Plateforme de jeux',
       security: 'Sécurité',
+      sync: 'Versions et synchronisation',
       privacy: 'Confidentialité',
       edit: 'Modifier mon profil',
       session: 'Session & compte'
@@ -334,6 +337,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           <SecurityExperience onSessionClosed={onAccountDeleted} />
         ) : null}
         {panel === 'privacy' ? <PrivacyExperience /> : null}
+        {panel === 'sync' ? <MobilePlatformSyncStatus /> : null}
 
         {panel === 'edit' ? (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -719,6 +723,12 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             icon="settings"
             tone="secondary"
             onPress={() => setPanel('privacy')}
+          />
+          <ProfileMenuRow
+            title="Versions et synchronisation"
+            description="Vérifier APK, site et API avec le commit réel."
+            icon="refresh"
+            onPress={() => setPanel('sync')}
           />
           <ProfileMenuRow
             title="Session & compte"
