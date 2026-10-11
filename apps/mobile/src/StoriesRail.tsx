@@ -582,6 +582,7 @@ export function StoriesRail({
         </Pressable>
       </Modal>
       <AndroidMediaLibraryPicker visible={pickerVisible} allowVideo={storyType==='VIDEO'}
+        mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'}
         onClose={()=>setPickerVisible(false)}
         onPicked={media=>{
           if(storyType==='VIDEO'&&media.mime!=='video/mp4')return;
