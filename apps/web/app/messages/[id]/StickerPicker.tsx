@@ -57,7 +57,7 @@ export function StickerPicker<T>({
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'emoji' | 'stickers' | 'gifs'>('emoji');
+  const [tab, setTab] = useState<'emoji' | 'stickers' | 'gifs' | 'files'>('emoji');
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
@@ -73,6 +73,7 @@ export function StickerPicker<T>({
   const gifInput = useRef<HTMLInputElement>(null);
   const stickerInput = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +104,7 @@ export function StickerPicker<T>({
   }, [catalog, loading, open, tab, en, error]);
 
   useEffect(()=>{
-    if(!open||(tab!=='gifs'&&tab!=='stickers')||savedMedia!==null||savedMediaRequest.current||savedMediaError)return;
+    if(!open||(tab!=='gifs'&&tab!=='stickers'&&tab!=='files')||savedMedia!==null||savedMediaRequest.current||savedMediaError)return;
     savedMediaRequest.current=true;
     setSavedMediaLoading(true);
     void apiFetch<SavedMedia[]>('/media/mine')
@@ -169,14 +170,17 @@ export function StickerPicker<T>({
     }finally{setSending(null);}
   }
 
-  async function uploadAndSend(file:File,kind:'GIF'|'STICKER_IMAGE'|'IMAGE') {
+  async function uploadAndSend(file:File,kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT') {
     const allowed = kind==='GIF'?['image/gif']:
       kind==='STICKER_IMAGE'?['image/png','image/webp']:
+      kind==='VIDEO'?['video/mp4']:
+      kind==='AUDIO'?['audio/mpeg']:
+      kind==='DOCUMENT'?['application/pdf']:
       ['image/jpeg','image/png','image/webp'];
     const limit = kind==='STICKER_IMAGE'?8*1024*1024:kind==='GIF'?15*1024*1024:20*1024*1024;
     if(!allowed.includes(file.type)||file.size<1024||file.size>limit) {
-      setError(en?`Choose a supported image from 1 KB to ${Math.round(limit/1048576)} MB.`:
-        `Choisis une image compatible de 1 Ko à ${Math.round(limit/1048576)} Mo.`);
+      setError(en?`Choose a supported file from 1 KB to ${Math.round(limit/1048576)} MB.`:
+        `Choisis un fichier compatible de 1 Ko à ${Math.round(limit/1048576)} Mo.`);
       return;
     }
     if(sending)return;
@@ -231,6 +235,10 @@ export function StickerPicker<T>({
         <button type="button" role="tab" aria-selected={tab==='gifs'} onClick={()=>{setTab('gifs');setSearch('');setError('');}}>
           GIF
         </button>
+        <button type="button" role="tab" aria-selected={tab==='files'}
+          onClick={()=>{setTab('files');setSearch('');setError('');}}>
+          {en?'Files':'Fichiers'}
+        </button>
       </div>
       <input ref={gifInput} hidden type="file" accept="image/gif" onChange={event=>{
         const file=event.currentTarget.files?.[0];event.currentTarget.value='';
@@ -244,6 +252,15 @@ export function StickerPicker<T>({
         const file=event.currentTarget.files?.[0];event.currentTarget.value='';
         if(file)void uploadAndSend(file,'IMAGE');
       }}/>
+      <input ref={fileInput} hidden type="file" accept="video/mp4,audio/mpeg,.mp3,application/pdf"
+        onChange={event=>{
+          const file=event.currentTarget.files?.[0]; event.currentTarget.value='';
+          if(!file)return;
+          const kind = file.type==='video/mp4'?'VIDEO':file.type==='audio/mpeg'?'AUDIO':
+            file.type==='application/pdf'?'DOCUMENT':null;
+          if(!kind){setError(en?'Use MP4, MP3 or PDF files.':'Choisis un MP4, MP3 ou PDF.');return;}
+          void uploadAndSend(file,kind);
+        }}/>
       {tab === 'stickers' && <div className="km-picker-search">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
           <circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/>
@@ -251,9 +268,9 @@ export function StickerPicker<T>({
         <input ref={searchField} type="search" value={search} onChange={event => setSearch(event.target.value)}
           placeholder={en ? 'Search stickers' : 'Rechercher des stickers'} aria-label={en ? 'Search stickers' : 'Rechercher des stickers'}/>
       </div>}
-      {savedMediaLoading&&(tab==='gifs'||tab==='stickers')&&
+      {savedMediaLoading&&(tab==='gifs'||tab==='stickers'||tab==='files')&&
         <p role="status" className="km-picker-status">{en?'Loading recent media…':'Chargement des médias récents…'}</p>}
-      {savedMediaError&&(tab==='gifs'||tab==='stickers')&&
+      {savedMediaError&&(tab==='gifs'||tab==='stickers'||tab==='files')&&
         <p className="km-picker-status">{en?'Recent media unavailable; new uploads still work.':
           'Historique indisponible ; tu peux toujours envoyer un nouveau fichier.'}</p>}
       {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={()=>setError('')}>{en?'Dismiss':'Fermer'}</button></div>}
@@ -272,6 +289,17 @@ export function StickerPicker<T>({
             )}</div>
           </div>)}
         </>}
+        {tab === 'files' && <div className="km-picker-group km-picker-upload-panel">
+          <strong>{en?'Send a video, audio or PDF':'Envoyer une vidéo, un audio ou un PDF'}</strong>
+          <p>{en?'Private attachments shared only with this chat. Supported: MP4, MP3, PDF.':
+            'Pièces jointes privées pour cette conversation : MP4, MP3 et PDF.'}</p>
+          <button type="button" className="km-picker-upload-action" disabled={sending!==null}
+            onClick={()=>fileInput.current?.click()}>
+            {sending==='upload'?(en?'Sending…':'Envoi…'):(en?'Choose MP4 / MP3 / PDF':'Choisir MP4 / MP3 / PDF')}
+          </button>
+          <small>{en?'Up to 20 MB per file using the current secure upload service.':
+            '20 Mo maximum par fichier avec le service de stockage sécurisé actuel.'}</small>
+        </div>}
         {tab === 'gifs' && <div className="km-picker-group km-picker-upload-panel">
           {reusableGif.length>0&&<>
             <strong>{en?'Recently sent GIFs':'GIF récents'}</strong>
