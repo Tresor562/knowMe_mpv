@@ -8,6 +8,9 @@ import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
 import { ChatMediaView } from './ChatMediaView';
+import { AnimatedEmojiText, AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
+import { KnowMeCustomEmoji } from '../../../components/KnowMeCustomEmoji';
+import { findKnowMeCustomEmoji } from '@knowme/animation-contract';
 import { useI18n } from '../../../components/i18n-provider';
 
 type Sender = {
@@ -87,17 +90,16 @@ function MessageContent({item}:{item:Message}){
         title={`${item.presentation.pack.name} · ${item.presentation.sticker.label}`}
         style={{display:'grid',placeItems:'center',gap:4,minWidth:90,minHeight:72}}
       >
-        <span aria-hidden="true" style={{fontSize:44,lineHeight:1}}>
-          {item.presentation.sticker.glyph}
-        </span>
+        {findKnowMeCustomEmoji(item.presentation.pack.key,item.presentation.sticker.key)
+          ? <KnowMeCustomEmoji packKey={item.presentation.pack.key}
+            stickerKey={item.presentation.sticker.key} size={76} interactive/>
+          : <span style={{fontSize:44,lineHeight:1}}><AnimatedEmojiGlyph glyph={item.presentation.sticker.glyph}/></span>}
         <small style={{opacity:.75}}>{item.presentation.sticker.label}</small>
       </div>
     );
   }
   return(
-    <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-      {item.presentation?.kind==='TEXT'?item.presentation.text:item.content}
-    </div>
+    <AnimatedEmojiText text={item.presentation?.kind==='TEXT'?item.presentation.text:item.content}/>
   );
 }
 

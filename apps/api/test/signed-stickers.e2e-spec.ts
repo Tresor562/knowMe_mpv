@@ -62,7 +62,15 @@ describe('KnowMe signed stickers (e2e)', () => {
       arbitraryHtmlAllowed: false,
       clientAssetAccepted: false
     });
-    expect(catalog.body.packs).toHaveLength(2);
+    expect(catalog.body.packs).toHaveLength(3);
+    expect(catalog.body.packs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'knowme-motion',
+        stickers: expect.arrayContaining([
+          expect.objectContaining({key:'pulse-heart',glyph:'💗'})
+        ])
+      })
+    ]));
 
     const firstConversation = await request(app.getHttpServer())
       .post('/conversations')
@@ -141,6 +149,18 @@ describe('KnowMe signed stickers (e2e)', () => {
     expect(falsified.body.presentation).toEqual({
       kind: 'TEXT',
       text: tampered
+    });
+
+    const custom = await request(app.getHttpServer())
+      .post(`/conversations/${firstConversation.body.id}/stickers`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .send({ packKey: 'knowme-motion', stickerKey: 'pulse-heart' })
+      .expect(201);
+    expect(custom.body.presentation).toMatchObject({
+      kind: 'STICKER',
+      pack: { key: 'knowme-motion' },
+      sticker: { key: 'pulse-heart', glyph: '💗', label: 'Cœur pulse' },
+      visualOnly: true
     });
 
     const text = await request(app.getHttpServer())

@@ -183,3 +183,14 @@ export function resolveAnimationPlan(input: {
     skippable: true
   };
 }
+
+export {
+  KNOWME_ANIMATED_EMOJIS,
+  getAnimatedEmojiMotion,
+  isStandaloneAnimatedEmojiText,
+  splitAnimatedEmojiText
+} from './animated-emoji';
+export type { KnowMeEmojiMotion, EmojiTextPart } from './animated-emoji';
+
+export { KNOWME_CUSTOM_EMOJIS, KNOWME_MOTION_PACK_KEY, findKnowMeCustomEmoji } from './custom-emoji';
+export type { KnowMeCustomEmoji, KnowMeCustomEmojiKey } from './custom-emoji';
