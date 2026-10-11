@@ -599,7 +599,7 @@ export function RealtimeMessagesPanel({
           <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
           <Pressable style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
             accessibilityRole={others.length === 1 && !isNexusPrivate ? 'link' : undefined}
-            accessibilityLabel={others.length === 1 ? 'Voir le profil de ' + others[0].user.displayName : 'Informations du groupe'}
+            accessibilityLabel={others.length === 1 ? 'Voir le profil de ' + (others[0]?.user.displayName ?? 'ce contact') : 'Informations du groupe'}
             disabled={others.length !== 1 || isNexusPrivate}
             onPress={() => others[0] && openProfile(others[0].user.username)}>
           <View style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
