@@ -52,7 +52,7 @@ describe('Post attachment transaction', () => {
     postAttachment: { deleteMany: jest.fn(), createMany: jest.fn() }
   };
   const prisma = {
-    $transaction: jest.fn(async (callback: (tx: typeof tx) => unknown) => callback(tx)),
+    $transaction: jest.fn(async (callback: (transaction: typeof tx) => unknown) => callback(tx)),
     post: { findUnique: jest.fn(), updateMany: jest.fn() }
   };
   const moderation = { assertAllowed: jest.fn() };
