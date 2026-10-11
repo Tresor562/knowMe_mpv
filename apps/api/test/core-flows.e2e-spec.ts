@@ -303,4 +303,98 @@ describe('KnowMe core flows (e2e)', () => {
       })
     ).toEqual({ knowCoins: 0 });
   });
+
+  it('sends scanned conversation GIF and WebP sticker while forbidding cross-chat and foreign assets', async () => {
+    const register = (name: string) => request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: `chatmedia_${name}@knowme.test`,
+        username: `chatmedia_${name}`,
+        displayName: `ChatMedia ${name}`,
+        password: 'KnowMeTest123!'
+      }).expect(201);
+    const alice = await register('alice');
+    const bob = await register('bob');
+    const charlie = await register('charlie');
+    const header = (token: string) => `Bearer ${token}`;
+
+    const conversation = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ memberIds: [bob.body.user.id] })
+      .expect(201);
+    const foreignConversation = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ memberIds: [charlie.body.user.id] })
+      .expect(201);
+
+    const makeAsset = (mime: string, status = 'AVAILABLE') => prisma.mediaAsset.create({
+      data: {
+        ownerId: alice.body.user.id,
+        storageKey: `chatmedia-${mime.replace('/', '-')}-${Math.random().toString(36).slice(2)}`,
+        originalName: mime === 'image/gif' ? 'animation.gif' : 'sticker.webp',
+        declaredMime: mime,
+        detectedMime: mime,
+        size: 4096,
+        sha256: 'a'.repeat(64),
+        purpose: 'MESSAGE',
+        visibility: 'CONVERSATION',
+        conversationId: conversation.body.id,
+        status,
+        scannerVerdict: status === 'AVAILABLE' ? 'CLEAN' : 'UNAVAILABLE'
+      }
+    });
+    const gif = await makeAsset('image/gif');
+    const sticker = await makeAsset('image/webp');
+    const blocked = await makeAsset('image/gif', 'QUARANTINED');
+
+    const first = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(201);
+    expect(first.body.presentation).toMatchObject({
+      kind: 'GIF', assetId: gif.id, mimeType: 'image/gif'
+    });
+
+    const second = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: sticker.id, kind: 'STICKER_IMAGE' })
+      .expect(201);
+    expect(second.body.presentation).toMatchObject({
+      kind: 'STICKER_IMAGE', assetId: sticker.id
+    });
+
+    const history = await request(app.getHttpServer())
+      .get(`/conversations/${conversation.body.id}/messages`)
+      .set('Authorization', header(bob.body.accessToken))
+      .expect(200);
+    expect(history.body.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.body.id, presentation: expect.objectContaining({kind:'GIF'}) }),
+      expect.objectContaining({ id: second.body.id, presentation: expect.objectContaining({kind:'STICKER_IMAGE'}) })
+    ]));
+
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(bob.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${foreignConversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: blocked.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: sticker.id, kind: 'GIF' })
+      .expect(403);
+  });
 });
