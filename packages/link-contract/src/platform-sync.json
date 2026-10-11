@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "product": "KnowMe",
+  "productVersion": "1.0.0",
+  "contractRevision": "2026-10-11.1",
+  "platforms": [
+    "web",
+    "android"
+  ],
+  "note": "Implemented means code is present, not yet verified on a physical device or in production. Release is blocked until every required feature has parity and verification.",
+  "features": [
+    {
+      "id": "auth.account",
+      "label": "Connexion et inscription",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/login/page.tsx"
+      },
+      "android": {
+        "status": "implemented",
+        "evidence": "apps/mobile/App.tsx"
+      }
+    },
+    {
+      "id": "messaging.text",
+      "label": "Messages texte et conversations",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/messages/[id]/page.tsx"
+      },
+      "android": {
+        "status": "implemented",
+        "evidence": "apps/mobile/src/RealtimeMessagesPanel.tsx"
+      }
+    },
+    {
+      "id": "messaging.attachments",
+      "label": "Envoi photos, GIF, stickers, vidéos, audio et PDF",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/messages/[id]/ChatMediaView.tsx"
+      },
+      "android": {
+        "status": "implemented",
+        "evidence": "apps/mobile/src/ChatMediaPicker.tsx"
+      }
+    },
+    {
+      "id": "stories.text",
+      "label": "Création et consultation des stories texte",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/stories/new/page.tsx"
+      },
+      "android": {
+        "status": "implemented",
+        "evidence": "apps/mobile/src/StoriesRail.tsx"
+      }
+    },
+    {
+      "id": "stories.photo",
+      "label": "Stories avec photographies",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/stories/new/page.tsx"
+      },
+      "android": {
+        "status": "missing",
+        "evidence": null
+      }
+    },
+    {
+      "id": "stories.video",
+      "label": "Stories avec vidéos",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/stories/new/page.tsx"
+      },
+      "android": {
+        "status": "missing",
+        "evidence": null
+      }
+    },
+    {
+      "id": "profile.avatar.quick-actions",
+      "label": "Bouton plus sur la photo et menu contextuel",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/components/avatar-quick-actions.tsx"
+      },
+      "android": {
+        "status": "missing",
+        "evidence": null
+      }
+    },
+    {
+      "id": "profile.avatar.change-photo",
+      "label": "Téléverser une photo de profil",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/profile/page.tsx"
+      },
+      "android": {
+        "status": "missing",
+        "evidence": null
+      }
+    },
+    {
+      "id": "navigation.new-chat",
+      "label": "Création de discussion et groupe",
+      "releaseRequired": true,
+      "web": {
+        "status": "partial",
+        "evidence": "apps/web/app/messages/page.tsx"
+      },
+      "android": {
+        "status": "partial",
+        "evidence": "apps/mobile/src/RealtimeMessagesPanel.tsx"
+      }
+    },
+    {
+      "id": "appearance.customization",
+      "label": "Thèmes et paramètres de présentation",
+      "releaseRequired": true,
+      "web": {
+        "status": "implemented",
+        "evidence": "apps/web/app/layout.tsx"
+      },
+      "android": {
+        "status": "implemented",
+        "evidence": "apps/mobile/src/AppearanceProvider.tsx"
+      }
+    },
+    {
+      "id": "animations.interactions",
+      "label": "Gestes, transitions et animations homogènes",
+      "releaseRequired": true,
+      "web": {
+        "status": "partial",
+        "evidence": "apps/web/app/globals.css"
+      },
+      "android": {
+        "status": "partial",
+        "evidence": "apps/mobile/src/ui/KnowMeUI.tsx"
+      }
+    }
+  ]
+}
