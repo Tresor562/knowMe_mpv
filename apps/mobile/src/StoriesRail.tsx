@@ -6,11 +6,13 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View
 } from 'react-native';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
@@ -33,6 +35,7 @@ type Story = {
   createdAt?: string;
   expiresAt?: string | null;
   author: StoryAuthor | null;
+  allowSharing?: boolean;
   viewer: {
     own: boolean;
     reaction?: unknown;
@@ -52,6 +55,7 @@ export function StoriesRail({
   currentUser,
   onOpenDiscover,
   openComposer=false,
+  initialStoryId,
   onComposerOpened
 }: {
   currentUser: {
@@ -62,6 +66,7 @@ export function StoriesRail({
   };
   onOpenDiscover: () => void;
   openComposer?: boolean;
+  initialStoryId?: string | null;
   onComposerOpened?: () => void;
 }) {
   const { colors, visual } = useAppearance();
@@ -90,6 +95,15 @@ export function StoriesRail({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!initialStoryId) return;
+    let active = true;
+    void apiFetch<Story>(`/stories/${encodeURIComponent(initialStoryId)}`)
+      .then(story => { if (active) void openStory(story); })
+      .catch(() => { if (active) setMediaError('Story inaccessible ou expirée.'); });
+    return () => { active = false; };
+  }, [initialStoryId]);
 
   useEffect(() => {
     if(!openComposer)return;
@@ -334,6 +348,13 @@ export function StoriesRail({
                 </Text>
               </View>
             </View>
+            {selected?.allowSharing ? (
+              <PressScale accessibilityRole="button" accessibilityLabel="Partager la Story"
+                onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'story',id:selected.id})}); }}
+                style={[styles.closeButton,{backgroundColor:colors.surfaceGlass,borderColor:colors.border,borderRadius:visual.controlRadius}]}>
+                <Text style={{color:colors.text,fontSize:18}}>↗</Text>
+              </PressScale>
+            ) : null}
             <PressScale
               accessibilityRole="button"
               accessibilityLabel="Fermer la Story"
