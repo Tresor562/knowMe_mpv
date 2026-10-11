@@ -9,7 +9,7 @@ import { ChannelVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type ChannelInput = {
-  name: string;
+  name?: string;
   username?: string;
   description?: string;
   visibility?: ChannelVisibility;
