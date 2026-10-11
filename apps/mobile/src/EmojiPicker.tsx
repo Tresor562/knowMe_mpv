@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import {
-  Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View
+  Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from 'react-native';
-import { KNOWME_ANIMATED_EMOJIS } from '@knowme/animation-contract';
+import { KNOWME_ANIMATED_EMOJIS, KNOWME_CUSTOM_EMOJIS, KNOWME_MOTION_PACK_KEY } from '@knowme/animation-contract';
 import { AnimatedEmoji } from './AnimatedEmoji';
+import { KnowMeCustomEmoji } from './KnowMeCustomEmoji';
+import { sendMobileSticker } from './stickers';
 import { useAppearance } from './AppearanceProvider';
 import { GlassSurface } from './ui/KnowMeUI';
 
@@ -23,12 +25,15 @@ const KEYWORDS: Record<string, string> = {
 };
 const EMOJIS = KNOWME_ANIMATED_EMOJIS.map(item => item.glyph);
 
-export function EmojiPicker({ onInsert }: { onInsert: (emoji: string) => void }) {
+export function EmojiPicker<T>({
+  onInsert, onSent, conversationId
+}: { onInsert: (emoji: string) => void; onSent: (message: T) => void; conversationId: string }) {
   const { colors, visual } = useAppearance();
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [search, setSearch] = useState('');
+  const [sendingCustom, setSendingCustom] = useState<string | null>(null);
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return EMOJIS.filter(emoji => !query ||
@@ -51,6 +56,22 @@ export function EmojiPicker({ onInsert }: { onInsert: (emoji: string) => void })
     setFavorites(current => current.includes(emoji)
       ? current.filter(item => item !== emoji)
       : [emoji, ...current].slice(0, 16));
+  }
+
+  async function sendCustom(stickerKey: string) {
+    if (sendingCustom) return;
+    setSendingCustom(stickerKey);
+    try {
+      const message = await sendMobileSticker<T>({
+        conversationId, packKey: KNOWME_MOTION_PACK_KEY, stickerKey
+      });
+      onSent(message);
+      setOpen(false);
+    } catch (cause) {
+      Alert.alert('Envoi impossible',cause instanceof Error ? cause.message : 'Réessaie.');
+    } finally {
+      setSendingCustom(null);
+    }
   }
 
   return <>
@@ -77,6 +98,23 @@ export function EmojiPicker({ onInsert }: { onInsert: (emoji: string) => void })
                 color: colors.text, borderColor: colors.border}]}/>
             <ScrollView style={styles.list} keyboardShouldPersistTaps="always"
               contentContainerStyle={styles.content}>
+              {(!search.trim() || KNOWME_CUSTOM_EMOJIS.some(item=>
+                (item.key+' '+item.label+' '+item.keywords).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))) &&
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle,{color:colors.muted}]}>KnowMe Motion · exclusifs</Text>
+                  <View style={styles.grid}>
+                    {KNOWME_CUSTOM_EMOJIS.filter(item=>!search.trim()||
+                      (item.key+' '+item.label+' '+item.keywords).toLocaleLowerCase()
+                        .includes(search.trim().toLocaleLowerCase())).map(item=>
+                      <View key={item.key} style={[styles.customTile,{backgroundColor:colors.backgroundAccent}]}>
+                        <KnowMeCustomEmoji packKey={KNOWME_MOTION_PACK_KEY}
+                          stickerKey={item.key} size={49} onPress={() => void sendCustom(item.key)}/>
+                        <Text style={[styles.customLabel,{color:colors.text}]} numberOfLines={1}>
+                          {sendingCustom === item.key ? 'Envoi…' : item.label}
+                        </Text>
+                      </View>)}
+                  </View>
+                </View>}
               {sections.map(section => section.glyphs.length ? <View key={section.title} style={styles.section}>
                 <Text style={[styles.sectionTitle, {color: colors.muted}]}>{section.title}</Text>
                 <View style={styles.grid}>
@@ -114,5 +152,7 @@ const styles = StyleSheet.create({
   sectionTitle: {fontSize:12,fontWeight:'700',marginBottom:8},
   grid: {flexDirection:'row',flexWrap:'wrap',gap:6},
   tile: {width:48,height:49,borderRadius:13,alignItems:'center',justifyContent:'center'},
+  customTile:{width:99,minHeight:99,borderRadius:15,alignItems:'center',justifyContent:'center',padding:6},
+  customLabel:{fontSize:10,marginTop:2,maxWidth:88,textAlign:'center'},
   star: {fontSize:10,position:'absolute',top:0,right:2}
 });
