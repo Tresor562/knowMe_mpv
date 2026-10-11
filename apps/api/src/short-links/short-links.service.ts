@@ -7,6 +7,7 @@ import {
 import { KnowMeDeepLinkKind } from '@knowme/link-contract';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { findSticker, stickerCatalog } from '../messaging/stickers/sticker-catalog';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -360,6 +361,17 @@ export class ShortLinksService {
 
     // Re-check creator access whenever a short link is resolved. Viewers are
     // independently authorized by the link-targets API after opening it.
+    if (kind === 'sticker-pack') {
+      if (stickerCatalog().some(pack => pack.key === targetId)) return targetId;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    if (kind === 'sticker') {
+      const parts = targetId.split('__');
+      if (parts.length === 2 && findSticker(parts[0], parts[1])) return targetId;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
     if (kind === 'post') {
       const post = await this.prisma.post.findUnique({ where: { id: targetId }, select: { id: true } });
       if (post) return post.id;
