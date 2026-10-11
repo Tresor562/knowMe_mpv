@@ -143,19 +143,19 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('typing:start')
-  typingStart(
+  async typingStart(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() body: { conversationId: string }
   ) {
-    this.emitTyping(client, body?.conversationId, true);
+    await this.emitTyping(client, body?.conversationId, true);
   }
 
   @SubscribeMessage('typing:stop')
-  typingStop(
+  async typingStop(
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() body: { conversationId: string }
   ) {
-    this.emitTyping(client, body?.conversationId, false);
+    await this.emitTyping(client, body?.conversationId, false);
   }
 
   @SubscribeMessage('call:offer')
