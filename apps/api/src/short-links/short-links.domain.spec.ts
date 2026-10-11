@@ -29,7 +29,8 @@ describe('KMD-061 short-link domain', () => {
     ]) {
       expect(() => normalizeTargetId(value)).toThrow(BadRequestException);
     }
-    expect(() => assertShortLinkKind('group')).toThrow(BadRequestException);
+    expect(assertShortLinkKind('group')).toBe('group');
+    expect(assertShortLinkKind('comment')).toBe('comment');
     expect(() => assertShortLinkKind('admin')).toThrow(BadRequestException);
   });
 
