@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { isKnowMeDeepLinkKind, isSafeKnowMeLinkIdentifier } from '@knowme/link-contract';
 import { PrismaService } from '../prisma/prisma.service';
+import { findSticker, stickerCatalog } from '../messaging/stickers/sticker-catalog';
 import { StoriesService } from '../stories/stories.service';
 
 /**
@@ -51,6 +52,21 @@ export class LinkTargetsService {
         kind, id,
         webPath: `/messages/${message.conversationId}?message=${message.id}`,
         context: { conversationId: message.conversationId, messageId: message.id }
+      };
+    }
+
+    if (kind === 'sticker-pack') {
+      const pack = stickerCatalog().find(item => item.key === id);
+      if (pack) return { kind, id, webPath: `/stickers/${pack.key}`, context: { packKey: pack.key } };
+    }
+
+    if (kind === 'sticker') {
+      const parts = id.split('__');
+      const resolved = parts.length === 2 ? findSticker(parts[0], parts[1]) : null;
+      if (resolved) return {
+        kind, id,
+        webPath: `/stickers/${resolved.pack.key}?sticker=${resolved.sticker.key}`,
+        context: { packKey: resolved.pack.key, stickerKey: resolved.sticker.key }
       };
     }
 
