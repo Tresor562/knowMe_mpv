@@ -16,6 +16,8 @@ import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { AnimatedEmoji } from './AnimatedEmoji';
+import { KnowMeCustomEmoji } from './KnowMeCustomEmoji';
+import { findKnowMeCustomEmoji } from '@knowme/animation-contract';
 import { EmojiPicker } from './EmojiPicker';
 import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
@@ -44,7 +46,7 @@ type ConversationMessage = {
   sender?: UserSummary;
   nexusAuthored?: boolean;
   presentation?:{kind:'TEXT';text:string}|
-    {kind:'STICKER';sticker:{glyph:string;label:string}}|
+    {kind:'STICKER';pack:{key:string;version:number;name:string};sticker:{key:string;glyph:string;label:string}}|
     {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 };
 type Conversation = {
@@ -698,7 +700,10 @@ export function RealtimeMessagesPanel({
                   ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
                   : item.presentation?.kind==='STICKER'
                     ? <View style={{ alignItems:'center',alignSelf:'flex-start' }}>
-                        <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={48}/>
+                        {findKnowMeCustomEmoji(item.presentation.pack.key,item.presentation.sticker.key)
+                          ? <KnowMeCustomEmoji packKey={item.presentation.pack.key}
+                              stickerKey={item.presentation.sticker.key} size={68}/>
+                          : <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={48}/>}
                         <Text style={{color:mine?colors.accentText:colors.text,fontSize:12}}>
                           {item.presentation.sticker.label}
                         </Text>
@@ -738,7 +743,13 @@ export function RealtimeMessagesPanel({
         />
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
-          <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
+          <EmojiPicker<ConversationMessage> conversationId={active.id}
+            onSent={created=>{
+              setHistory(current=>mergeMessages(current,[created]));
+              setConversations(current=>current.map(item=>item.id===active.id
+                ? {...item,messages:[created]}:item));
+            }}
+            onInsert={emoji => changeDraft(draft + emoji)}/>
           <ChatMediaPicker<ConversationMessage> conversationId={active.id}
             onSent={created=>{
               setHistory(current=>mergeMessages(current,[created]));
