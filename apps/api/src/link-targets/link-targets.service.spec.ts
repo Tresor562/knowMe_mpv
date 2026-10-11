@@ -51,7 +51,7 @@ describe('LinkTargetsService', () => {
   it('uses the story audience authorization service', async () => {
     stories.get.mockRejectedValueOnce(new NotFoundException('STORY_NOT_VISIBLE'));
     await expect(service.resolve('outsider_123', 'story', 'story_123456')).rejects.toThrow(NotFoundException);
-    stories.get.mockResolvedValueOnce({ id: 'story_123456' });
+    stories.get.mockResolvedValueOnce({ id: 'story_123456', allowSharing: true, viewer: { own: false } });
     await expect(service.resolve('member_1234', 'story', 'story_123456')).resolves.toMatchObject({
       webPath: '/stories/story_123456'
     });
