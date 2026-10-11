@@ -1,7 +1,6 @@
 import {
   Controller, Get, NotFoundException, Param, Res, StreamableFile
 } from '@nestjs/common';
-import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaStorageService } from '../media/media-storage.service';
 
@@ -21,7 +20,7 @@ export class PostAttachmentsController {
   async read(
     @Param('postId') postId: string,
     @Param('assetId') assetId: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: { setHeader(name: string, value: string): void }
   ) {
     const link = await this.prisma.postAttachment.findUnique({
       where: { postId_assetId: { postId, assetId } },
