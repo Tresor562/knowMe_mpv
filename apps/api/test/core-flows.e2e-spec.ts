@@ -7,6 +7,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('KnowMe core flows (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let mediaAlice: { userId: string; token: string };
+  let mediaBob: { userId: string; token: string };
+  let mediaCharlie: { userId: string; token: string };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -117,6 +120,9 @@ describe('KnowMe core flows (e2e)', () => {
       })
       .expect(201);
 
+    mediaAlice = { userId: alice.body.user.id, token: alice.body.accessToken };
+    mediaBob = { userId: bob.body.user.id, token: bob.body.accessToken };
+
     const friendRequest = await request(app.getHttpServer())
       .post('/social/friend-requests')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
@@ -193,6 +199,8 @@ describe('KnowMe core flows (e2e)', () => {
         password: 'KnowMeTest123!'
       })
       .expect(201);
+
+    mediaCharlie = { userId: recipient.body.user.id, token: recipient.body.accessToken };
 
     const friendship = await request(app.getHttpServer())
       .post('/social/friend-requests')
@@ -305,17 +313,11 @@ describe('KnowMe core flows (e2e)', () => {
   });
 
   it('sends scanned conversation GIF and WebP sticker while forbidding cross-chat and foreign assets', async () => {
-    const register = (name: string) => request(app.getHttpServer())
-      .post('/auth/register')
-      .send({
-        email: `chatmedia_${name}@knowme.test`,
-        username: `chatmedia_${name}`,
-        displayName: `ChatMedia ${name}`,
-        password: 'KnowMeTest123!'
-      }).expect(201);
-    const alice = await register('alice');
-    const bob = await register('bob');
-    const charlie = await register('charlie');
+    // Reuse authenticated actors from preceding flow tests: avoid hitting
+    // the shared anti-abuse registration limiter during the full CI suite.
+    const alice = { body: { user: { id: mediaAlice.userId }, accessToken: mediaAlice.token } };
+    const bob = { body: { user: { id: mediaBob.userId }, accessToken: mediaBob.token } };
+    const charlie = { body: { user: { id: mediaCharlie.userId }, accessToken: mediaCharlie.token } };
     const header = (token: string) => `Bearer ${token}`;
 
     const conversation = await request(app.getHttpServer())
