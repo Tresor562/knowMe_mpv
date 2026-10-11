@@ -6,6 +6,7 @@ type Props = {
   glyph: string;
   size?: number;
   onPress?: () => void;
+  onLongPress?: () => void;
   autoPlay?: boolean;
 };
 
@@ -13,7 +14,7 @@ type Props = {
  * Lightweight native-driver animated emoji. Text is Unicode, so all unsupported
  * devices still render it normally. Motion respects Android's accessibility flag.
  */
-export function AnimatedEmoji({ glyph, size = 30, onPress, autoPlay = true }: Props) {
+export function AnimatedEmoji({ glyph, size = 30, onPress, onLongPress, autoPlay = true }: Props) {
   const motion = getAnimatedEmojiMotion(glyph);
   const progress = useRef(new Animated.Value(0)).current;
   const reduceMotion = useRef(false);
@@ -67,6 +68,7 @@ export function AnimatedEmoji({ glyph, size = 30, onPress, autoPlay = true }: Pr
     accessibilityRole="button"
     accessibilityLabel={`Animer ${glyph}`}
     onPress={() => { animate(); onPress?.(); }}
+    onLongPress={onLongPress}
     style={[styles.touch, { minWidth: Math.max(44, size + 8), minHeight: Math.max(44, size + 8) }]}
   >
     <Animated.Text style={{
