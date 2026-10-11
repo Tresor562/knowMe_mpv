@@ -7,7 +7,22 @@ export const KNOWME_DEEP_LINK_KINDS = [
   'community',
   'event',
   'gift',
-  'sticker-pack'
+  'sticker-pack',
+  // Stable, opaque IDs; access rights are checked by the destination API.
+  'post',
+  'comment',
+  'message',
+  'conversation',
+  'channel',
+  'story',
+  'media',
+  'sticker',
+  'gif',
+  'emoji',
+  'poll',
+  'reaction',
+  'topic',
+  'group'
 ] as const;
 
 export type KnowMeDeepLinkKind = (typeof KNOWME_DEEP_LINK_KINDS)[number];
