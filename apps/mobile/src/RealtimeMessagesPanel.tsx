@@ -920,7 +920,7 @@ export function RealtimeMessagesPanel({
                 numberOfLines={2}
               >
                 {last
-                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
+                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.presentation?.kind==='STICKER_IMAGE'?'Sticker':last.presentation?.kind==='IMAGE'?'Image':last.presentation?.kind==='GIF'?'GIF':last.presentation?.kind==='STICKER'?'Sticker':last.presentation?.kind==='TEXT'?last.presentation.text:last.content}`
                   : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
               </Text>
               {last ? (
