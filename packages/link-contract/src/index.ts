@@ -102,3 +102,9 @@ export function parseKnowMeUniversalPath(
     id
   };
 }
+
+import platformSync from './platform-sync.json';
+
+export const KNOWME_PLATFORM_SYNC = platformSync;
+export const KNOWME_PRODUCT_VERSION = platformSync.productVersion;
+export const KNOWME_EXPERIENCE_REVISION = platformSync.contractRevision;
