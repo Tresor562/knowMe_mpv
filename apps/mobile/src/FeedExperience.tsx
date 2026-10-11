@@ -399,6 +399,26 @@ export function FeedExperience({
   const [reportPost, setReportPost] = useState<PostSummary | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
   const [postBusy, setPostBusy] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [savedPosts, setSavedPosts] = useState<{ id: string; post: PostSummary }[]>([]);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [savingPostId, setSavingPostId] = useState<string | null>(null);
+
+  async function loadSavedPosts() {
+    const records = await apiFetch<{ id: string; post: PostSummary }[]>('/posts/saved');
+    setSavedPosts(records);
+    setSavedIds(new Set(records.map(item => item.post.id)));
+  }
+  useEffect(() => {
+    let active = true;
+    void apiFetch<{ id: string; post: PostSummary }[]>('/posts/saved')
+      .then(items => { if (active) {
+        setSavedPosts(items);
+        setSavedIds(new Set(items.map(item => item.post.id)));
+      } })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [userId]);
   useEffect(() => {
     if (!openComposerRequest) return;
     setEditingPost(null);
@@ -490,6 +510,33 @@ export function FeedExperience({
         } finally { setPostBusy(false); }
       })(); } }
     ]);
+  }
+
+  async function toggleSaved(post: PostSummary) {
+    if (savingPostId === post.id) return;
+    const wasSaved = savedIds.has(post.id);
+    setSavingPostId(post.id);
+    try {
+      await apiFetch('/posts/' + encodeURIComponent(post.id) + '/save', {
+        method: wasSaved ? 'DELETE' : 'POST'
+      });
+      setSavedIds(current => {
+        const next = new Set(current);
+        if (wasSaved) next.delete(post.id);
+        else next.add(post.id);
+        return next;
+      });
+      if (wasSaved) {
+        setSavedPosts(current => current.filter(item => item.post.id !== post.id));
+      } else {
+        setSavedPosts(current => [{ id: post.id, post }, ...current.filter(item => item.post.id !== post.id)]);
+      }
+      setMenuPost(null);
+    } catch (cause) {
+      Alert.alert('Favoris indisponibles', errorMessage(cause, 'Réessaie après la mise à jour du serveur.'));
+    } finally {
+      setSavingPostId(null);
+    }
   }
 
   function hidePost(post: PostSummary) {
@@ -845,6 +892,14 @@ export function FeedExperience({
           style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
           <Text style={[styles.sheetTitle,{color:colors.text}]}>Options de publication</Text>
+          {menuPost ? <Pressable accessibilityRole="button" style={styles.sheetOption}
+            disabled={savingPostId === menuPost.id}
+            onPress={() => { void toggleSaved(menuPost); }}>
+            <KnowMeIcon name="check" size={20} color={colors.accent}/>
+            <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>
+              {savedIds.has(menuPost.id) ? 'Retirer des favoris' : 'Enregistrer la publication'}
+            </Text>
+          </Pressable> : null}
           {menuPost?.authorId === userId ? (
             <>
               <Pressable accessibilityRole="button" style={styles.sheetOption}
