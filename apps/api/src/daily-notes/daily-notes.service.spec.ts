@@ -24,10 +24,12 @@ describe('DailyNotesService — privacy and expiration', () => {
   });
 
   it('never requests pending, blocked or strangers notes', async () => {
-    prisma.friendship.findMany.mockResolvedValue([
-      { requesterId:'me', addresseeId:'friend' },
-      { requesterId:'friend2', addresseeId:'me' }
-    ]);
+    prisma.friendship.findMany
+      .mockResolvedValueOnce([
+        { requesterId:'me', addresseeId:'friend' },
+        { requesterId:'friend2', addresseeId:'me' }
+      ])
+      .mockResolvedValueOnce([]);
     await service.listVisible('me');
     expect(prisma.friendship.findMany).toHaveBeenCalledWith({
       where: { status: 'ACCEPTED', OR: [{requesterId:'me'}, {addresseeId:'me'}] },
@@ -41,6 +43,19 @@ describe('DailyNotesService — privacy and expiration', () => {
         user: { isSuspended: false }
       },
       take:100
+    }));
+  });
+
+  it('excludes a blocked contact even when a reverse ACCEPTED row still exists', async () => {
+    prisma.friendship.findMany
+      .mockResolvedValueOnce([
+        {requesterId:'me', addresseeId:'friend'},
+        {requesterId:'me', addresseeId:'blocked'}
+      ])
+      .mockResolvedValueOnce([{requesterId:'blocked',addresseeId:'me'}]);
+    await service.listVisible('me');
+    expect(prisma.dailyNote.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:expect.objectContaining({userId:{in:['me','friend']}})
     }));
   });
 
