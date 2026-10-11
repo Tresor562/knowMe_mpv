@@ -266,7 +266,7 @@ export function AndroidMediaLibraryPicker({
                   }}
                 />
               </>}
-            </>}
+            </>
         )}
       </View>
     </Modal>
