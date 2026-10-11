@@ -1499,3 +1499,35 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
   .km-profile-identity h1 { font-size:21px; }
   .km-profile-options summary { width:42px; height:42px; }
 }
+
+
+/* First-party discovery uses actual account and friendship data, no fictional recommendations. */
+.km-account-badges { display:inline-flex; gap:2px; align-items:center; flex:0 0 auto; white-space:nowrap; margin:0; }
+.km-account-badges > span { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.km-discover-native { max-width:780px; display:grid; gap:18px; padding-bottom:115px; }
+.km-discover-header { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.km-discover-header h1 { margin:0; font-size:25px; letter-spacing:-.03em; }
+.km-discover-header p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+.km-discover-header a { display:grid; place-items:center; width:44px; height:44px; border-radius:50%; background:var(--surface-glass); border:1px solid var(--soft-border); flex-shrink:0; }
+.km-discover-search { display:flex; gap:8px; }
+.km-discover-search input { flex:1; min-width:0; }
+.km-discover-search button,.km-discover-person-actions button { border:1px solid var(--soft-border); border-radius:15px; padding:9px 13px; font-size:13px; color:var(--text); background:var(--surface-2); cursor:pointer; }
+.km-discover-search button:disabled,.km-discover-person-actions button:disabled { opacity:.55; cursor:wait; }
+.km-discover-section { border-top:1px solid var(--soft-border); padding-top:10px; }
+.km-discover-section h2 { font-size:16px; letter-spacing:-.02em; }
+.km-discover-muted { color:var(--muted); font-size:13px; }
+.km-discover-person { display:flex; align-items:center; min-width:0; gap:11px; padding:11px 0; border-bottom:1px solid var(--soft-border); }
+.km-discover-person img,.km-discover-person-letter { width:46px; height:46px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.km-discover-person-letter { display:grid; place-items:center; background:var(--surface-2); color:var(--mint); font-size:21px; }
+.km-discover-person-info { min-width:0; flex:1 1 auto; display:grid; align-items:center; grid-template-columns:minmax(0,max-content) auto; column-gap:5px; }
+.km-discover-person-info strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+.km-discover-person-info small { grid-column:1/-1; color:var(--muted); font-size:12px; }
+.km-discover-person-actions { display:flex; gap:5px; flex-shrink:0; }
+.km-discover-links { display:grid; }
+.km-discover-links a { display:flex; justify-content:space-between; align-items:center; min-height:52px; border-bottom:1px solid var(--soft-border); font-size:14px; font-weight:600; }
+.km-discover-links a span:last-child { color:var(--muted); font-size:25px; }
+@media(max-width:560px) {
+  .km-discover-person { flex-wrap:wrap; }
+  .km-discover-person-actions { margin-left:57px; }
+  .km-discover-person-actions button { min-height:42px; }
+}
