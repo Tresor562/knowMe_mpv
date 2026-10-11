@@ -15,6 +15,7 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
+import { DailyNotesRail } from './DailyNotesRail';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -791,6 +792,7 @@ export function RealtimeMessagesPanel({
       }
       contentContainerStyle={styles.content}
     >
+      <DailyNotesRail userId={userId} />
       <View style={styles.liveStatusRow}>
         <View style={[styles.liveDot, { backgroundColor: live ? colors.accent : colors.muted }]} />
         <Text style={[styles.liveStatus, { color: live ? colors.accent : colors.muted }]}>
