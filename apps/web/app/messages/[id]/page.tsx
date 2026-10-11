@@ -7,6 +7,7 @@ import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
+import { MessageEditControl } from './MessageEditControl';
 import { useI18n } from '../../../components/i18n-provider';
 
 type Sender = {
@@ -37,6 +38,7 @@ type Message = {
   conversationId:string;
   content:string;
   createdAt:string;
+  editedAt?:string|null;
   senderId:string;
   sender:Sender;
   nexusAuthored?:boolean;
@@ -112,6 +114,7 @@ export default function ConversationPage() {
   const longPressTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [actionMessageId,setActionMessageId]=useState<string|null>(null);
   const [replyingTo,setReplyingTo]=useState<Message|null>(null);
+  const [editingId,setEditingId]=useState<string|null>(null);
 
   useEffect(()=>()=>{if(longPressTimer.current)clearTimeout(longPressTimer.current);},[]);
   const cancelLongPress=()=>{if(longPressTimer.current)clearTimeout(longPressTimer.current);longPressTimer.current=null;};
@@ -212,6 +215,12 @@ export default function ConversationPage() {
         void markRead().catch(()=>undefined);
       }
     };
+    const onMessageUpdated=(updated:Message)=>{
+      if(updated.conversationId!==conversationId)return;
+      setItems(current=>current.map(item=>
+        item.id===updated.id?{...item,...updated}:item
+      ));
+    };
     const onRead=(event:ReadEvent)=>{
       if(event.conversationId!==conversationId)return;
       setReadStates(current=>current.map(state=>
@@ -250,6 +259,7 @@ export default function ConversationPage() {
     socket.on('disconnect',disconnect);
     socket.on('connect_error',connectError);
     socket.on('message:created',onMessage);
+    socket.on('message:updated',onMessageUpdated);
     socket.on('conversation:read',onRead);
     socket.on('typing:update',onTyping);
     socket.on('presence:update',onPresence);
@@ -267,6 +277,7 @@ export default function ConversationPage() {
       socket.off('disconnect',disconnect);
       socket.off('connect_error',connectError);
       socket.off('message:created',onMessage);
+      socket.off('message:updated',onMessageUpdated);
       socket.off('conversation:read',onRead);
       socket.off('typing:update',onTyping);
       socket.off('presence:update',onPresence);
@@ -484,11 +495,22 @@ export default function ConversationPage() {
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M9 7 4 12l5 5M5 12h9a6 6 0 0 1 6 6"/></svg>
                 {en?'Reply':'Répondre'}
               </button>}
+              {mine&&!nexus&&item.presentation?.kind!=='STICKER'&&<button type="button"
+                onClick={()=>{setEditingId(item.id);setActionMessageId(null);}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m4 20 4.5-1 11-11-3.5-3.5-11 11L4 20ZM14 6l4 4"/></svg>
+                {en?'Edit':'Modifier'}
+              </button>}
               <button type="button" onClick={()=>void copyMessage(item)}>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
                 {en?'Copy':'Copier'}
               </button>
             </div>}
+            {editingId===item.id&&<MessageEditControl conversationId={conversationId}
+              messageId={item.id} initialContent={item.content} initialEditedAt={item.editedAt??null}
+              onUpdated={updated=>setItems(current=>current.map(existing=>
+                existing.id===updated.id?{...existing,...updated}:existing
+              ))}
+              onCancel={()=>setEditingId(null)}/>}
           </article>;
         })}
         {!visibleMessages.length&&<div className="km-chat-transcript-empty">{searchTerm.trim()?(en?'No matching messages':'Aucun message correspondant'):(en?'Say hello to start the conversation.':'Dis bonjour pour commencer la conversation.')}</div>}
