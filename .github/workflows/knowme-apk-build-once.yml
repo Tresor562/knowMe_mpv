@@ -61,16 +61,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk artifacts/KnowMe-1.0.0-preview.apk
-          sha256sum artifacts/KnowMe-1.0.0-preview.apk | tee artifacts/KnowMe-1.0.0-preview.apk.sha256
-          ls -lh artifacts/KnowMe-1.0.0-preview.apk
+          VERSION="$(node -p 'require("./packages/link-contract/src/platform-sync.json").productVersion')"
+          APK="KnowMe-${VERSION}-preview.apk"
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "artifacts/$APK"
+          (cd artifacts && sha256sum "$APK" > "$APK.sha256")
+          ls -lh "artifacts/$APK"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: knowme-android-apk
           path: |
-            artifacts/KnowMe-1.0.0-preview.apk
-            artifacts/KnowMe-1.0.0-preview.apk.sha256
+            artifacts/KnowMe-*-preview.apk
+            artifacts/KnowMe-*-preview.apk.sha256
           if-no-files-found: error
           retention-days: 7
