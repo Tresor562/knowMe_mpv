@@ -77,7 +77,13 @@ export class MessagingService {
                 displayName: true,
                 avatarUrl: true
               }
-            }
+            },
+            replyTo: {
+                        select: {
+                          id: true, senderId: true, content: true,
+                          sender: { select: { displayName: true } }
+                        }
+                      }
           }
         }
       },
@@ -228,6 +234,12 @@ export class MessagingService {
               displayName: true,
               avatarUrl: true
             }
+          },
+          replyTo: {
+            select: {
+              id: true, senderId: true, content: true,
+              sender: { select: { displayName: true } }
+            }
           }
         }
       }),
@@ -301,9 +313,9 @@ export class MessagingService {
     return { ...membership, unread: 0 };
   }
 
-  async send(userId: string, conversationId: string, content: string) {
+  async send(userId: string, conversationId: string, content: string, replyToId?: string) {
     await this.assertMember(userId, conversationId);
-    return this.sendAuthorized(userId, conversationId, content);
+    return this.sendAuthorized(userId, conversationId, content, replyToId);
   }
 
   async sendSticker(input: {
@@ -324,11 +336,20 @@ export class MessagingService {
   private async sendAuthorized(
     userId: string,
     conversationId: string,
-    content: string
+    content: string,
+    replyToId?: string
   ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
+      // Never permit a quoted message from a different conversation to be exposed.
+      if (replyToId) {
+        const target = await tx.message.findFirst({
+          where: { id: replyToId, conversationId },
+          select: { id: true }
+        });
+        if (!target) throw new ForbiddenException('Message cité introuvable dans cette conversation.');
+      }
       const created = await tx.message.create({
-        data: { conversationId, senderId: userId, content },
+        data: { conversationId, senderId: userId, content, replyToId: replyToId ?? null },
         include: {
           sender: {
             select: {
@@ -336,6 +357,12 @@ export class MessagingService {
               username: true,
               displayName: true,
               avatarUrl: true
+            }
+          },
+          replyTo: {
+            select: {
+              id: true, senderId: true, content: true,
+              sender: { select: { displayName: true } }
             }
           }
         }
@@ -397,7 +424,16 @@ export class MessagingService {
     return presented;
   }
 
-  private presentMessage<T extends { content: string; conversationId: string }>(
+  private presentMessage<T extends {
+    content: string;
+    conversationId: string;
+    replyTo?: {
+      id: string;
+      senderId: string;
+      content: string;
+      sender: { displayName: string };
+    } | null;
+  }>(
     message: T,
     knownSticker?: StickerPresentation | null
   ) {
@@ -406,8 +442,18 @@ export class MessagingService {
       this.stickerTokens.resolve(message.content, {
         conversationId: message.conversationId
       });
+    const quoted = message.replyTo;
+    const quotedSticker = quoted
+      ? this.stickerTokens.resolve(quoted.content, { conversationId: message.conversationId })
+      : null;
     return {
       ...message,
+      replyTo: quoted ? {
+        id: quoted.id,
+        senderId: quoted.senderId,
+        senderName: quoted.sender.displayName,
+        text: quotedSticker ? `Sticker : ${quotedSticker.sticker.label}` : quoted.content.slice(0, 200)
+      } : null,
       presentation: sticker ?? {
         kind: 'TEXT' as const,
         text: message.content
