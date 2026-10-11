@@ -1284,7 +1284,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         {screen === 'social' ? (
           <SocialHub key={'social:' + user.id} userId={user.id}
             initialSection="messages" showSegments={false}
-            onScrollY={onContentScroll}/>
+            onScrollY={onContentScroll} onDetailChange={setDetailOpen}/>
         ) : null}
 
         {screen === 'challenges' ? (
