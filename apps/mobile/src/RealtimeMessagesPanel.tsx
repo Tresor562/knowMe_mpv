@@ -693,7 +693,7 @@ export function RealtimeMessagesPanel({
               <View
                 style={[
                   styles.bubble,
-                  { borderRadius: visual.bubbleRadius, ...(linkedMessageId === item.id ? { borderWidth: 2, borderColor: colors.accent } : {}) },
+                  { borderRadius: visual.bubbleRadius },
                   mine
                     ? [
                         styles.bubbleMine,
@@ -719,7 +719,8 @@ export function RealtimeMessagesPanel({
                             borderWidth: chat.bubbleBorderWidth,
                             borderColor: colors.border
                           }
-                        ]
+                        ],
+                  linkedMessageId === item.id ? { borderWidth: 2, borderColor: colors.accent } : null
                 ]}
               >
                 {!mine ? (
