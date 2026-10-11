@@ -62,6 +62,7 @@ import { ReportsModule } from './reports/reports.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { SavedMessagesModule } from './saved-messages/saved-messages.module';
 import { SearchModule } from './search/search.module';
+import { LinkTargetsModule } from './link-targets/link-targets.module';
 import { ShortLinksModule } from './short-links/short-links.module';
 import { SocialMatchmakingModule } from './social-matchmaking/social-matchmaking.module';
 import { SocialModule } from './social/social.module';
@@ -137,6 +138,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     PurchasesModule,
     SocialModule,
     ShortLinksModule,
+    LinkTargetsModule,
     AccountModule,
     PrivacyModule,
     ReportsModule,
