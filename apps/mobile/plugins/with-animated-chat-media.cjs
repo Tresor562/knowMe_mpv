@@ -31,3 +31,7 @@ module.exports = function withKnowMeAnimatedChatMedia(config) {
     return mod;
   });
 };
+
+// Pure helpers are exported for offline smoke checks in the mobile test suite.
+module.exports.upsertProperty = upsertProperty;
+module.exports.enabledProperties = ENABLED;
