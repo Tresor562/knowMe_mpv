@@ -144,9 +144,10 @@ export default function SecurityPage() {
 
   async function disableTwoFactor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const target = event.currentTarget;
     if (!await knowMeConfirm('Désactiver le second facteur et révoquer les appareils de confiance ?')) return;
     setBusy(true);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(target);
     try {
       await apiFetch('/security/2fa/disable', {
         method: 'POST',
@@ -158,7 +159,7 @@ export default function SecurityPage() {
       clearTrustedDeviceToken();
       setRecoveryCodes([]);
       setMessage('2FA désactivé. Les autres sessions et appareils de confiance ont été révoqués.');
-      event.currentTarget.reset();
+      target.reset();
       await load();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Désactivation impossible.');
@@ -169,9 +170,10 @@ export default function SecurityPage() {
 
   async function regenerateCodes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const target = event.currentTarget;
     if (!await knowMeConfirm('Les anciens codes non utilisés seront invalidés. Continuer ?')) return;
     setBusy(true);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(target);
     try {
       const result = await apiFetch<RecoveryResult>('/security/recovery-codes/regenerate', {
         method: 'POST',
@@ -182,7 +184,7 @@ export default function SecurityPage() {
       });
       setRecoveryCodes(result.recoveryCodes);
       setMessage('Nouveaux codes générés. Copie-les avant de quitter la page.');
-      event.currentTarget.reset();
+      target.reset();
       await load();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Régénération impossible.');
