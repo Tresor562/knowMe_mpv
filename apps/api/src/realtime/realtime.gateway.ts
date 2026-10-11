@@ -337,6 +337,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     typing: boolean
   ) {
     if (!conversationId || !client.data.userId) return;
+    if (!client.rooms.has(`conversation:${conversationId}`)) return;
     const membership = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId: client.data.userId } },
       select: { id: true }
