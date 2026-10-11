@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
+import { DailyNotesRail } from '../../components/daily-notes-rail';
 import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
@@ -221,6 +222,7 @@ export default function MessagesPage() {
         </div>
       </header>
 
+      {user && <DailyNotesRail userId={user.id} />}
       <div className="km-chat-search">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"/><path d="m16 16 5 5"/></svg>
         <input type="search" value={search} onChange={event=>setSearch(event.target.value)}
