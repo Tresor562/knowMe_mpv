@@ -71,14 +71,14 @@ export default function GroupManagementPage() {
       .sort((a,b)=>a.user.displayName.localeCompare(b.user.displayName,locale));
   },[friends,group,search,locale]);
 
-  async function execute(action:()=>Promise<unknown>,done?:()=>void) {
+  async function execute(action:()=>Promise<unknown>,done?:()=>void,refresh=true) {
     if(busy)return;
     setBusy(true);setError('');setSuccess('');
     try {
       await action();
       if(done)done();
-      await load();
-      setSuccess(tr('Modifications enregistrées.','Changes saved.'));
+      if(refresh)await load();
+      if(refresh)setSuccess(tr('Modifications enregistrées.','Changes saved.'));
     }catch(cause) {
       setError(cause instanceof Error?cause.message:tr('Opération impossible.','Operation failed.'));
     }finally{setBusy(false);}
@@ -122,7 +122,7 @@ export default function GroupManagementPage() {
     if(!window.confirm(question))return;
     void execute(()=>apiFetch(`${base}/members/${encodeURIComponent(member.userId)}`,{
       method:'DELETE'
-    }),own?()=>router.replace('/messages'):undefined);
+    }),own?()=>router.replace('/messages'):undefined,!own);
   }
 
   const roleLabel=(role:Role)=>role==='OWNER'?tr('Propriétaire','Owner'):
