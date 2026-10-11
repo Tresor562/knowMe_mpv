@@ -361,13 +361,15 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
 
 export function FeedExperience({
   userId, currentUser, onOpenDiscover, openStoryComposer, onStoryComposerOpened,
-  onContentScroll, onSecondaryModeChange
+  openComposerRequest, onComposerOpened, onContentScroll, onSecondaryModeChange
 }: {
   userId: string;
   currentUser?: {id:string;displayName:string;username:string;avatarUrl?:string|null};
   onOpenDiscover?: () => void;
   openStoryComposer?: boolean;
   onStoryComposerOpened?: () => void;
+  openComposerRequest?: boolean;
+  onComposerOpened?: () => void;
   onContentScroll?: (offset: number) => void;
   onSecondaryModeChange?: (active: boolean) => void;
 }) {
@@ -376,6 +378,11 @@ export function FeedExperience({
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
+  useEffect(() => {
+    if (!openComposerRequest) return;
+    setComposerOpen(true);
+    onComposerOpened?.();
+  }, [openComposerRequest, onComposerOpened]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
