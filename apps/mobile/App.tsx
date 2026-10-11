@@ -537,7 +537,8 @@ function HomeScreen({
   openCreate,
   openProfile,
   storyComposerRequest,
-  onStoryComposerHandled
+  onStoryComposerHandled,
+  onScrollY
 }: {
   user: MobileUser;
   openSocial: () => void;
@@ -547,6 +548,7 @@ function HomeScreen({
   openProfile: () => void;
   storyComposerRequest: boolean;
   onStoryComposerHandled: () => void;
+  onScrollY?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
@@ -585,6 +587,8 @@ function HomeScreen({
     <ScrollView
       style={{ backgroundColor: colors.background }}
       showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
+      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
