@@ -224,8 +224,23 @@ model Post {
   author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes    PostLike[]
   comments PostComment[]
+  attachments PostAttachment[]
 
   @@index([createdAt])
+}
+
+model PostAttachment {
+  postId    String
+  assetId   String
+  position  Int
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([postId, assetId])
+  @@unique([postId, position])
+  @@index([assetId])
 }
 
 model PostLike {

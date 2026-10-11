@@ -43,6 +43,7 @@ model MediaAsset {
 
   messages Message[] @relation("ChatMessageMedia")
   grants MediaAccessGrant[]
+  postAttachments PostAttachment[]
 
   @@index([ownerId, status, createdAt])
   @@index([conversationId, status, createdAt])
