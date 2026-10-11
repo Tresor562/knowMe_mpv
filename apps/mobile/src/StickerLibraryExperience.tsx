@@ -15,6 +15,11 @@ import {
   sendMobileSticker
 } from './stickers';
 import { useAppearance } from './AppearanceProvider';
+import { apiFetch } from './api';
+import { ChatMediaAttachment } from './ChatMediaAttachment';
+
+type RecentAsset = {id:string; purpose:string; visibility:string;
+  conversationId?:string|null;detectedMime:string;status:string;deletedAt?:string|null};
 import { GlassSurface } from './ui/KnowMeUI';
 
 export function StickerLibraryExperience<T>({
@@ -31,6 +36,7 @@ export function StickerLibraryExperience<T>({
   const [catalog, setCatalog] = useState<MobileStickerCatalog | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
+  const [recentMedia,setRecentMedia] = useState<RecentAsset[]|null>(null);
 
   useEffect(() => {
     if (!visible || catalog || loading) return;
@@ -45,6 +51,35 @@ export function StickerLibraryExperience<T>({
       })
       .finally(() => setLoading(false));
   }, [catalog, loading, visible]);
+
+  useEffect(()=>{
+    if(!visible||recentMedia!==null)return;
+    let live=true;
+    void apiFetch<RecentAsset[]>('/media/mine')
+      .then(assets=>{if(live)setRecentMedia(assets);})
+      .catch(()=>{if(live)setRecentMedia([]);});
+    return ()=>{live=false;};
+  },[visible,recentMedia]);
+
+  const saved = (recentMedia??[]).filter(item=>item.purpose==='MESSAGE'&&
+    item.visibility==='CONVERSATION'&&item.conversationId===conversationId&&
+    item.status==='AVAILABLE'&&!item.deletedAt&&
+    ['image/gif','image/webp','image/png'].includes(item.detectedMime)).slice(0,9);
+
+  async function resend(asset:RecentAsset){
+    if(sending)return;
+    setSending(asset.id);
+    try{
+      const kind = asset.detectedMime==='image/gif'?'GIF':'STICKER_IMAGE';
+      const message=await apiFetch<T>(`/conversations/${encodeURIComponent(conversationId)}/media-messages`,{
+        method:'POST',body:JSON.stringify({assetId:asset.id,kind})
+      });
+      onSent(message);
+      setVisible(false);
+    }catch(cause){
+      Alert.alert('Envoi impossible',cause instanceof Error?cause.message:'Réessaie.');
+    }finally{setSending(null);}
+  }
 
   async function send(packKey: string, stickerKey: string) {
     const operation = `${packKey}:${stickerKey}`;
@@ -114,6 +149,18 @@ export function StickerLibraryExperience<T>({
 
             {loading && <ActivityIndicator size="large" color={colors.accent} />}
             <ScrollView contentContainerStyle={styles.content}>
+              {saved.length>0&&<View style={styles.pack}>
+                <Text style={[styles.packTitle,{color:colors.accent}]}>GIFs et stickers images récents</Text>
+                <View style={styles.grid}>{saved.map(asset=><View key={asset.id}
+                  style={[styles.recentTile,{borderColor:colors.border,backgroundColor:colors.backgroundAccent}]}>
+                  <ChatMediaAttachment assetId={asset.id} kind={asset.detectedMime==='image/gif'?'GIF':'STICKER_IMAGE'}/>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Renvoyer ce média"
+                    onPress={()=>void resend(asset)} disabled={Boolean(sending)}
+                    style={[styles.recentButton,{backgroundColor:colors.accent}]}>
+                    <Text style={[styles.label,{color:colors.accentText}]}>Envoyer</Text>
+                  </Pressable>
+                </View>)}</View>
+              </View>}
               {catalog?.packs.map((pack) => (
                 <View key={`${pack.key}:${pack.version}`} style={styles.pack}>
                   <Text style={[styles.packTitle, { color: colors.accent }]}>{pack.name}</Text>
@@ -206,6 +253,9 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   glyph: { fontSize: 34 },
+  recentTile:{width:'47%',minHeight:160,borderWidth:1,borderRadius:14,padding:6,
+    alignItems:'center',justifyContent:'space-between',gap:6,overflow:'hidden'},
+  recentButton:{minHeight:44,width:'100%',alignItems:'center',justifyContent:'center',borderRadius:10},
   label: { marginTop: 5, fontSize: 12 },
   pressed: { transform: [{ scale: 0.97 }], opacity: 0.85 },
   disabled: { opacity: 0.45 },
