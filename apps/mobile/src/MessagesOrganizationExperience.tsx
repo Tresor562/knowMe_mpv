@@ -46,6 +46,8 @@ type OrganizationTool = 'folders' | 'search' | 'archives' | 'archiveTimeline' | 
 
 type Props = {
   userId: string;
+  linkedConversationId?: string | null;
+  linkedMessageId?: string | null;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 };
@@ -94,6 +96,8 @@ const organizationTools: Array<{
 
 export function MessagesOrganizationExperience({
   userId,
+  linkedConversationId,
+  linkedMessageId,
   refreshing,
   setRefreshing
 }: Props) {
@@ -439,6 +443,8 @@ export function MessagesOrganizationExperience({
       <View style={styles.messages}>
         <RealtimeMessagesPanel
           userId={userId}
+          linkedConversationId={linkedConversationId}
+          linkedMessageId={linkedMessageId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
