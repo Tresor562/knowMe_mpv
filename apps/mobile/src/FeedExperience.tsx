@@ -386,6 +386,9 @@ export function FeedExperience({
   const [postBusy, setPostBusy] = useState(false);
   useEffect(() => {
     if (!openComposerRequest) return;
+    setEditingPost(null);
+    setContent('');
+    setImageUrl('');
     setComposerOpen(true);
     onComposerOpened?.();
   }, [openComposerRequest, onComposerOpened]);
@@ -550,7 +553,7 @@ export function FeedExperience({
       style={{ backgroundColor: colors.background }}
       onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
       scrollEventThrottle={16}
-      data={posts}
+      data={posts.filter(item => !hiddenIds.has(item.id))}
       keyExtractor={(item) => item.id}
       refreshControl={
         <RefreshControl
@@ -584,7 +587,7 @@ export function FeedExperience({
               onImmersiveChange={setStoriesOpen}/>
           ) : null}
           <Pressable accessibilityRole="button" accessibilityLabel="Créer une publication"
-            onPress={() => setComposerOpen(true)}
+            onPress={() => openEditor()}
             style={[styles.quickCompose,{backgroundColor:colors.surface,borderColor:colors.border}]}>
             {currentUser
               ? <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={40}/>
@@ -609,7 +612,22 @@ export function FeedExperience({
         >
           <View style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+            <View style={styles.flex}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.title, { color: colors.text }]}>
+                {item.author.displayName}
+              </Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Options de publication"
+              onPress={event => { event.stopPropagation(); setMenuPost(item); }}
+              style={styles.postMoreButton}>
+              <Text style={{ color: colors.text, fontSize: 23, lineHeight: 27 }}>⋮</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Masquer la publication"
+              onPress={event => { event.stopPropagation(); hidePost(item); }}
+              style={styles.postMoreButton}>
+              <KnowMeIcon name="close" size={18} color={colors.muted}/>
+            </Pressable>
           </View>
           <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
@@ -622,6 +640,12 @@ export function FeedExperience({
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
+              onPress={event => { event.stopPropagation(); void sharePost(item); }}
+              style={[styles.shareAction,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="arrow" size={17} color={colors.muted}/>
+              <Text style={{fontSize:12,fontWeight:'700',color:colors.muted}}>Partager</Text>
+            </Pressable>
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
@@ -637,12 +661,16 @@ export function FeedExperience({
             style={styles.composeClose}>
             <KnowMeIcon name="back" size={24} color={colors.text}/>
           </Pressable>
-          <Text style={[styles.composeTitle,{color:colors.text}]}>Créer une publication</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Publier"
+          <Text style={[styles.composeTitle,{color:colors.text}]}>
+            {editingPost ? 'Modifier la publication' : 'Créer une publication'}
+          </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={editingPost ? 'Enregistrer les modifications' : 'Publier'}
             disabled={!content.trim() || publishing}
             onPress={() => void publish()}
             style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:content.trim()?1:0.5}]}>
-            <Text style={{color:colors.accent,fontWeight:'800'}}>{publishing ? 'Envoi…' : 'Publier'}</Text>
+            <Text style={{color:colors.accent,fontWeight:'800'}}>
+              {publishing ? 'Envoi…' : editingPost ? 'Enregistrer' : 'Publier'}
+            </Text>
           </Pressable>
         </View>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.composeScroll}>
@@ -690,7 +718,7 @@ export function FeedExperience({
             onPress={() => void publish()}
             style={[styles.composeSend,{backgroundColor:colors.accent,opacity:content.trim()?1:0.5}]}>
             <Text style={{fontSize:16,fontWeight:'800',color:colors.accentText}}>
-              {publishing ? 'Publication…' : 'Publier'}
+              {publishing ? 'Enregistrement…' : editingPost ? 'Enregistrer' : 'Publier'}
             </Text>
           </Pressable>
         </View>
