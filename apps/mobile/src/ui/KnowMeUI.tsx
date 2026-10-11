@@ -44,7 +44,8 @@ export type KnowMeIconName =
   | 'search'
   | 'refresh'
   | 'check'
-  | 'settings';
+  | 'settings'
+  | 'edit';
 
 export function BrandMark({ size = 38 }: { size?: number }) {
   const unit = size / 38;
@@ -155,6 +156,16 @@ export function KnowMeIcon({
   const s = size / 24;
   const sw = strokeWidth * s;
   const commonBorder = { borderColor: color, borderWidth: sw };
+
+  if (name === 'edit') {
+    return (
+      <View style={{width:size,height:size}}>
+        <Line width={15*s} height={2.6*s} left={4*s} top={12*s} rotate="-43deg" color={color}/>
+        <Line width={5*s} height={2*s} left={2.6*s} top={19*s} rotate="-43deg" color={color}/>
+        <Line width={5*s} height={2.6*s} left={16*s} top={5*s} rotate="-43deg" color={color}/>
+      </View>
+    );
+  }
 
   if (name === 'home') {
     return (
