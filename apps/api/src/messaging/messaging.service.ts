@@ -77,7 +77,10 @@ export class MessagingService {
                 displayName: true,
                 avatarUrl: true
               }
-            }
+            },
+            mediaAsset: {
+                        select: { id: true, detectedMime: true, status: true, deletedAt: true }
+                      }
           }
         }
       },
@@ -228,6 +231,9 @@ export class MessagingService {
               displayName: true,
               avatarUrl: true
             }
+          },
+          mediaAsset: {
+            select: { id: true, detectedMime: true, status: true, deletedAt: true }
           }
         }
       }),
@@ -306,6 +312,37 @@ export class MessagingService {
     return this.sendAuthorized(userId, conversationId, content);
   }
 
+  async sendMediaMessage(
+    userId: string,
+    conversationId: string,
+    assetId: string,
+    kind: 'GIF' | 'STICKER_IMAGE' | 'IMAGE'
+  ) {
+    await this.assertMember(userId, conversationId);
+    const acceptableMime =
+      kind === 'GIF' ? ['image/gif'] :
+      kind === 'STICKER_IMAGE' ? ['image/png', 'image/webp'] :
+      ['image/jpeg', 'image/png', 'image/webp'];
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: assetId,
+        ownerId: userId,
+        conversationId,
+        purpose: 'MESSAGE',
+        visibility: 'CONVERSATION',
+        status: 'AVAILABLE',
+        scannerVerdict: 'CLEAN',
+        deletedAt: null,
+        detectedMime: { in: acceptableMime }
+      },
+      select: { id: true }
+    });
+    if (!asset) {
+      throw new ForbiddenException('Média indisponible ou non autorisé pour cette conversation.');
+    }
+    return this.sendAuthorized(userId, conversationId, kind, asset.id);
+  }
+
   async sendSticker(input: {
     userId: string;
     conversationId: string;
@@ -324,11 +361,12 @@ export class MessagingService {
   private async sendAuthorized(
     userId: string,
     conversationId: string,
-    content: string
+    content: string,
+    mediaAssetId?: string
   ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
-        data: { conversationId, senderId: userId, content },
+        data: { conversationId, senderId: userId, content, mediaAssetId: mediaAssetId ?? null },
         include: {
           sender: {
             select: {
@@ -337,6 +375,9 @@ export class MessagingService {
               displayName: true,
               avatarUrl: true
             }
+          },
+          mediaAsset: {
+            select: { id: true, detectedMime: true, status: true, deletedAt: true }
           }
         }
       });
@@ -363,6 +404,7 @@ export class MessagingService {
     const sticker = this.stickerTokens.resolve(content, { conversationId });
     const preview = sticker
       ? `Sticker : ${sticker.sticker.label}`
+      : mediaAssetId ? content === 'GIF' ? 'GIF' : content === 'STICKER_IMAGE' ? 'Sticker' : 'Image'
       : content.length > 120
         ? `${content.slice(0, 117)}…`
         : content;
@@ -382,7 +424,7 @@ export class MessagingService {
                 entityId: conversationId,
                 messageId: message.id,
                 actorId: userId,
-                messageKind: sticker ? 'STICKER' : 'TEXT'
+                messageKind: mediaAssetId ? content : sticker ? 'STICKER' : 'TEXT'
               }
             }))
           )
@@ -397,7 +439,11 @@ export class MessagingService {
     return presented;
   }
 
-  private presentMessage<T extends { content: string; conversationId: string }>(
+  private presentMessage<T extends {
+    content: string;
+    conversationId: string;
+    mediaAsset?: { id: string; detectedMime: string; status: string; deletedAt: Date | null } | null;
+  }>(
     message: T,
     knownSticker?: StickerPresentation | null
   ) {
@@ -406,9 +452,20 @@ export class MessagingService {
       this.stickerTokens.resolve(message.content, {
         conversationId: message.conversationId
       });
+    const asset = message.mediaAsset;
+    const isAvailable = asset?.status === 'AVAILABLE' && !asset.deletedAt;
+    const mediaPresentation = isAvailable && asset && (
+      (message.content === 'GIF' && asset.detectedMime === 'image/gif') ||
+      (message.content === 'STICKER_IMAGE' && ['image/png', 'image/webp'].includes(asset.detectedMime)) ||
+      (message.content === 'IMAGE' && ['image/jpeg', 'image/png', 'image/webp'].includes(asset.detectedMime))
+    ) ? {
+      kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE',
+      assetId: asset.id,
+      mimeType: asset.detectedMime
+    } : null;
     return {
       ...message,
-      presentation: sticker ?? {
+      presentation: mediaPresentation ?? sticker ?? {
         kind: 'TEXT' as const,
         text: message.content
       }
