@@ -23,7 +23,7 @@ function setup(role: ConversationRole = ConversationRole.OWNER) {
     }
   };
   const prisma={
-    $transaction: jest.fn().mockImplementation(async (fn:(tx:typeof tx)=>unknown)=>fn(tx)),
+    $transaction: jest.fn().mockImplementation(async (fn:(client:typeof tx)=>unknown)=>fn(tx)),
     conversation: {findUnique:jest.fn()},
   };
   const realtime={revokeConversationAccess:jest.fn().mockResolvedValue(undefined)};
