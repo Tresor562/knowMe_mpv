@@ -41,6 +41,7 @@ import { MessageReactionsModule } from './message-reactions/message-reactions.mo
 import { MessengerExperienceModule } from './messenger-experience/messenger-experience.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { MobileUpdatesModule } from './mobile-updates/mobile-updates.module';
 import { NexusIntegrationModule } from './nexus-integration/nexus-integration.module';
 import { NexusSocialModule } from './nexus-social/nexus-social.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -128,6 +129,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     AdminModule,
     RealtimeModule,
     MediaModule,
+    MobileUpdatesModule,
     IntelligenceModule,
     IntegrityModule,
     PurchasesModule,
