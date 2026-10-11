@@ -1,117 +1,312 @@
-import * as FileSystem from 'expo-file-system';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator, FlatList, Image, Linking, Modal,
+  Pressable, StyleSheet, Text, View
+} from 'react-native';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import {
+  isKnowMeGallerySupported, readKnowMeAlbums, readKnowMeGallery,
+  requestKnowMeMediaAccess,
+  type LocalDeviceMedia, type KnowMeAlbum
+} from './native-gallery';
 
 export type SelectedAndroidMedia = { uri: string; name: string; mime: string };
-type Entry = SelectedAndroidMedia & { isDirectory: boolean };
-const MIMES: Record<string, string> = {
-  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png',
-  webp:'image/webp', gif:'image/gif', mp4:'video/mp4'
-};
-function nameFromUri(uri: string) {
-  let value=uri;
-  try {value=decodeURIComponent(uri)} catch {}
-  return value.split(/[\\/:]/).pop() || 'fichier';
-}
-export function AndroidMediaLibraryPicker({ visible, allowVideo=false, onClose, onPicked }:{
-  visible:boolean;
-  allowVideo?:boolean;
-  onClose:()=>void;
-  onPicked:(media:SelectedAndroidMedia)=>void;
+
+const PAGE_SIZE = 45;
+
+export function AndroidMediaLibraryPicker({
+  visible, allowVideo = true, mediaFilter, multiple = false,
+  maxSelection = 10, onClose, onPicked, onPickedMany
+}: {
+  visible: boolean;
+  allowVideo?: boolean;
+  mediaFilter?: 'all' | 'photo' | 'video';
+  multiple?: boolean;
+  maxSelection?: number;
+  onClose: () => void;
+  onPicked?: (media: SelectedAndroidMedia) => void;
+  onPickedMany?: (media: SelectedAndroidMedia[]) => void;
 }) {
-  const {colors}=useAppearance();
-  const [entries,setEntries]=useState<Entry[]>([]);
-  const [history,setHistory]=useState<string[]>([]);
-  const [directory,setDirectory]=useState<string|null>(null);
-  const [notice,setNotice]=useState('');
-  const [busy,setBusy]=useState(false);
+  const { colors } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const [filter, setFilter] = useState<'all' | 'photo' | 'video'>(
+    mediaFilter ?? (allowVideo ? 'all' : 'photo')
+  );
+  const [album, setAlbum] = useState('');
+  const [albumOpen, setAlbumOpen] = useState(false);
+  const [albums, setAlbums] = useState<KnowMeAlbum[]>([]);
+  const [items, setItems] = useState<LocalDeviceMedia[]>([]);
+  const [selection, setSelection] = useState<LocalDeviceMedia[]>([]);
+  const [preview, setPreview] = useState<LocalDeviceMedia | null>(null);
+  const [permission, setPermission] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [paging, setPaging] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState('');
+  const [generation, setGeneration] = useState(0);
 
-  async function readDirectory(uri:string) {
-    setBusy(true);
-    setNotice('');
-    try {
-      const raw=await FileSystem.StorageAccessFramework.readDirectoryAsync(uri);
-      const next:Entry[]=[];
-      for(let offset=0;offset<Math.min(raw.length,250);offset+=12) {
-        const batch=raw.slice(offset,offset+12);
-        const info=await Promise.all(batch.map(async candidate=>{
-          const name=nameFromUri(candidate);
-          const ext=name.split('.').pop()?.toLowerCase()||'';
-          const metadata=await FileSystem.getInfoAsync(candidate).catch(()=>null);
-          return {uri:candidate,name,isDirectory:Boolean(metadata?.exists&&metadata.isDirectory),
-            mime:MIMES[ext]||''};
-        }));
-        next.push(...info);
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    setItems([]);
+    setSelection([]);
+    setAlbums([]);
+    setAlbum('');
+    setAlbumOpen(false);
+    setPreview(null);
+    setFilter(mediaFilter ?? (allowVideo ? 'all' : 'photo'));
+    setError('');
+    setPermission(false);
+    setLoading(true);
+    void (async () => {
+      try {
+        if (!isKnowMeGallerySupported()) {
+          throw new Error(en ? 'Update KnowMe to use the built-in gallery.' : 'Mets KnowMe à jour pour utiliser sa galerie intégrée.');
+        }
+        const granted = await requestKnowMeMediaAccess();
+        if (!active) return;
+        if (!granted) {
+          setError(en ? 'Photo and video access was not granted. Check Android app permissions.'
+            : 'Accès aux photos et vidéos refusé. Vérifie les autorisations Android.');
+          return;
+        }
+        setPermission(true);
+        const found = await readKnowMeAlbums().catch(() => [] as KnowMeAlbum[]);
+        if (active) setAlbums(found);
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+      } finally {
+        if (active) setLoading(false);
       }
-      setDirectory(uri);
-      setEntries(next.filter(item=>item.isDirectory||Boolean(item.mime && (allowVideo||item.mime!=='video/mp4')))
-        .sort((a,b)=>Number(b.isDirectory)-Number(a.isDirectory)||a.name.localeCompare(b.name)));
-      if(raw.length>250)setNotice('250 premiers éléments affichés : ouvre un sous-dossier.');
-    } catch(error) {setNotice(error instanceof Error?error.message:'Dossier inaccessible.');}
-    finally {setBusy(false);}
-  }
+    })();
+    return () => { active = false; };
+  }, [visible, allowVideo, mediaFilter, en]);
 
-  useEffect(()=>{
-    if(!visible)return;
-    let active=true;
-    setEntries([]);setHistory([]);setDirectory(null);
-    if(Platform.OS!=='android') {
-      setNotice('Le sélecteur est disponible sur Android.');
+  useEffect(() => {
+    if (!visible || !permission) return;
+    let active = true;
+    setItems([]);
+    setSelection([]);
+    setHasMore(true);
+    setLoading(true);
+    setError('');
+    const mode = allowVideo ? filter : 'photo';
+    void readKnowMeGallery(mode, album, 0, PAGE_SIZE)
+      .then(page => {
+        if (!active) return;
+        setItems(page);
+        setHasMore(page.length === PAGE_SIZE);
+      })
+      .catch(cause => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [visible, permission, filter, album, allowVideo, generation]);
+
+  const loadMore = useCallback(async () => {
+    if (!visible || !permission || loading || paging || !hasMore) return;
+    setPaging(true);
+    try {
+      const page = await readKnowMeGallery(allowVideo ? filter : 'photo', album, items.length, PAGE_SIZE);
+      setItems(current => {
+        const known = new Set(current.map(entry => entry.id));
+        return [...current, ...page.filter(entry => !known.has(entry.id))];
+      });
+      setHasMore(page.length === PAGE_SIZE);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
+    } finally { setPaging(false); }
+  }, [visible, permission, loading, paging, hasMore, allowVideo, filter, album, items.length]);
+
+  function choose(entry: LocalDeviceMedia) {
+    if (!multiple) {
+      onPicked?.({ uri: entry.uri, name: entry.name, mime: entry.mime });
+      onPickedMany?.([{ uri: entry.uri, name: entry.name, mime: entry.mime }]);
       return;
     }
-    setBusy(true);
-    void FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync()
-      .then(result=>{
-        if(!active)return;
-        if(!result.granted){onClose();return;}
-        void readDirectory(result.directoryUri);
-      }).catch(error=>{
-        if(active)setNotice(error instanceof Error?error.message:'Accès refusé aux fichiers.');
-      }).finally(()=>{if(active)setBusy(false);});
-    return ()=>{active=false;};
-  },[visible,allowVideo]);
+    setSelection(current => {
+      if (current.some(item => item.id === entry.id)) {
+        return current.filter(item => item.id !== entry.id);
+      }
+      if (current.length >= Math.min(Math.max(maxSelection, 1), 10)) {
+        setError(en ? 'Up to 10 items per selection.' : '10 éléments maximum par sélection.');
+        return current;
+      }
+      setError('');
+      return [...current, entry];
+    });
+  }
 
-  return <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-    <View style={styles.backdrop}>
-      <View style={[styles.sheet,{backgroundColor:colors.surface,borderColor:colors.border}]}>
-        <View style={styles.header}>
-          <Text style={[styles.title,{color:colors.text}]}>Choisir un média</Text>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
-            <Text style={{color:colors.accent,fontWeight:'700'}}>Fermer</Text>
+  function confirm() {
+    if (!selection.length) return;
+    const selected = selection.map(item => ({ uri: item.uri, name: item.name, mime: item.mime }));
+    onPickedMany?.(selected);
+    if (!onPickedMany && onPicked) onPicked(selected[0]);
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={en ? 'Close gallery' : 'Fermer la galerie'}
+            onPress={preview ? () => setPreview(null) : onClose} style={styles.headerButton}>
+            <Text style={[styles.back, { color: colors.text }]}>‹</Text>
           </Pressable>
+          <View style={styles.heading}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {preview ? (en ? 'Preview' : 'Aperçu') : 'Galerie KnowMe'}
+            </Text>
+            {!preview && <Text style={[styles.subtitle, { color: colors.muted }]}>
+              {en ? 'Private device photos and videos' : 'Photos et vidéos du téléphone'}
+            </Text>}
+          </View>
+          {multiple && !preview && <Pressable accessibilityRole="button" onPress={confirm}
+            disabled={!selection.length} style={[styles.confirm, { backgroundColor: colors.backgroundAccent }]}>
+            <Text style={[styles.confirmText, { color: colors.accent, opacity: selection.length ? 1 : .5 }]}>
+              {en ? 'Add' : 'Ajouter'} ({selection.length})
+            </Text>
+          </Pressable>}
         </View>
-        <Text style={[styles.hint,{color:colors.muted}]}>Parcours tes dossiers, puis touche une photo{allowVideo?' ou une vidéo':''}.</Text>
-        {notice?<Text style={{color:colors.danger}}>{notice}</Text>:null}
-        {history.length? <Pressable accessibilityRole="button" style={styles.item}
-          onPress={()=>{const parent=history[history.length-1];setHistory(x=>x.slice(0,-1));if(parent)void readDirectory(parent);}}>
-          <Text style={{color:colors.accent}}>‹ Dossier précédent</Text>
-        </Pressable>:null}
-        {busy?<ActivityIndicator color={colors.accent}/>:null}
-        <ScrollView style={styles.entries} keyboardShouldPersistTaps="handled">
-          {entries.map(entry=><Pressable key={entry.uri} accessibilityRole="button"
-            style={[styles.item,{borderColor:colors.border}]}
-            onPress={()=>{
-              if(entry.isDirectory){
-                if(directory)setHistory(x=>[...x,directory]);
-                void readDirectory(entry.uri);
-              }else onPicked({uri:entry.uri,name:entry.name,mime:entry.mime});
-            }}>
-            <Text numberOfLines={2} style={{color:colors.text}}>{entry.isDirectory?'📁 ':'▧ '}{entry.name}</Text>
-          </Pressable>)}
-        </ScrollView>
+
+        {preview ? (
+          <View style={styles.previewScreen}>
+            <Image source={{ uri: preview.thumbnail || preview.uri }} resizeMode="contain" style={styles.previewImage}/>
+            <Text numberOfLines={1} style={[styles.previewName, {color:colors.text}]}>{preview.name}</Text>
+            {preview.type === 'video' && <Text style={[styles.subtitle,{color:colors.muted}]}>
+              {en ? 'Video thumbnail · playback follows after selection.' : 'Aperçu de la vidéo · lecture après sélection.'}
+            </Text>}
+            <Pressable accessibilityRole="button" style={[styles.previewSelect, {backgroundColor:colors.accent}]}
+              onPress={() => { choose(preview); setPreview(null); }}>
+              <Text style={{fontWeight:'800',color:colors.accentText}}>
+                {en ? 'Select this item' : 'Sélectionner cet élément'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View style={styles.toolbar}>
+              <Pressable accessibilityRole="button" accessibilityLabel={en ? 'Select album' : 'Choisir un album'}
+                onPress={() => setAlbumOpen(v => !v)} style={[styles.albumButton,{backgroundColor:colors.surfaceGlass}]}>
+                <Text numberOfLines={1} style={{color:colors.text,fontWeight:'700'}}>
+                  {album ? (albums.find(item => item.id === album)?.name || (en ? 'Album' : 'Album')) : (en ? 'All photos' : 'Toutes les photos')}
+                  {'  ⌄'}
+                </Text>
+              </Pressable>
+              <View style={styles.tabs}>
+                {(['all','photo','video'] as const).filter(mode => allowVideo || mode !== 'video').map(mode =>
+                  <Pressable key={mode} accessibilityRole="button"
+                    accessibilityState={{selected:filter === mode}}
+                    onPress={() => {setAlbumOpen(false);setFilter(mode);}}
+                    style={[styles.tab,filter===mode && {backgroundColor:colors.backgroundAccent}]}>
+                    <Text style={{color:filter===mode?colors.accent:colors.muted,fontWeight:'700',fontSize:12}}>
+                      {mode==='all'?(en?'All':'Tout'):mode==='photo'?(en?'Photos':'Photos'):(en?'Videos':'Vidéos')}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+            {albumOpen ? <FlatList
+              style={styles.albumList}
+              contentContainerStyle={{paddingBottom:14}}
+              data={[{id:'',name:en?'All media':'Tous les médias',count:0,thumbnail:''},...albums]}
+              keyExtractor={item=>item.id || 'all'}
+              renderItem={({item})=>
+                <Pressable accessibilityRole="button" style={[styles.albumRow,{borderBottomColor:colors.border}]}
+                  onPress={() => {setAlbum(item.id);setAlbumOpen(false);}}>
+                  {item.thumbnail ? <Image source={{uri:item.thumbnail}} style={styles.albumThumb}/> :
+                    <View style={[styles.albumThumb,{backgroundColor:colors.surfaceGlass}]}/>}
+                  <View style={{flex:1}}>
+                    <Text numberOfLines={1} style={{color:colors.text,fontWeight:'700'}}>{item.name}</Text>
+                    {!!item.id && <Text style={{color:colors.muted,fontSize:11}}>{item.count} {en?'items':'éléments'}</Text>}
+                  </View>
+                  {album===item.id && <Text style={{color:colors.accent}}>✓</Text>}
+                </Pressable>}
+              /> : <>
+                {!!error && <View style={styles.errorRow}>
+                  <Text accessibilityRole="alert" style={{color:colors.danger,flex:1,fontSize:12}}>{error}</Text>
+                  <Pressable onPress={() => { if(!permission)void Linking.openSettings();else setGeneration(n=>n+1); }}
+                    accessibilityRole="button" style={styles.retry}>
+                    <Text style={{color:colors.accent,fontWeight:'700'}}>{permission?(en?'Retry':'Réessayer'):(en?'Settings':'Paramètres')}</Text>
+                  </Pressable>
+                </View>}
+                {loading ? <ActivityIndicator color={colors.accent} style={{marginTop:42}}/> : null}
+                {!loading && permission && !items.length ? <Text style={[styles.empty,{color:colors.muted}]}>
+                  {en ? 'No photos or videos found in this album.' : 'Aucun média trouvé dans cet album.'}
+                </Text> : null}
+                <FlatList
+                  data={items}
+                  numColumns={3}
+                  keyExtractor={item=>item.id}
+                  columnWrapperStyle={styles.gridRow}
+                  contentContainerStyle={styles.grid}
+                  onEndReached={() => { void loadMore(); }}
+                  onEndReachedThreshold={.6}
+                  ListFooterComponent={paging ? <ActivityIndicator color={colors.accent}/> : null}
+                  renderItem={({item}) => {
+                    const selectedIndex=selection.findIndex(entry=>entry.id===item.id);
+                    return <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={item.name}
+                      onPress={() => choose(item)}
+                      onLongPress={() => setPreview(item)}
+                      style={[styles.gridCell,{backgroundColor:colors.surfaceGlass}]}>
+                      {item.thumbnail ? <Image source={{uri:item.thumbnail}} style={styles.gridImage}/> :
+                        <View style={[styles.gridImage,{backgroundColor:colors.surface}]}/>}
+                      {item.type==='video' && <View style={styles.videoMark}>
+                        <Text style={styles.videoText}>▶</Text>
+                      </View>}
+                      {multiple && <View style={[styles.check,
+                        {borderColor:'#fff',backgroundColor:selectedIndex>=0?colors.accent:'rgba(0,0,0,.3)'}]}>
+                        <Text style={styles.checkText}>{selectedIndex>=0?String(selectedIndex+1):''}</Text>
+                      </View>}
+                    </Pressable>;
+                  }}
+                />
+              </>}
+            </>}
+        )}
       </View>
-    </View>
-  </Modal>;
+    </Modal>
+  );
 }
-const styles=StyleSheet.create({
-  backdrop:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.62)'},
-  sheet:{maxHeight:'83%',minHeight:320,borderTopLeftRadius:24,borderTopRightRadius:24,
-    borderWidth:1,padding:18,gap:10},
-  header:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
-  title:{fontSize:20,fontWeight:'800'},
-  close:{minWidth:54,minHeight:44,justifyContent:'center',alignItems:'flex-end'},
-  hint:{fontSize:13,lineHeight:19},
-  entries:{flexGrow:0},
-  item:{minHeight:48,paddingVertical:12,borderBottomWidth:StyleSheet.hairlineWidth}
+
+const styles = StyleSheet.create({
+  screen: { flex:1,paddingTop:16 },
+  header: { flexDirection:'row',minHeight:62,paddingHorizontal:12,alignItems:'center',
+    borderBottomWidth:StyleSheet.hairlineWidth,gap:9 },
+  headerButton: {minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'},
+  back: {fontSize:32,fontWeight:'300'},
+  heading: {flex:1,minWidth:0},
+  title: {fontSize:19,fontWeight:'800'},
+  subtitle: {fontSize:11.5,lineHeight:17},
+  confirm: {paddingHorizontal:12,minHeight:40,justifyContent:'center',borderRadius:14},
+  confirmText: {fontWeight:'800',fontSize:13},
+  toolbar: {flexDirection:'row',paddingHorizontal:12,paddingVertical:9,gap:9,alignItems:'center'},
+  albumButton: {flex:1,minWidth:0,paddingHorizontal:12,minHeight:40,borderRadius:14,justifyContent:'center'},
+  tabs: {flexDirection:'row',gap:3,alignItems:'center'},
+  tab: {minHeight:38,paddingHorizontal:9,borderRadius:12,justifyContent:'center'},
+  grid: {paddingHorizontal:3,paddingBottom:110},
+  gridRow: {gap:3,marginBottom:3},
+  gridCell: {flex:1,aspectRatio:1,maxWidth:'33%',position:'relative',overflow:'hidden'},
+  gridImage: {width:'100%',height:'100%'},
+  videoMark: {position:'absolute',bottom:7,left:7,backgroundColor:'rgba(0,0,0,.55)',
+    borderRadius:12,paddingHorizontal:7,paddingVertical:2},
+  videoText: {color:'#fff',fontWeight:'700',fontSize:12},
+  check: {position:'absolute',top:7,right:7,width:25,height:25,borderRadius:13,
+    alignItems:'center',justifyContent:'center',borderWidth:2},
+  checkText: {fontSize:12,color:'#fff',fontWeight:'800'},
+  albumList: {flex:1,paddingHorizontal:14},
+  albumRow: {minHeight:66,borderBottomWidth:StyleSheet.hairlineWidth,flexDirection:'row',
+    alignItems:'center',gap:12},
+  albumThumb: {width:46,height:46,borderRadius:11},
+  empty: {textAlign:'center',padding:30,fontSize:14},
+  errorRow: {flexDirection:'row',paddingHorizontal:13,alignItems:'center',gap:8,minHeight:55},
+  retry: {paddingHorizontal:10,minHeight:44,justifyContent:'center'},
+  previewScreen: {flex:1,alignItems:'center',justifyContent:'center',padding:18,gap:16},
+  previewImage: {height:'65%',width:'100%'},
+  previewName: {fontSize:15,fontWeight:'700'},
+  previewSelect: {minHeight:52,paddingHorizontal:20,alignItems:'center',justifyContent:'center',borderRadius:16}
 });
