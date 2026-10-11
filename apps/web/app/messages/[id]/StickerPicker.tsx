@@ -5,6 +5,8 @@ import { apiFetch } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
+import { KnowMeCustomEmoji } from '../../../components/KnowMeCustomEmoji';
+import { KNOWME_MOTION_PACK_KEY } from '@knowme/animation-contract';
 
 type SavedMedia = {
   id:string;
@@ -58,7 +60,7 @@ export function StickerPicker<T>({
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'emoji' | 'stickers' | 'gifs' | 'files'>('emoji');
+  const [tab, setTab] = useState<'emoji' | 'motion' | 'stickers' | 'gifs' | 'files'>('emoji');
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function StickerPicker<T>({
   }, [open]);
 
   useEffect(() => {
-    if (!open || tab !== 'stickers' || catalog || loading || error) return;
+    if (!open || (tab !== 'stickers' && tab !== 'motion') || catalog || loading || error) return;
     setLoading(true);
     void apiFetch<Catalog>('/stickers/catalog')
       .then(value => {
@@ -230,6 +232,9 @@ export function StickerPicker<T>({
         <button type="button" role="tab" aria-selected={tab === 'emoji'} onClick={() => {setTab('emoji');setSearch('');}}>
           {en ? 'Emoji' : 'Emojis'}
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'motion'} onClick={() => {setTab('motion');setSearch('');setError('');}}>
+          {en ? 'Motion' : 'Animés'}
+        </button>
         <button type="button" role="tab" aria-selected={tab === 'stickers'} onClick={() => {setTab('stickers');setSearch('');setError('');}}>
           Stickers
         </button>
@@ -289,6 +294,24 @@ export function StickerPicker<T>({
               <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
             )}</div>
           </div>)}
+        </>}
+        {tab === 'motion' && <>
+          <div className="km-picker-group">
+            <strong>{en ? 'KnowMe Motion · original animated emojis' : 'KnowMe Motion · emojis animés originaux'}</strong>
+            <div className="km-picker-sticker-grid km-picker-motion-grid">
+              {catalog?.packs.filter(pack => pack.key === KNOWME_MOTION_PACK_KEY).flatMap(pack =>
+                pack.stickers.map(sticker =>
+                  <button key={sticker.key} type="button"
+                    title={sticker.accessibilityLabel} disabled={sending !== null}
+                    aria-label={en ? `Send animated emoji ${sticker.label}` : `Envoyer l’emoji animé ${sticker.label}`}
+                    onClick={() => void send(pack.key, sticker)}>
+                    <KnowMeCustomEmoji packKey={pack.key} stickerKey={sticker.key} size={55}/>
+                    <small>{sticker.label}</small>
+                  </button>))}
+            </div>
+          </div>
+          {loading && <p role="status" className="km-picker-status">{en?'Loading…':'Chargement…'}</p>}
+          {error && <p className="km-picker-status">{en?'Unavailable':'Indisponible'}</p>}
         </>}
         {tab === 'files' && <div className="km-picker-group km-picker-upload-panel">
           <strong>{en?'Send a video, audio or PDF':'Envoyer une vidéo, un audio ou un PDF'}</strong>
@@ -351,7 +374,7 @@ export function StickerPicker<T>({
           {!loading && !error && matchingPacks.length === 0 && <p className="km-picker-status">
             {en ? 'No stickers found.' : 'Aucun sticker trouvé.'}
           </p>}
-          {matchingPacks.map(({pack, stickers}) => <div className="km-picker-group" key={`${pack.key}:${pack.version}`}>
+          {matchingPacks.filter(({pack})=>pack.key!==KNOWME_MOTION_PACK_KEY).map(({pack, stickers}) => <div className="km-picker-group" key={`${pack.key}:${pack.version}`}>
             <strong>{pack.name}</strong>
             <div className="km-picker-sticker-grid">{stickers.map(sticker => {
               const operation = `${pack.key}:${sticker.key}`;
