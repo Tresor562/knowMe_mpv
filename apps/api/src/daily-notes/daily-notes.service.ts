@@ -47,9 +47,19 @@ export class DailyNotesService {
       select: { requesterId: true, addresseeId: true },
       take: 250
     });
+    // Blocking overrides a previously accepted friendship, including reversed duplicates.
+    const blocked = await this.prisma.friendship.findMany({
+      where: { status: 'BLOCKED', OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      select: { requesterId: true, addresseeId: true },
+      take: 250
+    });
+    const blockedIds = new Set(blocked.map(pair =>
+      pair.requesterId === userId ? pair.addresseeId : pair.requesterId
+    ));
     const allowedIds = [
       userId,
       ...friendships.map(pair => pair.requesterId === userId ? pair.addresseeId : pair.requesterId)
+        .filter(friendId => !blockedIds.has(friendId))
     ];
     const notes = await this.prisma.dailyNote.findMany({
       where: {
