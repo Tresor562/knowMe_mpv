@@ -47,7 +47,7 @@ export function PostMediaPicker({files,onChange,maxCount=10}:{
           const chosen=Array.from(event.target.files??[]);
           const known=new Set(files.map(file=>file.name+':'+file.size+':'+file.lastModified));
           const merged=[...files,...chosen.filter(file=>!known.has(file.name+':'+file.size+':'+file.lastModified))];
-          const message=checkPostFiles(merged,maxCount-files.length);
+          const message=merged.length>maxCount?'Dix pièces jointes maximum par publication.':checkPostFiles(merged);
           if(message){event.target.setCustomValidity(message);event.target.reportValidity();
             event.target.value='';return;}
           event.target.setCustomValidity('');
