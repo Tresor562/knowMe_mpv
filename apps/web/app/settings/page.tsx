@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { translate } from '@knowme/i18n-contract';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { MediaDownloadSettings } from '../../components/media-download-settings';
 import { apiFetch, clearSession } from '../../lib/api';
@@ -15,6 +15,17 @@ export default function SettingsPage() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [languageBusy, setLanguageBusy] = useState(false);
+  const [navPosition, setNavPosition] = useState<'top' | 'bottom'>('bottom');
+
+  useEffect(() => {
+    setNavPosition(window.localStorage.getItem('knowme-navigation-position') === 'top' ? 'top' : 'bottom');
+  }, []);
+
+  function changeNavPosition(next: 'top' | 'bottom') {
+    window.localStorage.setItem('knowme-navigation-position', next);
+    setNavPosition(next);
+    window.dispatchEvent(new Event('knowme-nav-position-changed'));
+  }
 
   async function changeLanguage(nextLocale: 'fr' | 'en') {
     if (nextLocale === locale && persisted) return;
@@ -91,6 +102,28 @@ export default function SettingsPage() {
         <Link href="/notifications" className="km-settings-row">
           <span>{en ? 'Notifications' : 'Notifications'}</span><span>›</span>
         </Link>
+      </section>
+
+      <section className="km-settings-group" aria-label={en ? 'Navigation' : 'Navigation'}>
+        <h2>{en ? 'Navigation' : 'Navigation'}</h2>
+        <div className="km-settings-row">
+          <span>{en ? 'Navigation bar placement' : 'Position de la barre de navigation'}</span>
+        </div>
+        <div className="km-settings-language">
+          <div className="km-settings-segments" role="group"
+            aria-label={en ? 'Navigation bar placement' : 'Position de la barre de navigation'}>
+            <button type="button" className={navPosition === 'bottom' ? 'selected' : ''}
+              aria-pressed={navPosition === 'bottom'} onClick={() => changeNavPosition('bottom')}>
+              {en ? 'Bottom' : 'En bas'}
+            </button>
+            <button type="button" className={navPosition === 'top' ? 'selected' : ''}
+              aria-pressed={navPosition === 'top'} onClick={() => changeNavPosition('top')}>
+              {en ? 'Top' : 'En haut'}
+            </button>
+          </div>
+          <p>{en ? 'The bar hides as you scroll down and returns as you scroll up. It stays out of editors and immersive views.'
+            : 'La barre se masque en descendant et revient en remontant. Elle reste absente des éditeurs et vues immersives.'}</p>
+        </div>
       </section>
 
       <section className="km-settings-group" aria-label={t('settings.languageTitle')}>
