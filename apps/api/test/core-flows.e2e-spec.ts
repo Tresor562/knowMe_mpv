@@ -303,4 +303,69 @@ describe('KnowMe core flows (e2e)', () => {
       })
     ).toEqual({ knowCoins: 0 });
   });
+
+  it('persists scoped message replies and rejects foreign conversation quotes', async () => {
+    const createUser = (suffix: string) => request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: `reply-${suffix}@knowme.test`,
+        username: `reply_${suffix}`,
+        displayName: `Reply ${suffix}`,
+        password: 'KnowMeTest123!'
+      }).expect(201);
+    const alice = await createUser('alice');
+    const bob = await createUser('bob');
+    const charlie = await createUser('charlie');
+    const auth = (token: string) => `Bearer ${token}`;
+
+    const firstChat = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', auth(alice.body.accessToken))
+      .send({ memberIds: [bob.body.user.id] })
+      .expect(201);
+    const secondChat = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', auth(alice.body.accessToken))
+      .send({ memberIds: [charlie.body.user.id] })
+      .expect(201);
+
+    const original = await request(app.getHttpServer())
+      .post(`/conversations/${firstChat.body.id}/messages`)
+      .set('Authorization', auth(alice.body.accessToken))
+      .send({ content: 'Premier message à citer' })
+      .expect(201);
+    const reply = await request(app.getHttpServer())
+      .post(`/conversations/${firstChat.body.id}/messages`)
+      .set('Authorization', auth(bob.body.accessToken))
+      .send({ content: 'Réponse directe', replyToId: original.body.id })
+      .expect(201);
+
+    expect(reply.body.replyTo).toMatchObject({
+      id: original.body.id,
+      senderId: alice.body.user.id,
+      senderName: 'Reply alice',
+      text: 'Premier message à citer'
+    });
+    const history = await request(app.getHttpServer())
+      .get(`/conversations/${firstChat.body.id}/messages`)
+      .set('Authorization', auth(alice.body.accessToken))
+      .expect(200);
+    expect(history.body.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: reply.body.id,
+        replyTo: expect.objectContaining({ id: original.body.id })
+      })
+    ]));
+
+    await request(app.getHttpServer())
+      .post(`/conversations/${secondChat.body.id}/messages`)
+      .set('Authorization', auth(charlie.body.accessToken))
+      .send({ content: 'Must not quote another chat', replyToId: original.body.id })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${secondChat.body.id}/messages`)
+      .set('Authorization', auth(charlie.body.accessToken))
+      .send({ content: 'Invalid reply', replyToId: 'unknown-message-id' })
+      .expect(403);
+  });
 });

@@ -7,6 +7,7 @@ import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
+import { MessageEditControl } from './MessageEditControl';
 import { useI18n } from '../../../components/i18n-provider';
 
 type Sender = {
@@ -37,10 +38,12 @@ type Message = {
   conversationId:string;
   content:string;
   createdAt:string;
+  editedAt?:string|null;
   senderId:string;
   sender:Sender;
   nexusAuthored?:boolean;
   presentation?:StickerPresentation|TextPresentation;
+  replyTo?:{id:string;senderId:string;senderName:string;text:string}|null;
 };
 type ReadState = {
   userId:string;
@@ -108,6 +111,22 @@ export default function ConversationPage() {
   const userIdRef=useRef<string|null>(null);
   const typingTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const typingActive=useRef(false);
+  const longPressTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const [actionMessageId,setActionMessageId]=useState<string|null>(null);
+  const [replyingTo,setReplyingTo]=useState<Message|null>(null);
+  const [editingId,setEditingId]=useState<string|null>(null);
+
+  useEffect(()=>()=>{if(longPressTimer.current)clearTimeout(longPressTimer.current);},[]);
+  const cancelLongPress=()=>{if(longPressTimer.current)clearTimeout(longPressTimer.current);longPressTimer.current=null;};
+
+  async function copyMessage(item:Message){
+    try{
+      await navigator.clipboard.writeText(item.presentation?.kind==='TEXT'?item.presentation.text:item.content);
+      setActionMessageId(null);
+    }catch{
+      setMessage(en?'Unable to copy this message.':'Impossible de copier ce message.');
+    }
+  }
 
   const [items,setItems]=useState<Message[]>([]);
   const [readStates,setReadStates]=useState<ReadState[]>([]);
@@ -196,6 +215,12 @@ export default function ConversationPage() {
         void markRead().catch(()=>undefined);
       }
     };
+    const onMessageUpdated=(updated:Message)=>{
+      if(updated.conversationId!==conversationId)return;
+      setItems(current=>current.map(item=>
+        item.id===updated.id?{...item,...updated}:item
+      ));
+    };
     const onRead=(event:ReadEvent)=>{
       if(event.conversationId!==conversationId)return;
       setReadStates(current=>current.map(state=>
@@ -234,6 +259,7 @@ export default function ConversationPage() {
     socket.on('disconnect',disconnect);
     socket.on('connect_error',connectError);
     socket.on('message:created',onMessage);
+    socket.on('message:updated',onMessageUpdated);
     socket.on('conversation:read',onRead);
     socket.on('typing:update',onTyping);
     socket.on('presence:update',onPresence);
@@ -251,6 +277,7 @@ export default function ConversationPage() {
       socket.off('disconnect',disconnect);
       socket.off('connect_error',connectError);
       socket.off('message:created',onMessage);
+      socket.off('message:updated',onMessageUpdated);
       socket.off('conversation:read',onRead);
       socket.off('typing:update',onTyping);
       socket.off('presence:update',onPresence);
@@ -332,10 +359,12 @@ export default function ConversationPage() {
     try{
       const created=await apiFetch<Message>(
         `/conversations/${conversationId}/messages`,
-        {method:'POST',body:JSON.stringify({content})}
+        {method:'POST',body:JSON.stringify({content,replyToId:replyingTo?.id??undefined})}
       );
       acceptSent(created);
       setDraft('');
+      setReplyingTo(null);
+      setActionMessageId(null);
       if(isNexusPrivate||NEXUS_MENTION.test(content)){
         await invokeNexus(created);
       }
@@ -437,26 +466,74 @@ export default function ConversationPage() {
           const readers=mine?readStates.filter(state=>
             state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
           ):[];
-          return <article className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id}>
+          return <article id={`km-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id}
+            onContextMenu={event=>{event.preventDefault();setActionMessageId(item.id);}}
+            onTouchStart={()=>{cancelLongPress();longPressTimer.current=setTimeout(()=>setActionMessageId(item.id),500);}}
+            onTouchMove={cancelLongPress} onTouchEnd={cancelLongPress} onTouchCancel={cancelLongPress}>
             {!mine&&<strong className="km-message-author">{nexus?'Nexus':item.sender.displayName}</strong>}
+            {item.replyTo&&<button type="button" className="km-message-quote" onClick={()=>{
+              const target=document.getElementById(`km-message-${item.replyTo?.id}`);
+              if(target)target.scrollIntoView({behavior:'smooth',block:'center'});
+              else setMessage(en?'Quoted message is not in the loaded history.':'Le message cité est dans un historique non chargé.');
+            }} aria-label={en?'Jump to quoted message':'Voir le message cité'}>
+              <strong>{item.replyTo.senderName}</strong>
+              <span>{item.replyTo.text}</span>
+            </button>}
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
               {mine&&readers.length>0&&<span aria-label={en?"Read":"Message lu"}>✓✓</span>}
+              <button type="button" className="km-message-options-toggle"
+                aria-label={en?'Message actions':'Actions du message'}
+                aria-expanded={actionMessageId===item.id}
+                onClick={()=>setActionMessageId(current=>current===item.id?null:item.id)}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
             </div>
+            {actionMessageId===item.id&&<div className="km-message-options" aria-label={en?'Message actions':'Actions du message'}>
+              {!nexus&&<button type="button" onClick={()=>{setReplyingTo(item);setActionMessageId(null);}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M9 7 4 12l5 5M5 12h9a6 6 0 0 1 6 6"/></svg>
+                {en?'Reply':'Répondre'}
+              </button>}
+              {mine&&!nexus&&item.presentation?.kind!=='STICKER'&&<button type="button"
+                onClick={()=>{setEditingId(item.id);setActionMessageId(null);}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m4 20 4.5-1 11-11-3.5-3.5-11 11L4 20ZM14 6l4 4"/></svg>
+                {en?'Edit':'Modifier'}
+              </button>}
+              <button type="button" onClick={()=>void copyMessage(item)}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+                {en?'Copy':'Copier'}
+              </button>
+            </div>}
+            {editingId===item.id&&<MessageEditControl conversationId={conversationId}
+              messageId={item.id} initialContent={item.content} initialEditedAt={item.editedAt??null}
+              onUpdated={updated=>setItems(current=>current.map(existing=>
+                existing.id===updated.id?{...existing,...updated}:existing
+              ))}
+              onCancel={()=>setEditingId(null)}/>}
           </article>;
         })}
         {!visibleMessages.length&&<div className="km-chat-transcript-empty">{searchTerm.trim()?(en?'No matching messages':'Aucun message correspondant'):(en?'Say hello to start the conversation.':'Dis bonjour pour commencer la conversation.')}</div>}
         {nexusPending&&<p className="km-typing-indicator" aria-live="polite">{en?'Nexus is thinking':'Nexus réfléchit'}<span aria-hidden="true">…</span></p>}
         {typingNames.length>0&&<p className="km-typing-indicator" aria-live="polite">{typingNames.join(', ')} {en?'typing…':typingNames.length>1?'écrivent…':'écrit…'}</p>}
       </section>
-      <form className="km-chat-composer" onSubmit={send}>
+      <form className="km-chat-composer km-chat-composer-reply" onSubmit={send}>
+        {replyingTo&&<div className="km-compose-quote" aria-live="polite">
+          <div><strong>{en?'Reply to':'Réponse à'} {replyingTo.sender.displayName}</strong>
+            <span>{replyingTo.presentation?.kind==='STICKER'?
+              `${en?'Sticker':'Sticker'} · ${replyingTo.presentation.sticker.label}`:
+              (replyingTo.presentation?.kind==='TEXT'?replyingTo.presentation.text:replyingTo.content)}</span>
+          </div>
+          <button type="button" onClick={()=>setReplyingTo(null)} aria-label={en?'Cancel reply':'Annuler la réponse'}>×</button>
+        </div>}
+        <div className="km-chat-compose-row">
         {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent} onInsertEmoji={emoji => changeDraft(draft + emoji)}/>}
         <input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)} onBlur={stopTyping} maxLength={2000}
           placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):(en?'Message…':'Écrire un message…')} required autoComplete="off" aria-label={en?'Your message':'Votre message'}/>
         <button className="km-send-button" disabled={sending||nexusPending||!draft.trim()} aria-label={sending?(en?'Sending message':'Envoi du message'):(en?'Send message':'Envoyer le message')}>
           {sending?<span className="km-spinner" aria-hidden="true"/>:<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7zM12 13l8-9"/></svg>}
         </button>
+        </div>
       </form>
     </main>
   );

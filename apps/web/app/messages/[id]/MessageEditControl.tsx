@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
+import { useI18n } from '../../../components/i18n-provider';
 
 type EditedMessage = {
   id: string;
@@ -28,6 +29,8 @@ export function MessageEditControl({
   onCancel?: () => void;
 }) {
   const socket = useMemo(() => getRealtimeSocket(), []);
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [content, setContent] = useState(initialContent);
   const [baseContent, setBaseContent] = useState(initialContent);
   const [editedAt, setEditedAt] = useState<string | null>(initialEditedAt);
@@ -43,7 +46,7 @@ export function MessageEditControl({
       setContent((current) => {
         if (current !== baseContent && current !== message.content) {
           setConflict(true);
-          setError('Ce message a été modifié ailleurs pendant ta saisie. Recharge ou annule tes changements locaux.');
+          setError(en?'This message changed on another device. Review the server version or cancel your changes.':'Ce message a été modifié ailleurs pendant ta saisie. Recharge ou annule tes changements locaux.');
           return current;
         }
         setConflict(false);
@@ -56,7 +59,7 @@ export function MessageEditControl({
     return () => {
       socket.off('message:updated', onMessageUpdated);
     };
-  }, [baseContent, conversationId, messageId, onUpdated, socket]);
+  }, [baseContent, conversationId, en, messageId, onUpdated, socket]);
 
   async function save() {
     const normalized = content.trim();
@@ -79,11 +82,12 @@ export function MessageEditControl({
       setEditedAt(updated.editedAt);
       setConflict(false);
       onUpdated?.(updated);
+      onCancel?.();
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Modification impossible.';
+      const message = cause instanceof Error ? cause.message : (en?'Unable to edit message.':'Modification impossible.');
       if (message.includes('MESSAGE_EDIT_VERSION_CONFLICT')) {
         setConflict(true);
-        setError('Ce message a déjà été modifié ailleurs. Recharge la conversation avant de réessayer.');
+        setError(en?'This message was already edited elsewhere. Reload the conversation before trying again.':'Ce message a déjà été modifié ailleurs. Recharge la conversation avant de réessayer.');
       } else {
         setError(message);
       }
@@ -99,39 +103,39 @@ export function MessageEditControl({
   }
 
   return (
-    <div className="card" style={{ padding: 12, marginTop: 8 }}>
-      <label htmlFor={`message-edit-${messageId}`} style={{ display: 'block', fontWeight: 800, marginBottom: 8 }}>
-        Modifier ton message
+    <div className="km-message-edit-panel">
+      <label htmlFor={`message-edit-${messageId}`}>
+        {en?'Edit message':'Modifier ton message'}
       </label>
       <textarea
         id={`message-edit-${messageId}`}
-        className="input"
+        className="km-message-edit-textarea"
         value={content}
         maxLength={4000}
         rows={4}
         disabled={busy}
         onChange={(event) => setContent(event.target.value)}
-        style={{ width: '100%', resize: 'vertical' }}
+        aria-label={en?'Edit message text':'Modifier le texte du message'}
       />
-      <small style={{ color: 'var(--muted)' }}>{content.length}/4000</small>
-      {error && <p role="alert" style={{ color: 'var(--orange)' }}>{error}</p>}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+      <small className="km-message-edit-counter">{content.length}/4000</small>
+      {error && <p role="alert" className="km-message-edit-error">{error}</p>}
+      <div className="km-message-edit-actions">
         <button
           type="button"
-          className="btn btn-primary"
+          className="km-message-edit-save"
           disabled={busy || conflict || !content.trim()}
           onClick={() => void save()}
         >
-          {busy ? 'Modification…' : 'Enregistrer'}
+          {busy ? (en?'Saving…':'Modification…') : (en?'Save':'Enregistrer')}
         </button>
         {conflict && (
-          <button type="button" className="btn" disabled={busy} onClick={resetToServer}>
-            Utiliser la version serveur
+          <button type="button" className="km-message-edit-secondary" disabled={busy} onClick={resetToServer}>
+            {en?'Use server version':'Utiliser la version serveur'}
           </button>
         )}
         {onCancel && (
-          <button type="button" className="btn" disabled={busy} onClick={onCancel}>
-            Annuler
+          <button type="button" className="km-message-edit-secondary" disabled={busy} onClick={onCancel}>
+            {en?'Cancel':'Annuler'}
           </button>
         )}
       </div>
