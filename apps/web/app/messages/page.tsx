@@ -206,9 +206,6 @@ export default function MessagesPage() {
           <p className="km-msg-status"><span className={live?'km-live-dot':'km-offline-dot'}/> {live?(en?'Connected':'Connecté'):(en?'Connecting…':'Connexion en attente')}{totalUnread>0 ? ` · ${totalUnread} ${en?'unread':`non lu${totalUnread>1?'s':''}`}` : ''}</p>
         </div>
         <div className="km-msg-actions">
-          <Link href="/messages/new" className="km-action" aria-label={en?'New message':'Nouveau message'} title={en?'New message':'Nouveau message'}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </Link>
           <Link href="/saved-messages" className="km-action" aria-label="Messages enregistrés" title="Messages enregistrés">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5h12v17L12 17l-6 3.5z"/></svg>
           </Link>
@@ -280,6 +277,25 @@ export default function MessagesPage() {
           <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?(en?'Opening…':'Ouverture…'):(en?'Chat with Nexus':'Discuter avec Nexus')}</button>
         </div>}
       </section>
+      <div className="km-msg-floating-actions" aria-label={en ? 'Quick chat actions' : 'Actions rapides de discussion'}>
+        <button type="button" className="km-msg-fab km-msg-fab-nexus"
+          aria-label={en ? 'Chat with Nexus AI' : 'Discuter avec Nexus AI'}
+          title="Nexus AI" disabled={creatingNexus} onClick={() => void openNexusConversation()}>
+          {creatingNexus ? <span className="km-spinner" aria-label={en ? 'Opening…' : 'Ouverture…'}/> :
+            <svg viewBox="0 0 48 48" width="32" height="32" fill="none" aria-hidden="true">
+              <circle cx="24" cy="24" r="17" stroke="currentColor" strokeOpacity=".28" strokeWidth="4"/>
+              <path d="M24 5.5a18.5 18.5 0 0 1 18.5 18.5M24 42.5A18.5 18.5 0 0 1 5.5 24"
+                stroke="currentColor" strokeWidth="5" strokeLinecap="round"/>
+              <path d="m24 13.5 3 7.5 7.5 3-7.5 3-3 7.5-3-7.5-7.5-3 7.5-3z"
+                fill="currentColor"/>
+            </svg>}
+        </button>
+        <Link href="/messages/new" className="km-msg-fab km-msg-fab-create"
+          aria-label={en ? 'New message or group' : 'Nouveau message ou groupe'} title={en ? 'New message' : 'Nouveau message'}>
+          <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </Link>
+      </div>
     </main>
   );
 }
