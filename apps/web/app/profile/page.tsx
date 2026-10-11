@@ -1,5 +1,6 @@
 'use client';
 
+import { buildKnowMePublicAvatarUrl } from '@knowme/link-contract';
 import Link from 'next/link';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { AccountBadges } from '../../components/AccountBadges';
@@ -119,7 +120,7 @@ export default function ProfilePage() {
           : tr('Cette photo ne peut pas être publiée après la vérification de sécurité.',
                'This photo cannot be published after the security check.'));
       }
-      const avatarUrl = `https://knowme-nextech.vercel.app/api/knowme/media/public/avatar/${encodeURIComponent(asset.id)}`;
+      const avatarUrl = buildKnowMePublicAvatarUrl(asset.id);
       await apiFetch('/account/profile', { method:'PATCH', body:JSON.stringify({avatarUrl}) });
       await refresh();
       setMessage(tr('Photo de profil enregistrée.', 'Profile picture saved.'));

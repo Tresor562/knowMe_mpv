@@ -102,3 +102,16 @@ export function parseKnowMeUniversalPath(
     id
   };
 }
+
+import platformSync from './platform-sync.json';
+
+export const KNOWME_PLATFORM_SYNC = platformSync;
+export const KNOWME_PRODUCT_VERSION = platformSync.productVersion;
+export const KNOWME_EXPERIENCE_REVISION = platformSync.contractRevision;
+
+export function buildKnowMePublicAvatarUrl(assetId: string): string {
+  if (!/^[A-Za-z0-9_-]{6,128}$/.test(assetId)) {
+    throw new Error('KNOWME_AVATAR_ASSET_ID_INVALID');
+  }
+  return `https://knowme-nextech.vercel.app/api/knowme/media/public/avatar/${encodeURIComponent(assetId)}`;
+}

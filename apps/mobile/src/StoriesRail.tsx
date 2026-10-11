@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import * as FileSystem from 'expo-file-system';
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -9,7 +11,10 @@ import {
   TextInput,
   View
 } from 'react-native';
-import { apiFetch } from './api';
+import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
+import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
+import { NativeStoryVideo } from './NativeStoryVideo';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -24,6 +29,7 @@ type Story = {
   id: string;
   type: string;
   caption?: string | null;
+  assetId?: string | null;
   createdAt?: string;
   expiresAt?: string | null;
   author: StoryAuthor | null;
@@ -44,7 +50,9 @@ type StoryCreateResult = {
 
 export function StoriesRail({
   currentUser,
-  onOpenDiscover
+  onOpenDiscover,
+  openComposer=false,
+  onComposerOpened
 }: {
   currentUser: {
     id: string;
@@ -53,12 +61,20 @@ export function StoriesRail({
     avatarUrl?: string | null;
   };
   onOpenDiscover: () => void;
+  openComposer?: boolean;
+  onComposerOpened?: () => void;
 }) {
   const { colors, visual } = useAppearance();
   const [stories, setStories] = useState<Story[]>([]);
   const [selected, setSelected] = useState<Story | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
+  const [storyType, setStoryType] = useState<'TEXT'|'PHOTO'|'VIDEO'>('TEXT');
+  const [storyMedia, setStoryMedia] = useState<SelectedAndroidMedia|null>(null);
+  const [pickerVisible,setPickerVisible] = useState(false);
+  const [selectedPhotoUri,setSelectedPhotoUri] = useState<string|null>(null);
+  const [selectedVideoUri,setSelectedVideoUri] = useState<string|null>(null);
+  const [mediaError,setMediaError] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC' | 'PRIVATE'>('FRIENDS');
   const [publishing, setPublishing] = useState(false);
 
@@ -74,6 +90,52 @@ export function StoriesRail({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if(!openComposer)return;
+    setCreateOpen(true);
+    onComposerOpened?.();
+  }, [openComposer, onComposerOpened]);
+
+  useEffect(() => {
+    let cancelled=false;
+    let uri:string|null=null;
+    setSelectedPhotoUri(null);
+    setSelectedVideoUri(null);
+    setMediaError('');
+    if(!selected?.assetId || !FileSystem.cacheDirectory)return;
+    if(selected.type!=='PHOTO' && selected.type!=='VIDEO')return;
+    const isVideo=selected.type==='VIDEO';
+    const temporary=`${FileSystem.cacheDirectory}knowme-story-${selected.id}.${isVideo?'mp4':'jpg'}`;
+    void (async()=>{
+      try{
+        await FileSystem.deleteAsync(temporary,{idempotent:true});
+        const headers=await authenticatedMediaHeaders();
+        const response=await FileSystem.downloadAsync(
+          `${API_URL}/stories/${encodeURIComponent(selected.id)}/media`,temporary,{headers}
+        );
+        const info=await FileSystem.getInfoAsync(response.uri);
+        if(response.status<200||response.status>=300||!info.exists||
+          info.isDirectory||!info.size||info.size<1024){
+          throw new Error('Le média de la story est indisponible.');
+        }
+        uri=response.uri;
+        if(!cancelled){
+          if(isVideo)setSelectedVideoUri(uri);
+          else setSelectedPhotoUri(uri);
+        }
+      }catch(error){
+        if(!cancelled){
+          setMediaError(error instanceof Error?error.message:'Lecture de la story impossible.');
+        }
+      }
+    })();
+    return ()=>{
+      cancelled=true;
+      // Delay cleanup until the native player unmounts from the old story.
+      if(uri)void FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    };
+  },[selected?.id,selected?.assetId,selected?.type]);
 
   async function openStory(story: Story) {
     setSelected(story);
@@ -104,26 +166,31 @@ export function StoriesRail({
 
   async function createStory() {
     const value = caption.trim();
-    if (!value || publishing) return;
+    if (publishing || (storyType==='TEXT'&&!value) || (storyType!=='TEXT'&&!storyMedia)) return;
     setPublishing(true);
     try {
+      const assetId=storyType!=='TEXT'&&storyMedia
+        ? await uploadKnowMeMobileMedia(storyMedia,'STORY') : undefined;
       const story = await apiFetch<StoryCreateResult>('/stories', {
         method: 'POST',
         body: JSON.stringify({
-          type: 'TEXT',
+          type: storyType,
           audience,
-          caption: value,
+          caption: value||undefined,
+          assetId,
           durationHours: 24,
           allowReplies: true,
           allowReactions: true,
           allowSharing: true,
-          background: {
+          background: storyType==='TEXT' ? {
             preset: 'knowme-gradient',
             alignment: 'center'
-          }
+          } : undefined
         })
       });
       setCaption('');
+      setStoryMedia(null);
+      setStoryType('TEXT');
       setCreateOpen(false);
       await load();
       const fresh = await apiFetch<Story>('/stories/' + story.id);
@@ -309,9 +376,18 @@ export function StoriesRail({
             <View style={[styles.storyMark, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
               <KnowMeIcon name="spark" size={20} color={colors.accent} />
             </View>
-            <Text style={[styles.storyCaption, { color: colors.text }]}>
-              {selected?.caption?.trim() || 'Story'}
-            </Text>
+            {selected?.type==='PHOTO'&&selectedPhotoUri?<Image source={{uri:selectedPhotoUri}}
+              resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
+            {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
+              key={selected.id} sourceUri={selectedVideoUri}
+              style={StyleSheet.absoluteFillObject}/>:null}
+            {mediaError?<Text style={[styles.storyCaption,{color:colors.danger}]}>
+              {mediaError}
+            </Text>:null}
+            {(selected?.type!=='VIDEO'||!selectedVideoUri)&&!mediaError?<Text
+              style={[styles.storyCaption,{color:colors.text}]}>
+              {selected?.caption?.trim()||(selected?.type==='VIDEO'?'Chargement de la vidéo…':'Story')}
+            </Text>:null}
           </View>
 
           {!selected?.viewer.own ? (
@@ -352,7 +428,7 @@ export function StoriesRail({
       </Modal>
 
       <Modal
-        visible={createOpen}
+        visible={createOpen&&!pickerVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setCreateOpen(false)}
@@ -386,6 +462,23 @@ export function StoriesRail({
                 </PressScale>
               </View>
 
+              <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
+                {(['TEXT','PHOTO','VIDEO'] as const).map(type=><Pressable key={type}
+                  accessibilityRole="button" style={{flex:1,minHeight:44,borderRadius:14,justifyContent:'center',alignItems:'center',
+                    backgroundColor:storyType===type?colors.accent:colors.backgroundAccent}}
+                  onPress={()=>{setStoryType(type);setStoryMedia(null);}}>
+                  <Text style={{color:storyType===type?colors.accentText:colors.text,fontWeight:'700'}}>
+                    {type==='TEXT'?'Texte':type==='PHOTO'?'Photo':'Vidéo'}
+                  </Text>
+                </Pressable>)}
+              </View>
+              {storyType!=='TEXT'?<Pressable accessibilityRole="button"
+                onPress={()=>setPickerVisible(true)}
+                style={{minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:14,
+                  backgroundColor:colors.backgroundAccent,marginBottom:10}}>
+                <Text style={{color:colors.text}}>{storyMedia?storyMedia.name:
+                  storyType==='PHOTO'?'Choisir une photo':'Choisir une vidéo MP4'}</Text>
+              </Pressable>:null}
               <View
                 style={[
                   styles.preview,
@@ -455,7 +548,7 @@ export function StoriesRail({
               </View>
 
               <PressScale
-                disabled={!caption.trim() || publishing}
+                disabled={publishing||(storyType==='TEXT'?!caption.trim():!storyMedia)}
                 onPress={() => void createStory()}
                 style={[
                   styles.publishButton,
@@ -481,6 +574,13 @@ export function StoriesRail({
           </View>
         </Pressable>
       </Modal>
+      <AndroidMediaLibraryPicker visible={pickerVisible} allowVideo={storyType==='VIDEO'}
+        onClose={()=>setPickerVisible(false)}
+        onPicked={media=>{
+          if(storyType==='VIDEO'&&media.mime!=='video/mp4')return;
+          if(storyType==='PHOTO'&&!media.mime.startsWith('image/'))return;
+          setStoryMedia(media);setPickerVisible(false);
+        }}/>
     </>
   );
 }

@@ -15,15 +15,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Find latest non-expired KnowMe APK artifact
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Require full Web/Android parity before public APK publication
+        run: node scripts/platform-sync-preflight.mjs --release
+      - name: Read immutable release version
+        run: |
+          set -euo pipefail
+          echo "KNOWME_VERSION=$(node -p 'require("./packages/link-contract/src/platform-sync.json").productVersion')" >> "$GITHUB_ENV"
+      - name: Find same-commit signed KnowMe APK artifact
         id: artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | [.created_at, .id] | @tsv' | sort -r | head -n1)"
+          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false and .workflow_run.head_sha=="'${GITHUB_SHA}'") | [.created_at, .id] | @tsv' | sort -r | head -n1)"
           if [[ -z "$data" ]]; then
-            echo "::error::No unexpired knowme-android-apk workflow artifact was found. Re-run the APK build workflow, then dispatch this workflow."
+            echo "::error::No APK from this exact release commit was found. Re-run the APK build workflow, then dispatch this workflow."
             exit 1
           fi
           id="$(printf '%s' "$data" | cut -f2)"
@@ -37,12 +44,15 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > artifact.zip
-          unzip -j -o artifact.zip '*KnowMe-1.0.0-preview.apk' -d dist
-          test -s dist/KnowMe-1.0.0-preview.apk
-          bytes="$(stat -c %s dist/KnowMe-1.0.0-preview.apk)"
+          APK="KnowMe-${KNOWME_VERSION}-preview.apk"
+          unzip -j -o artifact.zip "*$APK" -d dist
+          unzip -j -o artifact.zip "*$APK.sha256" -d dist
+          test -s "dist/$APK"
+          test -s "dist/$APK.sha256"
+          bytes="$(stat -c %s "dist/$APK")"
           test "$bytes" -gt 10000000
-          unzip -tqq dist/KnowMe-1.0.0-preview.apk
-          sha256sum dist/KnowMe-1.0.0-preview.apk > dist/KnowMe-1.0.0-preview.apk.sha256
+          unzip -tqq "dist/$APK"
+          (cd dist && sha256sum -c "$APK.sha256")
           ls -lh dist/*
 
       - name: Publish public prerelease download
@@ -50,10 +60,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v1.0.0-preview"
+          TAG="v${KNOWME_VERSION}-preview"
+          APK="KnowMe-${KNOWME_VERSION}-preview.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --clobber
-          else
-            gh release create "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --prerelease --title "KnowMe Android — version de prévisualisation 1.0.0" --notes "Aperçu Android de KnowMe pour tests. Cette version n'est pas la sortie publique finale. Installez uniquement si vous acceptez de tester une application en développement."
+            echo "::error::The release tag already exists. Never replace an APK under the same version; bump KnowMe versions first."
+            exit 1
           fi
+          gh release create "$TAG" "dist/$APK" "dist/$APK.sha256" --prerelease --title "KnowMe Android — prévisualisation ${KNOWME_VERSION}" --notes "Build issu d'un seul commit qualifié. L'APK Android doit être testé sur appareil réel avant toute diffusion générale."
           gh release view "$TAG" --json url -q .url

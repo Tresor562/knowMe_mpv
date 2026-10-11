@@ -1,3 +1,4 @@
+import { PlatformSyncModule } from './platform-sync/platform-sync.module';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -79,6 +80,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads'
     }),
+    PlatformSyncModule,
     PrismaModule,
     ObservabilityModule,
     I18nModule,
