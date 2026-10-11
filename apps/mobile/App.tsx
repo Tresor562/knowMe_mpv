@@ -5,6 +5,7 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   StatusBar as NativeStatusBar,
   Platform,
@@ -29,6 +30,8 @@ import {
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
+import { resolveIncomingKnowMeLink } from './src/deep-links';
+import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -1067,6 +1070,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
+  const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
+  const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
+  const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
+  const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
+  const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -1107,6 +1116,50 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   useEffect(() => {
     setScreen('home');
   }, [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    const handleUrl = (url: string | null) => {
+      if (!active || !url) return;
+      const resolved = resolveIncomingKnowMeLink(url);
+      if (resolved) setPendingLink(resolved.target);
+    };
+    void Linking.getInitialURL().then(handleUrl).catch(() => undefined);
+    const subscription = Linking.addEventListener('url', event => handleUrl(event.url));
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id || !pendingLink) return;
+    let active = true;
+    const target = pendingLink;
+    setLinkFeedback('');
+    void (async () => {
+      try {
+        const result = await apiFetch<{
+          kind: string;
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string };
+        }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
+        if (!active) return;
+        if (result.context.postId) {
+          setLinkedPostId(result.context.postId);
+          setLinkedCommentId(result.context.commentId ?? null);
+          setScreen('discover');
+        } else if (result.context.conversationId) {
+          setLinkedConversationId(result.context.conversationId);
+          setLinkedMessageId(result.context.messageId ?? null);
+          setScreen('social');
+        } else {
+          setLinkFeedback('Ce type de contenu ne peut pas encore être ouvert ici.');
+        }
+      } catch {
+        if (active) setLinkFeedback('Ce contenu a été supprimé, a expiré ou ne t’est pas accessible.');
+      } finally {
+        if (active) setPendingLink(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [user?.id, pendingLink]);
 
   async function resetLocalSession() {
     disconnectRealtimeSocket();
@@ -1172,6 +1225,14 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             : null
         ]}
       >
+        {linkFeedback ? (
+          <GlassSurface strength="soft" borderRadius={18} style={{padding:12,marginHorizontal:14,marginVertical:5}}>
+            <Text accessibilityRole="alert" style={{color:colors.text}}>{linkFeedback}</Text>
+            <Pressable onPress={() => setLinkFeedback('')} accessibilityRole="button">
+              <Text style={{color:colors.accent,marginTop:4}}>Fermer</Text>
+            </Pressable>
+          </GlassSurface>
+        ) : null}
         {screen === 'home' ? (
           <HomeScreen
             key={'home:' + user.id}
@@ -1190,6 +1251,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <FeedExperience
             key={'discover:' + user.id}
             userId={user.id}
+            initialPostId={linkedPostId}
+            initialCommentId={linkedCommentId}
           />
         ) : null}
 
@@ -1197,6 +1260,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <SocialHub
             key={'social:' + user.id}
             userId={user.id}
+            linkedConversationId={linkedConversationId}
+            linkedMessageId={linkedMessageId}
           />
         ) : null}
 
