@@ -47,66 +47,16 @@ export type KnowMeIconName =
   | 'settings';
 
 export function BrandMark({ size = 38 }: { size?: number }) {
-  const unit = size / 38;
+  // Single brand identity shared with the Web application and APK launcher.
+  // The PNG is generated from the approved Web logo by app.config.js.
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      <View
-        style={[
-          styles.brandPill,
-          {
-            width: 11 * unit,
-            height: 31 * unit,
-            borderRadius: 6 * unit,
-            left: 3 * unit,
-            top: 3.5 * unit,
-            backgroundColor: '#B35CFF',
-            transform: [{ rotate: '8deg' }]
-          }
-        ]}
-      />
-      <View
-        style={[
-          styles.brandPill,
-          {
-            width: 11 * unit,
-            height: 25 * unit,
-            borderRadius: 6 * unit,
-            left: 16 * unit,
-            top: 0,
-            backgroundColor: '#FF7DB8',
-            transform: [{ rotate: '42deg' }]
-          }
-        ]}
-      />
-      <View
-        style={[
-          styles.brandPill,
-          {
-            width: 11 * unit,
-            height: 25 * unit,
-            borderRadius: 6 * unit,
-            left: 17 * unit,
-            top: 16 * unit,
-            backgroundColor: '#FFB25C',
-            transform: [{ rotate: '-42deg' }]
-          }
-        ]}
-      />
-      <View
-        style={[
-          styles.brandPill,
-          {
-            width: 9 * unit,
-            height: 28 * unit,
-            borderRadius: 5 * unit,
-            left: 10 * unit,
-            top: 5 * unit,
-            backgroundColor: '#7D66FF',
-            opacity: 0.88
-          }
-        ]}
-      />
-    </View>
+    <Image
+      source={require('../../assets/branding/knowme-icon.png')}
+      style={{ width: size, height: size, borderRadius: size * 0.22 }}
+      resizeMode="contain"
+      accessibilityLabel="KnowMe"
+      accessibilityRole="image"
+    />
   );
 }
 
