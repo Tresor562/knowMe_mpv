@@ -508,7 +508,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             </Text>
             {user.staff ? (
               <Text accessibilityLabel={user.staff.label + ', ' + user.staff.role}
-                style={styles.staffSeal} title={user.staff.label}>✦</Text>
+                style={styles.staffSeal}>✦</Text>
             ) : null}
             {user.verification ? (
               <KnowMeIcon name="check" size={18} color={colors.accent}/>
