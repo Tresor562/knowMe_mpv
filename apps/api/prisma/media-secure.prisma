@@ -41,6 +41,7 @@ model MediaAsset {
   updatedAt                   DateTime  @updatedAt
   deletedAt                   DateTime?
 
+  messages Message[] @relation("ChatMessageMedia")
   grants MediaAccessGrant[]
 
   @@index([ownerId, status, createdAt])
