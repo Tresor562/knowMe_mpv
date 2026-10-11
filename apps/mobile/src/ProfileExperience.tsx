@@ -507,8 +507,10 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               {user.displayName}
             </Text>
             {user.staff ? (
-              <Text accessibilityLabel={user.staff.label + ', ' + user.staff.role}
-                style={styles.staffSeal}>✦</Text>
+              <View accessible accessibilityLabel={user.staff.label + ', ' + user.staff.role}
+                style={styles.staffSeal}>
+                <KnowMeIcon name="check" size={13} color="#4A3108" strokeWidth={2.4}/>
+              </View>
             ) : null}
             {user.verification ? (
               <KnowMeIcon name="check" size={18} color={colors.accent}/>
@@ -540,25 +542,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </Pressable>
         )}
 
-        <View style={styles.badges}>
-          {user.verification ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.accent,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.verification.label}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.accent }]}>
-                VERIFIED · {user.verification.label}
-              </Text>
-            </View>
-          ) : null}
-
-        </View>
 
         </GlassSurface>
       </FadeRise>
@@ -743,7 +726,7 @@ const styles = StyleSheet.create({
   profileTitleRow: { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:16, marginTop:10 },
   profileTitleIdentity: {flex:1,minWidth:0,flexDirection:'row',alignItems:'center',gap:5},
   headingCompact: {paddingHorizontal:0,marginTop:0,flexShrink:1},
-  staffSeal: {color:'#dbab3d',fontSize:20,fontWeight:'900'},
+  staffSeal: {width:19,height:19,borderRadius:10,backgroundColor:'#E8BB52',borderWidth:1,borderColor:'#A4771E',alignItems:'center',justifyContent:'center',flexShrink:0},
   profileMoreButton: {width:44,height:44,borderRadius:22,borderWidth:1,alignItems:'center',justifyContent:'center'},
   moreDots: {gap:3,alignItems:'center'},
   moreDot: {width:4,height:4,borderRadius:2},
