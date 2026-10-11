@@ -32,6 +32,7 @@ export function DailyNotesRail({ userId }: { userId: string }) {
       setNotes(next.filter(note => Date.parse(note.expiresAt) > Date.now()));
       setError('');
     } catch (cause) {
+      setNotes([]);
       setError(cause instanceof Error ? cause.message :
         (en ? 'Notes are unavailable.' : 'Pensées indisponibles.'));
     } finally { setLoading(false); }
