@@ -312,12 +312,14 @@ export class MessagingService {
 
   async sendMediaMessage(
     userId: string, conversationId: string, assetId: string,
-    kind: 'GIF' | 'STICKER_IMAGE' | 'IMAGE'
+    kind: 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT'
   ) {
     await this.assertMember(userId, conversationId);
     const acceptableMime = kind === 'GIF' ? ['image/gif'] :
       kind === 'STICKER_IMAGE' ? ['image/png', 'image/webp'] :
-      ['image/jpeg', 'image/png', 'image/webp'];
+      kind === 'IMAGE' ? ['image/jpeg', 'image/png', 'image/webp'] :
+      kind === 'VIDEO' ? ['video/mp4'] :
+      kind === 'AUDIO' ? ['audio/mpeg'] : ['application/pdf'];
     const asset = await this.prisma.mediaAsset.findFirst({
       where: { id: assetId, ownerId: userId, conversationId,
         purpose: 'MESSAGE', visibility: 'CONVERSATION',
@@ -388,7 +390,7 @@ export class MessagingService {
     const sticker = this.stickerTokens.resolve(content, { conversationId });
     const preview = sticker
       ? `Sticker : ${sticker.sticker.label}`
-      : mediaAssetId ? content === 'GIF' ? 'GIF' : content === 'STICKER_IMAGE' ? 'Sticker' : 'Image'
+      : mediaAssetId ? ({GIF:'GIF',STICKER_IMAGE:'Sticker',IMAGE:'Image',VIDEO:'Vidéo',AUDIO:'Audio',DOCUMENT:'Document'} as Record<string,string>)[content] ?? 'Pièce jointe'
       : content.length > 120
         ? `${content.slice(0, 117)}…`
         : content;
@@ -440,8 +442,11 @@ export class MessagingService {
     const mediaPresentation = available && asset && (
       (message.content === 'GIF' && asset.detectedMime === 'image/gif') ||
       (message.content === 'STICKER_IMAGE' && ['image/png', 'image/webp'].includes(asset.detectedMime)) ||
-      (message.content === 'IMAGE' && ['image/jpeg', 'image/png', 'image/webp'].includes(asset.detectedMime))
-    ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE',
+      (message.content === 'IMAGE' && ['image/jpeg', 'image/png', 'image/webp'].includes(asset.detectedMime)) ||
+      (message.content === 'VIDEO' && asset.detectedMime === 'video/mp4') ||
+      (message.content === 'AUDIO' && asset.detectedMime === 'audio/mpeg') ||
+      (message.content === 'DOCUMENT' && asset.detectedMime === 'application/pdf')
+    ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT',
       assetId: asset.id, mimeType: asset.detectedMime } : null;
     return {
       ...message,
