@@ -1,8 +1,8 @@
+import { KnowMeAlert as Alert } from './src/ui/KnowMeFeedback';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -27,6 +27,7 @@ import {
   SessionTokens
 } from './src/api';
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
+import { KnowMeFeedbackProvider } from './src/ui/KnowMeFeedback';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { useI18n } from './src/I18nProvider';
@@ -1256,7 +1257,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 export default function App({ onExitAuth }: { onExitAuth?: () => void } = {}) {
   return (
     <AppearanceProvider>
-      <AppContent onExitAuth={onExitAuth} />
+      <KnowMeFeedbackProvider>
+        <AppContent onExitAuth={onExitAuth} />
+      </KnowMeFeedbackProvider>
     </AppearanceProvider>
   );
 }

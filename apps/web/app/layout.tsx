@@ -1,4 +1,6 @@
 import './globals.css';
+import '../components/knowme-feedback.css';
+import { KnowMeDialogHost } from '../components/knowme-feedback';
 import { BottomNavigation } from '../components/bottom-navigation';
 import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
@@ -118,6 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <I18nRuntime />
         <ThemeRuntime />
         <ServiceWorkerRegistration />
+        <KnowMeDialogHost />
         {children}
         <BottomNavigation />
       </body>

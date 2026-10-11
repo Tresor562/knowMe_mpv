@@ -1,6 +1,7 @@
+import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { buildKnowMePublicAvatarUrl } from '@knowme/link-contract';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { useAppearance } from './AppearanceProvider';
 import { apiFetch } from './api';
