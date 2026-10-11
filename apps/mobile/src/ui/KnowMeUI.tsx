@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { ReactNode, useEffect, useMemo, useRef } from 'react';
+import { ReactNode, type ReactElement, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -15,6 +15,17 @@ import {
   ViewStyle
 } from 'react-native';
 import { useAppearance } from '../AppearanceProvider';
+
+// Expo's BlurView ships class types from a different React typing generation
+// in certain dependency trees. Preserve the real native blur implementation
+// while projecting its supported props into the app's JSX type universe.
+const NativeBlurView = BlurView as unknown as (props: {
+  pointerEvents?: 'none' | 'auto' | 'box-none' | 'box-only';
+  tint?: 'light' | 'dark';
+  intensity?: number;
+  experimentalBlurMethod?: 'dimezisBlurView';
+  style?: StyleProp<ViewStyle>;
+}) => ReactElement | null;
 
 export type KnowMeIconName =
   | 'home'
@@ -866,7 +877,7 @@ export function GlassSurface({
           ]}
         />
       ) : (
-        <BlurView
+        <NativeBlurView
           pointerEvents="none"
           tint={tint}
           intensity={intensity}
