@@ -200,9 +200,9 @@ describe('KnowMe core flows (e2e)', () => {
       .send({ memberIds: [charlie.body.user.id] })
       .expect(201);
 
-    const makeAsset = (mime: string, status = 'AVAILABLE') => prisma.mediaAsset.create({
+    const makeAsset = (mime: string, status = 'AVAILABLE', ownerId = alice.body.user.id) => prisma.mediaAsset.create({
       data: {
-        ownerId: alice.body.user.id,
+        ownerId,
         storageKey: `chatmedia-${mime.replace('/', '-')}-${Math.random().toString(36).slice(2)}`,
         originalName: mime === 'image/gif' ? 'animation.gif' : 'sticker.webp',
         declaredMime: mime,
@@ -219,9 +219,11 @@ describe('KnowMe core flows (e2e)', () => {
     const gif = await makeAsset('image/gif');
     const sticker = await makeAsset('image/webp');
     const blocked = await makeAsset('image/gif', 'QUARANTINED');
-    const video = await makeAsset('video/mp4');
-    const audio = await makeAsset('audio/mpeg');
-    const pdf = await makeAsset('application/pdf');
+    // Separate uploader validates the new formats without tripping the
+    // per-author anti-spam policy exercised by the negative MIME cases.
+    const video = await makeAsset('video/mp4', 'AVAILABLE', bob.body.user.id);
+    const audio = await makeAsset('audio/mpeg', 'AVAILABLE', bob.body.user.id);
+    const pdf = await makeAsset('application/pdf', 'AVAILABLE', bob.body.user.id);
 
     const first = await request(app.getHttpServer())
       .post(`/conversations/${conversation.body.id}/media-messages`)
@@ -248,7 +250,7 @@ describe('KnowMe core flows (e2e)', () => {
     ] as const) {
       const sent = await request(app.getHttpServer())
         .post(`/conversations/${conversation.body.id}/media-messages`)
-        .set('Authorization', header(alice.body.accessToken))
+        .set('Authorization', header(bob.body.accessToken))
         .send({ assetId: asset.id, kind }).expect(201);
       expect(sent.body.presentation).toMatchObject({kind,assetId:asset.id,mimeType});
     }
