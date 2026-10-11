@@ -236,7 +236,7 @@ model PostAttachment {
   createdAt DateTime @default(now())
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@id([postId, assetId])
   @@unique([postId, position])
