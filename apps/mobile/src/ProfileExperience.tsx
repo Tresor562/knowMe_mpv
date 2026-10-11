@@ -315,6 +315,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         <GlassSurface strength="soft" borderRadius={26} style={styles.panelHeader}>
           <PressScale
             onPress={() => setPanel('main')}
+            accessibilityLabel="Retour au profil"
             style={[
               styles.backButton,
               {
@@ -323,10 +324,10 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               }
             ]}
           >
-            <KnowMeIcon name="back" size={18} color={colors.text} />
-            <Text style={[styles.backButtonText, { color: colors.text }]}>Profil</Text>
+            <KnowMeIcon name="back" size={20} color={colors.text} />
           </PressScale>
-          <Text style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}
+            style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
         </GlassSurface>
 
         {panel === 'appearance' ? <AppearanceExperience /> : null}
@@ -710,11 +711,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
-  panelContent: { padding: 16, paddingBottom: 30, gap: 12 },
-  panelHeader: { minHeight: 52, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
-  backButton: { minHeight: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  panelContent: { paddingHorizontal: 12, paddingVertical: 8, paddingBottom: 32, gap: 12 },
+  panelHeader: { minHeight: 52, padding: 4, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  backButton: { width: 44, minHeight: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   backButtonText: { fontSize: 11.5, fontWeight: '700' },
-  panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
+  panelTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.35, flex: 1 },
   content: { padding: 16, paddingBottom: 30, gap: 12 },
   profileHero: { overflow: 'hidden', paddingBottom: 14 },
   cover: { height: 104, position: 'relative', overflow: 'hidden' },
