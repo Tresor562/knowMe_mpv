@@ -30,6 +30,7 @@ import {
 import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
+import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
@@ -55,6 +56,7 @@ type Screen =
   | 'social'
   | 'challenges'
   | 'profile'
+  | 'linked-sticker'
   | 'verification';
 
 type ChallengeSummary = { id: string; status: string };
@@ -1076,6 +1078,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
   const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
+  const [linkedSticker, setLinkedSticker] = useState<{packKey:string;stickerKey?:string} | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
   const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
@@ -1142,10 +1145,13 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       try {
         const result = await apiFetch<{
           kind: string;
-          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string };
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string };
         }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
         if (!active) return;
-        if (result.context.storyId) {
+        if (result.context.packKey) {
+          setLinkedSticker({packKey:result.context.packKey,stickerKey:result.context.stickerKey});
+          setScreen('linked-sticker');
+        } else if (result.context.storyId) {
           setLinkedStoryId(result.context.storyId);
           setScreen('home');
         } else if (result.context.postId) {
@@ -1273,6 +1279,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           />
         ) : null}
 
+        {screen === 'linked-sticker' && linkedSticker ? (
+          <LinkedStickerExperience packKey={linkedSticker.packKey} stickerKey={linkedSticker.stickerKey}
+            onBack={() => setScreen('social')} />
+        ) : null}
+
         {screen === 'challenges' ? (
           <ChallengeExperience
             key={'challenges:' + user.id}
@@ -1302,7 +1313,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}
