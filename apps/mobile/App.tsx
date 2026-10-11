@@ -1124,6 +1124,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [screen, setScreen] = useState<Screen>('home');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
+  const [postComposerRequest, setPostComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
   const [secondaryOpen, setSecondaryOpen] = useState(false);
@@ -1287,6 +1288,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onOpenDiscover={() => setScreen('discover')}
             openStoryComposer={storyComposerRequest}
             onStoryComposerOpened={() => setStoryComposerRequest(false)}
+            openComposerRequest={postComposerRequest}
+            onComposerOpened={() => setPostComposerRequest(false)}
             onContentScroll={onContentScroll}
             onSecondaryModeChange={onSecondaryModeChange}
           />
@@ -1361,7 +1364,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         onClose={() => setCreateOpen(false)}
         onPost={() => {
           setCreateOpen(false);
-          setScreen('feed');
+          setScreen('home');
+          setPostComposerRequest(true);
         }}
         onChallenge={() => {
           setCreateOpen(false);
