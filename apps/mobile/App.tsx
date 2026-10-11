@@ -1,7 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
+  AccessibilityInfo,
+  Animated,
   Alert,
   Keyboard,
   KeyboardAvoidingView,
@@ -534,7 +537,8 @@ function HomeScreen({
   openCreate,
   openProfile,
   storyComposerRequest,
-  onStoryComposerHandled
+  onStoryComposerHandled,
+  onContentScroll
 }: {
   user: MobileUser;
   openSocial: () => void;
@@ -544,6 +548,7 @@ function HomeScreen({
   openProfile: () => void;
   storyComposerRequest: boolean;
   onStoryComposerHandled: () => void;
+  onContentScroll?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
@@ -581,6 +586,8 @@ function HomeScreen({
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -947,14 +954,48 @@ function CreateHub({
 function BottomNavigation({
   screen,
   onNavigate,
-  onCreate
+  onCreate,
+  position,
+  visible
 }: {
   screen: Screen;
   onNavigate: (screen: Screen) => void;
   onCreate: () => void;
+  position: 'top' | 'bottom';
+  visible: boolean;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
+  const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => {
+      if (active) setReduceMotion(value);
+    }).catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      progress.setValue(visible ? 1 : 0);
+      return;
+    }
+    const animation = Animated.timing(progress, {
+      toValue: visible ? 1 : 0,
+      duration: 185,
+      useNativeDriver: true
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progress, reduceMotion, visible]);
+
+  const translation = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [position === 'top' ? -108 : 108, 0]
+  });
 
   const items: Array<{
     key: 'home' | 'discover' | 'social' | 'notifications' | 'profile';
@@ -1007,7 +1048,11 @@ function BottomNavigation({
   }
 
   return (
-    <View pointerEvents="box-none" style={styles.bottomDockWrap}>
+    <Animated.View pointerEvents={visible ? 'box-none' : 'none'}
+      accessibilityElementsHidden={!visible}
+      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
+      style={[styles.bottomDockWrap, position === 'top' ? styles.topDockWrap : null,
+        { opacity: progress, transform: [{ translateY: translation }] }]}>
       <GlassSurface
         strength="medium"
         borderRadius={30}
@@ -1062,7 +1107,7 @@ function BottomNavigation({
           />
         ))}
       </GlassSurface>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1075,6 +1120,58 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
+  const [navPosition, setNavPosition] = useState<'top'|'bottom'>('bottom');
+  const scrollTracker = useRef({ last: 0, distance: 0 });
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem('knowme-nav-position').then(value => {
+      if (mounted) setNavPosition(value === 'top' ? 'top' : 'bottom');
+    }).catch(() => undefined);
+    return () => { mounted = false; };
+  }, []);
+
+  const changeNavPosition = useCallback((next: 'top' | 'bottom') => {
+    setNavPosition(next);
+    void AsyncStorage.setItem('knowme-nav-position', next);
+  }, []);
+
+  const onContentScroll = useCallback((offset: number) => {
+    if (!Number.isFinite(offset)) return;
+    const next = Math.max(0, offset);
+    const tracker = scrollTracker.current;
+    const delta = next - tracker.last;
+    tracker.last = next;
+    if (next <= 22) {
+      tracker.distance = 0;
+      setNavVisible(true);
+      return;
+    }
+    if (Math.abs(delta) > 220) { tracker.distance = 0; return; }
+    tracker.distance = delta > 0
+      ? Math.max(0, tracker.distance) + delta
+      : Math.min(0, tracker.distance) + delta;
+    if (tracker.distance >= 42) {
+      setNavVisible(false);
+      tracker.distance = 0;
+    } else if (tracker.distance <= -25) {
+      setNavVisible(true);
+      tracker.distance = 0;
+    }
+  }, []);
+
+  const onSecondaryModeChange = useCallback((active: boolean) => {
+    setSecondaryOpen(active);
+    if (!active) setNavVisible(true);
+  }, []);
+
+  useEffect(() => {
+    scrollTracker.current = {last:0,distance:0};
+    setNavVisible(true);
+    setSecondaryOpen(false);
+  }, [screen]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -1188,26 +1285,31 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             openProfile={() => setScreen('profile')}
             storyComposerRequest={storyComposerRequest}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
+            onContentScroll={onContentScroll}
           />
         ) : null}
 
         {screen === 'feed' ? (
-          <FeedExperience key={'feed:' + user.id} userId={user.id} />
+          <FeedExperience key={'feed:' + user.id} userId={user.id}
+            onContentScroll={onContentScroll} onSecondaryModeChange={onSecondaryModeChange}/>
         ) : null}
 
         {screen === 'discover' ? (
           <SocialHub key={'discover:' + user.id} userId={user.id}
-            initialSection="friends" showSegments={false}/>
+            initialSection="friends" showSegments={false}
+            onContentScroll={onContentScroll} onSecondaryModeChange={onSecondaryModeChange}/>
         ) : null}
 
         {screen === 'notifications' ? (
           <SocialHub key={'notifications:' + user.id} userId={user.id}
-            initialSection="notifications" showSegments={false}/>
+            initialSection="notifications" showSegments={false}
+            onContentScroll={onContentScroll} onSecondaryModeChange={onSecondaryModeChange}/>
         ) : null}
 
         {screen === 'social' ? (
           <SocialHub key={'social:' + user.id} userId={user.id}
-            initialSection="messages" showSegments={false}/>
+            initialSection="messages" showSegments={false}
+            onContentScroll={onContentScroll} onSecondaryModeChange={onSecondaryModeChange}/>
         ) : null}
 
         {screen === 'challenges' ? (
@@ -1226,6 +1328,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
+            onContentScroll={onContentScroll} onSecondaryModeChange={onSecondaryModeChange}
+            navPosition={navPosition} onNavPositionChange={changeNavPosition}
           />
         ) : null}
 
@@ -1239,9 +1343,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' ? (
         <BottomNavigation
           screen={screen}
+          position={navPosition}
+          visible={navVisible && !keyboardVisible && !secondaryOpen && !createOpen}
           onNavigate={(next) => setScreen(next)}
           onCreate={() => setCreateOpen(true)}
         />
@@ -1839,6 +1945,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
 
+  topDockWrap: { top: Platform.OS === 'ios' ? 9 : 8, bottom: undefined },
   bottomDockWrap: {
     position: 'absolute',
     left: 12,
