@@ -50,11 +50,13 @@ export function MobilePlatformSyncStatus() {
   const [api, setApi] = useState<ProbeState>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const check = useCallback(async (active: () => boolean = () => true) => {
     if (active()) {
       setLoading(true);
       setChecked(false);
+      setDetailsOpen(false);
       setWeb(EMPTY);
       setApi(EMPTY);
     }
@@ -101,11 +103,7 @@ export function MobilePlatformSyncStatus() {
           {item.version ? item.version.version + ' · ' + (item.version.commit?.slice(0, 8) || 'commit inconnu')
             : loading ? 'vérification…' : 'indisponible'}
         </Text>
-        {!!item.error && (
-          <Text style={[styles.error, { color: colors.danger }]}>
-            {item.error}
-          </Text>
-        )}
+
       </View>
     </View>
   );
@@ -114,7 +112,7 @@ export function MobilePlatformSyncStatus() {
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[styles.title, { color: colors.text }]}>Versions de KnowMe</Text>
       <Text style={[styles.description, { color: colors.muted }]}>
-        Les versions Web, API et APK sont vérifiées séparément. Un même numéro de version ne garantit pas le même code.
+        Comparaison de la version, du contrat et du commit de chaque plateforme.
       </Text>
       <View style={styles.runtime}>
         <Text style={[styles.runtimeLabel, { color: colors.text }]}>APK :</Text>
@@ -128,6 +126,22 @@ export function MobilePlatformSyncStatus() {
           {verdictText}
         </Text>
       </View>
+      {(web.error || api.error) && !loading ? (
+        <View>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }}
+            onPress={() => setDetailsOpen(value => !value)} style={styles.detailsButton}>
+            <Text style={{ color: colors.accent, fontWeight: '600' }}>
+              {detailsOpen ? 'Masquer les erreurs' : 'Afficher les erreurs'}
+            </Text>
+          </Pressable>
+          {detailsOpen ? (
+            <View style={styles.details}>
+              {!!web.error && <Text selectable style={[styles.error, { color: colors.danger }]}>{web.error}</Text>}
+              {!!api.error && <Text selectable style={[styles.error, { color: colors.danger }]}>{api.error}</Text>}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <Pressable onPress={() => { if (!loading) void check(); }} disabled={loading}
         accessibilityRole="button" accessibilityLabel="Revérifier les versions Web, API et APK"
         style={[styles.button, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }, loading && styles.disabled]}>
@@ -141,13 +155,15 @@ export function MobilePlatformSyncStatus() {
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 18, borderWidth: 1, borderRadius: 22, gap: 14 },
-  title: { fontSize: 19, fontWeight: '800' },
-  description: { lineHeight: 21, fontSize: 14 },
+  card: { padding: 15, borderWidth: 1, borderRadius: 20, gap: 12 },
+  title: { fontSize: 17, fontWeight: '700' },
+  description: { lineHeight: 19, fontSize: 13 },
   runtime: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: 6 },
   runtimeLabel: { fontWeight: '700', minWidth: 40 },
   runtimeDetails: { flex: 1, minWidth: 120, gap: 5 },
-  error: { fontSize: 12, lineHeight: 17, flexShrink: 1 },
+  error: { fontSize: 12, lineHeight: 18, flexShrink: 1 },
+  detailsButton: { minHeight: 44, justifyContent: 'center', alignItems: 'flex-start' },
+  details: { gap: 8, padding: 12, borderRadius: 14 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   button: { minHeight: 48, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.6 },
