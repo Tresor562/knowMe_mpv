@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "product": "KnowMe",
   "productVersion": "1.0.0",
-  "contractRevision": "2026-10-11.1",
+  "contractRevision": "2026-10-11.2",
   "platforms": [
     "web",
     "android"
@@ -70,8 +70,8 @@
         "evidence": "apps/web/app/stories/new/page.tsx"
       },
       "android": {
-        "status": "missing",
-        "evidence": null
+        "status": "implemented",
+        "evidence": "apps/mobile/src/StoriesRail.tsx"
       }
     },
     {
@@ -83,8 +83,8 @@
         "evidence": "apps/web/app/stories/new/page.tsx"
       },
       "android": {
-        "status": "missing",
-        "evidence": null
+        "status": "partial",
+        "evidence": "apps/mobile/src/StoriesRail.tsx"
       }
     },
     {
@@ -96,8 +96,8 @@
         "evidence": "apps/web/components/avatar-quick-actions.tsx"
       },
       "android": {
-        "status": "missing",
-        "evidence": null
+        "status": "implemented",
+        "evidence": "apps/mobile/src/MobileAvatarQuickActions.tsx"
       }
     },
     {
@@ -109,8 +109,8 @@
         "evidence": "apps/web/app/profile/page.tsx"
       },
       "android": {
-        "status": "missing",
-        "evidence": null
+        "status": "implemented",
+        "evidence": "apps/mobile/src/MobileAvatarQuickActions.tsx"
       }
     },
     {
