@@ -16,6 +16,7 @@ import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './ProfileNavigation';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -118,6 +119,7 @@ export function RealtimeMessagesPanel({
   setRefreshing: (value: boolean) => void;
 }) {
   const { colors, visual, chat } = useAppearance();
+  const openProfile = useProfileNavigation();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -595,6 +597,11 @@ export function RealtimeMessagesPanel({
         <ChatWallpaper />
         <GlassSurface strength="medium" borderRadius={visual.controlRadius} style={styles.conversationHeader}>
           <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
+          <Pressable style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+            accessibilityRole={others.length === 1 && !isNexusPrivate ? 'link' : undefined}
+            accessibilityLabel={others.length === 1 ? 'Voir le profil de ' + others[0].user.displayName : 'Informations du groupe'}
+            disabled={others.length !== 1 || isNexusPrivate}
+            onPress={() => others[0] && openProfile(others[0].user.username)}>
           <View style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
             {isNexusPrivate ? (
               <KnowMeIcon name="spark" size={19} color={colors.secondary} />
@@ -621,6 +628,7 @@ export function RealtimeMessagesPanel({
                   : 'Connexion…'}
             </Text>
           </View>
+          </Pressable>
           <IconButton
             icon="refresh"
             accessibilityLabel="Actualiser"
@@ -684,9 +692,14 @@ export function RealtimeMessagesPanel({
                 ]}
               >
                 {!mine ? (
-                  <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
-                    {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
-                  </Text>
+                  <Pressable disabled={nexus || !item.sender?.username}
+                    accessibilityRole={!nexus && item.sender?.username ? 'link' : undefined}
+                    accessibilityLabel={'Voir le profil de ' + (item.sender?.displayName ?? 'Utilisateur')}
+                    onPress={() => item.sender?.username && openProfile(item.sender.username)}>
+                    <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
+                      {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
+                    </Text>
+                  </Pressable>
                 ) : null}
                 {item.presentation?.kind==='GIF'||
                  item.presentation?.kind==='STICKER_IMAGE'||

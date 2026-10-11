@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './ProfileNavigation';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
@@ -427,8 +428,10 @@ function NotificationsPanel({
 
 function Identity({ user }: { user: UserSummary }) {
   const { colors } = useAppearance();
+  const openProfile = useProfileNavigation();
   return (
-    <View style={styles.identity}>
+    <Pressable accessibilityRole="link" accessibilityLabel={'Voir le profil de ' + user.displayName}
+      onPress={() => openProfile(user.username)} style={styles.identity}>
       <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>{user.displayName}</Text>
@@ -437,7 +440,7 @@ function Identity({ user }: { user: UserSummary }) {
           <Text style={[styles.bio, { color: colors.muted }]} numberOfLines={2}>{user.bio}</Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
