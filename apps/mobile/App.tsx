@@ -1018,6 +1018,9 @@ function BottomNavigation({
   }) {
     return (
       <PressScale
+        accessibilityRole="tab"
+        accessibilityLabel={item.label}
+        accessibilityState={{ selected: active }}
         onPress={() => onNavigate(item.key)}
         style={[
           styles.bottomItem,
@@ -1068,6 +1071,8 @@ function BottomNavigation({
 
         <View style={styles.createSlot}>
           <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.create')}
             onPress={onCreate}
             style={[
               styles.createNavButton,
@@ -1270,7 +1275,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           styles.body,
           { backgroundColor: colors.background },
           screen !== 'challenges' && screen !== 'verification'
-            ? styles.bodyWithDock
+            ? (navPosition === 'top' ? styles.bodyWithTopDock : styles.bodyWithDock)
             : null
         ]}
       >
@@ -1380,6 +1385,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { flex: 1 },
   bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
+  bodyWithTopDock: { paddingTop: Platform.OS === 'ios' ? 72 : 66, paddingBottom: 8 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
