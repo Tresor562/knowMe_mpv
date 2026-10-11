@@ -5,7 +5,7 @@ import { API_URL, apiFetch, getAccessToken } from './api';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-export function ChatMediaAttachment({ assetId, kind, fileName }: { assetId: string; kind: Kind; fileName?: string }) {
+export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string }) {
   const [opening,setOpening]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
@@ -50,7 +50,7 @@ export function ChatMediaAttachment({ assetId, kind, fileName }: { assetId: stri
       if(!grant.path.startsWith(expected))throw new Error('MEDIA_GRANT_PATH_INVALID');
       const accessToken=await getAccessToken();
       if(!accessToken||!FileSystem.cacheDirectory)throw new Error('CACHE_OR_SESSION_MISSING');
-      const suffix=kind==='VIDEO'?'.mp4':kind==='AUDIO'?'.mp3':'.pdf';
+      const suffix=kind==='VIDEO'?'.mp4':kind==='AUDIO'?(mimeType==='audio/ogg'?'.ogg':mimeType==='audio/wav'?'.wav':'.mp3'):'.pdf';
       const target=`${FileSystem.cacheDirectory}knowme-attachment-${assetId}-${Date.now()}${suffix}`;
       const downloaded=await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,
         {headers:{Authorization:`Bearer ${accessToken}`}});
@@ -72,7 +72,7 @@ export function ChatMediaAttachment({ assetId, kind, fileName }: { assetId: stri
 
   if (kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
     <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':kind==='AUDIO'?'🎵':'📄'}</Text>
-    <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Audio MP3':'Document PDF')}</Text>
+    <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Fichier audio':'Document PDF')}</Text>
     <Pressable accessibilityRole="button" onPress={()=>void openFile()} disabled={opening}
       style={styles.fileAction}>
       <Text style={styles.retryText}>{opening?'Téléchargement…':failed?'Réessayer':'Ouvrir le fichier'}</Text>
