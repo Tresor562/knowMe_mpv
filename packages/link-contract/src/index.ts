@@ -1,4 +1,5 @@
 export const KNOWME_DEEP_LINK_SCHEME = 'knowme';
+export const KNOWME_PUBLIC_LINK_ORIGIN = 'https://knowme-nextech.vercel.app';
 export const KNOWME_DEEP_LINK_VERSION = 'v1';
 
 export const KNOWME_DEEP_LINK_KINDS = [
@@ -95,6 +96,10 @@ export function parseKnowMeDeepLink(value: string): ParsedKnowMeDeepLink | null 
     kind,
     id
   };
+}
+
+export function buildKnowMePublicLink(target: KnowMeDeepLinkTarget): string {
+  return KNOWME_PUBLIC_LINK_ORIGIN + buildKnowMeUniversalPath(target);
 }
 
 export function parseKnowMeUniversalPath(
