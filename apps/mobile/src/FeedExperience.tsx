@@ -306,6 +306,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, onEdit }: {
             resizeMode="cover"
           />
         ) : null}
+        <PostAttachmentRail postId={post.id} attachments={post.attachments}/>
         <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(post.createdAt, true)}</Text>
         <View style={styles.actionsRow}>
           <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
@@ -700,6 +701,7 @@ export function FeedExperience({
               resizeMode="cover"
             />
           ) : null}
+          <PostAttachmentRail postId={item.id} attachments={item.attachments}/>
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
@@ -728,9 +730,9 @@ export function FeedExperience({
             {editingPost ? 'Modifier la publication' : 'Créer une publication'}
           </Text>
           <Pressable accessibilityRole="button" accessibilityLabel={editingPost ? 'Enregistrer les modifications' : 'Publier'}
-            disabled={!content.trim() || publishing}
+            disabled={(!content.trim() && !imageUrl.trim() && !localMedia.length && !retainedAssets.length) || publishing}
             onPress={() => void publish()}
-            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:content.trim()?1:0.5}]}>
+            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:(content.trim()||imageUrl.trim()||localMedia.length||retainedAssets.length)?1:0.5}]}>
             <Text style={{color:colors.accent,fontWeight:'800'}}>
               {publishing ? 'Envoi…' : editingPost ? 'Enregistrer' : 'Publier'}
             </Text>
@@ -760,10 +762,56 @@ export function FeedExperience({
           />
           <Text style={[styles.composerHint,{color:colors.muted,textAlign:'right'}]}>{content.length}/2000</Text>
           <View style={[styles.composeAttachment,{borderColor:colors.border}]}>
-            <Text style={{fontSize:14,fontWeight:'700',color:colors.text}}>Image par lien HTTPS</Text>
+            <Text style={{fontSize:15,fontWeight:'700',color:colors.text}}>Ajouter des médias</Text>
+            <View style={styles.pickerRow}>
+              <Pressable accessibilityRole="button" disabled={publishing}
+                onPress={() => setGalleryVisible(true)}
+                style={[styles.pickerButton,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="discover" size={19} color={colors.accent}/>
+                <Text style={{fontSize:13,fontWeight:'700',color:colors.text}}>Galerie KnowMe</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={publishing}
+                onPress={() => {void chooseFiles();}}
+                style={[styles.pickerButton,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="edit" size={19} color={colors.accent}/>
+                <Text style={{fontSize:13,fontWeight:'700',color:colors.text}}>Fichiers</Text>
+              </Pressable>
+            </View>
             <Text style={{fontSize:12,lineHeight:18,color:colors.muted}}>
-              L’import direct de photos, vidéos et fichiers nécessite encore la nouvelle API de publications.
+              Jusqu’à 10 fichiers · 25 Mo maximum par fichier · formats compatibles.
             </Text>
+            {editingPost && retainedAssets.length ? (
+              <View>
+                <Text style={{fontSize:13,color:colors.text,fontWeight:'600'}}>Médias déjà publiés</Text>
+                <PostAttachmentRail postId={editingPost.id} attachments={retainedAssets}/>
+                {retainedAssets.map(entry => (
+                  <Pressable accessibilityRole="button" key={entry.asset.id}
+                    onPress={() => setRetainedAssets(items => items.filter(item => item.asset.id !== entry.asset.id))}
+                    style={[styles.pendingChip,{backgroundColor:colors.backgroundAccent}]}>
+                    <Text numberOfLines={1} style={{flex:1,color:colors.text}}>{entry.asset.originalName}</Text>
+                    <Text style={{color:colors.accent,fontWeight:'700'}}>Retirer ×</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {localMedia.map((media,index) => (
+              <View key={media.uri + index} style={[styles.pendingChip,{backgroundColor:colors.backgroundAccent}]}>
+                {media.mime.startsWith('image/') ?
+                  <Image source={{uri:media.uri}} style={styles.pendingThumb}/> :
+                  <Text style={{fontSize:20,color:colors.accent}}>
+                    {media.mime.startsWith('video/')?'▶':media.mime.startsWith('audio/')?'♫':'▤'}
+                  </Text>}
+                <Text numberOfLines={1} style={{flex:1,color:colors.text}}>{media.name}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={'Retirer ' + media.name}
+                  disabled={publishing} onPress={() => setLocalMedia(current => current.filter(item => item.uri !== media.uri))}>
+                  <Text style={{fontSize:20,color:colors.accent}}>×</Text>
+                </Pressable>
+              </View>
+            ))}
+            {!!uploadProgress && <Text accessibilityRole="text" style={{color:colors.accent,fontWeight:'700'}}>
+              {uploadProgress}
+            </Text>}
+            <Text style={{fontSize:13,fontWeight:'600',color:colors.text}}>Image externe (facultatif)</Text>
             <TextInput accessibilityLabel="URL de l’image"
               placeholder="https://…"
               placeholderTextColor={colors.muted}
@@ -777,9 +825,9 @@ export function FeedExperience({
         </ScrollView>
         <View style={[styles.composeFooter,{borderColor:colors.border}]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Publier la publication"
-            disabled={!content.trim() || publishing}
+            disabled={(!content.trim() && !imageUrl.trim() && !localMedia.length && !retainedAssets.length) || publishing}
             onPress={() => void publish()}
-            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:content.trim()?1:0.5}]}>
+            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:(content.trim()||imageUrl.trim()||localMedia.length||retainedAssets.length)?1:0.5}]}>
             <Text style={{fontSize:16,fontWeight:'800',color:colors.accentText}}>
               {publishing ? 'Enregistrement…' : editingPost ? 'Enregistrer' : 'Publier'}
             </Text>
@@ -787,6 +835,9 @@ export function FeedExperience({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <AndroidMediaLibraryPicker visible={galleryVisible} multiple allowVideo maxSelection={10}
+      onPickedMany={items => {setGalleryVisible(false);appendFiles(items);}}
+      onClose={() => setGalleryVisible(false)}/>
     <Modal visible={Boolean(menuPost)} transparent animationType="fade"
       onRequestClose={() => setMenuPost(null)}>
       <Pressable style={styles.sheetBackdrop} onPress={() => setMenuPost(null)}>
@@ -903,6 +954,11 @@ const styles = StyleSheet.create({
   composeAuthor: {flexDirection:'row',alignItems:'center',gap:11},
   composeInput: {minHeight:210,fontSize:22,lineHeight:30,paddingVertical:12},
   composeAttachment: {borderTopWidth:StyleSheet.hairlineWidth,paddingTop:18,gap:9},
+  pickerRow: {flexDirection:'row',flexWrap:'wrap',gap:8},
+  pickerButton: {minHeight:46,borderRadius:14,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12},
+  pendingChip: {minHeight:46,borderRadius:13,paddingHorizontal:10,paddingVertical:5,
+    flexDirection:'row',alignItems:'center',gap:9,marginTop:5},
+  pendingThumb: {width:40,height:40,borderRadius:9},
   composeImagePreview: {height:210,width:'100%',borderRadius:18},
   composeFooter: {paddingHorizontal:16,paddingVertical:12,borderTopWidth:StyleSheet.hairlineWidth},
   composeSend: {minHeight:50,alignItems:'center',justifyContent:'center',borderRadius:14},
