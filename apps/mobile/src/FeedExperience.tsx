@@ -355,11 +355,19 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   );
 }
 
-export function FeedExperience({ userId }: { userId: string }) {
+export function FeedExperience({ userId, onContentScroll, onSecondaryModeChange }: {
+  userId: string;
+  onContentScroll?: (offset: number) => void;
+  onSecondaryModeChange?: (active: boolean) => void;
+}) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  useEffect(() => {
+    onSecondaryModeChange?.(selectedPostId !== null);
+    return () => { onSecondaryModeChange?.(false); };
+  }, [selectedPostId, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -438,6 +446,8 @@ export function FeedExperience({ userId }: { userId: string }) {
   return (
     <FlatList
       style={{ backgroundColor: colors.background }}
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       data={posts}
       keyExtractor={(item) => item.id}
       refreshControl={
