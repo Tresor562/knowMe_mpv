@@ -6,6 +6,21 @@ These repository-level instructions apply to any coding assistant, agent, or fut
 
 Before modifying KnowMe:
 
+### Required, versioned KnowMe design contracts
+
+For **any** work on UI, themes, navigation, chat, media, avatars, stories, stickers, GIFs, animations or mobile:
+1. Read `docs/specifications/KnowMe_Master_UI_UX_Specification.md` completely.
+2. Read `docs/specifications/KnowMe_Animations_Interactions_Full_Spec.md` completely.
+3. Read `docs/TELEGRAM_UI_REFERENCE.md` and compare behavior to actual Telegram reference screens/videos where available.
+4. Apply **both** maximum Telegram-level fidelity (proportions, density, component placement, keyboard/touch interactions, theming, motion, responsive layout) and **every applicable KnowMe-specific requirement** from the two master specifications. Keep KnowMe branding and distinct product identity.
+5. Do not invent generic dashboards, giant cards, oversized navigation, fake controls, or decorative animations unrelated to actions.
+6. For affected screens, check loading/empty/error/offline/permission states; native Android and responsive Web; Light/Dark/AMOLED; French/English; reduced motion and reduced transparency; touch-target and keyboard accessibility.
+7. Treat implementation, wired API, tests, supported-device validation and actual deployment as **different statuses**. A component or picker existing does not prove its end-to-end media path works. No "done" claim without evidence.
+8. Include screenshots/video comparison and focused automated tests in the corresponding PR whenever the environment supports them. Do not silently skip a required master-spec feature or falsely report an unavailable native API as implemented.
+
+Conflict order: KnowMe-specific functionality follows the master specifications. Telegram UI reference establishes interaction and visual quality, without copying protected branding or overriding KnowMe functionality.
+
+
 For mobile UI, theming, chat appearance, motion, profiles, navigation or glass/blur work, also read `docs/TELEGRAM_UI_REFERENCE.md`. It is the durable Telegram-derived design reference for KnowMe and must be treated as a quality reference, not a pixel-copy specification.
 
 1. Read `docs/NEXUS_INTEGRATION_CHECKPOINT.md` completely.
