@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "product": "KnowMe",
   "productVersion": "1.1.0",
-  "contractRevision": "2026-10-11.2",
+  "contractRevision": "2026-10-11.3",
   "platforms": [
     "web",
     "android"
@@ -83,7 +83,7 @@
         "evidence": "apps/web/app/stories/new/page.tsx"
       },
       "android": {
-        "status": "partial",
+        "status": "implemented",
         "evidence": "apps/mobile/src/StoriesRail.tsx"
       }
     },
@@ -118,11 +118,11 @@
       "label": "Création de discussion et groupe",
       "releaseRequired": true,
       "web": {
-        "status": "partial",
-        "evidence": "apps/web/app/messages/page.tsx"
+        "status": "implemented",
+        "evidence": "apps/web/app/messages/new/page.tsx"
       },
       "android": {
-        "status": "partial",
+        "status": "implemented",
         "evidence": "apps/mobile/src/RealtimeMessagesPanel.tsx"
       }
     },
