@@ -6,6 +6,7 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import { useI18n } from '../../components/i18n-provider';
+import { UsernameMentions } from '../../components/username-mentions';
 
 type Post = {
   id: string;
@@ -168,14 +169,14 @@ export default function FeedPage() {
               <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
                 {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/> : post.author.displayName[0]}
               </div>
-              <div><strong>{post.author.displayName}</strong><div style={{ color: 'var(--muted)' }}>@{post.author.username}</div></div>
+              <div><strong>{post.author.displayName}</strong><div><Link href={`/profile/${encodeURIComponent(post.author.username)}`} style={{color:'var(--accent, var(--mint))'}}>@{post.author.username}</Link></div></div>
             </div>
-            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
+            <p style={{ fontSize: 15, lineHeight: 1.55 }}><UsernameMentions text={post.content}/></p>
             {post.imageUrl && <img src={post.imageUrl} alt={en?"Post media":"Média de la publication"} style={{ width: '100%', borderRadius: 18 }} />}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
               <Link className="btn" href={`/feed/${post.id}`}>💬 {post._count.comments}</Link>
-              <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
+              <Link href={`/feed/${post.id}`} style={{marginLeft:'auto'}}>{en?'View post':'Voir la publication'}</Link><small style={{ color: 'var(--muted)' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
             </div>
           </article>
         ))}
