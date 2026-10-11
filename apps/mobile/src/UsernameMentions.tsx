@@ -23,7 +23,7 @@ export function UsernameMentions({
           key={index}
           accessibilityRole="link"
           accessibilityLabel={`Voir le profil ${part.text}`}
-          onPress={() => { void openProfile(part.username); }}
+          onPress={(event) => { event.stopPropagation(); void openProfile(part.username); }}
           style={{
             color: outgoing ? colors.accentText : colors.accent,
             fontWeight: '600',
