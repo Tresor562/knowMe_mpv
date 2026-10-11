@@ -724,6 +724,89 @@ export function FeedExperience({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <Modal visible={Boolean(menuPost)} transparent animationType="fade"
+      onRequestClose={() => setMenuPost(null)}>
+      <Pressable style={styles.sheetBackdrop} onPress={() => setMenuPost(null)}>
+        <Pressable onPress={event => event.stopPropagation()}
+          style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
+          <Text style={[styles.sheetTitle,{color:colors.text}]}>Options de publication</Text>
+          {menuPost?.authorId === userId ? (
+            <>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) openEditor(menuPost);}}>
+                <KnowMeIcon name="edit" size={21} color={colors.accent}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Modifier la publication</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) void sharePost(menuPost);}}>
+                <KnowMeIcon name="arrow" size={20} color={colors.accent}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) confirmRemovePost(menuPost);}} disabled={postBusy}>
+                <KnowMeIcon name="close" size={19} color={colors.danger}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.danger}]}>Supprimer</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) hidePost(menuPost);}}>
+                <KnowMeIcon name="close" size={20} color={colors.muted}/>
+                <View style={{flex:1}}>
+                  <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Pas intéressé</Text>
+                  <Text style={[styles.sheetHint,{color:colors.muted}]}>Masquer sur cet écran uniquement</Text>
+                </View>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {setReportPost(menuPost);setMenuPost(null);}}>
+                <KnowMeIcon name="bell" size={20} color={colors.muted}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Signaler</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) void sharePost(menuPost);}}>
+                <KnowMeIcon name="arrow" size={20} color={colors.muted}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+            </>
+          )}
+          <Pressable accessibilityRole="button" style={styles.sheetDismiss}
+            onPress={() => setMenuPost(null)}>
+            <Text style={{color:colors.accent,fontWeight:'700'}}>Fermer</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    <Modal visible={Boolean(reportPost)} transparent animationType="slide"
+      onRequestClose={() => {if(!postBusy)setReportPost(null);}}>
+      <Pressable style={styles.sheetBackdrop} onPress={() => {if(!postBusy)setReportPost(null);}}>
+        <Pressable onPress={event => event.stopPropagation()}
+          style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
+          <Text style={[styles.sheetTitle,{color:colors.text}]}>Signaler la publication</Text>
+          <Text style={[styles.sheetHint,{color:colors.muted}]}>
+            Sélectionne une raison. Le signalement sera transmis à la modération KnowMe.
+          </Text>
+          {[
+            'Spam ou contenu trompeur',
+            'Harcèlement ou intimidation',
+            'Contenu violent ou choquant',
+            'Autre infraction aux règles KnowMe'
+          ].map(reason => (
+            <Pressable key={reason} accessibilityRole="button" disabled={postBusy}
+              onPress={() => void submitReport(reason)} style={styles.sheetOption}>
+              <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>{reason}</Text>
+              <KnowMeIcon name="arrow" size={18} color={colors.muted}/>
+            </Pressable>
+          ))}
+          <Pressable accessibilityRole="button" disabled={postBusy} style={styles.sheetDismiss}
+            onPress={() => setReportPost(null)}>
+            <Text style={{color:colors.accent,fontWeight:'700'}}>Annuler</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
     </>
   );
 }
@@ -736,6 +819,16 @@ const styles = StyleSheet.create({
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   composerCard: { padding: 10, borderRadius: 20 },
+  postMoreButton: {width:37,minHeight:44,alignItems:'center',justifyContent:'center'},
+  shareAction: {minHeight:34,borderRadius:17,paddingHorizontal:10,flexDirection:'row',alignItems:'center',gap:6},
+  sheetBackdrop: {flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.55)'},
+  sheetContent: {paddingHorizontal:18,paddingTop:12,paddingBottom:26,borderTopLeftRadius:26,borderTopRightRadius:26,borderWidth:StyleSheet.hairlineWidth,gap:5},
+  sheetGrip: {alignSelf:'center',width:40,height:4,borderRadius:4,marginBottom:9},
+  sheetTitle: {fontSize:18,fontWeight:'800',marginBottom:8},
+  sheetOption: {flexDirection:'row',minHeight:52,alignItems:'center',gap:14,paddingHorizontal:8,borderRadius:15},
+  sheetOptionLabel: {fontSize:15,fontWeight:'650',flex:1},
+  sheetHint: {fontSize:12,lineHeight:18},
+  sheetDismiss: {minHeight:48,alignItems:'center',justifyContent:'center',marginTop:8},
   quickCompose: {flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:StyleSheet.hairlineWidth,borderRadius:20,paddingHorizontal:12,gap:11},
   quickComposePrompt: {flex:1,fontSize:14},
   composerScreen: {flex:1},
