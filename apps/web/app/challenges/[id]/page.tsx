@@ -1,4 +1,6 @@
 'use client';
+import { knowMeConfirm } from '../../../components/knowme-feedback';
+
 
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
@@ -196,7 +198,7 @@ export default function ChallengeDetailPage() {
   async function completeChallenge() {
     if (
       !challenge ||
-      !window.confirm(
+      !await knowMeConfirm(
         'Terminer ce défi ? Les nouvelles réponses et modifications seront bloquées.'
       )
     ) {

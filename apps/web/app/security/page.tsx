@@ -1,4 +1,6 @@
 'use client';
+import { knowMeConfirm, knowMePrompt } from '../../components/knowme-feedback';
+
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import {
@@ -142,7 +144,7 @@ export default function SecurityPage() {
 
   async function disableTwoFactor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!window.confirm('Désactiver le second facteur et révoquer les appareils de confiance ?')) return;
+    if (!await knowMeConfirm('Désactiver le second facteur et révoquer les appareils de confiance ?')) return;
     setBusy(true);
     const form = new FormData(event.currentTarget);
     try {
@@ -167,7 +169,7 @@ export default function SecurityPage() {
 
   async function regenerateCodes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!window.confirm('Les anciens codes non utilisés seront invalidés. Continuer ?')) return;
+    if (!await knowMeConfirm('Les anciens codes non utilisés seront invalidés. Continuer ?')) return;
     setBusy(true);
     const form = new FormData(event.currentTarget);
     try {
@@ -252,7 +254,7 @@ export default function SecurityPage() {
   }
 
   async function revokeSession(id: string, current: boolean) {
-    if (!window.confirm(current ? 'Fermer la session actuelle ?' : 'Révoquer cette session ?')) return;
+    if (!await knowMeConfirm(current ? 'Fermer la session actuelle ?' : 'Révoquer cette session ?')) return;
     setBusy(true);
     try {
       await apiFetch(`/auth/sessions/${id}`, { method: 'DELETE' });
@@ -270,7 +272,7 @@ export default function SecurityPage() {
   }
 
   async function renameDevice(id: string, currentLabel: string) {
-    const label = window.prompt('Nom de l’appareil', currentLabel)?.trim();
+    const label = await knowMePrompt('Nom de l’appareil', currentLabel)?.trim();
     if (!label) return;
     setBusy(true);
     try {
@@ -288,7 +290,7 @@ export default function SecurityPage() {
   }
 
   async function revokeDevice(id: string) {
-    if (!window.confirm('Révoquer cet appareil de confiance ?')) return;
+    if (!await knowMeConfirm('Révoquer cet appareil de confiance ?')) return;
     setBusy(true);
     try {
       await apiFetch(`/security/devices/${id}`, { method: 'DELETE' });
