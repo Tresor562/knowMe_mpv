@@ -319,7 +319,7 @@ export class MessagingService {
       kind === 'STICKER_IMAGE' ? ['image/png', 'image/webp'] :
       kind === 'IMAGE' ? ['image/jpeg', 'image/png', 'image/webp'] :
       kind === 'VIDEO' ? ['video/mp4'] :
-      kind === 'AUDIO' ? ['audio/mpeg'] : ['application/pdf'];
+      kind === 'AUDIO' ? ['audio/mpeg', 'audio/ogg', 'audio/wav'] : ['application/pdf'];
     const asset = await this.prisma.mediaAsset.findFirst({
       where: { id: assetId, ownerId: userId, conversationId,
         purpose: 'MESSAGE', visibility: 'CONVERSATION',
@@ -444,7 +444,7 @@ export class MessagingService {
       (message.content === 'STICKER_IMAGE' && ['image/png', 'image/webp'].includes(asset.detectedMime)) ||
       (message.content === 'IMAGE' && ['image/jpeg', 'image/png', 'image/webp'].includes(asset.detectedMime)) ||
       (message.content === 'VIDEO' && asset.detectedMime === 'video/mp4') ||
-      (message.content === 'AUDIO' && asset.detectedMime === 'audio/mpeg') ||
+      (message.content === 'AUDIO' && ['audio/mpeg', 'audio/ogg', 'audio/wav'].includes(asset.detectedMime)) ||
       (message.content === 'DOCUMENT' && asset.detectedMime === 'application/pdf')
     ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT',
       assetId: asset.id, mimeType: asset.detectedMime, fileName: asset.originalName, sizeBytes: asset.size } : null;
