@@ -7,6 +7,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('KnowMe core flows (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let mediaAlice: { userId: string; token: string };
+  let mediaBob: { userId: string; token: string };
+  let mediaCharlie: { userId: string; token: string };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -39,6 +42,8 @@ describe('KnowMe core flows (e2e)', () => {
         password: 'KnowMeTest123!'
       })
       .expect(201);
+
+    mediaCharlie = { userId: registration.body.user.id, token: registration.body.accessToken };
 
     expect(registration.body.accessToken).toEqual(expect.any(String));
     expect(registration.body.refreshToken).toEqual(expect.any(String));
@@ -117,6 +122,9 @@ describe('KnowMe core flows (e2e)', () => {
       })
       .expect(201);
 
+    mediaAlice = { userId: alice.body.user.id, token: alice.body.accessToken };
+    mediaBob = { userId: bob.body.user.id, token: bob.body.accessToken };
+
     const friendRequest = await request(app.getHttpServer())
       .post('/social/friend-requests')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
@@ -171,6 +179,126 @@ describe('KnowMe core flows (e2e)', () => {
         expect.objectContaining({ id: conversation.body.id })
       ])
     );
+  });
+
+  it('sends scanned conversation GIF and WebP sticker while forbidding cross-chat and foreign assets', async () => {
+    // Reuse authenticated actors from preceding flow tests: avoid hitting
+    // the shared anti-abuse registration limiter during the full CI suite.
+    const alice = { body: { user: { id: mediaAlice.userId }, accessToken: mediaAlice.token } };
+    const bob = { body: { user: { id: mediaBob.userId }, accessToken: mediaBob.token } };
+    const charlie = { body: { user: { id: mediaCharlie.userId }, accessToken: mediaCharlie.token } };
+    const header = (token: string) => `Bearer ${token}`;
+
+    const conversation = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ memberIds: [bob.body.user.id] })
+      .expect(201);
+    const foreignConversation = await request(app.getHttpServer())
+      .post('/conversations')
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ memberIds: [charlie.body.user.id] })
+      .expect(201);
+
+    const makeAsset = (mime: string, status = 'AVAILABLE', ownerId = alice.body.user.id) => prisma.mediaAsset.create({
+      data: {
+        ownerId,
+        storageKey: `chatmedia-${mime.replace('/', '-')}-${Math.random().toString(36).slice(2)}`,
+        originalName: mime === 'image/gif' ? 'animation.gif' : 'sticker.webp',
+        declaredMime: mime,
+        detectedMime: mime,
+        size: 4096,
+        sha256: 'a'.repeat(64),
+        purpose: 'MESSAGE',
+        visibility: 'CONVERSATION',
+        conversationId: conversation.body.id,
+        status,
+        scannerVerdict: status === 'AVAILABLE' ? 'CLEAN' : 'UNAVAILABLE'
+      }
+    });
+    const gif = await makeAsset('image/gif');
+    const sticker = await makeAsset('image/webp');
+    const blocked = await makeAsset('image/gif', 'QUARANTINED');
+    // Separate uploader validates the new formats without tripping the
+    // per-author anti-spam policy exercised by the negative MIME cases.
+    const video = await makeAsset('video/mp4', 'AVAILABLE', bob.body.user.id);
+    const audio = await makeAsset('audio/mpeg', 'AVAILABLE', bob.body.user.id);
+    const pdf = await makeAsset('application/pdf', 'AVAILABLE', bob.body.user.id);
+
+    const first = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(201);
+    expect(first.body.presentation).toMatchObject({
+      kind: 'GIF', assetId: gif.id, mimeType: 'image/gif'
+    });
+
+    const second = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: sticker.id, kind: 'STICKER_IMAGE' })
+      .expect(201);
+    expect(second.body.presentation).toMatchObject({
+      kind: 'STICKER_IMAGE', assetId: sticker.id
+    });
+
+    for(const [kind, asset, mimeType] of [
+      ['VIDEO', video, 'video/mp4'],
+      ['AUDIO', audio, 'audio/mpeg'],
+      ['DOCUMENT', pdf, 'application/pdf']
+    ] as const) {
+      const sent = await request(app.getHttpServer())
+        .post(`/conversations/${conversation.body.id}/media-messages`)
+        .set('Authorization', header(bob.body.accessToken))
+        .send({ assetId: asset.id, kind }).expect(201);
+      expect(sent.body.presentation).toMatchObject({kind,assetId:asset.id,mimeType});
+    }
+
+    // Recipient can request a short-lived private download token; an outsider cannot.
+    const recipientGrant = await request(app.getHttpServer())
+      .post(`/media/${gif.id}/download-grant`)
+      .set('Authorization', header(bob.body.accessToken))
+      .expect(201);
+    expect(recipientGrant.body.path).toContain(`/media/${gif.id}/content?token=`);
+
+    await request(app.getHttpServer())
+      .post(`/media/${gif.id}/download-grant`)
+      .set('Authorization', header(charlie.body.accessToken))
+      .expect(403);
+
+    const history = await request(app.getHttpServer())
+      .get(`/conversations/${conversation.body.id}/messages`)
+      .set('Authorization', header(bob.body.accessToken))
+      .expect(200);
+    expect(history.body.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.body.id, presentation: expect.objectContaining({kind:'GIF'}) }),
+      expect.objectContaining({ id: second.body.id, presentation: expect.objectContaining({kind:'STICKER_IMAGE'}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'VIDEO',assetId:video.id}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'AUDIO',assetId:audio.id}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'DOCUMENT',assetId:pdf.id}) })
+    ]));
+
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(bob.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${foreignConversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: gif.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: blocked.id, kind: 'GIF' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/media-messages`)
+      .set('Authorization', header(alice.body.accessToken))
+      .send({ assetId: sticker.id, kind: 'GIF' })
+      .expect(403);
   });
 
   it('sends an idempotent visual gift with one KnowCoin debit and one receipt', async () => {
@@ -303,4 +431,6 @@ describe('KnowMe core flows (e2e)', () => {
       })
     ).toEqual({ knowCoins: 0 });
   });
+
+
 });

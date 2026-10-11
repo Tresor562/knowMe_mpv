@@ -1304,3 +1304,57 @@ html, body { min-width: 0; }
 @media(prefers-reduced-motion:reduce) {
   .km-group-row-actions button,.km-group-manage-actions button {transition:none;}
 }
+
+
+/* Real conversation GIFs, imported stickers and images — native compact media. */
+.km-chat-media {display:block;width:auto;max-width:min(100%,360px);max-height:420px;height:auto;
+  object-fit:contain;border-radius:12px;vertical-align:middle;}
+.km-chat-media-sticker_image {max-width:min(100%,230px);max-height:230px;object-fit:contain;}
+.km-chat-media-gif {max-width:min(100%,320px);max-height:320px;}
+.km-chat-media-loading,.km-chat-media-fallback {display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  min-height:88px;min-width:145px;color:var(--muted);font-size:12px;}
+.km-chat-media-fallback button {min-height:44px;border:0;border-radius:12px;
+  padding:9px 12px;background:var(--surface-2);color:var(--text);cursor:pointer;}
+.km-picker-upload-panel {display:grid;gap:10px;padding:14px;}
+.km-picker-upload-panel p {margin:0;color:var(--muted);font-size:13px;line-height:1.5;}
+.km-picker-upload-panel small {font-size:11px;color:var(--muted);line-height:1.5;}
+.km-picker-upload-action,.km-picker-upload-secondary {min-height:48px;border-radius:14px;
+  border:1px solid var(--soft-border);font-size:14px;font-weight:660;
+  cursor:pointer;padding:10px 15px;}
+.km-picker-upload-action {background:var(--mint);color:var(--on-primary);border-color:transparent;}
+.km-picker-upload-secondary {background:var(--surface-2);color:var(--text);}
+.km-picker-upload-panel button:disabled {opacity:.55;cursor:not-allowed;}
+.km-picker-error {margin:8px;padding:10px 12px;border-radius:13px;
+  background:color-mix(in srgb,var(--danger) 9%,var(--surface));color:var(--danger);font-size:12px;}
+@media(max-width:400px){.km-chat-media {max-width:100%;}}
+@media(prefers-reduced-motion:reduce){.km-picker-upload-panel button {transition:none;}}
+
+.km-picker-media-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;min-width:0;}
+.km-picker-media-grid>button {display:grid;place-items:center;aspect-ratio:1/1;min-width:0;
+  border:1px solid var(--soft-border);border-radius:14px;padding:4px;background:var(--surface-2);cursor:pointer;overflow:hidden;}
+.km-picker-media-grid .km-chat-media {max-width:100%;max-height:100%;object-fit:contain;border-radius:7px;}
+.km-picker-media-grid .km-chat-media-loading,.km-picker-media-grid .km-chat-media-fallback {
+  min-height:0;min-width:0;font-size:10px;overflow:hidden;}
+.km-picker-media-grid>button:disabled {opacity:.6;cursor:not-allowed;}
+
+.km-picker-media-tile {display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;
+  min-width:0;min-height:132px;gap:4px;padding:4px;border:1px solid var(--soft-border);
+  border-radius:14px;background:var(--surface-2);overflow:hidden;}
+.km-picker-media-tile>.km-chat-media {max-height:90px;max-width:100%;width:100%;object-fit:contain;}
+.km-picker-media-tile>button {min-height:44px;padding:6px;border:0;border-radius:10px;
+  color:var(--on-primary);background:var(--mint);font-size:11px;font-weight:670;cursor:pointer;}
+.km-picker-media-tile>button:disabled {opacity:.5;cursor:not-allowed;}
+
+
+/* Native-scaled private video, audio and document attachments. */
+.km-chat-media-video{display:block;width:min(100%,340px);max-height:330px;
+  border-radius:16px;background:#111;object-fit:contain;}
+.km-chat-media-audio{display:block;width:min(100%,310px);min-height:48px;}
+.km-chat-media-download{display:flex;align-items:center;gap:12px;
+  max-width:310px;min-height:56px;padding:10px 15px;border-radius:16px;
+  background:var(--surface-2);color:var(--mint);font-size:14px;text-decoration:none;
+  font-weight:650;overflow-wrap:anywhere;}
+.km-chat-media-download span{font-size:26px;line-height:1;}
+@media(max-width:380px){
+  .km-chat-media-video,.km-chat-media-audio,.km-chat-media-download{max-width:100%;}
+}

@@ -8,6 +8,12 @@ on:
       - 'apps/mobile/**'
       - 'packages/i18n-contract/**'
       - 'packages/ui/**'
+  pull_request:
+    paths:
+      - '.github/workflows/knowme-apk-build-once.yml'
+      - 'apps/mobile/**'
+      - 'packages/i18n-contract/**'
+      - 'packages/ui/**'
   workflow_dispatch:
 
 permissions:

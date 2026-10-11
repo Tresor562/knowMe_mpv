@@ -38,7 +38,8 @@ export type MobileStickerPresentation = {
 
 export type MobileMessagePresentation =
   | MobileStickerPresentation
-  | { kind: 'TEXT'; text: string };
+  | { kind: 'TEXT'; text: string }
+  | {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 
 export function getMobileStickerCatalog() {
   return apiFetch<MobileStickerCatalog>('/stickers/catalog');
@@ -67,6 +68,12 @@ export function mobileMessagePreview(input: {
 }) {
   return input.presentation?.kind === 'STICKER'
     ? `${input.presentation.sticker.glyph} ${input.presentation.sticker.label}`
+    : input.presentation?.kind === 'GIF' ? 'GIF'
+    : input.presentation?.kind === 'STICKER_IMAGE' ? 'Sticker'
+    : input.presentation?.kind === 'IMAGE' ? 'Image'
+    : input.presentation?.kind === 'VIDEO' ? 'Vidéo'
+    : input.presentation?.kind === 'AUDIO' ? 'Audio'
+    : input.presentation?.kind === 'DOCUMENT' ? 'Document'
     : input.presentation?.kind === 'TEXT'
       ? input.presentation.text
       : input.content;

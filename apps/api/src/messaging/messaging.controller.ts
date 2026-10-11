@@ -15,6 +15,7 @@ import { ModerationService } from '../moderation/moderation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { EditMessageDto } from './dto/edit-message.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { SendMediaMessageDto } from './dto/send-media-message.dto';
 import { MessageEditingService } from './message-editing.service';
 import { MessagingService } from './messaging.service';
 
@@ -76,6 +77,24 @@ export class MessagingController {
       targetId: id
     });
     return this.messaging.send(req.user.userId, id, dto.content);
+  }
+
+  @Post(':id/media-messages')
+  async sendMedia(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: SendMediaMessageDto
+  ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'MESSAGE_SEND',
+      // Bind the duplicate-content fingerprint to the actual media asset.
+      // Different GIFs must not be mistaken for repeated identical text,
+      // while repeatedly posting the same media remains rate-limited.
+      content: `${dto.kind}:${dto.assetId}`,
+      targetId: id
+    });
+    return this.messaging.sendMediaMessage(req.user.userId, id, dto.assetId, dto.kind);
   }
 
   @Patch(':id/messages/:messageId')

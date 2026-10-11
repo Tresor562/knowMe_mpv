@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
+import { ChatMediaAttachment } from './ChatMediaAttachment';
+import { ChatMediaPicker } from './ChatMediaPicker';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -38,6 +40,9 @@ type ConversationMessage = {
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
+  presentation?:{kind:'TEXT';text:string}|
+    {kind:'STICKER';sticker:{glyph:string;label:string}}|
+    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 };
 type Conversation = {
   id: string;
@@ -658,14 +663,21 @@ export function RealtimeMessagesPanel({
                     {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
                 ) : null}
-                <Text
-                  style={[
-                    mine ? styles.bubbleMineText : styles.bubbleText,
-                    { color: mine ? colors.accentText : colors.text }
-                  ]}
-                >
-                  {item.content}
-                </Text>
+                {item.presentation?.kind==='GIF'||
+                 item.presentation?.kind==='STICKER_IMAGE'||
+                 item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
+                 item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
+                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
+                  : <Text
+                      style={[
+                        mine ? styles.bubbleMineText : styles.bubbleText,
+                        { color: mine ? colors.accentText : colors.text }
+                      ]}>
+                      {item.presentation?.kind==='STICKER'
+                        ? `${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`
+                        : item.presentation?.kind==='TEXT'
+                          ? item.presentation.text : item.content}
+                    </Text>}
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>
@@ -691,6 +703,12 @@ export function RealtimeMessagesPanel({
         />
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+          <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+            onSent={created=>{
+              setHistory(current=>mergeMessages(current,[created]));
+              setConversations(current=>current.map(item=>item.id===active.id
+                ? {...item,messages:[created]}:item));
+            }}/>
           <TextInput
             value={draft}
             onChangeText={changeDraft}
@@ -910,7 +928,7 @@ export function RealtimeMessagesPanel({
                 numberOfLines={2}
               >
                 {last
-                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.content}`
+                  ? `${last.senderId === userId ? 'Toi : ' : last.nexusAuthored ? 'Nexus : ' : ''}${last.presentation?.kind==='STICKER_IMAGE'?'Sticker':last.presentation?.kind==='IMAGE'?'Image':last.presentation?.kind==='GIF'?'GIF':last.presentation?.kind==='STICKER'?'Sticker':last.presentation?.kind==='TEXT'?last.presentation.text:last.content}`
                   : isNexus ? 'Pose une question à Nexus.' : 'Aucun message pour le moment.'}
               </Text>
               {last ? (
