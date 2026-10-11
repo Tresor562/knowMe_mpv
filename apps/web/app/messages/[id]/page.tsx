@@ -33,7 +33,7 @@ type StickerPresentation = {
   arbitraryHtmlAllowed:false;
 };
 type TextPresentation = {kind:'TEXT';text:string};
-type MediaPresentation = {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string};
+type MediaPresentation = {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 type Message = {
   id:string;
   conversationId:string;
@@ -78,7 +78,7 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
 function MessageContent({item}:{item:Message}){
   if(item.presentation?.kind==='GIF'||item.presentation?.kind==='STICKER_IMAGE'||item.presentation?.kind==='IMAGE'||
     item.presentation?.kind==='VIDEO'||item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT') {
-    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind}/>;
+    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName}/>;
   }
   if(item.presentation?.kind==='STICKER'){
     return(
