@@ -39,28 +39,41 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId }: { userId: string }) {
+export function SocialHub({
+  userId,
+  initialSection = 'friends',
+  showSegments = true
+}: {
+  userId: string;
+  initialSection?: Section;
+  showSegments?: boolean;
+}) {
   const { colors } = useAppearance();
-  const [section, setSection] = useState<Section>('friends');
+  const [section, setSection] = useState<Section>(initialSection);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setRefreshing(false);
-    setSection('friends');
-  }, [userId]);
+    setSection(initialSection);
+  }, [userId, initialSection]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <GlassSurface strength="soft" borderRadius={24} style={styles.headerTop}>
           <View style={styles.headerTitleBlock}>
-            <Text style={[styles.heading, { color: colors.text }]}>Messages</Text>
-            <Text style={[styles.headerSub, { color: colors.muted }]}>Ton cercle, en direct.</Text>
+            <Text style={[styles.heading, { color: colors.text }]}>
+              {section === 'friends' ? 'Découvrir' : section === 'notifications' ? 'Notifications' : 'Messages'}
+            </Text>
+            <Text style={[styles.headerSub, { color: colors.muted }]}>
+              {section === 'friends' ? 'Relations et invitations' : section === 'notifications' ? 'Activité récente' : 'Tes discussions'}
+            </Text>
           </View>
           <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-            <KnowMeIcon name="messages" size={21} color={colors.accent} />
+            <KnowMeIcon name={section === 'friends' ? 'discover' : section === 'notifications' ? 'bell' : 'messages'} size={21} color={colors.accent} />
           </View>
         </GlassSurface>
+        {showSegments ? (
         <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
             <Pressable
@@ -95,6 +108,7 @@ export function SocialHub({ userId }: { userId: string }) {
             </Pressable>
           ))}
         </GlassSurface>
+        ) : null}
       </View>
 
       {section === 'friends' && (
