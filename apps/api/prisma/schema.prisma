@@ -46,6 +46,7 @@ model User {
   channelPosts             ChannelPost[]          @relation("ChannelPostAuthor")
   memberships              ConversationMember[]
   posts                    Post[]
+  dailyNote                DailyNote?
   postLikes                PostLike[]
   postComments             PostComment[]
   notifications            Notification[]
@@ -64,6 +65,18 @@ model User {
   verificationRequests     IdentityVerificationRequest[]  @relation("VerificationApplicant")
   verificationAssignments  IdentityVerificationRequest[]  @relation("VerificationAssignment")
   verificationReviews      IdentityVerificationDecision[] @relation("VerificationReviewer")
+}
+
+model DailyNote {
+  userId    String   @id
+  content   String   @db.VarChar(80)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model Friendship {
