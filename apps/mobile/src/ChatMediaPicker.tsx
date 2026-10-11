@@ -4,13 +4,14 @@ import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text,
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 
-type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE';
+type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 type UploadResponse = { id:string; status:string };
 type UploadSession = { id:string; uploadToken:string };
 type DirectoryEntry = { uri:string; name:string; isDirectory:boolean; mime:string|null };
 
 const MIMES: Record<string,string> = {
-  gif:'image/gif',png:'image/png',webp:'image/webp',jpg:'image/jpeg',jpeg:'image/jpeg'
+  gif:'image/gif',png:'image/png',webp:'image/webp',jpg:'image/jpeg',jpeg:'image/jpeg',
+  mp4:'video/mp4',mp3:'audio/mpeg',pdf:'application/pdf'
 };
 
 function fileNameFromUri(uri:string) {
@@ -24,7 +25,8 @@ function fileMime(uri:string) {
   return MIMES[name.split('.').pop()??''] ?? null;
 }
 function fileKind(mime:string): MediaKind {
-  return mime==='image/gif'?'GIF':mime==='image/webp'||mime==='image/png'?'STICKER_IMAGE':'IMAGE';
+  return mime==='image/gif'?'GIF':mime==='video/mp4'?'VIDEO':
+    mime==='audio/mpeg'?'AUDIO':mime==='application/pdf'?'DOCUMENT':'IMAGE';
 }
 
 export function ChatMediaPicker<T>({conversationId,onSent}:{
@@ -135,7 +137,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
   }
 
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel="Envoyer un GIF, un sticker ou une photo"
+    <Pressable accessibilityRole="button" accessibilityLabel="Envoyer photo, GIF, sticker, vidéo, audio ou document"
       onPress={()=>void openPicker()} style={[styles.trigger,{backgroundColor:colors.backgroundAccent}]}>
       <Text style={[styles.triggerText,{color:colors.text}]}>＋</Text>
     </Pressable>
@@ -143,14 +145,14 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
       <View style={styles.shade}>
         <View style={[styles.sheet,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <View style={styles.heading}>
-            <Text style={[styles.title,{color:colors.text}]}>GIFs · Stickers · Photos</Text>
+            <Text style={[styles.title,{color:colors.text}]}>Fichiers · GIF · Stickers</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Fermer"
               disabled={busy} onPress={()=>setVisible(false)} style={styles.close}>
               <Text style={[styles.label,{color:colors.text}]}>Fermer</Text>
             </Pressable>
           </View>
           <Text style={[styles.help,{color:colors.muted}]}>
-            Sélectionne un dossier, puis touche un fichier image pour l’envoyer en privé.
+            Choisis un dossier, puis une photo, un GIF, un sticker, une vidéo MP4, un audio MP3 ou un PDF.
           </Text>
           <Pressable accessibilityRole="checkbox" accessibilityState={{checked:preferSticker}}
             onPress={()=>setPreferSticker(value=>!value)} style={styles.option}>
@@ -173,7 +175,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
           {busy&&<Text style={[styles.help,{color:colors.muted}]}>Traitement en cours…</Text>}
           {!!notice&&<Text accessibilityRole="alert" style={[styles.help,{color:colors.text}]}>{notice}</Text>}
           <ScrollView style={styles.files} contentContainerStyle={styles.fileContent}>
-            {directory&&entries.length===0&&!busy&&<Text style={[styles.help,{color:colors.muted}]}>Aucun GIF, WebP, PNG ou JPEG dans ce dossier.</Text>}
+            {directory&&entries.length===0&&!busy&&<Text style={[styles.help,{color:colors.muted}]}>Aucun média compatible dans ce dossier (PNG, JPEG, WebP, GIF, MP4, MP3, PDF).</Text>}
             {entries.map(file=><Pressable key={file.uri} accessibilityRole="button" disabled={busy}
               style={[styles.file,{borderBottomColor:colors.border}]}
               onPress={()=>{
@@ -182,7 +184,10 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
               }}>
               {file.isDirectory
                 ? <Text style={styles.folderGlyph}>📁</Text>
-                : <Image source={{uri:file.uri}} style={styles.thumbnail} resizeMode="cover"/>}
+                : file.mime?.startsWith('image/')
+                  ? <Image source={{uri:file.uri}} style={styles.thumbnail} resizeMode="cover"/>
+                  : <Text style={styles.folderGlyph}>{file.mime==='application/pdf'?'📄':
+                    file.mime==='audio/mpeg'?'🎵':'🎬'}</Text>}
               <Text style={[styles.fileText,{color:colors.text}]} numberOfLines={1}>
                 {file.name}
               </Text>
