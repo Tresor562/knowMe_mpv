@@ -251,6 +251,8 @@ export function StickerPicker<T>({
         <input ref={searchField} type="search" value={search} onChange={event => setSearch(event.target.value)}
           placeholder={en ? 'Search stickers' : 'Rechercher des stickers'} aria-label={en ? 'Search stickers' : 'Rechercher des stickers'}/>
       </div>}
+      {savedMediaLoading&&(tab==='gifs'||tab==='stickers')&&
+        <p role="status" className="km-picker-status">{en?'Loading recent media…':'Chargement des médias récents…'}</p>}
       {savedMediaError&&(tab==='gifs'||tab==='stickers')&&
         <p className="km-picker-status">{en?'Recent media unavailable; new uploads still work.':
           'Historique indisponible ; tu peux toujours envoyer un nouveau fichier.'}</p>}
