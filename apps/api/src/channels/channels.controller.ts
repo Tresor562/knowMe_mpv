@@ -39,7 +39,15 @@ export class ChannelsController {
   }
 
   @Patch(':id')
-  update(@Req() req: {user: {userId: string}}, @Param('id') id: string, @Body() dto: UpdateChannelDto) {
+  async update(@Req() req: {user: {userId: string}}, @Param('id') id: string, @Body() dto: UpdateChannelDto) {
+    if (dto.name !== undefined || dto.description !== undefined) {
+      await this.moderation.assertAllowed({
+        actorId: req.user.userId,
+        action: 'POST_CREATE',
+        content: `${dto.name || ''} ${dto.description || ''}`,
+        targetId: id
+      });
+    }
     return this.channels.update(req.user.userId, id, dto);
   }
 
