@@ -158,8 +158,45 @@ describe('KnowMe core flows (e2e)', () => {
 
     expect(message.body).toMatchObject({
       content: 'Salut Bob, bienvenue sur KnowMe !',
-      senderId: alice.body.user.id
+      senderId: alice.body.user.id,
+      replyTo: null
     });
+
+    const reply = await request(app.getHttpServer())
+      .post(`/conversations/${conversation.body.id}/messages`)
+      .set('Authorization', `Bearer ${bob.body.accessToken}`)
+      .send({
+        content: 'Merci Alice !',
+        replyToId: message.body.id
+      })
+      .expect(201);
+
+    expect(reply.body).toMatchObject({
+      content: 'Merci Alice !',
+      senderId: bob.body.user.id,
+      replyTo: {
+        id: message.body.id,
+        authorName: 'Alice',
+        preview: 'Salut Bob, bienvenue sur KnowMe !'
+      }
+    });
+
+    const history = await request(app.getHttpServer())
+      .get(`/conversations/${conversation.body.id}/messages?limit=20`)
+      .set('Authorization', `Bearer ${alice.body.accessToken}`)
+      .expect(200);
+
+    expect(history.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: reply.body.id,
+          replyTo: expect.objectContaining({
+            id: message.body.id,
+            authorName: 'Alice'
+          })
+        })
+      ])
+    );
 
     const conversations = await request(app.getHttpServer())
       .get('/conversations')

@@ -132,12 +132,29 @@ export type MobileThemePalette = {
 };
 
 export type MobileVisualStyle = {
+  spaceUnit: number;
+  touchTarget: number;
+  iconStandard: number;
+  iconImportant: number;
+  titleSize: number;
+  chatNameSize: number;
+  messageSize: number;
+  previewSize: number;
+  metaSize: number;
+  buttonSize: number;
+  radiusSmall: number;
+  radiusSecondary: number;
   cardRadius: number;
   controlRadius: number;
   inputRadius: number;
+  panelRadius: number;
   bubbleRadius: number;
   glassBoost: number;
   elevation: number;
+  motionMicro: number;
+  motionStandard: number;
+  motionNavigation: number;
+  motionShared: number;
   transitionDuration: number;
 };
 
@@ -247,12 +264,29 @@ function mergePalette(
 
 
 const DEFAULT_VISUAL_STYLE: MobileVisualStyle = {
+  spaceUnit: 4,
+  touchTarget: 48,
+  iconStandard: 23,
+  iconImportant: 28,
+  titleSize: 22,
+  chatNameSize: 16.5,
+  messageSize: 15.5,
+  previewSize: 14.5,
+  metaSize: 12,
+  buttonSize: 15,
+  radiusSmall: 12,
+  radiusSecondary: 18,
   cardRadius: 26,
   controlRadius: 22,
   inputRadius: 28,
+  panelRadius: 30,
   bubbleRadius: 18,
   glassBoost: 0,
-  elevation: 6,
+  elevation: 4,
+  motionMicro: 140,
+  motionStandard: 190,
+  motionNavigation: 270,
+  motionShared: 320,
   transitionDuration: 260
 };
 

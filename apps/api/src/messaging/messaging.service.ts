@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -301,9 +301,17 @@ export class MessagingService {
     return { ...membership, unread: 0 };
   }
 
-  async send(userId: string, conversationId: string, content: string) {
+  async send(
+    userId: string,
+    conversationId: string,
+    content: string,
+    replyToId?: string
+  ) {
     await this.assertMember(userId, conversationId);
-    return this.sendAuthorized(userId, conversationId, content);
+    const reply = replyToId
+      ? await this.resolveReplyContext(conversationId, replyToId)
+      : null;
+    return this.sendAuthorized(userId, conversationId, content, reply);
   }
 
   async sendSticker(input: {
@@ -324,11 +332,23 @@ export class MessagingService {
   private async sendAuthorized(
     userId: string,
     conversationId: string,
-    content: string
+    content: string,
+    reply: {
+      id: string;
+      authorName: string;
+      preview: string;
+    } | null = null
   ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
-        data: { conversationId, senderId: userId, content },
+        data: {
+          conversationId,
+          senderId: userId,
+          content,
+          replyToId: reply?.id ?? null,
+          replyToAuthorName: reply?.authorName ?? null,
+          replyToPreview: reply?.preview ?? null
+        },
         include: {
           sender: {
             select: {
@@ -397,7 +417,15 @@ export class MessagingService {
     return presented;
   }
 
-  private presentMessage<T extends { content: string; conversationId: string }>(
+  private presentMessage<
+    T extends {
+      content: string;
+      conversationId: string;
+      replyToId?: string | null;
+      replyToAuthorName?: string | null;
+      replyToPreview?: string | null;
+    }
+  >(
     message: T,
     knownSticker?: StickerPresentation | null
   ) {
@@ -408,6 +436,14 @@ export class MessagingService {
       });
     return {
       ...message,
+      replyTo:
+        message.replyToId && message.replyToAuthorName && message.replyToPreview
+          ? {
+              id: message.replyToId,
+              authorName: message.replyToAuthorName,
+              preview: message.replyToPreview
+            }
+          : null,
       presentation: sticker ?? {
         kind: 'TEXT' as const,
         text: message.content
@@ -443,11 +479,69 @@ export class MessagingService {
         model: message.model,
         route: message.route
       },
+      replyTo: null,
       presentation: {
         kind: 'TEXT' as const,
         text: message.content
       }
     };
+  }
+
+  private async resolveReplyContext(
+    conversationId: string,
+    replyToId: string
+  ) {
+    if (replyToId.startsWith('nexus:')) {
+      const sourceId = replyToId.slice('nexus:'.length);
+      const target = await this.prisma.nexusSocialReply.findFirst({
+        where: { id: sourceId, conversationId },
+        select: { id: true, content: true }
+      });
+      if (!target) {
+        throw new BadRequestException({
+          code: 'MESSAGE_REPLY_TARGET_INVALID',
+          message: 'Le message cité est introuvable dans cette conversation.'
+        });
+      }
+      return {
+        id: `nexus:${target.id}`,
+        authorName: NEXUS_AUTHOR.displayName,
+        preview: this.replyPreview(target.content)
+      };
+    }
+
+    const target = await this.prisma.message.findFirst({
+      where: { id: replyToId, conversationId },
+      select: {
+        id: true,
+        content: true,
+        sender: { select: { displayName: true } }
+      }
+    });
+    if (!target) {
+      throw new BadRequestException({
+        code: 'MESSAGE_REPLY_TARGET_INVALID',
+        message: 'Le message cité est introuvable dans cette conversation.'
+      });
+    }
+
+    const sticker = this.stickerTokens.resolve(target.content, {
+      conversationId
+    });
+    return {
+      id: target.id,
+      authorName: target.sender.displayName,
+      preview: this.replyPreview(
+        sticker ? `Sticker : ${sticker.sticker.label}` : target.content
+      )
+    };
+  }
+
+  private replyPreview(content: string) {
+    const normalized = content.replace(/\s+/g, ' ').trim();
+    return normalized.length > 160
+      ? `${normalized.slice(0, 157)}…`
+      : normalized;
   }
 
   private compareTimelineItems(

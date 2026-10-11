@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeIcon, PressScale, SoftSurface } from './ui/KnowMeUI';
 
 type SearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION';
 
@@ -120,14 +121,26 @@ export function UniversalSearchExperience({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>RECHERCHE UNIVERSELLE</Text>
-      <Text style={[styles.heading, { color: colors.text }]}>Retrouve ton contenu</Text>
-      <Text style={[styles.muted, { color: colors.muted }]}> 
-        Seuls les résultats déjà autorisés par le serveur KnowMe sont affichés.
-      </Text>
+      <View style={styles.header}>
+        <Text style={[styles.heading, { color: colors.text }]}>Recherche</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>
+          Messages, conversations, publications et défis accessibles.
+        </Text>
+      </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-        <TextInput
+      <SoftSurface style={styles.searchSurface}>
+        <View
+          style={[
+            styles.searchField,
+            {
+              backgroundColor: colors.backgroundAccent,
+              borderColor: colors.border,
+              borderRadius: visual.inputRadius
+            }
+          ]}
+        >
+          <KnowMeIcon name="search" size={20} color={colors.muted} />
+          <TextInput
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() => void search()}
@@ -137,52 +150,50 @@ export function UniversalSearchExperience({
           autoCorrect={false}
           maxLength={120}
           returnKeyType="search"
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-              color: colors.text
-            }
-          ]}
+          style={[styles.input, { color: colors.text }]}
         />
+        </View>
         <View style={styles.filterRow}>
           {SEARCH_KINDS.map((kind) => {
             const selected = activeKinds.includes(kind);
             return (
-              <Pressable
+              <PressScale
                 key={kind}
                 accessibilityRole="button"
-                accessibilityState={{ selected }}
+                accessibilityLabel={labels[kind]}
                 onPress={() => toggleKind(kind)}
                 style={[
                   styles.filterButton,
-                  { borderColor: selected ? colors.accent : colors.border },
-                  selected && { backgroundColor: colors.surfaceRaised }
+                  {
+                    borderColor: selected ? colors.accent : colors.border,
+                    backgroundColor: selected ? colors.surfaceRaised : 'transparent'
+                  }
                 ]}
               >
-                <Text style={{ color: selected ? colors.accent : colors.muted, fontWeight: '800' }}>
+                <Text style={[styles.filterText, { color: selected ? colors.accent : colors.muted }]}>
                   {labels[kind]}
                 </Text>
-              </Pressable>
+              </PressScale>
             );
           })}
         </View>
         <Text style={[styles.filterHelp, { color: colors.muted }]}>Changer un filtre réinitialise la pagination.</Text>
-        <Pressable
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Rechercher"
           disabled={busy || query.trim().length < 2}
           onPress={() => void search()}
-          style={({ pressed }) => [
+          style={[
             styles.primaryButton,
             { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
-            (pressed || busy || query.trim().length < 2) && styles.disabled
+            (busy || query.trim().length < 2) && styles.disabled
           ]}
         >
           <Text style={[styles.primaryText, { color: colors.accentText }]}>Rechercher</Text>
-        </Pressable>
-      </View>
+        </PressScale>
+      </SoftSurface>
 
-      {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="polite" style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {busy && items.length === 0 ? <ActivityIndicator color={colors.accent} /> : null}
 
       {submittedQuery ? (
@@ -205,7 +216,7 @@ export function UniversalSearchExperience({
           onPress={() => onOpenResult?.(item)}
           style={({ pressed }) => [
             styles.result,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            { borderBottomColor: colors.border },
             pressed && styles.pressed
           ]}
         >
@@ -240,27 +251,56 @@ export function UniversalSearchExperience({
 export type UniversalSearchResult = SearchItem;
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 44, gap: 12 },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  heading: { fontSize: 30, fontWeight: '900' },
-  muted: { fontSize: 14, lineHeight: 20 },
-  card: { borderWidth: 1, borderRadius: 22, padding: 16, gap: 10 },
-  input: { borderWidth: 1, borderRadius: 15, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filterButton: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 11 },
-  filterHelp: { fontSize: 12, lineHeight: 17 },
-  primaryButton: { borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
-  primaryText: { fontWeight: '900' },
+  content: { padding: 16, paddingBottom: 36, gap: 12 },
+  header: { gap: 3, paddingHorizontal: 2 },
+  heading: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  muted: { fontSize: 13.5, lineHeight: 19 },
+  searchSurface: { padding: 10, gap: 9 },
+  searchField: {
+    minHeight: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  input: { flex: 1, minHeight: 46, paddingVertical: 10, fontSize: 15 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  filterButton: {
+    minHeight: 40,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  filterText: { fontSize: 12.5, fontWeight: '600' },
+  filterHelp: { fontSize: 11, lineHeight: 16 },
+  primaryButton: { minHeight: 48, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: 14.5, fontWeight: '700' },
   disabled: { opacity: 0.45 },
-  error: { lineHeight: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: '900', marginTop: 8 },
-  result: { borderWidth: 1, borderRadius: 20, padding: 16, gap: 8 },
-  pressed: { opacity: 0.78 },
+  error: { fontSize: 13, lineHeight: 19 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginTop: 6 },
+  result: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 2,
+    paddingVertical: 12,
+    gap: 5
+  },
+  pressed: { opacity: 0.72 },
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' },
-  resultTitle: { flex: 1, fontSize: 16, fontWeight: '800' },
-  kind: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  snippet: { lineHeight: 20 },
+  resultTitle: { flex: 1, fontSize: 15.5, fontWeight: '700' },
+  kind: { fontSize: 10.5, fontWeight: '700' },
+  snippet: { fontSize: 14, lineHeight: 19 },
   date: { fontSize: 11 },
-  secondaryButton: { borderWidth: 1, borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  secondaryText: { fontWeight: '800' }
+  secondaryButton: {
+    minHeight: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4
+  },
+  secondaryText: { fontSize: 13.5, fontWeight: '600' }
 });

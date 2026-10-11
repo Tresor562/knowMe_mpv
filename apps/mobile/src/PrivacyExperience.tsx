@@ -104,6 +104,8 @@ function ActionButton({ title, onPress, disabled = false, secondary = false }: {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -220,7 +222,7 @@ export function PrivacyExperience() {
   }
 
   if (loading || !center) {
-    return <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.muted, { color: colors.muted }]}>Chargement de la confidentialité…</Text></View>;
+    return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}><Text style={[styles.muted, { color: colors.muted }]}>Chargement de la confidentialité…</Text></View>;
   }
 
   const toggles: Array<[keyof Preferences, string, string]> = [
@@ -247,7 +249,7 @@ export function PrivacyExperience() {
       </View>
 
       {center.policies.map((policy) => (
-        <View key={`${policy.key}-${policy.version}`} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <View key={`${policy.key}-${policy.version}`} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{policy.title}</Text>
             <Text style={[policy.granted ? styles.active : styles.warning, { color: policy.granted ? colors.accent : colors.danger }]}>
@@ -266,13 +268,16 @@ export function PrivacyExperience() {
         </View>
       ))}
 
-      <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Visibilité du profil</Text>
         <View style={styles.segmentRow}>
           {(['PRIVATE', 'FRIENDS', 'PUBLIC'] as const).map((value) => (
             <Pressable
               key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: center.preferences.profileVisibility === value, disabled: busy }}
               disabled={busy}
+              hitSlop={2}
               onPress={() => void updatePreference('profileVisibility', value)}
               style={[
                 styles.segment,
@@ -309,12 +314,15 @@ export function PrivacyExperience() {
         ))}
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Exercer mes droits</Text>
         <View style={styles.segmentRow}>
           {['EXPORT', 'CORRECT', 'RESTRICT', 'OBJECT', 'DELETE'].map((value) => (
             <Pressable
               key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: requestType === value }}
+              hitSlop={4}
               onPress={() => setRequestType(value)}
               style={[
                 styles.requestChip,
@@ -359,7 +367,7 @@ export function PrivacyExperience() {
       </View>
 
       {center.requests.map((item) => (
-        <View key={item.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
+        <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.rowBetween}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>{requestTypeLabel(item.type, locale)}</Text>
             <Text style={[styles.active, { color: colors.accent }]}>{requestStatusLabel(item.status, locale)}</Text>
@@ -382,24 +390,24 @@ const styles = StyleSheet.create({
   headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
   eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-  heading: { fontSize: 19, fontWeight: '800' },
+  heading: { fontSize: 19, fontWeight: '700' },
   description: { fontSize: 12.5, lineHeight: 18 },
   muted: { fontSize: 12, lineHeight: 18 },
-  active: { fontWeight: '800', fontSize: 11 },
-  warning: { fontWeight: '800', fontSize: 11 },
+  active: { fontWeight: '600', fontSize: 11.5 },
+  warning: { fontWeight: '600', fontSize: 11.5 },
   card: { borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '800', flexShrink: 1 },
+  cardTitle: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  button: { minHeight: 44, paddingVertical: 9, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
-  buttonText: { fontSize: 12, fontWeight: '800' },
+  button: { minHeight: 48, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  buttonText: { fontSize: 13, fontWeight: '700' },
   mutedButton: { opacity: 0.45 },
   segmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: { flex: 1, minWidth: 80, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 9, alignItems: 'center' },
-  requestChip: { borderWidth: StyleSheet.hairlineWidth, paddingVertical: 8, paddingHorizontal: 10, maxWidth: '100%' },
+  segment: { flex: 1, minWidth: 80, minHeight: 44, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  requestChip: { minHeight: 40, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 8, paddingHorizontal: 10, maxWidth: '100%', alignItems: 'center', justifyContent: 'center' },
   segmentActive: {},
-  segmentActiveText: { fontWeight: '800', fontSize: 11 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11 },
+  segmentActiveText: { fontWeight: '600', fontSize: 11.5 },
+  toggleRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 13, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 9, paddingBottom: 3 },
   toggleCopy: { flex: 1, gap: 3 },
-  label: { fontWeight: '800' },
+  label: { fontWeight: '600', fontSize: 14 },
   input: { minHeight: 78, borderWidth: StyleSheet.hairlineWidth, padding: 12, textAlignVertical: 'top' }
 });

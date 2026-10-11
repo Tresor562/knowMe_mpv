@@ -15,6 +15,8 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
+import { MessageEditControl } from './MessageEditControl';
+import { MessageReactionControl } from './MessageReactionControl';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type UserSummary = {
@@ -35,6 +37,12 @@ type ConversationMessage = {
   conversationId: string;
   content: string;
   createdAt: string;
+  editedAt?: string | null;
+  replyTo?: {
+    id: string;
+    authorName: string;
+    preview: string;
+  } | null;
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
@@ -80,6 +88,27 @@ function formatMessageTime(value: string) {
   });
 }
 
+function dateKey(value: string | Date) {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatDateSeparator(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (dateKey(value) === dateKey(today)) return 'Aujourd’hui';
+  if (dateKey(value) === dateKey(yesterday)) return 'Hier';
+
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric'
+  });
+}
+
 function normalizeConversation(
   conversation: Partial<Conversation> & Pick<Conversation, 'id' | 'members'>
 ): Conversation {
@@ -114,6 +143,8 @@ export function RealtimeMessagesPanel({
 }) {
   const { colors, visual, chat } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
+  const listRef = useRef<FlatList<ConversationMessage> | null>(null);
+  const atBottomRef = useRef(true);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingActive = useRef(false);
@@ -131,6 +162,12 @@ export function RealtimeMessagesPanel({
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ConversationMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ConversationMessage | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [pendingNewCount, setPendingNewCount] = useState(0);
+  const [unreadMarker, setUnreadMarker] = useState<{ messageId: string; count: number } | null>(null);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
   const [creatingNexus, setCreatingNexus] = useState(false);
@@ -230,6 +267,12 @@ export function RealtimeMessagesPanel({
 
       if (activeRef.current?.id === created.conversationId) {
         setHistory((current) => mergeMessages(current, [created]));
+        if (!atBottomRef.current && created.senderId !== userId) {
+          setPendingNewCount((current) => current + 1);
+          setShowJumpToBottom(true);
+        } else if (atBottomRef.current) {
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 0);
+        }
         if (created.senderId !== userId) {
           void markRead(created.conversationId).catch(() => undefined);
         }
@@ -249,6 +292,23 @@ export function RealtimeMessagesPanel({
             : state
         ));
       }
+    };
+    const onMessageUpdated = (updated: ConversationMessage) => {
+      setHistory((current) =>
+        current.map((message) => message.id === updated.id ? { ...message, ...updated } : message)
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === updated.conversationId
+            ? {
+                ...conversation,
+                messages: conversation.messages.map((message) =>
+                  message.id === updated.id ? { ...message, ...updated } : message
+                )
+              }
+            : conversation
+        )
+      );
     };
     const onTyping = (event: TypingEvent) => {
       if (
@@ -292,6 +352,7 @@ export function RealtimeMessagesPanel({
       connectedSocket.on('disconnect', onDisconnect);
       connectedSocket.on('connect_error', onConnectError);
       connectedSocket.on('message:created', onMessage);
+      connectedSocket.on('message:updated', onMessageUpdated);
       connectedSocket.on('conversation:read', onRead);
       connectedSocket.on('typing:update', onTyping);
       connectedSocket.on('presence:update', onPresence);
@@ -312,6 +373,7 @@ export function RealtimeMessagesPanel({
       socket?.off('disconnect', onDisconnect);
       socket?.off('connect_error', onConnectError);
       socket?.off('message:created', onMessage);
+      socket?.off('message:updated', onMessageUpdated);
       socket?.off('conversation:read', onRead);
       socket?.off('typing:update', onTyping);
       socket?.off('presence:update', onPresence);
@@ -344,6 +406,23 @@ export function RealtimeMessagesPanel({
       setReadStates(data.readStates);
       setNextCursor(data.nextCursor ?? null);
       setTypingUsers({});
+      setSelectedMessageId(null);
+      setReplyingTo(null);
+      setEditingMessage(null);
+      setPendingNewCount(0);
+      setShowJumpToBottom(false);
+      atBottomRef.current = true;
+      if (conversation.unreadCount > 0 && data.items.length > 0) {
+        const firstUnreadIndex = Math.max(0, data.items.length - conversation.unreadCount);
+        const firstUnread = data.items[firstUnreadIndex];
+        setUnreadMarker(
+          firstUnread
+            ? { messageId: firstUnread.id, count: conversation.unreadCount }
+            : null
+        );
+      } else {
+        setUnreadMarker(null);
+      }
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -510,7 +589,10 @@ export function RealtimeMessagesPanel({
         `/conversations/${active.id}/messages`,
         {
           method: 'POST',
-          body: JSON.stringify({ content })
+          body: JSON.stringify({
+            content,
+            replyToId: replyingTo?.id
+          })
         }
       );
       setHistory((current) => mergeMessages(current, [created]));
@@ -520,6 +602,11 @@ export function RealtimeMessagesPanel({
           : state
       ));
       setDraft('');
+      setReplyingTo(null);
+      setPendingNewCount(0);
+      setShowJumpToBottom(false);
+      atBottomRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 0);
       if (isNexusPrivate || NEXUS_MENTION.test(content)) {
         await invokeNexus(active, created);
       }
@@ -541,6 +628,12 @@ export function RealtimeMessagesPanel({
     setHistory([]);
     setReadStates([]);
     setTypingUsers({});
+    setSelectedMessageId(null);
+    setEditingMessage(null);
+    setPendingNewCount(0);
+    setShowJumpToBottom(false);
+    setUnreadMarker(null);
+    atBottomRef.current = true;
     setNextCursor(null);
     setNexusPending(false);
     void load();
@@ -599,9 +692,26 @@ export function RealtimeMessagesPanel({
         </GlassSurface>
 
         <FlatList
+          ref={listRef}
           data={history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
+          onScroll={({ nativeEvent }) => {
+            const distanceFromBottom =
+              nativeEvent.contentSize.height -
+              (nativeEvent.contentOffset.y + nativeEvent.layoutMeasurement.height);
+            const atBottom = distanceFromBottom < 72;
+            atBottomRef.current = atBottom;
+            setShowJumpToBottom(!atBottom);
+            if (atBottom) setPendingNewCount(0);
+          }}
+          scrollEventThrottle={80}
+          onScrollToIndexFailed={({ index, averageItemLength }) => {
+            listRef.current?.scrollToOffset({
+              offset: Math.max(0, index * averageItemLength - averageItemLength * 2),
+              animated: true
+            });
+          }}
           ListHeaderComponent={nextCursor ? (
             <SecondaryButton
               title={loadingOlder ? 'Chargement…' : 'Messages précédents'}
@@ -609,9 +719,31 @@ export function RealtimeMessagesPanel({
               onPress={() => void loadOlder()}
             />
           ) : null}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
+            const selected = selectedMessageId === item.id;
+            const replyTargetIndex = item.replyTo
+              ? history.findIndex((message) => message.id === item.replyTo?.id)
+              : -1;
+            const previous = history[index - 1];
+            const startsNewDay = !previous || dateKey(previous.createdAt) !== dateKey(item.createdAt);
+            const next = history[index + 1];
+            const groupedWithPrevious =
+              previous?.senderId === item.senderId &&
+              previous?.nexusAuthored === item.nexusAuthored;
+            const groupedWithNext =
+              next?.senderId === item.senderId &&
+              next?.nexusAuthored === item.nexusAuthored;
+            const groupedShape = mine
+              ? {
+                  borderTopRightRadius: groupedWithPrevious ? 7 : visual.bubbleRadius,
+                  borderBottomRightRadius: groupedWithNext ? 7 : visual.bubbleRadius
+                }
+              : {
+                  borderTopLeftRadius: groupedWithPrevious ? 7 : visual.bubbleRadius,
+                  borderBottomLeftRadius: groupedWithNext ? 7 : visual.bubbleRadius
+                };
             const readers = mine
               ? readStates.filter((state) =>
                   state.userId !== userId &&
@@ -621,60 +753,213 @@ export function RealtimeMessagesPanel({
               : [];
 
             return (
-              <View
-                style={[
-                  styles.bubble,
-                  { borderRadius: visual.bubbleRadius },
-                  mine
-                    ? [
-                        styles.bubbleMine,
-                        {
-                          backgroundColor: colors.accent,
-                          borderWidth: chat.bubbleBorderWidth,
-                          borderColor: colors.accent
-                        }
-                      ]
-                    : nexus
-                      ? [
-                          styles.bubbleNexus,
-                          {
-                            backgroundColor: colors.surfaceRaised,
-                            borderColor: colors.secondary,
-                            borderWidth: Math.max(1, chat.bubbleBorderWidth)
-                          }
-                        ]
-                      : [
-                          styles.bubbleOther,
-                          {
-                            backgroundColor: colors.surface,
-                            borderWidth: chat.bubbleBorderWidth,
-                            borderColor: colors.border
-                          }
-                        ]
-                ]}
-              >
-                {!mine ? (
-                  <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
-                    {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
-                  </Text>
+              <View style={styles.messageBlock}>
+                {unreadMarker?.messageId === item.id ? (
+                  <View style={[styles.unreadMarker, { borderColor: colors.accent }]}>
+                    <Text style={[styles.unreadMarkerText, { color: colors.accent }]}>
+                      {unreadMarker.count} nouveau{unreadMarker.count > 1 ? 'x' : ''} message{unreadMarker.count > 1 ? 's' : ''}
+                    </Text>
+                  </View>
                 ) : null}
-                <Text
+                {startsNewDay ? (
+                  <View style={styles.dateSeparatorWrap}>
+                    <GlassSurface
+                      strength="soft"
+                      borderRadius={999}
+                      style={styles.dateSeparator}
+                    >
+                      <Text style={[styles.dateSeparatorText, { color: colors.muted }]}>
+                        {formatDateSeparator(item.createdAt)}
+                      </Text>
+                    </GlassSurface>
+                  </View>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Message de ${mine ? 'toi' : item.sender?.displayName ?? 'utilisateur'}`}
+                  accessibilityHint="Appui long pour ouvrir les actions du message"
+                  delayLongPress={280}
+                  onLongPress={() => {
+                    setSelectedMessageId((current) => current === item.id ? null : item.id);
+                  }}
                   style={[
-                    mine ? styles.bubbleMineText : styles.bubbleText,
-                    { color: mine ? colors.accentText : colors.text }
+                    styles.bubble,
+                    {
+                      borderRadius: visual.bubbleRadius,
+                      marginTop: groupedWithPrevious ? 2 : 7,
+                      ...groupedShape
+                    },
+                    mine
+                      ? [
+                          styles.bubbleMine,
+                          {
+                            backgroundColor: colors.accent,
+                            borderWidth: selected ? 1.5 : chat.bubbleBorderWidth,
+                            borderColor: selected ? colors.accentText : colors.accent
+                          }
+                        ]
+                      : nexus
+                        ? [
+                            styles.bubbleNexus,
+                            {
+                              backgroundColor: colors.surfaceRaised,
+                              borderColor: selected ? colors.accent : colors.secondary,
+                              borderWidth: Math.max(selected ? 1.5 : 1, chat.bubbleBorderWidth)
+                            }
+                          ]
+                        : [
+                            styles.bubbleOther,
+                            {
+                              backgroundColor: colors.surface,
+                              borderWidth: selected ? 1.5 : chat.bubbleBorderWidth,
+                              borderColor: selected ? colors.accent : colors.border
+                            }
+                          ]
                   ]}
                 >
-                  {item.content}
-                </Text>
-                <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
-                  {formatMessageTime(item.createdAt)}
-                </Text>
-                {mine && readers.length > 0 ? (
-                  <Text style={[styles.receipt, { color: colors.accentText }]}>
-                    Lu par {readers
-                      .map((state) => state.user.displayName)
-                      .join(', ')}
+                  {!mine && !groupedWithPrevious ? (
+                    <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
+                      {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
+                    </Text>
+                  ) : null}
+                  {item.replyTo ? (
+                    <Pressable
+                      accessibilityRole={replyTargetIndex >= 0 ? 'button' : undefined}
+                      accessibilityLabel={
+                        replyTargetIndex >= 0
+                          ? `Voir le message cité de ${item.replyTo.authorName}`
+                          : undefined
+                      }
+                      disabled={replyTargetIndex < 0}
+                      onPress={() => {
+                        if (replyTargetIndex < 0) return;
+                        listRef.current?.scrollToIndex({
+                          index: replyTargetIndex,
+                          animated: true,
+                          viewPosition: 0.4
+                        });
+                      }}
+                      style={[
+                        styles.replyQuote,
+                        {
+                          borderLeftColor: mine ? colors.accentText : colors.accent,
+                          backgroundColor: mine ? 'rgba(255,255,255,0.12)' : colors.backgroundAccent
+                        }
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.replyQuoteAuthor,
+                          { color: mine ? colors.accentText : colors.accent }
+                        ]}
+                      >
+                        {item.replyTo.authorName}
+                      </Text>
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.replyQuotePreview,
+                          { color: mine ? 'rgba(255,255,255,0.82)' : colors.muted }
+                        ]}
+                      >
+                        {item.replyTo.preview}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  <Text
+                    style={[
+                      mine ? styles.bubbleMineText : styles.bubbleText,
+                      { color: mine ? colors.accentText : colors.text }
+                    ]}
+                  >
+                    {item.content}
                   </Text>
+                  <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
+                    {formatMessageTime(item.createdAt)}{item.editedAt ? ' · modifié' : ''}
+                  </Text>
+                  {mine && readers.length > 0 ? (
+                    <Text style={[styles.receipt, { color: colors.accentText }]}>
+                      Lu par {readers
+                        .map((state) => state.user.displayName)
+                        .join(', ')}
+                    </Text>
+                  ) : null}
+                </Pressable>
+
+                {selected ? (
+                  <GlassSurface
+                    strength="strong"
+                    borderRadius={visual.radiusSecondary}
+                    style={[
+                      styles.messageContext,
+                      mine ? styles.messageContextMine : styles.messageContextOther
+                    ]}
+                  >
+                    <MessageReactionControl messageId={item.id} />
+                    <View style={styles.contextActions}>
+                      <PressScale
+                        accessibilityRole="button"
+                        accessibilityLabel="Répondre au message"
+                        onPress={() => {
+                          setReplyingTo(item);
+                          setEditingMessage(null);
+                          setSelectedMessageId(null);
+                        }}
+                        style={[
+                          styles.contextPrimary,
+                          {
+                            backgroundColor: colors.accent,
+                            borderRadius: visual.controlRadius
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.contextPrimaryText, { color: colors.accentText }]}>
+                          Répondre
+                        </Text>
+                      </PressScale>
+                      {mine ? (
+                        <PressScale
+                          accessibilityRole="button"
+                          accessibilityLabel="Modifier le message"
+                          onPress={() => {
+                            setReplyingTo(null);
+                            setEditingMessage(item);
+                            setSelectedMessageId(null);
+                          }
+                          style={[
+                            styles.contextSecondary,
+                            {
+                              backgroundColor: colors.backgroundAccent,
+                              borderColor: colors.border,
+                              borderRadius: visual.controlRadius
+                            }
+                          ]}
+                        >
+                          <Text style={[styles.contextSecondaryText, { color: colors.text }]}>
+                            Modifier
+                          </Text>
+                        </PressScale>
+                      ) : null}
+                      <PressScale
+                        accessibilityRole="button"
+                        accessibilityLabel="Fermer les actions"
+                        onPress={() => setSelectedMessageId(null)}
+                        style={[
+                          styles.contextSecondary,
+                          {
+                            backgroundColor: colors.backgroundAccent,
+                            borderColor: colors.border,
+                            borderRadius: visual.controlRadius
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.contextSecondaryText, { color: colors.text }]}>
+                          Fermer
+                        </Text>
+                      </PressScale>
+                    </View>
+                  </GlassSurface>
                 ) : null}
               </View>
             );
@@ -690,34 +975,130 @@ export function RealtimeMessagesPanel({
           ) : null}
         />
 
-        <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
-          <TextInput
-            value={draft}
-            onChangeText={changeDraft}
-            onBlur={stopTyping}
-            maxLength={2000}
-            placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
+        {showJumpToBottom ? (
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              pendingNewCount > 0
+                ? `Revenir en bas, ${pendingNewCount} nouveau${pendingNewCount > 1 ? 'x' : ''} message${pendingNewCount > 1 ? 's' : ''}`
+                : 'Revenir en bas'
+            }
+            onPress={() => {
+              listRef.current?.scrollToEnd({ animated: true });
+              atBottomRef.current = true;
+              setShowJumpToBottom(false);
+              setPendingNewCount(0);
+            }}
             style={[
-              styles.input,
-              styles.composerInput,
-              { borderRadius: visual.inputRadius },
+              styles.jumpToBottom,
               {
-                backgroundColor: colors.backgroundAccent,
+                backgroundColor: colors.surfaceRaised,
                 borderColor: colors.border,
-                color: colors.text
+                borderRadius: 999
               }
             ]}
+          >
+            <View style={styles.downArrow}>
+              <KnowMeIcon name="arrow" size={18} color={colors.accent} />
+            </View>
+            {pendingNewCount > 0 ? (
+              <View style={[styles.jumpBadge, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.jumpBadgeText, { color: colors.accentText }]}>
+                  {pendingNewCount > 99 ? '99+' : pendingNewCount}
+                </Text>
+              </View>
+            ) : null}
+          </PressScale>
+        ) : null}
+
+        {editingMessage ? (
+          <MessageEditControl
+            conversationId={editingMessage.conversationId}
+            messageId={editingMessage.id}
+            initialContent={editingMessage.content}
+            initialEditedAt={editingMessage.editedAt ?? null}
+            onUpdated={(updated) => {
+              setHistory((current) =>
+                current.map((message) =>
+                  message.id === updated.id ? { ...message, ...updated } : message
+                )
+              );
+              setConversations((current) =>
+                current.map((conversation) =>
+                  conversation.id === updated.conversationId
+                    ? {
+                        ...conversation,
+                        messages: conversation.messages.map((message) =>
+                          message.id === updated.id ? { ...message, ...updated } : message
+                        )
+                      }
+                    : conversation
+                )
+              );
+              setEditingMessage(null);
+            }}
+            onCancel={() => setEditingMessage(null)}
           />
-          <IconButton
-            icon="arrow"
-            accessibilityLabel="Envoyer"
-            disabled={sending || nexusPending || !draft.trim()}
-            onPress={() => void send()}
-            filled
-          />
-        </GlassSurface>
+        ) : (
+          <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+            {replyingTo ? (
+              <View style={styles.replyComposer}>
+                <View style={[styles.replyComposerMarker, { backgroundColor: colors.accent }]} />
+                <View style={styles.replyComposerCopy}>
+                  <Text style={[styles.replyComposerTitle, { color: colors.accent }]} numberOfLines={1}>
+                    Réponse à {replyingTo.nexusAuthored ? 'Nexus' : replyingTo.sender?.displayName ?? 'ce message'}
+                  </Text>
+                  <Text style={[styles.replyComposerPreview, { color: colors.muted }]} numberOfLines={1}>
+                    {replyingTo.content}
+                  </Text>
+                </View>
+                <PressScale
+                  accessibilityRole="button"
+                  accessibilityLabel="Annuler la réponse"
+                  onPress={() => setReplyingTo(null)}
+                  style={[
+                    styles.replyComposerClose,
+                    {
+                      backgroundColor: colors.backgroundAccent,
+                      borderColor: colors.border,
+                      borderRadius: visual.controlRadius
+                    }
+                  ]}
+                >
+                  <KnowMeIcon name="close" size={17} color={colors.text} />
+                </PressScale>
+              </View>
+            ) : null}
+            <View style={styles.composerRow}>
+              <TextInput
+                value={draft}
+                onChangeText={changeDraft}
+                onBlur={stopTyping}
+                maxLength={2000}
+                placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                style={[
+                  styles.input,
+                  styles.composerInput,
+                  { borderRadius: visual.inputRadius },
+                  {
+                    backgroundColor: colors.backgroundAccent,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }
+                ]}
+              />
+              <IconButton
+                icon="arrow"
+                accessibilityLabel="Envoyer"
+                disabled={sending || nexusPending || !draft.trim()}
+                onPress={() => void send()}
+                filled
+              />
+            </View>
+          </GlassSurface>
+        )}
       </View>
     );
   }
@@ -849,12 +1230,10 @@ export function RealtimeMessagesPanel({
           <View
             key={conversation.id}
             style={[
-              styles.card,
-              styles.conversationCard,
+              styles.conversationRow,
               {
-                backgroundColor: unread ? colors.surfaceRaised : colors.surfaceGlass,
-                borderColor: unread ? colors.accent : colors.border,
-                borderRadius: visual.cardRadius
+                backgroundColor: unread ? colors.surfaceRaised : 'transparent',
+                borderBottomColor: colors.border
               }
             ]}
           >
@@ -1159,33 +1538,129 @@ const styles = StyleSheet.create({
     gap: 8
   },
   messages: {
-    padding: 12,
-    gap: 7,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
-  bubble: { maxWidth: '84%', paddingHorizontal: 11, paddingVertical: 9, borderRadius: 18, gap: 4 },
+  messageBlock: { width: '100%' },
+  dateSeparatorWrap: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 3
+  },
+  dateSeparator: {
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  dateSeparatorText: {
+    fontSize: 11.5,
+    fontWeight: '600'
+  },
+  unreadMarker: {
+    marginTop: 9,
+    marginBottom: 3,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center'
+  },
+  unreadMarkerText: {
+    marginTop: -9,
+    paddingHorizontal: 8,
+    fontSize: 11.5,
+    fontWeight: '600'
+  },
+  bubble: {
+    maxWidth: '84%',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 18,
+    gap: 3
+  },
   bubbleMine: { alignSelf: 'flex-end' },
   bubbleOther: { alignSelf: 'flex-start' },
   bubbleNexus: {
     borderWidth: 1,
     alignSelf: 'flex-start'
   },
-  bubbleText: {},
-  bubbleMineText: { fontWeight: '600' },
-  senderName: { fontWeight: '800', fontSize: 11 },
-  bubbleDate: { fontSize: 9 },
-  receipt: { fontSize: 9, fontWeight: '700' },
+  bubbleText: { fontSize: 15.5, lineHeight: 20 },
+  bubbleMineText: { fontSize: 15.5, lineHeight: 20, fontWeight: '500' },
+  senderName: { fontWeight: '700', fontSize: 12 },
+  replyQuote: {
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 2
+  },
+  replyQuoteAuthor: { fontSize: 11.5, fontWeight: '700' },
+  replyQuotePreview: { fontSize: 11.5, lineHeight: 15, marginTop: 1 },
+  bubbleDate: { fontSize: 11 },
+  receipt: { fontSize: 11, fontWeight: '600' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
+  jumpToBottom: {
+    position: 'absolute',
+    right: 14,
+    bottom: 76,
+    minWidth: 48,
+    minHeight: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20
+  },
+  downArrow: {
+    transform: [{ rotate: '90deg' }]
+  },
+  jumpBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  jumpBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700'
+  },
   composer: {
     marginHorizontal: 10,
     marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 7,
+    gap: 6,
     padding: 6
   },
-  composerInput: { flex: 1 },
+  composerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 7
+  },
+  composerInput: { flex: 1, minHeight: 48 },
+  replyComposer: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 7
+  },
+  replyComposerMarker: {
+    width: 3,
+    height: 32,
+    borderRadius: 3
+  },
+  replyComposerCopy: { flex: 1, minWidth: 0 },
+  replyComposerTitle: { fontSize: 12.5, fontWeight: '700' },
+  replyComposerPreview: { fontSize: 11.5, marginTop: 2 },
+  replyComposerClose: {
+    width: 40,
+    height: 40,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   iconButton: {
     width: 42,
     height: 42,
@@ -1207,7 +1682,38 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999
   },
-  conversationCard: {
-    paddingVertical: 12
-  }
+  conversationRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 4,
+    paddingVertical: 10
+  },
+  messageContext: {
+    width: '82%',
+    marginTop: 6,
+    padding: 10,
+    gap: 8
+  },
+  messageContextMine: { alignSelf: 'flex-end' },
+  messageContextOther: { alignSelf: 'flex-start' },
+  contextActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 7
+  },
+  contextPrimary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  contextSecondary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  contextPrimaryText: { fontSize: 13, fontWeight: '700' },
+  contextSecondaryText: { fontSize: 13, fontWeight: '600' }
 });

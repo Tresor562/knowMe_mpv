@@ -75,7 +75,12 @@ export class MessagingController {
       content: dto.content,
       targetId: id
     });
-    return this.messaging.send(req.user.userId, id, dto.content);
+    return this.messaging.send(
+      req.user.userId,
+      id,
+      dto.content,
+      dto.replyToId
+    );
   }
 
   @Patch(':id/messages/:messageId')

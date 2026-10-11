@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import {
 } from './account-recovery-model';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeIcon, PressScale, SoftSurface } from './ui/KnowMeUI';
 
 type Props = {
   onBack: () => void;
@@ -57,65 +57,91 @@ export function AccountRecoveryExperience({ onBack }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.content}>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={onBack}>
-            <Text style={[styles.back, { color: colors.accent }]}>← Retour</Text>
-          </Pressable>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>RÉCUPÉRATION DE COMPTE</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Mot de passe oublié</Text>
-          <Text style={[styles.copy, { color: colors.muted }]}>
-            Entre l’adresse e-mail de ton compte KnowMe. Pour protéger ta vie privée, la réponse reste identique qu’un compte existe ou non.
-          </Text>
+          <View style={styles.header}>
+            <PressScale
+              accessibilityRole="button"
+              accessibilityLabel="Retour"
+              disabled={busy}
+              onPress={onBack}
+              style={[
+                styles.backButton,
+                {
+                  backgroundColor: colors.backgroundAccent,
+                  borderColor: colors.border,
+                  borderRadius: visual.controlRadius
+                }
+              ]}
+            >
+              <KnowMeIcon name="back" size={19} color={colors.text} />
+            </PressScale>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Récupération</Text>
+          </View>
 
-          <TextInput
-            accessibilityLabel="Adresse e-mail de récupération"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            autoComplete="email"
-            placeholder="Adresse e-mail"
-            placeholderTextColor={colors.muted}
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.surface
-              }
-            ]}
-          />
-
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy || !ready}
-            onPress={() => void submit()}
-            style={[
-              styles.primary,
-              { backgroundColor: colors.accent },
-              (busy || !ready) && styles.disabled
-            ]}
-          >
-            <Text style={[styles.primaryText, { color: colors.accentText }]}>
-              {busy ? 'Envoi…' : 'Recevoir un lien de récupération'}
+          <View style={styles.intro}>
+            <Text style={[styles.title, { color: colors.text }]}>Mot de passe oublié ?</Text>
+            <Text style={[styles.copy, { color: colors.muted }]}>
+              Entre l’adresse e-mail de ton compte KnowMe. Pour protéger ta vie privée, la réponse reste identique qu’un compte existe ou non.
             </Text>
-          </Pressable>
+          </View>
 
-          {message ? (
-            <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.muted }]}>
-              {message}
-            </Text>
-          ) : null}
-          {error ? (
-            <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.danger }]}>
-              {error}
-            </Text>
-          ) : null}
+          <SoftSurface style={styles.form}>
+            <TextInput
+              accessibilityLabel="Adresse e-mail de récupération"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              placeholder="Adresse e-mail"
+              placeholderTextColor={colors.muted}
+              selectionColor={colors.accent}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.backgroundAccent,
+                  borderRadius: visual.inputRadius
+                }
+              ]}
+            />
 
-          <Text style={[styles.note, { color: colors.muted }]}>
-            Le lien reçu ouvre le parcours sécurisé de réinitialisation KnowMe. Il expire selon la politique serveur et une réinitialisation réussie révoque les sessions et appareils de confiance existants.
-          </Text>
+            <PressScale
+              accessibilityRole="button"
+              accessibilityLabel="Recevoir un lien de récupération"
+              disabled={busy || !ready}
+              onPress={() => void submit()}
+              style={[
+                styles.primary,
+                {
+                  backgroundColor: colors.accent,
+                  borderRadius: visual.controlRadius
+                },
+                (busy || !ready) && styles.disabled
+              ]}
+            >
+              <Text style={[styles.primaryText, { color: colors.accentText }]}>
+                {busy ? 'Envoi…' : 'Recevoir le lien'}
+              </Text>
+            </PressScale>
+
+            {message ? (
+              <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.muted }]}>
+                {message}
+              </Text>
+            ) : null}
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.danger }]}>
+                {error}
+              </Text>
+            ) : null}
+
+            <Text style={[styles.note, { color: colors.muted }]}>
+              Une réinitialisation réussie révoque les sessions et appareils de confiance existants.
+            </Text>
+          </SoftSurface>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -125,15 +151,45 @@ export function AccountRecoveryExperience({ onBack }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', padding: 24, gap: 15 },
-  back: { fontWeight: '800', marginBottom: 8 },
-  eyebrow: { fontSize: 12, fontWeight: '900', letterSpacing: 1.4 },
-  title: { fontSize: 34, lineHeight: 40, fontWeight: '900' },
-  copy: { fontSize: 15, lineHeight: 22 },
-  input: { borderWidth: 1, borderRadius: 16, minHeight: 52, paddingHorizontal: 15, fontSize: 16 },
-  primary: { borderRadius: 16, paddingVertical: 15, paddingHorizontal: 18, alignItems: 'center' },
-  primaryText: { fontWeight: '900', fontSize: 15 },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+    gap: 24
+  },
+  header: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  headerTitle: { fontSize: 17, fontWeight: '700' },
+  intro: { gap: 7, paddingHorizontal: 2 },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: '700', letterSpacing: -0.5 },
+  copy: { fontSize: 14.5, lineHeight: 21 },
+  form: { padding: 14, gap: 12 },
+  input: {
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    fontSize: 15
+  },
+  primary: {
+    minHeight: 50,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  primaryText: { fontWeight: '700', fontSize: 15 },
   disabled: { opacity: 0.45 },
-  status: { fontSize: 14, lineHeight: 21 },
-  note: { fontSize: 12, lineHeight: 18, marginTop: 4 }
+  status: { fontSize: 13, lineHeight: 19 },
+  note: { fontSize: 11.5, lineHeight: 17 }
 });
