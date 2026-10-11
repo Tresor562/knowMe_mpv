@@ -39,10 +39,10 @@ ont déjà été déployées depuis le même commit : toujours comparer les empr
 
 Le registre liste explicitement chaque écart. Au 11 octobre 2026 :
 
-- La publication de stories vidéo Android est codée ; **la lecture vidéo native
-  dans le lecteur de stories Android reste manquante**.
-- Création de discussions/groupes : les parcours Web et Android ne sont pas
-  encore équivalents ni suffisamment validés.
+- La publication et la lecture vidéo native Android sont codées avec un lecteur MP4 local ;
+  la validation sur un téléphone réel et les différents codecs restent nécessaires.
+- Création de discussions/groupes : sélection multiple et création de groupe nommée
+  sont codées des deux côtés, mais les parcours nécessitent encore des tests utilisateurs.
 - Animations, menus, transitions et gestes : toujours partiels et non validés
   écran par écran sur des appareils réels.
 - Absence de garantie de parité pour toutes les fonctions hors du registre ;
