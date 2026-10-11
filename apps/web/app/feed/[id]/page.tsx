@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { UsernameMentions } from '../../../components/username-mentions';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
@@ -147,8 +148,8 @@ export default function PostDetailPage() {
 
       <article className="card" style={{ padding: 22 }}>
         <strong>{post.author.displayName}</strong>
-        <div style={{ color: 'var(--muted)' }}>@{post.author.username}</div>
-        <p style={{ fontSize: 19, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p>
+        <Link href={`/profile/${encodeURIComponent(post.author.username)}`} style={{color:'var(--accent, var(--mint))'}}>@{post.author.username}</Link>
+        <p style={{ fontSize: 19, lineHeight: 1.6 }}><UsernameMentions text={post.content}/></p>
         {post.imageUrl && <img src={post.imageUrl} alt="Média de la publication" style={{ width: '100%', borderRadius: 18 }} />}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => void like()}>♥ {post._count.likes}</button>
@@ -174,7 +175,7 @@ export default function PostDetailPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
                 <div>
                   <strong>{item.author.displayName}</strong>
-                  <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.author.username}</small>
+                  <Link href={`/profile/${encodeURIComponent(item.author.username)}`} style={{color:'var(--accent, var(--mint))',marginLeft:8}}>@{item.author.username}</Link>
                 </div>
                 {canDelete && (
                   <button
@@ -186,7 +187,7 @@ export default function PostDetailPage() {
                   </button>
                 )}
               </div>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{item.content}</p>
+              <p><UsernameMentions text={item.content}/></p>
               <small style={{ color: 'var(--muted)' }}>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
             </article>
           );
