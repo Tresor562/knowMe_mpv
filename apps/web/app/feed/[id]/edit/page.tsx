@@ -156,7 +156,7 @@ export default function EditPostPage() {
               </button>
             </div>)}
           </div>}
-          {!!uploadProgress&&<p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>
+          {!!uploadProgress&&<p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>}
           <button className="btn btn-primary" type="submit" disabled={busy || (!content.trim() && !imageUrl.trim() && !selectedFiles.length && !existingAssets.length)}
             style={{ minHeight: 46 }}>
             {busy ? (en ? 'Saving…' : 'Enregistrement…') : (en ? 'Save changes' : 'Enregistrer les modifications')}
