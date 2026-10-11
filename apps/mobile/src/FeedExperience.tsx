@@ -120,11 +120,12 @@ function MetricButton({
   );
 }
 
-function PostDiscussion({ postId, userId, onBack, onDeleted }: {
+function PostDiscussion({ postId, userId, onBack, onDeleted, onEdit }: {
   postId: string;
   userId: string;
   onBack: () => void;
   onDeleted: (postId: string) => void;
+  onEdit: (post: PostSummary) => void;
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -305,7 +306,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
           <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
           <MetricButton icon="messages" count={post._count.comments} label="Commentaires" />
           {post.authorId === userId && (
-            <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
+            <>
+              <ActionButton title="Modifier" onPress={() => onEdit(post)} />
+              <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'}
+                disabled={busyId === post.id} danger onPress={confirmDeletePost} />
+            </>
           )}
         </View>
       </View>
@@ -543,6 +548,7 @@ export function FeedExperience({
         userId={userId}
         onBack={() => setSelectedPostId(null)}
         onDeleted={(postId) => setPosts((current) => current.filter((item) => item.id !== postId))}
+        onEdit={post => { setSelectedPostId(null); openEditor(post); }}
       />
     );
   }
