@@ -8,7 +8,7 @@ const manifest = JSON.parse(readFileSync(new URL('../packages/link-contract/src/
 test('KnowMe platforms use the same product version and auditable feature sources', () => {
   const report = auditPlatformSync(manifest);
   assert.deepEqual(report.errors, []);
-  assert.ok(report.missing.includes('stories.photo'));
+  assert.ok(!report.missing.includes('stories.photo')); // Android now uploads and displays photo stories
   assert.ok(report.missing.includes('stories.video'));
 });
 
