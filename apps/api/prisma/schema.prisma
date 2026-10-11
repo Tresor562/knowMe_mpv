@@ -41,6 +41,9 @@ model User {
   challengeVersionsCreated ChallengeVersion[]  @relation("ChallengeVersionCreator")
   challengeEntries         ChallengeParticipant[]
   sentMessages             Message[]
+  ownedChannels            Channel[]             @relation("ChannelOwner")
+  channelSubscriptions     ChannelSubscription[]
+  channelPosts             ChannelPost[]          @relation("ChannelPostAuthor")
   memberships              ConversationMember[]
   posts                    Post[]
   postLikes                PostLike[]
@@ -748,4 +751,54 @@ model AuthSession {
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+}
+
+
+enum ChannelVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+model Channel {
+  id          String            @id @default(cuid())
+  ownerId     String
+  name        String
+  username    String?           @unique
+  description String?
+  visibility  ChannelVisibility @default(PUBLIC)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  owner         User                  @relation("ChannelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  subscriptions ChannelSubscription[]
+  posts         ChannelPost[]
+
+  @@index([ownerId, createdAt])
+  @@index([visibility, createdAt])
+}
+
+model ChannelSubscription {
+  channelId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, userId])
+  @@index([userId, joinedAt])
+}
+
+model ChannelPost {
+  id        String   @id @default(cuid())
+  channelId String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author  User    @relation("ChannelPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt, id])
 }
