@@ -1,27 +1,39 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DockPlacement } from './navigation-dock-model';
 
-const KEY = 'knowme.native.navigation.placement.v1';
-const listeners = new Set<(value: DockPlacement) => void>();
-let current: DockPlacement = 'bottom';
+export type DockSettings = {
+  placement: DockPlacement;
+  autoHide: boolean;
+};
 
-export async function loadDockPlacement(): Promise<DockPlacement> {
+const KEY = 'knowme.native.navigation.settings.v1';
+const DEFAULT: DockSettings = { placement: 'bottom', autoHide: true };
+const listeners = new Set<(value: DockSettings) => void>();
+let current: DockSettings = DEFAULT;
+
+export async function loadDockSettings(): Promise<DockSettings> {
   try {
-    const value = await AsyncStorage.getItem(KEY);
-    current = value === 'top' ? 'top' : 'bottom';
+    const raw = await AsyncStorage.getItem(KEY);
+    if (!raw) return current;
+    const result = JSON.parse(raw) as Partial<DockSettings>;
+    current = {
+      placement: result.placement === 'top' ? 'top' : 'bottom',
+      autoHide: result.autoHide !== false
+    };
     return current;
   } catch {
     return current;
   }
 }
 
-export async function saveDockPlacement(value: DockPlacement) {
-  await AsyncStorage.setItem(KEY, value);
-  current = value;
-  for (const listener of listeners) listener(value);
+export async function saveDockSettings(next: DockSettings): Promise<void> {
+  if (next.placement !== 'top' && next.placement !== 'bottom') throw new Error('Placement inconnu');
+  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  current = next;
+  for (const listener of listeners) listener(current);
 }
 
-export function listenDockPlacement(listener: (value: DockPlacement) => void) {
+export function listenDockSettings(listener: (value: DockSettings) => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
