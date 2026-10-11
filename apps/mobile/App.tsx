@@ -530,7 +530,9 @@ function HomeScreen({
   openDiscover,
   openChallenges,
   openCreate,
-  openProfile
+  openProfile,
+  storyComposerRequest,
+  onStoryComposerHandled
 }: {
   user: MobileUser;
   openSocial: () => void;
@@ -538,6 +540,8 @@ function HomeScreen({
   openChallenges: () => void;
   openCreate: () => void;
   openProfile: () => void;
+  storyComposerRequest: boolean;
+  onStoryComposerHandled: () => void;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
@@ -656,6 +660,8 @@ function HomeScreen({
             avatarUrl: user.avatarUrl
           }}
           onOpenDiscover={openDiscover}
+          openComposer={storyComposerRequest}
+          onComposerOpened={onStoryComposerHandled}
         />
       </FadeRise>
 
@@ -1062,6 +1068,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
   const [createOpen, setCreateOpen] = useState(false);
+  const [storyComposerRequest, setStoryComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -1174,6 +1181,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             openChallenges={() => setScreen('challenges')}
             openCreate={() => setCreateOpen(true)}
             openProfile={() => setScreen('profile')}
+            storyComposerRequest={storyComposerRequest}
+            onStoryComposerHandled={() => setStoryComposerRequest(false)}
           />
         ) : null}
 
@@ -1206,6 +1215,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onLogout={logout}
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
+            onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
           />
         ) : null}
 
