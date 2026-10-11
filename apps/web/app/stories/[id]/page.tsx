@@ -288,12 +288,17 @@ export default function StoryViewerPage() {
           </div>
 
           <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
-            <div style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,.14)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
+            <Link href={story.author?.username ? `/profile/${encodeURIComponent(story.author.username)}` : '/feed'}
+              aria-label={(en ? 'View profile of ' : 'Voir le profil de ') + (story.author?.displayName ?? 'KnowMe')}
+              style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,.14)', display: 'grid', placeItems: 'center', fontWeight: 800, color: '#fff', textDecoration: 'none' }}>
               {story.author?.avatarUrl ? <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : story.author?.displayName?.[0] ?? '?'}
-            </div>
+            </Link>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <strong>{story.author?.displayName ?? 'KnowMe'}</strong>
-              <div style={{ fontSize: 12, opacity: .75 }}>@{story.author?.username ?? 'unknown'}</div>
+              <Link href={story.author?.username ? `/profile/${encodeURIComponent(story.author.username)}` : '/feed'}
+                style={{color:'#fff',textDecoration:'none'}}>
+                <strong>{story.author?.displayName ?? 'KnowMe'}</strong>
+                <div style={{ fontSize: 12, opacity: .75 }}>@{story.author?.username ?? 'unknown'}</div>
+              </Link>
             </div>
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
             <button type="button" className="km-story-pause" aria-label={paused?(en?'Resume story':'Reprendre la story'):(en?'Pause story':'Mettre la story en pause')}

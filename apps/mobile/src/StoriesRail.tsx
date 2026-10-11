@@ -16,6 +16,7 @@ import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaL
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './ProfileNavigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type StoryAuthor = {
@@ -65,6 +66,7 @@ export function StoriesRail({
   onComposerOpened?: () => void;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [stories, setStories] = useState<Story[]>([]);
   const [selected, setSelected] = useState<Story | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -315,7 +317,9 @@ export function StoriesRail({
           </View>
 
           <View style={styles.viewerHeader}>
-            <View style={styles.viewerIdentity}>
+            <Pressable style={styles.viewerIdentity} accessibilityRole="link"
+              accessibilityLabel="Voir le profil de l'auteur de la story"
+              onPress={() => openProfile(selected?.viewer.own ? currentUser.username : selected?.author?.username ?? '')}>
               <Avatar
                 uri={selected?.author?.avatarUrl}
                 name={selected?.author?.displayName ?? 'KnowMe'}
@@ -333,7 +337,7 @@ export function StoriesRail({
                     : selected?.author?.username ?? 'knowme'}
                 </Text>
               </View>
-            </View>
+            </Pressable>
             <PressScale
               accessibilityRole="button"
               accessibilityLabel="Fermer la Story"

@@ -32,6 +32,7 @@ import { FeedExperience } from './src/FeedExperience';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
+import { ProfileNavigationProvider } from './src/ProfileNavigation';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
 import { SocialHub } from './src/SocialHub';
 import { StoriesRail } from './src/StoriesRail';
@@ -1256,7 +1257,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 export default function App({ onExitAuth }: { onExitAuth?: () => void } = {}) {
   return (
     <AppearanceProvider>
-      <AppContent onExitAuth={onExitAuth} />
+      <ProfileNavigationProvider>
+        <AppContent onExitAuth={onExitAuth} />
+      </ProfileNavigationProvider>
     </AppearanceProvider>
   );
 }

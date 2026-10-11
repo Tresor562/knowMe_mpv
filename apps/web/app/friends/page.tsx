@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { AccountBadges, AccountBadgeSet } from '../../components/AccountBadges';
 import { apiFetch } from '../../lib/api';
@@ -26,14 +27,16 @@ type Friend = {
 function ProfileSummary({ user }: { user: UserResult }) {
   return (
     <div>
-      <strong>{user.displayName}</strong>
+      <Link href={`/profile/${encodeURIComponent(user.username)}`} style={{color:'inherit',textDecoration:'none'}}>
+        <strong>{user.displayName}</strong>
+        <div style={{ color: 'var(--muted)' }}>@{user.username}</div>
+      </Link>
       <AccountBadges
         compact
         staff={user.staff}
         verification={user.verification}
         premium={user.premium}
       />
-      <div style={{ color: 'var(--muted)' }}>@{user.username}</div>
       {user.bio && <small>{user.bio}</small>}
     </div>
   );
@@ -251,7 +254,7 @@ export default function FriendsPage() {
                 alignItems: 'center'
               }}
             >
-              <div
+              <Link href={`/profile/${encodeURIComponent(user.username)}`} aria-label={'Voir le profil de ' + user.displayName}
                 style={{
                   width: 52,
                   height: 52,
@@ -262,8 +265,8 @@ export default function FriendsPage() {
                   fontWeight: 900
                 }}
               >
-                {user.displayName[0]}
-              </div>
+                {user.avatarUrl ? <img src={user.avatarUrl} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/> : user.displayName[0]}
+              </Link>
               <ProfileSummary user={user} />
               <button
                 className="btn"
@@ -295,7 +298,7 @@ export default function FriendsPage() {
                 alignItems: 'center'
               }}
             >
-              <div
+              <Link href={`/profile/${encodeURIComponent(user.username)}`} aria-label={'Voir le profil de ' + user.displayName}
                 style={{
                   width: 56,
                   height: 56,
@@ -306,8 +309,8 @@ export default function FriendsPage() {
                   fontWeight: 900
                 }}
               >
-                {user.displayName[0]}
-              </div>
+                {user.avatarUrl ? <img src={user.avatarUrl} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/> : user.displayName[0]}
+              </Link>
               <ProfileSummary user={user} />
               <button
                 className="btn btn-accent"

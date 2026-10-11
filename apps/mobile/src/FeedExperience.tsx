@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './ProfileNavigation';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
@@ -111,6 +112,22 @@ function MetricButton({
     >
       <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />
       <Text style={[styles.metricCount, { color: colors.muted }]}>{count}</Text>
+    </Pressable>
+  );
+}
+
+function AuthorIdentity({ author, size = 44 }: { author: Author; size?: number }) {
+  const { colors } = useAppearance();
+  const openProfile = useProfileNavigation();
+  return (
+    <Pressable accessibilityRole="link" accessibilityLabel={'Voir le profil de ' + author.displayName}
+      onPress={(event) => { event.stopPropagation(); openProfile(author.username); }}
+      style={styles.authorRow}>
+      <Avatar uri={author.avatarUrl} name={author.displayName} size={size} />
+      <View style={styles.flex}>
+        <Text style={[styles.title, { color: colors.text }]}>{author.displayName}</Text>
+        <Text style={[styles.muted, { color: colors.muted }]}>@{author.username}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -283,10 +300,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.authorRow}>
-          <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
-          <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
-        </View>
+        <AuthorIdentity author={post.author} />
         <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
         {post.imageUrl ? (
           <Image
@@ -333,8 +347,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
         return (
           <View key={comment.id} style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.authorRow}>
-              <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
-              <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
+              <AuthorIdentity author={comment.author} size={36} />
               {canDelete && (
                 <ActionButton
                   title={busyId === comment.id ? '…' : 'Supprimer'}
@@ -503,10 +516,7 @@ export function FeedExperience({ userId }: { userId: string }) {
             { backgroundColor: colors.surfaceGlass, borderColor: colors.border }
           ]}
         >
-          <View style={styles.authorRow}>
-            <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
-          </View>
+          <AuthorIdentity author={item.author} />
           <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
             <Image
