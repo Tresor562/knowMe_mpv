@@ -16,6 +16,10 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { openKnowMeFiles } from './native-gallery';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
+import { PostAttachmentRail, type PostAsset } from './PostAttachmentRail';
 import { useAppearance } from './AppearanceProvider';
 import { StoriesRail } from './StoriesRail';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
@@ -32,6 +36,7 @@ type PostSummary = {
   authorId: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: PostAsset[];
   createdAt: string;
   author: Author;
   _count: { likes: number; comments: number };
@@ -301,6 +306,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, onEdit }: {
             resizeMode="cover"
           />
         ) : null}
+        <PostAttachmentRail postId={post.id} attachments={post.attachments}/>
         <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(post.createdAt, true)}</Text>
         <View style={styles.actionsRow}>
           <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
@@ -383,26 +389,52 @@ export function FeedExperience({
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [localMedia, setLocalMedia] = useState<SelectedAndroidMedia[]>([]);
+  const [retainedAssets, setRetainedAssets] = useState<PostAsset[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<PostSummary | null>(null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   const [reportPost, setReportPost] = useState<PostSummary | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
   const [postBusy, setPostBusy] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [savedPosts, setSavedPosts] = useState<{ id: string; post: PostSummary }[]>([]);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [savingPostId, setSavingPostId] = useState<string | null>(null);
+
+  async function loadSavedPosts() {
+    const records = await apiFetch<{ id: string; post: PostSummary }[]>('/posts/saved');
+    setSavedPosts(records);
+    setSavedIds(new Set(records.map(item => item.post.id)));
+  }
+  useEffect(() => {
+    let active = true;
+    void apiFetch<{ id: string; post: PostSummary }[]>('/posts/saved')
+      .then(items => { if (active) {
+        setSavedPosts(items);
+        setSavedIds(new Set(items.map(item => item.post.id)));
+      } })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [userId]);
   useEffect(() => {
     if (!openComposerRequest) return;
     setEditingPost(null);
     setContent('');
     setImageUrl('');
+    setLocalMedia([]);
+    setRetainedAssets([]);
     setComposerOpen(true);
     onComposerOpened?.();
   }, [openComposerRequest, onComposerOpened]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
-    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || menuPost !== null || reportPost !== null);
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || savedOpen || menuPost !== null || reportPost !== null);
     return () => { onSecondaryModeChange?.(false); };
-  }, [selectedPostId, storiesOpen, composerOpen, menuPost, reportPost, onSecondaryModeChange]);
+  }, [selectedPostId, storiesOpen, composerOpen, savedOpen, menuPost, reportPost, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -444,6 +476,8 @@ export function FeedExperience({
     setEditingPost(post);
     setContent(post?.content ?? '');
     setImageUrl(post?.imageUrl ?? '');
+    setLocalMedia([]);
+    setRetainedAssets(post?.attachments ?? []);
     setMenuPost(null);
     setComposerOpen(true);
   }
@@ -478,6 +512,33 @@ export function FeedExperience({
     ]);
   }
 
+  async function toggleSaved(post: PostSummary) {
+    if (savingPostId === post.id) return;
+    const wasSaved = savedIds.has(post.id);
+    setSavingPostId(post.id);
+    try {
+      await apiFetch('/posts/' + encodeURIComponent(post.id) + '/save', {
+        method: wasSaved ? 'DELETE' : 'POST'
+      });
+      setSavedIds(current => {
+        const next = new Set(current);
+        if (wasSaved) next.delete(post.id);
+        else next.add(post.id);
+        return next;
+      });
+      if (wasSaved) {
+        setSavedPosts(current => current.filter(item => item.post.id !== post.id));
+      } else {
+        setSavedPosts(current => [{ id: post.id, post }, ...current.filter(item => item.post.id !== post.id)]);
+      }
+      setMenuPost(null);
+    } catch (cause) {
+      Alert.alert('Favoris indisponibles', errorMessage(cause, 'Réessaie après la mise à jour du serveur.'));
+    } finally {
+      setSavingPostId(null);
+    }
+  }
+
   function hidePost(post: PostSummary) {
     setMenuPost(null);
     setHiddenIds(current => new Set(current).add(post.id));
@@ -498,34 +559,78 @@ export function FeedExperience({
     } finally { setPostBusy(false); }
   }
 
+  function appendFiles(selected: SelectedAndroidMedia[]) {
+    const supported = new Set([
+      'image/jpeg','image/png','image/webp','image/gif',
+      'video/mp4','audio/mpeg','audio/ogg','audio/wav','application/pdf'
+    ]);
+    const usable = selected.filter(item => supported.has(item.mime.toLowerCase()));
+    if (usable.length !== selected.length) {
+      Alert.alert('Format non pris en charge', 'Certains fichiers ne sont pas encore autorisés par le serveur.');
+    }
+    setLocalMedia(current => {
+      const ids = new Set(current.map(item => item.uri));
+      const additions = usable.filter(item => !ids.has(item.uri));
+      const available = Math.max(0, 10 - current.length - retainedAssets.length);
+      if (additions.length > available) {
+        Alert.alert('Limite des pièces jointes', 'Dix médias maximum par publication.');
+      }
+      return [...current, ...additions.slice(0, available)];
+    });
+  }
+
+  async function chooseFiles() {
+    try {
+      const selected = await openKnowMeFiles(true);
+      if (selected.length) appendFiles(selected);
+    } catch (cause) {
+      Alert.alert('Fichiers indisponibles', errorMessage(cause, 'Réessaie.'));
+    }
+  }
+
   async function publish() {
     const value = content.trim();
     const attachment = imageUrl.trim();
-    if (!value || publishing) return;
+    if ((!value && !attachment && !localMedia.length && !retainedAssets.length) || publishing) return;
     if (attachment && !/^https:\/\/[^\s]+\.[^\s]+/i.test(attachment)) {
       Alert.alert('Lien invalide', 'Utilise une URL HTTPS d’image accessible publiquement.');
       return;
     }
     setPublishing(true);
     try {
+      const uploadedIds: string[] = [];
+      for (let index = 0; index < localMedia.length; index++) {
+        const media = localMedia[index];
+        if (!media) continue;
+        setUploadProgress('Envoi du média ' + (index+1) + '/' + localMedia.length);
+        uploadedIds.push(await uploadKnowMeMobileMedia(media, 'POST'));
+      }
+      setUploadProgress('');
+      const assetIds = [
+        ...retainedAssets.map(item => item.asset.id),
+        ...uploadedIds
+      ];
       if (editingPost) {
         await apiFetch('/posts/' + encodeURIComponent(editingPost.id), {
           method: 'PATCH',
-          body: JSON.stringify({ content: value, imageUrl: attachment || null })
+          body: JSON.stringify({ content: value, imageUrl: attachment || null, assetIds })
         });
       } else {
         await apiFetch('/posts', { method: 'POST',
-          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
+          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}), assetIds }) });
       }
       setEditingPost(null);
       setContent('');
       setImageUrl('');
+      setLocalMedia([]);
+      setRetainedAssets([]);
       setComposerOpen(false);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
       setPublishing(false);
+      setUploadProgress('');
     }
   }
 
@@ -580,6 +685,12 @@ export function FeedExperience({
                 <Text style={[styles.discoverSub, { color: colors.muted }]}>Accueil</Text>
               </View>
             </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Voir les publications enregistrées"
+              onPress={() => { setSavedOpen(true); void loadSavedPosts().catch(cause =>
+                Alert.alert('Favoris indisponibles', errorMessage(cause,'Réessaie.'))); }}
+              style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="check" size={22} color={colors.accent}/>
+            </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Rechercher des profils et publications"
               disabled={!onOpenDiscover} onPress={onOpenDiscover}
               style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
@@ -643,6 +754,7 @@ export function FeedExperience({
               resizeMode="cover"
             />
           ) : null}
+          <PostAttachmentRail postId={item.id} attachments={item.attachments}/>
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
@@ -671,9 +783,9 @@ export function FeedExperience({
             {editingPost ? 'Modifier la publication' : 'Créer une publication'}
           </Text>
           <Pressable accessibilityRole="button" accessibilityLabel={editingPost ? 'Enregistrer les modifications' : 'Publier'}
-            disabled={!content.trim() || publishing}
+            disabled={(!content.trim() && !imageUrl.trim() && !localMedia.length && !retainedAssets.length) || publishing}
             onPress={() => void publish()}
-            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:content.trim()?1:0.5}]}>
+            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:(content.trim()||imageUrl.trim()||localMedia.length||retainedAssets.length)?1:0.5}]}>
             <Text style={{color:colors.accent,fontWeight:'800'}}>
               {publishing ? 'Envoi…' : editingPost ? 'Enregistrer' : 'Publier'}
             </Text>
@@ -703,10 +815,56 @@ export function FeedExperience({
           />
           <Text style={[styles.composerHint,{color:colors.muted,textAlign:'right'}]}>{content.length}/2000</Text>
           <View style={[styles.composeAttachment,{borderColor:colors.border}]}>
-            <Text style={{fontSize:14,fontWeight:'700',color:colors.text}}>Image par lien HTTPS</Text>
+            <Text style={{fontSize:15,fontWeight:'700',color:colors.text}}>Ajouter des médias</Text>
+            <View style={styles.pickerRow}>
+              <Pressable accessibilityRole="button" disabled={publishing}
+                onPress={() => setGalleryVisible(true)}
+                style={[styles.pickerButton,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="discover" size={19} color={colors.accent}/>
+                <Text style={{fontSize:13,fontWeight:'700',color:colors.text}}>Galerie KnowMe</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={publishing}
+                onPress={() => {void chooseFiles();}}
+                style={[styles.pickerButton,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="edit" size={19} color={colors.accent}/>
+                <Text style={{fontSize:13,fontWeight:'700',color:colors.text}}>Fichiers</Text>
+              </Pressable>
+            </View>
             <Text style={{fontSize:12,lineHeight:18,color:colors.muted}}>
-              L’import direct de photos, vidéos et fichiers nécessite encore la nouvelle API de publications.
+              Jusqu’à 10 fichiers · 25 Mo maximum par fichier · formats compatibles.
             </Text>
+            {editingPost && retainedAssets.length ? (
+              <View>
+                <Text style={{fontSize:13,color:colors.text,fontWeight:'600'}}>Médias déjà publiés</Text>
+                <PostAttachmentRail postId={editingPost.id} attachments={retainedAssets}/>
+                {retainedAssets.map(entry => (
+                  <Pressable accessibilityRole="button" key={entry.asset.id}
+                    onPress={() => setRetainedAssets(items => items.filter(item => item.asset.id !== entry.asset.id))}
+                    style={[styles.pendingChip,{backgroundColor:colors.backgroundAccent}]}>
+                    <Text numberOfLines={1} style={{flex:1,color:colors.text}}>{entry.asset.originalName}</Text>
+                    <Text style={{color:colors.accent,fontWeight:'700'}}>Retirer ×</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {localMedia.map((media,index) => (
+              <View key={media.uri + index} style={[styles.pendingChip,{backgroundColor:colors.backgroundAccent}]}>
+                {media.mime.startsWith('image/') ?
+                  <Image source={{uri:media.uri}} style={styles.pendingThumb}/> :
+                  <Text style={{fontSize:20,color:colors.accent}}>
+                    {media.mime.startsWith('video/')?'▶':media.mime.startsWith('audio/')?'♫':'▤'}
+                  </Text>}
+                <Text numberOfLines={1} style={{flex:1,color:colors.text}}>{media.name}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={'Retirer ' + media.name}
+                  disabled={publishing} onPress={() => setLocalMedia(current => current.filter(item => item.uri !== media.uri))}>
+                  <Text style={{fontSize:20,color:colors.accent}}>×</Text>
+                </Pressable>
+              </View>
+            ))}
+            {!!uploadProgress && <Text accessibilityRole="text" style={{color:colors.accent,fontWeight:'700'}}>
+              {uploadProgress}
+            </Text>}
+            <Text style={{fontSize:13,fontWeight:'600',color:colors.text}}>Image externe (facultatif)</Text>
             <TextInput accessibilityLabel="URL de l’image"
               placeholder="https://…"
               placeholderTextColor={colors.muted}
@@ -720,9 +878,9 @@ export function FeedExperience({
         </ScrollView>
         <View style={[styles.composeFooter,{borderColor:colors.border}]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Publier la publication"
-            disabled={!content.trim() || publishing}
+            disabled={(!content.trim() && !imageUrl.trim() && !localMedia.length && !retainedAssets.length) || publishing}
             onPress={() => void publish()}
-            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:content.trim()?1:0.5}]}>
+            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:(content.trim()||imageUrl.trim()||localMedia.length||retainedAssets.length)?1:0.5}]}>
             <Text style={{fontSize:16,fontWeight:'800',color:colors.accentText}}>
               {publishing ? 'Enregistrement…' : editingPost ? 'Enregistrer' : 'Publier'}
             </Text>
@@ -730,6 +888,9 @@ export function FeedExperience({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <AndroidMediaLibraryPicker visible={galleryVisible} multiple allowVideo maxSelection={10}
+      onPickedMany={items => {setGalleryVisible(false);appendFiles(items);}}
+      onClose={() => setGalleryVisible(false)}/>
     <Modal visible={Boolean(menuPost)} transparent animationType="fade"
       onRequestClose={() => setMenuPost(null)}>
       <Pressable style={styles.sheetBackdrop} onPress={() => setMenuPost(null)}>
@@ -737,6 +898,14 @@ export function FeedExperience({
           style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
           <Text style={[styles.sheetTitle,{color:colors.text}]}>Options de publication</Text>
+          {menuPost ? <Pressable accessibilityRole="button" style={styles.sheetOption}
+            disabled={savingPostId === menuPost.id}
+            onPress={() => { void toggleSaved(menuPost); }}>
+            <KnowMeIcon name="check" size={20} color={colors.accent}/>
+            <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>
+              {savedIds.has(menuPost.id) ? 'Retirer des favoris' : 'Enregistrer la publication'}
+            </Text>
+          </Pressable> : null}
           {menuPost?.authorId === userId ? (
             <>
               <Pressable accessibilityRole="button" style={styles.sheetOption}
@@ -813,6 +982,36 @@ export function FeedExperience({
         </Pressable>
       </Pressable>
     </Modal>
+    <Modal visible={savedOpen} animationType="slide" onRequestClose={() => setSavedOpen(false)}>
+      <View style={[styles.composerScreen, { backgroundColor: colors.background }]}>
+        <View style={[styles.composerTop, {borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fermer les publications enregistrées"
+            onPress={() => setSavedOpen(false)} style={styles.composeClose}>
+            <KnowMeIcon name="back" size={23} color={colors.text}/>
+          </Pressable>
+          <Text style={[styles.composeTitle, {color:colors.text}]}>Publications enregistrées</Text>
+        </View>
+        <FlatList data={savedPosts} keyExtractor={item => item.id}
+          contentContainerStyle={styles.content}
+          ListEmptyComponent={<Text style={{color:colors.muted, padding:22}}>
+            Aucun favori pour le moment.
+          </Text>}
+          renderItem={({item}) => (
+            <Pressable accessibilityRole="button" onPress={() => {
+              setSavedOpen(false); setSelectedPostId(item.post.id);
+            }} style={[styles.card, {backgroundColor:colors.surface, borderColor:colors.border}]}>
+              <Text style={[styles.title,{color:colors.text}]} numberOfLines={1}>
+                {item.post.author.displayName}
+              </Text>
+              <Text style={[styles.postText,{color:colors.text}]} numberOfLines={4}>
+                {item.post.content || 'Publication multimédia'}
+              </Text>
+              <PostAttachmentRail postId={item.post.id} attachments={item.post.attachments}/>
+            </Pressable>
+          )}
+        />
+      </View>
+    </Modal>
     </>
   );
 }
@@ -846,6 +1045,11 @@ const styles = StyleSheet.create({
   composeAuthor: {flexDirection:'row',alignItems:'center',gap:11},
   composeInput: {minHeight:210,fontSize:22,lineHeight:30,paddingVertical:12},
   composeAttachment: {borderTopWidth:StyleSheet.hairlineWidth,paddingTop:18,gap:9},
+  pickerRow: {flexDirection:'row',flexWrap:'wrap',gap:8},
+  pickerButton: {minHeight:46,borderRadius:14,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12},
+  pendingChip: {minHeight:46,borderRadius:13,paddingHorizontal:10,paddingVertical:5,
+    flexDirection:'row',alignItems:'center',gap:9,marginTop:5},
+  pendingThumb: {width:40,height:40,borderRadius:9},
   composeImagePreview: {height:210,width:'100%',borderRadius:18},
   composeFooter: {paddingHorizontal:16,paddingVertical:12,borderTopWidth:StyleSheet.hairlineWidth},
   composeSend: {minHeight:50,alignItems:'center',justifyContent:'center',borderRadius:14},
