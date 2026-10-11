@@ -15,6 +15,7 @@ import { ApplyModerationActionDto } from './dto/apply-moderation-action.dto';
 export type ModeratedAction =
   | 'MESSAGE_SEND'
   | 'POST_CREATE'
+  | 'POST_UPDATE'
   | 'COMMENT_CREATE'
   | 'REPORT_CREATE';
 
@@ -45,6 +46,12 @@ const POLICIES: Record<ModeratedAction, AbusePolicy> = {
     maxActions: 5,
     duplicateWindowMs: 24 * 60 * 60_000,
     maxDuplicates: 1
+  },
+  POST_UPDATE: {
+    windowMs: 10 * 60_000,
+    maxActions: 12,
+    duplicateWindowMs: 60 * 60_000,
+    maxDuplicates: 3
   },
   COMMENT_CREATE: {
     windowMs: 5 * 60_000,
