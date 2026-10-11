@@ -39,15 +39,15 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId }: { userId: string }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>('friends');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setRefreshing(false);
-    setSection('friends');
-  }, [userId]);
+    setSection(linkedConversationId ? 'messages' : 'friends');
+  }, [userId, linkedConversationId]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -108,6 +108,8 @@ export function SocialHub({ userId }: { userId: string }) {
         <MessagesOrganizationExperience
           key={`messages:${userId}`}
           userId={userId}
+          linkedConversationId={linkedConversationId}
+          linkedMessageId={linkedMessageId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
