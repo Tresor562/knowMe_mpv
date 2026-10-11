@@ -535,6 +535,7 @@ function HomeScreen({
   openCreate,
   openProfile,
   storyComposerRequest,
+  initialStoryId,
   onStoryComposerHandled
 }: {
   user: MobileUser;
@@ -544,6 +545,7 @@ function HomeScreen({
   openCreate: () => void;
   openProfile: () => void;
   storyComposerRequest: boolean;
+  initialStoryId?: string | null;
   onStoryComposerHandled: () => void;
 }) {
   const { colors } = useAppearance();
@@ -664,6 +666,7 @@ function HomeScreen({
           }}
           onOpenDiscover={openDiscover}
           openComposer={storyComposerRequest}
+          initialStoryId={initialStoryId}
           onComposerOpened={onStoryComposerHandled}
         />
       </FadeRise>
@@ -1072,6 +1075,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [screen, setScreen] = useState<Screen>('home');
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
+  const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
   const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
@@ -1138,10 +1142,13 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       try {
         const result = await apiFetch<{
           kind: string;
-          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string };
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string };
         }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
         if (!active) return;
-        if (result.context.postId) {
+        if (result.context.storyId) {
+          setLinkedStoryId(result.context.storyId);
+          setScreen('home');
+        } else if (result.context.postId) {
           setLinkedPostId(result.context.postId);
           setLinkedCommentId(result.context.commentId ?? null);
           setScreen('discover');
@@ -1243,6 +1250,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             openCreate={() => setCreateOpen(true)}
             openProfile={() => setScreen('profile')}
             storyComposerRequest={storyComposerRequest}
+            initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
           />
         ) : null}
