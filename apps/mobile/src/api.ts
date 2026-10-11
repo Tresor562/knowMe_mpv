@@ -217,6 +217,13 @@ async function refreshAccessToken() {
   return refreshPromise;
 }
 
+/** Headers for authenticated media downloads using the same session as API requests. */
+export async function authenticatedMediaHeaders(): Promise<Record<string,string>> {
+  const token=await getAccessToken();
+  if(!token)throw new Error('Connexion nécessaire pour accéder au média.');
+  return { Authorization: `Bearer ${token}` };
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
