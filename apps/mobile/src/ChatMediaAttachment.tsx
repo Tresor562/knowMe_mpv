@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
 
@@ -60,11 +60,9 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { ass
       }
       // Android exposes only this downloaded copy to a system viewer.
       const uri=await FileSystem.getContentUriAsync(target);
-      try{
-        await Linking.openURL(uri);
-      }catch{
-        await Share.share({url:uri,message:'Pièce jointe KnowMe'});
-      }
+      // If the phone has no compatible external viewer, report failure.
+      // Never pretend that sharing only a URI string delivered the actual file.
+      await Linking.openURL(uri);
     }catch{
       setFailed(true);
     }finally{setOpening(false);}
