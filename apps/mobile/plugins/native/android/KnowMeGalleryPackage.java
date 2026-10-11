@@ -96,7 +96,7 @@ public final class KnowMeGalleryPackage implements ReactPackage {
           ContentResolver resolver = context.getContentResolver();
           Uri source = MediaStore.Files.getContentUri("external");
           String mediaType = MediaStore.Files.FileColumns.MEDIA_TYPE;
-          String bucketColumn = MediaStore.MediaColumns.BUCKET_ID;
+          String bucketColumn = "bucket_id";
           String selection = mode.equals("photo")
             ? mediaType + " = ?"
             : mode.equals("video") ? mediaType + " = ?" : mediaType + " IN (?, ?)";
@@ -120,7 +120,7 @@ public final class KnowMeGalleryPackage implements ReactPackage {
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.DATE_ADDED,
             MediaStore.MediaColumns.BUCKET_ID,
-            MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
+            "bucket_display_name",
             MediaStore.Files.FileColumns.MEDIA_TYPE
           };
           WritableArray items = Arguments.createArray();
@@ -143,7 +143,7 @@ public final class KnowMeGalleryPackage implements ReactPackage {
               asset.putString("mime", mime == null ? (video ? "video/mp4" : "image/jpeg") : mime);
               asset.putString("type", video ? "video" : "photo");
               String bucketId = cursor.getString(cursor.getColumnIndexOrThrow(bucketColumn));
-              String albumName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME));
+              String albumName = cursor.getString(cursor.getColumnIndexOrThrow("bucket_display_name"));
               asset.putString("albumId", bucketId == null ? "" : bucketId);
               asset.putString("albumName", albumName == null ? "Autres" : albumName);
               asset.putDouble("timestamp", cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)));
@@ -184,6 +184,59 @@ public final class KnowMeGalleryPackage implements ReactPackage {
       } finally {
         if (bitmap != null) bitmap.recycle();
       }
+    }
+
+    @ReactMethod public void listAlbums(Promise promise) {
+      worker.execute(() -> {
+        try {
+          ContentResolver resolver = context.getContentResolver();
+          String typeColumn = MediaStore.Files.FileColumns.MEDIA_TYPE;
+          String selection = typeColumn + " IN (?, ?)";
+          String[] args = {
+            String.valueOf(MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE),
+            String.valueOf(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
+          };
+          String bucketIdColumn = "bucket_id";
+          String bucketNameColumn = "bucket_display_name";
+          java.util.LinkedHashMap<String, WritableMap> albums = new java.util.LinkedHashMap<>();
+          String[] projection = {
+            bucketIdColumn, bucketNameColumn, MediaStore.MediaColumns._ID, typeColumn
+          };
+          try (Cursor cursor = resolver.query(MediaStore.Files.getContentUri("external"),
+              projection, selection, args, MediaStore.MediaColumns.DATE_ADDED + " DESC")) {
+            if (cursor != null) {
+              // Album lookup is bounded to prevent a giant, blocking catalog on older devices.
+              int visited = 0;
+              while (cursor.moveToNext() && visited++ < 10000) {
+                String id = cursor.getString(0);
+                if (id == null || id.isEmpty()) continue;
+                WritableMap entry = albums.get(id);
+                if (entry == null) {
+                  entry = Arguments.createMap();
+                  entry.putString("id", id);
+                  String title = cursor.getString(1);
+                  entry.putString("name", title == null ? "Autres" : title);
+                  boolean video = cursor.getInt(3) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
+                  long assetId = cursor.getLong(2);
+                  entry.putString("thumbnail", thumbnail(resolver,
+                    ContentUris.withAppendedId(video ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                      : MediaStore.Images.Media.EXTERNAL_CONTENT_URI, assetId), assetId, video));
+                  entry.putInt("count", 0);
+                  albums.put(id, entry);
+                }
+                entry.putInt("count", entry.getInt("count") + 1);
+              }
+            }
+          }
+          WritableArray array = Arguments.createArray();
+          for (WritableMap entry : albums.values()) array.pushMap(entry);
+          promise.resolve(array);
+        } catch (SecurityException denied) {
+          promise.reject("GALLERY_PERMISSION", "Autorisation galerie nécessaire.", denied);
+        } catch (Exception failure) {
+          promise.reject("ALBUMS_UNAVAILABLE", "Albums indisponibles.", failure);
+        }
+      });
     }
 
     @ReactMethod public void pickDocuments(boolean multiple, Promise promise) {
