@@ -35,7 +35,8 @@ describe('RealtimeGateway', () => {
     };
     const roomEmitter = { emit: jest.fn() };
     const server = {
-      to: jest.fn().mockReturnValue(roomEmitter)
+      to: jest.fn().mockReturnValue(roomEmitter),
+      in: jest.fn().mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue([]) })
     };
     const gateway = new RealtimeGateway(
       jwt as never,
@@ -250,7 +251,7 @@ describe('RealtimeGateway', () => {
   it('evicts all previously joined sockets when membership is revoked', async () => {
     const { gateway, server } = setup();
     const removedSocket = { leave: jest.fn().mockResolvedValue(undefined), emit: jest.fn() };
-    server.in = jest.fn().mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue([removedSocket]) });
+    server.in.mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue([removedSocket]) });
     await gateway.revokeConversationAccess('chat', 'bob');
     expect(server.in).toHaveBeenCalledWith('user:bob');
     expect(removedSocket.leave).toHaveBeenCalledWith('conversation:chat');
