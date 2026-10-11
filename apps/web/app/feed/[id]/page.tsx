@@ -154,9 +154,14 @@ export default function PostDetailPage() {
           <button className="btn" onClick={() => void like()}>♥ {post._count.likes}</button>
           <span style={{ color: 'var(--muted)' }}>💬 {post._count.comments}</span>
           {post.authorId === user?.id && (
-            <button className="btn btn-accent" style={{ marginLeft: 'auto' }} onClick={() => void removePost()}>
-              Supprimer la publication
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+              <Link href={'/feed/' + encodeURIComponent(postId) + '/edit'} className="btn">
+                Modifier la publication
+              </Link>
+              <button className="btn btn-accent" onClick={() => void removePost()}>
+                Supprimer
+              </button>
+            </div>
           )}
         </div>
       </article>
