@@ -95,7 +95,9 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
     try {
       for (let index=0;index<files.length;index++) {
         setProgress((index+1) + '/' + files.length);
-        const message = await uploadOne(files[index]);
+        const file = files[index];
+        if (!file) continue;
+        const message = await uploadOne(file);
         onSent(message);
       }
       setProgress('');
