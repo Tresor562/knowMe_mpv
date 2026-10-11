@@ -34,6 +34,8 @@ export default function FeedPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState('');
   const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [savingPostId, setSavingPostId] = useState<string | null>(null);
   const loadGeneration = useRef(0);
 
   const invalidateFeedAuthority = useCallback(() => {
@@ -128,6 +130,33 @@ export default function FeedPage() {
     }
   }
 
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    let live = true;
+    void apiFetch<{ post: { id: string } }[]>('/posts/saved')
+      .then(records => { if (live) setSavedIds(new Set(records.map(item=>item.post.id))); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, [sessionLoading, user?.id]);
+
+  async function toggleSave(postId: string) {
+    if (savingPostId || !authorityFresh) return;
+    const isSaved = savedIds.has(postId);
+    setSavingPostId(postId);
+    try {
+      await apiFetch('/posts/' + encodeURIComponent(postId) + '/save', {
+        method: isSaved ? 'DELETE' : 'POST'
+      });
+      setSavedIds(current => {
+        const next = new Set(current);
+        if (isSaved) next.delete(postId); else next.add(postId);
+        return next;
+      });
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : (en ? 'Unable to save this post.' : 'Impossible d’enregistrer la publication.'));
+    } finally { setSavingPostId(null); }
+  }
+
   async function toggleLike(postId: string) {
     if (!authorityFresh) return;
     try {
@@ -147,7 +176,12 @@ export default function FeedPage() {
     <main className="shell km-feed-page">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
-        <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <Link className="km-feed-story-cta" href="/feed/saved">
+            {en?'Saved posts':'Enregistrés'}
+          </Link>
+          <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        </div>
       </header>
       <StoriesRail />
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
@@ -188,6 +222,12 @@ export default function FeedPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
               <Link className="btn" href={`/feed/${post.id}`}>💬 {post._count.comments}</Link>
+              <button type="button" className="btn"
+                disabled={!authorityFresh || savingPostId === post.id}
+                aria-pressed={savedIds.has(post.id)}
+                onClick={() => void toggleSave(post.id)}>
+                {savedIds.has(post.id) ? (en?'Saved ✓':'Enregistré ✓') : (en?'Save':'Enregistrer')}
+              </button>
               <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
             </div>
           </article>
