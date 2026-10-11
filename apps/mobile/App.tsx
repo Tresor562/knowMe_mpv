@@ -1130,7 +1130,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     dockScrollRef.current = { ...INITIAL_DOCK_SCROLL };
     setDockVisibleOnScroll(true);
     setDetailOpen(false);
-  }, [screen, user?.id, dockSettings.autoHide]);
+  }, [screen, user?.id]);
+
+  useEffect(() => {
+    dockScrollRef.current = { ...INITIAL_DOCK_SCROLL };
+    setDockVisibleOnScroll(true);
+  }, [dockSettings.autoHide]);
 
   const onContentScroll = useCallback((offset: number) => {
     if (!dockSettings.autoHide) return;
