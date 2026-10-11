@@ -401,7 +401,7 @@ export function StoriesRail({
       </Modal>
 
       <Modal
-        visible={createOpen}
+        visible={createOpen&&!pickerVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setCreateOpen(false)}
