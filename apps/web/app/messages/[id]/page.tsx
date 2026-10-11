@@ -78,7 +78,7 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
 function MessageContent({item}:{item:Message}){
   if(item.presentation?.kind==='GIF'||item.presentation?.kind==='STICKER_IMAGE'||item.presentation?.kind==='IMAGE'||
     item.presentation?.kind==='VIDEO'||item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT') {
-    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName}/>;
+    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} enablePreview/>;
   }
   if(item.presentation?.kind==='STICKER'){
     return(

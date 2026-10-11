@@ -1358,3 +1358,45 @@ html, body { min-width: 0; }
 @media(max-width:380px){
   .km-chat-media-video,.km-chat-media-audio,.km-chat-media-download{max-width:100%;}
 }
+
+
+/* KnowMe native media viewer: compact chat thumbnail, immersive private lightbox. */
+.km-chat-media-trigger {
+  display:block; width:max-content; max-width:100%; margin:0; padding:0;
+  border:0; border-radius:12px; background:transparent; color:inherit;
+  cursor:zoom-in; overflow:hidden; text-align:inherit;
+}
+.km-chat-media-trigger:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }
+.km-chat-media-viewer {
+  position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column;
+  align-items:stretch; justify-content:center;
+  padding:calc(68px + env(safe-area-inset-top, 0px)) 12px calc(16px + env(safe-area-inset-bottom, 0px));
+  background:rgba(5,7,15,.97); color:#fff; overscroll-behavior:contain;
+  animation:km-viewer-enter .19s ease-out both;
+}
+.km-chat-media-viewer-bar {
+  position:absolute; top:calc(10px + env(safe-area-inset-top,0px)); left:12px; right:12px;
+  min-height:48px; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:4px 4px 4px 14px; border:1px solid rgba(255,255,255,.17);
+  border-radius:26px; background:rgba(35,39,54,.62); backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+}
+.km-chat-media-viewer-title {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;}
+.km-chat-media-viewer-actions {display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.km-chat-media-viewer-actions a,.km-chat-media-viewer-actions button {
+  display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;
+  border:0;border-radius:50%;background:transparent;color:#fff;cursor:pointer;
+}
+.km-chat-media-viewer-actions :is(a,button):hover,
+.km-chat-media-viewer-actions :is(a,button):focus-visible {background:rgba(255,255,255,.19);}
+.km-chat-media-viewer-actions :is(a,button):focus-visible {outline:2px solid #fff;outline-offset:-2px;}
+.km-chat-media-viewer-image {
+  display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;
+  margin:auto;user-select:none;touch-action:pinch-zoom;
+}
+@keyframes km-viewer-enter {from {opacity:0;transform:scale(.985)}to {opacity:1;transform:scale(1)}}
+:root[data-reduce-transparency='true'] .km-chat-media-viewer-bar {
+  background:#282c3b;backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+:root[data-animations='false'] .km-chat-media-viewer {animation:none;}
+@media(prefers-reduced-motion:reduce){.km-chat-media-viewer{animation:none;}}
