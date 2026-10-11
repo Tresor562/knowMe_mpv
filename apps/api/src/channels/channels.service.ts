@@ -116,10 +116,13 @@ export class ChannelsService {
 
   private async owner(userId: string, channelId: string) {
     const row = await this.prisma.channel.findUnique({
-      where: { id: channelId }, select: { ownerId: true }
+      where: { id: channelId }, select: { ownerId: true, visibility: true }
     });
     if (!row) throw new NotFoundException('CHANNEL_NOT_FOUND');
-    if (row.ownerId !== userId) throw new ForbiddenException('CHANNEL_OWNER_ONLY');
+    if (row.ownerId !== userId) {
+      if (row.visibility === ChannelVisibility.PRIVATE) throw new NotFoundException('CHANNEL_NOT_FOUND');
+      throw new ForbiddenException('CHANNEL_OWNER_ONLY');
+    }
   }
 
   async update(userId: string, channelId: string, input: ChannelInput) {
@@ -148,6 +151,7 @@ export class ChannelsService {
   }
 
   async unfollow(userId: string, channelId: string) {
+    await this.visible(userId, channelId);
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId }, select: { ownerId: true }
     });
