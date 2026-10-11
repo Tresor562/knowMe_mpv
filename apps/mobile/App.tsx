@@ -1275,17 +1275,15 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ]}
       >
         {screen === 'home' ? (
-          <HomeScreen
-            key={'home:' + user.id}
-            user={user}
-            openSocial={() => setScreen('social')}
-            openDiscover={() => setScreen('feed')}
-            openChallenges={() => setScreen('challenges')}
-            openCreate={() => setCreateOpen(true)}
-            openProfile={() => setScreen('profile')}
-            storyComposerRequest={storyComposerRequest}
-            onStoryComposerHandled={() => setStoryComposerRequest(false)}
+          <FeedExperience
+            key={'home-feed:' + user.id}
+            userId={user.id}
+            currentUser={{id:user.id,displayName:user.displayName,username:user.username,avatarUrl:user.avatarUrl}}
+            onOpenDiscover={() => setScreen('discover')}
+            openStoryComposer={storyComposerRequest}
+            onStoryComposerOpened={() => setStoryComposerRequest(false)}
             onContentScroll={onContentScroll}
+            onSecondaryModeChange={onSecondaryModeChange}
           />
         ) : null}
 
