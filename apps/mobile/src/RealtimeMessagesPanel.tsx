@@ -42,7 +42,7 @@ type ConversationMessage = {
   nexusAuthored?: boolean;
   presentation?:{kind:'TEXT';text:string}|
     {kind:'STICKER';sticker:{glyph:string;label:string}}|
-    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE';assetId:string;mimeType:string};
+    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string};
 };
 type Conversation = {
   id: string;
