@@ -1,4 +1,4 @@
-name: KnowMe APK Build Once
+name: KnowMe Signed Android APK
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - 'apps/mobile/**'
       - 'packages/i18n-contract/**'
       - 'packages/ui/**'
+      - 'scripts/configure-knowme-android-signing.mjs'
   pull_request:
     paths:
       - '.github/workflows/knowme-apk-build-once.yml'
@@ -21,6 +22,7 @@ permissions:
 
 jobs:
   android-apk:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -39,37 +41,103 @@ jobs:
           java-version: '17'
 
       - name: Prepare Expo-compatible pnpm layout
-        shell: bash
         run: printf '%s\n' 'shamefully-hoist=true' > .npmrc
 
-      - name: Install workspace dependencies
+      - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build mobile workspace dependencies and validate TypeScript
+      - name: Validate mobile project
         run: pnpm --filter @knowme/mobile... build
 
       - name: Generate Android project
         run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean --no-install
 
-      - name: Build installable release APK
+      - name: Prepare private release signing
+        shell: bash
+        env:
+          KNOWME_ANDROID_KEYSTORE_BASE64: ${{ secrets.KNOWME_ANDROID_KEYSTORE_BASE64 }}
+          KNOWME_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEYSTORE_PASSWORD }}
+          KNOWME_ANDROID_KEY_ALIAS: ${{ secrets.KNOWME_ANDROID_KEY_ALIAS }}
+          KNOWME_ANDROID_KEY_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${KNOWME_ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            echo "::error::Missing stable APK signing key; publication blocked."
+            exit 1
+          fi
+          export KNOWME_ANDROID_KEYSTORE_PATH="$GITHUB_WORKSPACE/apps/mobile/android/app/knowme-release.jks"
+          printf '%s' "$KNOWME_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KNOWME_ANDROID_KEYSTORE_PATH"
+          chmod 600 "$KNOWME_ANDROID_KEYSTORE_PATH"
+          node scripts/configure-knowme-android-signing.mjs
+          echo "KNOWME_ANDROID_KEYSTORE_PATH=$KNOWME_ANDROID_KEYSTORE_PATH" >> "$GITHUB_ENV"
+          unset KNOWME_ANDROID_KEYSTORE_BASE64
+
+      - name: Build signed Android APK
         working-directory: apps/mobile/android
+        env:
+          KNOWME_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEYSTORE_PASSWORD }}
+          KNOWME_ANDROID_KEY_ALIAS: ${{ secrets.KNOWME_ANDROID_KEY_ALIAS }}
+          KNOWME_ANDROID_KEY_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Stage APK
+      - name: Validate and stage release APK
         shell: bash
         run: |
           set -euo pipefail
+          VERSION="$(node -p 'require("./apps/mobile/app.json").expo.version')"
+          APK="KnowMe-${VERSION}.apk"
           mkdir -p artifacts
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk artifacts/KnowMe-1.0.0-preview.apk
-          sha256sum artifacts/KnowMe-1.0.0-preview.apk | tee artifacts/KnowMe-1.0.0-preview.apk.sha256
-          ls -lh artifacts/KnowMe-1.0.0-preview.apk
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "artifacts/$APK"
+          test "$(stat -c %s "artifacts/$APK")" -gt 10000000
+          unzip -tqq "artifacts/$APK"
+          sha256sum "artifacts/$APK" > "artifacts/$APK.sha256"
+          node -p 'JSON.stringify({version:require("./apps/mobile/app.json").expo.version,versionCode:require("./apps/mobile/app.json").expo.android.versionCode})' > artifacts/version.json
+          ls -lh artifacts
 
-      - name: Upload APK artifact
+      - name: Upload signed APK artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: knowme-android-apk
           path: |
-            artifacts/KnowMe-1.0.0-preview.apk
-            artifacts/KnowMe-1.0.0-preview.apk.sha256
+            artifacts/KnowMe-*.apk
+            artifacts/KnowMe-*.apk.sha256
+            artifacts/version.json
           if-no-files-found: error
           retention-days: 7
+
+  android-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: '1'
+      EXPO_PUBLIC_API_URL: https://31-56-85-53.sslip.io/knowme-api
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.2
+          cache: pnpm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Expo-compatible pnpm layout
+        run: printf '%s\\n' 'shamefully-hoist=true' > .npmrc
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify mobile TypeScript
+        run: pnpm --filter @knowme/mobile... build
+      - name: Generate Android test project
+        run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean --no-install
+      - name: Compile Android native updater
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Upload internal QA APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-android-debug-qa
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
