@@ -57,6 +57,6 @@ test('group information shows real member details, search and native sections on
 test('unknown or inaccessible conversation does not expose its members', async ({ page }) => {
   await authenticatedProfile(page, false);
   await page.goto('/messages/private-group/info');
-  await expect(page.getByRole('alert')).toContainText('introuvable');
+  await expect(page.locator('.km-info-page .km-auth-error[role="alert"]')).toContainText('introuvable');
   await expect(page.getByRole('link', { name: /Alice/ })).toHaveCount(0);
 });
