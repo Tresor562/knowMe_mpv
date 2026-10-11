@@ -667,7 +667,7 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='STICKER_IMAGE'||
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
-                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName}/>
+                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
                   : <Text
                       style={[
                         mine ? styles.bubbleMineText : styles.bubbleText,
