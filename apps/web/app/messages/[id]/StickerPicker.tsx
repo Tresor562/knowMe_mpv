@@ -291,11 +291,11 @@ export function StickerPicker<T>({
         </>}
         {tab === 'files' && <div className="km-picker-group km-picker-upload-panel">
           <strong>{en?'Send a video, audio or PDF':'Envoyer une vidéo, un audio ou un PDF'}</strong>
-          <p>{en?'Private attachments shared only with this chat. Supported: MP4, MP3, PDF.':
-            'Pièces jointes privées pour cette conversation : MP4, MP3 et PDF.'}</p>
+          <p>{en?'Private attachments shared only with this chat. Supported: MP4, MP3, OGG, WAV, PDF.':
+            'Pièces jointes privées pour cette conversation : MP4, MP3, OGG, WAV et PDF.'}</p>
           <button type="button" className="km-picker-upload-action" disabled={sending!==null}
             onClick={()=>fileInput.current?.click()}>
-            {sending==='upload'?(en?'Sending…':'Envoi…'):(en?'Choose MP4 / MP3 / PDF':'Choisir MP4 / MP3 / PDF')}
+            {sending==='upload'?(en?'Sending…':'Envoi…'):(en?'Choose video / audio / PDF':'Choisir vidéo / audio / PDF')}
           </button>
           <small>{en?'Up to 20 MB per file using the current secure upload service.':
             '20 Mo maximum par fichier avec le service de stockage sécurisé actuel.'}</small>
