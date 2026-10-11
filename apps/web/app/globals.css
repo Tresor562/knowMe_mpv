@@ -1400,3 +1400,31 @@ html, body { min-width: 0; }
 }
 :root[data-animations='false'] .km-chat-media-viewer {animation:none;}
 @media(prefers-reduced-motion:reduce){.km-chat-media-viewer{animation:none;}}
+
+
+/* Messenger-style thoughts: compact, nonintrusive and conversation-first. */
+.km-daily-notes {display:grid;gap:9px;margin:9px 0 14px;min-width:0}
+.km-notes-heading {display:flex;gap:12px;align-items:baseline;justify-content:space-between}
+.km-notes-heading strong {font-size:14px}
+.km-notes-heading small {color:var(--muted);font-size:11px}
+.km-notes-rail {display:flex;gap:10px;overflow-x:auto;overscroll-behavior-x:contain;padding:8px 3px 9px;scrollbar-width:thin}
+.km-note-item {display:flex;flex-direction:column;align-items:center;flex:0 0 100px;min-width:0;gap:5px;border:0;background:none;color:var(--text);padding:0;font:inherit;text-align:center}
+button.km-note-item {cursor:pointer}
+.km-note-item>span {max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--muted)}
+.km-note-bubble {display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-height:48px;max-height:57px;max-width:100px;
+ background:var(--surface-glass);border:1px solid var(--soft-border);border-radius:17px 17px 17px 4px;
+ color:var(--text);font-size:10.5px;line-height:15px;overflow-wrap:anywhere;padding:6px 8px}
+.km-note-avatar {width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:2px solid var(--soft-border);overflow:hidden;font-size:16px}
+.km-note-avatar img {width:100%;height:100%;object-fit:cover}
+.km-note-own {border-color:var(--mint);color:var(--mint)}
+.km-note-overlay {position:fixed;inset:0;z-index:1050;display:grid;place-items:end center;background:rgba(0,0,0,.5);padding:16px}
+.km-note-composer {width:min(480px,100%);display:grid;gap:12px;background:var(--surface);color:var(--text);padding:22px;
+ border:1px solid var(--soft-border);border-radius:24px 24px 18px 18px;box-shadow:0 14px 45px rgba(0,0,0,.25)}
+.km-note-composer header,.km-note-composer footer {display:flex;align-items:center;justify-content:space-between;gap:10px}
+.km-note-composer header strong {font-size:18px}
+.km-note-composer header button {font-size:25px;background:transparent;border:0;color:var(--text);cursor:pointer;min-width:44px;min-height:44px}
+.km-note-composer p,.km-note-composer small {color:var(--muted);font-size:12px;margin:0}
+.km-note-composer textarea {resize:vertical;padding:14px;border-radius:17px;border:1px solid var(--soft-border);font:inherit;background:var(--surface-2);color:var(--text);min-height:100px}
+.km-note-composer footer button {min-height:44px;border-radius:15px;padding:10px 15px}
+@media(min-width:700px) {.km-note-overlay{place-items:center}}
+@media(prefers-reduced-motion:reduce){.km-note-item,.km-note-overlay{transition:none}}
