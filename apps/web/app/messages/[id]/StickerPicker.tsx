@@ -273,11 +273,12 @@ export function StickerPicker<T>({
         {tab === 'gifs' && <div className="km-picker-group km-picker-upload-panel">
           {reusableGif.length>0&&<>
             <strong>{en?'Recently sent GIFs':'GIF récents'}</strong>
-            <div className="km-picker-media-grid">{reusableGif.map(item=><button type="button" key={item.id}
-              disabled={sending!==null} aria-label={en?'Send this GIF again':'Renvoyer ce GIF'}
-              onClick={()=>void reuseMedia(item.id,'GIF')}>
+            <div className="km-picker-media-grid">{reusableGif.map(item=><div className="km-picker-media-tile" key={item.id}>
               <ChatMediaView assetId={item.id} kind="GIF"/>
-            </button>)}</div>
+              <button type="button" disabled={sending!==null}
+                aria-label={en?'Send this GIF again':'Renvoyer ce GIF'}
+                onClick={()=>void reuseMedia(item.id,'GIF')}>{en?'Send':'Envoyer'}</button>
+            </div>)}</div>
           </>}
           <strong>{en?'Animated GIFs':'GIF animés'}</strong>
           <p>{en?'Send GIF files from your gallery, privately shared with conversation members.':
@@ -297,11 +298,12 @@ export function StickerPicker<T>({
           <div className="km-picker-group km-picker-upload-panel">
             {reusableStickers.length>0&&<>
               <strong>{en?'Recently sent image stickers':'Stickers images récents'}</strong>
-              <div className="km-picker-media-grid">{reusableStickers.map(item=><button type="button" key={item.id}
-                disabled={sending!==null} aria-label={en?'Send this sticker again':'Renvoyer ce sticker'}
-                onClick={()=>void reuseMedia(item.id,'STICKER_IMAGE')}>
+              <div className="km-picker-media-grid">{reusableStickers.map(item=><div className="km-picker-media-tile" key={item.id}>
                 <ChatMediaView assetId={item.id} kind="STICKER_IMAGE"/>
-              </button>)}</div>
+                <button type="button" disabled={sending!==null}
+                  aria-label={en?'Send this sticker again':'Renvoyer ce sticker'}
+                  onClick={()=>void reuseMedia(item.id,'STICKER_IMAGE')}>{en?'Send':'Envoyer'}</button>
+              </div>)}</div>
             </>}
             <strong>{en?'Your image stickers':'Tes stickers images'}</strong>
             <p>{en?'Send a PNG or WebP as a real image sticker, not an emoji substitute.':
