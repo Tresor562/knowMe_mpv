@@ -3,9 +3,13 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +17,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { StoriesRail } from './StoriesRail';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
@@ -115,11 +120,12 @@ function MetricButton({
   );
 }
 
-function PostDiscussion({ postId, userId, onBack, onDeleted }: {
+function PostDiscussion({ postId, userId, onBack, onDeleted, onEdit }: {
   postId: string;
   userId: string;
   onBack: () => void;
   onDeleted: (postId: string) => void;
+  onEdit: (post: PostSummary) => void;
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -300,7 +306,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
           <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
           <MetricButton icon="messages" count={post._count.comments} label="Commentaires" />
           {post.authorId === userId && (
-            <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
+            <>
+              <ActionButton title="Modifier" onPress={() => onEdit(post)} />
+              <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'}
+                disabled={busyId === post.id} danger onPress={confirmDeletePost} />
+            </>
           )}
         </View>
       </View>
@@ -355,11 +365,44 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   );
 }
 
-export function FeedExperience({ userId }: { userId: string }) {
+export function FeedExperience({
+  userId, currentUser, onOpenDiscover, openStoryComposer, onStoryComposerOpened,
+  openComposerRequest, onComposerOpened, onContentScroll, onSecondaryModeChange
+}: {
+  userId: string;
+  currentUser?: {id:string;displayName:string;username:string;avatarUrl?:string|null};
+  onOpenDiscover?: () => void;
+  openStoryComposer?: boolean;
+  onStoryComposerOpened?: () => void;
+  openComposerRequest?: boolean;
+  onComposerOpened?: () => void;
+  onContentScroll?: (offset: number) => void;
+  onSecondaryModeChange?: (active: boolean) => void;
+}) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<PostSummary | null>(null);
+  const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
+  const [reportPost, setReportPost] = useState<PostSummary | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  const [postBusy, setPostBusy] = useState(false);
+  useEffect(() => {
+    if (!openComposerRequest) return;
+    setEditingPost(null);
+    setContent('');
+    setImageUrl('');
+    setComposerOpen(true);
+    onComposerOpened?.();
+  }, [openComposerRequest, onComposerOpened]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [storiesOpen, setStoriesOpen] = useState(false);
+  useEffect(() => {
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || menuPost !== null || reportPost !== null);
+    return () => { onSecondaryModeChange?.(false); };
+  }, [selectedPostId, storiesOpen, composerOpen, menuPost, reportPost, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -397,13 +440,87 @@ export function FeedExperience({ userId }: { userId: string }) {
     }
   }
 
+  function openEditor(post: PostSummary | null = null) {
+    setEditingPost(post);
+    setContent(post?.content ?? '');
+    setImageUrl(post?.imageUrl ?? '');
+    setMenuPost(null);
+    setComposerOpen(true);
+  }
+
+  function postLink(postId: string) {
+    return 'https://knowme-nextech.vercel.app/feed/' + encodeURIComponent(postId);
+  }
+
+  async function sharePost(post: PostSummary) {
+    setMenuPost(null);
+    try {
+      await Share.share({ message: postLink(post.id), url: postLink(post.id), title: 'KnowMe' });
+    } catch (cause) {
+      Alert.alert('Partage impossible', errorMessage(cause, 'Réessaie.'));
+    }
+  }
+
+  function confirmRemovePost(post: PostSummary) {
+    setMenuPost(null);
+    if (post.authorId !== userId) return;
+    Alert.alert('Supprimer la publication ?', 'Cette action est définitive.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => { void (async () => {
+        setPostBusy(true);
+        try {
+          await apiFetch('/posts/' + encodeURIComponent(post.id), { method: 'DELETE' });
+          setPosts(list => list.filter(item => item.id !== post.id));
+        } catch (cause) {
+          Alert.alert('Suppression impossible', errorMessage(cause, 'Réessaie.'));
+        } finally { setPostBusy(false); }
+      })(); } }
+    ]);
+  }
+
+  function hidePost(post: PostSummary) {
+    setMenuPost(null);
+    setHiddenIds(current => new Set(current).add(post.id));
+  }
+
+  async function submitReport(reason: string) {
+    if (!reportPost || postBusy) return;
+    setPostBusy(true);
+    try {
+      await apiFetch('/reports', {
+        method: 'POST',
+        body: JSON.stringify({ targetType: 'POST', targetId: reportPost.id, reason })
+      });
+      setReportPost(null);
+      Alert.alert('Signalement envoyé', 'Merci, notre équipe pourra examiner la publication.');
+    } catch (cause) {
+      Alert.alert('Signalement impossible', errorMessage(cause, 'Réessaie.'));
+    } finally { setPostBusy(false); }
+  }
+
   async function publish() {
     const value = content.trim();
+    const attachment = imageUrl.trim();
     if (!value || publishing) return;
+    if (attachment && !/^https:\/\/[^\s]+\.[^\s]+/i.test(attachment)) {
+      Alert.alert('Lien invalide', 'Utilise une URL HTTPS d’image accessible publiquement.');
+      return;
+    }
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content: value }) });
+      if (editingPost) {
+        await apiFetch('/posts/' + encodeURIComponent(editingPost.id), {
+          method: 'PATCH',
+          body: JSON.stringify({ content: value, imageUrl: attachment || null })
+        });
+      } else {
+        await apiFetch('/posts', { method: 'POST',
+          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
+      }
+      setEditingPost(null);
       setContent('');
+      setImageUrl('');
+      setComposerOpen(false);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
@@ -431,14 +548,18 @@ export function FeedExperience({ userId }: { userId: string }) {
         userId={userId}
         onBack={() => setSelectedPostId(null)}
         onDeleted={(postId) => setPosts((current) => current.filter((item) => item.id !== postId))}
+        onEdit={post => { setSelectedPostId(null); openEditor(post); }}
       />
     );
   }
 
   return (
+    <>
     <FlatList
       style={{ backgroundColor: colors.background }}
-      data={posts}
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
+      data={posts.filter(item => !hiddenIds.has(item.id))}
       keyExtractor={(item) => item.id}
       refreshControl={
         <RefreshControl
@@ -451,45 +572,37 @@ export function FeedExperience({ userId }: { userId: string }) {
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <GlassSurface strength="soft" borderRadius={28} style={styles.discoverHeader}>
+          <View style={[styles.discoverHeader,{backgroundColor:colors.surface}]}>
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>KnowMe</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>Accueil</Text>
               </View>
             </View>
-            <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
-              <KnowMeIcon name="discover" size={22} color={colors.accent} />
-            </GlassSurface>
-          </GlassSurface>
-          <GlassSurface
-            strength="soft"
-            borderRadius={20}
-            style={styles.composerCard}
-          >
-            <TextInput
-              multiline
-              maxLength={1000}
-              value={content}
-              onChangeText={setContent}
-              placeholder="Partage une découverte, une question ou un défi…"
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]}
-            />
-            <View style={styles.composerFooter}>
-              <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
-              <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
-            </View>
-          </GlassSurface>
+            <Pressable accessibilityRole="button" accessibilityLabel="Rechercher des profils et publications"
+              disabled={!onOpenDiscover} onPress={onOpenDiscover}
+              style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="search" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+          {currentUser && onOpenDiscover ? (
+            <StoriesRail currentUser={currentUser} onOpenDiscover={onOpenDiscover}
+              openComposer={openStoryComposer}
+              onComposerOpened={onStoryComposerOpened}
+              onImmersiveChange={setStoriesOpen}/>
+          ) : null}
+          <Pressable accessibilityRole="button" accessibilityLabel="Créer une publication"
+            onPress={() => openEditor()}
+            style={[styles.quickCompose,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+            {currentUser
+              ? <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={40}/>
+              : <KnowMeIcon name="profile" size={32} color={colors.muted}/>}
+            <Text style={[styles.quickComposePrompt,{color:colors.muted}]}>
+              Quoi de neuf ?
+            </Text>
+            <KnowMeIcon name="edit" size={20} color={colors.accent}/>
+          </Pressable>
         </View>
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
@@ -505,7 +618,22 @@ export function FeedExperience({ userId }: { userId: string }) {
         >
           <View style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+            <View style={styles.flex}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.title, { color: colors.text }]}>
+                {item.author.displayName}
+              </Text>
+              <Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Options de publication"
+              onPress={event => { event.stopPropagation(); setMenuPost(item); }}
+              style={styles.postMoreButton}>
+              <Text style={{ color: colors.text, fontSize: 23, lineHeight: 27 }}>⋮</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Masquer la publication"
+              onPress={event => { event.stopPropagation(); hidePost(item); }}
+              style={styles.postMoreButton}>
+              <KnowMeIcon name="close" size={18} color={colors.muted}/>
+            </Pressable>
           </View>
           <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
@@ -518,22 +646,210 @@ export function FeedExperience({ userId }: { userId: string }) {
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
+              onPress={event => { event.stopPropagation(); void sharePost(item); }}
+              style={[styles.shareAction,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="arrow" size={17} color={colors.muted}/>
+              <Text style={{fontSize:12,fontWeight:'700',color:colors.muted}}>Partager</Text>
+            </Pressable>
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
       )}
     />
+    <Modal visible={composerOpen} animationType="slide"
+      onRequestClose={() => { if (!publishing) setComposerOpen(false); }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.composerScreen,{backgroundColor:colors.background}]}>
+        <View style={[styles.composerTop,{borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fermer l’éditeur"
+            onPress={() => setComposerOpen(false)} disabled={publishing}
+            style={styles.composeClose}>
+            <KnowMeIcon name="back" size={24} color={colors.text}/>
+          </Pressable>
+          <Text style={[styles.composeTitle,{color:colors.text}]}>
+            {editingPost ? 'Modifier la publication' : 'Créer une publication'}
+          </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={editingPost ? 'Enregistrer les modifications' : 'Publier'}
+            disabled={!content.trim() || publishing}
+            onPress={() => void publish()}
+            style={[styles.composePublish,{backgroundColor:colors.backgroundAccent,opacity:content.trim()?1:0.5}]}>
+            <Text style={{color:colors.accent,fontWeight:'800'}}>
+              {publishing ? 'Envoi…' : editingPost ? 'Enregistrer' : 'Publier'}
+            </Text>
+          </Pressable>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.composeScroll}>
+          <View style={styles.composeAuthor}>
+            {currentUser ? <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={51}/> : null}
+            <View style={{flex:1}}>
+              <Text numberOfLines={1} style={{color:colors.text,fontSize:16,fontWeight:'800'}}>
+                {currentUser?.displayName || 'Moi'}
+              </Text>
+              <Text style={{color:colors.muted,fontSize:12}}>Public · KnowMe</Text>
+            </View>
+          </View>
+          <TextInput
+            accessibilityLabel="Texte de la publication"
+            multiline autoFocus
+            maxLength={2000}
+            value={content}
+            onChangeText={setContent}
+            placeholder="Quoi de neuf ?"
+            placeholderTextColor={colors.muted}
+            selectionColor={colors.accent}
+            textAlignVertical="top"
+            style={[styles.composeInput,{color:colors.text}]}
+          />
+          <Text style={[styles.composerHint,{color:colors.muted,textAlign:'right'}]}>{content.length}/2000</Text>
+          <View style={[styles.composeAttachment,{borderColor:colors.border}]}>
+            <Text style={{fontSize:14,fontWeight:'700',color:colors.text}}>Image par lien HTTPS</Text>
+            <Text style={{fontSize:12,lineHeight:18,color:colors.muted}}>
+              L’import direct de photos, vidéos et fichiers nécessite encore la nouvelle API de publications.
+            </Text>
+            <TextInput accessibilityLabel="URL de l’image"
+              placeholder="https://…"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              keyboardType="url"
+              value={imageUrl} onChangeText={setImageUrl}
+              style={[styles.input,{color:colors.text,backgroundColor:colors.backgroundAccent,borderColor:colors.border}]}/>
+            {imageUrl.trim().startsWith('https://') ?
+              <Image source={{uri:imageUrl.trim()}} resizeMode="contain" style={styles.composeImagePreview}/> : null}
+          </View>
+        </ScrollView>
+        <View style={[styles.composeFooter,{borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Publier la publication"
+            disabled={!content.trim() || publishing}
+            onPress={() => void publish()}
+            style={[styles.composeSend,{backgroundColor:colors.accent,opacity:content.trim()?1:0.5}]}>
+            <Text style={{fontSize:16,fontWeight:'800',color:colors.accentText}}>
+              {publishing ? 'Enregistrement…' : editingPost ? 'Enregistrer' : 'Publier'}
+            </Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+    <Modal visible={Boolean(menuPost)} transparent animationType="fade"
+      onRequestClose={() => setMenuPost(null)}>
+      <Pressable style={styles.sheetBackdrop} onPress={() => setMenuPost(null)}>
+        <Pressable onPress={event => event.stopPropagation()}
+          style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
+          <Text style={[styles.sheetTitle,{color:colors.text}]}>Options de publication</Text>
+          {menuPost?.authorId === userId ? (
+            <>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) openEditor(menuPost);}}>
+                <KnowMeIcon name="edit" size={21} color={colors.accent}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Modifier la publication</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) void sharePost(menuPost);}}>
+                <KnowMeIcon name="arrow" size={20} color={colors.accent}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) confirmRemovePost(menuPost);}} disabled={postBusy}>
+                <KnowMeIcon name="close" size={19} color={colors.danger}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.danger}]}>Supprimer</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) hidePost(menuPost);}}>
+                <KnowMeIcon name="close" size={20} color={colors.muted}/>
+                <View style={{flex:1}}>
+                  <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Pas intéressé</Text>
+                  <Text style={[styles.sheetHint,{color:colors.muted}]}>Masquer sur cet écran uniquement</Text>
+                </View>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {setReportPost(menuPost);setMenuPost(null);}}>
+                <KnowMeIcon name="bell" size={20} color={colors.muted}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Signaler</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.sheetOption}
+                onPress={() => {if(menuPost) void sharePost(menuPost);}}>
+                <KnowMeIcon name="arrow" size={20} color={colors.muted}/>
+                <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+            </>
+          )}
+          <Pressable accessibilityRole="button" style={styles.sheetDismiss}
+            onPress={() => setMenuPost(null)}>
+            <Text style={{color:colors.accent,fontWeight:'700'}}>Fermer</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    <Modal visible={Boolean(reportPost)} transparent animationType="slide"
+      onRequestClose={() => {if(!postBusy)setReportPost(null);}}>
+      <Pressable style={styles.sheetBackdrop} onPress={() => {if(!postBusy)setReportPost(null);}}>
+        <Pressable onPress={event => event.stopPropagation()}
+          style={[styles.sheetContent,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetGrip,{backgroundColor:colors.border}]}/>
+          <Text style={[styles.sheetTitle,{color:colors.text}]}>Signaler la publication</Text>
+          <Text style={[styles.sheetHint,{color:colors.muted}]}>
+            Sélectionne une raison. Le signalement sera transmis à la modération KnowMe.
+          </Text>
+          {[
+            'Spam ou contenu trompeur',
+            'Harcèlement ou intimidation',
+            'Contenu violent ou choquant',
+            'Autre infraction aux règles KnowMe'
+          ].map(reason => (
+            <Pressable key={reason} accessibilityRole="button" disabled={postBusy}
+              onPress={() => void submitReport(reason)} style={styles.sheetOption}>
+              <Text style={[styles.sheetOptionLabel,{color:colors.text}]}>{reason}</Text>
+              <KnowMeIcon name="arrow" size={18} color={colors.muted}/>
+            </Pressable>
+          ))}
+          <Pressable accessibilityRole="button" disabled={postBusy} style={styles.sheetDismiss}
+            onPress={() => setReportPost(null)}>
+            <Text style={{color:colors.accent,fontWeight:'700'}}>Annuler</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 28, gap: 11 },
   headerBlock: { gap: 10, marginBottom: 2 },
-  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
+  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 50, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 0, borderRadius:16 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   composerCard: { padding: 10, borderRadius: 20 },
+  postMoreButton: {width:37,minHeight:44,alignItems:'center',justifyContent:'center'},
+  shareAction: {minHeight:34,borderRadius:17,paddingHorizontal:10,flexDirection:'row',alignItems:'center',gap:6},
+  sheetBackdrop: {flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.55)'},
+  sheetContent: {paddingHorizontal:18,paddingTop:12,paddingBottom:26,borderTopLeftRadius:26,borderTopRightRadius:26,borderWidth:StyleSheet.hairlineWidth,gap:5},
+  sheetGrip: {alignSelf:'center',width:40,height:4,borderRadius:4,marginBottom:9},
+  sheetTitle: {fontSize:18,fontWeight:'800',marginBottom:8},
+  sheetOption: {flexDirection:'row',minHeight:52,alignItems:'center',gap:14,paddingHorizontal:8,borderRadius:15},
+  sheetOptionLabel: {fontSize:15,fontWeight:'600',flex:1},
+  sheetHint: {fontSize:12,lineHeight:18},
+  sheetDismiss: {minHeight:48,alignItems:'center',justifyContent:'center',marginTop:8},
+  quickCompose: {flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:StyleSheet.hairlineWidth,borderRadius:20,paddingHorizontal:12,gap:11},
+  quickComposePrompt: {flex:1,fontSize:14},
+  composerScreen: {flex:1},
+  composerTop: {minHeight:58,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:9,borderBottomWidth:StyleSheet.hairlineWidth},
+  composeClose: {width:44,height:44,alignItems:'center',justifyContent:'center'},
+  composeTitle: {fontSize:17,fontWeight:'800',flex:1},
+  composePublish: {minWidth:72,minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:14},
+  composeScroll: {flexGrow:1,padding:18,gap:12},
+  composeAuthor: {flexDirection:'row',alignItems:'center',gap:11},
+  composeInput: {minHeight:210,fontSize:22,lineHeight:30,paddingVertical:12},
+  composeAttachment: {borderTopWidth:StyleSheet.hairlineWidth,paddingTop:18,gap:9},
+  composeImagePreview: {height:210,width:'100%',borderRadius:18},
+  composeFooter: {paddingHorizontal:16,paddingVertical:12,borderTopWidth:StyleSheet.hairlineWidth},
+  composeSend: {minHeight:50,alignItems:'center',justifyContent:'center',borderRadius:14},
+
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   composerHint: { fontSize: 11 },
   postCard: { borderRadius: 20, paddingVertical: 13 },

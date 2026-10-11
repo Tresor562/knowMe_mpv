@@ -52,7 +52,8 @@ export function StoriesRail({
   currentUser,
   onOpenDiscover,
   openComposer=false,
-  onComposerOpened
+  onComposerOpened,
+  onImmersiveChange
 }: {
   currentUser: {
     id: string;
@@ -63,6 +64,7 @@ export function StoriesRail({
   onOpenDiscover: () => void;
   openComposer?: boolean;
   onComposerOpened?: () => void;
+  onImmersiveChange?: (active: boolean) => void;
 }) {
   const { colors, visual } = useAppearance();
   const [stories, setStories] = useState<Story[]>([]);
@@ -77,6 +79,11 @@ export function StoriesRail({
   const [mediaError,setMediaError] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC' | 'PRIVATE'>('FRIENDS');
   const [publishing, setPublishing] = useState(false);
+
+  useEffect(() => {
+    onImmersiveChange?.(Boolean(selected || createOpen || pickerVisible));
+    return () => { onImmersiveChange?.(false); };
+  }, [selected, createOpen, pickerVisible, onImmersiveChange]);
 
   const load = useCallback(async () => {
     try {
