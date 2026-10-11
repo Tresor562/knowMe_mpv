@@ -10,11 +10,13 @@ import { useSession } from '../../../../lib/use-session';
 type Member = {
   userId: string;
   joinedAt?: string;
+  role?: 'OWNER' | 'ADMIN' | 'MEMBER';
   user: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 };
 type Conversation = {
   id: string;
   title?: string | null;
+  description?: string|null;
   isGroup: boolean;
   createdAt?: string;
   members: Member[];
@@ -75,6 +77,8 @@ export default function ConversationInfoPage() {
 
   const isGroup = conversation?.isGroup ?? false;
   const members = conversation?.members ?? [];
+  const viewerRole = members.find(member=>member.userId===user?.id)?.role ?? 'MEMBER';
+  const canManage = isGroup && (viewerRole==='OWNER'||viewerRole==='ADMIN');
   const other = members.find(member => member.userId !== user?.id);
   const title = conversation
     ? (conversation.title || (isGroup
@@ -140,6 +144,12 @@ export default function ConversationInfoPage() {
             <path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
           <span>{copied ? tr('Lien copié','Link copied') : tr('Partager', 'Share')}</span>
         </button>
+        {isGroup && <Link href={`/messages/${encodeURIComponent(id)}/manage`}>
+          <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true">
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.7 5.7l2.1 2.1M16.2 16.2l2.1 2.1M18.3 5.7l-2.1 2.1M7.8 16.2l-2.1 2.1"/><circle cx="12" cy="12" r="4"/>
+          </svg>
+          <span>{canManage?tr('Gérer','Manage'):tr('Options','Options')}</span>
+        </Link>}
         {!isGroup && other && <Link href={`/profile/${encodeURIComponent(other.user.username)}`}>
           <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.7-4 3.2-6 7.5-6s6.8 2 7.5 6"/></svg>
@@ -170,7 +180,8 @@ export default function ConversationInfoPage() {
               <Avatar member={member} size="small"/>
               <span className="km-info-member-name">
                 <strong>{member.user.displayName}{member.userId===user?.id ? ` ${tr('(vous)','(you)')}` : ''}</strong>
-                <small>@{member.user.username}</small>
+                <small>@{member.user.username}{member.role==='OWNER'?` · ${tr('Propriétaire','Owner')}`:
+                  member.role==='ADMIN'?` · ${tr('Administrateur','Admin')}`:''}</small>
               </span>
               <span aria-hidden="true">›</span>
             </Link>)}
@@ -180,13 +191,16 @@ export default function ConversationInfoPage() {
           <div><dt>{tr('Type de discussion','Chat type')}</dt>
             <dd>{isGroup ? tr('Groupe', 'Group') : tr('Discussion privée','Private chat')}</dd></div>
           <div><dt>{tr('Participants','Participants')}</dt><dd>{members.length}</dd></div>
+          {isGroup && conversation.description && <div><dt>{tr('Description','Description')}</dt><dd>{conversation.description}</dd></div>}
+          {isGroup && <div><dt>{tr('Ton rôle','Your role')}</dt><dd>{viewerRole==='OWNER'?tr('Propriétaire','Owner'):
+            viewerRole==='ADMIN'?tr('Administrateur','Admin'):tr('Membre','Member')}</dd></div>}
           {conversation.createdAt && <div><dt>{tr('Créé le','Created')}</dt>
             <dd>{new Date(conversation.createdAt).toLocaleDateString(locale==='en'?'en-US':'fr-FR',
               {year:'numeric',month:'long',day:'numeric'})}</dd></div>}
         </dl>
         <p className="km-info-hint">{isGroup
-          ? tr('Le lien de discussion n’est accessible qu’aux membres existants. Les droits d’administration et les invitations seront ajoutés avec des permissions contrôlées par le serveur.',
-             'The chat link is accessible to current members only. Administration and invitations will require server-enforced permissions.')
+          ? tr('Le lien de discussion n’est accessible qu’aux membres existants. Les administrateurs et les membres se gèrent dans les options du groupe ; les liens d’invitation seront ajoutés séparément.',
+             'The chat link is accessible to current members only. Member and admin controls are available in group options; invite links will be added separately.')
           : tr('Le lien de la discussion n’est accessible qu’à ses participants. Les informations du contact restent accessibles depuis son profil.',
              'The chat link is accessible to its participants only. Contact information is available on their profile.')}</p>
       </section>}
