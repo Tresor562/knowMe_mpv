@@ -15,6 +15,15 @@ const destinationFor = (kind: string, id: string): string | null => {
       return `/profile/${encodeURIComponent(id)}`;
     case 'challenge':
       return `/challenges/${encodeURIComponent(id)}`;
+    case 'post':
+      return `/feed/${encodeURIComponent(id)}`;
+    // Requires the VIEWER's authentication and access checks before routing.
+    case 'comment':
+    case 'message':
+    case 'conversation':
+    case 'group':
+    case 'media':
+      return `/link-targets/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`;
     default:
       return null;
   }
