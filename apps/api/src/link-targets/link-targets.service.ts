@@ -1,0 +1,77 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { isKnowMeDeepLinkKind, isSafeKnowMeLinkIdentifier } from '@knowme/link-contract';
+import { PrismaService } from '../prisma/prisma.service';
+
+/**
+ * Resolve a deep link using the VIEWER's permissions, never the link creator's.
+ * Targets remain opaque until a signed-in viewer has passed authorization.
+ */
+@Injectable()
+export class LinkTargetsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async resolve(viewerId: string, kind: string, id: string) {
+    if (!isKnowMeDeepLinkKind(kind) || !isSafeKnowMeLinkIdentifier(id)) {
+      throw new NotFoundException('Contenu indisponible.');
+    }
+
+    if (kind === 'post') {
+      const post = await this.prisma.post.findUnique({ where: { id }, select: { id: true } });
+      if (post) return { kind, id, webPath: `/feed/${post.id}`, context: { postId: post.id } };
+    }
+
+    if (kind === 'comment') {
+      const comment = await this.prisma.postComment.findUnique({
+        where: { id }, select: { id: true, postId: true }
+      });
+      if (comment) return {
+        kind, id, webPath: `/feed/${comment.postId}?comment=${comment.id}`,
+        context: { postId: comment.postId, commentId: comment.id }
+      };
+    }
+
+    if (kind === 'conversation' || kind === 'group') {
+      const member = await this.prisma.conversationMember.findUnique({
+        where: { conversationId_userId: { conversationId: id, userId: viewerId } },
+        select: { conversationId: true }
+      });
+      if (member) return {
+        kind, id, webPath: `/messages/${member.conversationId}`,
+        context: { conversationId: member.conversationId }
+      };
+    }
+
+    if (kind === 'message') {
+      const message = await this.prisma.message.findFirst({
+        where: { id, conversation: { members: { some: { userId: viewerId } } } },
+        select: { id: true, conversationId: true }
+      });
+      if (message) return {
+        kind, id,
+        webPath: `/messages/${message.conversationId}?message=${message.id}`,
+        context: { conversationId: message.conversationId, messageId: message.id }
+      };
+    }
+
+    if (kind === 'media') {
+      // Opening a chat attachment requires membership in its exact conversation.
+      // Do not expose a private upload solely because its opaque ID is known.
+      const attachment = await this.prisma.message.findFirst({
+        where: {
+          mediaAssetId: id,
+          conversation: { members: { some: { userId: viewerId } } }
+        },
+        select: { id: true, conversationId: true }
+      });
+      if (attachment) return {
+        kind, id,
+        webPath: `/messages/${attachment.conversationId}?message=${attachment.id}`,
+        context: { conversationId: attachment.conversationId, messageId: attachment.id, mediaId: id }
+      };
+    }
+
+    // A safe, unavailable response for deleted, private and not-yet-routed content.
+    // Stories and user-owned sticker collections require their own audience policy.
+    throw new NotFoundException('Contenu indisponible.');
+  }
+}
