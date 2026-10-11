@@ -153,7 +153,7 @@ export default function FeedPage() {
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
         <textarea name="content" placeholder={en?'Share an update, an idea or a question…':'Partage une nouvelle, une idée ou une question…'} rows={2} maxLength={2000} disabled={!authorityFresh || publishing}/>
         <PostMediaPicker files={selectedFiles} onChange={setSelectedFiles}/>
-        {!!uploadProgress && <p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>
+        {!!uploadProgress && <p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>}
         <div className="km-feed-compose-actions">
           <Link href="/stories/new">{en?'Create a story':'Créer une story'}</Link>
           <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
