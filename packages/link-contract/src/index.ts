@@ -115,3 +115,32 @@ export function buildKnowMePublicAvatarUrl(assetId: string): string {
   }
   return `https://knowme-nextech.vercel.app/api/knowme/media/public/avatar/${encodeURIComponent(assetId)}`;
 }
+
+/**
+ * Tokenize public @usernames without interpreting e-mail addresses or malformed
+ * identifiers as mentions. No user existence is implied by parsing alone.
+ * Used by Android and Web; the destination must be resolved by the API on tap.
+ */
+export type KnowMeMentionSegment =
+  | { kind: 'text'; text: string }
+  | { kind: 'mention'; text: string; username: string };
+
+export function tokenizeKnowMeMentions(value: string): KnowMeMentionSegment[] {
+  const pattern = /(^|[^\p{L}\p{N}_@])@([A-Za-z0-9_]{3,24})(?![A-Za-z0-9_])/gu;
+  const result: KnowMeMentionSegment[] = [];
+  let cursor = 0;
+
+  for (const match of value.matchAll(pattern)) {
+    const prefix = match[1] ?? '';
+    const username = match[2] ?? '';
+    const mentionIndex = (match.index ?? 0) + prefix.length;
+    if (mentionIndex > cursor) {
+      result.push({ kind: 'text', text: value.slice(cursor, mentionIndex) });
+    }
+    result.push({ kind: 'mention', text: '@' + username, username });
+    cursor = mentionIndex + username.length + 1;
+  }
+
+  if (cursor < value.length) result.push({ kind: 'text', text: value.slice(cursor) });
+  return result.length ? result : [{ kind: 'text', text: value }];
+}
