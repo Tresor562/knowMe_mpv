@@ -162,29 +162,38 @@ model ChallengeAnswer {
   @@unique([participantId, questionId])
 }
 
+enum ConversationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model Conversation {
-  id        String   @id @default(cuid())
-  title     String?
-  isGroup   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  title       String?
+  description String?
+  isGroup     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   members  ConversationMember[]
   messages Message[]
 }
 
 model ConversationMember {
-  id             String   @id @default(cuid())
+  id             String           @id @default(cuid())
   conversationId String
   userId         String
-  joinedAt       DateTime @default(now())
-  lastReadAt     DateTime @default(now())
+  role           ConversationRole @default(MEMBER)
+  joinedAt       DateTime         @default(now())
+  lastReadAt     DateTime         @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId, lastReadAt])
+  @@index([conversationId, role])
 }
 
 model Message {
