@@ -111,11 +111,15 @@ function mergeMessages(
 export function RealtimeMessagesPanel({
   userId,
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onContentScroll,
+  onSecondaryModeChange
 }: {
   userId: string;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onContentScroll?: (offset: number) => void;
+  onSecondaryModeChange?: (active: boolean) => void;
 }) {
   const { colors, visual, chat } = useAppearance();
   const socketRef = useRef<Socket | null>(null);
@@ -135,6 +139,10 @@ export function RealtimeMessagesPanel({
   const [groupBusy,setGroupBusy]=useState(false);
 
   const [active, setActive] = useState<Conversation | null>(null);
+  useEffect(() => {
+    onSecondaryModeChange?.(Boolean(active || groupMode));
+    return () => { onSecondaryModeChange?.(false); };
+  }, [active, groupMode, onSecondaryModeChange]);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
   const [readStates, setReadStates] = useState<ConversationMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
@@ -778,6 +786,8 @@ export function RealtimeMessagesPanel({
 
   return (
     <ScrollView
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
