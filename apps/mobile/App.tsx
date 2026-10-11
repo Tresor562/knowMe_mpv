@@ -49,7 +49,9 @@ import { VerificationExperience } from './src/VerificationExperience';
 type Screen =
   | 'home'
   | 'discover'
+  | 'feed'
   | 'social'
+  | 'notifications'
   | 'challenges'
   | 'profile'
   | 'verification';
@@ -955,12 +957,13 @@ function BottomNavigation({
   const { t } = useI18n();
 
   const items: Array<{
-    key: 'home' | 'discover' | 'social' | 'profile';
+    key: 'home' | 'discover' | 'social' | 'notifications' | 'profile';
     label: string;
-    icon: 'home' | 'discover' | 'messages' | 'profile';
+    icon: 'home' | 'discover' | 'messages' | 'bell' | 'profile';
   }> = [
     { key: 'home', label: t('nav.home'), icon: 'home' },
     { key: 'discover', label: t('nav.discover'), icon: 'discover' },
+    { key: 'notifications', label: 'Alertes', icon: 'bell' },
     { key: 'social', label: t('nav.messages'), icon: 'messages' },
     { key: 'profile', label: t('nav.profile'), icon: 'profile' }
   ];
@@ -988,9 +991,10 @@ function BottomNavigation({
         />
         <Text
           numberOfLines={1}
+          ellipsizeMode="tail"
           adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          maxFontSizeMultiplier={1.08}
+          minimumFontScale={0.84}
+          maxFontSizeMultiplier={1.0}
           style={[
             styles.bottomLabel,
             { color: active ? colors.accent : colors.muted }
@@ -1052,6 +1056,7 @@ function BottomNavigation({
             item={item}
             active={
               screen === item.key ||
+              (item.key === 'home' && screen === 'feed') ||
               (item.key === 'profile' && screen === 'verification')
             }
           />
@@ -1177,7 +1182,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             key={'home:' + user.id}
             user={user}
             openSocial={() => setScreen('social')}
-            openDiscover={() => setScreen('discover')}
+            openDiscover={() => setScreen('feed')}
             openChallenges={() => setScreen('challenges')}
             openCreate={() => setCreateOpen(true)}
             openProfile={() => setScreen('profile')}
@@ -1186,18 +1191,23 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           />
         ) : null}
 
+        {screen === 'feed' ? (
+          <FeedExperience key={'feed:' + user.id} userId={user.id} />
+        ) : null}
+
         {screen === 'discover' ? (
-          <FeedExperience
-            key={'discover:' + user.id}
-            userId={user.id}
-          />
+          <SocialHub key={'discover:' + user.id} userId={user.id}
+            initialSection="friends" showSegments={false}/>
+        ) : null}
+
+        {screen === 'notifications' ? (
+          <SocialHub key={'notifications:' + user.id} userId={user.id}
+            initialSection="notifications" showSegments={false}/>
         ) : null}
 
         {screen === 'social' ? (
-          <SocialHub
-            key={'social:' + user.id}
-            userId={user.id}
-          />
+          <SocialHub key={'social:' + user.id} userId={user.id}
+            initialSection="messages" showSegments={false}/>
         ) : null}
 
         {screen === 'challenges' ? (
@@ -1242,7 +1252,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         onClose={() => setCreateOpen(false)}
         onPost={() => {
           setCreateOpen(false);
-          setScreen('discover');
+          setScreen('feed');
         }}
         onChallenge={() => {
           setCreateOpen(false);
@@ -1831,58 +1841,68 @@ const styles = StyleSheet.create({
 
   bottomDockWrap: {
     position: 'absolute',
-    left: 14,
-    right: 14,
+    left: 12,
+    right: 12,
     bottom: Platform.OS === 'ios' ? 9 : 8,
     zIndex: 50
   },
   bottomBar: {
-    minHeight: 60,
+    minHeight: 62,
     borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 5
+    paddingHorizontal: 4,
+    paddingVertical: 4
   },
   bottomItem: {
     flex: 1,
     minWidth: 0,
-    minHeight: 46,
-    borderRadius: 18,
+    minHeight: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2
+    overflow: 'hidden',
+    gap: 3
   },
   bottomLabel: {
     width: '100%',
+    paddingHorizontal: 1,
     textAlign: 'center',
-    fontSize: 8.5,
-    fontWeight: '700'
+    textAlignVertical: 'center',
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '650',
+    letterSpacing: -0.25,
+    flexShrink: 1,
+    overflow: 'hidden'
   },
   createSlot: {
     flex: 1,
     minWidth: 0,
+    minHeight: 52,
     alignItems: 'center',
-    marginTop: -14
+    justifyContent: 'center'
   },
   createNavButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 9
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3
   },
   createNavLabel: {
     width: '100%',
     textAlign: 'center',
-    fontSize: 8.5,
-    fontWeight: '800',
-    marginTop: 2
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '700',
+    marginTop: 1,
+    overflow: 'hidden'
   }
 });
