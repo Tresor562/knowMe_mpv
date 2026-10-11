@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../../../lib/api';
-import { useSession } from '../../../lib/use-session';
+import { apiFetch } from '../../../../lib/api';
+import { useSession } from '../../../../lib/use-session';
 
 type ResolvedTarget = {
   kind: string;
