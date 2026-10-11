@@ -43,12 +43,14 @@ export function SocialHub({
   userId,
   initialSection = 'friends',
   showSegments = true,
-  onScrollY
+  onScrollY,
+  onDetailChange
 }: {
   userId: string;
   initialSection?: Section;
   showSegments?: boolean;
   onScrollY?: (offset: number) => void;
+  onDetailChange?: (open: boolean) => void;
 }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(initialSection);
@@ -128,6 +130,7 @@ export function SocialHub({
           refreshing={refreshing}
           setRefreshing={setRefreshing}
           onScrollY={onScrollY}
+          onDetailChange={onDetailChange}
         />
       )}
       {section === 'notifications' && (
