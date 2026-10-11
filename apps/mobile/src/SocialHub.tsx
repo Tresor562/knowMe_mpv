@@ -42,11 +42,13 @@ function errorMessage(cause: unknown, fallback: string) {
 export function SocialHub({
   userId,
   initialSection = 'friends',
-  showSegments = true
+  showSegments = true,
+  onScrollY
 }: {
   userId: string;
   initialSection?: Section;
   showSegments?: boolean;
+  onScrollY?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(initialSection);
@@ -116,6 +118,7 @@ export function SocialHub({
           key={`friends:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onScrollY={onScrollY}
         />
       )}
       {section === 'messages' && (
@@ -124,6 +127,7 @@ export function SocialHub({
           userId={userId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onScrollY={onScrollY}
         />
       )}
       {section === 'notifications' && (
@@ -131,6 +135,7 @@ export function SocialHub({
           key={`notifications:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onScrollY={onScrollY}
         />
       )}
     </View>
@@ -139,10 +144,12 @@ export function SocialHub({
 
 function FriendsPanel({
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onScrollY
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onScrollY?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -224,6 +231,8 @@ function FriendsPanel({
 
   return (
     <ScrollView
+      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -337,10 +346,12 @@ function FriendsPanel({
 
 function NotificationsPanel({
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onScrollY
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onScrollY?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const [items, setItems] = useState<Notification[]>([]);
@@ -392,6 +403,8 @@ function NotificationsPanel({
 
   return (
     <FlatList
+      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       data={items}
       keyExtractor={(item) => item.id}
       refreshControl={
