@@ -59,6 +59,7 @@ describe('Post attachment transaction', () => {
   let posts: PostsService;
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation(async callback => callback(tx));
     tx.mediaAsset.findMany.mockResolvedValue([{id:'asset-valid'}]);
     tx.post.create.mockResolvedValue({id:'post'});
     tx.post.updateMany.mockResolvedValue({count:1});
