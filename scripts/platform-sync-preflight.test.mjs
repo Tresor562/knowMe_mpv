@@ -9,7 +9,8 @@ test('KnowMe platforms use the same product version and auditable feature source
   const report = auditPlatformSync(manifest);
   assert.deepEqual(report.errors, []);
   assert.ok(!report.missing.includes('stories.photo')); // Android now uploads and displays photo stories
-  assert.ok(report.missing.includes('stories.video'));
+  assert.ok(!report.missing.includes('stories.video'));
+  assert.ok(report.missing.includes('animations.interactions'));
 });
 
 test('release cannot ship while platform parity gaps are recorded', () => {
