@@ -2,7 +2,7 @@
   "expo": {
     "name": "KnowMe",
     "slug": "knowme",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "knowme",
@@ -16,16 +16,17 @@
         }
       ],
       "./plugins/with-animated-chat-media.cjs",
-      "./plugins/with-knowme-story-video.cjs"
+      "./plugins/with-knowme-story-video.cjs",
+      "./plugins/withKnowMeInstaller"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.knowme.app",
-      "buildNumber": "1"
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.knowme.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#071410"
       }
