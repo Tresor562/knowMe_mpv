@@ -13,15 +13,15 @@ function injectStoryPlayer(main) {
   const java = 'List<ReactPackage> packages = new PackageList(this).getPackages();';
   if (main.includes(kotlin)) {
     return main.replace(kotlin, kotlin +
-      '\\n    packages.add(com.knowme.app.video.KnowMeStoryVideoPackage())');
+      '\n    packages.add(com.knowme.app.video.KnowMeStoryVideoPackage())');
   }
   if (main.includes(kotlinAlt)) {
     return main.replace(kotlinAlt, kotlinAlt +
-      '\\n              add(com.knowme.app.video.KnowMeStoryVideoPackage())');
+      '\n              add(com.knowme.app.video.KnowMeStoryVideoPackage())');
   }
   if (main.includes(java)) {
     return main.replace(java, java +
-      '\\n        packages.add(new com.knowme.app.video.KnowMeStoryVideoPackage());');
+      '\n        packages.add(new com.knowme.app.video.KnowMeStoryVideoPackage());');
   }
   throw new Error('Unsupported Expo MainApplication; story video plugin not installed.');
 }
