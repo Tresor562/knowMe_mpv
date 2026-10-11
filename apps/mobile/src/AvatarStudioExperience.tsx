@@ -1,7 +1,7 @@
+import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,

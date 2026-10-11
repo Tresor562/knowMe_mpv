@@ -1,7 +1,7 @@
+import { KnowMeAlert as Alert } from '../ui/KnowMeFeedback';
 import * as FileSystem from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   AppState,
   Modal,
   NativeModules,
