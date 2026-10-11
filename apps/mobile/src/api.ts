@@ -8,7 +8,8 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 async function fetchWithTimeout(input: string, init: RequestInit = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(),
+    init.body instanceof FormData ? 120_000 : REQUEST_TIMEOUT_MS);
 
   try {
     return await fetch(input, {
