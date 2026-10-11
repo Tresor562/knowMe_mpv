@@ -3,6 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
+import { ChatMediaView } from './ChatMediaView';
+
+type SavedMedia = {
+  id:string;
+  ownerId:string;
+  purpose:string;
+  visibility:string;
+  conversationId?:string|null;
+  detectedMime:string;
+  status:string;
+  deletedAt?:string|null;
+};
 
 type Sticker = {
   key: string;
@@ -52,6 +64,9 @@ export function StickerPicker<T>({
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
+  const [savedMedia,setSavedMedia] = useState<SavedMedia[]|null>(null);
+  const [savedMediaLoading,setSavedMediaLoading] = useState(false);
+  const [savedMediaError,setSavedMediaError] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const searchField = useRef<HTMLInputElement>(null);
   const gifInput = useRef<HTMLInputElement>(null);
@@ -85,6 +100,22 @@ export function StickerPicker<T>({
       .catch(cause => setError(cause instanceof Error ? cause.message : (en ? 'Sticker catalog unavailable.' : 'Catalogue des stickers indisponible.')))
       .finally(() => setLoading(false));
   }, [catalog, loading, open, tab, en, error]);
+
+  useEffect(()=>{
+    if(!open||(tab!=='gifs'&&tab!=='stickers')||savedMedia!==null||savedMediaLoading||savedMediaError)return;
+    let alive=true;
+    setSavedMediaLoading(true);
+    void apiFetch<SavedMedia[]>('/media/mine').then(items=>{if(alive)setSavedMedia(items);})
+      .catch(()=>{if(alive)setSavedMediaError(true);})
+      .finally(()=>{if(alive)setSavedMediaLoading(false);});
+    return ()=>{alive=false;};
+  },[open,tab,savedMedia,savedMediaLoading,savedMediaError]);
+
+  const reusableGif=(savedMedia??[]).filter(item=>item.conversationId===conversationId&&
+    item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&item.detectedMime==='image/gif').slice(0,6);
+  const reusableStickers=(savedMedia??[]).filter(item=>item.conversationId===conversationId&&
+    item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&
+    ['image/png','image/webp'].includes(item.detectedMime)).slice(0,6);
 
   const matchingPacks = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -122,6 +153,21 @@ export function StickerPicker<T>({
     }
   }
 
+  async function reuseMedia(assetId:string,kind:'GIF'|'STICKER_IMAGE') {
+    if(sending)return;
+    setSending(`reuse:${assetId}`);
+    setError('');
+    try{
+      const message=await apiFetch<T>(`/conversations/${encodeURIComponent(conversationId)}/media-messages`,{
+        method:'POST',body:JSON.stringify({assetId,kind})
+      });
+      onSent(message);
+      setOpen(false);
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:(en?'Sending media failed.':'Envoi du média impossible.'));
+    }finally{setSending(null);}
+  }
+
   async function uploadAndSend(file:File,kind:'GIF'|'STICKER_IMAGE'|'IMAGE') {
     const allowed = kind==='GIF'?['image/gif']:
       kind==='STICKER_IMAGE'?['image/png','image/webp']:
@@ -143,7 +189,7 @@ export function StickerPicker<T>({
       });
       const data = new FormData();
       data.append('file',file,file.name);
-      const asset = await apiFetch<{id:string;status:string}>(`/media/uploads/${encodeURIComponent(session.id)}/complete`,{
+      const asset = await apiFetch<SavedMedia>(`/media/uploads/${encodeURIComponent(session.id)}/complete`,{
         method:'POST',headers:{'x-upload-token':session.uploadToken},body:data
       });
       if(asset.status!=='AVAILABLE')throw new Error(en?
@@ -153,6 +199,7 @@ export function StickerPicker<T>({
         method:'POST',body:JSON.stringify({assetId:asset.id,kind})
       });
       onSent(message);
+      setSavedMedia(current=>current?[asset,...current.filter(item=>item.id!==asset.id)].slice(0,100):current);
       setOpen(false);
     } catch(cause) {
       setError(cause instanceof Error?cause.message:(en?'Sending media failed.':'Envoi du média impossible.'));
@@ -220,6 +267,14 @@ export function StickerPicker<T>({
           </div>)}
         </>}
         {tab === 'gifs' && <div className="km-picker-group km-picker-upload-panel">
+          {reusableGif.length>0&&<>
+            <strong>{en?'Recently sent GIFs':'GIF récents'}</strong>
+            <div className="km-picker-media-grid">{reusableGif.map(item=><button type="button" key={item.id}
+              disabled={sending!==null} aria-label={en?'Send this GIF again':'Renvoyer ce GIF'}
+              onClick={()=>void reuseMedia(item.id,'GIF')}>
+              <ChatMediaView assetId={item.id} kind="GIF"/>
+            </button>)}</div>
+          </>}
           <strong>{en?'Animated GIFs':'GIF animés'}</strong>
           <p>{en?'Send GIF files from your gallery, privately shared with conversation members.':
             'Envoie un GIF de ta galerie, accessible uniquement aux membres de la discussion.'}</p>
@@ -236,6 +291,14 @@ export function StickerPicker<T>({
         </div>}
         {tab === 'stickers' && <>
           <div className="km-picker-group km-picker-upload-panel">
+            {reusableStickers.length>0&&<>
+              <strong>{en?'Recently sent image stickers':'Stickers images récents'}</strong>
+              <div className="km-picker-media-grid">{reusableStickers.map(item=><button type="button" key={item.id}
+                disabled={sending!==null} aria-label={en?'Send this sticker again':'Renvoyer ce sticker'}
+                onClick={()=>void reuseMedia(item.id,'STICKER_IMAGE')}>
+                <ChatMediaView assetId={item.id} kind="STICKER_IMAGE"/>
+              </button>)}</div>
+            </>}
             <strong>{en?'Your image stickers':'Tes stickers images'}</strong>
             <p>{en?'Send a PNG or WebP as a real image sticker, not an emoji substitute.':
               'Envoie un PNG ou WebP comme véritable sticker image, et non comme simple emoji.'}</p>
