@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 
 type AvatarQuickActionsProps = {
@@ -81,7 +80,7 @@ export function AvatarQuickActions({
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
-      {open && createPortal(<div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
+      {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
           <ActionIcon name="story" />{en ? 'Add a story' : 'Ajouter une story'}
         </Link>
@@ -94,7 +93,7 @@ export function AvatarQuickActions({
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
-      </div>, document.body)}
+      </div>}
       {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
         <button type="button" className="km-avatar-lightbox-close" onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>×</button>
