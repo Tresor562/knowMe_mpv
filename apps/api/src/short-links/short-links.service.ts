@@ -358,6 +358,47 @@ export class ShortLinksService {
       return normalizeTargetId(circle.slug);
     }
 
+    // Re-check creator access whenever a short link is resolved. Viewers are
+    // independently authorized by the link-targets API after opening it.
+    if (kind === 'post') {
+      const post = await this.prisma.post.findUnique({ where: { id: targetId }, select: { id: true } });
+      if (post) return post.id;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    if (kind === 'comment') {
+      const comment = await this.prisma.postComment.findUnique({ where: { id: targetId }, select: { id: true } });
+      if (comment) return comment.id;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    if (kind === 'message') {
+      const message = await this.prisma.message.findFirst({
+        where: { id: targetId, conversation: { members: { some: { userId: ownerId } } } },
+        select: { id: true }
+      });
+      if (message) return message.id;
+      throw new ForbiddenException('Destination non partageable.');
+    }
+
+    if (kind === 'conversation' || kind === 'group') {
+      const member = await this.prisma.conversationMember.findUnique({
+        where: { conversationId_userId: { conversationId: targetId, userId: ownerId } },
+        select: { conversationId: true }
+      });
+      if (member) return member.conversationId;
+      throw new ForbiddenException('Destination non partageable.');
+    }
+
+    if (kind === 'media') {
+      const visible = await this.prisma.message.findFirst({
+        where: { mediaAssetId: targetId, conversation: { members: { some: { userId: ownerId } } } },
+        select: { mediaAssetId: true }
+      });
+      if (visible?.mediaAssetId) return visible.mediaAssetId;
+      throw new ForbiddenException('Destination non partageable.');
+    }
+
     if (kind === 'gift') {
       const gift = await this.prisma.notification.findFirst({
         where: { id: targetId, userId: ownerId, type: 'SOCIAL_GIFT' },
