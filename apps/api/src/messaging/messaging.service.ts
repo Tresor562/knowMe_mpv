@@ -80,7 +80,7 @@ export class MessagingService {
                 avatarUrl: true
               }
             },
-            mediaAsset: { select: { id: true, detectedMime: true, status: true, deletedAt: true } }
+            mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
           }
         }
       },
@@ -232,7 +232,7 @@ export class MessagingService {
               avatarUrl: true
             }
           },
-          mediaAsset: { select: { id: true, detectedMime: true, status: true, deletedAt: true } }
+          mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
         }
       }),
       this.prisma.nexusSocialReply.findMany({
@@ -364,7 +364,7 @@ export class MessagingService {
               avatarUrl: true
             }
           },
-          mediaAsset: { select: { id: true, detectedMime: true, status: true, deletedAt: true } }
+          mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
         }
       });
 
@@ -427,7 +427,7 @@ export class MessagingService {
 
   private presentMessage<T extends {
     content: string; conversationId: string;
-    mediaAsset?: { id: string; detectedMime: string; status: string; deletedAt: Date | null } | null;
+    mediaAsset?: { id: string; detectedMime: string; originalName: string; size: number; status: string; deletedAt: Date | null } | null;
   }>(
     message: T,
     knownSticker?: StickerPresentation | null
@@ -447,7 +447,7 @@ export class MessagingService {
       (message.content === 'AUDIO' && asset.detectedMime === 'audio/mpeg') ||
       (message.content === 'DOCUMENT' && asset.detectedMime === 'application/pdf')
     ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT',
-      assetId: asset.id, mimeType: asset.detectedMime } : null;
+      assetId: asset.id, mimeType: asset.detectedMime, fileName: asset.originalName, sizeBytes: asset.size } : null;
     return {
       ...message,
       presentation: mediaPresentation ?? sticker ?? {
