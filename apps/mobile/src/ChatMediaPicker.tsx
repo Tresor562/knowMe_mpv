@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as FileSystem from 'expo-file-system';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 
@@ -44,12 +44,18 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
     setNotice('');
     try {
       const items=await FileSystem.StorageAccessFramework.readDirectoryAsync(uri);
-      const files=await Promise.all(items.slice(0,250).map(async entry=>{
-        const name=fileNameFromUri(entry);
-        const info=await FileSystem.getInfoAsync(entry).catch(()=>null);
-        return {uri:entry,name,isDirectory:info?.exists===true&&info.isDirectory,
-          mime:fileMime(entry)} satisfies DirectoryEntry;
-      }));
+      const files:DirectoryEntry[]=[];
+      // Bound SAF metadata calls to avoid overwhelming Android's ContentResolver.
+      for(let offset=0;offset<Math.min(items.length,250);offset+=16) {
+        const chunk=items.slice(offset,offset+16);
+        const results=await Promise.all(chunk.map(async entry=>{
+          const name=fileNameFromUri(entry);
+          const info=await FileSystem.getInfoAsync(entry).catch(()=>null);
+          return {uri:entry,name,isDirectory:info?.exists===true&&info.isDirectory,
+            mime:fileMime(entry)} satisfies DirectoryEntry;
+        }));
+        files.push(...results);
+      }
       setDirectory(uri);
       setEntries(files.filter(item=>item.isDirectory||item.mime!==null)
         .sort((a,b)=>Number(b.isDirectory)-Number(a.isDirectory)||a.name.localeCompare(b.name)));
@@ -174,8 +180,11 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
                 if(file.isDirectory){if(directory)setFolderHistory(current=>[...current,directory]);void readFolder(file.uri);}
                 else void send(file);
               }}>
+              {file.isDirectory
+                ? <Text style={styles.folderGlyph}>📁</Text>
+                : <Image source={{uri:file.uri}} style={styles.thumbnail} resizeMode="cover"/>}
               <Text style={[styles.fileText,{color:colors.text}]} numberOfLines={1}>
-                {file.isDirectory?'📁':'▧'} {file.name}
+                {file.name}
               </Text>
               <Text style={[styles.help,{color:colors.muted}]}>{file.isDirectory?'Ouvrir':'Envoyer'}</Text>
             </Pressable>)}
@@ -200,5 +209,7 @@ const styles=StyleSheet.create({
   files:{maxHeight:400},
   fileContent:{paddingBottom:25},
   file:{minHeight:55,borderBottomWidth:1,flexDirection:'row',alignItems:'center',gap:9},
-  fileText:{flex:1,fontSize:13}
+  fileText:{flex:1,fontSize:13},
+  thumbnail:{width:43,height:43,borderRadius:10,backgroundColor:'rgba(128,128,128,.12)'},
+  folderGlyph:{fontSize:24}
 });
