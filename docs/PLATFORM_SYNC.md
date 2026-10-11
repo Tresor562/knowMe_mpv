@@ -1,0 +1,75 @@
+# KnowMe — livraison synchronisée Web / Android / API
+
+La synchronisation n'est **pas** simplement une palette de couleurs commune.
+Elle impose un contrat de version identique, la même API, les mêmes parcours
+fonctionnels, et la validation réelle des gestes/médias/animations sur Android
+comme sur le Web.
+
+## Source unique
+
+`packages/link-contract/src/platform-sync.json` est la source de vérité pour
+`productVersion`, `contractRevision` et les fonctionnalités attendues sur
+les deux plateformes. Il est embarqué dans `@knowme/link-contract`, déjà utilisé
+par Web, APK et API. Le portail Web expose `/api/version`; l'API expose
+`/platform-sync/version`; le profil Android affiche sa version embarquée.
+
+La même version produit ne signifie **pas** que les applications en production
+ont déjà été déployées depuis le même commit : toujours comparer les empreintes
+`commit` et tester les APK signés sur téléphone avant toute annonce.
+
+## Réellement intégré dans le code de cette PR
+
+- Raccourcis Android sur l'avatar : Ajouter une story / Voir la photo /
+  Changer la photo, avec confirmation de la sauvegarde.
+- Pipeline Android d'import de médias depuis Storage Access Framework vers
+  cache privé, scan sur serveur, suppression du cache local.
+- Éditeur Android de stories texte, photo et vidéo ; affichage de la photo
+  téléchargée depuis l'API avec authentification.
+- Les URL publiques des avatars sont générées par le même contrat pour
+  Web et Android.
+- Version du produit partagée entre app.json mobile, package.json Web/API
+  et registre de fonctionnalités.
+- La CI vérifie la présence des preuves de code Web/Android et les versions.
+
+## Écarts NON TERMINÉS
+
+Le registre liste explicitement chaque écart. Au 11 octobre 2026 :
+
+- La publication de stories vidéo Android est codée ; **la lecture vidéo native
+  dans le lecteur de stories Android reste manquante**.
+- Création de discussions/groupes : les parcours Web et Android ne sont pas
+  encore équivalents ni suffisamment validés.
+- Animations, menus, transitions et gestes : toujours partiels et non validés
+  écran par écran sur des appareils réels.
+- Absence de garantie de parité pour toutes les fonctions hors du registre ;
+  les nouveaux écrans doivent être inscrits avant de pouvoir être déclarés prêts.
+- Les tests sur un téléphone physique, l'installation d'un APK signé identique
+  au package déjà installé, et les tests Web en production sont nécessaires.
+- La branche GitHub n'effectue **pas** à elle seule de déploiement VPS/Vercel
+  ni de reconstruction automatique de l'APK Android installé.
+
+## Contrôles
+
+Sur chaque PR et build :
+
+```bash
+node --test scripts/platform-sync-preflight.test.mjs
+node scripts/platform-sync-preflight.mjs
+```
+
+Avant de promouvoir une release commune :
+
+```bash
+node scripts/platform-sync-preflight.mjs --release
+```
+
+La commande avec `--release` refuse toute nouvelle release si un parcours
+`releaseRequired` est `partial` ou `missing` sur l'une des plateformes.
+Elle ne remplace pas les tests end-to-end, la preuve de même SHA dans
+les déploiements Web/API et le build signé Android.
+
+**Protocole de livraison :** un commit de référence, builds Web/API/Android
+depuis ce commit, tests multimédias sur les deux interfaces, puis déploiements,
+vérification des SHA et bascule vers la nouvelle version. En cas d'échec,
+ne pas annoncer de synchronisation, ne pas écraser les APK existants et
+revenir à la version de production stable.
