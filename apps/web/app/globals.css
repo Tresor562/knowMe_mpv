@@ -1254,3 +1254,53 @@ html, body { min-width: 0; }
 @media(prefers-reduced-motion:reduce) {
   .km-channel-row,.km-channel-profile-actions > * {transition:none;}
 }
+
+
+/* Native KnowMe group administration: compact lists, no oversized dashboard cards. */
+.km-group-manage-intro {padding:17px 5px 13px;border-bottom:1px solid var(--soft-border);}
+.km-group-manage-intro h2 {font-size:20px;font-weight:700;letter-spacing:-.025em;
+  overflow-wrap:anywhere;margin:0 0 6px;}
+.km-group-manage-intro p {font-size:13px;line-height:1.55;color:var(--muted);
+  overflow-wrap:anywhere;white-space:pre-wrap;margin:5px 0;}
+.km-group-manage-actions {display:flex;align-items:center;gap:9px;padding:14px 2px;}
+.km-group-manage-actions button,.km-group-inline-form button {flex:1;border:0;border-radius:13px;
+  background:var(--surface-2);color:var(--mint);font-size:13px;font-weight:660;
+  min-height:47px;padding:10px 13px;cursor:pointer;}
+.km-group-manage-actions button:hover {background:color-mix(in srgb,var(--mint) 10%,var(--surface-2));}
+.km-group-inline-form {display:grid;gap:9px;padding:12px 5px 19px;border-bottom:1px solid var(--soft-border);}
+.km-group-inline-form label:not(.km-group-friend-list label) {font-size:13px;font-weight:680;}
+.km-group-inline-form > input,.km-group-inline-form > textarea {width:100%;min-width:0;
+  min-height:45px;padding:11px 12px;border-radius:13px;border:1px solid var(--soft-border);
+  background:var(--surface-2);color:var(--text);font:inherit;font-size:14px;}
+.km-group-inline-form > textarea {resize:vertical;line-height:1.5;}
+.km-group-inline-form > button {flex:none;background:var(--mint);color:var(--on-primary);}
+.km-group-inline-form p {font-size:13px;color:var(--muted);}
+.km-group-friend-list {display:grid;max-height:265px;overflow:auto;overscroll-behavior:contain;}
+.km-group-friend-list label {display:flex;gap:13px;align-items:center;min-height:52px;
+  border-bottom:1px solid var(--soft-border);cursor:pointer;padding:7px 3px;}
+.km-group-friend-list input {accent-color:var(--mint);height:20px;width:20px;flex-shrink:0;}
+.km-group-friend-list span {min-width:0;overflow-wrap:anywhere;font-size:14px;}
+.km-group-friend-list small {font-size:12px;color:var(--muted);}
+.km-group-section-heading {font-size:14px;font-weight:680;margin:17px 5px 5px;}
+.km-group-role-row {display:flex;align-items:center;gap:9px;min-height:69px;
+  padding:9px 4px;border-bottom:1px solid var(--soft-border);min-width:0;}
+.km-group-member-info {display:flex;align-items:center;gap:11px;min-width:0;flex:1;
+  color:var(--text);text-decoration:none;}
+.km-group-member-info > span:last-child {display:grid;gap:3px;min-width:0;}
+.km-group-member-info strong {font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.km-group-member-info small {font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.km-group-row-actions {display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.km-group-row-actions button {min-height:44px;padding:8px 10px;border:0;border-radius:12px;
+  font-size:12px;font-weight:670;background:var(--surface-2);color:var(--mint);cursor:pointer;}
+.km-group-row-actions button.is-danger {color:var(--danger, #c73f49);}
+.km-group-row-actions button:disabled,.km-group-manage-actions button:disabled,
+.km-group-inline-form button:disabled {opacity:.5;cursor:not-allowed;}
+.km-group-success {color:var(--mint);font-size:13px;padding:12px 6px;}
+@media(max-width:390px) {
+  .km-group-role-row {flex-wrap:wrap;}
+  .km-group-row-actions {margin-left:auto;}
+  .km-group-member-info {flex-basis:65%;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .km-group-row-actions button,.km-group-manage-actions button {transition:none;}
+}
