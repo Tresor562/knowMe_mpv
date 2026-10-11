@@ -146,8 +146,10 @@ export default function PostDetailPage() {
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
 
       <article className="card" style={{ padding: 22 }}>
-        <strong>{post.author.displayName}</strong>
-        <div style={{ color: 'var(--muted)' }}>@{post.author.username}</div>
+        <Link href={`/profile/${encodeURIComponent(post.author.username)}`} style={{color:'inherit',textDecoration:'none',display:'inline-block'}}>
+          <strong>{post.author.displayName}</strong>
+          <div style={{ color: 'var(--muted)' }}>@{post.author.username}</div>
+        </Link>
         <p style={{ fontSize: 19, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p>
         {post.imageUrl && <img src={post.imageUrl} alt="Média de la publication" style={{ width: '100%', borderRadius: 18 }} />}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -173,8 +175,10 @@ export default function PostDetailPage() {
             <article className="card" key={item.id} style={{ padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
                 <div>
-                  <strong>{item.author.displayName}</strong>
-                  <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.author.username}</small>
+                  <Link href={`/profile/${encodeURIComponent(item.author.username)}`} style={{color:'inherit',textDecoration:'none'}}>
+                    <strong>{item.author.displayName}</strong>
+                    <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.author.username}</small>
+                  </Link>
                 </div>
                 {canDelete && (
                   <button

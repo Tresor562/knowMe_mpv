@@ -370,6 +370,8 @@ export default function ConversationPage() {
     ? (en?'Group chat':'Discussion de groupe')
     : peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation'));
   const infoHref=`/messages/${encodeURIComponent(conversationId)}/info`;
+  const identityHref=peer && !isGroup && !isNexusPrivate
+    ? `/profile/${encodeURIComponent(peer.username)}` : infoHref;
   const visibleMessages=searchTerm.trim()
     ? items.filter(item=>(item.presentation?.kind==='TEXT'?item.presentation.text:item.content).toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase()))
     : items;
@@ -380,7 +382,7 @@ export default function ConversationPage() {
         <Link href="/messages" className="km-action km-chat-back" aria-label={en?'Back to chats':'Retour aux discussions'}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
         </Link>
-        <Link href={infoHref} className={`km-chat-avatar km-chat-profile-trigger ${isNexusPrivate?'km-chat-ai':''}`}
+        <Link href={identityHref} className={`km-chat-avatar km-chat-profile-trigger ${isNexusPrivate?'km-chat-ai':''}`}
           aria-label={en?'Open conversation information':'Voir les informations de la discussion'}>
           {isNexusPrivate ? 'N'
             : isGroup
@@ -394,7 +396,7 @@ export default function ConversationPage() {
                 ? <img src={peer.avatarUrl} alt="" className="km-chat-avatar-image" />
                 : (Array.from(peer?.displayName||'D')[0]||'D').toLocaleUpperCase()}
         </Link>
-        <Link href={infoHref} className="km-chat-header-details km-chat-profile-trigger"
+        <Link href={identityHref} className="km-chat-header-details km-chat-profile-trigger"
           aria-label={en?'Open conversation information':'Voir les informations de la discussion'}>
           <h1>{chatTitle}</h1>
           <p>
@@ -450,7 +452,13 @@ export default function ConversationPage() {
             state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
           ):[];
           return <article className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id}>
-            {!mine&&<strong className="km-message-author">{nexus?'Nexus':item.sender.displayName}</strong>}
+            {!mine&&(nexus
+              ? <strong className="km-message-author">Nexus</strong>
+              : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`}
+                  aria-label={en ? 'View profile of ' + item.sender.displayName : 'Voir le profil de ' + item.sender.displayName}
+                  style={{textDecoration:'none',color:'inherit',display:'inline-block'}}>
+                  {item.sender.displayName}
+                </Link>)}
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
