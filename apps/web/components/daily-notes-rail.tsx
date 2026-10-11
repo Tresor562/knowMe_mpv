@@ -21,6 +21,7 @@ export function DailyNotesRail({userId}:{userId:string}) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
+  const [now,setNow]=useState(Date.now());
 
   const refresh=useCallback(async()=>{
     const incoming=await apiFetch<DailyNote[]>('/daily-notes');
@@ -37,7 +38,20 @@ export function DailyNotesRail({userId}:{userId:string}) {
     return()=>{active=false;};
   },[userId]);
 
-  const mine=notes.find(item=>item.userId===userId);
+  useEffect(()=>{
+    const tick=setInterval(()=>setNow(Date.now()),30_000);
+    const visible=()=>{
+      if(document.visibilityState==='visible'){
+        setNow(Date.now());
+        void refresh().catch(()=>undefined);
+      }
+    };
+    document.addEventListener('visibilitychange',visible);
+    return()=>{clearInterval(tick);document.removeEventListener('visibilitychange',visible);};
+  },[refresh]);
+
+  const activeNotes=notes.filter(note=>Date.parse(note.expiresAt)>now);
+  const mine=activeNotes.find(item=>item.userId===userId);
   async function save(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     const content=draft.trim();
@@ -83,7 +97,7 @@ export function DailyNotesRail({userId}:{userId:string}) {
           {mine?.content??(en?'Add note':'Ajouter')}
         </small>
       </button>
-      {notes.filter(item=>item.userId!==userId).map(note=>
+      {activeNotes.filter(item=>item.userId!==userId).map(note=>
         <button type="button" key={note.userId} onClick={()=>setSelected(note)}
           aria-label={note.user.displayName+' : '+note.content}
           style={{flex:'0 0 80px',scrollSnapAlign:'start',display:'grid',justifyItems:'center',alignContent:'start',
