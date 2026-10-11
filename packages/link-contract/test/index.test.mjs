@@ -44,3 +44,14 @@ test('rejects query, fragment and credential smuggling in custom-scheme links', 
   assert.equal(parseKnowMeDeepLink('knowme://v1/profile/usr_123456#token'), null);
   assert.equal(parseKnowMeDeepLink('knowme://user:pass@v1/profile/usr_123456'), null);
 });
+
+test('content links retain precise IDs and reject unsafe destinations', () => {
+  for (const kind of ['post', 'comment', 'message', 'conversation', 'story', 'sticker', 'media', 'channel', 'poll', 'reaction', 'emoji', 'gif', 'topic', 'group']) {
+    const target = { kind, id: 'cm_abcdef012345' };
+    assert.deepEqual(parseKnowMeUniversalPath(buildKnowMeUniversalPath(target)), { version: 'v1', ...target });
+    assert.deepEqual(parseKnowMeDeepLink(buildKnowMeDeepLink(target)), { version: 'v1', ...target });
+  }
+  assert.equal(parseKnowMeUniversalPath('/open/v1/message/../../admin'), null);
+  assert.equal(parseKnowMeDeepLink('knowme://v1/message/ab123456?redirect=evil'), null);
+  assert.equal(parseKnowMeDeepLink('knowme://v1/message/ab123456%2Fadmin'), null);
+});
