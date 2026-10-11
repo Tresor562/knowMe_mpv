@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, Alert, AppState, Image, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View
 } from 'react-native';
 import { apiFetch } from './api';
@@ -23,6 +23,7 @@ export function DailyNotesRail({ userId }: { userId: string }) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
 
   const reload = useCallback(async () => {
@@ -40,8 +41,20 @@ export function DailyNotesRail({ userId }: { userId: string }) {
     void reload();
   }, [reload, userId]);
 
-  const mine = notes.find(note => note.userId === userId);
-  const visible = [mine, ...notes.filter(note => note.userId !== userId)]
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        setNow(Date.now());
+        void reload();
+      }
+    });
+    return () => { clearInterval(tick); subscription.remove(); };
+  }, [reload]);
+
+  const freshNotes = notes.filter(note => Date.parse(note.expiresAt) > now);
+  const mine = freshNotes.find(note => note.userId === userId);
+  const visible = [mine, ...freshNotes.filter(note => note.userId !== userId)]
     .filter((item): item is DailyNote => Boolean(item));
 
   function openEditor() {
