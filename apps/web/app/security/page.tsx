@@ -274,7 +274,7 @@ export default function SecurityPage() {
   }
 
   async function renameDevice(id: string, currentLabel: string) {
-    const label = await knowMePrompt('Nom de l’appareil', currentLabel)?.trim();
+    const label = (await knowMePrompt('Nom de l’appareil', currentLabel))?.trim();
     if (!label) return;
     setBusy(true);
     try {
