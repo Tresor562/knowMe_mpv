@@ -12,4 +12,4 @@ CREATE INDEX "PostAttachment_assetId_idx" ON "PostAttachment"("assetId");
 ALTER TABLE "PostAttachment" ADD CONSTRAINT "PostAttachment_postId_fkey"
   FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "PostAttachment" ADD CONSTRAINT "PostAttachment_assetId_fkey"
-  FOREIGN KEY ("assetId") REFERENCES "MediaAsset"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  FOREIGN KEY ("assetId") REFERENCES "MediaAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
