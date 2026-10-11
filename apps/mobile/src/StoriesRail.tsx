@@ -14,6 +14,7 @@ import {
 import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
+import { NativeStoryVideo } from './NativeStoryVideo';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -72,6 +73,8 @@ export function StoriesRail({
   const [storyMedia, setStoryMedia] = useState<SelectedAndroidMedia|null>(null);
   const [pickerVisible,setPickerVisible] = useState(false);
   const [selectedPhotoUri,setSelectedPhotoUri] = useState<string|null>(null);
+  const [selectedVideoUri,setSelectedVideoUri] = useState<string|null>(null);
+  const [mediaError,setMediaError] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC' | 'PRIVATE'>('FRIENDS');
   const [publishing, setPublishing] = useState(false);
 
@@ -98,23 +101,40 @@ export function StoriesRail({
     let cancelled=false;
     let uri:string|null=null;
     setSelectedPhotoUri(null);
-    if(selected?.type!=='PHOTO'||!selected.assetId||!FileSystem.cacheDirectory)return;
-    const temporary=`${FileSystem.cacheDirectory}knowme-story-photo-${selected.id}.jpg`;
+    setSelectedVideoUri(null);
+    setMediaError('');
+    if(!selected?.assetId || !FileSystem.cacheDirectory)return;
+    if(selected.type!=='PHOTO' && selected.type!=='VIDEO')return;
+    const isVideo=selected.type==='VIDEO';
+    const temporary=`${FileSystem.cacheDirectory}knowme-story-${selected.id}.${isVideo?'mp4':'jpg'}`;
     void (async()=>{
       try{
+        await FileSystem.deleteAsync(temporary,{idempotent:true});
         const headers=await authenticatedMediaHeaders();
         const response=await FileSystem.downloadAsync(
           `${API_URL}/stories/${encodeURIComponent(selected.id)}/media`,temporary,{headers}
         );
-        if(response.status>=200&&response.status<300){
-          uri=response.uri;
-          if(!cancelled)setSelectedPhotoUri(uri);
+        const info=await FileSystem.getInfoAsync(response.uri);
+        if(response.status<200||response.status>=300||!info.exists||
+          info.isDirectory||!info.size||info.size<1024){
+          throw new Error('Le média de la story est indisponible.');
         }
-      }catch{
-        // Story description remains accessible when the media endpoint is offline.
+        uri=response.uri;
+        if(!cancelled){
+          if(isVideo)setSelectedVideoUri(uri);
+          else setSelectedPhotoUri(uri);
+        }
+      }catch(error){
+        if(!cancelled){
+          setMediaError(error instanceof Error?error.message:'Lecture de la story impossible.');
+        }
       }
     })();
-    return ()=>{cancelled=true;if(uri)void FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);};
+    return ()=>{
+      cancelled=true;
+      // Delay cleanup until the native player unmounts from the old story.
+      if(uri)void FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    };
   },[selected?.id,selected?.assetId,selected?.type]);
 
   async function openStory(story: Story) {
@@ -358,9 +378,16 @@ export function StoriesRail({
             </View>
             {selected?.type==='PHOTO'&&selectedPhotoUri?<Image source={{uri:selectedPhotoUri}}
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
-            <Text style={[styles.storyCaption, { color: colors.text }]}>
-              {selected?.type==='VIDEO' ? 'Story vidéo · lecteur Android à intégrer' : selected?.caption?.trim() || 'Story'}
-            </Text>
+            {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
+              key={selected.id} sourceUri={selectedVideoUri}
+              style={StyleSheet.absoluteFillObject}/>:null}
+            {mediaError?<Text style={[styles.storyCaption,{color:colors.danger}]}>
+              {mediaError}
+            </Text>:null}
+            {(selected?.type!=='VIDEO'||!selectedVideoUri)&&!mediaError?<Text
+              style={[styles.storyCaption,{color:colors.text}]}>
+              {selected?.caption?.trim()||(selected?.type==='VIDEO'?'Chargement de la vidéo…':'Story')}
+            </Text>:null}
           </View>
 
           {!selected?.viewer.own ? (
