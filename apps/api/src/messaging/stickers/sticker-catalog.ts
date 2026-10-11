@@ -1,3 +1,5 @@
+import { KNOWME_CUSTOM_EMOJIS, KNOWME_MOTION_PACK_KEY } from '@knowme/animation-contract';
+
 export type KnowMeSticker = {
   key: string;
   version: number;
@@ -15,6 +17,19 @@ export type KnowMeStickerPack = {
 };
 
 const PACKS = [
+  {
+    key: KNOWME_MOTION_PACK_KEY,
+    version: 1,
+    name: 'KnowMe Motion',
+    description: 'Six emojis illustrés originaux, animés et synchronisés entre Web et Android.',
+    stickers: KNOWME_CUSTOM_EMOJIS.map(emoji => ({
+      key: emoji.key,
+      version: 1,
+      label: emoji.label,
+      glyph: emoji.glyph,
+      accessibilityLabel: emoji.label
+    }))
+  },
   {
     key: 'knowme-sparks',
     version: 1,
