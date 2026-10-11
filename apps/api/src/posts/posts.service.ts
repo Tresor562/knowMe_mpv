@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ModerationService } from '../moderation/moderation.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,9 +21,51 @@ export class PostsService {
     private readonly moderation: ModerationService
   ) {}
 
-  create(authorId: string, dto: CreatePostDto) {
+  private async assertMediaAssets(tx: Prisma.TransactionClient, ownerId: string, ids: string[]) {
+    if (ids.length > 10 || new Set(ids).size !== ids.length) {
+      throw new BadRequestException('Sélectionne au maximum dix médias différents.');
+    }
+    if (!ids.length) return;
+    const available = await tx.mediaAsset.findMany({
+      where: {
+        id: { in: ids }, ownerId, purpose: 'POST', status: 'AVAILABLE',
+        scannerVerdict: 'CLEAN', deletedAt: null
+      },
+      select: { id: true }
+    });
+    if (available.length !== ids.length) {
+      throw new BadRequestException('Média absent, non autorisé ou non validé.');
+    }
+  }
+
+  async create(authorId: string, dto: CreatePostDto) {
+    const content = dto.content.trim();
+    const ids = dto.assetIds ?? [];
+    if (!content && !dto.imageUrl && !ids.length) {
+      throw new BadRequestException('Ajoute un texte ou au moins un média.');
+    }
+    if (ids.length) {
+      return this.prisma.$transaction(async tx => {
+        await this.assertMediaAssets(tx, authorId, ids);
+        return tx.post.create({
+          data: {
+            authorId, content, imageUrl: dto.imageUrl,
+            attachments: { create: ids.map((assetId, position) => ({ assetId, position })) }
+          },
+          include: {
+            author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+            attachments: {
+              orderBy: { position: 'asc' },
+              select: { position: true, asset: { select: {
+                id: true, originalName: true, detectedMime: true, size: true
+              } } }
+            }
+          }
+        });
+      });
+    }
     return this.prisma.post.create({
-      data: { authorId, content: dto.content, imageUrl: dto.imageUrl },
+      data: { authorId, content, imageUrl: dto.imageUrl },
       include: {
         author: {
           select: {
@@ -38,11 +82,18 @@ export class PostsService {
   async update(userId: string, postId: string, dto: UpdatePostDto) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true, authorId: true, content: true, imageUrl: true }
+      select: { id: true, authorId: true, content: true, imageUrl: true,
+        attachments: { orderBy: { position: 'asc' }, select: { assetId: true } } }
     });
     if (!post) throw new NotFoundException('Publication introuvable.');
     if (post.authorId !== userId) {
       throw new ForbiddenException('Tu ne peux modifier que tes propres publications.');
+    }
+
+    const nextIds = dto.assetIds ?? post.attachments?.map(item => item.assetId) ?? [];
+    const nextImage = dto.imageUrl === undefined ? post.imageUrl : dto.imageUrl;
+    if (!dto.content.trim() && !nextImage && !nextIds.length) {
+      throw new BadRequestException('Ajoute un texte ou au moins un média.');
     }
 
     // Never charge a content-edit policy for an unchanged caption.
@@ -53,6 +104,29 @@ export class PostsService {
         content: dto.content,
         targetId: postId
       });
+    }
+
+    if (dto.assetIds !== undefined) {
+      await this.prisma.$transaction(async tx => {
+        await this.assertMediaAssets(tx, userId, dto.assetIds!);
+        const changed = await tx.post.updateMany({
+          where: { id: postId, authorId: userId },
+          data: {
+            content: dto.content.trim(),
+            ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {})
+          }
+        });
+        if (changed.count !== 1) {
+          throw new ConflictException('Publication supprimée ou modifiée.');
+        }
+        await tx.postAttachment.deleteMany({ where: { postId } });
+        if (dto.assetIds!.length) {
+          await tx.postAttachment.createMany({
+            data: dto.assetIds!.map((assetId, position) => ({ postId, assetId, position }))
+          });
+        }
+      });
+      return this.getById(postId);
     }
 
     const changed = await this.prisma.post.updateMany({
@@ -83,6 +157,10 @@ export class PostsService {
           }
         },
         _count: { select: { likes: true, comments: true } },
+        attachments: { orderBy: { position: 'asc' }, select: {
+          position: true, asset: { select: { id: true, originalName: true,
+            detectedMime: true, size: true, status: true, deletedAt: true } }
+        } },
         comments: {
           take: 3,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -113,6 +191,10 @@ export class PostsService {
           }
         },
         _count: { select: { likes: true, comments: true } },
+        attachments: { orderBy: { position: 'asc' }, select: {
+          position: true, asset: { select: { id: true, originalName: true,
+            detectedMime: true, size: true, status: true, deletedAt: true } }
+        } },
         comments: {
           take: 50,
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
