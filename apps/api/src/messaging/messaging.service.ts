@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ConversationRole } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -31,7 +32,8 @@ export class MessagingService {
       data: {
         title: dto.title,
         isGroup: memberIds.length > 2,
-        members: { create: memberIds.map((id) => ({ userId: id })) }
+        members: { create: memberIds.map((id) => ({ userId: id,
+          role: memberIds.length > 2 && id === userId ? ConversationRole.OWNER : ConversationRole.MEMBER })) }
       },
       include: {
         members: {
