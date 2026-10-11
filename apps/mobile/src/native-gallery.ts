@@ -15,10 +15,12 @@ export type LocalDeviceMedia = {
 };
 
 export type SelectedKnowMeFile = { uri: string; name: string; mime: string; size?: number };
+export type KnowMeAlbum = { id: string; name: string; count: number; thumbnail: string };
 
 type NativeGalleryBridge = {
   listMedia(filter: string, album: string, offset: number, limit: number): Promise<LocalDeviceMedia[]>;
   pickDocuments(multiple: boolean): Promise<SelectedKnowMeFile[]>;
+  listAlbums(): Promise<KnowMeAlbum[]>;
 };
 const gallery = NativeModules.KnowMeGallery as NativeGalleryBridge | undefined;
 
@@ -50,6 +52,11 @@ export async function readKnowMeGallery(
 ) {
   if (!gallery) throw new Error('La galerie KnowMe n’est pas installée dans cette APK.');
   return gallery.listMedia(filter, album, offset, limit);
+}
+
+export async function readKnowMeAlbums() {
+  if (!gallery) throw new Error('La galerie KnowMe nécessite une APK native récente.');
+  return gallery.listAlbums();
 }
 
 export async function openKnowMeFiles(multiple = true) {
