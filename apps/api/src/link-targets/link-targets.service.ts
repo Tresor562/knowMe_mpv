@@ -73,7 +73,9 @@ export class LinkTargetsService {
     if (kind === 'story') {
       // Delegate audience, expiry and removal rules to StoriesService.
       const story = await this.stories.get(viewerId, id);
-      if (story) return { kind, id, webPath: `/stories/${id}`, context: { storyId: id } };
+      if (story && (story.allowSharing || story.viewer?.own)) {
+        return { kind, id, webPath: `/stories/${id}`, context: { storyId: id } };
+      }
     }
 
     if (kind === 'media') {
