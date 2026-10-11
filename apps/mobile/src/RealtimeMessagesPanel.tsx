@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
+import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -38,6 +39,9 @@ type ConversationMessage = {
   senderId: string;
   sender?: UserSummary;
   nexusAuthored?: boolean;
+  presentation?:{kind:'TEXT';text:string}|
+    {kind:'STICKER';sticker:{glyph:string;label:string}}|
+    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE';assetId:string;mimeType:string};
 };
 type Conversation = {
   id: string;
@@ -658,14 +662,20 @@ export function RealtimeMessagesPanel({
                     {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
                   </Text>
                 ) : null}
-                <Text
-                  style={[
-                    mine ? styles.bubbleMineText : styles.bubbleText,
-                    { color: mine ? colors.accentText : colors.text }
-                  ]}
-                >
-                  {item.content}
-                </Text>
+                {item.presentation?.kind==='GIF'||
+                 item.presentation?.kind==='STICKER_IMAGE'||
+                 item.presentation?.kind==='IMAGE'
+                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}/>
+                  : <Text
+                      style={[
+                        mine ? styles.bubbleMineText : styles.bubbleText,
+                        { color: mine ? colors.accentText : colors.text }
+                      ]}>
+                      {item.presentation?.kind==='STICKER'
+                        ? `${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`
+                        : item.presentation?.kind==='TEXT'
+                          ? item.presentation.text : item.content}
+                    </Text>}
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>
