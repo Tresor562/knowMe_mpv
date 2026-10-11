@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
 
-type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE';
+type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
 export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: Kind }) {
+  const [opening,setOpening]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
   const [attempt,setAttempt] = useState(0);
@@ -34,6 +36,43 @@ export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: 
     return ()=>{ mounted=false; };
   },[assetId,attempt]);
 
+  async function openFile() {
+    if(opening)return;
+    setOpening(true);
+    setFailed(false);
+    try {
+      const grant=await apiFetch<{path:string}>(`/media/${encodeURIComponent(assetId)}/download-grant`,
+        {method:'POST'});
+      const expected=`/media/${encodeURIComponent(assetId)}/content?token=`;
+      if(!grant.path.startsWith(expected))throw new Error('MEDIA_GRANT_PATH_INVALID');
+      const accessToken=await getAccessToken();
+      if(!accessToken||!FileSystem.cacheDirectory)throw new Error('CACHE_OR_SESSION_MISSING');
+      const suffix=kind==='VIDEO'?'.mp4':kind==='AUDIO'?'.mp3':'.pdf';
+      const target=`${FileSystem.cacheDirectory}knowme-attachment-${assetId}-${Date.now()}${suffix}`;
+      await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,
+        {headers:{Authorization:`Bearer ${accessToken}`}});
+      // Android exposes only this downloaded copy to a system viewer.
+      const uri=await FileSystem.getContentUriAsync(target);
+      try{
+        await Linking.openURL(uri);
+      }catch{
+        await Share.share({url:uri,message:'Pièce jointe KnowMe'});
+      }
+    }catch{
+      setFailed(true);
+    }finally{setOpening(false);}
+  }
+
+  if (kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
+    <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':kind==='AUDIO'?'🎵':'📄'}</Text>
+    <Text style={styles.fileTitle}>{kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Audio MP3':'Document PDF'}</Text>
+    <Pressable accessibilityRole="button" onPress={()=>void openFile()} disabled={opening}
+      style={styles.fileAction}>
+      <Text style={styles.retryText}>{opening?'Téléchargement…':failed?'Réessayer':'Ouvrir le fichier'}</Text>
+    </Pressable>
+    {failed&&<Text style={styles.caption}>Ouverture impossible. Vérifie la connexion et une application compatible.</Text>}
+  </View>;
+
   if (failed) return <View style={styles.placeholder}>
     <Text style={styles.caption}>Média indisponible</Text>
     <Pressable accessibilityRole="button" onPress={()=>setAttempt(value=>value+1)} style={styles.retry}>
@@ -54,5 +93,11 @@ const styles=StyleSheet.create({
   caption:{fontSize:12,opacity:.75},
   placeholder:{minHeight:100,minWidth:150,justifyContent:'center',gap:7},
   retry:{minHeight:44,alignSelf:'flex-start',paddingHorizontal:12,justifyContent:'center',borderRadius:12},
-  retryText:{fontSize:13,fontWeight:'600'}
+  retryText:{fontSize:13,fontWeight:'600'},
+  fileCard:{minWidth:150,maxWidth:260,padding:12,gap:7,borderRadius:16,
+    backgroundColor:'rgba(128,128,128,.1)'},
+  fileIcon:{fontSize:27},
+  fileTitle:{fontSize:14,fontWeight:'600'},
+  fileAction:{minHeight:44,justifyContent:'center',alignSelf:'flex-start',paddingHorizontal:12,
+    borderRadius:12,backgroundColor:'rgba(128,128,128,.16)'}
 });
