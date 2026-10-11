@@ -5,7 +5,7 @@ import { API_URL, apiFetch, getAccessToken } from './api';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: Kind }) {
+export function ChatMediaAttachment({ assetId, kind, fileName }: { assetId: string; kind: Kind; fileName?: string }) {
   const [opening,setOpening]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
@@ -72,7 +72,7 @@ export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: 
 
   if (kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
     <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':kind==='AUDIO'?'🎵':'📄'}</Text>
-    <Text style={styles.fileTitle}>{kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Audio MP3':'Document PDF'}</Text>
+    <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Audio MP3':'Document PDF')}</Text>
     <Pressable accessibilityRole="button" onPress={()=>void openFile()} disabled={opening}
       style={styles.fileAction}>
       <Text style={styles.retryText}>{opening?'Téléchargement…':failed?'Réessayer':'Ouvrir le fichier'}</Text>
