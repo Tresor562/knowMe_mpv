@@ -432,9 +432,9 @@ export function FeedExperience({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
-    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || menuPost !== null || reportPost !== null);
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || savedOpen || menuPost !== null || reportPost !== null);
     return () => { onSecondaryModeChange?.(false); };
-  }, [selectedPostId, storiesOpen, composerOpen, menuPost, reportPost, onSecondaryModeChange]);
+  }, [selectedPostId, storiesOpen, composerOpen, savedOpen, menuPost, reportPost, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -685,6 +685,12 @@ export function FeedExperience({
                 <Text style={[styles.discoverSub, { color: colors.muted }]}>Accueil</Text>
               </View>
             </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Voir les publications enregistrées"
+              onPress={() => { setSavedOpen(true); void loadSavedPosts().catch(cause =>
+                Alert.alert('Favoris indisponibles', errorMessage(cause,'Réessaie.'))); }}
+              style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="check" size={22} color={colors.accent}/>
+            </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Rechercher des profils et publications"
               disabled={!onOpenDiscover} onPress={onOpenDiscover}
               style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
@@ -975,6 +981,36 @@ export function FeedExperience({
           </Pressable>
         </Pressable>
       </Pressable>
+    </Modal>
+    <Modal visible={savedOpen} animationType="slide" onRequestClose={() => setSavedOpen(false)}>
+      <View style={[styles.composerScreen, { backgroundColor: colors.background }]}>
+        <View style={[styles.composerTop, {borderColor:colors.border}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fermer les publications enregistrées"
+            onPress={() => setSavedOpen(false)} style={styles.composeClose}>
+            <KnowMeIcon name="back" size={23} color={colors.text}/>
+          </Pressable>
+          <Text style={[styles.composeTitle, {color:colors.text}]}>Publications enregistrées</Text>
+        </View>
+        <FlatList data={savedPosts} keyExtractor={item => item.id}
+          contentContainerStyle={styles.content}
+          ListEmptyComponent={<Text style={{color:colors.muted, padding:22}}>
+            Aucun favori pour le moment.
+          </Text>}
+          renderItem={({item}) => (
+            <Pressable accessibilityRole="button" onPress={() => {
+              setSavedOpen(false); setSelectedPostId(item.post.id);
+            }} style={[styles.card, {backgroundColor:colors.surface, borderColor:colors.border}]}>
+              <Text style={[styles.title,{color:colors.text}]} numberOfLines={1}>
+                {item.post.author.displayName}
+              </Text>
+              <Text style={[styles.postText,{color:colors.text}]} numberOfLines={4}>
+                {item.post.content || 'Publication multimédia'}
+              </Text>
+              <PostAttachmentRail postId={item.post.id} attachments={item.post.attachments}/>
+            </Pressable>
+          )}
+        />
+      </View>
     </Modal>
     </>
   );
