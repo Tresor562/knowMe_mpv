@@ -49,8 +49,12 @@ export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: 
       if(!accessToken||!FileSystem.cacheDirectory)throw new Error('CACHE_OR_SESSION_MISSING');
       const suffix=kind==='VIDEO'?'.mp4':kind==='AUDIO'?'.mp3':'.pdf';
       const target=`${FileSystem.cacheDirectory}knowme-attachment-${assetId}-${Date.now()}${suffix}`;
-      await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,
+      const downloaded=await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,
         {headers:{Authorization:`Bearer ${accessToken}`}});
+      if(downloaded.status!==200){
+        await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>undefined);
+        throw new Error('ATTACHMENT_DOWNLOAD_FAILED');
+      }
       // Android exposes only this downloaded copy to a system viewer.
       const uri=await FileSystem.getContentUriAsync(target);
       try{
