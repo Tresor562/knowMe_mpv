@@ -18,6 +18,7 @@ const destinationFor = (kind: string, id: string): string | null => {
     case 'post':
       return `/feed/${encodeURIComponent(id)}`;
     // Requires the VIEWER's authentication and access checks before routing.
+    case 'story':
     case 'comment':
     case 'message':
     case 'conversation':
