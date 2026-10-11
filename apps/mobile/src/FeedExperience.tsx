@@ -9,6 +9,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -378,6 +379,11 @@ export function FeedExperience({
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<PostSummary | null>(null);
+  const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
+  const [reportPost, setReportPost] = useState<PostSummary | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  const [postBusy, setPostBusy] = useState(false);
   useEffect(() => {
     if (!openComposerRequest) return;
     setComposerOpen(true);
@@ -386,9 +392,9 @@ export function FeedExperience({
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
-    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen);
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen || composerOpen || menuPost !== null || reportPost !== null);
     return () => { onSecondaryModeChange?.(false); };
-  }, [selectedPostId, storiesOpen, composerOpen, onSecondaryModeChange]);
+  }, [selectedPostId, storiesOpen, composerOpen, menuPost, reportPost, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -426,6 +432,64 @@ export function FeedExperience({
     }
   }
 
+  function openEditor(post: PostSummary | null = null) {
+    setEditingPost(post);
+    setContent(post?.content ?? '');
+    setImageUrl(post?.imageUrl ?? '');
+    setMenuPost(null);
+    setComposerOpen(true);
+  }
+
+  function postLink(postId: string) {
+    return 'https://knowme-nextech.vercel.app/feed/' + encodeURIComponent(postId);
+  }
+
+  async function sharePost(post: PostSummary) {
+    setMenuPost(null);
+    try {
+      await Share.share({ message: postLink(post.id), url: postLink(post.id), title: 'KnowMe' });
+    } catch (cause) {
+      Alert.alert('Partage impossible', errorMessage(cause, 'Réessaie.'));
+    }
+  }
+
+  function confirmRemovePost(post: PostSummary) {
+    setMenuPost(null);
+    if (post.authorId !== userId) return;
+    Alert.alert('Supprimer la publication ?', 'Cette action est définitive.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => { void (async () => {
+        setPostBusy(true);
+        try {
+          await apiFetch('/posts/' + encodeURIComponent(post.id), { method: 'DELETE' });
+          setPosts(list => list.filter(item => item.id !== post.id));
+        } catch (cause) {
+          Alert.alert('Suppression impossible', errorMessage(cause, 'Réessaie.'));
+        } finally { setPostBusy(false); }
+      })(); } }
+    ]);
+  }
+
+  function hidePost(post: PostSummary) {
+    setMenuPost(null);
+    setHiddenIds(current => new Set(current).add(post.id));
+  }
+
+  async function submitReport(reason: string) {
+    if (!reportPost || postBusy) return;
+    setPostBusy(true);
+    try {
+      await apiFetch('/reports', {
+        method: 'POST',
+        body: JSON.stringify({ targetType: 'POST', targetId: reportPost.id, reason })
+      });
+      setReportPost(null);
+      Alert.alert('Signalement envoyé', 'Merci, notre équipe pourra examiner la publication.');
+    } catch (cause) {
+      Alert.alert('Signalement impossible', errorMessage(cause, 'Réessaie.'));
+    } finally { setPostBusy(false); }
+  }
+
   async function publish() {
     const value = content.trim();
     const attachment = imageUrl.trim();
@@ -436,8 +500,16 @@ export function FeedExperience({
     }
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST',
-        body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
+      if (editingPost) {
+        await apiFetch('/posts/' + encodeURIComponent(editingPost.id), {
+          method: 'PATCH',
+          body: JSON.stringify({ content: value, imageUrl: attachment || null })
+        });
+      } else {
+        await apiFetch('/posts', { method: 'POST',
+          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
+      }
+      setEditingPost(null);
       setContent('');
       setImageUrl('');
       setComposerOpen(false);
