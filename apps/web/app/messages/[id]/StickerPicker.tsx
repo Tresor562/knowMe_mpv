@@ -67,6 +67,7 @@ export function StickerPicker<T>({
   const [savedMedia,setSavedMedia] = useState<SavedMedia[]|null>(null);
   const [savedMediaLoading,setSavedMediaLoading] = useState(false);
   const [savedMediaError,setSavedMediaError] = useState(false);
+  const savedMediaRequest = useRef(false);
   const wrap = useRef<HTMLDivElement>(null);
   const searchField = useRef<HTMLInputElement>(null);
   const gifInput = useRef<HTMLInputElement>(null);
@@ -102,14 +103,14 @@ export function StickerPicker<T>({
   }, [catalog, loading, open, tab, en, error]);
 
   useEffect(()=>{
-    if(!open||(tab!=='gifs'&&tab!=='stickers')||savedMedia!==null||savedMediaLoading||savedMediaError)return;
-    let alive=true;
+    if(!open||(tab!=='gifs'&&tab!=='stickers')||savedMedia!==null||savedMediaRequest.current||savedMediaError)return;
+    savedMediaRequest.current=true;
     setSavedMediaLoading(true);
-    void apiFetch<SavedMedia[]>('/media/mine').then(items=>{if(alive)setSavedMedia(items);})
-      .catch(()=>{if(alive)setSavedMediaError(true);})
-      .finally(()=>{if(alive)setSavedMediaLoading(false);});
-    return ()=>{alive=false;};
-  },[open,tab,savedMedia,savedMediaLoading,savedMediaError]);
+    void apiFetch<SavedMedia[]>('/media/mine')
+      .then(items=>setSavedMedia(items))
+      .catch(()=>setSavedMediaError(true))
+      .finally(()=>{savedMediaRequest.current=false;setSavedMediaLoading(false);});
+  },[open,tab,savedMedia,savedMediaError]);
 
   const reusableGif=(savedMedia??[]).filter(item=>item.conversationId===conversationId&&
     item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&item.detectedMime==='image/gif').slice(0,6);
@@ -250,6 +251,9 @@ export function StickerPicker<T>({
         <input ref={searchField} type="search" value={search} onChange={event => setSearch(event.target.value)}
           placeholder={en ? 'Search stickers' : 'Rechercher des stickers'} aria-label={en ? 'Search stickers' : 'Rechercher des stickers'}/>
       </div>}
+      {savedMediaError&&(tab==='gifs'||tab==='stickers')&&
+        <p className="km-picker-status">{en?'Recent media unavailable; new uploads still work.':
+          'Historique indisponible ; tu peux toujours envoyer un nouveau fichier.'}</p>}
       {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={()=>setError('')}>{en?'Dismiss':'Fermer'}</button></div>}
       <div className="km-picker-scroll" role="tabpanel">
         {tab === 'emoji' && <>
