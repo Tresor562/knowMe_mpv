@@ -174,7 +174,7 @@ export function StickerPicker<T>({
     const allowed = kind==='GIF'?['image/gif']:
       kind==='STICKER_IMAGE'?['image/png','image/webp']:
       kind==='VIDEO'?['video/mp4']:
-      kind==='AUDIO'?['audio/mpeg']:
+      kind==='AUDIO'?['audio/mpeg','audio/ogg','audio/wav']:
       kind==='DOCUMENT'?['application/pdf']:
       ['image/jpeg','image/png','image/webp'];
     const limit = kind==='STICKER_IMAGE'?8*1024*1024:kind==='GIF'?15*1024*1024:20*1024*1024;
@@ -252,13 +252,13 @@ export function StickerPicker<T>({
         const file=event.currentTarget.files?.[0];event.currentTarget.value='';
         if(file)void uploadAndSend(file,'IMAGE');
       }}/>
-      <input ref={fileInput} hidden type="file" accept="video/mp4,audio/mpeg,.mp3,application/pdf"
+      <input ref={fileInput} hidden type="file" accept="video/mp4,audio/mpeg,audio/ogg,audio/wav,.mp3,.ogg,.wav,application/pdf"
         onChange={event=>{
           const file=event.currentTarget.files?.[0]; event.currentTarget.value='';
           if(!file)return;
-          const kind = file.type==='video/mp4'?'VIDEO':file.type==='audio/mpeg'?'AUDIO':
+          const kind = file.type==='video/mp4'?'VIDEO':['audio/mpeg','audio/ogg','audio/wav'].includes(file.type)?'AUDIO':
             file.type==='application/pdf'?'DOCUMENT':null;
-          if(!kind){setError(en?'Use MP4, MP3 or PDF files.':'Choisis un MP4, MP3 ou PDF.');return;}
+          if(!kind){setError(en?'Use MP4, MP3, OGG, WAV or PDF files.':'Choisis un MP4, MP3, OGG, WAV ou PDF.');return;}
           void uploadAndSend(file,kind);
         }}/>
       {tab === 'stickers' && <div className="km-picker-search">
