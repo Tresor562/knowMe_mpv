@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { KnowMeIcon } from './ui/KnowMeUI';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
 
@@ -7,6 +8,7 @@ type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
 export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string }) {
   const [opening,setOpening]=useState(false);
+  const [previewOpen,setPreviewOpen]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
   const [attempt,setAttempt] = useState(0);
@@ -86,13 +88,56 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { ass
   </View>;
   if (!source) return <Text style={styles.caption}>Chargement du média…</Text>;
   const compact = kind === 'STICKER_IMAGE';
-  return <Image source={source} style={compact ? styles.sticker : styles.image}
-    resizeMode="contain"
-    accessibilityLabel={kind==='GIF'?'GIF':kind==='STICKER_IMAGE'?'Sticker':'Image'}
-    onError={()=>setFailed(true)} />;
+  const mediaLabel = kind==='GIF'?'GIF':compact?'Sticker':'Image';
+  return <>
+    <Pressable
+      style={styles.imageTrigger}
+      accessibilityRole="button"
+      accessibilityLabel={`Agrandir ${mediaLabel === 'Image' ? "l'image" : mediaLabel}`}
+      onPress={()=>setPreviewOpen(true)}
+    >
+      <Image source={source} style={compact ? styles.sticker : styles.image}
+        resizeMode="contain" accessibilityLabel={mediaLabel}
+        onError={()=>{setPreviewOpen(false);setFailed(true);}} />
+    </Pressable>
+    <Modal visible={previewOpen} animationType="fade" transparent={false}
+      onRequestClose={()=>setPreviewOpen(false)}>
+      <SafeAreaView style={styles.viewerRoot}>
+        <View style={styles.viewerToolbar}>
+          <Text style={styles.viewerTitle} numberOfLines={1}>
+            {fileName ?? mediaLabel}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fermer la visionneuse"
+            accessibilityHint="Retour à la conversation"
+            hitSlop={8}
+            onPress={()=>setPreviewOpen(false)}
+            style={styles.viewerClose}
+          >
+            <KnowMeIcon name="close" color="#fff" size={23}/>
+          </Pressable>
+        </View>
+        <Image source={source} style={styles.viewerImage}
+          resizeMode="contain" accessibilityLabel={mediaLabel}
+          onError={()=>{setPreviewOpen(false);setFailed(true);}}/>
+        <Text style={styles.viewerCaption}>KnowMe · {mediaLabel}</Text>
+      </SafeAreaView>
+    </Modal>
+  </>;
 }
 
 const styles=StyleSheet.create({
+  imageTrigger:{alignSelf:'flex-start',borderRadius:14,overflow:'hidden'},
+  viewerRoot:{flex:1,backgroundColor:'#05080f',justifyContent:'space-between'},
+  viewerToolbar:{height:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',
+    justifyContent:'space-between',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,
+    borderBottomColor:'rgba(255,255,255,.18)'},
+  viewerTitle:{color:'#fff',fontSize:15,fontWeight:'600',flex:1},
+  viewerClose:{width:48,height:48,justifyContent:'center',alignItems:'center',
+    borderRadius:24,backgroundColor:'rgba(255,255,255,.12)'},
+  viewerImage:{flex:1,width:'100%',alignSelf:'center'},
+  viewerCaption:{color:'#aab2c7',fontSize:12,textAlign:'center',paddingVertical:12},
   image:{width:280,height:260,maxWidth:'100%',borderRadius:14},
   sticker:{width:190,height:190,maxWidth:'100%'},
   caption:{fontSize:12,opacity:.75},
