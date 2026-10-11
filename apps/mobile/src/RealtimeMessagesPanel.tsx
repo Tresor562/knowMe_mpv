@@ -702,6 +702,12 @@ export function RealtimeMessagesPanel({
         />
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+          <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+            onSent={created=>{
+              setHistory(current=>mergeMessages(current,[created]));
+              setConversations(current=>current.map(item=>item.id===active.id
+                ? {...item,messages:[created]}:item));
+            }}/>
           <TextInput
             value={draft}
             onChangeText={changeDraft}
