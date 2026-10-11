@@ -15,15 +15,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Find latest non-expired KnowMe APK artifact
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Require full Web/Android parity before public APK publication
+        run: node scripts/platform-sync-preflight.mjs --release
+      - name: Find same-commit signed KnowMe APK artifact
         id: artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | [.created_at, .id] | @tsv' | sort -r | head -n1)"
+          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false and .workflow_run.head_sha=="'${GITHUB_SHA}'") | [.created_at, .id] | @tsv' | sort -r | head -n1)"
           if [[ -z "$data" ]]; then
-            echo "::error::No unexpired knowme-android-apk workflow artifact was found. Re-run the APK build workflow, then dispatch this workflow."
+            echo "::error::No APK from this exact release commit was found. Re-run the APK build workflow, then dispatch this workflow."
             exit 1
           fi
           id="$(printf '%s' "$data" | cut -f2)"
