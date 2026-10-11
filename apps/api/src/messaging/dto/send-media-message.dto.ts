@@ -5,6 +5,6 @@ export class SendMediaMessageDto {
   @Matches(/^[A-Za-z0-9_-]{8,128}$/)
   assetId!: string;
 
-  @IsIn(['GIF', 'STICKER_IMAGE', 'IMAGE'])
-  kind!: 'GIF' | 'STICKER_IMAGE' | 'IMAGE';
+  @IsIn(['GIF', 'STICKER_IMAGE', 'IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'])
+  kind!: 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 }
