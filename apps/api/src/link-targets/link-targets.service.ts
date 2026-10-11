@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { isKnowMeDeepLinkKind, isSafeKnowMeLinkIdentifier } from '@knowme/link-contract';
 import { PrismaService } from '../prisma/prisma.service';
+import { StoriesService } from '../stories/stories.service';
 
 /**
  * Resolve a deep link using the VIEWER's permissions, never the link creator's.
@@ -8,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @Injectable()
 export class LinkTargetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly stories: StoriesService) {}
 
   async resolve(viewerId: string, kind: string, id: string) {
     if (!isKnowMeDeepLinkKind(kind) || !isSafeKnowMeLinkIdentifier(id)) {
@@ -51,6 +52,12 @@ export class LinkTargetsService {
         webPath: `/messages/${message.conversationId}?message=${message.id}`,
         context: { conversationId: message.conversationId, messageId: message.id }
       };
+    }
+
+    if (kind === 'story') {
+      // Delegate audience, expiry and removal rules to StoriesService.
+      const story = await this.stories.get(viewerId, id);
+      if (story) return { kind, id, webPath: `/stories/${id}`, context: { storyId: id } };
     }
 
     if (kind === 'media') {
