@@ -1,5 +1,9 @@
 # KnowMe — livraison synchronisée Web / Android / API
 
+**Version candidate synchronisée dans le code : KnowMe 1.1.0** (Android `versionCode=2`).
+Ce numéro ne constitue pas une preuve de disponibilité dans l'APK installé,
+sur le VPS ou sur Vercel.
+
 La synchronisation n'est **pas** simplement une palette de couleurs commune.
 Elle impose un contrat de version identique, la même API, les mêmes parcours
 fonctionnels, et la validation réelle des gestes/médias/animations sur Android
@@ -67,6 +71,31 @@ La commande avec `--release` refuse toute nouvelle release si un parcours
 `releaseRequired` est `partial` ou `missing` sur l'une des plateformes.
 Elle ne remplace pas les tests end-to-end, la preuve de même SHA dans
 les déploiements Web/API et le build signé Android.
+
+## Détection des versions réellement déployées
+
+Le profil Android affiche maintenant **Versions et synchronisation** : les
+réponses `/api/version` (Web) et `/platform-sync/version` (API) sont comparées
+à la version, au contrat et au commit embarqués dans l'APK.
+
+Pour vérifier un déploiement effectif (après publication, jamais avant) :
+
+```bash
+KNOWME_WEB_ORIGIN=https://knowme-nextech.vercel.app \
+KNOWME_API_ORIGIN=https://31-56-85-53.sslip.io/knowme-api \
+KNOWME_RELEASE_COMMIT=<SHA exact du build> \
+node scripts/check-platform-deployment.mjs
+```
+
+L'outil échoue si les versions, les contrats ou les SHA diffèrent, ou si les
+points de contrôle sont inaccessibles. Aucune déclaration « synchro » ne peut
+être déduite d'un numéro de version seul.
+
+La distribution GitHub `publish-knowme-android.yml` ne peut prendre qu'un
+APK du même commit exact que son checkout, vérifie son checksum et refuse de
+réécrire un tag de version déjà publié. Une qualification stricte est
+disponible dans `knowme-unified-release-gate.yml` : elle **échoue tant que
+des parcours nécessaires restent partiels**.
 
 **Protocole de livraison :** un commit de référence, builds Web/API/Android
 depuis ce commit, tests multimédias sur les deux interfaces, puis déploiements,
