@@ -53,7 +53,8 @@ describe('KnowMe channels: access control and publishing boundaries', () => {
 
   it('does not let the owner leave their own channel', async () => {
     const { prisma, service } = setup();
-    prisma.channel.findUnique.mockResolvedValue({ownerId:'owner'});
+    prisma.channel.findUnique.mockResolvedValue({ownerId:'owner', visibility:ChannelVisibility.PUBLIC,
+      subscriptions:[{userId:'owner'}]});
     await expect(service.unfollow('owner','channel')).rejects.toThrow('CHANNEL_OWNER_CANNOT_LEAVE');
     expect(prisma.channelSubscription.deleteMany).not.toHaveBeenCalled();
   });
@@ -76,4 +77,13 @@ describe('KnowMe channels: access control and publishing boundaries', () => {
     }));
     await expect(service.create('owner',{name:'   '})).rejects.toThrow('CHANNEL_NAME_REQUIRED');
   });
+  it('does not confirm a private channel exists during forbidden write attempts', async () => {
+    const { prisma, service } = setup();
+    prisma.channel.findUnique.mockResolvedValue({
+      ownerId:'owner', visibility:ChannelVisibility.PRIVATE
+    });
+    await expect(service.publish('outsider','private','Hello')).rejects.toThrow('CHANNEL_NOT_FOUND');
+    expect(prisma.channelPost.create).not.toHaveBeenCalled();
+  });
+
 });
