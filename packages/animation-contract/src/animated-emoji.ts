@@ -37,7 +37,7 @@ export const KNOWME_ANIMATED_EMOJIS = [
 
 export type KnowMeEmojiMotion = (typeof KNOWME_ANIMATED_EMOJIS)[number]['motion'];
 const motions = new Map<string, KnowMeEmojiMotion>(
-  KNOWME_ANIMATED_EMOJIS.map((item) => [item.glyph, item.motion])
+  KNOWME_ANIMATED_EMOJIS.map((item) => [item.glyph, item.motion] as const)
 );
 
 export function getAnimatedEmojiMotion(glyph: string): KnowMeEmojiMotion | null {
