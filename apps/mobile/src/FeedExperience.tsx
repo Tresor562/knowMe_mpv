@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   sheetGrip: {alignSelf:'center',width:40,height:4,borderRadius:4,marginBottom:9},
   sheetTitle: {fontSize:18,fontWeight:'800',marginBottom:8},
   sheetOption: {flexDirection:'row',minHeight:52,alignItems:'center',gap:14,paddingHorizontal:8,borderRadius:15},
-  sheetOptionLabel: {fontSize:15,fontWeight:'650',flex:1},
+  sheetOptionLabel: {fontSize:15,fontWeight:'600',flex:1},
   sheetHint: {fontSize:12,lineHeight:18},
   sheetDismiss: {minHeight:48,alignItems:'center',justifyContent:'center',marginTop:8},
   quickCompose: {flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:StyleSheet.hairlineWidth,borderRadius:20,paddingHorizontal:12,gap:11},
