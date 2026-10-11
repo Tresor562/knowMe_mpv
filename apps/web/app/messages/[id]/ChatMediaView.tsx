@@ -6,7 +6,7 @@ import { useI18n } from '../../../components/i18n-provider';
 
 type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-export function ChatMediaView({assetId, kind}: {assetId: string; kind: MediaKind}) {
+export function ChatMediaView({assetId, kind, fileName}: {assetId: string; kind: MediaKind; fileName?: string}) {
   const {locale} = useI18n();
   const en = locale === 'en';
   const [source,setSource] = useState<string|null>(null);
@@ -45,7 +45,7 @@ export function ChatMediaView({assetId, kind}: {assetId: string; kind: MediaKind
   if(source&&kind==='AUDIO')return <audio className="km-chat-media-audio"
     controls preload="metadata" src={source} aria-label={en?'Audio attachment':'Fichier audio'}/>;
   if(source&&kind==='DOCUMENT')return <a className="km-chat-media-download"
-    href={source} download="knowme-document.pdf" aria-label={en?'Download PDF':'Télécharger le PDF'}>
+    href={source} download={fileName ?? 'knowme-document.pdf'} aria-label={fileName??(en?'Download PDF':'Télécharger le PDF')}>
     <span aria-hidden="true">▤</span> {en?'Download PDF':'Télécharger le PDF'}
   </a>;
   const description = kind === 'GIF' ? 'GIF' : kind === 'STICKER_IMAGE' ? 'Sticker' : en ? 'Image' : 'Image';
