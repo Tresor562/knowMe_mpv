@@ -15,7 +15,8 @@
           "faceIDPermission": "Autoriser KnowMe à protéger les secrets de connexion avec Face ID."
         }
       ],
-      "./plugins/with-animated-chat-media.cjs"
+      "./plugins/with-animated-chat-media.cjs",
+      "./plugins/with-knowme-story-video.cjs"
     ],
     "ios": {
       "supportsTablet": true,
