@@ -1871,7 +1871,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     fontSize: 9.5,
     lineHeight: 12,
-    fontWeight: '650',
+    fontWeight: '600',
     letterSpacing: -0.25,
     flexShrink: 1,
     overflow: 'hidden'
