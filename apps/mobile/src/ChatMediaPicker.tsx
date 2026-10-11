@@ -33,6 +33,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
   const {colors}=useAppearance();
   const [visible,setVisible]=useState(false);
   const [directory,setDirectory]=useState<string|null>(null);
+  const [folderHistory,setFolderHistory]=useState<string[]>([]);
   const [entries,setEntries]=useState<DirectoryEntry[]>([]);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState('');
@@ -67,6 +68,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
     setNotice('');
     setEntries([]);
     setDirectory(null);
+    setFolderHistory([]);
     setBusy(true);
     try{
       // Android Storage Access Framework asks for an explicit directory permission.
@@ -86,7 +88,9 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
       : fileKind(mime);
     const limit=kind==='GIF'?15*1024*1024:kind==='STICKER_IMAGE'?8*1024*1024:20*1024*1024;
     const ext=entry.name.split('.').pop()?.toLowerCase()??'bin';
-    const temp=`${FileSystem.cacheDirectory}knowme-chat-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const cacheRoot=FileSystem.cacheDirectory;
+    if(!cacheRoot){setNotice('Le cache sécurisé du téléphone est indisponible.');return;}
+    const temp=`${cacheRoot}knowme-chat-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     setBusy(true);setNotice('');
     try{
       // Copy the user-picked SAF document to a private app cache before multipart upload.
@@ -148,6 +152,15 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
               {preferSticker?'☑':'☐'} Envoyer les PNG/WebP comme stickers
             </Text>
           </Pressable>
+          {folderHistory.length>0&&<Pressable accessibilityRole="button" disabled={busy}
+            onPress={()=>{
+              const parent=folderHistory[folderHistory.length-1];
+              if(!parent)return;
+              setFolderHistory(current=>current.slice(0,-1));
+              void readFolder(parent);
+            }} style={styles.option}>
+            <Text style={[styles.label,{color:colors.accent}]}>‹ Dossier précédent</Text>
+          </Pressable>}
           <Pressable accessibilityRole="button" disabled={busy} onPress={()=>void openPicker()} style={styles.option}>
             <Text style={[styles.label,{color:colors.accent}]}>Changer de dossier</Text>
           </Pressable>
@@ -157,7 +170,10 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
             {directory&&entries.length===0&&!busy&&<Text style={[styles.help,{color:colors.muted}]}>Aucun GIF, WebP, PNG ou JPEG dans ce dossier.</Text>}
             {entries.map(file=><Pressable key={file.uri} accessibilityRole="button" disabled={busy}
               style={[styles.file,{borderBottomColor:colors.border}]}
-              onPress={()=>{if(file.isDirectory)void readFolder(file.uri);else void send(file);}}>
+              onPress={()=>{
+                if(file.isDirectory){if(directory)setFolderHistory(current=>[...current,directory]);void readFolder(file.uri);}
+                else void send(file);
+              }}>
               <Text style={[styles.fileText,{color:colors.text}]} numberOfLines={1}>
                 {file.isDirectory?'📁':'▧'} {file.name}
               </Text>
