@@ -363,7 +363,7 @@ export class ShortLinksService {
     // independently authorized by the link-targets API after opening it.
     if (kind === 'sticker-pack') {
       if (stickerCatalog().some(pack => pack.key === targetId)) return targetId;
-      throw new NotFoundException('Destination introuvable.');
+      throw new ForbiddenException('Destination non partageable.');
     }
 
     if (kind === 'sticker') {
