@@ -17,6 +17,8 @@ import { CreatorSettingsExperience } from './CreatorSettingsExperience';
 import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
+import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
+import { KNOWME_PRODUCT_VERSION } from '@knowme/link-contract';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
@@ -199,12 +201,13 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
+  onCreateStory: () => void;
 }) {
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -473,16 +476,25 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </View>
 
         <View style={styles.profileAvatarRow}>
-          <Avatar
-            uri={user.avatarUrl}
-            name={user.displayName}
-            size={96}
-            ring
-          />
+          <View style={{width:96,height:96,position:'relative'}}>
+            <Avatar
+              uri={user.avatarUrl}
+              name={user.displayName}
+              size={96}
+              ring
+            />
+            <MobileAvatarQuickActions
+              avatarUrl={user.avatarUrl}
+              displayName={user.displayName}
+              onCreateStory={onCreateStory}
+              onUpdated={onUpdated}
+            />
+          </View>
         </View>
 
         <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
         <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
+        <Text style={{color:colors.muted,fontSize:11,paddingHorizontal:18,marginTop:4}}>KnowMe {KNOWME_PRODUCT_VERSION} · Android</Text>
 
         <View style={styles.profileActions}>
           <PressScale
