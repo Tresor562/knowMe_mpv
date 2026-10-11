@@ -15,6 +15,7 @@ import { AvatarUniverseModule } from './avatar-universe/avatar-universe.module';
 import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { ChannelsModule } from './channels/channels.module';
 import { CommunitiesModule } from './communities/communities.module';
 import { ConceptKModule } from './concept-k/concept-k.module';
 import { ConversationArchivesModule } from './conversation-archives/conversation-archives.module';
@@ -113,6 +114,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     AuthModule,
     UsersModule,
     ChallengesModule,
+    ChannelsModule,
     MessagingModule,
     SavedMessagesModule,
     ConversationDraftsModule,
