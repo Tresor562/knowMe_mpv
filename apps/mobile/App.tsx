@@ -531,281 +531,36 @@ function AuthScreen({
 
 function HomeScreen({
   user,
-  openSocial,
   openDiscover,
-  openChallenges,
-  openCreate,
-  openProfile,
   storyComposerRequest,
   onStoryComposerHandled,
-  onScrollY
+  onScrollY,
+  onDetailChange
 }: {
   user: MobileUser;
-  openSocial: () => void;
   openDiscover: () => void;
-  openChallenges: () => void;
-  openCreate: () => void;
-  openProfile: () => void;
   storyComposerRequest: boolean;
   onStoryComposerHandled: () => void;
   onScrollY?: (offset: number) => void;
+  onDetailChange?: (open: boolean) => void;
 }) {
-  const { colors } = useAppearance();
-  const { t } = useI18n();
-  const [challenges, setChallenges] = useState<ChallengeSummary[]>([]);
-  const [notificationUnread, setNotificationUnread] = useState(0);
-  const [messageUnread, setMessageUnread] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [items, notifications, messages] = await Promise.all([
-        apiFetch<ChallengeSummary[]>('/challenges'),
-        apiFetch<NotificationCount>('/notifications/unread-count'),
-        apiFetch<MessageCount>('/conversations/unread-count')
-      ]);
-      setChallenges(items);
-      setNotificationUnread(notifications.count);
-      setMessageUnread(messages.unread);
-    } catch (cause) {
-      Alert.alert(
-        t('home.refreshFailed'),
-        cause instanceof Error ? cause.message : t('home.retry')
-      );
-    } finally {
-      setRefreshing(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const activeChallenges = challenges.filter((item) => item.status === 'ACTIVE').length;
-
+  // Home is the actual publication timeline, not an unrelated card dashboard.
+  // Stories and composer share the same virtualized list for native scrolling.
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      showsVerticalScrollIndicator={false}
-      scrollEventThrottle={16}
-      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          tintColor={colors.accent}
-          colors={[colors.accent]}
-          onRefresh={() => {
-            setRefreshing(true);
-            void load();
-          }}
-        />
-      }
-      contentContainerStyle={styles.homeContent}
-    >
-      <FadeRise>
-        <GlassSurface strength="soft" borderRadius={28} style={styles.homeTopBar}>
-          <View style={styles.brandInline}>
-          <BrandMark size={34} />
-          <View>
-            <Text style={[styles.topBrandTitle, { color: colors.text }]}>KnowMe</Text>
-            <Text style={[styles.topBrandTag, { color: colors.muted }]}>
-              Be Real. Belong.
-            </Text>
-          </View>
-        </View>
-        <View style={styles.homeTopActions}>
-          <PressScale
-            onPress={openSocial}
-            style={styles.iconButtonPress}
-          >
-            <GlassSurface
-              strength="soft"
-              borderRadius={21}
-              style={styles.iconButton}
-            >
-              <KnowMeIcon name="bell" size={22} color={colors.text} />
-              {notificationUnread > 0 ? (
-                <View
-                  style={[
-                    styles.notificationBadge,
-                    { backgroundColor: colors.secondary }
-                  ]}
-                >
-                  <Text style={styles.notificationBadgeText}>
-                    {notificationUnread > 9 ? '9+' : notificationUnread}
-                  </Text>
-                </View>
-              ) : null}
-            </GlassSurface>
-          </PressScale>
-          <PressScale onPress={openProfile} style={styles.headerAvatarButton}>
-            <Avatar
-              uri={user.avatarUrl}
-              name={user.displayName}
-              size={38}
-            />
-          </PressScale>
-          </View>
-        </GlassSurface>
-      </FadeRise>
-
-      <FadeRise delay={35} style={styles.greetingRow}>
-        <View style={styles.flex}>
-          <Text style={[styles.homeGreeting, { color: colors.text }]}>
-            {t('home.hello', { name: user.displayName.split(' ')[0] || user.displayName })}
-          </Text>
-          <Text style={[styles.homeSubtitle, { color: colors.muted }]}>
-            {t('home.subtitle')}
-          </Text>
-        </View>
-      </FadeRise>
-
-      <FadeRise delay={70}>
-        <StoriesRail
-          currentUser={{
-            id: user.id,
-            displayName: user.displayName,
-            username: user.username,
-            avatarUrl: user.avatarUrl
-          }}
-          onOpenDiscover={openDiscover}
-          openComposer={storyComposerRequest}
-          onComposerOpened={onStoryComposerHandled}
-        />
-      </FadeRise>
-
-      <FadeRise delay={105}>
-        <PressScale onPress={openChallenges}>
-          <View
-            style={[
-              styles.heroCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border
-              }
-            ]}
-          >
-            <View
-              pointerEvents="none"
-              style={[
-                styles.heroAccent,
-                { backgroundColor: colors.accent }
-              ]}
-            />
-            <View style={styles.heroTopRow}>
-              <View
-                style={[
-                  styles.heroIcon,
-                  { backgroundColor: colors.backgroundAccent }
-                ]}
-              >
-                <KnowMeIcon name="spark" size={24} color={colors.accent} />
-              </View>
-              <Text style={[styles.heroEyebrow, { color: colors.accent }]}>
-                {t('home.daily')}
-              </Text>
-            </View>
-
-            <Text style={[styles.heroTitle, { color: colors.text }]}>
-              {t('home.challengeTitle')}
-            </Text>
-            <Text style={[styles.heroBody, { color: colors.muted }]}>
-              {activeChallenges > 0
-                ? t('home.challengeBody', { count: activeChallenges })
-                : t('home.challengeEmpty')}
-            </Text>
-
-            <View style={styles.heroFooter}>
-              <View style={styles.heroDots}>
-                <View style={[styles.heroDot, { backgroundColor: colors.accent }]} />
-                <View style={[styles.heroDot, { backgroundColor: colors.secondary }]} />
-                <View style={[styles.heroDot, { backgroundColor: '#F46CF6' }]} />
-              </View>
-              <View
-                style={[
-                  styles.heroCta,
-                  { backgroundColor: colors.accent }
-                ]}
-              >
-                <Text style={[styles.heroCtaText, { color: colors.accentText }]}>
-                  {t('home.continue')}
-                </Text>
-                <KnowMeIcon name="arrow" size={17} color={colors.accentText} />
-              </View>
-            </View>
-          </View>
-        </PressScale>
-      </FadeRise>
-
-      <FadeRise delay={130}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t('home.quickAccess')}
-          </Text>
-        </View>
-
-        <GlassSurface strength="soft" borderRadius={22} style={styles.quickGrid}>
-          <PressScale onPress={openSocial} style={styles.quickCard}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
-              <KnowMeIcon name="messages" size={19} color={colors.accent} />
-            </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>{messageUnread}</Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.messages')}</Text>
-          </PressScale>
-
-          <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
-
-          <PressScale onPress={openSocial} style={styles.quickCard}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
-              <KnowMeIcon name="bell" size={19} color={colors.secondary} />
-            </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>{notificationUnread}</Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.alerts')}</Text>
-          </PressScale>
-
-          <View style={[styles.quickDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.quickCard}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.backgroundAccent }]}>
-              <KnowMeIcon name="coins" size={19} color="#F7C85A" />
-            </View>
-            <Text style={[styles.quickValue, { color: colors.text }]}>{user.knowCoins ?? 0}</Text>
-            <Text style={[styles.quickLabel, { color: colors.muted }]}>{t('home.coins')}</Text>
-          </View>
-        </GlassSurface>
-      </FadeRise>
-
-      <FadeRise delay={155}>
-        <PressScale onPress={openDiscover}>
-          <SoftSurface style={styles.exploreCard} strong>
-            <View style={styles.exploreTop}>
-              <View
-                style={[
-                  styles.exploreIcon,
-                  { backgroundColor: colors.backgroundAccent }
-                ]}
-              >
-                <KnowMeIcon name="discover" size={24} color="#F46CF6" />
-              </View>
-              <View style={styles.flex}>
-                <Text style={[styles.exploreTitle, { color: colors.text }]}>
-                  {t('home.explore')}
-                </Text>
-                <Text style={[styles.exploreBody, { color: colors.muted }]}>
-                  {t('home.exploreBody')}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.exploreFooter}>
-              <Text style={[styles.exploreLink, { color: colors.accent }]}>
-                {t('home.openDiscover')}
-              </Text>
-              <KnowMeIcon name="arrow" size={18} color={colors.accent} />
-            </View>
-          </SoftSurface>
-        </PressScale>
-      </FadeRise>
-    </ScrollView>
+    <FeedExperience
+      userId={user.id}
+      currentUser={{
+        id: user.id,
+        displayName: user.displayName,
+        username: user.username,
+        avatarUrl: user.avatarUrl
+      }}
+      onOpenDiscover={openDiscover}
+      storyComposerRequest={storyComposerRequest}
+      onStoryComposerHandled={onStoryComposerHandled}
+      onScrollY={onScrollY}
+      onDetailChange={onDetailChange}
+    />
   );
 }
 
@@ -1253,14 +1008,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <HomeScreen
             key={'home:' + user.id}
             user={user}
-            openSocial={() => setScreen('social')}
-            openDiscover={() => setScreen('feed')}
-            openChallenges={() => setScreen('challenges')}
-            openCreate={() => setCreateOpen(true)}
-            openProfile={() => setScreen('profile')}
+            openDiscover={() => setScreen('discover')}
             storyComposerRequest={storyComposerRequest}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
             onScrollY={onContentScroll}
+            onDetailChange={setDetailOpen}
           />
         ) : null}
 
