@@ -39,6 +39,11 @@ export function EmojiPicker<T>({
     return EMOJIS.filter(emoji => !query ||
       emoji.includes(query) || (KEYWORDS[emoji] ?? '').includes(query));
   }, [search]);
+  const filteredCustom = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return KNOWME_CUSTOM_EMOJIS.filter(item => !query ||
+      (item.key + ' ' + item.label + ' ' + item.keywords).toLocaleLowerCase().includes(query));
+  }, [search]);
   const sections = search.trim()
     ? [{ title: 'Résultats', glyphs: filtered }]
     : [
@@ -98,14 +103,10 @@ export function EmojiPicker<T>({
                 color: colors.text, borderColor: colors.border}]}/>
             <ScrollView style={styles.list} keyboardShouldPersistTaps="always"
               contentContainerStyle={styles.content}>
-              {(!search.trim() || KNOWME_CUSTOM_EMOJIS.some(item=>
-                (item.key+' '+item.label+' '+item.keywords).toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))) &&
-                <View style={styles.section}>
+              {filteredCustom.length > 0 && <View style={styles.section}>
                   <Text style={[styles.sectionTitle,{color:colors.muted}]}>KnowMe Motion · exclusifs</Text>
                   <View style={styles.grid}>
-                    {KNOWME_CUSTOM_EMOJIS.filter(item=>!search.trim()||
-                      (item.key+' '+item.label+' '+item.keywords).toLocaleLowerCase()
-                        .includes(search.trim().toLocaleLowerCase())).map(item=>
+                    {filteredCustom.map(item=>
                       <View key={item.key} style={[styles.customTile,{backgroundColor:colors.backgroundAccent}]}>
                         <KnowMeCustomEmoji packKey={KNOWME_MOTION_PACK_KEY}
                           stickerKey={item.key} size={49} onPress={() => void sendCustom(item.key)}/>
@@ -126,7 +127,7 @@ export function EmojiPicker<T>({
                   </View>)}
                 </View>
               </View> : null)}
-              {!filtered.length && search.trim() ? <Text style={{ color: colors.muted }}>Aucun emoji trouvé.</Text> : null}
+              {!filtered.length && !filteredCustom.length && search.trim() ? <Text style={{ color: colors.muted }}>Aucun emoji trouvé.</Text> : null}
             </ScrollView>
           </GlassSurface>
         </View>
