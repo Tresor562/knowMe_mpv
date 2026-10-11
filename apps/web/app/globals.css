@@ -1344,3 +1344,17 @@ html, body { min-width: 0; }
 .km-picker-media-tile>button {min-height:44px;padding:6px;border:0;border-radius:10px;
   color:var(--on-primary);background:var(--mint);font-size:11px;font-weight:670;cursor:pointer;}
 .km-picker-media-tile>button:disabled {opacity:.5;cursor:not-allowed;}
+
+
+/* Native-scaled private video, audio and document attachments. */
+.km-chat-media-video{display:block;width:min(100%,340px);max-height:330px;
+  border-radius:16px;background:#111;object-fit:contain;}
+.km-chat-media-audio{display:block;width:min(100%,310px);min-height:48px;}
+.km-chat-media-download{display:flex;align-items:center;gap:12px;
+  max-width:310px;min-height:56px;padding:10px 15px;border-radius:16px;
+  background:var(--surface-2);color:var(--mint);font-size:14px;text-decoration:none;
+  font-weight:650;overflow-wrap:anywhere;}
+.km-chat-media-download span{font-size:26px;line-height:1;}
+@media(max-width:380px){
+  .km-chat-media-video,.km-chat-media-audio,.km-chat-media-download{max-width:100%;}
+}
