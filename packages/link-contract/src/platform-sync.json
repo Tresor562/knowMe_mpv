@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "product": "KnowMe",
-  "productVersion": "1.0.0",
+  "productVersion": "1.1.0",
   "contractRevision": "2026-10-11.2",
   "platforms": [
     "web",
