@@ -205,13 +205,17 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onContentScroll, onSecondaryModeChange, navPosition = 'bottom', onNavPositionChange }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
   onCreateStory: () => void;
+  onContentScroll?: (offset: number) => void;
+  onSecondaryModeChange?: (active: boolean) => void;
+  navPosition?: 'top' | 'bottom';
+  onNavPositionChange?: (position: 'top' | 'bottom') => void;
 }) {
   const { colors, visual } = useAppearance();
   const { locale } = useI18n();
@@ -224,6 +228,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+
+  useEffect(() => {
+    onSecondaryModeChange?.(panel !== 'main');
+    return () => { onSecondaryModeChange?.(false); };
+  }, [panel, onSecondaryModeChange]);
 
   useEffect(() => {
     setDisplayName(user.displayName);
@@ -311,6 +320,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         contentContainerStyle={styles.panelContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
       >
         <GlassSurface strength="soft" borderRadius={26} style={styles.panelHeader}>
           <PressScale
@@ -330,7 +341,33 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
         </GlassSurface>
 
-        {panel === 'appearance' ? <AppearanceExperience /> : null}
+        {panel === 'appearance' ? (
+          <>
+            <AppearanceExperience />
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={{fontSize:15,fontWeight:'800',color:colors.text}}>
+                {en ? 'Navigation bar' : 'Barre de navigation'}
+              </Text>
+              <Text style={{fontSize:12,color:colors.muted}}>
+                {en ? 'Choose where the navigation appears on the main screens.' : 'Choisis où la navigation apparaît sur les écrans principaux.'}
+              </Text>
+              <View style={{flexDirection:'row',gap:8}}>
+                {(['bottom','top'] as const).map(position => (
+                  <Pressable key={position} accessibilityRole="button"
+                    accessibilityState={{selected:navPosition === position}}
+                    onPress={() => onNavPositionChange?.(position)}
+                    style={{flex:1,borderRadius:14,paddingVertical:13,borderWidth:1,
+                      alignItems:'center',backgroundColor:navPosition===position?colors.backgroundAccent:colors.surface,
+                      borderColor:navPosition===position?colors.accent:colors.border}}>
+                    <Text style={{color:navPosition===position?colors.accent:colors.text,fontWeight:'700'}}>
+                      {position==='bottom' ? (en ? 'Bottom' : 'En bas') : (en ? 'Top' : 'En haut')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null}
         {panel === 'language' ? <LanguageSettingsExperience /> : null}
         {panel === 'downloads' ? <MediaDownloadSettingsExperience /> : null}
         {panel === 'creator' ? <CreatorSettingsExperience /> : null}
@@ -471,6 +508,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
     >
       <FadeRise>
         <GlassSurface
