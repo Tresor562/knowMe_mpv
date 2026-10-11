@@ -7,6 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 
 @Injectable()
 export class PostsService {
@@ -29,6 +30,26 @@ export class PostsService {
         }
       }
     });
+  }
+
+  async update(authorId: string, postId: string, dto: UpdatePostDto) {
+    const existing = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true }
+    });
+    if (!existing) throw new NotFoundException('Publication introuvable.');
+    if (existing.authorId !== authorId) {
+      throw new ForbiddenException('Tu ne peux modifier que tes propres publications.');
+    }
+    const updated = await this.prisma.post.updateMany({
+      where: { id: postId, authorId },
+      data: {
+        ...(dto.content !== undefined ? { content: dto.content } : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {})
+      }
+    });
+    if (updated.count !== 1) throw new NotFoundException('Publication introuvable.');
+    return this.getById(postId);
   }
 
   feed(cursor?: string) {
