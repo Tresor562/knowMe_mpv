@@ -8,8 +8,8 @@ import { findKnowMeCustomEmoji } from '@knowme/animation-contract';
  * No remote downloads, Telegram assets, or executable animation payloads.
  */
 export function KnowMeCustomEmoji({
-  packKey, stickerKey, size = 72
-}: { packKey: string; stickerKey: string; size?: number }) {
+  packKey, stickerKey, size = 72, onPress
+}: { packKey: string; stickerKey: string; size?: number; onPress?: () => void }) {
   const item = findKnowMeCustomEmoji(packKey, stickerKey);
   const progress = useRef(new Animated.Value(0)).current;
   const reduced = useRef(false);
@@ -121,7 +121,7 @@ export function KnowMeCustomEmoji({
         fontSize:dim*.35,color:'#FFAA82'}}>✦</Text>
       </>;
 
-  return <Pressable onPress={play} accessibilityRole="button"
+  return <Pressable onPress={() => { play(); onPress?.(); }} accessibilityRole="button"
     accessibilityLabel={`Animer ${item.label}`}
     style={{width:dim+8,height:dim+8,justifyContent:'center',alignItems:'center'}}>
     <Animated.View style={{width:dim,height:dim,alignItems:'center',justifyContent:'center',
