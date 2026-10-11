@@ -48,6 +48,8 @@ type Props = {
   userId: string;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onScrollY?: (offset: number) => void;
+  onDetailChange?: (open: boolean) => void;
 };
 
 const organizationTools: Array<{
@@ -95,12 +97,17 @@ const organizationTools: Array<{
 export function MessagesOrganizationExperience({
   userId,
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onScrollY,
+  onDetailChange
 }: Props) {
   const { colors } = useAppearance();
   const [organizationOpen, setOrganizationOpen] = useState(false);
   const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
+  useEffect(() => {
+    if (organizationOpen) onDetailChange?.(true);
+  }, [organizationOpen, onDetailChange]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [overview, setOverview] = useState<OrganizationOverview | null>(null);
   const [overviewWarning, setOverviewWarning] = useState('');
@@ -298,7 +305,9 @@ export function MessagesOrganizationExperience({
 
   if (organizationOpen) {
     return (
-      <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
+      <ScrollView style={rootStyle} contentContainerStyle={styles.content}
+        onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}>
         <View style={styles.toolbar}>
           <PressScale
             accessibilityRole="button"
@@ -441,6 +450,8 @@ export function MessagesOrganizationExperience({
           userId={userId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onScrollY={onScrollY}
+          onDetailChange={onDetailChange}
         />
       </View>
     </View>

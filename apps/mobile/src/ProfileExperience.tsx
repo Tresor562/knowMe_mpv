@@ -205,13 +205,15 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onScrollY, onDetailChange }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
   onCreateStory: () => void;
+  onScrollY?: (offset: number) => void;
+  onDetailChange?: (open: boolean) => void;
 }) {
   const { colors, visual } = useAppearance();
   const { locale } = useI18n();
@@ -224,6 +226,10 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+
+  useEffect(() => {
+    onDetailChange?.(panel !== 'main' || profileMenuOpen);
+  }, [panel, profileMenuOpen, onDetailChange]);
 
   useEffect(() => {
     setDisplayName(user.displayName);
@@ -311,6 +317,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         contentContainerStyle={styles.panelContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
       >
         <GlassSurface strength="soft" borderRadius={26} style={styles.panelHeader}>
           <PressScale
@@ -471,6 +479,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
     >
       <FadeRise>
         <GlassSurface

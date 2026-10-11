@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -30,6 +31,8 @@ import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { useI18n } from './src/I18nProvider';
+import { INITIAL_DOCK_SCROLL, isDockVisible, nextDockScroll, type DockPlacement } from './src/navigation-dock-model';
+import { listenDockSettings, loadDockSettings, type DockSettings } from './src/navigation-dock-preferences';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
@@ -534,7 +537,8 @@ function HomeScreen({
   openCreate,
   openProfile,
   storyComposerRequest,
-  onStoryComposerHandled
+  onStoryComposerHandled,
+  onScrollY
 }: {
   user: MobileUser;
   openSocial: () => void;
@@ -544,6 +548,7 @@ function HomeScreen({
   openProfile: () => void;
   storyComposerRequest: boolean;
   onStoryComposerHandled: () => void;
+  onScrollY?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
@@ -582,6 +587,8 @@ function HomeScreen({
     <ScrollView
       style={{ backgroundColor: colors.background }}
       showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
+      onScroll={event => onScrollY?.(event.nativeEvent.contentOffset.y)}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -947,14 +954,34 @@ function CreateHub({
 function BottomNavigation({
   screen,
   onNavigate,
-  onCreate
+  onCreate,
+  visible,
+  placement,
+  reducedMotion
 }: {
   screen: Screen;
   onNavigate: (screen: Screen) => void;
   onCreate: () => void;
+  visible: boolean;
+  placement: DockPlacement;
+  reducedMotion: boolean;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
+  const slide = useRef(new Animated.Value(visible ? 0 : 1)).current;
+  useEffect(() => {
+    if (reducedMotion) {
+      slide.setValue(visible ? 0 : 1);
+      return;
+    }
+    const animation = Animated.timing(slide, {
+      toValue: visible ? 0 : 1,
+      duration: 205,
+      useNativeDriver: true
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [visible, reducedMotion, slide]);
 
   const items: Array<{
     key: 'home' | 'discover' | 'social' | 'notifications' | 'profile';
@@ -1007,7 +1034,19 @@ function BottomNavigation({
   }
 
   return (
-    <View pointerEvents="box-none" style={styles.bottomDockWrap}>
+    <Animated.View pointerEvents={visible ? 'box-none' : 'none'} style={[
+      styles.bottomDockWrap,
+      placement === 'top' ? styles.topDockWrap : null,
+      {
+        opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+        transform: [{
+          translateY: slide.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, placement === 'top' ? -90 : 90]
+          })
+        }]
+      }
+    ]}>
       <GlassSurface
         strength="medium"
         borderRadius={30}
@@ -1062,12 +1101,12 @@ function BottomNavigation({
           />
         ))}
       </GlassSurface>
-    </View>
+    </Animated.View>
   );
 }
 
 export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
-  const { colors, refresh: refreshAppearance } = useAppearance();
+  const { colors, appearance, refresh: refreshAppearance } = useAppearance();
   const { ready: i18nReady } = useI18n();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
@@ -1075,6 +1114,35 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [dockSettings, setDockSettings] = useState<DockSettings>({ placement: 'bottom', autoHide: true });
+  const [dockVisibleOnScroll, setDockVisibleOnScroll] = useState(true);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const dockScrollRef = useRef({ ...INITIAL_DOCK_SCROLL });
+
+  useEffect(() => {
+    let active = true;
+    void loadDockSettings().then(next => { if (active) setDockSettings(next); });
+    const unsubscribe = listenDockSettings(next => { if (active) setDockSettings(next); });
+    return () => { active = false; unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    dockScrollRef.current = { ...INITIAL_DOCK_SCROLL };
+    setDockVisibleOnScroll(true);
+    setDetailOpen(false);
+  }, [screen, user?.id]);
+
+  useEffect(() => {
+    dockScrollRef.current = { ...INITIAL_DOCK_SCROLL };
+    setDockVisibleOnScroll(true);
+  }, [dockSettings.autoHide]);
+
+  const onContentScroll = useCallback((offset: number) => {
+    if (!dockSettings.autoHide) return;
+    const next = nextDockScroll(dockScrollRef.current, offset);
+    dockScrollRef.current = next;
+    setDockVisibleOnScroll(previous => previous === next.visible ? previous : next.visible);
+  }, [dockSettings.autoHide]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -1157,6 +1225,15 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     );
   }
 
+  const rootNavigation = screen !== 'challenges' && screen !== 'verification';
+  const showDock = isDockVisible({
+    rootScreen: rootNavigation,
+    keyboardOpen: keyboardVisible,
+    overlayOpen: createOpen,
+    detailOpen,
+    showOnScroll: !dockSettings.autoHide || dockVisibleOnScroll
+  });
+
   return (
     <SafeAreaView
       style={[
@@ -1172,8 +1249,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         style={[
           styles.body,
           { backgroundColor: colors.background },
-          screen !== 'challenges' && screen !== 'verification'
-            ? styles.bodyWithDock
+          rootNavigation && !keyboardVisible
+            ? dockSettings.placement === 'top' ? styles.bodyWithTopDock : styles.bodyWithDock
             : null
         ]}
       >
@@ -1188,26 +1265,31 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             openProfile={() => setScreen('profile')}
             storyComposerRequest={storyComposerRequest}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
+            onScrollY={onContentScroll}
           />
         ) : null}
 
         {screen === 'feed' ? (
-          <FeedExperience key={'feed:' + user.id} userId={user.id} />
+          <FeedExperience key={'feed:' + user.id} userId={user.id}
+            onScrollY={onContentScroll} onDetailChange={setDetailOpen}/>
         ) : null}
 
         {screen === 'discover' ? (
           <SocialHub key={'discover:' + user.id} userId={user.id}
-            initialSection="friends" showSegments={false}/>
+            initialSection="friends" showSegments={false}
+            onScrollY={onContentScroll}/>
         ) : null}
 
         {screen === 'notifications' ? (
           <SocialHub key={'notifications:' + user.id} userId={user.id}
-            initialSection="notifications" showSegments={false}/>
+            initialSection="notifications" showSegments={false}
+            onScrollY={onContentScroll}/>
         ) : null}
 
         {screen === 'social' ? (
           <SocialHub key={'social:' + user.id} userId={user.id}
-            initialSection="messages" showSegments={false}/>
+            initialSection="messages" showSegments={false}
+            onScrollY={onContentScroll} onDetailChange={setDetailOpen}/>
         ) : null}
 
         {screen === 'challenges' ? (
@@ -1226,6 +1308,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
+            onScrollY={onContentScroll} onDetailChange={setDetailOpen}
           />
         ) : null}
 
@@ -1239,9 +1322,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
+      {rootNavigation ? (
         <BottomNavigation
           screen={screen}
+          visible={showDock}
+          placement={dockSettings.placement}
+          reducedMotion={appearance?.preference.animationsEnabled === false}
           onNavigate={(next) => setScreen(next)}
           onCreate={() => setCreateOpen(true)}
         />
@@ -1276,6 +1362,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { flex: 1 },
   bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
+  bodyWithTopDock: { paddingTop: Platform.OS === 'ios' ? 72 : 66 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
@@ -1845,6 +1932,10 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: Platform.OS === 'ios' ? 9 : 8,
     zIndex: 50
+  },
+  topDockWrap: {
+    top: 7,
+    bottom: undefined
   },
   bottomBar: {
     minHeight: 62,

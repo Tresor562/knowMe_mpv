@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,8 @@ import {
   MobileThemePalette
 } from './appearance';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import { loadDockSettings, saveDockSettings, type DockSettings } from './navigation-dock-preferences';
 import { ChatWallpaper, KnowMeIcon } from './ui/KnowMeUI';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -274,6 +276,25 @@ export function AppearanceExperience() {
   const [category, setCategory] = useState('ALL');
   const [tier, setTier] = useState<'ALL' | 'FREE' | 'PREMIUM'>('ALL');
   const [showAll, setShowAll] = useState(false);
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const [dockSettings, setDockSettings] = useState<DockSettings>({ placement: 'bottom', autoHide: true });
+
+  useEffect(() => {
+    let mounted = true;
+    void loadDockSettings().then(value => { if (mounted) setDockSettings(value); });
+    return () => { mounted = false; };
+  }, []);
+
+  async function changeDockSettings(next: DockSettings) {
+    try {
+      await saveDockSettings(next);
+      setDockSettings(next);
+    } catch {
+      Alert.alert(en ? 'Could not save' : 'Enregistrement impossible',
+        en ? 'Please try again.' : 'Réessaie pour enregistrer les paramètres.');
+    }
+  }
 
   async function save(input: AppearanceUpdateInput) {
     if (!appearance || busy) return;
@@ -326,6 +347,49 @@ export function AppearanceExperience() {
         <Text style={[styles.description, { color: colors.muted }]}>
           Chaque famille peut modifier la géométrie, le verre, les bulles, le fond du chat et les effets — pas seulement la palette.
         </Text>
+      </View>
+
+      <View style={[styles.dockPreference, { borderColor: colors.border, backgroundColor: colors.backgroundAccent }]}>
+        <Text style={[styles.dockPreferenceHeading, { color: colors.text }]}>
+          {en ? 'Navigation' : 'Navigation'}
+        </Text>
+        <Text style={[styles.description, { color: colors.muted }]}>
+          {en ? 'Floating navigation position' : 'Position de la barre flottante'}
+        </Text>
+        <View style={styles.dockPlacementRow}>
+          {(['bottom', 'top'] as const).map(placement => (
+            <Pressable key={placement} accessibilityRole="button"
+              accessibilityState={{ selected: dockSettings.placement === placement }}
+              accessibilityLabel={placement === 'bottom'
+                ? (en ? 'Place navigation at bottom' : 'Placer la barre en bas')
+                : (en ? 'Place navigation at top' : 'Placer la barre en haut')}
+              onPress={() => void changeDockSettings({ ...dockSettings, placement })}
+              style={[styles.dockPlacementButton, {
+                borderColor: dockSettings.placement === placement ? colors.accent : colors.border,
+                backgroundColor: dockSettings.placement === placement ? colors.surface : 'transparent'
+              }]}>
+              <Text style={{ color: dockSettings.placement === placement ? colors.accent : colors.text, fontWeight:'700' }}>
+                {placement === 'bottom' ? (en ? 'Bottom' : 'En bas') : (en ? 'Top' : 'En haut')}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.dockSettingRow}>
+          <View style={styles.dockSettingLabel}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>
+              {en ? 'Hide on scroll' : 'Masquer au défilement'}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 17 }}>
+              {en ? 'The dock returns when scrolling back or reaching the top.' :
+                'La barre revient quand on remonte ou atteint le début de la page.'}
+            </Text>
+          </View>
+          <Switch value={dockSettings.autoHide}
+            accessibilityLabel={en ? 'Automatically hide navigation on scroll' : 'Masquer automatiquement la navigation'}
+            onValueChange={autoHide => void changeDockSettings({ ...dockSettings, autoHide })}
+            trackColor={{ false: colors.border, true: colors.accent }}
+            thumbColor={colors.surface}/>
+        </View>
       </View>
 
       {preference.fallbackReason ? (
@@ -674,6 +738,12 @@ export function AppearanceExperience() {
 }
 
 const styles = StyleSheet.create({
+  dockPreference: { borderWidth: 1, borderRadius: 18, padding: 12, gap: 8 },
+  dockPreferenceHeading: { fontSize: 16, fontWeight: '800' },
+  dockPlacementRow: { flexDirection: 'row', gap: 8 },
+  dockPlacementButton: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent:'center', borderWidth: 1, borderRadius: 14 },
+  dockSettingRow: { minHeight: 54, flexDirection:'row', alignItems:'center', gap:12 },
+  dockSettingLabel: { flex:1, gap:4 },
   chatPreview: {
     minHeight: 220,
     borderWidth: 1,
