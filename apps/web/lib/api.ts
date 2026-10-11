@@ -117,7 +117,7 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
       ...init,
       headers,
       cache: 'no-store',
-      signal: init.signal ?? AbortSignal.timeout(16000)
+      signal: init.signal ?? AbortSignal.timeout(init.body instanceof FormData ? 120000 : 16000)
     });
   } catch {
     const error = new Error('Impossible de joindre KnowMe. Vérifiez votre connexion et réessayez.') as ApiError;
@@ -162,7 +162,7 @@ async function requestBlob(path: string, retryAfterRefresh: boolean): Promise<Bl
     response = await fetch(`${API_URL}${path}`, {
       headers,
       cache: 'no-store',
-      signal: AbortSignal.timeout(20000)
+      signal: AbortSignal.timeout(90000)
     });
   } catch {
     const error = new Error('Téléchargement impossible : serveur KnowMe inaccessible.') as ApiError;
