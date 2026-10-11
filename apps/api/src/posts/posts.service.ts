@@ -216,6 +216,59 @@ export class PostsService {
     return post;
   }
 
+  /** Bookmarks belong only to the requesting account, not to the public post. */
+  async save(userId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true }
+    });
+    if (!post) throw new NotFoundException('Publication introuvable.');
+    await this.prisma.savedPost.createMany({
+      data: [{ userId, postId }],
+      skipDuplicates: true
+    });
+    return { saved: true };
+  }
+
+  async unsave(userId: string, postId: string) {
+    await this.prisma.savedPost.deleteMany({ where: { userId, postId } });
+    return { saved: false };
+  }
+
+  async isSaved(userId: string, postId: string) {
+    const saved = await this.prisma.savedPost.findUnique({
+      where: { userId_postId: { userId, postId } },
+      select: { id: true }
+    });
+    return { saved: Boolean(saved) };
+  }
+
+  async saved(userId: string) {
+    const records = await this.prisma.savedPost.findMany({
+      where: { userId },
+      take: 40,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true, createdAt: true,
+        post: {
+          include: {
+            author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+            _count: { select: { likes: true, comments: true } },
+            attachments: {
+              orderBy: { position: 'asc' },
+              select: {
+                position: true,
+                asset: { select: { id: true, originalName: true, detectedMime: true, size: true,
+                  status: true, deletedAt: true } }
+              }
+            }
+          }
+        }
+      }
+    });
+    return records;
+  }
+
   async comments(postId: string, cursor?: string) {
     const exists = await this.prisma.post.findUnique({
       where: { id: postId },
