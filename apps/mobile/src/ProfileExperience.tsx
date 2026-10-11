@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
 import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
 import { CreatorSettingsExperience } from './CreatorSettingsExperience';
@@ -212,6 +214,9 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   onCreateStory: () => void;
 }) {
   const { colors, visual } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [bio, setBio] = useState(user.bio ?? '');
   const [password, setPassword] = useState('');
@@ -310,6 +315,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         <GlassSurface strength="soft" borderRadius={26} style={styles.panelHeader}>
           <PressScale
             onPress={() => setPanel('main')}
+            accessibilityLabel="Retour au profil"
             style={[
               styles.backButton,
               {
@@ -318,10 +324,10 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               }
             ]}
           >
-            <KnowMeIcon name="back" size={18} color={colors.text} />
-            <Text style={[styles.backButtonText, { color: colors.text }]}>Profil</Text>
+            <KnowMeIcon name="back" size={20} color={colors.text} />
           </PressScale>
-          <Text style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}
+            style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
         </GlassSurface>
 
         {panel === 'appearance' ? <AppearanceExperience /> : null}
@@ -496,123 +502,81 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </View>
         </View>
 
-        <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
+        <View style={styles.profileTitleRow}>
+          <View style={styles.profileTitleIdentity}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.heading, styles.headingCompact, { color: colors.text }]}>
+              {user.displayName}
+            </Text>
+            {user.staff ? (
+              <View accessible accessibilityLabel={user.staff.label + ', ' + user.staff.role}
+                style={styles.staffSeal}>
+                <KnowMeIcon name="check" size={13} color="#4A3108" strokeWidth={2.4}/>
+              </View>
+            ) : null}
+            {user.verification ? (
+              <KnowMeIcon name="check" size={18} color={colors.accent}/>
+            ) : null}
+          </View>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={en ? 'Profile options' : 'Options du profil'}
+            onPress={() => setProfileMenuOpen(true)}
+            style={[styles.profileMoreButton, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+            <View style={styles.moreDots}>
+              <View style={[styles.moreDot, { backgroundColor: colors.text }]}/>
+              <View style={[styles.moreDot, { backgroundColor: colors.text }]}/>
+              <View style={[styles.moreDot, { backgroundColor: colors.text }]}/>
+            </View>
+          </Pressable>
+        </View>
         <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
         <Text style={{color:colors.muted,fontSize:11,paddingHorizontal:18,marginTop:4}}>KnowMe {KNOWME_PRODUCT_VERSION} · Android</Text>
 
-        <View style={styles.profileActions}>
-          <PressScale
-            onPress={() => setPanel('edit')}
-            style={styles.profileActionPress}
-          >
-            <GlassSurface
-              strength="soft"
-              borderRadius={21}
-              style={styles.profileAction}
-            >
-              <KnowMeIcon name="profile" size={19} color={colors.accent} />
-              <Text style={[styles.profileActionText, { color: colors.text }]}>
-                Modifier
-              </Text>
-            </GlassSurface>
-          </PressScale>
-          <PressScale
-            onPress={onOpenVerification}
-            style={styles.profileActionPress}
-          >
-            <GlassSurface
-              strength="soft"
-              borderRadius={21}
-              style={styles.profileAction}
-            >
-              <KnowMeIcon name="check" size={19} color={colors.accent} />
-              <Text style={[styles.profileActionText, { color: colors.text }]}>
-                Identité
-              </Text>
-            </GlassSurface>
-          </PressScale>
-          <PressScale
-            onPress={() => setPanel('appearance')}
-            style={styles.profileActionPress}
-          >
-            <GlassSurface
-              strength="soft"
-              borderRadius={21}
-              style={styles.profileAction}
-            >
-              <KnowMeIcon name="spark" size={19} color={colors.secondary} />
-              <Text style={[styles.profileActionText, { color: colors.text }]}>
-                Style
-              </Text>
-            </GlassSurface>
-          </PressScale>
-        </View>
 
-        {user.bio ? (
+        {user.bio?.trim() ? (
           <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>
         ) : (
-          <Text style={[styles.bioMuted, { color: colors.muted }]}>Ajoute une bio pour raconter qui tu es.</Text>
+          <Pressable accessibilityRole="button" onPress={() => setPanel('edit')} style={styles.addBioButton}>
+            <KnowMeIcon name="edit" size={16} color={colors.muted}/>
+            <Text style={[styles.bioMuted, { color: colors.muted }]}>
+              {en ? 'Add a bio' : 'Ajouter une bio'}
+            </Text>
+          </Pressable>
         )}
 
-        <View style={styles.badges}>
-          {user.verification ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.accent,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.verification.label}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.accent }]}>
-                VERIFIED · {user.verification.label}
-              </Text>
-            </View>
-          ) : null}
-          {user.premium ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.secondary,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.premium.label}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.secondary }]}>
-                PREMIUM · {user.premium.label}
-              </Text>
-            </View>
-          ) : null}
-          {user.staff ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.staff.label + ', ' + user.staff.role}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.text }]}>
-                STAFF · {user.staff.label} · {user.staff.role}
-              </Text>
-            </View>
-          ) : null}
-        </View>
 
         </GlassSurface>
       </FadeRise>
 
-      <FadeRise delay={70} style={styles.profileMenuSection}>
-        <Text style={[styles.profileMenuHeading, { color: colors.text }]}>
-          Mon espace
-        </Text>
+      <Modal visible={profileMenuOpen} transparent animationType="fade"
+        onRequestClose={() => setProfileMenuOpen(false)}>
+        <Pressable style={styles.profileMoreShade} onPress={() => setProfileMenuOpen(false)}>
+          <Pressable onPress={event => event.stopPropagation()}
+            style={[styles.profileMoreSheet, {backgroundColor:colors.surface,borderColor:colors.border}]}>
+            <Text style={[styles.profileMoreTitle, {color:colors.text}]}>
+              {en ? 'Profile options' : 'Options du profil'}
+            </Text>
+            {([
+              {text:en ? 'Edit profile' : 'Modifier mon profil', action:() => setPanel('edit')},
+              {text:en ? 'Avatar studio' : 'Studio avatar', action:() => setPanel('avatar')},
+              {text:en ? 'Identity verification' : 'Vérifier mon identité', action:onOpenVerification},
+              {text:en ? 'Appearance and themes' : 'Apparence et thèmes', action:() => setPanel('appearance')}
+            ]).map(item => (
+              <Pressable key={item.text} accessibilityRole="button"
+                style={styles.profileMoreAction} onPress={() => {setProfileMenuOpen(false);item.action();}}>
+                <Text style={{color:colors.text,fontSize:15,fontWeight:'600'}}>{item.text}</Text>
+              </Pressable>
+            ))}
+            <Pressable accessibilityRole="button" style={styles.profileMoreDismiss}
+              onPress={() => setProfileMenuOpen(false)}>
+              <Text style={{color:colors.accent,fontWeight:'700'}}>
+                {en ? 'Close' : 'Fermer'}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
+      <FadeRise delay={70} style={styles.profileMenuSection}>
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
           IDENTITÉ
         </Text>
@@ -747,11 +711,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
-  panelContent: { padding: 16, paddingBottom: 30, gap: 12 },
-  panelHeader: { minHeight: 52, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
-  backButton: { minHeight: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  panelContent: { paddingHorizontal: 12, paddingVertical: 8, paddingBottom: 32, gap: 12 },
+  panelHeader: { minHeight: 52, padding: 4, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  backButton: { width: 44, minHeight: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   backButtonText: { fontSize: 11.5, fontWeight: '700' },
-  panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
+  panelTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.35, flex: 1 },
   content: { padding: 16, paddingBottom: 30, gap: 12 },
   profileHero: { overflow: 'hidden', paddingBottom: 14 },
   cover: { height: 104, position: 'relative', overflow: 'hidden' },
@@ -760,6 +724,19 @@ const styles = StyleSheet.create({
   coverGlassLine: { position: 'absolute', width: 170, height: 24, borderRadius: 12, right: -28, bottom: 16, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
   coverGlassDot: { position: 'absolute', width: 14, height: 14, borderRadius: 7, left: 22, top: 22, opacity: 0.34 },
   profileAvatarRow: { marginTop: -36, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
+  profileTitleRow: { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:16, marginTop:10 },
+  profileTitleIdentity: {flex:1,minWidth:0,flexDirection:'row',alignItems:'center',gap:5},
+  headingCompact: {paddingHorizontal:0,marginTop:0,flexShrink:1},
+  staffSeal: {width:19,height:19,borderRadius:10,backgroundColor:'#E8BB52',borderWidth:1,borderColor:'#A4771E',alignItems:'center',justifyContent:'center',flexShrink:0},
+  profileMoreButton: {width:44,height:44,borderRadius:22,borderWidth:1,alignItems:'center',justifyContent:'center'},
+  moreDots: {gap:3,alignItems:'center'},
+  moreDot: {width:4,height:4,borderRadius:2},
+  addBioButton: {flexDirection:'row',alignItems:'center',gap:6,minHeight:44,paddingHorizontal:18,marginTop:3,alignSelf:'flex-start'},
+  profileMoreShade: {flex:1,backgroundColor:'rgba(0,0,0,.58)',justifyContent:'flex-end'},
+  profileMoreSheet: {borderTopLeftRadius:26,borderTopRightRadius:26,borderWidth:1,paddingHorizontal:17,paddingTop:18,paddingBottom:30},
+  profileMoreTitle: {fontSize:18,fontWeight:'800',marginBottom:12},
+  profileMoreAction: {minHeight:51,justifyContent:'center',paddingHorizontal:10,borderRadius:13},
+  profileMoreDismiss: {minHeight:47,alignItems:'center',justifyContent:'center',marginTop:8},
   profileActions: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 11 },
   profileActionPress: { flex: 1, borderRadius: 18 },
   profileAction: { minHeight: 38, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
