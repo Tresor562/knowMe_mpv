@@ -35,7 +35,8 @@ describe('RealtimeGateway', () => {
     };
     const roomEmitter = { emit: jest.fn() };
     const server = {
-      to: jest.fn().mockReturnValue(roomEmitter)
+      to: jest.fn().mockReturnValue(roomEmitter),
+      in: jest.fn().mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue([]) })
     };
     const gateway = new RealtimeGateway(
       jwt as never,
@@ -125,18 +126,25 @@ describe('RealtimeGateway', () => {
     });
   });
 
-  it('only broadcasts typing from sockets that joined the conversation room', () => {
-    const { gateway, client, roomEmitter } = setup();
+  it('only broadcasts typing after both socket join and fresh membership verification', async () => {
+    const { gateway, client, prisma, roomEmitter } = setup();
     client.data.userId = 'alice';
     client.data.username = 'alice';
 
-    gateway.typingStart(client as never, { conversationId: 'chat' });
+    await gateway.typingStart(client as never, { conversationId: 'chat' });
     expect(client.to).not.toHaveBeenCalled();
+    expect(prisma.conversationMember.findUnique).not.toHaveBeenCalled();
 
     client.rooms.add('conversation:chat');
-    gateway.typingStart(client as never, { conversationId: 'chat' });
+    prisma.conversationMember.findUnique.mockResolvedValueOnce(null);
+    await gateway.typingStart(client as never, { conversationId: 'chat' });
+    expect(client.to).not.toHaveBeenCalled();
 
-    expect(client.to).toHaveBeenCalledWith('conversation:chat');
+    prisma.conversationMember.findUnique.mockResolvedValueOnce({ id: 'active-member' });
+    prisma.conversationMember.findMany.mockResolvedValueOnce([{ userId: 'bob' }]);
+    await gateway.typingStart(client as never, { conversationId: 'chat' });
+
+    expect(client.to).toHaveBeenCalledWith(['user:bob']);
     expect(roomEmitter.emit).toHaveBeenCalledWith('typing:update', {
       conversationId: 'chat',
       userId: 'alice',
@@ -222,7 +230,6 @@ describe('RealtimeGateway', () => {
 
     await gateway.emitMessageCreated('chat', { id: 'message-1' });
     expect(server.to).toHaveBeenCalledWith([
-      'conversation:chat',
       'user:alice',
       'user:bob'
     ]);
@@ -241,4 +248,14 @@ describe('RealtimeGateway', () => {
       lastReadAt: readAt
     });
   });
+  it('evicts all previously joined sockets when membership is revoked', async () => {
+    const { gateway, server } = setup();
+    const removedSocket = { leave: jest.fn().mockResolvedValue(undefined), emit: jest.fn() };
+    server.in.mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue([removedSocket]) });
+    await gateway.revokeConversationAccess('chat', 'bob');
+    expect(server.in).toHaveBeenCalledWith('user:bob');
+    expect(removedSocket.leave).toHaveBeenCalledWith('conversation:chat');
+    expect(removedSocket.emit).toHaveBeenCalledWith('conversation:removed', { conversationId: 'chat' });
+  });
+
 });

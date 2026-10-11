@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
@@ -97,6 +97,7 @@ function MessageContent({item}:{item:Message}){
 
 export default function ConversationPage() {
   const params=useParams<{id:string}>();
+  const router=useRouter();
   const conversationId=params.id;
   const {user,loading:sessionLoading}=useSession({required:true});
   const {locale}=useI18n();
@@ -226,6 +227,9 @@ export default function ConversationPage() {
     const onSnapshot=(snapshot:PresenceSnapshot)=>{
       setOnlineUserIds(new Set(snapshot.onlineUserIds));
     };
+    const onRemoved=(event:{conversationId:string})=>{
+      if(event.conversationId===conversationId)router.replace('/messages');
+    };
     const onRoomError=(event:{conversationId:string;message:string})=>{
       if(event.conversationId===conversationId)setMessage(event.message);
     };
@@ -239,6 +243,7 @@ export default function ConversationPage() {
     socket.on('presence:update',onPresence);
     socket.on('presence:snapshot',onSnapshot);
     socket.on('conversation:error',onRoomError);
+    socket.on('conversation:removed',onRemoved);
 
     if(socket.connected)join();
     else socket.connect();
@@ -256,8 +261,9 @@ export default function ConversationPage() {
       socket.off('presence:update',onPresence);
       socket.off('presence:snapshot',onSnapshot);
       socket.off('conversation:error',onRoomError);
+      socket.off('conversation:removed',onRemoved);
     };
-  },[conversationId,markRead,sessionLoading,socket,user]);
+  },[conversationId,markRead,sessionLoading,socket,user,router]);
 
   const peerIds=useMemo(
     ()=>readStates.map(state=>state.userId).filter(id=>id!==user?.id),
