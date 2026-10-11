@@ -185,10 +185,10 @@ export default function ConversationInfoPage() {
               {year:'numeric',month:'long',day:'numeric'})}</dd></div>}
         </dl>
         <p className="km-info-hint">{isGroup
-          ? tr('La gestion des administrateurs, des invitations et de la description sera disponible lorsque les permissions de groupe seront activées.',
-             'Admin management, invitations, and descriptions will be available once group permissions are implemented.')
-          : tr('Les informations du contact restent accessibles depuis son profil.',
-             'Contact information is available on their profile.')}</p>
+          ? tr('Le lien de discussion n’est accessible qu’aux membres existants. Les droits d’administration et les invitations seront ajoutés avec des permissions contrôlées par le serveur.',
+             'The chat link is accessible to current members only. Administration and invitations will require server-enforced permissions.')
+          : tr('Le lien de la discussion n’est accessible qu’à ses participants. Les informations du contact restent accessibles depuis son profil.',
+             'The chat link is accessible to its participants only. Contact information is available on their profile.')}</p>
       </section>}
     </>}
   </main>;
