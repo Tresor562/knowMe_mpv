@@ -5,7 +5,7 @@ import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import {
   assessPlatformSync, parsePlatformIdentity, probeErrorMessage,
-  type PlatformIdentity, type PlatformName
+  type PlatformIdentity
 } from './platform-sync-model';
 
 const webOrigin = (process.env.EXPO_PUBLIC_WEB_URL || 'https://knowme-nextech.vercel.app').replace(/\/+$/, '');
@@ -95,7 +95,7 @@ export function MobilePlatformSyncStatus() {
           ? 'Les versions concordent, mais il manque une identité de build.'
           : 'Versions ou commits différents : mise à jour coordonnée nécessaire.';
 
-  const line = (label: string, item: ProbeState, platform: PlatformName) => (
+  const line = (label: string, item: ProbeState) => (
     <View style={styles.runtime}>
       <Text style={[styles.runtimeLabel, { color: colors.text }]}>{label} :</Text>
       <View style={styles.runtimeDetails}>
@@ -118,8 +118,8 @@ export function MobilePlatformSyncStatus() {
         <Text style={[styles.runtimeLabel, { color: colors.text }]}>APK :</Text>
         <Text style={{ color: colors.text }}>{KNOWME_PRODUCT_VERSION} · {androidCommit?.slice(0, 8) || 'commit non identifiable'}</Text>
       </View>
-      {line('Web', web, 'web')}
-      {line('API', api, 'api')}
+      {line('Web', web)}
+      {line('API', api)}
       <View style={styles.status}>
         {loading && <ActivityIndicator color={colors.accent} size="small" />}
         <Text accessibilityRole="text" style={{ color: verdict === 'synchronized' ? colors.accent : colors.danger, fontWeight: '700', flex: 1 }}>
