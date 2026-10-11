@@ -274,16 +274,24 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  async revokeConversationAccess(conversationId: string, userId: string) {
+    const room = `conversation:${conversationId}`;
+    const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+    await Promise.all(sockets.map(async socket => {
+      await socket.leave(room);
+      socket.emit('conversation:removed', { conversationId });
+    }));
+  }
+
   async emitMessageCreated(conversationId: string, message: unknown) {
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId },
       select: { userId: true }
     });
 
-    const rooms = [
-      `conversation:${conversationId}`,
-      ...members.map((member) => `user:${member.userId}`)
-    ];
+    // Deliver only through authenticated current-member user rooms.
+    // A stale conversation room must never receive private messages after removal.
+    const rooms = members.map(member => `user:${member.userId}`);
 
     this.server.to(rooms).emit('message:created', message);
   }
@@ -297,10 +305,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       select: { userId: true }
     });
 
-    const rooms = [
-      `conversation:${conversationId}`,
-      ...members.map((member) => `user:${member.userId}`)
-    ];
+    // Deliver only through authenticated current-member user rooms.
+    // A stale conversation room must never receive private messages after removal.
+    const rooms = members.map(member => `user:${member.userId}`);
 
     this.server.to(rooms).emit('conversation:read', {
       conversationId,
@@ -324,17 +331,22 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.server.to(`user:${userId}`).emit('notification:read-all', { readAt });
   }
 
-  private emitTyping(
+  private async emitTyping(
     client: AuthSocket,
     conversationId: string | undefined,
     typing: boolean
   ) {
     if (!conversationId || !client.data.userId) return;
-
-    const room = `conversation:${conversationId}`;
-    if (!client.rooms.has(room)) return;
-
-    client.to(room).emit('typing:update', {
+    const membership = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId: client.data.userId } },
+      select: { id: true }
+    });
+    if (!membership) return;
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: client.data.userId } },
+      select: { userId: true }
+    });
+    client.to(members.map(member => `user:${member.userId}`)).emit('typing:update', {
       conversationId,
       userId: client.data.userId,
       username: client.data.username,
