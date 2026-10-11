@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import { StoriesRail } from './StoriesRail';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
@@ -355,12 +357,20 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   );
 }
 
-export function FeedExperience({ userId, onScrollY, onDetailChange }: {
+export function FeedExperience({
+  userId, currentUser, onOpenDiscover, storyComposerRequest, onStoryComposerHandled, onScrollY, onDetailChange
+}: {
   userId: string;
+  currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
+  onOpenDiscover?: () => void;
+  storyComposerRequest?: boolean;
+  onStoryComposerHandled?: () => void;
   onScrollY?: (offset: number) => void;
   onDetailChange?: (open: boolean) => void;
 }) {
   const { colors } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -462,13 +472,20 @@ export function FeedExperience({ userId, onScrollY, onDetailChange }: {
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>KnowMe</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>
+                  {en ? 'Home · Publications' : 'Accueil · Publications'}
+                </Text>
               </View>
             </View>
-            <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
-              <KnowMeIcon name="discover" size={22} color={colors.accent} />
-            </GlassSurface>
+            {onOpenDiscover ? (
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={en ? 'Search profiles and suggestions' : 'Rechercher des profils et suggestions'}
+                onPress={onOpenDiscover}
+                style={styles.discoverIcon}>
+                <KnowMeIcon name="search" size={22} color={colors.accent}/>
+              </Pressable>
+            ) : null}
           </GlassSurface>
           <GlassSurface
             strength="soft"
@@ -480,7 +497,7 @@ export function FeedExperience({ userId, onScrollY, onDetailChange }: {
               maxLength={1000}
               value={content}
               onChangeText={setContent}
-              placeholder="Partage une découverte, une question ou un défi…"
+              placeholder={en ? 'What is on your mind?' : 'Quoi de neuf ?'}
               placeholderTextColor={colors.muted}
               selectionColor={colors.accent}
               style={[
@@ -497,6 +514,12 @@ export function FeedExperience({ userId, onScrollY, onDetailChange }: {
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
           </GlassSurface>
+          {currentUser ? (
+            <StoriesRail currentUser={currentUser}
+              onOpenDiscover={onOpenDiscover ?? (() => undefined)}
+              openComposer={storyComposerRequest}
+              onComposerOpened={onStoryComposerHandled}/>
+          ) : null}
         </View>
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
