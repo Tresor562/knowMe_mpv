@@ -24,9 +24,14 @@ export function DailyNotesRail({userId}:{userId:string}) {
   const [now,setNow]=useState(Date.now());
 
   const refresh=useCallback(async()=>{
-    const incoming=await apiFetch<DailyNote[]>('/daily-notes');
-    setNotes(incoming.filter(note=>Date.parse(note.expiresAt)>Date.now()));
-    setError('');
+    try {
+      const incoming=await apiFetch<DailyNote[]>('/daily-notes');
+      setNotes(incoming.filter(note=>Date.parse(note.expiresAt)>Date.now()));
+      setError('');
+    } catch (cause) {
+      setNotes([]);
+      throw cause;
+    }
   },[]);
 
   useEffect(()=>{
