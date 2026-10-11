@@ -451,6 +451,8 @@ export function MessagesOrganizationExperience({
           userId={userId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onContentScroll={onContentScroll}
+          onSecondaryModeChange={onSecondaryModeChange}
         />
       </View>
     </View>
