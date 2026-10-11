@@ -52,6 +52,14 @@ jobs:
       - name: Verify committed migrations match Prisma datamodel
         run: pnpm --filter @knowme/api exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma --exit-code
       - run: pnpm build
+      - name: Verify Android updater native generation
+        run: |
+          set -euo pipefail
+          pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean --no-install
+          test -s apps/mobile/android/app/src/main/java/com/knowme/app/updates/KnowMeInstallerModule.java
+          test -s apps/mobile/android/app/src/main/res/xml/knowme_update_paths.xml
+          grep -R -q 'KnowMeInstallerPackage()' apps/mobile/android/app/src/main/java/com/knowme/app/MainApplication.kt
+          grep -q 'knowme.updates' apps/mobile/android/app/src/main/AndroidManifest.xml
       - run: pnpm test
       - name: Build frozen API runtime container
         run: docker build -f Dockerfile.api -t knowme-api-ci .
