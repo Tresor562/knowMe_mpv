@@ -47,6 +47,8 @@ type ReadState = {
   lastReadAt:string;
   user:Sender;
 };
+type ChatSummary = { id:string; title:string|null; isGroup:boolean; members:Array<{userId:string}> };
+
 type History = {
   items:Message[];
   nextCursor?:string|null;
@@ -109,6 +111,7 @@ export default function ConversationPage() {
 
   const [items,setItems]=useState<Message[]>([]);
   const [readStates,setReadStates]=useState<ReadState[]>([]);
+  const [chatSummary,setChatSummary]=useState<ChatSummary|null>(null);
   const [onlineUserIds,setOnlineUserIds]=useState<Set<string>>(new Set());
   const [typingUsers,setTypingUsers]=useState<Record<string,string>>({});
   const [draft,setDraft]=useState('');
@@ -162,6 +165,17 @@ export default function ConversationPage() {
   useEffect(()=>{
     if(!sessionLoading)void load();
   },[load,sessionLoading]);
+
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    let active = true;
+    // Keep the group title and member count in sync with the official chat list.
+    void apiFetch<ChatSummary[]>('/conversations')
+      .then(chats => { if (active) setChatSummary(chats.find(chat=>chat.id===conversationId) ?? null); })
+      .catch(() => { if (active) setChatSummary(null); });
+    return () => { active = false; };
+  }, [conversationId, user?.id, sessionLoading]);
+
 
   useEffect(()=>{
     if(sessionLoading||!user)return;
@@ -339,6 +353,11 @@ export default function ConversationPage() {
   const typingNames=Object.values(typingUsers);
   const peers=readStates.filter(state=>state.userId!==user?.id);
   const peer=peers.length===1?peers[0].user:null;
+  const isGroup=chatSummary?.isGroup ?? readStates.length>2;
+  const chatTitle=isNexusPrivate?'Nexus':chatSummary?.title||(isGroup
+    ? (en?'Group chat':'Discussion de groupe')
+    : peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation'));
+  const infoHref=`/messages/${encodeURIComponent(conversationId)}/info`;
   const visibleMessages=searchTerm.trim()
     ? items.filter(item=>(item.presentation?.kind==='TEXT'?item.presentation.text:item.content).toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase()))
     : items;
@@ -349,17 +368,31 @@ export default function ConversationPage() {
         <Link href="/messages" className="km-action km-chat-back" aria-label={en?'Back to chats':'Retour aux discussions'}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
         </Link>
-        <div className={`km-chat-avatar ${isNexusPrivate?'km-chat-ai':''}`} aria-hidden="true">
-          {isNexusPrivate?'N':peer?.avatarUrl?<img src={peer.avatarUrl} alt="" className="km-chat-avatar-image" />:(peer?.displayName||'D').slice(0,1).toUpperCase()}
-        </div>
-        <div className="km-chat-header-details">
-          <h1>{isNexusPrivate?'Nexus':peers.map(peer=>peer.user.displayName).join(', ')||(en?'Conversation':'Conversation')}</h1>
+        <Link href={infoHref} className={`km-chat-avatar km-chat-profile-trigger ${isNexusPrivate?'km-chat-ai':''}`}
+          aria-label={en?'Open conversation information':'Voir les informations de la discussion'}>
+          {isNexusPrivate ? 'N'
+            : isGroup
+              ? <span className="km-chat-avatar-stack" aria-hidden="true">
+                {peers.slice(0,3).map(member => <span key={member.userId}>
+                  {member.user.avatarUrl ? <img src={member.user.avatarUrl} alt="" /> :
+                    (Array.from(member.user.displayName)[0]||'?').toLocaleUpperCase()}
+                </span>)}
+              </span>
+              : peer?.avatarUrl
+                ? <img src={peer.avatarUrl} alt="" className="km-chat-avatar-image" />
+                : (Array.from(peer?.displayName||'D')[0]||'D').toLocaleUpperCase()}
+        </Link>
+        <Link href={infoHref} className="km-chat-header-details km-chat-profile-trigger"
+          aria-label={en?'Open conversation information':'Voir les informations de la discussion'}>
+          <h1>{chatTitle}</h1>
           <p>
-            {isNexusPrivate?'Assistant KnowMe':socketStatus==='connected'?
-              peers.some(peer=>onlineUserIds.has(peer.userId))?(en?'Online':'En ligne'):(en?'Connected':'Connecté'):
-              socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
+            {isNexusPrivate ? (en?'KnowMe assistant':'Assistant KnowMe')
+              : isGroup ? `${readStates.length} ${en?'members':'membres'}`
+              : socketStatus==='connected'
+                ? peers.some(member=>onlineUserIds.has(member.userId))?(en?'Online':'En ligne'):(en?'Connected':'Connecté')
+                : socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
           </p>
-        </div>
+        </Link>
         <button className="km-action" type="button" onClick={()=>{setSearchOpen(value=>!value);setMenuOpen(false);}}
           aria-label={en?'Find in conversation':'Rechercher dans la discussion'} aria-expanded={searchOpen}>
           <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
@@ -371,6 +404,9 @@ export default function ConversationPage() {
             <svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
           </button>
           {menuOpen&&<div className="km-chat-context-menu" role="menu">
+            <Link role="menuitem" href={infoHref} onClick={()=>setMenuOpen(false)}>
+              {en?'Chat information':'Informations de la discussion'}
+            </Link>
             {peer&&<Link role="menuitem" href={`/profile/${encodeURIComponent(peer.username)}`}
               onClick={()=>setMenuOpen(false)}>{en?'View profile':'Voir le profil'}</Link>}
             <button role="menuitem" type="button" onClick={()=>{setMenuOpen(false);setSearchOpen(true);}}>
