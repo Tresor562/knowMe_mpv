@@ -46,6 +46,7 @@ model User {
   channelPosts             ChannelPost[]          @relation("ChannelPostAuthor")
   memberships              ConversationMember[]
   posts                    Post[]
+  dailyNote                DailyNote?
   postLikes                PostLike[]
   postComments             PostComment[]
   notifications            Notification[]
@@ -226,6 +227,19 @@ model Post {
   comments PostComment[]
 
   @@index([createdAt])
+}
+
+model DailyNote {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  content   String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model PostLike {
