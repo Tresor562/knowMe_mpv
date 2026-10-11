@@ -39,7 +39,7 @@ export function BottomNavigation() {
   const items: { href: string; label: string; icon: IconName; matches: string[] }[] = [
     { href: '/dashboard', label: locale === 'fr' ? 'Accueil' : 'Home', icon: 'home', matches: ['/dashboard'] },
     { href: '/messages', label: locale === 'fr' ? 'Discussions' : 'Chats', icon: 'chats', matches: ['/messages', '/conversation-pins', '/saved-messages'] },
-    { href: '/feed', label: locale === 'fr' ? 'Actualités' : 'Feed', icon: 'feed', matches: ['/feed', '/stories'] },
+    { href: '/feed', label: locale === 'fr' ? 'Actualités' : 'Feed', icon: 'feed', matches: ['/feed', '/stories', '/channels'] },
     { href: '/challenges', label: locale === 'fr' ? 'Défis' : 'Challenges', icon: 'challenges', matches: ['/challenges', '/play', '/quests'] },
     { href: '/profile', label: locale === 'fr' ? 'Profil' : 'Profile', icon: 'profile', matches: ['/profile', '/settings', '/security'] }
   ];
