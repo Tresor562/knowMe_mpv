@@ -1,18 +1,22 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ModerationService } from '../moderation/moderation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 
 @Injectable()
 export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly moderation: ModerationService
   ) {}
 
   create(authorId: string, dto: CreatePostDto) {
@@ -29,6 +33,39 @@ export class PostsService {
         }
       }
     });
+  }
+
+  async update(userId: string, postId: string, dto: UpdatePostDto) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, content: true, imageUrl: true }
+    });
+    if (!post) throw new NotFoundException('Publication introuvable.');
+    if (post.authorId !== userId) {
+      throw new ForbiddenException('Tu ne peux modifier que tes propres publications.');
+    }
+
+    // Never charge a content-edit policy for an unchanged caption.
+    if (post.content !== dto.content.trim()) {
+      await this.moderation.assertAllowed({
+        actorId: userId,
+        action: 'POST_EDIT',
+        content: dto.content,
+        targetId: postId
+      });
+    }
+
+    const changed = await this.prisma.post.updateMany({
+      where: { id: postId, authorId: userId },
+      data: {
+        content: dto.content.trim(),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {})
+      }
+    });
+    if (changed.count !== 1) {
+      throw new ConflictException('Publication modifiée ou supprimée. Actualise le fil.');
+    }
+    return this.getById(postId);
   }
 
   feed(cursor?: string) {
