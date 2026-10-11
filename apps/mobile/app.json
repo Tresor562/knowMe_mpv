@@ -29,7 +29,24 @@
       "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#071410"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "knowme-nextech.vercel.app",
+              "pathPrefix": "/open/v1/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro"
