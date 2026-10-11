@@ -1400,3 +1400,27 @@ html, body { min-width: 0; }
 }
 :root[data-animations='false'] .km-chat-media-viewer {animation:none;}
 @media(prefers-reduced-motion:reduce){.km-chat-media-viewer{animation:none;}}
+
+
+/* Nexus AI and compose controls: positioned as Messenger-style stacked floating actions. */
+.km-msg-floating-actions {
+  position:fixed; z-index:85; right:max(18px,env(safe-area-inset-right,0px));
+  bottom:calc(90px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; gap:12px; align-items:center;
+}
+.km-msg-fab {
+  display:grid; place-items:center; width:54px; height:54px;
+  border:1px solid var(--soft-border); border-radius:50%; color:var(--text);
+  box-shadow:0 8px 25px rgba(0,0,0,.19); cursor:pointer;
+  background:var(--surface-glass); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.km-msg-fab:is(:hover,:focus-visible) { transform:translateY(-2px); box-shadow:0 10px 26px rgba(0,0,0,.22); }
+.km-msg-fab:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }
+.km-msg-fab:disabled { opacity:.65; cursor:wait; }
+.km-msg-fab-nexus { color:#a172f2; background:color-mix(in srgb,var(--surface-glass) 85%,#8854df 15%); }
+.km-msg-fab-create { color:var(--on-primary); background:var(--mint); }
+:root[data-reduce-transparency='true'] .km-msg-fab { background:var(--surface); backdrop-filter:none; -webkit-backdrop-filter:none; }
+:root[data-reduce-transparency='true'] .km-msg-fab-create { background:var(--mint); }
+@media(min-width:1000px) { .km-msg-floating-actions { right:max(calc((100vw - 920px) / 2),30px); } }
+@media(prefers-reduced-motion:reduce) { .km-msg-fab { transition:none; } }
