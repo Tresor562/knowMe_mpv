@@ -2,6 +2,7 @@ import { createDecipheriv, randomBytes } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { readCheckedOutKnowMeVersion } from './knowme-release-manifest.mjs';
 
 const SHA = String(process.env.KNOWME_DEPLOY_SHA || '').trim();
 if (!/^[0-9a-f]{40}$/i.test(SHA)) throw new Error('KNOWME_DEPLOY_SHA must be a full commit SHA.');
@@ -187,6 +188,10 @@ function startApi() {
   return previousImage;
 }
 
+ensureSource();
+const deployedVersion = readCheckedOutKnowMeVersion(
+  readFileSync(join(SOURCE, 'packages/link-contract/src/platform-sync.json'), 'utf8')
+);
 const oldEnv = existsSync(ENV_FILE) ? parseEnv(readFileSync(ENV_FILE, 'utf8')) : {};
 // Preserve a verified existing KnowMe storage connection. Older NexAI Mongo
 // configuration is only a bootstrap fallback, not an availability dependency.
@@ -202,7 +207,7 @@ const env = {
   KNOWME_DB_PASSWORD: dbPassword,
   NODE_ENV: 'production',
   KNOWME_RELEASE_COMMIT: SHA,
-  KNOWME_RELEASE_VERSION: oldEnv.KNOWME_RELEASE_VERSION || '1.0.0-preview',
+  KNOWME_RELEASE_VERSION: deployedVersion,
   KNOWME_STARTUP_PHASE_DIAGNOSTIC: '1',
   DATABASE_URL: 'postgresql://knowme:' + dbPassword + '@knowme-postgres:5432/knowme?schema=public',
   JWT_SECRET: oldEnv.JWT_SECRET || randomHex(48),
@@ -247,7 +252,6 @@ const env = {
   MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS: oldEnv.MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS || '2000'
 };
 writeEnv(env);
-ensureSource();
 buildImage();
 ensureDatabase(env);
 migrate();
