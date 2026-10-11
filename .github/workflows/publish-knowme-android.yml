@@ -1,9 +1,10 @@
-name: Publish KnowMe Android preview
+name: Publish KnowMe signed Android APK
+
 on:
-  push:
+  workflow_run:
+    workflows: ["KnowMe Signed Android APK"]
+    types: [completed]
     branches: [main]
-    paths:
-      - ".github/workflows/publish-knowme-android.yml"
   workflow_dispatch:
 
 permissions:
@@ -12,48 +13,72 @@ permissions:
 
 jobs:
   publish-apk:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Find latest non-expired KnowMe APK artifact
-        id: artifact
+      - name: Fetch signed artifact
         env:
           GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          data="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | [.created_at, .id] | @tsv' | sort -r | head -n1)"
-          if [[ -z "$data" ]]; then
-            echo "::error::No unexpired knowme-android-apk workflow artifact was found. Re-run the APK build workflow, then dispatch this workflow."
+          if [[ -n "${BUILD_RUN_ID:-}" ]]; then
+            artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}/artifacts" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | .id')"
+            artifact_id="$(printf '%s\n' "$artifacts" | head -n1)"
+          else
+            artifact_id="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name=="knowme-android-apk" and .expired==false) | [.created_at, .id] | @tsv' | sort -r | head -n1 | cut -f2)"
+          fi
+          if [[ -z "${artifact_id:-}" ]]; then
+            echo "::error::No signed KnowMe APK artifact found."
             exit 1
           fi
-          id="$(printf '%s' "$data" | cut -f2)"
-          echo "artifact_id=$id" >> "$GITHUB_OUTPUT"
-
-      - name: Download and validate APK
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
-        run: |
-          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > artifact.zip
           mkdir -p dist
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > artifact.zip
-          unzip -j -o artifact.zip '*KnowMe-1.0.0-preview.apk' -d dist
-          test -s dist/KnowMe-1.0.0-preview.apk
-          bytes="$(stat -c %s dist/KnowMe-1.0.0-preview.apk)"
-          test "$bytes" -gt 10000000
-          unzip -tqq dist/KnowMe-1.0.0-preview.apk
-          sha256sum dist/KnowMe-1.0.0-preview.apk > dist/KnowMe-1.0.0-preview.apk.sha256
-          ls -lh dist/*
+          unzip -j -o artifact.zip -d dist
+          test -s dist/version.json
+          VERSION="$(node -p 'require("./dist/version.json").version')"
+          VERSION_CODE="$(node -p 'require("./dist/version.json").versionCode')"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
+          APK="KnowMe-${VERSION}.apk"
+          test -s "dist/$APK"
+          test -s "dist/$APK.sha256"
+          (cd dist && sha256sum -c "$APK.sha256")
+          unzip -tqq "dist/$APK"
+          SHA="$(sha256sum "dist/$APK" | cut -d' ' -f1)"
+          TAG="v${VERSION}-preview"
+          export APK VERSION VERSION_CODE SHA TAG
+          node -e '
+            const fs = require("fs");
+            const { APK, VERSION, VERSION_CODE, SHA, TAG } = process.env;
+            const url = `https://github.com/Tresor562/knowMe_mpv/releases/download/${TAG}/${APK}`;
+            const manifest = {
+              version: VERSION,
+              versionCode: Number(VERSION_CODE),
+              url,
+              sha256: SHA,
+              notes: "Améliorations de KnowMe, sécurité et nouvelles fonctionnalités.",
+              required: false
+            };
+            fs.writeFileSync("dist/knowme-update.json", JSON.stringify(manifest));
+          '
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "APK_FILE=$APK" >> "$GITHUB_ENV"
 
-      - name: Publish public prerelease download
+      - name: Publish official release and update manifest
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v1.0.0-preview"
+          TAG="$RELEASE_TAG"
+          APK="$APK_FILE"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --clobber
+            gh release upload "$TAG" "dist/$APK" "dist/$APK.sha256" dist/knowme-update.json --clobber
           else
-            gh release create "$TAG" dist/KnowMe-1.0.0-preview.apk dist/KnowMe-1.0.0-preview.apk.sha256 --prerelease --title "KnowMe Android — version de prévisualisation 1.0.0" --notes "Aperçu Android de KnowMe pour tests. Cette version n'est pas la sortie publique finale. Installez uniquement si vous acceptez de tester une application en développement."
+            gh release create "$TAG" "dist/$APK" "dist/$APK.sha256" dist/knowme-update.json \
+              --prerelease \
+              --title "KnowMe Android ${TAG}" \
+              --notes "APK signé pour mises à jour intégrées. Android peut demander une confirmation d'installation."
           fi
           gh release view "$TAG" --json url -q .url
