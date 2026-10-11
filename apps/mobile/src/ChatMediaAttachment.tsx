@@ -12,6 +12,9 @@ export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: 
   const [attempt,setAttempt] = useState(0);
 
   useEffect(()=>{
+    // Large non-image attachments are fetched only after the user taps Open.
+    // Never mint a private download token just by scrolling through the chat.
+    if(kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return;
     let mounted = true;
     setSource(null);
     setFailed(false);
@@ -34,7 +37,7 @@ export function ChatMediaAttachment({ assetId, kind }: { assetId: string; kind: 
       }
     })();
     return ()=>{ mounted=false; };
-  },[assetId,attempt]);
+  },[assetId,attempt,kind]);
 
   async function openFile() {
     if(opening)return;
