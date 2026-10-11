@@ -146,6 +146,25 @@ export default function NewMessagePage() {
         {tr('Nouveau groupe','New group')}
         <span aria-hidden="true" className="km-new-chat-chevron">›</span>
       </button>}
+      {mode === 'message' && <Link href="/channels/new" className="km-new-chat-option">
+        <span className="km-new-chat-option-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor"
+            strokeWidth="1.8" strokeLinecap="round" fill="none" aria-hidden="true">
+            <path d="M3 10v4l12 4V6L3 10Z"/><path d="M15 9c2 1 2 5 0 6M18 6c4 3 4 9 0 12M5 14l2 6h3l-2-5"/>
+          </svg>
+        </span>
+        {tr('Nouvelle chaîne','New channel')}
+        <span aria-hidden="true" className="km-new-chat-chevron">›</span>
+      </Link>}
+      {mode === 'message' && <Link href="/channels" className="km-new-chat-option">
+        <span className="km-new-chat-option-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9h10M7 13h8"/>
+          </svg>
+        </span>
+        {tr('Découvrir des chaînes','Discover channels')}
+        <span aria-hidden="true" className="km-new-chat-chevron">›</span>
+      </Link>}
 
       <h2 className="km-new-chat-section">{tr('Contacts','Contacts')}</h2>
       {loading && <p className="km-new-chat-empty" role="status">{tr('Chargement des contacts…','Loading contacts…')}</p>}
