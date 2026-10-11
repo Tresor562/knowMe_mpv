@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { UsernameMentions } from './UsernameMentions';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
@@ -285,9 +286,9 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
-          <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
+          <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><UsernameMentions text={'@' + post.author.username} textStyle={[styles.muted, { color: colors.accent }]}/></View>
         </View>
-        <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
+        <UsernameMentions text={post.content} textStyle={[styles.postText, { color: colors.text }]}/>
         {post.imageUrl ? (
           <Image
             source={{ uri: post.imageUrl }}
@@ -334,7 +335,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
           <View key={comment.id} style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <View style={styles.authorRow}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
-              <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
+              <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><UsernameMentions text={'@' + comment.author.username} textStyle={[styles.muted, { color: colors.accent }]}/></View>
               {canDelete && (
                 <ActionButton
                   title={busyId === comment.id ? '…' : 'Supprimer'}
@@ -344,7 +345,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
                 />
               )}
             </View>
-            <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
+            <UsernameMentions text={comment.content} textStyle={[styles.commentText, { color: colors.text }]}/>
             <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(comment.createdAt, true)}</Text>
           </View>
         );
@@ -505,9 +506,9 @@ export function FeedExperience({ userId }: { userId: string }) {
         >
           <View style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><UsernameMentions text={'@' + item.author.username} textStyle={[styles.muted, { color: colors.accent }]}/></View>
           </View>
-          <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
+          <UsernameMentions text={item.content} textStyle={[styles.postText, { color: colors.text }]}/>
           {item.imageUrl ? (
             <Image
               source={{ uri: item.imageUrl }}

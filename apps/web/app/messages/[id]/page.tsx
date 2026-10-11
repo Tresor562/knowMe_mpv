@@ -9,6 +9,7 @@ import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
 import { ChatMediaView } from './ChatMediaView';
 import { useI18n } from '../../../components/i18n-provider';
+import { UsernameMentions } from '../../../components/username-mentions';
 
 type Sender = {
   id:string;
@@ -96,7 +97,7 @@ function MessageContent({item}:{item:Message}){
   }
   return(
     <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-      {item.presentation?.kind==='TEXT'?item.presentation.text:item.content}
+      <UsernameMentions text={item.presentation?.kind==='TEXT'?item.presentation.text:item.content}/>
     </div>
   );
 }

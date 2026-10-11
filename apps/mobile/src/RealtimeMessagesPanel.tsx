@@ -15,6 +15,7 @@ import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
+import { UsernameMentions } from './UsernameMentions';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -693,16 +694,21 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
                   ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
-                  : <Text
-                      style={[
-                        mine ? styles.bubbleMineText : styles.bubbleText,
-                        { color: mine ? colors.accentText : colors.text }
-                      ]}>
-                      {item.presentation?.kind==='STICKER'
-                        ? `${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`
-                        : item.presentation?.kind==='TEXT'
-                          ? item.presentation.text : item.content}
-                    </Text>}
+                  : item.presentation?.kind==='STICKER'
+                     ? <Text style={[
+                         mine ? styles.bubbleMineText : styles.bubbleText,
+                         { color: mine ? colors.accentText : colors.text }
+                       ]}>
+                         {`${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`}
+                       </Text>
+                     : <UsernameMentions
+                         text={item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
+                         outgoing={mine}
+                         textStyle={[
+                           mine ? styles.bubbleMineText : styles.bubbleText,
+                           { color: mine ? colors.accentText : colors.text }
+                         ]}
+                       />}
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>
