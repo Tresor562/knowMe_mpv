@@ -16,6 +16,10 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from './api';
+import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { openKnowMeFiles } from './native-gallery';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
+import { PostAttachmentRail, type PostAsset } from './PostAttachmentRail';
 import { useAppearance } from './AppearanceProvider';
 import { StoriesRail } from './StoriesRail';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
@@ -32,6 +36,7 @@ type PostSummary = {
   authorId: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: PostAsset[];
   createdAt: string;
   author: Author;
   _count: { likes: number; comments: number };
@@ -383,6 +388,10 @@ export function FeedExperience({
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [localMedia, setLocalMedia] = useState<SelectedAndroidMedia[]>([]);
+  const [retainedAssets, setRetainedAssets] = useState<PostAsset[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<PostSummary | null>(null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
@@ -394,6 +403,8 @@ export function FeedExperience({
     setEditingPost(null);
     setContent('');
     setImageUrl('');
+    setLocalMedia([]);
+    setRetainedAssets([]);
     setComposerOpen(true);
     onComposerOpened?.();
   }, [openComposerRequest, onComposerOpened]);
@@ -444,6 +455,8 @@ export function FeedExperience({
     setEditingPost(post);
     setContent(post?.content ?? '');
     setImageUrl(post?.imageUrl ?? '');
+    setLocalMedia([]);
+    setRetainedAssets(post?.attachments ?? []);
     setMenuPost(null);
     setComposerOpen(true);
   }
@@ -498,34 +511,78 @@ export function FeedExperience({
     } finally { setPostBusy(false); }
   }
 
+  function appendFiles(selected: SelectedAndroidMedia[]) {
+    const supported = new Set([
+      'image/jpeg','image/png','image/webp','image/gif',
+      'video/mp4','audio/mpeg','audio/ogg','audio/wav','application/pdf'
+    ]);
+    const usable = selected.filter(item => supported.has(item.mime.toLowerCase()));
+    if (usable.length !== selected.length) {
+      Alert.alert('Format non pris en charge', 'Certains fichiers ne sont pas encore autorisés par le serveur.');
+    }
+    setLocalMedia(current => {
+      const ids = new Set(current.map(item => item.uri));
+      const additions = usable.filter(item => !ids.has(item.uri));
+      const available = Math.max(0, 10 - current.length - retainedAssets.length);
+      if (additions.length > available) {
+        Alert.alert('Limite des pièces jointes', 'Dix médias maximum par publication.');
+      }
+      return [...current, ...additions.slice(0, available)];
+    });
+  }
+
+  async function chooseFiles() {
+    try {
+      const selected = await openKnowMeFiles(true);
+      if (selected.length) appendFiles(selected);
+    } catch (cause) {
+      Alert.alert('Fichiers indisponibles', errorMessage(cause, 'Réessaie.'));
+    }
+  }
+
   async function publish() {
     const value = content.trim();
     const attachment = imageUrl.trim();
-    if (!value || publishing) return;
+    if ((!value && !attachment && !localMedia.length && !retainedAssets.length) || publishing) return;
     if (attachment && !/^https:\/\/[^\s]+\.[^\s]+/i.test(attachment)) {
       Alert.alert('Lien invalide', 'Utilise une URL HTTPS d’image accessible publiquement.');
       return;
     }
     setPublishing(true);
     try {
+      const uploadedIds: string[] = [];
+      for (let index = 0; index < localMedia.length; index++) {
+        const media = localMedia[index];
+        if (!media) continue;
+        setUploadProgress('Envoi du média ' + (index+1) + '/' + localMedia.length);
+        uploadedIds.push(await uploadKnowMeMobileMedia(media, 'POST'));
+      }
+      setUploadProgress('');
+      const assetIds = [
+        ...retainedAssets.map(item => item.asset.id),
+        ...uploadedIds
+      ];
       if (editingPost) {
         await apiFetch('/posts/' + encodeURIComponent(editingPost.id), {
           method: 'PATCH',
-          body: JSON.stringify({ content: value, imageUrl: attachment || null })
+          body: JSON.stringify({ content: value, imageUrl: attachment || null, assetIds })
         });
       } else {
         await apiFetch('/posts', { method: 'POST',
-          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}) }) });
+          body: JSON.stringify({ content: value, ...(attachment ? {imageUrl:attachment} : {}), assetIds }) });
       }
       setEditingPost(null);
       setContent('');
       setImageUrl('');
+      setLocalMedia([]);
+      setRetainedAssets([]);
       setComposerOpen(false);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
       setPublishing(false);
+      setUploadProgress('');
     }
   }
 
