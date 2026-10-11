@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 import { useI18n } from '../../../components/i18n-provider';
-import { PostMediaStrip, type PostMedia } from '../../../components/post-media-ui';
+import { PostMediaStrip } from '../../../components/post-media-ui';
+import type { PostMedia } from '../../../lib/post-media';
 
 type SavedRecord = {
   id: string;
