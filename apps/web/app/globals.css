@@ -1445,3 +1445,22 @@ html, body { min-width: 0; }
 @media (prefers-reduced-motion:reduce) {
   .km-animated-emoji,.km-emoji-play .km-animated-emoji {animation:none!important;transform:none!important;}
 }
+
+
+/* KnowMe Motion: first-party inline vector artwork, signed custom emojis. */
+.km-custom-emoji {display:inline-flex;align-items:center;justify-content:center;
+  max-width:100%;flex:0 0 auto;transform-origin:50% 60%;
+  filter:drop-shadow(0 3px 9px rgba(80,215,220,.19));}
+.km-custom-emoji svg {width:100%;height:100%;display:block;overflow:visible;}
+.km-custom-emoji-button {background:transparent;border:0;padding:3px;display:inline-grid;
+  place-items:center;min-width:80px;min-height:80px;border-radius:18px;cursor:pointer;}
+.km-custom-emoji-button:focus-visible {outline:2px solid var(--mint);outline-offset:2px;}
+.km-picker-motion-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.km-picker-motion-grid>button {min-height:106px;border-radius:17px;
+  padding:8px 5px;transition:background .16s ease,transform .16s ease;}
+.km-picker-motion-grid>button .km-custom-emoji{animation-duration:1.1s;}
+.km-picker-motion-grid>button:hover{transform:translateY(-2px);}
+@media(prefers-reduced-motion:reduce) {
+  .km-custom-emoji{animation:none!important;transform:none!important;filter:none;}
+  .km-picker-motion-grid>button:hover{transform:none;}
+}
