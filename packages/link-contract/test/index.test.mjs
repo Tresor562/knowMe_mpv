@@ -4,7 +4,8 @@ import {
   buildKnowMeDeepLink,
   buildKnowMeUniversalPath,
   parseKnowMeDeepLink,
-  parseKnowMeUniversalPath
+  parseKnowMeUniversalPath,
+  tokenizeKnowMeMentions
 } from '../dist/index.js';
 
 test('builds and parses a versioned profile deep link', () => {
@@ -43,4 +44,32 @@ test('rejects query, fragment and credential smuggling in custom-scheme links', 
   assert.equal(parseKnowMeDeepLink('knowme://v1/profile/usr_123456?next=/admin'), null);
   assert.equal(parseKnowMeDeepLink('knowme://v1/profile/usr_123456#token'), null);
   assert.equal(parseKnowMeDeepLink('knowme://user:pass@v1/profile/usr_123456'), null);
+});
+
+
+test('tokenizes mentions and preserves whitespace, punctuation and Unicode text', () => {
+  assert.deepEqual(tokenizeKnowMeMentions('Salut @Tresor562, @ami_1 !'), [
+    { kind: 'text', text: 'Salut ' },
+    { kind: 'mention', text: '@Tresor562', username: 'Tresor562' },
+    { kind: 'text', text: ', ' },
+    { kind: 'mention', text: '@ami_1', username: 'ami_1' },
+    { kind: 'text', text: ' !' }
+  ]);
+});
+
+test('does not turn e-mails, short handles or overly long handles into profile links', () => {
+  const value = 'moi@example.com @ab @abcdefghijklmnopqrstuvwxyz0123 et @bon';
+  assert.deepEqual(tokenizeKnowMeMentions(value), [
+    { kind: 'text', text: 'moi@example.com @ab @abcdefghijklmnopqrstuvwxyz0123 et ' },
+    { kind: 'mention', text: '@bon', username: 'bon' }
+  ]);
+});
+
+test('keeps non-mention text unchanged and supports accented prose', () => {
+  assert.deepEqual(tokenizeKnowMeMentions('bonjour !'), [{ kind: 'text', text: 'bonjour !' }]);
+  assert.deepEqual(tokenizeKnowMeMentions('Écris à @ami_123.'), [
+    { kind: 'text', text: 'Écris à ' },
+    { kind: 'mention', text: '@ami_123', username: 'ami_123' },
+    { kind: 'text', text: '.' }
+  ]);
 });
