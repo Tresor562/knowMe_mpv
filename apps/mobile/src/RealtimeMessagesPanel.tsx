@@ -14,6 +14,7 @@ import {
 import type { Socket } from 'socket.io-client';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
+import { ChatMediaPicker } from './ChatMediaPicker';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
