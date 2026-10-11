@@ -11,7 +11,7 @@ type DirectoryEntry = { uri:string; name:string; isDirectory:boolean; mime:strin
 
 const MIMES: Record<string,string> = {
   gif:'image/gif',png:'image/png',webp:'image/webp',jpg:'image/jpeg',jpeg:'image/jpeg',
-  mp4:'video/mp4',mp3:'audio/mpeg',pdf:'application/pdf'
+  mp4:'video/mp4',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',pdf:'application/pdf'
 };
 
 function fileNameFromUri(uri:string) {
@@ -26,7 +26,7 @@ function fileMime(uri:string) {
 }
 function fileKind(mime:string): MediaKind {
   return mime==='image/gif'?'GIF':mime==='video/mp4'?'VIDEO':
-    mime==='audio/mpeg'?'AUDIO':mime==='application/pdf'?'DOCUMENT':'IMAGE';
+    ['audio/mpeg','audio/ogg','audio/wav'].includes(mime)?'AUDIO':mime==='application/pdf'?'DOCUMENT':'IMAGE';
 }
 
 export function ChatMediaPicker<T>({conversationId,onSent}:{
@@ -152,7 +152,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
             </Pressable>
           </View>
           <Text style={[styles.help,{color:colors.muted}]}>
-            Choisis un dossier, puis une photo, un GIF, un sticker, une vidéo MP4, un audio MP3 ou un PDF.
+            Choisis un dossier, puis une photo, un GIF, un sticker, une vidéo MP4, un audio MP3/OGG/WAV ou un PDF.
           </Text>
           <Pressable accessibilityRole="checkbox" accessibilityState={{checked:preferSticker}}
             onPress={()=>setPreferSticker(value=>!value)} style={styles.option}>
@@ -175,7 +175,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
           {busy&&<Text style={[styles.help,{color:colors.muted}]}>Traitement en cours…</Text>}
           {!!notice&&<Text accessibilityRole="alert" style={[styles.help,{color:colors.text}]}>{notice}</Text>}
           <ScrollView style={styles.files} contentContainerStyle={styles.fileContent}>
-            {directory&&entries.length===0&&!busy&&<Text style={[styles.help,{color:colors.muted}]}>Aucun média compatible dans ce dossier (PNG, JPEG, WebP, GIF, MP4, MP3, PDF).</Text>}
+            {directory&&entries.length===0&&!busy&&<Text style={[styles.help,{color:colors.muted}]}>Aucun média compatible dans ce dossier (PNG, JPEG, WebP, GIF, MP4, MP3, OGG, WAV, PDF).</Text>}
             {entries.map(file=><Pressable key={file.uri} accessibilityRole="button" disabled={busy}
               style={[styles.file,{borderBottomColor:colors.border}]}
               onPress={()=>{
@@ -187,7 +187,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
                 : file.mime?.startsWith('image/')
                   ? <Image source={{uri:file.uri}} style={styles.thumbnail} resizeMode="cover"/>
                   : <Text style={styles.folderGlyph}>{file.mime==='application/pdf'?'📄':
-                    file.mime==='audio/mpeg'?'🎵':'🎬'}</Text>}
+                    file.mime?.startsWith('audio/')?'🎵':'🎬'}</Text>}
               <Text style={[styles.fileText,{color:colors.text}]} numberOfLines={1}>
                 {file.name}
               </Text>
