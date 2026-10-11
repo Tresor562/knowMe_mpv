@@ -36,6 +36,10 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22.23.2
+      - name: Validate Web Android version and feature parity registry
+        run: |
+          node --test scripts/platform-sync-preflight.test.mjs
+          node scripts/platform-sync-preflight.mjs
       - name: Verify CI and package supply-chain policy
         run: node --test scripts/ci-workflow-supply-chain-preflight.test.mjs scripts/package-dependency-pinning-preflight.test.mjs scripts/pnpm-lockfile-preflight.test.mjs scripts/runtime-container-lockfile-preflight.test.mjs scripts/runtime-container-security-preflight.test.mjs scripts/runtime-container-healthcheck-preflight.test.mjs scripts/runtime-container-boot-preflight.test.mjs scripts/runtime-media-production-config-preflight.test.mjs scripts/runtime-account-security-production-config-preflight.test.mjs scripts/runtime-media-workers-production-config-preflight.test.mjs
       - run: pnpm install --frozen-lockfile
