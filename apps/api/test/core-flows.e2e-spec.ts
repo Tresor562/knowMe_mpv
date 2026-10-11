@@ -367,6 +367,18 @@ describe('KnowMe core flows (e2e)', () => {
       kind: 'STICKER_IMAGE', assetId: sticker.id
     });
 
+    // Recipient can request a short-lived private download token; an outsider cannot.
+    const recipientGrant = await request(app.getHttpServer())
+      .post(`/media/${gif.id}/download-grant`)
+      .set('Authorization', header(bob.body.accessToken))
+      .expect(201);
+    expect(recipientGrant.body.path).toContain(`/media/${gif.id}/content?token=`);
+
+    await request(app.getHttpServer())
+      .post(`/media/${gif.id}/download-grant`)
+      .set('Authorization', header(charlie.body.accessToken))
+      .expect(403);
+
     const history = await request(app.getHttpServer())
       .get(`/conversations/${conversation.body.id}/messages`)
       .set('Authorization', header(bob.body.accessToken))
