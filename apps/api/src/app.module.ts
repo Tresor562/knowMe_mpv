@@ -38,6 +38,7 @@ import { IntegrityModule } from './integrity/integrity.module';
 import { KnowMeSecretModule } from './knowme-secret/knowme-secret.module';
 import { LeaderboardsModule } from './leaderboards/leaderboards.module';
 import { MediaModule } from './media/media.module';
+import { MobileUpdatesModule } from './mobile-updates/mobile-updates.module';
 import { MessageReactionsModule } from './message-reactions/message-reactions.module';
 import { MessengerExperienceModule } from './messenger-experience/messenger-experience.module';
 import { MessagingModule } from './messaging/messaging.module';
@@ -130,6 +131,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     AdminModule,
     RealtimeModule,
     MediaModule,
+    MobileUpdatesModule,
     IntelligenceModule,
     IntegrityModule,
     PurchasesModule,
