@@ -61,5 +61,5 @@
     "schema": "./prisma",
     "seed": "tsx prisma/seed.ts"
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
