@@ -219,6 +219,9 @@ describe('KnowMe core flows (e2e)', () => {
     const gif = await makeAsset('image/gif');
     const sticker = await makeAsset('image/webp');
     const blocked = await makeAsset('image/gif', 'QUARANTINED');
+    const video = await makeAsset('video/mp4');
+    const audio = await makeAsset('audio/mpeg');
+    const pdf = await makeAsset('application/pdf');
 
     const first = await request(app.getHttpServer())
       .post(`/conversations/${conversation.body.id}/media-messages`)
@@ -238,6 +241,18 @@ describe('KnowMe core flows (e2e)', () => {
       kind: 'STICKER_IMAGE', assetId: sticker.id
     });
 
+    for(const [kind, asset, mimeType] of [
+      ['VIDEO', video, 'video/mp4'],
+      ['AUDIO', audio, 'audio/mpeg'],
+      ['DOCUMENT', pdf, 'application/pdf']
+    ] as const) {
+      const sent = await request(app.getHttpServer())
+        .post(`/conversations/${conversation.body.id}/media-messages`)
+        .set('Authorization', header(alice.body.accessToken))
+        .send({ assetId: asset.id, kind }).expect(201);
+      expect(sent.body.presentation).toMatchObject({kind,assetId:asset.id,mimeType});
+    }
+
     // Recipient can request a short-lived private download token; an outsider cannot.
     const recipientGrant = await request(app.getHttpServer())
       .post(`/media/${gif.id}/download-grant`)
@@ -256,7 +271,10 @@ describe('KnowMe core flows (e2e)', () => {
       .expect(200);
     expect(history.body.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: first.body.id, presentation: expect.objectContaining({kind:'GIF'}) }),
-      expect.objectContaining({ id: second.body.id, presentation: expect.objectContaining({kind:'STICKER_IMAGE'}) })
+      expect.objectContaining({ id: second.body.id, presentation: expect.objectContaining({kind:'STICKER_IMAGE'}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'VIDEO',assetId:video.id}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'AUDIO',assetId:audio.id}) }),
+      expect.objectContaining({ presentation: expect.objectContaining({kind:'DOCUMENT',assetId:pdf.id}) })
     ]));
 
     await request(app.getHttpServer())
