@@ -88,7 +88,10 @@ export class MessagingController {
     await this.moderation.assertAllowed({
       actorId: req.user.userId,
       action: 'MESSAGE_SEND',
-      content: dto.kind,
+      // Bind the duplicate-content fingerprint to the actual media asset.
+      // Different GIFs must not be mistaken for repeated identical text,
+      // while repeatedly posting the same media remains rate-limited.
+      content: `${dto.kind}:${dto.assetId}`,
       targetId: id
     });
     return this.messaging.sendMediaMessage(req.user.userId, id, dto.assetId, dto.kind);
