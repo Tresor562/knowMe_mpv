@@ -6,11 +6,14 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import { useI18n } from '../../components/i18n-provider';
+import { PostMediaPicker, PostMediaStrip } from '../../components/post-media-ui';
+import { uploadPostFiles, type PostMedia } from '../../lib/post-media';
 
 type Post = {
   id: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: PostMedia[];
   createdAt: string;
   author: { id: string; username: string; displayName: string; avatarUrl?: string | null };
   _count: { likes: number; comments: number };
@@ -28,7 +31,11 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(false);
   const [message, setMessage] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [savingPostId, setSavingPostId] = useState<string | null>(null);
   const loadGeneration = useRef(0);
 
   const invalidateFeedAuthority = useCallback(() => {
@@ -103,19 +110,51 @@ export default function FeedPage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     const content = String(data.get('content') ?? '').trim();
-    if (!content) return;
+    if (!content && !selectedFiles.length) return;
 
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content }) });
+      const assetIds = await uploadPostFiles(selectedFiles,
+        (index,count)=>setUploadProgress((en?'Uploading ':'Envoi ')+index+'/'+count));
+      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content, assetIds }) });
       form.reset();
+      setSelectedFiles([]);
+      setUploadProgress('');
       await loadFeed();
     } catch (cause) {
       invalidateFeedAuthority();
       setMessage(cause instanceof Error ? cause.message : (en ? 'Could not publish.' : 'Publication impossible.'));
     } finally {
       setPublishing(false);
+      setUploadProgress('');
     }
+  }
+
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    let live = true;
+    void apiFetch<{ post: { id: string } }[]>('/posts/saved')
+      .then(records => { if (live) setSavedIds(new Set(records.map(item=>item.post.id))); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, [sessionLoading, user?.id]);
+
+  async function toggleSave(postId: string) {
+    if (savingPostId || !authorityFresh) return;
+    const isSaved = savedIds.has(postId);
+    setSavingPostId(postId);
+    try {
+      await apiFetch('/posts/' + encodeURIComponent(postId) + '/save', {
+        method: isSaved ? 'DELETE' : 'POST'
+      });
+      setSavedIds(current => {
+        const next = new Set(current);
+        if (isSaved) next.delete(postId); else next.add(postId);
+        return next;
+      });
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : (en ? 'Unable to save this post.' : 'Impossible d’enregistrer la publication.'));
+    } finally { setSavingPostId(null); }
   }
 
   async function toggleLike(postId: string) {
@@ -137,11 +176,18 @@ export default function FeedPage() {
     <main className="shell km-feed-page">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
-        <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <Link className="km-feed-story-cta" href="/feed/saved">
+            {en?'Saved posts':'Enregistrés'}
+          </Link>
+          <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        </div>
       </header>
       <StoriesRail />
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
-        <textarea name="content" placeholder={en?'Share an update, an idea or a question…':'Partage une nouvelle, une idée ou une question…'} rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+        <textarea name="content" placeholder={en?'Share an update, an idea or a question…':'Partage une nouvelle, une idée ou une question…'} rows={2} maxLength={2000} disabled={!authorityFresh || publishing}/>
+        <PostMediaPicker files={selectedFiles} onChange={setSelectedFiles}/>
+        {!!uploadProgress && <p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>}
         <div className="km-feed-compose-actions">
           <Link href="/stories/new">{en?'Create a story':'Créer une story'}</Link>
           <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
@@ -172,9 +218,16 @@ export default function FeedPage() {
             </div>
             <Link href={`/feed/${post.id}`}><p style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
             {post.imageUrl && <img src={post.imageUrl} alt={en?"Post media":"Média de la publication"} style={{ width: '100%', borderRadius: 18 }} />}
+            <PostMediaStrip postId={post.id} media={post.attachments}/>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
               <Link className="btn" href={`/feed/${post.id}`}>💬 {post._count.comments}</Link>
+              <button type="button" className="btn"
+                disabled={!authorityFresh || savingPostId === post.id}
+                aria-pressed={savedIds.has(post.id)}
+                onClick={() => void toggleSave(post.id)}>
+                {savedIds.has(post.id) ? (en?'Saved ✓':'Enregistré ✓') : (en?'Save':'Enregistrer')}
+              </button>
               <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
             </div>
           </article>

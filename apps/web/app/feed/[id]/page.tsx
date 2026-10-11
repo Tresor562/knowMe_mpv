@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
+import { PostMediaStrip } from '../../../components/post-media-ui';
+import type { PostMedia } from '../../../lib/post-media';
 
 type Comment = {
   id: string;
@@ -17,6 +19,7 @@ type Post = {
   id: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: PostMedia[];
   createdAt: string;
   authorId: string;
   author: { id: string; displayName: string; username: string };
@@ -150,6 +153,7 @@ export default function PostDetailPage() {
         <div style={{ color: 'var(--muted)' }}>@{post.author.username}</div>
         <p style={{ fontSize: 19, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p>
         {post.imageUrl && <img src={post.imageUrl} alt="Média de la publication" style={{ width: '100%', borderRadius: 18 }} />}
+        <PostMediaStrip postId={post.id} media={post.attachments}/>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => void like()}>♥ {post._count.likes}</button>
           <span style={{ color: 'var(--muted)' }}>💬 {post._count.comments}</span>

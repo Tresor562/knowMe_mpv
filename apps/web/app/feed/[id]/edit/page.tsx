@@ -6,12 +6,15 @@ import { FormEvent, useEffect, useState } from 'react';
 import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
 import { useI18n } from '../../../../components/i18n-provider';
+import { PostMediaPicker, PostMediaStrip } from '../../../../components/post-media-ui';
+import { uploadPostFiles, type PostMedia } from '../../../../lib/post-media';
 
 type EditablePost = {
   id: string;
   authorId: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: PostMedia[];
   author: { displayName: string; username: string; avatarUrl?: string | null };
 };
 
@@ -25,6 +28,9 @@ export default function EditPostPage() {
   const [post, setPost] = useState<EditablePost | null>(null);
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [existingAssets, setExistingAssets] = useState<PostMedia[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,6 +49,8 @@ export default function EditPostPage() {
         setPost(next);
         setContent(next.content);
         setImageUrl(next.imageUrl ?? '');
+        setExistingAssets(next.attachments ?? []);
+        setSelectedFiles([]);
         setError('');
       })
       .catch(cause => {
@@ -54,7 +62,7 @@ export default function EditPostPage() {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!post || !content.trim() || busy) return;
+    if (!post || (!content.trim() && !imageUrl.trim() && !selectedFiles.length && !existingAssets.length) || busy) return;
     const image = imageUrl.trim();
     if (image) {
       try {
@@ -68,15 +76,20 @@ export default function EditPostPage() {
     setBusy(true);
     setError('');
     try {
+      const uploaded = await uploadPostFiles(selectedFiles,
+        (index,count)=>setUploadProgress((en?'Uploading ':'Envoi ')+index+'/'+count));
       await apiFetch('/posts/' + encodeURIComponent(post.id), {
         method: 'PATCH',
-        body: JSON.stringify({ content: content.trim(), imageUrl: image || null })
+        body: JSON.stringify({
+          content: content.trim(), imageUrl: image || null,
+          assetIds: [...existingAssets.map(item=>item.asset.id),...uploaded]
+        })
       });
       router.push('/feed/' + encodeURIComponent(post.id));
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : (en ? 'Could not save the post.' : 'Enregistrement impossible.'));
-    } finally { setBusy(false); }
+    } finally { setBusy(false);setUploadProgress(''); }
   }
 
   return (
@@ -111,7 +124,7 @@ export default function EditPostPage() {
           <label style={{ display: 'grid', gap: 7 }}>
             <span style={{ fontWeight: 600 }}>{en ? 'Text' : 'Texte de la publication'}</span>
             <textarea
-              className="input" required autoFocus maxLength={2000} rows={7}
+              className="input" autoFocus maxLength={2000} rows={7}
               value={content} onChange={event => setContent(event.target.value)}
               placeholder={en ? 'What would you like to share?' : 'Que veux-tu partager ?'}
               style={{ resize: 'vertical', minHeight: 160, fontSize: 18, lineHeight: 1.5 }}
@@ -127,11 +140,24 @@ export default function EditPostPage() {
           {imageUrl.trim().startsWith('https://') && <img src={imageUrl.trim()}
             alt={en ? 'Image preview' : 'Aperçu de l’image'}
             style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 16 }}/>}
-          <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>
-            {en ? 'Multiple file attachments require the upcoming media API.'
-              : 'L’ajout de plusieurs fichiers nécessite encore la prochaine API multimédia.'}
-          </p>
-          <button className="btn btn-primary" type="submit" disabled={busy || !content.trim()}
+          <PostMediaPicker files={selectedFiles} onChange={setSelectedFiles}
+            maxCount={10-existingAssets.length}/>
+          {existingAssets.length>0 && <div style={{display:'grid',gap:6}}>
+            <strong>{en?'Existing media':'Médias déjà publiés'}</strong>
+            <PostMediaStrip postId={post.id} media={existingAssets}/>
+            {existingAssets.map(item=><div key={item.asset.id}
+              style={{display:'flex',gap:8,alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {item.asset.originalName}
+              </span>
+              <button type="button" className="btn"
+                onClick={()=>setExistingAssets(list=>list.filter(entry=>entry.asset.id!==item.asset.id))}>
+                {en?'Remove':'Retirer'}
+              </button>
+            </div>)}
+          </div>}
+          {!!uploadProgress&&<p role="status" style={{color:'var(--mint)'}}>{uploadProgress}</p>}
+          <button className="btn btn-primary" type="submit" disabled={busy || (!content.trim() && !imageUrl.trim() && !selectedFiles.length && !existingAssets.length)}
             style={{ minHeight: 46 }}>
             {busy ? (en ? 'Saving…' : 'Enregistrement…') : (en ? 'Save changes' : 'Enregistrer les modifications')}
           </button>
