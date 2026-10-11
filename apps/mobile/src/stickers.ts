@@ -39,7 +39,7 @@ export type MobileStickerPresentation = {
 export type MobileMessagePresentation =
   | MobileStickerPresentation
   | { kind: 'TEXT'; text: string }
-  | {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string};
+  | {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 
 export function getMobileStickerCatalog() {
   return apiFetch<MobileStickerCatalog>('/stickers/catalog');
