@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 
 type AvatarQuickActionsProps = {
@@ -9,7 +10,6 @@ type AvatarQuickActionsProps = {
   avatarUrl?: string | null;
   locale: 'fr' | 'en';
   onSelectPhoto: () => void;
-  onSelectCover: () => void;
   busy?: boolean;
 };
 
@@ -27,26 +27,42 @@ function ActionIcon({name}:{name:GlyphName}) {
 
 /** Native-style anchored actions for the current account, not a fake context menu. */
 export function AvatarQuickActions({
-  username, displayName, avatarUrl, locale, onSelectPhoto, onSelectCover, busy
+  username, displayName, avatarUrl, locale, onSelectPhoto, busy
 }: AvatarQuickActionsProps) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const en = locale === 'en';
+  const placeMenu = () => {
+    const rect = trigger.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(270, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    const menuHeight = 228;
+    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12));
+    setMenuPosition({ top, left });
+  };
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
-      if (wrap.current && !wrap.current.contains(event.target as Node)) setOpen(false);
+      if (!wrap.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const closeEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); }
     };
+    placeMenu();
     window.addEventListener('pointerdown', closeOutside);
     window.addEventListener('keydown', closeEscape);
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', placeMenu, true);
     return () => {
       window.removeEventListener('pointerdown', closeOutside);
       window.removeEventListener('keydown', closeEscape);
+      window.removeEventListener('resize', placeMenu);
+      window.removeEventListener('scroll', placeMenu, true);
     };
   }, [open]);
 
@@ -62,10 +78,10 @@ export function AvatarQuickActions({
     <div className="km-avatar-actions" ref={wrap}>
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
         aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
-        onClick={() => setOpen(value => !value)} disabled={busy}>
+        onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
-      {open && <div className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
+      {open && createPortal(<div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
           <ActionIcon name="story" />{en ? 'Add a story' : 'Ajouter une story'}
         </Link>
@@ -75,13 +91,10 @@ export function AvatarQuickActions({
         <button type="button" role="menuitem" onClick={() => act(onSelectPhoto)}>
           <ActionIcon name="photo" />{en ? 'Change picture' : 'Changer la photo'}
         </button>
-        <button type="button" role="menuitem" onClick={() => act(onSelectCover)}>
-          <ActionIcon name="cover" />{en ? 'Change cover' : 'Changer la couverture'}
-        </button>
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
-      </div>}
+      </div>, document.body)}
       {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
         <button type="button" className="km-avatar-lightbox-close" onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>×</button>
