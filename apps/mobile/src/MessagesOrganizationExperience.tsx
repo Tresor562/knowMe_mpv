@@ -48,6 +48,8 @@ type Props = {
   userId: string;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onContentScroll?: (offset: number) => void;
+  onSecondaryModeChange?: (active: boolean) => void;
 };
 
 const organizationTools: Array<{
@@ -95,12 +97,18 @@ const organizationTools: Array<{
 export function MessagesOrganizationExperience({
   userId,
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onContentScroll,
+  onSecondaryModeChange
 }: Props) {
   const { colors } = useAppearance();
   const [organizationOpen, setOrganizationOpen] = useState(false);
   const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
+  useEffect(() => {
+    onSecondaryModeChange?.(organizationOpen || organizationConversationId !== null);
+    return () => { onSecondaryModeChange?.(false); };
+  }, [organizationOpen, organizationConversationId, onSecondaryModeChange]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [overview, setOverview] = useState<OrganizationOverview | null>(null);
   const [overviewWarning, setOverviewWarning] = useState('');
@@ -298,7 +306,9 @@ export function MessagesOrganizationExperience({
 
   if (organizationOpen) {
     return (
-      <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
+      <ScrollView style={rootStyle} contentContainerStyle={styles.content}
+        scrollEventThrottle={16}
+        onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}>
         <View style={styles.toolbar}>
           <PressScale
             accessibilityRole="button"
