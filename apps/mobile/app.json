@@ -14,7 +14,8 @@
           "configureAndroidBackup": true,
           "faceIDPermission": "Autoriser KnowMe à protéger les secrets de connexion avec Face ID."
         }
-      ]
+      ],
+      "./plugins/with-animated-chat-media.cjs"
     ],
     "ios": {
       "supportsTablet": true,
