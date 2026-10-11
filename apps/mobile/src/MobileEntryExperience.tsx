@@ -13,6 +13,7 @@ import { AppearanceProvider, useAppearance } from './AppearanceProvider';
 import { GuestQuickMathExperience } from './GuestQuickMathExperience';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
+import { MobileUpdateNotice } from './updates/MobileUpdateNotice';
 import {
   MobileEntryMode,
   reconcileMobileEntrySession,
@@ -191,6 +192,7 @@ export function MobileEntryExperience() {
   return (
     <AppearanceProvider>
       <EntryContent />
+      <MobileUpdateNotice />
     </AppearanceProvider>
   );
 }
