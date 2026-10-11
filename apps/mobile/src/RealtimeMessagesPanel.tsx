@@ -665,7 +665,8 @@ export function RealtimeMessagesPanel({
                 ) : null}
                 {item.presentation?.kind==='GIF'||
                  item.presentation?.kind==='STICKER_IMAGE'||
-                 item.presentation?.kind==='IMAGE'
+                 item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
+                 item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
                   ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}/>
                   : <Text
                       style={[
