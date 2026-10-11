@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { StoriesRail } from './StoriesRail';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
 type Author = {
@@ -355,8 +356,15 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   );
 }
 
-export function FeedExperience({ userId, onContentScroll, onSecondaryModeChange }: {
+export function FeedExperience({
+  userId, currentUser, onOpenDiscover, openStoryComposer, onStoryComposerOpened,
+  onContentScroll, onSecondaryModeChange
+}: {
   userId: string;
+  currentUser?: {id:string;displayName:string;username:string;avatarUrl?:string|null};
+  onOpenDiscover?: () => void;
+  openStoryComposer?: boolean;
+  onStoryComposerOpened?: () => void;
   onContentScroll?: (offset: number) => void;
   onSecondaryModeChange?: (active: boolean) => void;
 }) {
@@ -364,10 +372,11 @@ export function FeedExperience({ userId, onContentScroll, onSecondaryModeChange 
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [storiesOpen, setStoriesOpen] = useState(false);
   useEffect(() => {
-    onSecondaryModeChange?.(selectedPostId !== null);
+    onSecondaryModeChange?.(selectedPostId !== null || storiesOpen);
     return () => { onSecondaryModeChange?.(false); };
-  }, [selectedPostId, onSecondaryModeChange]);
+  }, [selectedPostId, storiesOpen, onSecondaryModeChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -461,18 +470,26 @@ export function FeedExperience({ userId, onContentScroll, onSecondaryModeChange 
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <GlassSurface strength="soft" borderRadius={28} style={styles.discoverHeader}>
+          <View style={[styles.discoverHeader,{backgroundColor:colors.surface}]}>
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>KnowMe</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>Accueil</Text>
               </View>
             </View>
-            <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
-              <KnowMeIcon name="discover" size={22} color={colors.accent} />
-            </GlassSurface>
-          </GlassSurface>
+            <Pressable accessibilityRole="button" accessibilityLabel="Rechercher des profils et publications"
+              disabled={!onOpenDiscover} onPress={onOpenDiscover}
+              style={[styles.discoverIcon,{backgroundColor:colors.backgroundAccent}]}>
+              <KnowMeIcon name="search" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+          {currentUser && onOpenDiscover ? (
+            <StoriesRail currentUser={currentUser} onOpenDiscover={onOpenDiscover}
+              openComposer={openStoryComposer}
+              onComposerOpened={onStoryComposerOpened}
+              onImmersiveChange={setStoriesOpen}/>
+          ) : null}
           <GlassSurface
             strength="soft"
             borderRadius={20}
@@ -539,7 +556,7 @@ export function FeedExperience({ userId, onContentScroll, onSecondaryModeChange 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 28, gap: 11 },
   headerBlock: { gap: 10, marginBottom: 2 },
-  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
+  discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 50, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 0, borderRadius:16 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
