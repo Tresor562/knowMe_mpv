@@ -144,7 +144,8 @@ export function AndroidMediaLibraryPicker({
     if (!selection.length) return;
     const selected = selection.map(item => ({ uri: item.uri, name: item.name, mime: item.mime }));
     onPickedMany?.(selected);
-    if (!onPickedMany && onPicked) onPicked(selected[0]);
+    const first = selected[0];
+    if (!onPickedMany && onPicked && first) onPicked(first);
   }
 
   return (
