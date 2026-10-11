@@ -38,6 +38,7 @@ export function BottomNavigation() {
   const [createOpen, setCreateOpen] = useState(false);
   const [position, setPosition] = useState<NavPosition>('bottom');
   const lastScrollY = useRef(0);
+  const directionDistance = useRef(0);
 
   useEffect(() => {
     const update = () => setHasSession(Boolean(window.localStorage.getItem('knowme_token')));
@@ -62,6 +63,7 @@ export function BottomNavigation() {
     setVisible(true);
     setCreateOpen(false);
     lastScrollY.current = window.scrollY;
+    directionDistance.current = 0;
   }, [pathname]);
 
   useEffect(() => {
@@ -70,9 +72,16 @@ export function BottomNavigation() {
       const now = Math.max(0, window.scrollY);
       const previous = lastScrollY.current;
       const delta = now - previous;
-      if (now < 24) setVisible(true);
-      else if (delta > 12) setVisible(false);
-      else if (delta < -12) setVisible(true);
+      if (now < 24) {
+        directionDistance.current = 0;
+        setVisible(true);
+      } else if (delta > 0) {
+        directionDistance.current = Math.max(0, directionDistance.current) + delta;
+        if (directionDistance.current > 30) setVisible(false);
+      } else if (delta < 0) {
+        directionDistance.current = Math.min(0, directionDistance.current) + delta;
+        if (directionDistance.current < -22) setVisible(true);
+      }
       lastScrollY.current = now;
     };
     const onFocusIn = (event: FocusEvent) => {
