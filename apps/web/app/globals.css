@@ -1254,3 +1254,27 @@ html, body { min-width: 0; }
 @media(prefers-reduced-motion:reduce) {
   .km-channel-row,.km-channel-profile-actions > * {transition:none;}
 }
+
+
+/* Real conversation GIFs, imported stickers and images — native compact media. */
+.km-chat-media {display:block;width:auto;max-width:min(100%,360px);max-height:420px;height:auto;
+  object-fit:contain;border-radius:12px;vertical-align:middle;}
+.km-chat-media-sticker_image {max-width:min(100%,230px);max-height:230px;object-fit:contain;}
+.km-chat-media-gif {max-width:min(100%,320px);max-height:320px;}
+.km-chat-media-loading,.km-chat-media-fallback {display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  min-height:88px;min-width:145px;color:var(--muted);font-size:12px;}
+.km-chat-media-fallback button {min-height:44px;border:0;border-radius:12px;
+  padding:9px 12px;background:var(--surface-2);color:var(--text);cursor:pointer;}
+.km-picker-upload-panel {display:grid;gap:10px;padding:14px;}
+.km-picker-upload-panel p {margin:0;color:var(--muted);font-size:13px;line-height:1.5;}
+.km-picker-upload-panel small {font-size:11px;color:var(--muted);line-height:1.5;}
+.km-picker-upload-action,.km-picker-upload-secondary {min-height:48px;border-radius:14px;
+  border:1px solid var(--soft-border);font-size:14px;font-weight:660;
+  cursor:pointer;padding:10px 15px;}
+.km-picker-upload-action {background:var(--mint);color:var(--on-primary);border-color:transparent;}
+.km-picker-upload-secondary {background:var(--surface-2);color:var(--text);}
+.km-picker-upload-panel button:disabled {opacity:.55;cursor:not-allowed;}
+.km-picker-error {margin:8px;padding:10px 12px;border-radius:13px;
+  background:color-mix(in srgb,var(--danger) 9%,var(--surface));color:var(--danger);font-size:12px;}
+@media(max-width:400px){.km-chat-media {max-width:100%;}}
+@media(prefers-reduced-motion:reduce){.km-picker-upload-panel button {transition:none;}}
