@@ -129,6 +129,11 @@ export function RealtimeMessagesPanel({
   const [pinLimit, setPinLimit] = useState<number | null>(null);
   const [pinBusyId, setPinBusyId] = useState<string | null>(null);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
+  const [groupMode,setGroupMode]=useState(false);
+  const [selectedGroupIds,setSelectedGroupIds]=useState<Set<string>>(new Set());
+  const [groupName,setGroupName]=useState('');
+  const [groupBusy,setGroupBusy]=useState(false);
+
   const [active, setActive] = useState<Conversation | null>(null);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
   const [readStates, setReadStates] = useState<ConversationMember[]>([]);
@@ -402,6 +407,26 @@ export function RealtimeMessagesPanel({
     } catch (cause) {
       Alert.alert('Création impossible', errorMessage(cause, 'Réessaie.'));
     }
+  }
+
+  async function createGroup() {
+    const name=groupName.trim();
+    if(groupBusy || name.length<1 || selectedGroupIds.size<2)return;
+    setGroupBusy(true);
+    try {
+      const created=await apiFetch<Conversation>('/conversations',{
+        method:'POST',
+        body:JSON.stringify({title:name,memberIds:[...selectedGroupIds]})
+      });
+      const chat=normalizeConversation(created);
+      setConversations(current=>[chat,...current.filter(item=>item.id!==chat.id)]);
+      setGroupName('');
+      setSelectedGroupIds(new Set());
+      setGroupMode(false);
+      await openConversation(chat);
+    }catch(cause){
+      Alert.alert('Groupe impossible',errorMessage(cause,'Réessaie.'));
+    }finally{setGroupBusy(false);}
   }
 
   async function createNexusConversation() {
@@ -787,7 +812,18 @@ export function RealtimeMessagesPanel({
 
       {friends.length > 0 ? (
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Nouvelle discussion</Text>
+          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            <Text style={[styles.cardTitle,{color:colors.text}]}>
+              {groupMode?'Nouveau groupe':'Nouvelle discussion'}
+            </Text>
+            <Pressable accessibilityRole="button"
+              onPress={()=>{setGroupMode(current=>!current);setSelectedGroupIds(new Set());}}
+              style={{minHeight:44,paddingHorizontal:10,justifyContent:'center'}}>
+              <Text style={{color:colors.accent,fontWeight:'700'}}>
+                {groupMode?'Discussion privée':'Créer un groupe'}
+              </Text>
+            </Pressable>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -796,13 +832,21 @@ export function RealtimeMessagesPanel({
             {friends.map(({ user }) => (
               <Pressable
                 key={user.id}
-                onPress={() => setSelectedFriend(user.id)}
+                onPress={() => {
+                  if(!groupMode){setSelectedFriend(user.id);return;}
+                  setSelectedGroupIds(current=>{
+                    const next=new Set(current);
+                    if(next.has(user.id))next.delete(user.id);
+                    else next.add(user.id);
+                    return next;
+                  });
+                }}
                 style={[
                   styles.friendChoice,
                   {
                     borderRadius: visual.controlRadius,
-                    borderColor: selectedFriend === user.id ? colors.accent : colors.border,
-                    backgroundColor: selectedFriend === user.id
+                    borderColor: (groupMode?selectedGroupIds.has(user.id):selectedFriend===user.id) ? colors.accent : colors.border,
+                    backgroundColor: (groupMode?selectedGroupIds.has(user.id):selectedFriend===user.id)
                       ? colors.surfaceRaised
                       : colors.surface
                   }
@@ -829,11 +873,26 @@ export function RealtimeMessagesPanel({
               </Pressable>
             ))}
           </ScrollView>
-          <ActionButton
+          {groupMode?<View style={{gap:10}}>
+            <Text style={{color:colors.muted,fontSize:12}}>
+              {selectedGroupIds.size} contacts sélectionnés (minimum 2)
+            </Text>
+            <TextInput
+              value={groupName} onChangeText={setGroupName}
+              maxLength={90} placeholder="Nom du groupe"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Nom du nouveau groupe"
+              style={[styles.input,{color:colors.text,borderColor:colors.border,backgroundColor:colors.backgroundAccent}]}
+            />
+            <ActionButton
+              title={groupBusy?'Création…':'Créer le groupe'}
+              disabled={groupBusy||selectedGroupIds.size<2||!groupName.trim()}
+              onPress={()=>void createGroup()}/>
+          </View>:<ActionButton
             title="Créer la conversation"
             disabled={!selectedFriend}
             onPress={() => void createConversation()}
-          />
+          />}
         </View>
       ) : null}
 
