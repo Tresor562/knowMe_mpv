@@ -42,7 +42,7 @@ type ConversationMessage = {
   nexusAuthored?: boolean;
   presentation?:{kind:'TEXT';text:string}|
     {kind:'STICKER';sticker:{glyph:string;label:string}}|
-    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string};
+    {kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT';assetId:string;mimeType:string;fileName?:string;sizeBytes?:number};
 };
 type Conversation = {
   id: string;
@@ -667,7 +667,7 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='STICKER_IMAGE'||
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
-                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}/>
+                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName}/>
                   : <Text
                       style={[
                         mine ? styles.bubbleMineText : styles.bubbleText,
