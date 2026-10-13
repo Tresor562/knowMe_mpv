@@ -71,6 +71,17 @@ export class LinkTargetsService {
       };
     }
 
+    if (kind === 'gift') {
+      // Only the recipient may dereference an individual gift receipt.
+      const gift = await this.prisma.notification.findFirst({
+        where: {id,userId:viewerId,type:'SOCIAL_GIFT'},
+        select:{id:true}
+      });
+      if (gift) return {
+        kind,id,webPath:`/gifts?gift=${gift.id}`,context:{giftId:gift.id}
+      };
+    }
+
     if (kind === 'channel') {
       await this.channels.details(viewerId, id);
       return {kind,id,webPath:`/channels/${id}`,context:{channelId:id}};
