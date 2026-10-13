@@ -1089,6 +1089,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkedChannel, setLinkedChannel] = useState<{channelId:string;postId?:string} | null>(null);
   const [linkedGiftId, setLinkedGiftId] = useState<string | null>(null);
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
+  const [linkedChallengeId, setLinkedChallengeId] = useState<string | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
   const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
@@ -1155,10 +1156,13 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       try {
         const result = await apiFetch<{
           kind: string;
-          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string };
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string; challengeId?: string };
         }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
         if (!active) return;
-        if (result.context.username) {
+        if (result.context.challengeId) {
+          setLinkedChallengeId(result.context.challengeId);
+          setScreen('challenges');
+        } else if (result.context.username) {
           setLinkedUsername(result.context.username);
           setScreen('linked-profile');
         } else if (result.context.giftId) {
@@ -1320,6 +1324,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           <ChallengeExperience
             key={'challenges:' + user.id}
             userId={user.id}
+            initialChallengeId={linkedChallengeId}
           />
         ) : null}
 
