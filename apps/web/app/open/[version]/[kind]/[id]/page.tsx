@@ -20,6 +20,8 @@ const destinationFor = (kind: string, id: string): string | null => {
     // Requires the VIEWER's authentication and access checks before routing.
     case 'sticker':
     case 'sticker-pack':
+    case 'channel':
+    case 'channel-post':
     case 'story':
     case 'comment':
     case 'message':
