@@ -7,7 +7,8 @@ describe('LinkTargetsService', () => {
     postComment: { findUnique: jest.fn() },
     message: { findFirst: jest.fn() },
     conversationMember: { findUnique: jest.fn() },
-    channelPost: { findUnique: jest.fn() }
+    channelPost: { findUnique: jest.fn() },
+    notification: { findFirst: jest.fn() }
   };
   const stories = { get: jest.fn() };
   const channels = { details: jest.fn() };
@@ -52,6 +53,19 @@ describe('LinkTargetsService', () => {
       kind:'channel-post', id:'post_123456',
       webPath:'/channels/channel_123456?post=post_123456',
       context:{channelId:'channel_123456',channelPostId:'post_123456'}
+    });
+  });
+
+  it('only resolves a gift when it belongs to the recipient', async () => {
+    prisma.notification.findFirst.mockResolvedValueOnce(null);
+    await expect(service.resolve('outsider_123','gift','gift_123456')).rejects.toThrow(NotFoundException);
+    prisma.notification.findFirst.mockResolvedValueOnce({id:'gift_123456'});
+    await expect(service.resolve('recipient_123','gift','gift_123456')).resolves.toMatchObject({
+      webPath:'/gifts?gift=gift_123456',context:{giftId:'gift_123456'}
+    });
+    expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+      where:{id:'gift_123456',userId:'recipient_123',type:'SOCIAL_GIFT'},
+      select:{id:true}
     });
   });
 
