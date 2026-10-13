@@ -18,6 +18,22 @@ export class LinkTargetsService {
       throw new NotFoundException('Contenu indisponible.');
     }
 
+    if (kind === 'challenge') {
+      const challenge = await this.prisma.challenge.findUnique({
+        where:{id},select:{id:true,creatorId:true,visibility:true,status:true}
+      });
+      if(challenge) {
+        const participant=challenge.creatorId===viewerId ? true
+          : Boolean(await this.prisma.challengeParticipant.findUnique({
+            where:{challengeId_userId:{challengeId:id,userId:viewerId}},
+            select:{id:true}
+          }));
+        if (participant || (challenge.visibility==='PUBLIC' && challenge.status==='ACTIVE')) {
+          return {kind,id,webPath:`/challenges/${id}`,context:{challengeId:id}};
+        }
+      }
+    }
+
     if (kind === 'profile') {
       const user = await this.prisma.user.findFirst({
         where: {OR:[{id},{username:id}]},
