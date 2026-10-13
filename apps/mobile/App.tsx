@@ -34,6 +34,7 @@ import { FeedExperience } from './src/FeedExperience';
 import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
+import { LinkedProfileExperience } from './src/LinkedProfileExperience';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
@@ -62,6 +63,7 @@ type Screen =
   | 'linked-sticker'
   | 'linked-channel'
   | 'linked-gift'
+  | 'linked-profile'
   | 'verification';
 
 type ChallengeSummary = { id: string; status: string };
@@ -1086,6 +1088,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkedSticker, setLinkedSticker] = useState<{packKey:string;stickerKey?:string} | null>(null);
   const [linkedChannel, setLinkedChannel] = useState<{channelId:string;postId?:string} | null>(null);
   const [linkedGiftId, setLinkedGiftId] = useState<string | null>(null);
+  const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
   const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
@@ -1152,10 +1155,13 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       try {
         const result = await apiFetch<{
           kind: string;
-          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string };
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string };
         }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
         if (!active) return;
-        if (result.context.giftId) {
+        if (result.context.username) {
+          setLinkedUsername(result.context.username);
+          setScreen('linked-profile');
+        } else if (result.context.giftId) {
           setLinkedGiftId(result.context.giftId);
           setScreen('linked-gift');
         } else if (result.context.channelId && !result.context.conversationId) {
@@ -1292,6 +1298,10 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           />
         ) : null}
 
+        {screen === 'linked-profile' && linkedUsername ? (
+          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen('social')} />
+        ) : null}
+
         {screen === 'linked-gift' && linkedGiftId ? (
           <LinkedGiftExperience giftId={linkedGiftId} onBack={() => setScreen('profile')} />
         ) : null}
@@ -1335,7 +1345,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}
