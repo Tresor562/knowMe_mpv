@@ -18,6 +18,16 @@ export class LinkTargetsService {
       throw new NotFoundException('Contenu indisponible.');
     }
 
+    if (kind === 'profile') {
+      const user = await this.prisma.user.findFirst({
+        where: {OR:[{id},{username:id}]},
+        select:{username:true}
+      });
+      if(user) return {
+        kind,id,webPath:`/profile/${user.username}`,context:{username:user.username}
+      };
+    }
+
     if (kind === 'post') {
       const post = await this.prisma.post.findUnique({ where: { id }, select: { id: true } });
       if (post) return { kind, id, webPath: `/feed/${post.id}`, context: { postId: post.id } };
