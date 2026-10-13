@@ -15,6 +15,7 @@ export const KNOWME_DEEP_LINK_KINDS = [
   'message',
   'conversation',
   'channel',
+  'channel-post',
   'story',
   'media',
   'sticker',
