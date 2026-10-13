@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { buildKnowMeUniversalPath } from '@knowme/link-contract';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
@@ -367,7 +367,7 @@ export default function StoryViewerPage() {
             )}
             {story.allowSharing && (
               <button className="btn" type="button" onClick={() => {
-                void navigator.clipboard.writeText(window.location.origin + buildKnowMeUniversalPath({kind:'story',id:story.id}))
+                void navigator.clipboard.writeText(buildKnowMePublicLink({kind:'story',id:story.id}))
                   .then(() => setMessage(en ? 'Link copied' : 'Lien de la story copié'))
                   .catch(() => setMessage(en ? 'Copy unavailable' : 'Copie indisponible'));
               }}>{en ? 'Copy story link' : 'Copier le lien de la story'}</button>
