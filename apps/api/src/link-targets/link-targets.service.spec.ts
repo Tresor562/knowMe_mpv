@@ -6,10 +6,12 @@ describe('LinkTargetsService', () => {
     post: { findUnique: jest.fn() },
     postComment: { findUnique: jest.fn() },
     message: { findFirst: jest.fn() },
-    conversationMember: { findUnique: jest.fn() }
+    conversationMember: { findUnique: jest.fn() },
+    channelPost: { findUnique: jest.fn() }
   };
   const stories = { get: jest.fn() };
-  const service = new LinkTargetsService(prisma as never, stories as never);
+  const channels = { details: jest.fn() };
+  const service = new LinkTargetsService(prisma as never, stories as never, channels as never);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -36,6 +38,20 @@ describe('LinkTargetsService', () => {
     expect(prisma.message.findFirst).toHaveBeenCalledWith({
       where: { id: 'message_123456', conversation: { members: { some: { userId: 'member_1234' } } } },
       select: { id: true, conversationId: true }
+    });
+  });
+
+  it('requires channel permission and preserves a linked post', async () => {
+    prisma.channelPost.findUnique.mockResolvedValueOnce({id:'post_123456',channelId:'channel_123456'});
+    channels.details.mockRejectedValueOnce(new NotFoundException('CHANNEL_NOT_FOUND'));
+    await expect(service.resolve('stranger_123','channel-post','post_123456')).rejects.toThrow(NotFoundException);
+
+    prisma.channelPost.findUnique.mockResolvedValueOnce({id:'post_123456',channelId:'channel_123456'});
+    channels.details.mockResolvedValueOnce({id:'channel_123456'});
+    await expect(service.resolve('follower_123','channel-post','post_123456')).resolves.toEqual({
+      kind:'channel-post', id:'post_123456',
+      webPath:'/channels/channel_123456?post=post_123456',
+      context:{channelId:'channel_123456',channelPostId:'post_123456'}
     });
   });
 
