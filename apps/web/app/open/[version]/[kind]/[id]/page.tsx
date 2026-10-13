@@ -29,6 +29,7 @@ const destinationFor = (kind: string, id: string): string | null => {
     case 'conversation':
     case 'group':
     case 'media':
+    case 'gif':
       return `/link-targets/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`;
     default:
       return null;
