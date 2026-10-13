@@ -46,7 +46,7 @@ test('rejects query, fragment and credential smuggling in custom-scheme links', 
 });
 
 test('content links retain precise IDs and reject unsafe destinations', () => {
-  for (const kind of ['post', 'comment', 'message', 'conversation', 'story', 'sticker', 'media', 'channel', 'poll', 'reaction', 'emoji', 'gif', 'topic', 'group']) {
+  for (const kind of ['post', 'comment', 'message', 'conversation', 'channel', 'channel-post', 'story', 'sticker', 'media', 'channel', 'poll', 'reaction', 'emoji', 'gif', 'topic', 'group']) {
     const target = { kind, id: 'cm_abcdef012345' };
     assert.deepEqual(parseKnowMeUniversalPath(buildKnowMeUniversalPath(target)), { version: 'v1', ...target });
     assert.deepEqual(parseKnowMeDeepLink(buildKnowMeDeepLink(target)), { version: 'v1', ...target });
