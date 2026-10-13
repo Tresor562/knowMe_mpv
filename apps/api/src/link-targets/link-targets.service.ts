@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { isKnowMeDeepLinkKind, isSafeKnowMeLinkIdentifier } from '@knowme/link-contract';
+import { isKnowMeDeepLinkKind, isSafeKnowMeLinkTargetIdentifier } from '@knowme/link-contract';
 import { PrismaService } from '../prisma/prisma.service';
 import { findSticker, stickerCatalog } from '../messaging/stickers/sticker-catalog';
 import { ChannelsService } from '../channels/channels.service';
