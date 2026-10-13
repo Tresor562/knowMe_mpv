@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { buildKnowMeUniversalPath } from '@knowme/link-contract';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -199,7 +199,7 @@ export default function ConversationPage() {
   async function copyContentLink(kind:'message'|'conversation',id:string){
     try{
       await navigator.clipboard.writeText(
-        window.location.origin+buildKnowMeUniversalPath({kind,id})
+        buildKnowMePublicLink({kind,id})
       );
       setShareNotice(en?'Link copied':'Lien copié');
     }catch{
