@@ -384,53 +384,31 @@ export class ShortLinksService {
       throw new NotFoundException('Destination introuvable.');
     }
 
-    if (kind === 'message') {
-      const message = await this.prisma.message.findFirst({
-        where: { id: targetId, conversation: { members: { some: { userId: ownerId } } } },
-        select: { id: true }
-      });
-      if (message) return message.id;
-      throw new ForbiddenException('Destination non partageable.');
-    }
-
-    if (kind === 'conversation' || kind === 'group') {
-      const member = await this.prisma.conversationMember.findUnique({
-        where: { conversationId_userId: { conversationId: targetId, userId: ownerId } },
-        select: { conversationId: true }
-      });
-      if (member) return member.conversationId;
-      throw new ForbiddenException('Destination non partageable.');
+    // Public short-link resolution exposes a destination ID before the viewer logs in.
+    // Keep PRIVATE message/conversation/media links on the authenticated direct-link
+    // resolver until short links can bind resolution to viewer authorization.
+    if (kind === 'message' || kind === 'conversation' || kind === 'group' || kind === 'media') {
+      throw new ForbiddenException('Les liens courts privés exigent une vérification du destinataire.');
     }
 
     if (kind === 'channel') {
       const channel = await this.prisma.channel.findUnique({
-        where: { id: targetId },
-        select: { id: true, ownerId: true, visibility: true,
-          subscriptions: { where: {userId: ownerId}, select: {userId: true} } }
+        where: {id:targetId},select:{id:true,visibility:true}
       });
-      if (!channel) throw new NotFoundException('Destination introuvable.');
-      if (channel.visibility !== 'PUBLIC' && channel.ownerId !== ownerId && !channel.subscriptions.length) {
-        throw new ForbiddenException('Destination non partageable.');
+      if (!channel || channel.visibility !== 'PUBLIC') {
+        throw new ForbiddenException('Destination non partageable publiquement.');
       }
       return channel.id;
     }
 
     if (kind === 'channel-post') {
       const post = await this.prisma.channelPost.findUnique({
-        where: {id: targetId}, select: {id:true,channelId:true}
+        where: {id:targetId},select:{id:true,channel:{select:{visibility:true}}}
       });
-      if (!post) throw new NotFoundException('Destination introuvable.');
-      await this.authorizeTarget(ownerId, 'channel', post.channelId);
+      if (!post || post.channel.visibility !== 'PUBLIC') {
+        throw new ForbiddenException('Destination non partageable publiquement.');
+      }
       return post.id;
-    }
-
-    if (kind === 'media') {
-      const visible = await this.prisma.message.findFirst({
-        where: { mediaAssetId: targetId, conversation: { members: { some: { userId: ownerId } } } },
-        select: { mediaAssetId: true }
-      });
-      if (visible?.mediaAssetId) return visible.mediaAssetId;
-      throw new ForbiddenException('Destination non partageable.');
     }
 
     if (kind === 'gift') {
