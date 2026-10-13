@@ -3,6 +3,9 @@ import { LinkTargetsService } from './link-targets.service';
 
 describe('LinkTargetsService', () => {
   const prisma = {
+    user: {findFirst: jest.fn()},
+    challenge: {findUnique: jest.fn()},
+    challengeParticipant: {findUnique: jest.fn()},
     post: { findUnique: jest.fn() },
     postComment: { findUnique: jest.fn() },
     message: { findFirst: jest.fn() },
@@ -16,6 +19,23 @@ describe('LinkTargetsService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  it('resolves a valid short username to the canonical profile', async () => {
+    prisma.user.findFirst.mockResolvedValueOnce({username:'abc'});
+    await expect(service.resolve('viewer_123','profile','abc')).resolves.toMatchObject({
+      webPath:'/profile/abc',context:{username:'abc'}
+    });
+  });
+
+  it('resolves challenges only for public active or authorized participants', async () => {
+    prisma.challenge.findUnique.mockResolvedValue({id:'challenge_123',creatorId:'owner_123',visibility:'PRIVATE',status:'ACTIVE'});
+    prisma.challengeParticipant.findUnique.mockResolvedValueOnce(null);
+    await expect(service.resolve('outsider_123','challenge','challenge_123')).rejects.toThrow(NotFoundException);
+    prisma.challengeParticipant.findUnique.mockResolvedValueOnce({id:'participant_123'});
+    await expect(service.resolve('friend_123','challenge','challenge_123')).resolves.toMatchObject({
+      webPath:'/challenges/challenge_123',context:{challengeId:'challenge_123'}
+    });
   });
 
   it('resolves an exact comment to its post without losing the comment ID', async () => {
