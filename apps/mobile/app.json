@@ -17,7 +17,8 @@
       ],
       "./plugins/with-animated-chat-media.cjs",
       "./plugins/with-knowme-story-video.cjs",
-      "./plugins/withKnowMeInstaller"
+      "./plugins/withKnowMeInstaller",
+      "./plugins/withKnowMeNotificationIcon.cjs"
     ],
     "ios": {
       "supportsTablet": true,
@@ -28,7 +29,9 @@
       "package": "com.knowme.app",
       "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#071410"
+        "foregroundImage": "./assets/branding/knowme-adaptive-foreground.png",
+        "monochromeImage": "./assets/branding/knowme-monochrome.png",
+        "backgroundColor": "#0D0825"
       },
       "intentFilters": [
         {
@@ -50,6 +53,12 @@
     },
     "web": {
       "bundler": "metro"
+    },
+    "icon": "./assets/branding/knowme-icon.png",
+    "splash": {
+      "image": "./assets/branding/knowme-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0825"
     }
   }
 }
