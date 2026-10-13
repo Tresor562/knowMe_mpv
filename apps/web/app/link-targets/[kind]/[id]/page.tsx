@@ -16,11 +16,15 @@ type ResolvedTarget = {
 export default function LinkedContentPage() {
   const { kind, id } = useParams<{ kind: string; id: string }>();
   const router = useRouter();
-  const { loading } = useSession({ required: true });
+  const { user, loading } = useSession({ required: false });
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (loading) return;
+    if (!user) {
+      router.replace(`/login?next=${encodeURIComponent(`/link-targets/${kind}/${id}`)}`);
+      return;
+    }
     let active = true;
     void apiFetch<ResolvedTarget>(`/link-targets/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`)
       .then((result) => {
@@ -32,7 +36,7 @@ export default function LinkedContentPage() {
         if (active) setError('Ce contenu a été supprimé, a expiré ou ne vous est pas accessible.');
       });
     return () => { active = false; };
-  }, [loading, kind, id, router]);
+  }, [loading, user?.id, kind, id, router]);
 
   return (
     <main className="shell">
