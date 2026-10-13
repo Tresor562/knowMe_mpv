@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { isKnowMeDeepLinkKind, isSafeKnowMeLinkIdentifier } from '@knowme/link-contract';
 import { PrismaService } from '../prisma/prisma.service';
 import { findSticker, stickerCatalog } from '../messaging/stickers/sticker-catalog';
+import { ChannelsService } from '../channels/channels.service';
 import { StoriesService } from '../stories/stories.service';
 
 /**
@@ -10,7 +11,7 @@ import { StoriesService } from '../stories/stories.service';
  */
 @Injectable()
 export class LinkTargetsService {
-  constructor(private readonly prisma: PrismaService, private readonly stories: StoriesService) {}
+  constructor(private readonly prisma: PrismaService, private readonly stories: StoriesService, private readonly channels: ChannelsService) {}
 
   async resolve(viewerId: string, kind: string, id: string) {
     if (!isKnowMeDeepLinkKind(kind) || !isSafeKnowMeLinkIdentifier(id)) {
@@ -68,6 +69,25 @@ export class LinkTargetsService {
         webPath: `/stickers/${resolved.pack.key}?sticker=${resolved.sticker.key}`,
         context: { packKey: resolved.pack.key, stickerKey: resolved.sticker.key }
       };
+    }
+
+    if (kind === 'channel') {
+      await this.channels.details(viewerId, id);
+      return {kind,id,webPath:`/channels/${id}`,context:{channelId:id}};
+    }
+
+    if (kind === 'channel-post') {
+      const post = await this.prisma.channelPost.findUnique({
+        where: {id}, select: {id:true,channelId:true}
+      });
+      if (post) {
+        await this.channels.details(viewerId, post.channelId);
+        return {
+          kind,id,
+          webPath:`/channels/${post.channelId}?post=${post.id}`,
+          context:{channelId:post.channelId,channelPostId:post.id}
+        };
+      }
     }
 
     if (kind === 'story') {
