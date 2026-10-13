@@ -1,4 +1,6 @@
 'use client';
+import { knowMeConfirm } from '../../../../components/knowme-feedback';
+
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -100,26 +102,26 @@ export default function GroupManagementPage() {
     }),()=>{setAddOpen(false);setSearch('');});
   }
 
-  function changeRole(member:GroupMember){
+  async function changeRole(member:GroupMember){
     const role=member.role==='ADMIN'?'MEMBER':'ADMIN';
     const question=role==='ADMIN'
       ?tr(`Nommer ${member.user.displayName} administrateur ?`,
           `Make ${member.user.displayName} an admin?`)
       :tr(`Retirer les droits d’administration de ${member.user.displayName} ?`,
           `Remove admin rights from ${member.user.displayName}?`);
-    if(!window.confirm(question))return;
+    if(!await knowMeConfirm(question))return;
     void execute(()=>apiFetch(`${base}/members/${encodeURIComponent(member.userId)}/role`,{
       method:'PATCH',body:JSON.stringify({role})
     }));
   }
 
-  function remove(member:GroupMember){
+  async function remove(member:GroupMember){
     const own=member.userId===user?.id;
     const question=own
       ?tr('Quitter définitivement ce groupe ?','Leave this group?')
       :tr(`Retirer ${member.user.displayName} du groupe ?`,
         `Remove ${member.user.displayName} from the group?`);
-    if(!window.confirm(question))return;
+    if(!await knowMeConfirm(question))return;
     void execute(()=>apiFetch(`${base}/members/${encodeURIComponent(member.userId)}`,{
       method:'DELETE'
     }),own?()=>router.replace('/messages'):undefined,!own);
