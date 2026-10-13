@@ -402,6 +402,28 @@ export class ShortLinksService {
       throw new ForbiddenException('Destination non partageable.');
     }
 
+    if (kind === 'channel') {
+      const channel = await this.prisma.channel.findUnique({
+        where: { id: targetId },
+        select: { id: true, ownerId: true, visibility: true,
+          subscriptions: { where: {userId: ownerId}, select: {userId: true} } }
+      });
+      if (!channel) throw new NotFoundException('Destination introuvable.');
+      if (channel.visibility !== 'PUBLIC' && channel.ownerId !== ownerId && !channel.subscriptions.length) {
+        throw new ForbiddenException('Destination non partageable.');
+      }
+      return channel.id;
+    }
+
+    if (kind === 'channel-post') {
+      const post = await this.prisma.channelPost.findUnique({
+        where: {id: targetId}, select: {id:true,channelId:true}
+      });
+      if (!post) throw new NotFoundException('Destination introuvable.');
+      await this.authorizeTarget(ownerId, 'channel', post.channelId);
+      return post.id;
+    }
+
     if (kind === 'media') {
       const visible = await this.prisma.message.findFirst({
         where: { mediaAssetId: targetId, conversation: { members: { some: { userId: ownerId } } } },
