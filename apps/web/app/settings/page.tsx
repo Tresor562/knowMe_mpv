@@ -1,4 +1,6 @@
 'use client';
+import { knowMeConfirm } from '../../components/knowme-feedback';
+
 
 import Link from 'next/link';
 import { translate } from '@knowme/i18n-contract';
@@ -55,7 +57,7 @@ export default function SettingsPage() {
   async function deleteAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const password = String(new FormData(event.currentTarget).get('password') ?? '');
-    if (!window.confirm(en ? 'This cannot be undone. Delete your KnowMe account?' : 'Cette action est définitive. Supprimer ton compte KnowMe ?')) return;
+    if (!await knowMeConfirm(en ? 'This cannot be undone. Delete your KnowMe account?' : 'Cette action est définitive. Supprimer ton compte KnowMe ?')) return;
     setBusy(true);
     try {
       await apiFetch('/account', { method: 'DELETE', body: JSON.stringify({ password }) });
