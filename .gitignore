@@ -10,3 +10,6 @@ coverage
 .backups/
 *.dump
 *.dump.manifest.json
+
+# Derived by apps/mobile/app.config.js from the canonical KnowMe Web logo
+apps/mobile/assets/branding/*.png
