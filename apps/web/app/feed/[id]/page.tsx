@@ -1,4 +1,5 @@
 'use client';
+import { knowMeConfirm } from '../../../components/knowme-feedback';
 
 import Link from 'next/link';
 import { buildKnowMeUniversalPath } from '@knowme/link-contract';
@@ -141,7 +142,7 @@ export default function PostDetailPage() {
   }
 
   async function removePost() {
-    if (!window.confirm('Supprimer définitivement cette publication ?')) return;
+    if (!await knowMeConfirm('Supprimer définitivement cette publication ?')) return;
     try {
       await apiFetch(`/posts/${postId}`, { method: 'DELETE' });
       window.location.href = '/feed';
@@ -151,7 +152,7 @@ export default function PostDetailPage() {
   }
 
   async function removeComment(commentId: string) {
-    if (!window.confirm('Supprimer ce commentaire ?')) return;
+    if (!await knowMeConfirm('Supprimer ce commentaire ?')) return;
     setBusyCommentId(commentId);
     try {
       await apiFetch(`/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
