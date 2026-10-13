@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { buildKnowMeUniversalPath } from '@knowme/link-contract';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -36,7 +36,7 @@ export default function SharedStickersPage() {
 
   async function copy(kind: 'sticker'|'sticker-pack', id: string) {
     try {
-      await navigator.clipboard.writeText(window.location.origin + buildKnowMeUniversalPath({kind,id}));
+      await navigator.clipboard.writeText(buildKnowMePublicLink({kind,id}));
       setNotice('Lien copié.');
     } catch {
       setNotice('Copie indisponible.');
