@@ -387,7 +387,7 @@ export class ShortLinksService {
     // Public short-link resolution exposes a destination ID before the viewer logs in.
     // Keep PRIVATE message/conversation/media links on the authenticated direct-link
     // resolver until short links can bind resolution to viewer authorization.
-    if (kind === 'message' || kind === 'conversation' || kind === 'group' || kind === 'media') {
+    if (kind === 'message' || kind === 'conversation' || kind === 'group' || kind === 'media' || kind === 'gif') {
       throw new ForbiddenException('Les liens courts privés exigent une vérification du destinataire.');
     }
 
