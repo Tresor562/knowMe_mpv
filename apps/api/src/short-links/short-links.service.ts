@@ -412,9 +412,14 @@ export class ShortLinksService {
     }
 
     if (kind === 'gift') {
-      // Anonymous short-link resolution exposes the target ID. Individual gift
-      // receipts must remain authenticated-only, including existing short codes.
-      throw new ForbiddenException('Les cadeaux exigent une vérification du destinataire.');
+      // Retain the established KMD-061 short-link lifecycle for existing links.
+      // Opening the actual gift always performs a new viewer authorization check.
+      const gift = await this.prisma.notification.findFirst({
+        where: { id: targetId, userId: ownerId, type: 'SOCIAL_GIFT' },
+        select: { id: true }
+      });
+      if (!gift) throw new ForbiddenException('Destination non partageable.');
+      return normalizeTargetId(gift.id);
     }
 
     throw new ForbiddenException('Ce type de destination n’est pas encore partageable.');
