@@ -2,7 +2,7 @@
 import { knowMeConfirm } from '../../../components/knowme-feedback';
 
 import Link from 'next/link';
-import { buildKnowMeUniversalPath } from '@knowme/link-contract';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -83,7 +83,7 @@ export default function PostDetailPage() {
   }, [targetComment, comments, hasMore, loadingMore, sessionLoading, post, linkCursors]);
 
   async function copyLink(kind: 'post' | 'comment', id: string) {
-    const url = window.location.origin + buildKnowMeUniversalPath({ kind, id });
+    const url = buildKnowMePublicLink({ kind, id });
     try {
       await navigator.clipboard.writeText(url);
       setShareNotice('Lien copié dans le presse-papiers.');
