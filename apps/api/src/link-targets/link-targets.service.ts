@@ -14,7 +14,7 @@ export class LinkTargetsService {
   constructor(private readonly prisma: PrismaService, private readonly stories: StoriesService, private readonly channels: ChannelsService) {}
 
   async resolve(viewerId: string, kind: string, id: string) {
-    if (!isKnowMeDeepLinkKind(kind) || !isSafeKnowMeLinkIdentifier(id)) {
+    if (!isKnowMeDeepLinkKind(kind) || !isSafeKnowMeLinkTargetIdentifier(kind, id)) {
       throw new NotFoundException('Contenu indisponible.');
     }
 
