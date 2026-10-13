@@ -135,7 +135,7 @@ export class LinkTargetsService {
       }
     }
 
-    if (kind === 'media') {
+    if (kind === 'media' || kind === 'gif') {
       // Opening a chat attachment requires membership in its exact conversation.
       // Do not expose a private upload solely because its opaque ID is known.
       const attachment = await this.prisma.message.findFirst({
