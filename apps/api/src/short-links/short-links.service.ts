@@ -412,12 +412,9 @@ export class ShortLinksService {
     }
 
     if (kind === 'gift') {
-      const gift = await this.prisma.notification.findFirst({
-        where: { id: targetId, userId: ownerId, type: 'SOCIAL_GIFT' },
-        select: { id: true }
-      });
-      if (!gift) throw new ForbiddenException('Destination non partageable.');
-      return normalizeTargetId(gift.id);
+      // Anonymous short-link resolution exposes the target ID. Individual gift
+      // receipts must remain authenticated-only, including existing short codes.
+      throw new ForbiddenException('Les cadeaux exigent une vérification du destinataire.');
     }
 
     throw new ForbiddenException('Ce type de destination n’est pas encore partageable.');
