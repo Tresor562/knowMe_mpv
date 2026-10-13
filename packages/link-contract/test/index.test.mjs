@@ -55,3 +55,12 @@ test('content links retain precise IDs and reject unsafe destinations', () => {
   assert.equal(parseKnowMeDeepLink('knowme://v1/message/ab123456?redirect=evil'), null);
   assert.equal(parseKnowMeDeepLink('knowme://v1/message/ab123456%2Fadmin'), null);
 });
+
+test('short KnowMe usernames are linkable without weakening message ID safety', () => {
+  const target = {kind:'profile',id:'abc'};
+  assert.equal(buildKnowMeDeepLink(target),'knowme://v1/profile/abc');
+  assert.deepEqual(parseKnowMeUniversalPath(buildKnowMeUniversalPath(target)),{version:'v1',...target});
+  assert.equal(parseKnowMeDeepLink('knowme://v1/profile/ab'),null);
+  assert.equal(parseKnowMeDeepLink('knowme://v1/message/abc'),null);
+  assert.throws(() => buildKnowMeDeepLink({kind:'message',id:'abc'}),/KNOWME_LINK_IDENTIFIER_INVALID/);
+});
