@@ -9,6 +9,7 @@ import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
 import { ChatMediaView } from './ChatMediaView';
+import { AnimatedEmojiText, AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 import { useI18n } from '../../../components/i18n-provider';
 
 type Sender = {
@@ -88,18 +89,12 @@ function MessageContent({item}:{item:Message}){
         title={`${item.presentation.pack.name} · ${item.presentation.sticker.label}`}
         style={{display:'grid',placeItems:'center',gap:4,minWidth:90,minHeight:72}}
       >
-        <span aria-hidden="true" style={{fontSize:44,lineHeight:1}}>
-          {item.presentation.sticker.glyph}
-        </span>
+        <span style={{fontSize:44,lineHeight:1}}><AnimatedEmojiGlyph glyph={item.presentation.sticker.glyph}/></span>
         <small style={{opacity:.75}}>{item.presentation.sticker.label}</small>
       </div>
     );
   }
-  return(
-    <div style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-      {item.presentation?.kind==='TEXT'?item.presentation.text:item.content}
-    </div>
-  );
+  return <AnimatedEmojiText text={item.presentation?.kind==='TEXT'?item.presentation.text:item.content}/>;
 }
 
 export default function ConversationPage() {
