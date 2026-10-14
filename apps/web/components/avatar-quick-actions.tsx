@@ -33,20 +33,36 @@ export function AvatarQuickActions({
   const [preview, setPreview] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const en = locale === 'en';
+  const placeMenu = () => {
+    const rect = trigger.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(270, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    const menuHeight = 290;
+    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12));
+    setMenuPosition({ top, left });
+  };
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
-      if (wrap.current && !wrap.current.contains(event.target as Node)) setOpen(false);
+      if (!wrap.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const closeEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); }
     };
+    placeMenu();
     window.addEventListener('pointerdown', closeOutside);
     window.addEventListener('keydown', closeEscape);
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', placeMenu, true);
     return () => {
       window.removeEventListener('pointerdown', closeOutside);
       window.removeEventListener('keydown', closeEscape);
+      window.removeEventListener('resize', placeMenu);
+      window.removeEventListener('scroll', placeMenu, true);
     };
   }, [open]);
 
@@ -62,10 +78,10 @@ export function AvatarQuickActions({
     <div className="km-avatar-actions" ref={wrap}>
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
         aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
-        onClick={() => setOpen(value => !value)} disabled={busy}>
+        onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
-      {open && <div className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
+      {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
           <ActionIcon name="story" />{en ? 'Add a story' : 'Ajouter une story'}
         </Link>
