@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   StatusBar as NativeStatusBar,
   Platform,
@@ -30,6 +31,12 @@ import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { KnowMeFeedbackProvider } from './src/ui/KnowMeFeedback';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
+import { LinkedStickerExperience } from './src/LinkedStickerExperience';
+import { LinkedChannelExperience } from './src/LinkedChannelExperience';
+import { LinkedGiftExperience } from './src/LinkedGiftExperience';
+import { LinkedProfileExperience } from './src/LinkedProfileExperience';
+import { resolveIncomingKnowMeLink } from './src/deep-links';
+import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
@@ -53,6 +60,10 @@ type Screen =
   | 'social'
   | 'challenges'
   | 'profile'
+  | 'linked-sticker'
+  | 'linked-channel'
+  | 'linked-gift'
+  | 'linked-profile'
   | 'verification';
 
 type ChallengeSummary = { id: string; status: string };
@@ -533,6 +544,7 @@ function HomeScreen({
   openCreate,
   openProfile,
   storyComposerRequest,
+  initialStoryId,
   onStoryComposerHandled
 }: {
   user: MobileUser;
@@ -542,6 +554,7 @@ function HomeScreen({
   openCreate: () => void;
   openProfile: () => void;
   storyComposerRequest: boolean;
+  initialStoryId?: string | null;
   onStoryComposerHandled: () => void;
 }) {
   const { colors } = useAppearance();
@@ -662,6 +675,7 @@ function HomeScreen({
           }}
           onOpenDiscover={openDiscover}
           openComposer={storyComposerRequest}
+          initialStoryId={initialStoryId}
           onComposerOpened={onStoryComposerHandled}
         />
       </FadeRise>
@@ -1068,6 +1082,20 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
+  const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
+  const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
+  const [linkedSticker, setLinkedSticker] = useState<{packKey:string;stickerKey?:string} | null>(null);
+  const [linkedChannel, setLinkedChannel] = useState<{channelId:string;postId?:string} | null>(null);
+  const [linkedGiftId, setLinkedGiftId] = useState<string | null>(null);
+  const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
+  const [linkedChallengeId, setLinkedChallengeId] = useState<string | null>(null);
+  const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
+  const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
+  const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
+  const [linkedMediaId, setLinkedMediaId] = useState<string | null>(null);
+  const [linkRevision, setLinkRevision] = useState(0);
+  const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -1108,6 +1136,70 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   useEffect(() => {
     setScreen('home');
   }, [user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    const handleUrl = (url: string | null) => {
+      if (!active || !url) return;
+      const resolved = resolveIncomingKnowMeLink(url);
+      if (resolved) setPendingLink(resolved.target);
+    };
+    void Linking.getInitialURL().then(handleUrl).catch(() => undefined);
+    const subscription = Linking.addEventListener('url', event => handleUrl(event.url));
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id || !pendingLink) return;
+    let active = true;
+    const target = pendingLink;
+    setLinkFeedback('');
+    void (async () => {
+      try {
+        const result = await apiFetch<{
+          kind: string;
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; mediaId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string; challengeId?: string };
+        }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
+        if (!active) return;
+        setLinkRevision(revision => revision + 1);
+        if (result.context.challengeId) {
+          setLinkedChallengeId(result.context.challengeId);
+          setScreen('challenges');
+        } else if (result.context.username) {
+          setLinkedUsername(result.context.username);
+          setScreen('linked-profile');
+        } else if (result.context.giftId) {
+          setLinkedGiftId(result.context.giftId);
+          setScreen('linked-gift');
+        } else if (result.context.channelId && !result.context.conversationId) {
+          setLinkedChannel({channelId:result.context.channelId,postId:result.context.channelPostId});
+          setScreen('linked-channel');
+        } else if (result.context.packKey) {
+          setLinkedSticker({packKey:result.context.packKey,stickerKey:result.context.stickerKey});
+          setScreen('linked-sticker');
+        } else if (result.context.storyId) {
+          setLinkedStoryId(result.context.storyId);
+          setScreen('home');
+        } else if (result.context.postId) {
+          setLinkedPostId(result.context.postId);
+          setLinkedCommentId(result.context.commentId ?? null);
+          setScreen('discover');
+        } else if (result.context.conversationId) {
+          setLinkedConversationId(result.context.conversationId);
+          setLinkedMessageId(result.context.messageId ?? null);
+          setLinkedMediaId(result.context.mediaId ?? null);
+          setScreen('social');
+        } else {
+          setLinkFeedback('Ce type de contenu ne peut pas encore être ouvert ici.');
+        }
+      } catch {
+        if (active) setLinkFeedback('Ce contenu a été supprimé, a expiré ou ne t’est pas accessible.');
+      } finally {
+        if (active) setPendingLink(null);
+      }
+    })();
+    return () => { active = false; };
+  }, [user?.id, pendingLink]);
 
   async function resetLocalSession() {
     disconnectRealtimeSocket();
@@ -1173,9 +1265,17 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             : null
         ]}
       >
+        {linkFeedback ? (
+          <GlassSurface strength="soft" borderRadius={18} style={{padding:12,marginHorizontal:14,marginVertical:5}}>
+            <Text accessibilityRole="alert" style={{color:colors.text}}>{linkFeedback}</Text>
+            <Pressable onPress={() => setLinkFeedback('')} accessibilityRole="button">
+              <Text style={{color:colors.accent,marginTop:4}}>Fermer</Text>
+            </Pressable>
+          </GlassSurface>
+        ) : null}
         {screen === 'home' ? (
           <HomeScreen
-            key={'home:' + user.id}
+            key={'home:' + user.id + ':' + linkRevision}
             user={user}
             openSocial={() => setScreen('social')}
             openDiscover={() => setScreen('discover')}
@@ -1183,28 +1283,53 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             openCreate={() => setCreateOpen(true)}
             openProfile={() => setScreen('profile')}
             storyComposerRequest={storyComposerRequest}
+            initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
           />
         ) : null}
 
         {screen === 'discover' ? (
           <FeedExperience
-            key={'discover:' + user.id}
+            key={'discover:' + user.id + ':' + linkRevision}
             userId={user.id}
+            initialPostId={linkedPostId}
+            initialCommentId={linkedCommentId}
           />
         ) : null}
 
         {screen === 'social' ? (
           <SocialHub
-            key={'social:' + user.id}
+            key={'social:' + user.id + ':' + linkRevision}
             userId={user.id}
+            linkedConversationId={linkedConversationId}
+            linkedMessageId={linkedMessageId}
+            linkedMediaId={linkedMediaId}
           />
+        ) : null}
+
+        {screen === 'linked-profile' && linkedUsername ? (
+          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen('social')} />
+        ) : null}
+
+        {screen === 'linked-gift' && linkedGiftId ? (
+          <LinkedGiftExperience giftId={linkedGiftId} onBack={() => setScreen('profile')} />
+        ) : null}
+
+        {screen === 'linked-channel' && linkedChannel ? (
+          <LinkedChannelExperience channelId={linkedChannel.channelId} postId={linkedChannel.postId}
+            onBack={() => setScreen('social')} />
+        ) : null}
+
+        {screen === 'linked-sticker' && linkedSticker ? (
+          <LinkedStickerExperience packKey={linkedSticker.packKey} stickerKey={linkedSticker.stickerKey}
+            onBack={() => setScreen('social')} />
         ) : null}
 
         {screen === 'challenges' ? (
           <ChallengeExperience
-            key={'challenges:' + user.id}
+            key={'challenges:' + user.id + ':' + linkRevision}
             userId={user.id}
+            initialChallengeId={linkedChallengeId}
           />
         ) : null}
 
@@ -1230,7 +1355,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}

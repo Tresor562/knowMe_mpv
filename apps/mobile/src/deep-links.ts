@@ -1,4 +1,5 @@
 import {
+  KNOWME_PUBLIC_LINK_ORIGIN,
   ParsedKnowMeDeepLink,
   parseKnowMeDeepLink,
   parseKnowMeUniversalPath
@@ -20,7 +21,8 @@ export function resolveIncomingKnowMeLink(
   let pathname = value;
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    // External sites must not be able to impersonate KnowMe links.
+    if (url.protocol !== 'https:' || url.origin !== KNOWME_PUBLIC_LINK_ORIGIN) return null;
     pathname = url.pathname;
   } catch {
     // A relative universal path is also accepted for local routing/tests.

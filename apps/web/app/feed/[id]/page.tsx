@@ -1,8 +1,8 @@
 'use client';
 import { knowMeConfirm } from '../../../components/knowme-feedback';
 
-
 import Link from 'next/link';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -34,6 +34,9 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [message, setMessage] = useState('');
+  const [shareNotice, setShareNotice] = useState('');
+  const [targetComment, setTargetComment] = useState('');
+  const linkCursors = useState(() => new Set<string>())[0];
   const [sending, setSending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -57,6 +60,37 @@ export default function PostDetailPage() {
   useEffect(() => {
     if (!sessionLoading) void load();
   }, [load, sessionLoading]);
+
+  useEffect(() => {
+    setTargetComment(new URLSearchParams(window.location.search).get('comment') ?? '');
+    linkCursors.clear();
+  }, [postId, linkCursors]);
+
+  useEffect(() => {
+    if (!targetComment || sessionLoading || !post) return;
+    const element = document.getElementById(`knowme-comment-${targetComment}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // Seek the exact comment through paginated comments, never a substitute.
+    if (!hasMore || loadingMore || !comments.length || linkCursors.size >= 100) return;
+    const cursor = comments.at(-1)?.id;
+    if (cursor && !linkCursors.has(cursor)) {
+      linkCursors.add(cursor);
+      void loadMore();
+    }
+  }, [targetComment, comments, hasMore, loadingMore, sessionLoading, post, linkCursors]);
+
+  async function copyLink(kind: 'post' | 'comment', id: string) {
+    const url = buildKnowMePublicLink({ kind, id });
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareNotice('Lien copié dans le presse-papiers.');
+    } catch {
+      setShareNotice('Copie indisponible sur cet appareil.');
+    }
+  }
 
   async function loadMore() {
     const cursor = comments.at(-1)?.id;
@@ -146,6 +180,7 @@ export default function PostDetailPage() {
       </header>
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
+      {shareNotice && <p role="status" style={{ color: 'var(--mint)' }}>{shareNotice}</p>}
 
       <article className="card" style={{ padding: 22 }}>
         <strong>{post.author.displayName}</strong>
@@ -155,6 +190,7 @@ export default function PostDetailPage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => void like()}>♥ {post._count.likes}</button>
           <span style={{ color: 'var(--muted)' }}>💬 {post._count.comments}</span>
+          <button className="btn" type="button" onClick={() => void copyLink('post', post.id)}>Copier le lien</button>
           {post.authorId === user?.id && (
             <button className="btn btn-accent" style={{ marginLeft: 'auto' }} onClick={() => void removePost()}>
               Supprimer la publication
@@ -172,12 +208,13 @@ export default function PostDetailPage() {
         {comments.map((item) => {
           const canDelete = item.author.id === user?.id || post.authorId === user?.id;
           return (
-            <article className="card" key={item.id} style={{ padding: 16 }}>
+            <article className="card" key={item.id} id={`knowme-comment-${item.id}`} style={{ padding: 16, scrollMarginTop: 100, outline: targetComment === item.id ? '2px solid var(--mint)' : undefined }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
                 <div>
                   <strong>{item.author.displayName}</strong>
                   <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.author.username}</small>
                 </div>
+                <button className="btn" type="button" onClick={() => void copyLink('comment', item.id)}>Lien du commentaire</button>
                 {canDelete && (
                   <button
                     className="btn"

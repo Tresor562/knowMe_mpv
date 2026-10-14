@@ -1,16 +1,18 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View
 } from 'react-native';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
@@ -115,11 +117,12 @@ function MetricButton({
   );
 }
 
-function PostDiscussion({ postId, userId, onBack, onDeleted }: {
+function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: {
   postId: string;
   userId: string;
   onBack: () => void;
   onDeleted: (postId: string) => void;
+  targetCommentId?: string | null;
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -130,6 +133,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const discussionScroll = useRef<ScrollView>(null);
+  const soughtCommentCursors = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,6 +154,15 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   }, [postId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!targetCommentId || loading || loadingMore || comments.some(item => item.id === targetCommentId)) return;
+    const cursor = comments[comments.length - 1]?.id;
+    if (hasMore && cursor && soughtCommentCursors.current.size < 100 && !soughtCommentCursors.current.has(cursor)) {
+      soughtCommentCursors.current.add(cursor);
+      void loadMore();
+    }
+  }, [targetCommentId, loading, loadingMore, comments, hasMore]);
 
   async function loadMore() {
     const cursor = comments[comments.length - 1]?.id;
@@ -269,6 +283,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
 
   return (
     <ScrollView
+      ref={discussionScroll}
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -298,6 +313,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
         <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(post.createdAt, true)}</Text>
         <View style={styles.actionsRow}>
           <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
+          <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})}); }} />
           <MetricButton icon="messages" count={post._count.comments} label="Commentaires" />
           {post.authorId === userId && (
             <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
@@ -331,10 +347,17 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
       {comments.map((comment) => {
         const canDelete = comment.author.id === userId || post.authorId === userId;
         return (
-          <View key={comment.id} style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <View key={comment.id}
+            onLayout={event => {
+              if (comment.id === targetCommentId) {
+                discussionScroll.current?.scrollTo({y:Math.max(0,event.nativeEvent.layout.y-80),animated:true});
+              }
+            }}
+            style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: comment.id === targetCommentId ? colors.accent : colors.border }]}>
             <View style={styles.authorRow}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
               <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
+              <ActionButton title="Lien" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }} />
               {canDelete && (
                 <ActionButton
                   title={busyId === comment.id ? '…' : 'Supprimer'}
@@ -355,11 +378,12 @@ function PostDiscussion({ postId, userId, onBack, onDeleted }: {
   );
 }
 
-export function FeedExperience({ userId }: { userId: string }) {
+export function FeedExperience({ userId, initialPostId, initialCommentId }: { userId: string; initialPostId?: string | null; initialCommentId?: string | null }) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
+  useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -428,6 +452,7 @@ export function FeedExperience({ userId }: { userId: string }) {
     return (
       <PostDiscussion
         postId={selectedPostId}
+        targetCommentId={selectedPostId === initialPostId ? initialCommentId : null}
         userId={userId}
         onBack={() => setSelectedPostId(null)}
         onDeleted={(postId) => setPosts((current) => current.filter((item) => item.id !== postId))}
@@ -517,6 +542,7 @@ export function FeedExperience({ userId }: { userId: string }) {
           ) : null}
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
+            <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>

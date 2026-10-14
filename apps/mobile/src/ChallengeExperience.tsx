@@ -598,10 +598,11 @@ function ChallengeDetail({
   );
 }
 
-export function ChallengeExperience({ userId }: { userId: string }) {
+export function ChallengeExperience({ userId, initialChallengeId }: { userId: string; initialChallengeId?: string | null }) {
   const { colors, visual } = useAppearance();
   const [items, setItems] = useState<Challenge[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialChallengeId ?? null);
+  useEffect(() => { if(initialChallengeId) setSelectedId(initialChallengeId); },[initialChallengeId]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState('');

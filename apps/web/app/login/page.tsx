@@ -10,6 +10,19 @@ type LoginResult = SessionResult | ChallengeResult;
 function isChallenge(result: LoginResult): result is ChallengeResult {
   return 'requiresTwoFactor' in result && result.requiresTwoFactor;
 }
+function safeAfterLoginPath(): string {
+  const next = new URLSearchParams(window.location.search).get('next') ?? '';
+  // Returning to a deep link is allowed; arbitrary external and protocol-relative
+  // destinations are not, even after a successful login or a 2FA challenge.
+  const match = new RegExp('^/link-targets/([a-z-]+)/([A-Za-z0-9_-]{3,128})$').exec(next);
+  if (!match) return '/messages';
+  const [, kind, id] = match;
+  const safe = kind === 'profile'
+    ? /^[A-Za-z0-9_]{3,24}$/.test(id)
+    : id.length >= 6;
+  return safe ? next : '/messages';
+}
+
 function EyeIcon({ hidden }: {hidden:boolean}) {
   return <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6S2.5 12 2.5 12Z"/>
@@ -43,7 +56,7 @@ export default function LoginPage() {
         return;
       }
       saveSession(data.accessToken,data.refreshToken);
-      window.location.replace('/messages');
+      window.location.replace(safeAfterLoginPath());
     }catch(cause){
       const error = cause as ApiError;
       if (error.status === 401) {
@@ -65,7 +78,7 @@ export default function LoginPage() {
       });
       saveSession(data.accessToken,data.refreshToken);
       if(data.trustedDeviceToken)saveTrustedDeviceToken(data.trustedDeviceToken);
-      window.location.replace('/messages');
+      window.location.replace(safeAfterLoginPath());
     }catch(cause){
       setMessage(cause instanceof Error ? cause.message : 'Code de sécurité invalide.');
     }finally{setSubmitting(false);}

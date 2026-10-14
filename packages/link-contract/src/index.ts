@@ -1,4 +1,5 @@
 export const KNOWME_DEEP_LINK_SCHEME = 'knowme';
+export const KNOWME_PUBLIC_LINK_ORIGIN = 'https://knowme-nextech.vercel.app';
 export const KNOWME_DEEP_LINK_VERSION = 'v1';
 
 export const KNOWME_DEEP_LINK_KINDS = [
@@ -7,7 +8,23 @@ export const KNOWME_DEEP_LINK_KINDS = [
   'community',
   'event',
   'gift',
-  'sticker-pack'
+  'sticker-pack',
+  // Stable, opaque IDs; access rights are checked by the destination API.
+  'post',
+  'comment',
+  'message',
+  'conversation',
+  'channel',
+  'channel-post',
+  'story',
+  'media',
+  'sticker',
+  'gif',
+  'emoji',
+  'poll',
+  'reaction',
+  'topic',
+  'group'
 ] as const;
 
 export type KnowMeDeepLinkKind = (typeof KNOWME_DEEP_LINK_KINDS)[number];
@@ -32,6 +49,12 @@ export function isSafeKnowMeLinkIdentifier(value: string): boolean {
   return IDENTIFIER_PATTERN.test(value);
 }
 
+/** Profile usernames are shorter than opaque IDs; validate by target type. */
+export function isSafeKnowMeLinkTargetIdentifier(kind: KnowMeDeepLinkKind, value: string): boolean {
+  if (kind === 'profile' && /^[A-Za-z0-9_]{3,24}$/.test(value)) return true;
+  return isSafeKnowMeLinkIdentifier(value);
+}
+
 export function assertKnowMeDeepLinkTarget(
   target: KnowMeDeepLinkTarget
 ): KnowMeDeepLinkTarget {
@@ -39,7 +62,7 @@ export function assertKnowMeDeepLinkTarget(
     throw new Error('KNOWME_LINK_KIND_UNSUPPORTED');
   }
 
-  if (!isSafeKnowMeLinkIdentifier(target.id)) {
+  if (!isSafeKnowMeLinkTargetIdentifier(target.kind, target.id)) {
     throw new Error('KNOWME_LINK_IDENTIFIER_INVALID');
   }
 
@@ -73,13 +96,17 @@ export function parseKnowMeDeepLink(value: string): ParsedKnowMeDeepLink | null 
 
   const [kind, id] = segments;
   if (!kind || !id || !isKnowMeDeepLinkKind(kind)) return null;
-  if (!isSafeKnowMeLinkIdentifier(id)) return null;
+  if (!isSafeKnowMeLinkTargetIdentifier(kind, id)) return null;
 
   return {
     version: KNOWME_DEEP_LINK_VERSION,
     kind,
     id
   };
+}
+
+export function buildKnowMePublicLink(target: KnowMeDeepLinkTarget): string {
+  return KNOWME_PUBLIC_LINK_ORIGIN + buildKnowMeUniversalPath(target);
 }
 
 export function parseKnowMeUniversalPath(
@@ -94,7 +121,7 @@ export function parseKnowMeUniversalPath(
   const kind = segments[2];
   const id = segments[3];
   if (!kind || !id || !isKnowMeDeepLinkKind(kind)) return null;
-  if (!isSafeKnowMeLinkIdentifier(id)) return null;
+  if (!isSafeKnowMeLinkTargetIdentifier(kind, id)) return null;
 
   return {
     version: KNOWME_DEEP_LINK_VERSION,

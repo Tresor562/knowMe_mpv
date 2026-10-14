@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccountBadges } from '../../components/AccountBadges';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from '../../lib/api';
 import {
   createSocialGiftIdempotencyKey,
@@ -76,6 +77,10 @@ export default function SocialGiftsPage() {
   const [policy, setPolicy] = useState<SocialGiftPolicy | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inbox, setInbox] = useState<SocialGiftInboxItem[]>([]);
+  const [inboxCursor,setInboxCursor] = useState<string|null>(null);
+  const [targetGift,setTargetGift] = useState('');
+  const [loadingOlderGifts,setLoadingOlderGifts] = useState(false);
+  const seenGiftCursors=useRef(new Set<string>());
   const [sent, setSent] = useState<SocialGiftSentItem[]>([]);
   const [balance, setBalance] = useState(0);
   const [recipientId, setRecipientId] = useState('');
@@ -102,6 +107,7 @@ export default function SocialGiftsPage() {
       setPolicy(giftPolicy);
       setFriends(currentFriends);
       setInbox(giftInbox.items);
+      setInboxCursor(giftInbox.nextCursor);
       setSent(giftSent.items);
       setBalance(wallet.balance);
       setRecipientId((current) =>
@@ -119,6 +125,35 @@ export default function SocialGiftsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setTargetGift(new URLSearchParams(window.location.search).get('gift')??'');
+    seenGiftCursors.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (!targetGift || loading || loadingOlderGifts) return;
+    const element=document.getElementById(`km-gift-${targetGift}`);
+    if (element) { element.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+    if (!inboxCursor || seenGiftCursors.current.size >= 100 || seenGiftCursors.current.has(inboxCursor)) return;
+    seenGiftCursors.current.add(inboxCursor);
+    setLoadingOlderGifts(true);
+    void getSocialGiftInbox(inboxCursor,30).then(page => {
+      setInbox(current => {
+        const ids=new Set(current.map(item=>item.id));
+        return [...current,...page.items.filter(item=>!ids.has(item.id))];
+      });
+      setInboxCursor(page.nextCursor);
+    }).catch(() => setStatusMessage('Impossible de retrouver ce cadeau.'))
+      .finally(() => setLoadingOlderGifts(false));
+  },[targetGift,inbox,inboxCursor,loading,loadingOlderGifts]);
+
+  async function copyGiftLink(id:string){
+    try {
+      await navigator.clipboard.writeText(buildKnowMePublicLink({kind:'gift',id}));
+      setStatusMessage('Lien du cadeau copié. Seul son destinataire peut l’ouvrir.');
+    } catch { setStatusMessage('Copie impossible sur cet appareil.'); }
+  }
 
   const selectedFriend = useMemo(
     () => friends.find((friend) => friend.user.id === recipientId)?.user ?? null,
@@ -314,6 +349,7 @@ export default function SocialGiftsPage() {
                 {inbox.map((item) => (
                   <article
                     key={item.id}
+                    id={`km-gift-${item.id}`}
                     className="card"
                     style={{
                       padding: 18,
@@ -321,7 +357,9 @@ export default function SocialGiftsPage() {
                       gridTemplateColumns: '64px 1fr auto',
                       gap: 16,
                       alignItems: 'center',
-                      borderColor: item.viewedAt ? undefined : 'var(--mint)'
+                      scrollMarginTop: 90,
+                      borderColor: targetGift===item.id ? 'var(--mint)' : item.viewedAt ? undefined : 'var(--mint)',
+                      outline: targetGift===item.id ? '2px solid var(--mint)' : undefined
                     }}
                   >
                     <GiftVisual gift={item.gift} />
@@ -333,13 +371,15 @@ export default function SocialGiftsPage() {
                         {new Date(item.sentAt).toLocaleString('fr-FR')}
                       </small>
                     </div>
+                    <div style={{display:'grid',gap:8}}>
+                      <button className="btn" type="button" onClick={() => void copyGiftLink(item.id)}>Lien du cadeau</button>
                     <button
                       className="btn"
                       disabled={Boolean(item.viewedAt) || busyInboxId === item.id}
                       onClick={() => void markViewed(item)}
                     >
                       {item.viewedAt ? 'Vu' : busyInboxId === item.id ? 'Ouverture…' : 'Marquer vu'}
-                    </button>
+                    </button></div>
                   </article>
                 ))}
               </div>

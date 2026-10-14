@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -111,6 +112,9 @@ export default function ConversationPage() {
   const [searchOpen,setSearchOpen]=useState(false);
   const [searchTerm,setSearchTerm]=useState('');
   const [menuOpen,setMenuOpen]=useState(false);
+  const [targetMessage,setTargetMessage]=useState('');
+  const [shareNotice,setShareNotice]=useState('');
+  const soughtCursors=useRef<Set<string>>(new Set());
   const socket=useMemo(()=>getRealtimeSocket(),[]);
   const userIdRef=useRef<string|null>(null);
   const typingTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -172,6 +176,36 @@ export default function ConversationPage() {
   useEffect(()=>{
     if(!sessionLoading)void load();
   },[load,sessionLoading]);
+
+  useEffect(()=>{
+    setTargetMessage(new URLSearchParams(window.location.search).get('message')??'');
+    soughtCursors.current.clear();
+  },[conversationId]);
+
+  useEffect(()=>{
+    if(!targetMessage || sessionLoading || refreshing || loadingOlder)return;
+    const element=document.getElementById(`knowme-message-${targetMessage}`);
+    if(element){
+      element.scrollIntoView({behavior:'smooth',block:'center'});
+      return;
+    }
+    if(!nextCursor||soughtCursors.current.size>=100)return;
+    if(!soughtCursors.current.has(nextCursor)){
+      soughtCursors.current.add(nextCursor);
+      void load(nextCursor);
+    }
+  },[targetMessage,items,nextCursor,sessionLoading,refreshing,loadingOlder,load]);
+
+  async function copyContentLink(kind:'message'|'conversation',id:string){
+    try{
+      await navigator.clipboard.writeText(
+        buildKnowMePublicLink({kind,id})
+      );
+      setShareNotice(en?'Link copied':'Lien copié');
+    }catch{
+      setShareNotice(en?'Copy not available':'Copie indisponible');
+    }
+  }
 
   useEffect(() => {
     if (sessionLoading || !user) return;
@@ -424,6 +458,7 @@ export default function ConversationPage() {
             <button role="menuitem" type="button" onClick={()=>{setMenuOpen(false);setSearchOpen(true);}}>
               {en?'Search messages':'Rechercher des messages'}
             </button>
+            <button role="menuitem" type="button" onClick={()=>{setMenuOpen(false);void copyContentLink('conversation',conversationId);}}>{en?'Copy conversation link':'Copier le lien de la discussion'}</button>
             <Link role="menuitem" href="/saved-messages" onClick={()=>setMenuOpen(false)}>
               {en?'Saved messages':'Messages enregistrés'}
             </Link>
@@ -441,6 +476,7 @@ export default function ConversationPage() {
           aria-label={en?'Close search':'Fermer la recherche'}>×</button>
       </div>}
       {message&&<p className="km-auth-error" role="alert" style={{margin:'10px 20px'}}>{message}</p>}
+      {shareNotice&&<p role="status" style={{margin:'10px 20px'}}>{shareNotice}</p>}
       <section className="km-chat-transcript" aria-label={en?'Chat messages':'Messages de la conversation'}>
         {nextCursor&&<button className="km-history-button" disabled={loadingOlder} onClick={()=>void load(nextCursor)}>{loadingOlder?(en?'Loading…':'Chargement…'):(en?'Load older messages':'Afficher les messages précédents')}</button>}
         {visibleMessages.map(item=>{
@@ -449,11 +485,12 @@ export default function ConversationPage() {
           const readers=mine?readStates.filter(state=>
             state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
           ):[];
-          return <article className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id}>
+          return <article id={`knowme-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id} style={{scrollMarginTop:90,outline:targetMessage===item.id?'2px solid var(--mint)':undefined}}>
             {!mine&&<strong className="km-message-author">{nexus?'Nexus':item.sender.displayName}</strong>}
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
+              <button type="button" title={en?'Copy direct message link':'Copier le lien du message'} aria-label={en?'Copy direct message link':'Copier le lien du message'} onClick={()=>void copyContentLink('message',item.id)} style={{border:0,background:'transparent',color:'inherit',cursor:'pointer',fontSize:12,padding:'2px 5px'}}>↗</button>
               {mine&&readers.length>0&&<span aria-label={en?"Read":"Message lu"}>✓✓</span>}
             </div>
           </article>;

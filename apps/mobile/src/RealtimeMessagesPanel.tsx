@@ -6,12 +6,14 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View
 } from 'react-native';
 import type { Socket } from 'socket.io-client';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
@@ -111,9 +113,15 @@ function mergeMessages(
 export function RealtimeMessagesPanel({
   userId,
   refreshing,
-  setRefreshing
+  setRefreshing,
+  linkedConversationId,
+  linkedMessageId,
+  linkedMediaId
 }: {
   userId: string;
+  linkedConversationId?: string | null;
+  linkedMessageId?: string | null;
+  linkedMediaId?: string | null;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
@@ -121,6 +129,10 @@ export function RealtimeMessagesPanel({
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const linkedConversationOpened = useRef<string | null>(null);
+  const linkedMessageScrolled = useRef<string | null>(null);
+  const soughtCursors = useRef(new Set<string>());
+  const messageListRef = useRef<FlatList<ConversationMessage>>(null);
   const typingActive = useRef(false);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -372,6 +384,33 @@ export function RealtimeMessagesPanel({
       );
     }
   }
+
+  useEffect(() => {
+    if (!linkedConversationId) return;
+    const found = conversations.find(item => item.id === linkedConversationId);
+    if (found && linkedConversationOpened.current !== linkedConversationId) {
+      linkedConversationOpened.current = linkedConversationId;
+      linkedMessageScrolled.current = null;
+      soughtCursors.current.clear();
+      void openConversation(found);
+    }
+  }, [linkedConversationId, conversations]);
+
+  useEffect(() => {
+    if (!linkedMessageId || !active || active.id !== linkedConversationId || loadingOlder) return;
+    const index = history.findIndex(item => item.id === linkedMessageId);
+    if (index >= 0) {
+      if (linkedMessageScrolled.current !== linkedMessageId) {
+        linkedMessageScrolled.current = linkedMessageId;
+        messageListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+      }
+      return;
+    }
+    if (nextCursor && soughtCursors.current.size < 100 && !soughtCursors.current.has(nextCursor)) {
+      soughtCursors.current.add(nextCursor);
+      void loadOlder();
+    }
+  }, [linkedMessageId, linkedConversationId, active, history, nextCursor, loadingOlder]);
 
   async function loadOlder() {
     if (!active || !nextCursor || loadingOlder) return;
@@ -629,6 +668,8 @@ export function RealtimeMessagesPanel({
         </GlassSurface>
 
         <FlatList
+          ref={messageListRef}
+          onScrollToIndexFailed={info => messageListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
           data={history}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messages}
@@ -680,7 +721,8 @@ export function RealtimeMessagesPanel({
                             borderWidth: chat.bubbleBorderWidth,
                             borderColor: colors.border
                           }
-                        ]
+                        ],
+                  linkedMessageId === item.id ? { borderWidth: 2, borderColor: colors.accent } : null
                 ]}
               >
                 {!mine ? (
@@ -692,7 +734,21 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='STICKER_IMAGE'||
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
-                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
+                  ? <View>
+                    <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}
+                      fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
+                      autoOpen={linkedMediaId === item.presentation.assetId}/>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Partager le lien de ce média"
+                      onPress={() => {
+                        const presentation = item.presentation;
+                        if (!presentation || !('assetId' in presentation)) return;
+                        void Share.share({message:buildKnowMePublicLink({
+                          kind:presentation.kind==='GIF'?'gif':'media',id:presentation.assetId
+                        })});
+                      }}>
+                      <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien du média</Text>
+                    </Pressable>
+                  </View>
                   : <Text
                       style={[
                         mine ? styles.bubbleMineText : styles.bubbleText,
@@ -703,6 +759,9 @@ export function RealtimeMessagesPanel({
                         : item.presentation?.kind==='TEXT'
                           ? item.presentation.text : item.content}
                     </Text>}
+                <Pressable onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})}); }} accessibilityRole="button" accessibilityLabel="Partager le lien du message">
+                  <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien</Text>
+                </Pressable>
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>

@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../../components/i18n-provider';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
@@ -30,6 +31,9 @@ export default function ChannelPage(){
   const [draft,setDraft]=useState('');
   const [error,setError]=useState('');
   const [editOpen,setEditOpen]=useState(false);
+  const [linkNotice,setLinkNotice]=useState('');
+  const [targetPost,setTargetPost]=useState('');
+  const soughtCursors=useRef<Set<string>>(new Set());
   const [editName,setEditName]=useState('');
   const [editDescription,setEditDescription]=useState('');
 
@@ -49,6 +53,31 @@ export default function ChannelPage(){
     finally{setLoading(false);}
   },[id,user?.id,locale]);
   useEffect(()=>{void load();},[load]);
+  useEffect(() => {
+    setTargetPost(new URLSearchParams(window.location.search).get('post') ?? '');
+    soughtCursors.current.clear();
+  },[id]);
+  useEffect(() => {
+    if (!targetPost || loading || loadingMore) return;
+    const element = document.getElementById(`km-channel-post-${targetPost}`);
+    if (element) {
+      element.scrollIntoView({behavior:'smooth',block:'center'});
+      return;
+    }
+    if (nextCursor && soughtCursors.current.size < 100 && !soughtCursors.current.has(nextCursor)) {
+      soughtCursors.current.add(nextCursor);
+      void loadMore();
+    }
+  }, [targetPost,posts,loading,loadingMore,nextCursor]);
+
+  async function copyLink(kind:'channel'|'channel-post', itemId:string){
+    try {
+      await navigator.clipboard.writeText(buildKnowMePublicLink({kind,id:itemId}));
+      setLinkNotice(tr('Lien copié.','Link copied.'));
+    } catch {
+      setLinkNotice(tr('Copie impossible sur cet appareil.','Unable to copy link.'));
+    }
+  }
 
   async function loadMore(){
     if(!nextCursor||loadingMore)return;
@@ -116,6 +145,7 @@ export default function ChannelPage(){
       </button>
     </header>
     {error&&<p className="km-auth-error" role="alert">{error}</p>}
+    {linkNotice&&<p role="status">{linkNotice}</p>}
     {loading&&<p className="km-channel-empty" role="status">{tr('Chargement de la chaîne…','Loading channel…')}</p>}
     {!loading&&channel&&<>
       <section className="km-channel-profile">
@@ -132,6 +162,7 @@ export default function ChannelPage(){
             :<button type="button" onClick={()=>void toggleFollow()} disabled={busy}>
               {channel.following?tr('Se désabonner','Unfollow'):tr('S’abonner','Follow')}
             </button>}
+          <button type="button" onClick={()=>void copyLink('channel',channel.id)}>{tr('Copier le lien','Copy channel link')}</button>
           <Link href={`/profile/${encodeURIComponent(channel.owner.username)}`}>{tr('Propriétaire','Owner')}</Link>
         </div>
       </section>
@@ -157,7 +188,8 @@ export default function ChannelPage(){
       <h2 className="km-channel-post-heading">{tr('Publications','Posts')}</h2>
       <section className="km-channel-posts" aria-label={tr('Liste des publications','Channel posts')}>
         {posts.length===0&&<p className="km-channel-empty">{tr('Aucune publication pour le moment.','No posts yet.')}</p>}
-        {posts.map(post=><article className="km-channel-post" key={post.id}>
+        {posts.map(post=><article className="km-channel-post" id={`km-channel-post-${post.id}`} key={post.id}
+          style={{scrollMarginTop:100,outline:targetPost===post.id?'2px solid var(--mint)':undefined}}>
           <div className="km-channel-post-author">
             <span className="km-channel-avatar is-small" aria-hidden="true">{Array.from(channel.name)[0]?.toLocaleUpperCase()||'C'}</span>
             <span><strong>{channel.name}</strong>
@@ -165,6 +197,9 @@ export default function ChannelPage(){
                 {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</time></span>
           </div>
           <p>{post.content}</p>
+          <button type="button" className="km-channel-more" onClick={()=>void copyLink('channel-post',post.id)}>
+            {tr('Lien de la publication','Copy post link')}
+          </button>
         </article>)}
         {nextCursor&&<button type="button" className="km-channel-more" disabled={loadingMore} onClick={()=>void loadMore()}>
           {loadingMore?tr('Chargement…','Loading…'):tr('Publications précédentes','Older posts')}

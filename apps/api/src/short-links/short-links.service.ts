@@ -7,6 +7,7 @@ import {
 import { KnowMeDeepLinkKind } from '@knowme/link-contract';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { findSticker, stickerCatalog } from '../messaging/stickers/sticker-catalog';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -358,7 +359,61 @@ export class ShortLinksService {
       return normalizeTargetId(circle.slug);
     }
 
+    // Re-check creator access whenever a short link is resolved. Viewers are
+    // independently authorized by the link-targets API after opening it.
+    if (kind === 'sticker-pack') {
+      if (stickerCatalog().some(pack => pack.key === targetId)) return targetId;
+      throw new ForbiddenException('Destination non partageable.');
+    }
+
+    if (kind === 'sticker') {
+      const parts = targetId.split('__');
+      if (parts.length === 2 && findSticker(parts[0], parts[1])) return targetId;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    if (kind === 'post') {
+      const post = await this.prisma.post.findUnique({ where: { id: targetId }, select: { id: true } });
+      if (post) return post.id;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    if (kind === 'comment') {
+      const comment = await this.prisma.postComment.findUnique({ where: { id: targetId }, select: { id: true } });
+      if (comment) return comment.id;
+      throw new NotFoundException('Destination introuvable.');
+    }
+
+    // Public short-link resolution exposes a destination ID before the viewer logs in.
+    // Keep PRIVATE message/conversation/media links on the authenticated direct-link
+    // resolver until short links can bind resolution to viewer authorization.
+    if (kind === 'message' || kind === 'conversation' || kind === 'group' || kind === 'media' || kind === 'gif') {
+      throw new ForbiddenException('Les liens courts privés exigent une vérification du destinataire.');
+    }
+
+    if (kind === 'channel') {
+      const channel = await this.prisma.channel.findUnique({
+        where: {id:targetId},select:{id:true,visibility:true}
+      });
+      if (!channel || channel.visibility !== 'PUBLIC') {
+        throw new ForbiddenException('Destination non partageable publiquement.');
+      }
+      return channel.id;
+    }
+
+    if (kind === 'channel-post') {
+      const post = await this.prisma.channelPost.findUnique({
+        where: {id:targetId},select:{id:true,channel:{select:{visibility:true}}}
+      });
+      if (!post || post.channel.visibility !== 'PUBLIC') {
+        throw new ForbiddenException('Destination non partageable publiquement.');
+      }
+      return post.id;
+    }
+
     if (kind === 'gift') {
+      // Retain the established KMD-061 short-link lifecycle for existing links.
+      // Opening the actual gift always performs a new viewer authorization check.
       const gift = await this.prisma.notification.findFirst({
         where: { id: targetId, userId: ownerId, type: 'SOCIAL_GIFT' },
         select: { id: true }

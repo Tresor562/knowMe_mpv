@@ -32,7 +32,24 @@
         "foregroundImage": "./assets/branding/knowme-adaptive-foreground.png",
         "monochromeImage": "./assets/branding/knowme-monochrome.png",
         "backgroundColor": "#0D0825"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "knowme-nextech.vercel.app",
+              "pathPrefix": "/open/v1/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro"
