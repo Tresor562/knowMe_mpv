@@ -149,7 +149,8 @@ export default function PublicProfilePage() {
   async function postToWall(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!profile || !user || !authorityFresh || posting) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const text = String(form.get('text') ?? '').trim();
     if (!text) return;
     setPosting(true);
@@ -161,13 +162,11 @@ export default function PublicProfilePage() {
           body: JSON.stringify({ contentType: 'TEXT', text })
         }
       );
-      event.currentTarget.reset();
-      setNotice(
-        profile.viewer.owner
-          ? 'Publication ajoutée au mur.'
-          : 'Publication envoyée pour validation.'
-      );
+      formElement.reset();
       await load();
+      setNotice(profile.viewer.owner
+        ? (en ? 'Posted to your wall.' : 'Publication ajoutée au mur.')
+        : (en ? 'Post sent for approval.' : 'Publication envoyée pour validation.'));
     } catch (cause) {
       invalidateAuthority();
       setNotice(cause instanceof Error ? cause.message : 'Publication impossible.');
