@@ -629,7 +629,7 @@ html, body { min-width: 0; }
 .km-settings-row { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:52px; padding:13px 12px; font-size:14px; font-weight:570; border-bottom:1px solid var(--soft-border); }
 .km-settings-row:last-child { border-bottom:0; }
 .km-settings-row:hover { background:color-mix(in srgb,var(--mint) 6%,transparent); }
-.km-settings-row > span:last-child { color:var(--muted); font-size:24px; line-height:1; font-weight:400; }
+.km-settings-row > span:not(:first-child):last-child { color:var(--muted); font-size:24px; line-height:1; font-weight:400; }
 .km-settings-language { padding:5px 8px 12px; }
 .km-settings-language p,.km-settings-language small { display:block; color:var(--muted); font-size:12px; line-height:1.5; margin:9px 0 0; }
 .km-settings-segments { display:flex; width:max-content; max-width:100%; gap:5px; padding:4px; border:1px solid var(--soft-border); border-radius:16px; background:var(--surface-2); }
