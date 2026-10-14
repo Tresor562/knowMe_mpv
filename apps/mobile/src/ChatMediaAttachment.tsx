@@ -6,7 +6,7 @@ import { API_URL, apiFetch, getAccessToken } from './api';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string }) {
+export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean }) {
   const [opening,setOpening]=useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
@@ -40,6 +40,14 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType }: { ass
     })();
     return ()=>{ mounted=false; };
   },[assetId,attempt,kind]);
+
+  // A viewer who explicitly opens a direct media link sees the exact image/GIF.
+  // Large files remain tap-to-open and are never auto-downloaded.
+  useEffect(() => {
+    if (autoOpen && source && (kind === 'IMAGE' || kind === 'GIF' || kind === 'STICKER_IMAGE')) {
+      setPreviewOpen(true);
+    }
+  }, [autoOpen, source, kind]);
 
   async function openFile() {
     if(opening)return;
