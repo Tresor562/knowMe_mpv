@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeBrand } from '../../components/knowme-brand';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
@@ -198,7 +199,31 @@ export default function MessagesPage() {
   });
 
   return (
-    <main className="shell km-messages">
+    <main className="shell km-messages km-messenger-shell">
+      <nav className="km-messenger-rail" aria-label={en?'Desktop navigation':'Navigation ordinateur'}>
+        <KnowMeBrand compact href="/messages" className="km-messenger-rail-brand" />
+        <Link href="/messages" aria-current="page" aria-label={en?'Chats':'Discussions'} className="km-messenger-rail-item active">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8.5 8A10 10 0 0 1 8 18.9L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/></svg>
+          <span>{en?'Chats':'Messages'}</span>
+        </Link>
+        <Link href="/feed" aria-label={en?'Feed':'Actualités'} className="km-messenger-rail-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          <span>{en?'Feed':'Actualités'}</span>
+        </Link>
+        <Link href="/channels" aria-label={en?'Channels':'Chaînes'} className="km-messenger-rail-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 17-7-5 16-4-6-8-3Z"/><path d="m11 14 9-10"/></svg>
+          <span>{en?'Channels':'Chaînes'}</span>
+        </Link>
+        <Link href="/profile" aria-label={en?'My profile':'Mon profil'} className="km-messenger-rail-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.5-4 3.2-6 8-6s7.5 2 8 6"/></svg>
+          <span>{en?'Profile':'Profil'}</span>
+        </Link>
+        <Link href="/settings" aria-label={en?'Settings':'Réglages'} className="km-messenger-rail-item km-messenger-rail-bottom">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="m10 2-.5 3-2.4 1.3L4.5 5l-2 3.4 2.2 2.2v2.8L2.5 16l2 3.4 2.6-1.3L9.5 19l.5 3h4l.5-3 2.4-1.3 2.6 1.3 2-3.4-2.2-2.2v-2.8l2.2-2.2-2-3.4-2.6 1.3L14.5 5 14 2Z"/></svg>
+          <span>{en?'Settings':'Réglages'}</span>
+        </Link>
+      </nav>
+      <div className="km-messenger-sidebar">
       <header className="km-messages-header">
         <div>
           <div className="km-msg-eyebrow">KnowMe</div>
@@ -280,6 +305,17 @@ export default function MessagesPage() {
           <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?(en?'Opening…':'Ouverture…'):(en?'Chat with Nexus':'Discuter avec Nexus')}</button>
         </div>}
       </section>
+      </div>
+      <aside className="km-messenger-empty-panel" aria-label={en?'Choose a conversation':'Sélectionner une discussion'}>
+        <div className="km-messenger-empty-content">
+          <img src="/brand/knowme-logo.svg" alt="" width="76" height="76" />
+          <h2>{en?'Your conversations, naturally.':'Vos échanges, simplement.'}</h2>
+          <p>{en?'Select a chat to start messaging, or create a new conversation.':'Choisissez une discussion ou commencez une nouvelle conversation.'}</p>
+          <Link href="/messages/new" className="km-messenger-start">{en?'New conversation':'Nouvelle discussion'}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+          </Link>
+        </div>
+      </aside>
     </main>
   );
 }
