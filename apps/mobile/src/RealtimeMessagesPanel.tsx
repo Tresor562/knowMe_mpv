@@ -739,11 +739,13 @@ export function RealtimeMessagesPanel({
                       fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
                       autoOpen={linkedMediaId === item.presentation.assetId}/>
                     <Pressable accessibilityRole="button" accessibilityLabel="Partager le lien de ce média"
-                      onPress={() => { void Share.share({
-                        message:buildKnowMePublicLink({
-                          kind:item.presentation?.kind==='GIF'?'gif':'media',id:item.presentation!.assetId
-                        })
-                      }); }}>
+                      onPress={() => {
+                        const presentation = item.presentation;
+                        if (!presentation || !('assetId' in presentation)) return;
+                        void Share.share({message:buildKnowMePublicLink({
+                          kind:presentation.kind==='GIF'?'gif':'media',id:presentation.assetId
+                        })});
+                      }}>
                       <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien du média</Text>
                     </Pressable>
                   </View>
