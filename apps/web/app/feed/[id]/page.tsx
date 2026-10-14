@@ -173,60 +173,66 @@ export default function PostDetailPage() {
   }
 
   return (
-    <main className="shell" style={{ maxWidth: 760, margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div><small style={{ color: 'var(--mint)' }}>DISCUSSION</small><h1>Publication</h1></div>
-        <Link href="/feed" className="btn">Retour au fil</Link>
+    <main className="shell km-post-detail">
+      <header className="km-post-detail-top">
+        <Link href="/feed" aria-label="Retour au fil" className="km-post-back">‹</Link>
+        <h1>Publication</h1>
+        <button type="button" onClick={() => void copyLink('post', post.id)} aria-label="Copier le lien de la publication">↗</button>
       </header>
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
       {shareNotice && <p role="status" style={{ color: 'var(--mint)' }}>{shareNotice}</p>}
 
-      <article className="card" style={{ padding: 22 }}>
-        <strong>{post.author.displayName}</strong>
-        <div style={{ color: 'var(--muted)' }}>@{post.author.username}</div>
-        <p style={{ fontSize: 19, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{post.content}</p>
-        {post.imageUrl && <img src={post.imageUrl} alt="Média de la publication" style={{ width: '100%', borderRadius: 18 }} />}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn" onClick={() => void like()}>♥ {post._count.likes}</button>
-          <span style={{ color: 'var(--muted)' }}>💬 {post._count.comments}</span>
-          <button className="btn" type="button" onClick={() => void copyLink('post', post.id)}>Copier le lien</button>
+      <article className="km-post-detail-article">
+        <header className="km-post-detail-author">
+          <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>
+            <span className="km-post-avatar">{post.author.displayName.charAt(0).toUpperCase()}</span>
+            <span><strong>{post.author.displayName}</strong><small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString('fr-FR')}</small></span>
+          </Link>
           {post.authorId === user?.id && (
-            <button className="btn btn-accent" style={{ marginLeft: 'auto' }} onClick={() => void removePost()}>
-              Supprimer la publication
-            </button>
+            <details className="km-post-options">
+              <summary aria-label="Options de la publication">•••</summary>
+              <div><button type="button" onClick={() => void removePost()}>Supprimer la publication</button></div>
+            </details>
           )}
+        </header>
+        <p className="km-post-detail-text">{post.content}</p>
+        {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl} alt="Média de la publication" />}
+        <div className="km-post-actions">
+          <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
+          <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
+          <button type="button" onClick={() => void copyLink('post', post.id)}>↗ <span>Partager</span></button>
         </div>
       </article>
 
-      <form className="card" onSubmit={comment} style={{ padding: 18, display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-        <input className="input" name="content" placeholder="Écris un commentaire…" maxLength={500} required style={{ flex: '1 1 320px' }} />
-        <button className="btn btn-primary" disabled={sending}>{sending ? 'Envoi…' : 'Commenter'}</button>
+      <form className="km-post-comment-form" onSubmit={comment}>
+        <input name="content" placeholder="Écris un commentaire…" maxLength={500} required aria-label="Commentaire" />
+        <button type="submit" disabled={sending}>{sending ? 'Envoi…' : 'Envoyer'}</button>
       </form>
 
-      <section className="grid" style={{ marginTop: 16 }} aria-label="Commentaires">
+      <section id="km-post-comments" className="km-post-comments" aria-label="Commentaires">
         {comments.map((item) => {
           const canDelete = item.author.id === user?.id || post.authorId === user?.id;
           return (
-            <article className="card" key={item.id} id={`knowme-comment-${item.id}`} style={{ padding: 16, scrollMarginTop: 100, outline: targetComment === item.id ? '2px solid var(--mint)' : undefined }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
-                <div>
-                  <strong>{item.author.displayName}</strong>
-                  <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.author.username}</small>
-                </div>
-                <button className="btn" type="button" onClick={() => void copyLink('comment', item.id)}>Lien du commentaire</button>
-                {canDelete && (
-                  <button
-                    className="btn"
-                    disabled={busyCommentId === item.id}
-                    onClick={() => void removeComment(item.id)}
-                  >
-                    {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
-                  </button>
-                )}
+            <article className="km-post-comment" key={item.id} id={`knowme-comment-${item.id}`}
+              style={{ outline: targetComment === item.id ? '2px solid var(--mint)' : undefined }}>
+              <div className="km-post-comment-avatar">
+                {item.author.avatarUrl ? <img src={item.author.avatarUrl} alt="" /> : item.author.displayName.charAt(0)}
               </div>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{item.content}</p>
-              <small style={{ color: 'var(--muted)' }}>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
+              <div className="km-post-comment-content">
+                <Link href={`/profile/${encodeURIComponent(item.author.username)}`}>
+                  <strong>{item.author.displayName}</strong><small>@{item.author.username}</small>
+                </Link>
+                <p>{item.content}</p>
+                <div className="km-post-comment-actions">
+                  <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
+                  <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
+                  {canDelete && <button type="button" disabled={busyCommentId === item.id}
+                    onClick={() => void removeComment(item.id)}>
+                    {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
+                  </button>}
+                </div>
+              </div>
             </article>
           );
         })}

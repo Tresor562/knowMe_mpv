@@ -18,6 +18,16 @@ type Post = {
 
 const FEED_PAGE_SIZE = 20;
 
+function FeedIcon({ name }: { name: 'heart' | 'comment' | 'share' }) {
+  const paths = {
+    heart: <path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.7a5.4 5.4 0 0 0 0-7.7Z" />,
+    comment: <path d="M20.5 11.4a8.5 8.5 0 0 1-8.5 8.5 9.5 9.5 0 0 1-3.6-.8L3 21l1.8-5.3a8.5 8.5 0 1 1 15.7-4.3Z" />,
+    share: <><path d="M12 16V3m0 0L7.7 7.3M12 3l4.3 4.3" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>,
+  };
+  return <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
+
 export default function FeedPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const { locale } = useI18n();
@@ -27,6 +37,7 @@ export default function FeedPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [message, setMessage] = useState('');
+  const [shareNotice, setShareNotice] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
@@ -131,6 +142,23 @@ export default function FeedPage() {
     }
   }
 
+  async function sharePost(post: Post) {
+    const url = `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${post.author.displayName} · KnowMe`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareNotice(en ? 'Link copied.' : 'Lien copié.');
+      }
+    } catch (cause) {
+      // Closing the share sheet is not an error in the feed.
+      if ((cause as Error)?.name !== 'AbortError') {
+        setShareNotice(en ? 'Sharing unavailable on this device.' : 'Partage indisponible sur cet appareil.');
+      }
+    }
+  }
+
   if (sessionLoading || !user) return <main className="shell"><p>Chargement du fil...</p></main>;
 
   return (
@@ -141,9 +169,15 @@ export default function FeedPage() {
       </header>
       <StoriesRail />
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
-        <textarea name="content" placeholder={en?'Share an update, an idea or a question…':'Partage une nouvelle, une idée ou une question…'} rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+        <div className="km-feed-compose-row">
+          <Link href="/profile" className="km-post-avatar" aria-label={en?'My profile':'Mon profil'}>
+            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.displayName?.[0] ?? '?'}</span>}
+          </Link>
+          <textarea name="content" placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
+            rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+        </div>
         <div className="km-feed-compose-actions">
-          <Link href="/stories/new">{en?'Create a story':'Créer une story'}</Link>
+          <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
@@ -152,31 +186,53 @@ export default function FeedPage() {
 
       {!authorityFresh && !message && <p style={{ color: 'var(--muted)' }}>{en?'Validating feed…':'Validation du fil…'}</p>}
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
+      {shareNotice && <p className="km-feed-notice" role="status" onClick={() => setShareNotice('')}>{shareNotice}</p>}
       {loading && <p>{en?'Loading posts…':'Chargement des publications…'}</p>}
 
-      <section className="grid">
+      <section className="km-feed-list" aria-label={en?'Posts':'Publications'}>
         {authorityFresh && !loading && posts.length === 0 && (
-          <article className="km-feed-empty">
+          <div className="km-feed-empty">
             <h2>{en?'Nothing here yet':'Le fil est encore calme'}</h2>
-            <p style={{ color: 'var(--muted)' }}>{en?'Be the first to share something.':'Sois la première personne à partager quelque chose.'}</p>
-          </article>
+            <p>{en?'Be the first to share something.':'Sois la première personne à partager quelque chose.'}</p>
+          </div>
         )}
 
-        {authorityFresh && posts.map((post) => (
+        {authorityFresh && posts.map(post => (
           <article className="km-feed-post" key={post.id}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-                {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/> : post.author.displayName[0]}
-              </div>
-              <div><strong>{post.author.displayName}</strong><div style={{ color: 'var(--muted)' }}>@{post.author.username}</div></div>
-            </div>
-            <Link href={`/feed/${post.id}`}><p style={{ fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{post.content}</p></Link>
-            {post.imageUrl && <img src={post.imageUrl} alt={en?"Post media":"Média de la publication"} style={{ width: '100%', borderRadius: 18 }} />}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-              <button className="btn" disabled={!authorityFresh} onClick={() => void toggleLike(post.id)}>♥ {post._count.likes}</button>
-              <Link className="btn" href={`/feed/${post.id}`}>💬 {post._count.comments}</Link>
-              <small style={{ color: 'var(--muted)', marginLeft: 'auto' }}>{new Date(post.createdAt).toLocaleString(en?'en-US':'fr-FR')}</small>
-            </div>
+            <header className="km-post-header">
+              <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
+                <span className="km-post-avatar">
+                  {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" /> : <span>{post.author.displayName[0]}</span>}
+                </span>
+                <span className="km-post-author-copy">
+                  <strong>{post.author.displayName}</strong>
+                  <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
+                </span>
+              </Link>
+              <button type="button" className="km-post-header-share"
+                onClick={() => void sharePost(post)} aria-label={en?'Share post':'Partager la publication'}>
+                <FeedIcon name="share" />
+              </button>
+            </header>
+            {post.content && <Link className="km-post-content" href={`/feed/${post.id}`}>
+              <p>{post.content}</p>
+            </Link>}
+            {post.imageUrl && <Link className="km-post-media" href={`/feed/${post.id}`}>
+              <img src={post.imageUrl} alt={en?'Post image':'Image de la publication'} loading="lazy"/>
+            </Link>}
+            <footer className="km-post-actions">
+              <button type="button" onClick={() => void toggleLike(post.id)} disabled={!authorityFresh}
+                aria-label={en?'React to post':'Réagir à la publication'}>
+                <FeedIcon name="heart"/><span>{post._count.likes}</span>
+              </button>
+              <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
+                <FeedIcon name="comment"/><span>{post._count.comments}</span>
+              </Link>
+              <button type="button" onClick={() => void sharePost(post)}
+                aria-label={en?'Share post':'Partager la publication'}>
+                <FeedIcon name="share"/><span>{en?'Share':'Partager'}</span>
+              </button>
+            </footer>
           </article>
         ))}
       </section>

@@ -265,7 +265,17 @@ export default function ProfilePage() {
             </div>
             <p className="km-profile-handle">@{user.username}</p>
             {user.bio?.trim()
-              ? <p className="km-profile-bio">{user.bio}</p>
+              ? <div className="km-profile-bio-row">
+                  <p className="km-profile-bio">{user.bio}</p>
+                  <button type="button" className="km-profile-bio-edit" onClick={() => setEditing(true)}
+                    aria-label={tr('Modifier la biographie','Edit biography')} title={tr('Modifier la biographie','Edit biography')}>
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m4 20 4.5-.9L20 7.6a2 2 0 0 0-3.6-3.6L5 15.5 4 20Z"/>
+                      <path d="m14.5 6.5 3 3"/>
+                    </svg>
+                  </button>
+                </div>
               : <button type="button" className="km-profile-add-bio" onClick={() => setEditing(true)}>
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="m4 20 4.5-.9L20 7.6a2 2 0 0 0-3.6-3.6L5 15.5 4 20Z"/>
@@ -324,6 +334,8 @@ export default function ProfilePage() {
         <Link href="/progression" className="km-profile-text-link">{en?'See all progress →':'Voir toute ma progression →'}</Link>
       </section>
 
+      <details className="km-profile-more">
+        <summary>{tr('Plus d’options du profil','More profile options')}</summary>
       <nav className="km-profile-shortcuts" aria-label={en?'My profile shortcuts':'Raccourcis de mon profil'}>
         <Link href={`/profile/${encodeURIComponent(user.username)}`}>{en?'View my public profile':'Voir mon profil public'} <span>↗</span></Link>
         <Link href="/profile-studio">{en?'Profile studio':'Studio de profil'} <span>›</span></Link>
@@ -332,6 +344,8 @@ export default function ProfilePage() {
         <Link href="/gifts">{en?'Gifts':'Cadeaux'} <span>›</span></Link>
         <Link href="/profile-circles">{en?'Duos and teams':'Duos et équipes'} <span>›</span></Link>
       </nav>
+
+      </details>
 
       <section className="km-profile-interests">
         <h2>{en?'Interests':'Centres d’intérêt'}</h2>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { useSession } from '../../lib/use-session';
 import { storyUi } from '../stories/story-i18n';
 
 type Story = {
@@ -28,6 +29,7 @@ type StoryFeedResponse = {
 
 export function StoriesRail() {
   const ui = storyUi();
+  const { user } = useSession();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,90 +52,54 @@ export function StoriesRail() {
     void load();
   }, [load]);
 
+  const myStory = stories.find(story => story.viewer.own);
+  const others = stories.filter(story => !story.viewer.own && story.author);
+
   return (
-    <section aria-label={ui.stories} style={{ marginBottom: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <strong>{ui.stories}</strong>
-        <Link href="/stories/new" className="btn">{ui.createStory}</Link>
+    <section className="km-stories" aria-label={ui.stories}>
+      <div className="km-stories-heading">
+        <h2>{ui.stories}</h2>
+        <Link href="/stories/new" className="km-stories-all">{ui.createStory}</Link>
       </div>
-
-      {loading && (
-        <div style={{ display: 'flex', gap: 12, overflowX: 'hidden' }} aria-label={ui.loading}>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} style={{ width: 72, flex: '0 0 72px' }}>
-              <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--surface-2)' }} />
-              <div style={{ height: 8, borderRadius: 8, background: 'var(--surface-2)', marginTop: 8 }} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loading && error && (
-        <div className="card" style={{ padding: 14 }} role="status">
-          <span style={{ color: 'var(--muted)' }}>{error}</span>{' '}
-          <button className="btn" onClick={() => void load()}>{ui.retry}</button>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
-          <Link href="/stories/new" style={{ width: 76, flex: '0 0 76px', textAlign: 'center', textDecoration: 'none', color: 'inherit' }}>
-            <div style={{
-              width: 68,
-              height: 68,
-              borderRadius: '50%',
-              margin: '0 auto',
-              display: 'grid',
-              placeItems: 'center',
-              border: '2px dashed var(--mint)',
-              fontSize: 28,
-              background: 'var(--surface-2)'
-            }}>+</div>
-            <small style={{ display: 'block', marginTop: 7 }}>{ui.yourStory}</small>
+      <div className="km-stories-rail">
+        <div className="km-story-tile km-story-self">
+          <Link className={'km-story-avatar' + (myStory ? ' has-story' : '')}
+            href={myStory ? `/stories/${myStory.id}` : '/stories/new'}
+            aria-label={myStory ? ui.yourStory : ui.createStory}>
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="" />
+            ) : (
+              <span>{user?.displayName?.charAt(0).toUpperCase() || '+'}</span>
+            )}
           </Link>
+          <Link className="km-story-add" href="/stories/new" aria-label={ui.createStory}>+</Link>
+          <small>{ui.yourStory}</small>
+        </div>
 
-          {stories.map((story) => (
-            <Link
-              href={`/stories/${story.id}`}
-              key={story.id}
-              style={{ width: 76, flex: '0 0 76px', textAlign: 'center', textDecoration: 'none', color: 'inherit' }}
-            >
-              <div style={{
-                width: 68,
-                height: 68,
-                margin: '0 auto',
-                padding: 3,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--mint), #7957ff, #ff7a45)'
-              }}>
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  background: 'var(--surface)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontWeight: 800
-                }}>
-                  {story.author?.avatarUrl ? (
-                    <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    story.author?.displayName?.[0] ?? '?'
-                  )}
-                </div>
-              </div>
-              <small style={{
-                display: 'block',
-                marginTop: 7,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {story.viewer.own ? ui.yourStory : story.author?.displayName ?? ui.stories}
-              </small>
-            </Link>
-          ))}
+        {loading && Array.from({ length: 4 }).map((_, index) => (
+          <div className="km-story-tile" key={index} aria-hidden="true">
+            <div className="km-story-avatar km-story-skeleton" />
+            <small className="km-story-skeleton-label" />
+          </div>
+        ))}
+
+        {!loading && !error && others.map(story => (
+          <Link href={`/stories/${story.id}`} className="km-story-tile" key={story.id}>
+            <span className="km-story-avatar has-story">
+              {story.author?.avatarUrl ? (
+                <img src={story.author.avatarUrl} alt="" />
+              ) : (
+                <span>{story.author?.displayName?.[0] ?? '?'}</span>
+              )}
+            </span>
+            <small>{story.author?.displayName ?? ui.stories}</small>
+          </Link>
+        ))}
+      </div>
+      {!loading && error && (
+        <div className="km-stories-error" role="status">
+          <span>{error}</span>
+          <button type="button" onClick={() => void load()}>{ui.retry}</button>
         </div>
       )}
     </section>
