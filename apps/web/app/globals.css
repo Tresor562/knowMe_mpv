@@ -1465,3 +1465,87 @@ body:has(.km-messages)::before { display:none; }
 @media(prefers-reduced-motion:reduce){
   .km-nexus-fab,.km-nexus-fab-progress {animation:none;transition:none;}
 }
+
+
+/* KnowMe 2026-10 — context-sensitive five-action navigation.
+   Semantic transparency and touch areas remain usable in light/dark/reduced motion. */
+.km-smart-nav {
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  width: min(630px,calc(100% - 16px));
+  min-height: 59px;
+  padding: 4px;
+  gap: 1px;
+  border-radius: 22px;
+  transition: transform .22s ease, opacity .22s ease, visibility .22s ease;
+  will-change: transform;
+}
+.km-smart-nav .bottom-nav-item { width:100%; min-height: 49px; padding: 3px 1px; border:0; background:transparent; cursor:pointer; }
+.km-smart-nav .bottom-nav-icon { width:22px; height:22px; }
+.km-smart-nav .bottom-nav-icon svg { width:21px; height:21px; }
+.km-smart-nav .bottom-nav-label { font-size:10px; line-height:14px; }
+.km-smart-nav.is-hidden { transform:translate(-50%,calc(120% + env(safe-area-inset-bottom,0px))); opacity:0; visibility:hidden; pointer-events:none; }
+.km-smart-nav[data-position='top'] {
+  top:calc(8px + env(safe-area-inset-top,0px));
+  bottom:auto;
+}
+.km-smart-nav[data-position='top'].is-hidden { transform:translate(-50%,-125%); }
+.km-smart-nav.has-create-menu { z-index:920; }
+.km-nav-create-wrap { position:relative; min-width:0; }
+.km-nav-create-menu {
+  position:absolute; bottom:calc(100% + 11px); left:50%; transform:translateX(-50%);
+  width:min(240px,calc(100vw - 32px)); min-width:178px;
+  max-height:min(60dvh,360px); overflow:auto;
+  padding:7px; border:1px solid var(--soft-border); border-radius:20px;
+  background:var(--surface-glass); color:var(--text);
+  -webkit-backdrop-filter:blur(25px); backdrop-filter:blur(25px);
+  box-shadow:0 14px 40px rgba(0,0,0,.21); z-index:930;
+}
+.km-smart-nav[data-position='top'] .km-nav-create-menu { top:calc(100% + 11px); bottom:auto; }
+.km-nav-create-menu a { display:block; border-radius:13px; padding:12px; font-size:13px; font-weight:600; color:var(--text); }
+.km-nav-create-menu a:hover,.km-nav-create-menu a:focus-visible { background:var(--surface-2); }
+.km-nav-scrim { position:fixed; inset:0; border:0; padding:0; background:rgba(0,0,0,.22); z-index:910; cursor:default; }
+body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; pointer-events:none; }
+:root[data-reduce-transparency='true'] .km-nav-create-menu { backdrop-filter:none; -webkit-backdrop-filter:none; background:var(--surface); }
+:root[data-animations='false'] .km-smart-nav { transition:none; }
+@media(prefers-reduced-motion:reduce) { .km-smart-nav { transition:none; } }
+@media(max-width:360px) {
+  .km-smart-nav .bottom-nav-label { font-size:9px; }
+  .km-smart-nav .bottom-nav-icon svg { width:20px; height:20px; }
+}
+
+
+/* Center action belongs to KnowMe; never an oversized footer CTA. */
+.km-smart-nav .km-nav-create { color:var(--on-primary); background:var(--mint); border-radius:18px; }
+.km-smart-nav .km-nav-create:hover,.km-smart-nav .km-nav-create:focus-visible { background:var(--mint); filter:brightness(1.06); }
+.km-smart-nav .km-nav-create .bottom-nav-icon { color:inherit; }
+
+/* First-party discovery uses actual account and friendship data, no fictional recommendations. */
+.km-account-badges { display:inline-flex; gap:2px; align-items:center; flex:0 0 auto; white-space:nowrap; margin:0; }
+.km-account-badges > span { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.km-discover-native { max-width:780px; display:grid; gap:18px; padding-bottom:115px; }
+.km-discover-header { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.km-discover-header h1 { margin:0; font-size:25px; letter-spacing:-.03em; }
+.km-discover-header p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+.km-discover-header a { display:grid; place-items:center; width:44px; height:44px; border-radius:50%; background:var(--surface-glass); border:1px solid var(--soft-border); flex-shrink:0; }
+.km-discover-search { display:flex; gap:8px; }
+.km-discover-search input { flex:1; min-width:0; }
+.km-discover-search button,.km-discover-person-actions button { border:1px solid var(--soft-border); border-radius:15px; padding:9px 13px; font-size:13px; color:var(--text); background:var(--surface-2); cursor:pointer; }
+.km-discover-search button:disabled,.km-discover-person-actions button:disabled { opacity:.55; cursor:wait; }
+.km-discover-section { border-top:1px solid var(--soft-border); padding-top:10px; }
+.km-discover-section h2 { font-size:16px; letter-spacing:-.02em; }
+.km-discover-muted { color:var(--muted); font-size:13px; }
+.km-discover-person { display:flex; align-items:center; min-width:0; gap:11px; padding:11px 0; border-bottom:1px solid var(--soft-border); }
+.km-discover-person img,.km-discover-person-letter { width:46px; height:46px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.km-discover-person-letter { display:grid; place-items:center; background:var(--surface-2); color:var(--mint); font-size:21px; }
+.km-discover-person-info { min-width:0; flex:1 1 auto; display:grid; align-items:center; grid-template-columns:minmax(0,max-content) auto; column-gap:5px; }
+.km-discover-person-info strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+.km-discover-person-info small { grid-column:1/-1; color:var(--muted); font-size:12px; }
+.km-discover-person-actions { display:flex; gap:5px; flex-shrink:0; }
+.km-discover-links { display:grid; }
+.km-discover-links a { display:flex; justify-content:space-between; align-items:center; min-height:52px; border-bottom:1px solid var(--soft-border); font-size:14px; font-weight:600; }
+.km-discover-links a span:last-child { color:var(--muted); font-size:25px; }
+@media(max-width:560px) {
+  .km-discover-person { flex-wrap:wrap; }
+  .km-discover-person-actions { margin-left:57px; }
+  .km-discover-person-actions button { min-height:42px; }
+}
