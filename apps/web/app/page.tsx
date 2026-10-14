@@ -8,7 +8,7 @@ export default function Home(){
     if(window.localStorage.getItem('knowme_token'))window.location.replace('/messages');
   },[]);
   return (
-    <main className="km-auth">
+    <main className="km-auth km-native-entry">
       <section className="km-auth-intro">
         <KnowMeBrand />
         <div className="km-auth-visual">
@@ -18,6 +18,7 @@ export default function Home(){
         <span className="km-auth-pill">KnowMe · par NexTech</span>
       </section>
       <section className="km-auth-panel">
+        <KnowMeBrand className="km-native-auth-brand" />
         <h1>Bienvenue sur KnowMe</h1>
         <p className="km-auth-subtitle">Accédez à votre compte ou rejoignez la communauté.</p>
         <Link className="km-auth-submit" href="/login">Se connecter</Link>
