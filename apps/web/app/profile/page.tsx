@@ -48,6 +48,27 @@ export default function ProfilePage() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
+  const profileMenuRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        profileMenuRef.current.open = false;
+      }
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && profileMenuRef.current?.open) {
+        profileMenuRef.current.open = false;
+        profileMenuRef.current.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -219,20 +240,39 @@ export default function ProfilePage() {
               onSelectCover={() => coverFileRef.current?.click()}/>
           </div>
           <div className="km-profile-heading">
-            <p className="km-profile-eyebrow">{en?'MY KNOWME SPACE':'MON ESPACE KNOWME'}</p>
-            <h1>{user.displayName}</h1>
-            <AccountBadges staff={user.staff} verification={user.verification} premium={user.premium} />
+            <div className="km-profile-name-row">
+              <div className="km-profile-identity">
+                <h1 title={user.displayName}>{user.displayName}</h1>
+                <AccountBadges staff={user.staff} verification={user.verification} premium={user.premium} compact />
+              </div>
+              <details ref={profileMenuRef} className="km-profile-options">
+                <summary aria-label={tr('Options du profil','Profile options')} title={tr('Options du profil','Profile options')}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+                  </svg>
+                </summary>
+                <div className="km-profile-options-menu">
+                  <button type="button" onClick={() => { profileMenuRef.current!.open = false; setEditing(value => !value); }}>
+                    {editing ? tr('Fermer la modification','Close editor') : tr('Modifier mon profil','Edit profile')}
+                  </button>
+                  <button type="button" disabled={coverBusy} onClick={() => { profileMenuRef.current!.open = false; coverFileRef.current?.click(); }}>
+                    {coverBusy ? tr('Envoi…','Uploading…') : tr('Changer la couverture','Change cover')}
+                  </button>
+                  <Link href="/profile-studio">{tr('Studio de profil','Profile studio')}</Link>
+                  <Link href="/settings">{tr('Paramètres','Settings')}</Link>
+                </div>
+              </details>
+            </div>
             <p className="km-profile-handle">@{user.username}</p>
-            <p className="km-profile-bio">{user.bio?.trim() || (en?'Add a bio to introduce yourself.':'Ajoute une bio pour te présenter à ta communauté.')}</p>
-          </div>
-          <div className="km-profile-hero-actions">
-            <button className="btn btn-primary" type="button" onClick={() => setEditing(value => !value)}>
-              {editing ? (en?'Close':'Fermer') : (en?'Edit profile':'Modifier mon profil')}
-            </button>
-            <button className="btn km-profile-cover-upload" type="button" disabled={coverBusy}
-              onClick={() => coverFileRef.current?.click()}>
-              {coverBusy ? tr('Envoi…','Uploading…') : tr('Changer la couverture','Change cover')}
-            </button>
+            {user.bio?.trim()
+              ? <p className="km-profile-bio">{user.bio}</p>
+              : <button type="button" className="km-profile-add-bio" onClick={() => setEditing(true)}>
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m4 20 4.5-.9L20 7.6a2 2 0 0 0-3.6-3.6L5 15.5 4 20Z"/>
+                    <path d="m14.5 6.5 3 3"/>
+                  </svg>
+                  {tr('Ajouter une bio','Add a bio')}
+                </button>}
           </div>
         </div>
       </section>
