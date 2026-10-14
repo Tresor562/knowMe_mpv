@@ -48,6 +48,7 @@ type Props = {
   userId: string;
   linkedConversationId?: string | null;
   linkedMessageId?: string | null;
+  linkedMediaId?: string | null;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 };
@@ -98,6 +99,7 @@ export function MessagesOrganizationExperience({
   userId,
   linkedConversationId,
   linkedMessageId,
+  linkedMediaId,
   refreshing,
   setRefreshing
 }: Props) {
@@ -445,6 +447,7 @@ export function MessagesOrganizationExperience({
           userId={userId}
           linkedConversationId={linkedConversationId}
           linkedMessageId={linkedMessageId}
+          linkedMediaId={linkedMediaId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
