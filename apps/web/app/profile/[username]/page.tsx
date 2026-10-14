@@ -79,12 +79,24 @@ type PublicProfile = {
   shareCard: { shortCode: string; url: string; qrPayload: string };
 };
 
-function title(value: string) {
-  return value
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ')
-    .toLocaleLowerCase('fr')
-    .replace(/^./, (letter) => letter.toLocaleUpperCase('fr'));
+function title(value: string, en: boolean) {
+  const names: Record<string, [string, string]> = {
+    totalXp: ['XP total', 'Total XP'], xp: ['XP', 'XP'], level: ['Niveau', 'Level'],
+    friends: ['Amis', 'Friends'], gamesWon: ['Jeux gagnés', 'Games won'],
+    followers: ['Abonnés', 'Followers'], following: ['Abonnements', 'Following'],
+    giftsSent: ['Cadeaux envoyés', 'Gifts sent'], giftsReceived: ['Cadeaux reçus', 'Gifts received'],
+    dailyStreak: ['Jours consécutifs', 'Daily streak'], messagesSent: ['Messages envoyés', 'Messages sent'],
+    activeMinutes: ['Minutes actives', 'Active minutes'], challengesWon: ['Défis gagnés', 'Challenges won'],
+    challengesCreated: ['Défis créés', 'Challenges created'],
+    knowCoinsSpent: ['KnowCoins dépensés', 'KnowCoins spent'],
+    knowCoinsEarned: ['KnowCoins gagnés', 'KnowCoins earned'],
+    quizzesCreated: ['Quiz créés', 'Quizzes created'],
+    quizzesCompleted: ['Quiz terminés', 'Quizzes completed'],
+    averageAffinityBps: ['Affinité moyenne', 'Average affinity'],
+  };
+  if (names[value]) return names[value][en ? 1 : 0];
+  return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')
+    .toLocaleLowerCase(en ? 'en' : 'fr').replace(/^./, letter => letter.toLocaleUpperCase(en ? 'en' : 'fr'));
 }
 
 export default function PublicProfilePage() {
@@ -186,6 +198,14 @@ export default function PublicProfilePage() {
   }
 
   const initials = profile.header.displayName[0]?.toLocaleUpperCase('fr') ?? '?';
+  const stats = Object.entries(profile.statistics ?? {}).filter(([, value]) => value != null);
+  const priority = ['xp', 'totalXp', 'level', 'friends', 'followers', 'following'];
+  const rankedStats = [...stats].sort(([a], [b]) => {
+    const rank = (key: string) => priority.includes(key) ? priority.indexOf(key) : priority.length;
+    return rank(a) - rank(b);
+  });
+  const highlightedStats = rankedStats.slice(0, 4);
+  const additionalStats = rankedStats.slice(4);
 
   return (
     <main className="shell km-public-profile" data-profile-guard={profile.guard.protected ? 'protected' : 'off'}>
@@ -203,19 +223,18 @@ export default function PublicProfilePage() {
             {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
           </div>
           <div className="km-public-actions">
-            {profile.viewer.owner
-              ? <Link className="km-public-primary" href="/profile">{en?'Edit my profile':'Modifier mon profil'}</Link>
-              : <button type="button" className="km-public-primary" onClick={shareProfile}>{en?'Share profile':'Partager le profil'}</button>}
+            {profile.viewer.owner && <Link className="km-public-primary" href="/profile">{en?'Edit profile':'Modifier le profil'}</Link>}
+            <button type="button" className={profile.viewer.owner ? '' : 'km-public-primary'} onClick={shareProfile}>
+              {en?'Share':'Partager'}
+            </button>
+            {profile.wall && <a href="#km-profile-wall">{en?'Posts':'Publications'}</a>}
             {!profile.viewer.owner && profile.header.secretLink && (
               <Link href={profile.header.secretLink}>{en?'Anonymous message':'Message anonyme'}</Link>
             )}
-            {profile.viewer.owner && <Link href="/profile-studio">{en?'Personalize':'Personnaliser'}</Link>}
+            {profile.viewer.owner && <Link href="/profile-studio">{en?'Customize':'Personnaliser'}</Link>}
           </div>
         </div>
-        {profile.guard.protected && <p className="km-public-protection">
-          {en?'Protected profile: download and access restrictions are enforced by the server. Screenshots cannot be prevented on the web.':
-            'Profil protégé : les restrictions d’accès sont contrôlées par le serveur. Les captures d’écran ne peuvent pas être empêchées sur le Web.'}
-        </p>}
+
       </section>
 
       {notice && <section className="card" style={{ padding: 14 }} role="status">{notice}</section>}
@@ -230,36 +249,44 @@ export default function PublicProfilePage() {
       )}
 
       {profile.evolution && (
-        <section className="card" style={{ padding: 22 }}>
-          <small style={{ color: 'var(--mint)' }}>ÉVOLUTION VISUELLE</small>
-          <h2>Profil niveau visuel {profile.evolution.tier}/5</h2>
-          <p style={{ color: 'var(--muted)' }}>
-            {profile.evolution.unlocks.map(title).join(' · ')}. Ce niveau est obtenu par la progression et ne peut pas être acheté.
-          </p>
+        <section className="km-public-level" aria-label={en?'Profile level':'Niveau du profil'}>
+          <span>{en?'Visual level':'Niveau visuel'} <strong>{profile.evolution.tier}/5</strong></span>
+          {profile.evolution.unlocks.length > 0 && (
+            <small>{profile.evolution.unlocks.map(unlock => title(unlock, en)).join(' · ')}</small>
+          )}
         </section>
       )}
 
-      {profile.statistics && (
-        <section>
-          <h2>Statistiques</h2>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
-            {Object.entries(profile.statistics).map(([key, value]) => (
-              <article className="card" style={{ padding: 18 }} key={key}>
-                <strong style={{ fontSize: 26 }}>{String(value)}</strong>
-                <div style={{ color: 'var(--muted)' }}>{title(key)}</div>
-              </article>
+      {rankedStats.length > 0 && (
+        <section className="km-public-stats" aria-label={en?'Profile statistics':'Statistiques du profil'}>
+          <h2>{en?'At a glance':'En bref'}</h2>
+          <div className="km-public-stats-grid">
+            {highlightedStats.map(([key, value]) => (
+              <div className="km-public-stat" key={key}>
+                <strong>{String(value)}</strong><span>{title(key, en)}</span>
+              </div>
             ))}
           </div>
+          {additionalStats.length > 0 && (
+            <details className="km-public-more-stats">
+              <summary>{en?'More statistics':'Voir les autres statistiques'}</summary>
+              <div className="km-public-stats-grid">
+                {additionalStats.map(([key, value]) => (
+                  <div className="km-public-stat" key={key}>
+                    <strong>{String(value)}</strong><span>{title(key, en)}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
         </section>
       )}
 
       {profile.compatibility && (
         <section className="card" style={{ padding: 24 }}>
-          <small style={{ color: 'var(--mint)' }}>COMPATIBILITÉ CONFIDENTIELLE</small>
+          <small style={{ color: 'var(--mint)' }}>{en?'AFFINITY':'AFFINITÉ'}</small>
           <h2>{Math.round(profile.compatibility.overallBps / 100)} % d’affinité</h2>
-          <p style={{ color: 'var(--muted)' }}>
-            Le résultat utilise uniquement des raisons agrégées. Aucun message privé ni centre d’intérêt masqué n’est révélé.
-          </p>
+
         </section>
       )}
 
@@ -314,12 +341,19 @@ export default function PublicProfilePage() {
       )}
 
       {profile.wall && (
-        <section className="card" style={{ padding: 24 }}>
-          <h2>Mur du profil</h2>
+        <section className="km-public-wall" id="km-profile-wall">
+          <h2>{en?'Profile wall':'Mur du profil'}</h2>
           {user ? (
-            <form className="grid" onSubmit={postToWall} style={{ marginBottom: 20 }}>
-              <textarea className="input" name="text" rows={3} maxLength={1000} placeholder="Laisse un message, un souvenir ou un mot…" required disabled={posting || !authorityFresh} />
-              <button className="btn btn-primary" disabled={posting || !authorityFresh}>{posting ? 'Envoi…' : 'Publier sur le mur'}</button>
+            <form className="km-public-wall-form" onSubmit={postToWall}>
+              <label className="km-public-wall-input">
+                <span className="km-visually-hidden-file">{en?'Message':'Message'}</span>
+                <textarea name="text" rows={2} maxLength={1000}
+                  placeholder={en?'Leave a message…':'Laisse un message…'}
+                  required disabled={posting || !authorityFresh} />
+              </label>
+              <button className="km-public-wall-submit" type="submit" disabled={posting || !authorityFresh}>
+                {posting ? (en?'Sending…':'Envoi…') : (en?'Publish':'Publier')}
+              </button>
             </form>
           ) : (
             <p style={{ color: 'var(--muted)' }}>Connecte-toi pour participer au mur selon les règles du propriétaire.</p>
@@ -328,7 +362,7 @@ export default function PublicProfilePage() {
             <p style={{ color: 'var(--muted)' }}>Le mur attend son premier souvenir.</p>
           ) : (
             profile.wall.map((post) => (
-              <article className="card" style={{ padding: 16, marginTop: 10 }} key={post.id}>
+              <article className="km-public-wall-entry" key={post.id}>
                 <small>{post.contentType} · {new Date(post.createdAt).toLocaleDateString('fr-FR')}</small>
                 {post.text && <p>{post.text}</p>}
               </article>
@@ -337,12 +371,7 @@ export default function PublicProfilePage() {
         </section>
       )}
 
-      <section className="card" style={{ padding: 18 }}>
-        <strong>Confidentialité vérifiée côté serveur</strong>
-        <p style={{ color: 'var(--muted)', marginBottom: 0 }}>
-          Les sections interdites ne sont pas envoyées au navigateur. Une modification du HTML ou un appel direct à l’API ne permet pas de récupérer les données masquées.
-        </p>
-      </section>
+
     </main>
   );
 }
