@@ -208,6 +208,11 @@ describe('KMD-376 media grant deletion fence (e2e)', () => {
         }
       );
 
+    // The database can reject immediately after the tombstone lock is released.
+    // Observe the rejection from the start to avoid an unhandled-rejection race;
+    // the original rejected promise is still asserted below.
+    void grantAttempt.catch(() => undefined);
+
     await sleep(100);
     expect(grantSettled).toBe(false);
 
