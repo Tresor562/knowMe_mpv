@@ -121,7 +121,7 @@ export function parseKnowMeUniversalPath(
   const kind = segments[2];
   const id = segments[3];
   if (!kind || !id || !isKnowMeDeepLinkKind(kind)) return null;
-  if (!isSafeKnowMeLinkIdentifier(id)) return null;
+  if (!isSafeKnowMeLinkTargetIdentifier(kind, id)) return null;
 
   return {
     version: KNOWME_DEEP_LINK_VERSION,
