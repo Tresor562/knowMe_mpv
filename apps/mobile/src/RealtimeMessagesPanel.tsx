@@ -115,11 +115,13 @@ export function RealtimeMessagesPanel({
   refreshing,
   setRefreshing,
   linkedConversationId,
-  linkedMessageId
+  linkedMessageId,
+  linkedMediaId
 }: {
   userId: string;
   linkedConversationId?: string | null;
   linkedMessageId?: string | null;
+  linkedMediaId?: string | null;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
@@ -732,7 +734,19 @@ export function RealtimeMessagesPanel({
                  item.presentation?.kind==='STICKER_IMAGE'||
                  item.presentation?.kind==='IMAGE'||item.presentation?.kind==='VIDEO'||
                  item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT'
-                  ? <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}/>
+                  ? <View>
+                    <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}
+                      fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
+                      autoOpen={linkedMediaId === item.presentation.assetId}/>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Partager le lien de ce média"
+                      onPress={() => { void Share.share({
+                        message:buildKnowMePublicLink({
+                          kind:item.presentation?.kind==='GIF'?'gif':'media',id:item.presentation!.assetId
+                        })
+                      }); }}>
+                      <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien du média</Text>
+                    </Pressable>
+                  </View>
                   : <Text
                       style={[
                         mine ? styles.bubbleMineText : styles.bubbleText,
