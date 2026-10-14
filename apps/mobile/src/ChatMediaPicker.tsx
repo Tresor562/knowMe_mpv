@@ -157,7 +157,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
             </View>
           </Pressable>
           <Pressable accessibilityRole="button" style={styles.option} onPress={()=>{void chooseFiles();}}>
-            <KnowMeIcon name="edit" color={colors.accent} size={23}/>
+            <KnowMeIcon name="create" color={colors.accent} size={23}/>
             <View style={{flex:1}}>
               <Text style={[styles.optionLabel,{color:colors.text}]}>{en ? 'Files' : 'Fichiers'}</Text>
               <Text style={[styles.detail,{color:colors.muted}]}>
