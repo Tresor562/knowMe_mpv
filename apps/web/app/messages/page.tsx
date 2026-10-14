@@ -305,6 +305,17 @@ export default function MessagesPage() {
           <button type="button" className="btn btn-primary" disabled={creatingNexus} onClick={()=>void openNexusConversation()}>{creatingNexus?(en?'Opening…':'Ouverture…'):(en?'Chat with Nexus':'Discuter avec Nexus')}</button>
         </div>}
       </section>
+      <button type="button" className="km-nexus-fab"
+        disabled={creatingNexus}
+        onClick={()=>void openNexusConversation()}
+        aria-label={en?'Open Nexus AI conversation':'Ouvrir la conversation Nexus AI'}
+        title={en?'Chat with Nexus AI':'Discuter avec Nexus AI'}>
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 3.5 19.1 12.9 28.5 16 19.1 19.1 16 28.5 12.9 19.1 3.5 16 12.9 12.9Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+          <path d="M24.5 3.8v5.6m-2.8-2.8h5.6M5.8 24.2v4.5m-2.25-2.25h4.5" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round"/>
+        </svg>
+        {creatingNexus&&<span className="km-nexus-fab-progress" aria-hidden="true"/>}
+      </button>
       </div>
       <aside className="km-messenger-empty-panel" aria-label={en?'Choose a conversation':'Sélectionner une discussion'}>
         <div className="km-messenger-empty-content">
