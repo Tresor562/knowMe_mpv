@@ -39,7 +39,7 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>('friends');
   const [refreshing, setRefreshing] = useState(false);
@@ -110,6 +110,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId }: { u
           userId={userId}
           linkedConversationId={linkedConversationId}
           linkedMessageId={linkedMessageId}
+          linkedMediaId={linkedMediaId}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
