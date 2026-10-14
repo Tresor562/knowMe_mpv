@@ -1995,3 +1995,16 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
   .km-post-detail { padding-inline:13px; }
   .km-post-comment-form button { padding-inline:11px; }
 }
+
+
+/* Secondary profile links belong in a disclosure; the avatar + and identity menu remain primary. */
+.km-profile-bio-row { display:flex; align-items:flex-start; gap:7px; min-width:0; }
+.km-profile-bio-row .km-profile-bio { flex:1; min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.km-profile-bio-edit { display:grid; place-items:center; width:36px; height:36px;
+  min-width:36px; flex-shrink:0; border:0; border-radius:50%;
+  background:transparent; color:var(--muted); cursor:pointer; }
+.km-profile-bio-edit:hover,.km-profile-bio-edit:focus-visible { background:var(--surface-2); color:var(--mint); }
+.km-profile-more { border-block:1px solid var(--soft-border); }
+.km-profile-more > summary { display:flex; align-items:center; min-height:45px; padding:11px 5px;
+  font-size:13px; font-weight:650; color:var(--muted); cursor:pointer; }
+.km-profile-more > nav.km-profile-shortcuts { margin:0; padding:1px 0 10px; }
