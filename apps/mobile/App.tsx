@@ -1093,6 +1093,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
   const [linkedMessageId, setLinkedMessageId] = useState<string | null>(null);
+  const [linkedMediaId, setLinkedMediaId] = useState<string | null>(null);
+  const [linkRevision, setLinkRevision] = useState(0);
   const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
@@ -1156,9 +1158,10 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       try {
         const result = await apiFetch<{
           kind: string;
-          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string; challengeId?: string };
+          context: { postId?: string; commentId?: string; conversationId?: string; messageId?: string; mediaId?: string; storyId?: string; packKey?: string; stickerKey?: string; channelId?: string; channelPostId?: string; giftId?: string; username?: string; challengeId?: string };
         }>(`/link-targets/${encodeURIComponent(target.kind)}/${encodeURIComponent(target.id)}`);
         if (!active) return;
+        setLinkRevision(revision => revision + 1);
         if (result.context.challengeId) {
           setLinkedChallengeId(result.context.challengeId);
           setScreen('challenges');
@@ -1184,6 +1187,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         } else if (result.context.conversationId) {
           setLinkedConversationId(result.context.conversationId);
           setLinkedMessageId(result.context.messageId ?? null);
+          setLinkedMediaId(result.context.mediaId ?? null);
           setScreen('social');
         } else {
           setLinkFeedback('Ce type de contenu ne peut pas encore être ouvert ici.');
@@ -1271,7 +1275,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
         {screen === 'home' ? (
           <HomeScreen
-            key={'home:' + user.id}
+            key={'home:' + user.id + ':' + linkRevision}
             user={user}
             openSocial={() => setScreen('social')}
             openDiscover={() => setScreen('discover')}
@@ -1286,7 +1290,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'discover' ? (
           <FeedExperience
-            key={'discover:' + user.id}
+            key={'discover:' + user.id + ':' + linkRevision}
             userId={user.id}
             initialPostId={linkedPostId}
             initialCommentId={linkedCommentId}
@@ -1295,10 +1299,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'social' ? (
           <SocialHub
-            key={'social:' + user.id}
+            key={'social:' + user.id + ':' + linkRevision}
             userId={user.id}
             linkedConversationId={linkedConversationId}
             linkedMessageId={linkedMessageId}
+            linkedMediaId={linkedMediaId}
           />
         ) : null}
 
@@ -1322,7 +1327,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'challenges' ? (
           <ChallengeExperience
-            key={'challenges:' + user.id}
+            key={'challenges:' + user.id + ':' + linkRevision}
             userId={user.id}
             initialChallengeId={linkedChallengeId}
           />
