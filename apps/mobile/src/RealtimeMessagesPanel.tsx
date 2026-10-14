@@ -17,6 +17,9 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
+import { AnimatedEmoji } from './AnimatedEmoji';
+import { EmojiPicker } from './EmojiPicker';
+import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -749,16 +752,23 @@ export function RealtimeMessagesPanel({
                       <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien du média</Text>
                     </Pressable>
                   </View>
-                  : <Text
-                      style={[
+                  : item.presentation?.kind==='STICKER'
+                    ? <View style={{alignItems:'flex-start',gap:2}}>
+                        <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={46}/>
+                        <Text style={{color:mine?colors.accentText:colors.text,fontSize:12}}>
+                          {item.presentation.sticker.label}
+                        </Text>
+                      </View>
+                    : isStandaloneAnimatedEmojiText(item.presentation?.kind==='TEXT'
+                        ? item.presentation.text : item.content)
+                      ? <AnimatedEmoji size={50} glyph={(item.presentation?.kind==='TEXT'
+                          ? item.presentation.text : item.content).trim()}/>
+                      : <Text style={[
                         mine ? styles.bubbleMineText : styles.bubbleText,
-                        { color: mine ? colors.accentText : colors.text }
+                        {color: mine ? colors.accentText : colors.text}
                       ]}>
-                      {item.presentation?.kind==='STICKER'
-                        ? `${item.presentation.sticker.glyph} ${item.presentation.sticker.label}`
-                        : item.presentation?.kind==='TEXT'
-                          ? item.presentation.text : item.content}
-                    </Text>}
+                          {item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
+                        </Text>}
                 <Pressable onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})}); }} accessibilityRole="button" accessibilityLabel="Partager le lien du message">
                   <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien</Text>
                 </Pressable>
@@ -787,6 +797,7 @@ export function RealtimeMessagesPanel({
         />
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
+          <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
           <ChatMediaPicker<ConversationMessage> conversationId={active.id}
             onSent={created=>{
               setHistory(current=>mergeMessages(current,[created]));

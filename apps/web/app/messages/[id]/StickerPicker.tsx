@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import { ChatMediaView } from './ChatMediaView';
+import { AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 
 type SavedMedia = {
   id:string;
@@ -279,13 +280,13 @@ export function StickerPicker<T>({
           {recent.length > 0 && <div className="km-picker-group">
             <strong>{en ? 'Recently used' : 'Récents'}</strong>
             <div className="km-picker-emoji-grid">{recent.map(emoji =>
-              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}>{emoji}</button>
+              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
             )}</div>
           </div>}
           {EMOJI_GROUPS.map(group => <div key={group.key} className="km-picker-group">
             <strong>{en ? group.en : group.fr}</strong>
             <div className="km-picker-emoji-grid">{group.values.map(emoji =>
-              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}>{emoji}</button>
+              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
             )}</div>
           </div>)}
         </>}
