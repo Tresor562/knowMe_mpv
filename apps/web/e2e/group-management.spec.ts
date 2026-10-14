@@ -54,8 +54,12 @@ test('native group admin screen supports owner-only promotion and friends-only a
   await expect(page.getByRole('heading',{name:'Gestion du groupe'})).toBeVisible();
   await expect(page.getByText('Préparation BAC')).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
-  page.on('dialog',dialog=>void dialog.accept());
+  // KnowMe uses its own branded confirmation dialog, not window.confirm().
   await page.locator('.km-group-role-row').filter({hasText:'Alice'}).getByRole('button',{name:'Nommer administrateur'}).click();
+  const confirmation=page.getByRole('dialog',{name:'Confirmation'});
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).toContainText('Nommer Alice administrateur ?');
+  await confirmation.getByRole('button',{name:'Confirmer'}).click();
   await expect(page.locator('.km-group-role-row').filter({hasText:'Alice'})).toContainText('Administrateur');
   await page.getByRole('button',{name:'Ajouter des membres'}).click();
   await page.getByRole('checkbox').check();
