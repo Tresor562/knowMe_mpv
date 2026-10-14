@@ -1549,3 +1549,57 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
   .km-discover-person-actions { margin-left:57px; }
   .km-discover-person-actions button { min-height:42px; }
 }
+
+/* Native profile header: unclipped single-line name, anchored menu, one-tap bio. */
+.km-profile-details { overflow:visible; isolation:auto; }
+.km-profile-heading { min-width:0; position:relative; }
+.km-profile-name-row { display:flex; align-items:flex-start; gap:8px; min-width:0; }
+.km-profile-identity { min-width:0; flex:1 1 auto; display:flex; align-items:center; gap:5px; }
+.km-profile-identity h1 {
+  min-width:0; flex:0 1 auto; margin:0; overflow:hidden; white-space:nowrap;
+  text-overflow:ellipsis; overflow-wrap:normal; line-height:1.35;
+  mask-image:linear-gradient(to right,#000 90%,transparent 100%);
+}
+.km-profile-identity .km-account-badges { flex-shrink:0; }
+.km-profile-add-bio {
+  display:inline-flex; align-items:center; gap:7px; padding:4px 0; margin-top:5px;
+  min-height:36px; background:transparent; border:0; color:var(--muted); font-size:13px; cursor:pointer;
+}
+.km-profile-add-bio:hover,.km-profile-add-bio:focus-visible { color:var(--mint); }
+.km-profile-options { position:relative; flex-shrink:0; z-index:120; }
+.km-profile-options summary {
+  display:grid; place-items:center; width:44px; height:44px; margin-top:-5px;
+  border:1px solid var(--soft-border); border-radius:50%; background:var(--surface-glass);
+  color:var(--text); cursor:pointer; list-style:none;
+}
+.km-profile-options summary::-webkit-details-marker { display:none; }
+.km-profile-options-menu {
+  position:absolute; top:calc(100% + 6px); right:0;
+  display:grid; padding:7px; gap:2px;
+  width:min(245px,calc(100vw - 28px)); border-radius:18px;
+  border:1px solid var(--soft-border); box-shadow:0 16px 48px rgba(0,0,0,.2);
+  background:var(--surface-glass); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+  z-index:125;
+}
+.km-profile-options-menu > * {
+  display:flex; align-items:center; width:100%; min-height:44px;
+  border:0; border-radius:12px; padding:10px 12px;
+  background:transparent; color:var(--text); font-size:13px; font-weight:600; text-align:left; cursor:pointer;
+}
+.km-profile-options-menu > *:hover,.km-profile-options-menu > *:focus-visible { background:var(--surface-2); }
+.km-profile-options-menu > *:disabled { opacity:.5; cursor:wait; }
+.km-profile-avatar-wrap { isolation:auto; }
+.km-avatar-menu {
+  position:fixed; z-index:1100; margin:0; width:min(270px,calc(100vw - 24px));
+  max-height:min(65dvh,340px); overflow-y:auto; left:auto; top:auto;
+  background:var(--surface-glass); backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+}
+:root[data-reduce-transparency='true'] .km-avatar-menu,
+:root[data-reduce-transparency='true'] .km-profile-options-menu { background:var(--surface); backdrop-filter:none; -webkit-backdrop-filter:none; }
+@media(max-width:600px) {
+  .km-profile-identity { gap:3px; }
+  .km-profile-identity h1 { font-size:21px; }
+  .km-profile-options summary { width:42px; height:42px; }
+}
+
+
