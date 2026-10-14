@@ -84,7 +84,7 @@ export default function LoginPage() {
     }finally{setSubmitting(false);}
   }
 
-  return <main className="km-auth">
+  return <main className="km-auth km-native-entry">
     <section className="km-auth-intro">
       <KnowMeBrand />
       <div className="km-auth-visual">
@@ -94,6 +94,7 @@ export default function LoginPage() {
       <span className="km-auth-pill">Une expérience plus personnelle</span>
     </section>
     <section className="km-auth-panel" aria-label="Connexion à KnowMe">
+      <KnowMeBrand className="km-native-auth-brand" />
       {!challengeToken ? <form onSubmit={submit}>
         <h1>Bon retour</h1>
         <p className="km-auth-subtitle">Connectez-vous pour retrouver vos conversations.</p>
