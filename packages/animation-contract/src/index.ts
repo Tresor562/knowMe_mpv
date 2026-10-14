@@ -183,3 +183,8 @@ export function resolveAnimationPlan(input: {
     skippable: true
   };
 }
+
+
+// Unicode messages remain valid on clients without KnowMe Motion.
+export { KNOWME_ANIMATED_EMOJIS, getAnimatedEmojiMotion, isStandaloneAnimatedEmojiText, splitAnimatedEmojiText } from './animated-emoji';
+export type { KnowMeEmojiMotion, EmojiTextPart } from './animated-emoji';
