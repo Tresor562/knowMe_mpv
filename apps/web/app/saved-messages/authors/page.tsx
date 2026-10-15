@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
@@ -101,7 +102,7 @@ export default function SavedMessagesByAuthorPage() {
                   className="card"
                   style={{ padding: 12, display: 'block' }}
                 >
-                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.message.content}</p>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><KnowMeMentionText text={item.message.content}/></p>
                   <small style={{ color: 'var(--muted)' }}>Enregistré le {new Date(item.savedAt).toLocaleString('fr-FR')}</small>
                 </Link>
               ))}
