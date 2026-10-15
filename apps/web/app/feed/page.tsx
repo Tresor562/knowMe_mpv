@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -306,9 +307,12 @@ export default function FeedPage() {
                 <FeedIcon name="share" />
               </button>
             </header>
-            {post.content && <Link className="km-post-content" href={`/feed/${post.id}`}>
-              <p>{post.content}</p>
-            </Link>}
+            {post.content && <div className="km-post-content">
+              <p><KnowMeMentionText text={post.content}/></p>
+              <Link href={`/feed/${post.id}`} className="km-post-open-link">
+                {en ? 'Open post' : 'Voir la publication'}
+              </Link>
+            </div>}
             {post.imageUrl && <Link className="km-post-media" href={`/feed/${post.id}`}>
               <img src={resolvePostImage(post.imageUrl)} alt={en?'Post image':'Image de la publication'} loading="lazy"/>
             </Link>}
