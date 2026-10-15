@@ -1,0 +1,103 @@
+name: Publish KnowMe signed in-app Android update
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: knowme-android-in-app-release
+  cancel-in-progress: false
+
+jobs:
+  publish-signed-update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: '1'
+      EXPO_PUBLIC_API_URL: https://31-56-85-53.sslip.io/knowme-api
+      EXPO_PUBLIC_RELEASE_COMMIT: ${{ github.sha }}
+      KNOWME_ANDROID_KEYSTORE_BASE64: ${{ secrets.KNOWME_ANDROID_KEYSTORE_BASE64 }}
+      KNOWME_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEYSTORE_PASSWORD }}
+      KNOWME_ANDROID_KEY_ALIAS: ${{ secrets.KNOWME_ANDROID_KEY_ALIAS }}
+      KNOWME_ANDROID_KEY_PASSWORD: ${{ secrets.KNOWME_ANDROID_KEY_PASSWORD }}
+      KNOWME_ANDROID_SIGNING_CERT_SHA256: ${{ secrets.KNOWME_ANDROID_SIGNING_CERT_SHA256 }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.2
+          cache: pnpm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Require existing signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in KNOWME_ANDROID_KEYSTORE_BASE64 KNOWME_ANDROID_KEYSTORE_PASSWORD KNOWME_ANDROID_KEY_ALIAS KNOWME_ANDROID_KEY_PASSWORD KNOWME_ANDROID_SIGNING_CERT_SHA256; do
+            if [[ -z "${!name:-}" ]]; then echo "::error::Missing ${name}; cannot update existing installations safely."; exit 1; fi
+          done
+          [[ "$KNOWME_ANDROID_SIGNING_CERT_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || { echo '::error::Invalid signing certificate fingerprint.'; exit 1; }
+      - name: Validate version and install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const app=require("./apps/mobile/app.json").expo;const sync=require("./packages/link-contract/src/platform-sync.json");if(app.version!==sync.productVersion||!Number.isSafeInteger(app.android.versionCode)||app.android.versionCode<=3||app.android.package!=="com.knowme.app")process.exit(1);'
+          printf '%s\n' 'shamefully-hoist=true' > .npmrc
+          pnpm install --frozen-lockfile
+          pnpm --filter @knowme/mobile... build
+      - name: Generate native Android project
+        run: pnpm --filter @knowme/mobile exec expo prebuild --platform android --clean --no-install
+      - name: Install existing release signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/knowme-release.jks"
+          (umask 077; printf '%s' "$KNOWME_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE")
+          test -s "$KEYSTORE"
+          echo "KNOWME_ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          node scripts/configure-knowme-android-signing.mjs
+      - name: Compile signed Android update
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+      - name: Verify APK signing certificate, version, and hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          APK=apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/apk-signers.txt"
+          ACTUAL_CERT="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/apk-signers.txt" | head -1 | tr 'A-F' 'a-f')"
+          EXPECTED_CERT="$(printf '%s' "$KNOWME_ANDROID_SIGNING_CERT_SHA256" | tr 'A-F' 'a-f')"
+          [[ -n "$ACTUAL_CERT" && "$ACTUAL_CERT" == "$EXPECTED_CERT" ]] || { echo '::error::APK certificate differs from the installed-app signing identity.'; exit 1; }
+          VERSION="$(node -p 'require("./apps/mobile/app.json").expo.version')"
+          CODE="$(node -p 'require("./apps/mobile/app.json").expo.android.versionCode')"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.knowme.app' versionCode='$CODE' versionName='$VERSION'"
+          mkdir -p dist
+          NAME="KnowMe-$VERSION.apk"
+          cp "$APK" "dist/$NAME"
+          (cd dist && sha256sum "$NAME" > "$NAME.sha256")
+          SHA="$(sha256sum "dist/$NAME" | cut -d' ' -f1)"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION-preview/$NAME"
+          node -e 'const fs=require("fs");fs.writeFileSync("dist/knowme-update.json",JSON.stringify({versionCode:Number(process.argv[1]),version:process.argv[2],url:process.argv[3],sha256:process.argv[4],required:false,notes:"Nouvelle version KnowMe : accueil, profils, navigation et publications améliorés."},null,2)+"\n")' "$CODE" "$VERSION" "$URL" "$SHA"
+      - name: Publish update to in-app discovery feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p 'require("./apps/mobile/app.json").expo.version')"
+          TAG="v$VERSION-preview"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo '::error::Release exists. Never overwrite update binaries under the same version.'
+            exit 1
+          fi
+          gh release create "$TAG" "dist/KnowMe-$VERSION.apk" "dist/KnowMe-$VERSION.apk.sha256" dist/knowme-update.json \
+            --prerelease --title "KnowMe $VERSION · Mise à jour Android" \
+            --notes 'Mise à jour depuis KnowMe, après vérification de la même signature Android et du SHA-256. Autorisation Android nécessaire.'
+          echo "Mise à jour publiée : https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
