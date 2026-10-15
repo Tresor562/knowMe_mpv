@@ -16,6 +16,7 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { StoriesRail } from './StoriesRail';
 
 type Author = {
   id: string;
@@ -378,7 +379,27 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
   );
 }
 
-export function FeedExperience({ userId, initialPostId, initialCommentId }: { userId: string; initialPostId?: string | null; initialCommentId?: string | null }) {
+export function FeedExperience({
+  userId,
+  initialPostId,
+  initialCommentId,
+  mode = 'discover',
+  currentUser,
+  onOpenDiscover,
+  storyComposerRequest = false,
+  initialStoryId,
+  onStoryComposerHandled
+}: {
+  userId: string;
+  initialPostId?: string | null;
+  initialCommentId?: string | null;
+  mode?: 'home' | 'discover';
+  currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
+  onOpenDiscover?: () => void;
+  storyComposerRequest?: boolean;
+  initialStoryId?: string | null;
+  onStoryComposerHandled?: () => void;
+}) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
@@ -480,14 +501,23 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>{mode === "home" ? "KnowMe" : "Discover"}</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>{mode === "home" ? "Fil d’actualité" : "Découvre de nouveaux contenus."}</Text>
               </View>
             </View>
             <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
               <KnowMeIcon name="discover" size={22} color={colors.accent} />
             </GlassSurface>
           </GlassSurface>
+          {mode === 'home' && currentUser ? (
+            <StoriesRail
+              currentUser={currentUser}
+              onOpenDiscover={onOpenDiscover ?? (() => {})}
+              openComposer={storyComposerRequest}
+              initialStoryId={initialStoryId}
+              onComposerOpened={onStoryComposerHandled}
+            />
+          ) : null}
           <GlassSurface
             strength="soft"
             borderRadius={20}
@@ -498,7 +528,7 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
               maxLength={1000}
               value={content}
               onChangeText={setContent}
-              placeholder="Partage une découverte, une question ou un défi…"
+              placeholder={mode === "home" ? "Qu’as-tu envie de partager ?" : "Partage une découverte, une question ou un défi…"}
               placeholderTextColor={colors.muted}
               selectionColor={colors.accent}
               style={[
@@ -525,7 +555,7 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
           style={[
             styles.card,
             styles.postCard,
-            { backgroundColor: colors.surfaceGlass, borderColor: colors.border }
+            { backgroundColor: colors.background, borderColor: colors.border }
           ]}
         >
           <View style={styles.authorRow}>
@@ -553,23 +583,23 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 28, gap: 11 },
+  content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28, gap: 8 },
   headerBlock: { gap: 10, marginBottom: 2 },
   discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  composerCard: { padding: 10, borderRadius: 20 },
+  composerCard: { padding: 10, borderRadius: 18 },
   composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   composerHint: { fontSize: 11 },
-  postCard: { borderRadius: 20, paddingVertical: 13 },
+  postCard: { borderRadius: 0, borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 2, paddingVertical: 13 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
   heading: { fontSize: 20, fontWeight: '800', letterSpacing: -0.35 },
   sectionTitle: { fontSize: 19, fontWeight: '800', marginTop: 3 },
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 10 },
   commentCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, gap: 9 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
   flex: { flex: 1 },
   title: { fontSize: 17, fontWeight: '800' },
