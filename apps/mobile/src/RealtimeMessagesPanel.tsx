@@ -641,9 +641,9 @@ export function RealtimeMessagesPanel({
         <GlassSurface strength="medium" borderRadius={visual.controlRadius} style={styles.conversationHeader}>
           <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
           <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
-            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0].user.displayName}` : undefined}
+            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
             disabled={others.length !== 1}
-            onPress={() => openProfile?.(others[0].user.username)}
+            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
             style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
             {isNexusPrivate ? (
               <KnowMeIcon name="spark" size={19} color={colors.secondary} />
@@ -657,8 +657,8 @@ export function RealtimeMessagesPanel({
           </Pressable>
           <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
             disabled={others.length !== 1}
-            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0].user.displayName}` : undefined}
-            onPress={() => openProfile?.(others[0].user.username)}
+            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
+            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
             style={styles.flex}>
             <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{name}</Text>
             <Text style={[
