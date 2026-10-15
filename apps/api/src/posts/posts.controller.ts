@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { PostsService } from './posts.service';
 
 @Controller('posts')
@@ -34,6 +36,16 @@ export class PostsController {
       content: dto.content
     });
     return this.posts.create(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  update(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: UpdatePostDto
+  ) {
+    return this.posts.update(req.user.userId, id, dto);
   }
 
   @Get('feed')
