@@ -79,6 +79,46 @@ type PublicProfile = {
   shareCard: { shortCode: string; url: string; qrPayload: string };
 };
 
+type FriendshipRelation = {
+  status: 'SELF' | 'NONE' | 'OUTGOING' | 'INCOMING' | 'FRIENDS' | 'BLOCKED';
+  targetUserId: string;
+  friendshipId: string | null;
+  legacy?: boolean;
+};
+
+type SocialSearchUser = { id: string; username: string };
+type SocialIncoming = { id: string; requester: { id: string } };
+type SocialFriend = { friendshipId: string; user: { id: string } };
+
+// Keep direct add-friend available while the VPS is still running the older API.
+async function readFriendship(username: string): Promise<FriendshipRelation> {
+  try {
+    return await apiFetch<FriendshipRelation>(
+      `/social/friendships/by-username/${encodeURIComponent(username)}`
+    );
+  } catch (cause) {
+    if ((cause as { status?: number })?.status !== 404) throw cause;
+  }
+
+  const found = await apiFetch<SocialSearchUser[]>(
+    `/social/search?q=${encodeURIComponent(username)}`
+  );
+  const target = found.find(item => item.username.toLowerCase() === username.toLowerCase());
+  if (!target) throw new Error('Utilisateur introuvable.');
+  const [friends, requests] = await Promise.all([
+    apiFetch<SocialFriend[]>('/social/friends'),
+    apiFetch<SocialIncoming[]>('/social/friend-requests/incoming')
+  ]);
+  const friend = friends.find(item => item.user.id === target.id);
+  const received = requests.find(item => item.requester.id === target.id);
+  return {
+    status: friend ? 'FRIENDS' : received ? 'INCOMING' : 'NONE',
+    targetUserId: target.id,
+    friendshipId: friend?.friendshipId ?? received?.id ?? null,
+    legacy: true
+  };
+}
+
 function title(value: string, en: boolean) {
   const names: Record<string, [string, string]> = {
     totalXp: ['XP total', 'Total XP'], xp: ['XP', 'XP'], level: ['Niveau', 'Level'],
@@ -107,6 +147,9 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [notice, setNotice] = useState('');
   const [posting, setPosting] = useState(false);
+  const [relationship, setRelationship] = useState<FriendshipRelation | null>(null);
+  const [relationshipError, setRelationshipError] = useState('');
+  const [relationshipBusy, setRelationshipBusy] = useState(false);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
 
@@ -114,12 +157,16 @@ export default function PublicProfilePage() {
     loadGeneration.current += 1;
     setAuthorityFresh(false);
     setProfile(null);
+    setRelationship(null);
+    setRelationshipError('');
   }, []);
 
   const load = useCallback(async () => {
     const generation = ++loadGeneration.current;
     setAuthorityFresh(false);
     setProfile(null);
+    setRelationship(null);
+    setRelationshipError('');
     setNotice('');
 
     try {
@@ -128,6 +175,18 @@ export default function PublicProfilePage() {
         `/profile-experience/public/${encodeURIComponent(username)}`
       );
       if (generation !== loadGeneration.current) return;
+      if (user && !incoming.viewer.owner) {
+        try {
+          const social = await readFriendship(incoming.header.username);
+          if (generation !== loadGeneration.current) return;
+          setRelationship(social);
+        } catch {
+          if (generation !== loadGeneration.current) return;
+          setRelationshipError(en
+            ? 'Friendship actions are temporarily unavailable.'
+            : 'Les actions d’amitié sont temporairement indisponibles.');
+        }
+      }
       setProfile(incoming);
       setAuthorityFresh(true);
     } catch (cause) {
@@ -136,7 +195,7 @@ export default function PublicProfilePage() {
       setAuthorityFresh(false);
       setNotice(cause instanceof Error ? cause.message : 'Profil indisponible.');
     }
-  }, [params.username]);
+  }, [params.username, user?.id, en]);
 
   useEffect(() => {
     invalidateAuthority();
@@ -172,6 +231,51 @@ export default function PublicProfilePage() {
       setNotice(cause instanceof Error ? cause.message : 'Publication impossible.');
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function actOnFriendship(action: 'send' | 'cancel' | 'accept' | 'decline' | 'remove') {
+    if (!user || !profile || !relationship || !authorityFresh || relationshipBusy) return;
+    const current = relationship;
+    setRelationshipBusy(true);
+    setNotice('');
+    try {
+      if (action === 'send' && current.status === 'NONE') {
+        const sent = await apiFetch<{ id: string }>('/social/friend-requests', {
+          method: 'POST', body: JSON.stringify({ addresseeId: current.targetUserId })
+        });
+        if (current.legacy) {
+          setRelationship({ ...current, status: 'OUTGOING', friendshipId: sent.id });
+          setNotice(en ? 'Friend request sent.' : 'Demande d’amitié envoyée.');
+          return;
+        }
+      } else if (action === 'cancel' && current.status === 'OUTGOING' && current.friendshipId) {
+        await apiFetch(`/social/friend-requests/${encodeURIComponent(current.friendshipId)}`, { method: 'DELETE' });
+      } else if ((action === 'accept' || action === 'decline') && current.status === 'INCOMING' && current.friendshipId) {
+        await apiFetch(`/social/friend-requests/${encodeURIComponent(current.friendshipId)}/${action}`, { method: 'PATCH' });
+      } else if (action === 'remove' && current.status === 'FRIENDS' && current.friendshipId) {
+        await apiFetch(`/social/friends/${encodeURIComponent(current.friendshipId)}`, { method: 'DELETE' });
+      } else {
+        return;
+      }
+      const next = await readFriendship(profile.header.username);
+      setRelationship(next);
+      setNotice(({
+        send: en ? 'Friend request sent.' : 'Demande d’amitié envoyée.',
+        cancel: en ? 'Request cancelled.' : 'Demande annulée.',
+        accept: en ? 'Friend request accepted.' : 'Demande acceptée.',
+        decline: en ? 'Request declined.' : 'Demande refusée.',
+        remove: en ? 'Friend removed.' : 'Ami retiré.'
+      })[action]);
+    } catch (cause) {
+      // The request may have succeeded while the refresh failed: never display stale controls.
+      setRelationship(null);
+      setRelationshipError(en
+        ? 'Refresh the profile to see the current friendship status.'
+        : 'Actualise le profil pour connaître l’état actuel de cette relation.');
+      setNotice(cause instanceof Error ? cause.message : (en ? 'Action unavailable.' : 'Action impossible.'));
+    } finally {
+      setRelationshipBusy(false);
     }
   }
 
@@ -231,7 +335,44 @@ export default function PublicProfilePage() {
           </div>
           <div className="km-public-actions">
             {profile.viewer.owner && <Link className="km-public-primary" href="/profile?edit=1#edit">{en?'Edit profile':'Modifier le profil'}</Link>}
-            <button type="button" className={profile.viewer.owner ? '' : 'km-public-primary'} onClick={shareProfile}>
+            {!profile.viewer.owner && !user && <Link className="km-public-primary" href="/login">{en?'Sign in to add':'Se connecter pour ajouter'}</Link>}
+            {!profile.viewer.owner && relationship?.status === 'NONE' && (
+              <button type="button" className="km-public-primary" disabled={relationshipBusy} onClick={() => void actOnFriendship('send')}>
+                {en ? '+ Add friend' : '+ Ajouter en ami'}
+              </button>
+            )}
+            {!profile.viewer.owner && relationship?.status === 'OUTGOING' && (
+              relationship.legacy
+                ? <span role="status">{en ? 'Request sent' : 'Demande envoyée'}</span>
+                : <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('cancel')}>
+                    {en ? 'Request sent · Cancel' : 'Demande envoyée · Annuler'}
+                  </button>
+            )}
+            {!profile.viewer.owner && relationship?.status === 'INCOMING' && (
+              <>
+                <button type="button" className="km-public-primary" disabled={relationshipBusy} onClick={() => void actOnFriendship('accept')}>
+                  {en ? 'Accept request' : 'Accepter la demande'}
+                </button>
+                <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('decline')}>
+                  {en ? 'Decline' : 'Refuser'}
+                </button>
+              </>
+            )}
+            {!profile.viewer.owner && relationship?.status === 'FRIENDS' && (
+              <>
+                <span role="status" aria-label={en ? 'Friends' : 'Amis'}>✓ {en ? 'Friends' : 'Amis'}</span>
+                <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('remove')}>
+                  {en ? 'Remove friend' : 'Retirer des amis'}
+                </button>
+              </>
+            )}
+            {!profile.viewer.owner && relationship?.status === 'BLOCKED' && (
+              <span role="status">{en ? 'Friendship unavailable' : 'Relation indisponible'}</span>
+            )}
+            {!profile.viewer.owner && user && relationshipError && (
+              <span role="status" style={{color:'var(--muted)',fontSize:13}}>{relationshipError}</span>
+            )}
+            <button type="button" className={profile.viewer.owner ? '' : undefined} onClick={shareProfile}>
               {en?'Share':'Partager'}
             </button>
             {profile.wall && <a href="#km-profile-wall">{en?'Posts':'Publications'}</a>}
