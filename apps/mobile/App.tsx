@@ -1106,6 +1106,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [profileSubscreenActive, setProfileSubscreenActive] = useState(false);
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
   const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
@@ -1396,6 +1397,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
+            onSubscreenChange={setProfileSubscreenActive}
           />
         ) : null}
 
@@ -1409,7 +1411,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !(screen === 'profile' && profileSubscreenActive) && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}
