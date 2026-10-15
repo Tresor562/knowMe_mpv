@@ -309,6 +309,43 @@ export class MediaService {
    * A private POST media object becomes public only while the owner explicitly
    * uses it as their profile cover. Revoking the selection revokes public read.
    */
+  /**
+   * A scanned POST asset is a public attachment only while an actual post
+   * from that same owner references it. Unattached private uploads are 404.
+   */
+  async readPublicPostImage(assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: assetId,
+        purpose: 'POST',
+        deletedAt: null,
+        status: 'AVAILABLE',
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] }
+      },
+      select: { id: true, ownerId: true, storageKey: true, detectedMime: true }
+    });
+    if (!asset) throw new NotFoundException('Image indisponible.');
+    const attached = await this.prisma.post.findFirst({
+      where: { authorId: asset.ownerId, imageUrl: `/media/public/post/${assetId}` },
+      select: { id: true }
+    });
+    if (!attached) throw new NotFoundException('Image indisponible.');
+    return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
+  }
+
+  async assertOwnedPostImage(ownerId: string, assetId: string) {
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: assetId, ownerId, purpose: 'POST',
+        deletedAt: null, status: 'AVAILABLE',
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] }
+      },
+      select: { id: true }
+    });
+    if (!asset) throw new BadRequestException('Image indisponible ou non autorisée.');
+    return asset.id;
+  }
+
   async readPublicProfileCover(assetId: string) {
     const asset = await this.prisma.mediaAsset.findFirst({
       where: {
