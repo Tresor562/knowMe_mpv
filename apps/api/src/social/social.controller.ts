@@ -27,6 +27,15 @@ export class SocialController {
     return this.social.searchUsers(req.user.userId, query);
   }
 
+  // Single-source-of-truth state for every public profile (Web and Android).
+  @Get('friendships/by-username/:username')
+  relationshipForProfile(
+    @Req() req: { user: { userId: string } },
+    @Param('username') username: string
+  ) {
+    return this.social.relationshipForProfile(req.user.userId, username);
+  }
+
   @Post('friend-requests')
   sendRequest(
     @Req() req: { user: { userId: string } },
@@ -36,6 +45,14 @@ export class SocialController {
       req.user.userId,
       dto.addresseeId
     );
+  }
+
+  @Delete('friend-requests/:id')
+  cancelRequest(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    return this.social.cancelRequest(req.user.userId, id);
   }
 
   @Get('friend-requests/incoming')
