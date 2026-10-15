@@ -23,6 +23,7 @@ import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
 import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
+import { checkKnowMeUpdateNow } from './updates/MobileUpdateNotice';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
@@ -865,6 +866,25 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             icon="settings"
             tone="secondary"
             onPress={() => setPanel('privacy')}
+          />
+          <ProfileMenuRow
+            title="Vérifier les mises à jour"
+            description="Chercher une nouvelle APK et l’installer depuis KnowMe."
+            icon="refresh"
+            tone="secondary"
+            onPress={() => {
+              void checkKnowMeUpdateNow().then((result) => {
+                if (result === 'available') return; // The in-app update sheet opens automatically.
+                Alert.alert(
+                  'Mises à jour KnowMe',
+                  result === 'current'
+                    ? 'Aucune nouvelle version publiée pour cet appareil.'
+                    : result === 'unsupported'
+                      ? 'Cette APK ne dispose pas encore de la mise à jour intégrée. Installe une fois une version KnowMe compatible et signée.'
+                      : 'Impossible de vérifier les mises à jour. Vérifie ta connexion puis réessaie.'
+                );
+              });
+            }}
           />
           <ProfileMenuRow
             title="Versions et synchronisation"
