@@ -221,13 +221,14 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
   onCreateStory: () => void;
+  onSubscreenChange?: (active: boolean) => void;
 }) {
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -237,6 +238,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+
+  useEffect(() => {
+    onSubscreenChange?.(panel !== 'main');
+    return () => onSubscreenChange?.(false);
+  }, [panel, onSubscreenChange]);
   const [moreOpen, setMoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [coverPickerOpen, setCoverPickerOpen] = useState(false);
