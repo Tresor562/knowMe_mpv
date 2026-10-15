@@ -289,13 +289,19 @@ export default function StoryViewerPage() {
           </div>
 
           <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
-            <div style={{ width: 42, height: 42, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,.14)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-              {story.author?.avatarUrl ? <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : story.author?.displayName?.[0] ?? '?'}
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <strong>{story.author?.displayName ?? 'KnowMe'}</strong>
-              <div style={{ fontSize: 12, opacity: .75 }}>@{story.author?.username ?? 'unknown'}</div>
-            </div>
+            {story.author?.username ? (
+              <Link href={`/profile/${encodeURIComponent(story.author.username)}`}
+                aria-label={`Voir le profil de ${story.author.displayName}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'inherit', textDecoration: 'none', minWidth: 0, flex: 1 }}>
+                <div style={{ width: 42, height: 42, flexShrink: 0, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,.14)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
+                  {story.author.avatarUrl ? <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : story.author.displayName?.[0] ?? '?'}
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <strong>{story.author.displayName}</strong>
+                  <div style={{ fontSize: 12, opacity: .75 }}>@{story.author.username}</div>
+                </div>
+              </Link>
+            ) : <strong>KnowMe</strong>}
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
             <button type="button" className="km-story-pause" aria-label={paused?(en?'Resume story':'Reprendre la story'):(en?'Pause story':'Mettre la story en pause')}
               onClick={()=>setPlaybackPaused(!paused)}>
