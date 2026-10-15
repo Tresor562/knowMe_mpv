@@ -18,11 +18,13 @@ export function KnowMeMentionText({
     const result: Array<{ value: string; username?: string }> = [];
     let cursor = 0;
     for (const match of text.matchAll(pattern)) {
-      const start = (match.index ?? 0) + match[1].length;
-      const end = start + match[2].length + 1;
+      const username = match[2];
+      if (!username) continue;
+      const start = (match.index ?? 0) + (match[1] ?? '').length;
+      const end = start + username.length + 1;
       if (start < cursor) continue;
       if (start > cursor) result.push({ value: text.slice(cursor, start) });
-      result.push({ value: `@${match[2]}`, username: match[2] });
+      result.push({ value: `@${username}`, username });
       cursor = end;
     }
     if (cursor < text.length) result.push({ value: text.slice(cursor) });
