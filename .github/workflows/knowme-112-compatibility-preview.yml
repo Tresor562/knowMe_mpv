@@ -1,0 +1,101 @@
+name: Publish KnowMe 1.1.2 compatibility preview
+
+# Optional test-channel update only. Official APKs require a private release key.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/knowme-112-compatibility-preview.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: knowme-112-compatibility-preview
+  cancel-in-progress: false
+
+jobs:
+  compatibility-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Require compatible KnowMe versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const app=require("./apps/mobile/app.json").expo;const product=require("./packages/link-contract/src/platform-sync.json");if(app.version!=="1.1.2"||product.productVersion!==app.version||app.android.versionCode!==4||app.android.package!=="com.knowme.app")process.exit(1);'
+      - name: Download the exact audited Android artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p old new
+          gh run download 38558160810 --repo "$GITHUB_REPOSITORY" --name knowme-android-apk --dir old
+          gh run download 38737789197 --repo "$GITHUB_REPOSITORY" --name knowme-android-apk --dir new
+          test -s old/KnowMe-1.1.1-preview.apk
+          test -s new/KnowMe-1.1.2-preview.apk
+          (cd old && sha256sum --check KnowMe-1.1.1-preview.apk.sha256)
+          (cd new && sha256sum --check KnowMe-1.1.2-preview.apk.sha256)
+      - name: Verify signature identity, package and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          OLD=old/KnowMe-1.1.1-preview.apk
+          NEW=new/KnowMe-1.1.2-preview.apk
+          "$TOOLS/apksigner" verify --print-certs "$OLD" > old-cert.txt
+          "$TOOLS/apksigner" verify --print-certs "$NEW" > new-cert.txt
+          OLD_SHA="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' old-cert.txt | head -1 | tr 'A-F' 'a-f')"
+          NEW_SHA="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' new-cert.txt | head -1 | tr 'A-F' 'a-f')"
+          EXPECTED=fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c
+          if [[ "$OLD_SHA" != "$EXPECTED" || "$NEW_SHA" != "$EXPECTED" ]]; then
+            echo "::error::Signature differs from audited preview signing certificate."
+            exit 1
+          fi
+          "$TOOLS/aapt" dump badging "$OLD" | grep -F "package: name='com.knowme.app' versionCode='3' versionName='1.1.1'"
+          "$TOOLS/aapt" dump badging "$NEW" | grep -F "package: name='com.knowme.app' versionCode='4' versionName='1.1.2'"
+      - name: Generate update manifest and verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp new/KnowMe-1.1.2-preview.apk dist/
+          cp new/KnowMe-1.1.2-preview.apk.sha256 dist/
+          (cd dist && sha256sum --check KnowMe-1.1.2-preview.apk.sha256)
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          apk=Path('dist/KnowMe-1.1.2-preview.apk')
+          manifest={
+            'versionCode':4,
+            'version':'1.1.2',
+            'url':'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.2-preview/KnowMe-1.1.2-preview.apk',
+            'sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),
+            'notes':'Préversion 1.1.2 avec profils, amitiés et mises à jour KnowMe. APK de test signée Android Debug; pas une version de production sécurisée.',
+            'required':False
+          }
+          Path('dist/knowme-update.json').write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+'\n')
+          PY
+      - name: Publish immutable optional GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=v1.1.2-preview
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Prerelease already exists; never overwrite previously distributed APK."
+            exit 1
+          fi
+          gh release create "$TAG" \
+            dist/KnowMe-1.1.2-preview.apk \
+            dist/KnowMe-1.1.2-preview.apk.sha256 \
+            dist/knowme-update.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target 1c5cb1fc0a09f0a58e0561b8f8decbfe7e538a55 \
+            --prerelease \
+            --title "KnowMe 1.1.2 — préversion Android compatible 1.1.1" \
+            --notes "Mise à jour facultative pour les APK 1.1.1 preview signées avec le même certificat Android Debug. Ceci n'est pas une version de production sécurisée. Confirmation du système Android requise. Ne désinstallez pas la version en place."
