@@ -81,7 +81,8 @@ export function MobileAvatarQuickActions({
       </View>
     </Modal>
 
-    <AndroidMediaLibraryPicker visible={chooseFile} onClose={()=>setChooseFile(false)}
+    <AndroidMediaLibraryPicker visible={chooseFile} purpose="profile" allowVideo={false} mediaFilter="photo"
+      onClose={()=>setChooseFile(false)}
       onPicked={media=>{void changeAvatar(media);}}/>
   </>;
 }
