@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeMentionText } from './KnowMeMentionText';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
@@ -421,7 +422,7 @@ function NotificationsPanel({
           <Text style={[styles.cardTitle, { color: colors.text }]}>
             {item.title}
           </Text>
-          <Text style={[styles.muted, { color: colors.muted }]}>{item.body}</Text>
+          <KnowMeMentionText text={item.body} style={[styles.muted, { color: colors.muted }]}/>
           <Text style={[styles.date, { color: colors.muted }]}>
             {new Date(item.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
           </Text>
