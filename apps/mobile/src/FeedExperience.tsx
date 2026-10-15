@@ -415,6 +415,7 @@ export function FeedExperience({
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const [postPhotoSupported, setPostPhotoSupported] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
@@ -436,6 +437,15 @@ export function FeedExperience({
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    setPostPhotoSupported(false);
+    void apiFetch<{ publicPostImage: boolean }>('/media/public/post-capabilities')
+      .then(result => { if (active) setPostPhotoSupported(Boolean(result.publicPostImage)); })
+      .catch(() => { if (active) setPostPhotoSupported(false); });
+    return () => { active = false; };
+  }, [userId]);
 
   async function loadMore() {
     const cursor = posts[posts.length - 1]?.id;
@@ -569,7 +579,7 @@ export function FeedExperience({
               </View>
             ) : null}
             <View style={styles.composerFooter}>
-              <ActionButton title="Photo" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} />
+              {postPhotoSupported ? <ActionButton title="Photo" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} /> : null}
               <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
