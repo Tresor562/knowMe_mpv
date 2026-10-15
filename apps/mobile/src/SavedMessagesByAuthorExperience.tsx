@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
 
 type SavedMessage = {
   messageId: string;
@@ -27,6 +28,7 @@ export function SavedMessagesByAuthorExperience({
   onOpenMessage?: (conversationId: string, messageId: string) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [items, setItems] = useState<SavedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -77,10 +79,13 @@ export function SavedMessagesByAuthorExperience({
       {groups.map((group) => (
         <View key={group.id} style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={`Voir le profil de ${group.displayName}`}
+              onPress={() => openProfile?.(group.username)}
+              style={{ flex: 1 }}>
               <Text style={[styles.title, { color: colors.text }]}>{group.displayName}</Text>
               <Text style={[styles.small, { color: colors.muted }]}>@{group.username}</Text>
-            </View>
+            </Pressable>
             <Text style={[styles.count, { color: colors.accent }]}>{group.items.length}</Text>
           </View>
           {group.items.map((item) => (
