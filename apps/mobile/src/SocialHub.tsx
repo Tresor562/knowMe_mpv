@@ -315,7 +315,7 @@ function FriendsPanel({
       )}
       {results.map((user) => (
         <View key={user.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
-          <Identity user={user} />
+          <Identity user={user} onOpenProfile={onOpenProfile} />
           <ActionButton
             title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
             disabled={busyId === user.id}
