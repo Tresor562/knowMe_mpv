@@ -83,7 +83,41 @@ type FriendshipRelation = {
   status: 'SELF' | 'NONE' | 'OUTGOING' | 'INCOMING' | 'FRIENDS' | 'BLOCKED';
   targetUserId: string;
   friendshipId: string | null;
+  legacy?: boolean;
 };
+
+type SocialSearchUser = { id: string; username: string };
+type SocialIncoming = { id: string; requester: { id: string } };
+type SocialFriend = { friendshipId: string; user: { id: string } };
+
+// Keep direct add-friend available while the VPS is still running the older API.
+async function readFriendship(username: string): Promise<FriendshipRelation> {
+  try {
+    return await apiFetch<FriendshipRelation>(
+      `/social/friendships/by-username/${encodeURIComponent(username)}`
+    );
+  } catch (cause) {
+    if ((cause as { status?: number })?.status !== 404) throw cause;
+  }
+
+  const found = await apiFetch<SocialSearchUser[]>(
+    `/social/search?q=${encodeURIComponent(username)}`
+  );
+  const target = found.find(item => item.username.toLowerCase() === username.toLowerCase());
+  if (!target) throw new Error('Utilisateur introuvable.');
+  const [friends, requests] = await Promise.all([
+    apiFetch<SocialFriend[]>('/social/friends'),
+    apiFetch<SocialIncoming[]>('/social/friend-requests/incoming')
+  ]);
+  const friend = friends.find(item => item.user.id === target.id);
+  const received = requests.find(item => item.requester.id === target.id);
+  return {
+    status: friend ? 'FRIENDS' : received ? 'INCOMING' : 'NONE',
+    targetUserId: target.id,
+    friendshipId: friend?.friendshipId ?? received?.id ?? null,
+    legacy: true
+  };
+}
 
 function title(value: string, en: boolean) {
   const names: Record<string, [string, string]> = {
@@ -143,9 +177,7 @@ export default function PublicProfilePage() {
       if (generation !== loadGeneration.current) return;
       if (user && !incoming.viewer.owner) {
         try {
-          const social = await apiFetch<FriendshipRelation>(
-            `/social/friendships/by-username/${encodeURIComponent(incoming.header.username)}`
-          );
+          const social = await readFriendship(incoming.header.username);
           if (generation !== loadGeneration.current) return;
           setRelationship(social);
         } catch {
@@ -209,9 +241,14 @@ export default function PublicProfilePage() {
     setNotice('');
     try {
       if (action === 'send' && current.status === 'NONE') {
-        await apiFetch('/social/friend-requests', {
+        const sent = await apiFetch<{ id: string }>('/social/friend-requests', {
           method: 'POST', body: JSON.stringify({ addresseeId: current.targetUserId })
         });
+        if (current.legacy) {
+          setRelationship({ ...current, status: 'OUTGOING', friendshipId: sent.id });
+          setNotice(en ? 'Friend request sent.' : 'Demande d’amitié envoyée.');
+          return;
+        }
       } else if (action === 'cancel' && current.status === 'OUTGOING' && current.friendshipId) {
         await apiFetch(`/social/friend-requests/${encodeURIComponent(current.friendshipId)}`, { method: 'DELETE' });
       } else if ((action === 'accept' || action === 'decline') && current.status === 'INCOMING' && current.friendshipId) {
@@ -221,9 +258,7 @@ export default function PublicProfilePage() {
       } else {
         return;
       }
-      const next = await apiFetch<FriendshipRelation>(
-        `/social/friendships/by-username/${encodeURIComponent(profile.header.username)}`
-      );
+      const next = await readFriendship(profile.header.username);
       setRelationship(next);
       setNotice(({
         send: en ? 'Friend request sent.' : 'Demande d’amitié envoyée.',
@@ -299,9 +334,11 @@ export default function PublicProfilePage() {
               </button>
             )}
             {!profile.viewer.owner && relationship?.status === 'OUTGOING' && (
-              <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('cancel')}>
-                {en ? 'Request sent · Cancel' : 'Demande envoyée · Annuler'}
-              </button>
+              relationship.legacy
+                ? <span role="status">{en ? 'Request sent' : 'Demande envoyée'}</span>
+                : <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('cancel')}>
+                    {en ? 'Request sent · Cancel' : 'Demande envoyée · Annuler'}
+                  </button>
             )}
             {!profile.viewer.owner && relationship?.status === 'INCOMING' && (
               <>
