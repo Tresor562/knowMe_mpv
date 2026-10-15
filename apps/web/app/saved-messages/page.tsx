@@ -84,10 +84,11 @@ export default function SavedMessagesPage() {
         {items.map((item) => (
           <article key={item.messageId} className="card" style={{ padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <div>
+              <Link href={`/profile/${encodeURIComponent(item.message.sender.username)}`}
+                aria-label={`Voir le profil de ${item.message.sender.displayName}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                 <strong>{item.message.sender.displayName}</strong>
                 <small style={{ color: 'var(--muted)', marginLeft: 8 }}>@{item.message.sender.username}</small>
-              </div>
+              </Link>
               <small style={{ color: 'var(--muted)' }}>
                 Enregistré le {new Date(item.savedAt).toLocaleString('fr-FR')}
               </small>
