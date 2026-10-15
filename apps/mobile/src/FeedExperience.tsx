@@ -13,7 +13,9 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import { apiFetch } from './api';
+import { API_URL, apiFetch } from './api';
+import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { StoriesRail } from './StoriesRail';
@@ -43,6 +45,10 @@ type Comment = {
   createdAt: string;
   author: Author;
 };
+
+function resolvePostImage(url: string) {
+  return url.startsWith('/media/public/post/') ? `${API_URL}${url}` : url;
+}
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -307,7 +313,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
         {post.imageUrl ? (
           <Image
-            source={{ uri: post.imageUrl }}
+            source={{ uri: resolvePostImage(post.imageUrl) }}
             style={styles.postImage}
             resizeMode="cover"
           />
@@ -408,6 +414,8 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   const [publishing, setPublishing] = useState(false);
@@ -452,8 +460,15 @@ export function FeedExperience({
     if (!value || publishing) return;
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content: value }) });
+      const mediaAssetId = selectedPhoto
+        ? await uploadKnowMeMobileMedia(selectedPhoto, 'POST')
+        : undefined;
+      await apiFetch('/posts', {
+        method: 'POST',
+        body: JSON.stringify({ content: value, ...(mediaAssetId ? { mediaAssetId } : {}) })
+      });
       setContent('');
+      setSelectedPhoto(null);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
@@ -546,10 +561,23 @@ export function FeedExperience({
                 }
               ]}
             />
+
+            {selectedPhoto ? (
+              <View style={styles.composerPhotoPreview}>
+                <Image source={{ uri: selectedPhoto.uri }} style={styles.composerPreviewImage} resizeMode="cover" />
+                <ActionButton title="Retirer" disabled={publishing} onPress={() => setSelectedPhoto(null)} />
+              </View>
+            ) : null}
             <View style={styles.composerFooter}>
+              <ActionButton title="Photo" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} />
               <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
+            <AndroidMediaLibraryPicker
+              visible={photoPickerOpen} mediaFilter="photo" allowVideo={false}
+              onClose={() => setPhotoPickerOpen(false)}
+              onPicked={photo => { setPhotoPickerOpen(false); setSelectedPhoto(photo); }}
+            />
           </GlassSurface>
         </View>
       )}
@@ -571,7 +599,7 @@ export function FeedExperience({
           <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
             <Image
-              source={{ uri: item.imageUrl }}
+              source={{ uri: resolvePostImage(item.imageUrl) }}
               style={styles.postImage}
               resizeMode="cover"
             />
@@ -596,7 +624,9 @@ const styles = StyleSheet.create({
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   composerCard: { padding: 10, borderRadius: 18 },
-  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' },
+  composerPhotoPreview: { gap: 8, alignSelf: 'flex-start' },
+  composerPreviewImage: { width: 144, height: 128, borderRadius: 14 },
   composerHint: { fontSize: 11 },
   postCard: { borderRadius: 0, borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 2, paddingVertical: 13 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
