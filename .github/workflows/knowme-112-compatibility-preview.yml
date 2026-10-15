@@ -48,8 +48,10 @@ jobs:
           NEW=new/KnowMe-1.1.2-preview.apk
           "$TOOLS/apksigner" verify --print-certs "$OLD" > old-cert.txt
           "$TOOLS/apksigner" verify --print-certs "$NEW" > new-cert.txt
-          OLD_SHA="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' old-cert.txt | head -1 | tr 'A-F' 'a-f')"
-          NEW_SHA="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' new-cert.txt | head -1 | tr 'A-F' 'a-f')"
+          OLD_SHA="$(awk '/certificate SHA-256 digest:/ {print $NF; exit}' old-cert.txt | tr 'A-F' 'a-f' | tr -d '\\r')"
+          NEW_SHA="$(awk '/certificate SHA-256 digest:/ {print $NF; exit}' new-cert.txt | tr 'A-F' 'a-f' | tr -d '\\r')"
+          echo "Original certificate: $OLD_SHA"
+          echo "Updated certificate:  $NEW_SHA"
           EXPECTED=fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c
           if [[ "$OLD_SHA" != "$EXPECTED" || "$NEW_SHA" != "$EXPECTED" ]]; then
             echo "::error::Signature differs from audited preview signing certificate."
