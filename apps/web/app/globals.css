@@ -2073,3 +2073,21 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
 @media(prefers-reduced-motion:reduce) {
   .km-profile-cover-change { transition:none; }
 }
+
+
+/* Photo composer: compact inline media, not a giant dashboard card. */
+.km-feed-compose-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.km-feed-compose-tools button{
+  appearance:none;border:0;display:inline-flex;align-items:center;gap:7px;
+  background:transparent;color:var(--mint);min-height:40px;padding:7px 4px;
+  font:inherit;font-size:13px;font-weight:650;cursor:pointer;
+}
+.km-feed-compose-tools button:disabled{opacity:.45;cursor:not-allowed}
+.km-feed-image-preview{position:relative;display:block;max-width:min(260px,100%);
+  margin:10px 0 2px 56px}
+.km-feed-image-preview img{display:block;max-height:210px;width:auto;max-width:100%;
+  border:1px solid var(--soft-border);border-radius:15px;object-fit:cover}
+.km-feed-image-preview>button{position:absolute;right:6px;top:6px;
+  border:0;border-radius:50%;width:32px;height:32px;line-height:1;font-size:24px;
+  color:#fff;background:rgba(0,0,0,.65);cursor:pointer}
+@media(max-width:600px){.km-feed-image-preview{margin-left:45px}}
