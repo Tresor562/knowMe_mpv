@@ -133,6 +133,14 @@ const FAMILY_LABELS: Record<string, string> = {
   OTHER: 'Lien personnalisé'
 };
 
+function CircleIdentity({ person, fallback = 'Membre' }: { person: PublicUser | null; fallback?: string }) {
+  return person?.username
+    ? <Link href={`/profile/${encodeURIComponent(person.username)}`}
+        aria-label={`Voir le profil de ${person.displayName}`}
+        style={{ color: 'inherit', textDecoration: 'none', fontWeight: 'inherit' }}>{person.displayName}</Link>
+    : <>{fallback}</>;
+}
+
 export default function PublicCirclePage() {
   const params = useParams<{ slug: string }>();
   const { user, loading: sessionLoading } = useSession();
@@ -311,7 +319,7 @@ export default function PublicCirclePage() {
                 style={{ minWidth: 240, padding: 18 }}
               >
                 <small>{story.type}</small>
-                <h3>{story.author?.displayName ?? 'Membre'}</h3>
+                <h3><CircleIdentity person={story.author} /></h3>
                 {story.text && <p>{story.text}</p>}
                 <small style={{ color: 'var(--muted)' }}>
                   Expire le {new Date(story.expiresAt).toLocaleString('fr-FR')}
@@ -374,9 +382,9 @@ export default function PublicCirclePage() {
           <div className="grid">
             {snapshot.familyTree.map((relation) => (
               <article className="card" style={{ padding: 18 }} key={relation.id}>
-                <strong>{relation.first?.displayName ?? 'Membre'}</strong>
+                <strong><CircleIdentity person={relation.first} /></strong>
                 <span style={{ margin: '0 10px', color: 'var(--mint)' }}>↔</span>
-                <strong>{relation.second?.displayName ?? 'Membre'}</strong>
+                <strong><CircleIdentity person={relation.second} /></strong>
                 <div style={{ color: 'var(--muted)' }}>
                   {relation.label ?? FAMILY_LABELS[relation.type] ?? relation.type}
                 </div>
@@ -397,7 +405,7 @@ export default function PublicCirclePage() {
           {snapshot.moments.map((moment) => (
             <article className="card" style={{ padding: 18 }} key={moment.id}>
               <small>{moment.type} · {moment.audience}</small>
-              <h3>{moment.author?.displayName ?? 'Membre'}</h3>
+              <h3><CircleIdentity person={moment.author} /></h3>
               {moment.text && <p>{moment.text}</p>}
               <small style={{ color: 'var(--muted)' }}>
                 {new Date(moment.createdAt).toLocaleString('fr-FR')}
