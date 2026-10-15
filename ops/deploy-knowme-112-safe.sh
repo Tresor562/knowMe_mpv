@@ -37,6 +37,30 @@ temp="$(mktemp -d /tmp/knowme-rollout.XXXXXXXX)"
 trap 'rm -rf "$temp"' EXIT
 git -C "$SOURCE" show "$SHA:ops/deploy-knowme-vps.mjs" > "$temp/deploy.mjs"
 test -s "$temp/deploy.mjs"
+# Publish the verified OPTIONAL GitHub preview to the current installed APK
+# only after preserving the previous runtime .env above.
+ENV_FILE=/var/lib/nex/runtime/knowme/knowme.env
+[ -f "$ENV_FILE" ] || { echo 'KnowMe runtime environment is missing.' >&2; exit 1; }
+node - "$ENV_FILE" <<'NODE'
+const fs=require('node:fs');
+const path=process.argv[2];
+const settings={
+  KNOWME_ANDROID_UPDATE_VERSION_CODE:'4',
+  KNOWME_ANDROID_UPDATE_VERSION:'1.1.2',
+  KNOWME_ANDROID_UPDATE_URL:'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.2-preview/KnowMe-1.1.2-preview.apk',
+  KNOWME_ANDROID_UPDATE_SHA256:'ca5701f751d196403ab6099c2de63027106c2b21c8cf4fb84320434f32fa8d1c',
+  KNOWME_ANDROID_UPDATE_NOTES:'KnowMe 1.1.2, préversion Android Debug : profils, amitiés, publications et mises à jour. Installation facultative.',
+  KNOWME_ANDROID_UPDATE_REQUIRED:'false',
+  KNOWME_ANDROID_AUTO_DISCOVER_GITHUB:'true'
+};
+const rows=fs.readFileSync(path,'utf8').split(/\r?\n/).filter(row=>
+  row && !Object.keys(settings).some(key=>row.startsWith(key+'=')));
+for (const [key,value] of Object.entries(settings)) rows.push(key+'='+value);
+const temp=path+'.knowme-update-tmp';
+fs.writeFileSync(temp,rows.join('\n')+'\n',{mode:0o600});
+fs.chmodSync(temp,0o600);
+fs.renameSync(temp,path);
+NODE
 KNOWME_DEPLOY_SHA="$SHA" node "$temp/deploy.mjs"
 # Verify local and HTTPS public endpoints, and refuse a false success.
 for URL in http://127.0.0.1:4000/platform-sync/version https://knowme-nextech.vercel.app/api/knowme/platform-sync/version; do
