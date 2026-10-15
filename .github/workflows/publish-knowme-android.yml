@@ -61,6 +61,11 @@ jobs:
           fi
           keystore="$RUNNER_TEMP/knowme-release.jks"
           (umask 077 && printf '%s' "$KNOWME_ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore")
+          identity="$(keytool -list -v -keystore "$keystore" -alias "$KNOWME_ANDROID_KEY_ALIAS" -storepass "$KNOWME_ANDROID_KEYSTORE_PASSWORD" 2>/dev/null | grep -m 1 '^Owner: ' || true)"
+          if [[ "$identity" == *"CN=Android Debug"* ]]; then
+            echo "::error::Android Debug certificates are not approved for a publicly distributed KnowMe messaging update."
+            exit 1
+          fi
           cert="$(keytool -exportcert -keystore "$keystore" -alias "$KNOWME_ANDROID_KEY_ALIAS" -storepass "$KNOWME_ANDROID_KEYSTORE_PASSWORD" -keypass "$KNOWME_ANDROID_KEY_PASSWORD" 2>/dev/null | openssl dgst -sha256 -r | awk '{print tolower($1)}')"
           if [[ "$cert" != "$expected" ]]; then
             echo "::error::Release signing certificate differs from the pinned certificate of the installed KnowMe APK."
