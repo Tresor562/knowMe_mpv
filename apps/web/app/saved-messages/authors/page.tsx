@@ -86,10 +86,11 @@ export default function SavedMessagesByAuthorPage() {
         {groups.map((group) => (
           <article className="card" key={group.id} style={{ padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div>
+              <Link href={`/profile/${encodeURIComponent(group.username)}`} aria-label={`Voir le profil de ${group.displayName}`}
+                style={{ color: 'inherit', textDecoration: 'none' }}>
                 <strong>{group.displayName}</strong>
                 <small style={{ color: 'var(--muted)', marginLeft: 6 }}>@{group.username}</small>
-              </div>
+              </Link>
               <strong style={{ color: 'var(--mint)' }}>{group.items.length}</strong>
             </div>
             <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
