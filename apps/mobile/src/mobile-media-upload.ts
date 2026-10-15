@@ -2,16 +2,16 @@ import * as FileSystem from 'expo-file-system';
 import { apiFetch } from './api';
 import { SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 
-type UploadPurpose = 'AVATAR'|'STORY';
+type UploadPurpose = 'AVATAR'|'COVER'|'STORY';
 type UploadSession = {id:string;uploadToken:string};
 type Asset = {id:string;status:string;scannerVerdict?:string};
 
 export async function uploadKnowMeMobileMedia(media:SelectedAndroidMedia,purpose:UploadPurpose) {
-  const allowed=purpose==='AVATAR'
+  const allowed=purpose==='AVATAR'||purpose==='COVER'
     ? ['image/jpeg','image/png','image/webp']
     : ['image/jpeg','image/png','image/webp','image/gif','video/mp4'];
   if(!allowed.includes(media.mime))throw new Error('Ce type de fichier n’est pas autorisé.');
-  const maxBytes=purpose==='AVATAR'?5*1024*1024:20*1024*1024;
+  const maxBytes=(purpose==='AVATAR'||purpose==='COVER')?5*1024*1024:20*1024*1024;
   if(!FileSystem.cacheDirectory)throw new Error('Cache privé inaccessible.');
   const ext=media.name.split('.').pop()?.toLowerCase()||'bin';
   const temporary=`${FileSystem.cacheDirectory}knowme-upload-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
