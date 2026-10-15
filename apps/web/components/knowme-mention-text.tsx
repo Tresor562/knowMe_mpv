@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 /** Only username-shaped mentions are links; the profile authority decides whether they exist. */
 export function KnowMeMentionText({ text }: { text: string }) {
   const expression = /(^|[^\w.@])@([A-Za-z0-9_]{3,24})(?![\w])/g;
-  const pieces: Array<string | React.ReactNode> = [];
+  const pieces: Array<string | ReactNode> = [];
   let cursor = 0;
   let index = 0;
   for (const match of text.matchAll(expression)) {
