@@ -18,12 +18,13 @@ export type GalleryPurpose = 'publication' | 'story' | 'message' | 'profile' | '
 const PAGE_SIZE = 45;
 
 export function AndroidMediaLibraryPicker({
-  visible, allowVideo = true, mediaFilter, multiple = false,
+  visible, allowVideo = true, mediaFilter, lockFilter = false, multiple = false,
   maxSelection = 10, purpose = 'message', onClose, onPicked, onPickedMany
 }: {
   visible: boolean;
   allowVideo?: boolean;
   mediaFilter?: 'all' | 'photo' | 'video';
+  lockFilter?: boolean;
   multiple?: boolean;
   maxSelection?: number;
   purpose?: GalleryPurpose;
@@ -206,7 +207,7 @@ export function AndroidMediaLibraryPicker({
                 </Text>
               </Pressable>
               <View style={styles.tabs}>
-                {(['all','photo','video'] as const).filter(mode => allowVideo || mode === 'photo').map(mode =>
+                {(['all','photo','video'] as const).filter(mode => (allowVideo || mode === 'photo') && (!lockFilter || mode === filter)).map(mode =>
                   <Pressable key={mode} accessibilityRole="button"
                     accessibilityState={{selected:filter === mode}}
                     onPress={() => {setAlbumOpen(false);setFilter(mode);}}
@@ -282,6 +283,7 @@ export function AndroidMediaLibraryPicker({
           <View style={[styles.selectionTray, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <FlatList
               horizontal
+              style={{flex:1}}
               data={selection}
               keyExtractor={item => item.id}
               showsHorizontalScrollIndicator={false}
