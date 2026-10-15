@@ -231,7 +231,18 @@ export default function ProfilePage() {
       <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp"
         className="km-visually-hidden-file" onChange={uploadCover} aria-label={tr('Choisir une couverture','Choose cover image')}/>
       <section className="km-profile-hero" aria-label="Mon profil KnowMe">
-        <ProfileCover assetId={coverId} />
+        <div className="km-profile-cover-wrap">
+          <ProfileCover assetId={coverId} />
+          <button type="button" className="km-profile-cover-change" disabled={coverBusy}
+            onClick={() => coverFileRef.current?.click()}
+            aria-label={tr('Changer la couverture du profil', 'Change profile cover')}>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {coverBusy ? tr('Envoi…', 'Uploading…') : tr('Changer la couverture', 'Change cover')}
+          </button>
+        </div>
         <div className="km-profile-details">
           <div className="km-profile-avatar-wrap">
             <div className="km-profile-avatar">
