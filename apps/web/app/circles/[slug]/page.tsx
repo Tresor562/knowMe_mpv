@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
@@ -320,7 +321,7 @@ export default function PublicCirclePage() {
               >
                 <small>{story.type}</small>
                 <h3><CircleIdentity person={story.author} /></h3>
-                {story.text && <p>{story.text}</p>}
+                {story.text && <p><KnowMeMentionText text={story.text}/></p>}
                 <small style={{ color: 'var(--muted)' }}>
                   Expire le {new Date(story.expiresAt).toLocaleString('fr-FR')}
                 </small>
@@ -406,7 +407,7 @@ export default function PublicCirclePage() {
             <article className="card" style={{ padding: 18 }} key={moment.id}>
               <small>{moment.type} · {moment.audience}</small>
               <h3><CircleIdentity person={moment.author} /></h3>
-              {moment.text && <p>{moment.text}</p>}
+              {moment.text && <p><KnowMeMentionText text={moment.text}/></p>}
               <small style={{ color: 'var(--muted)' }}>
                 {new Date(moment.createdAt).toLocaleString('fr-FR')}
               </small>
