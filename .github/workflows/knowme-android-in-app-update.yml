@@ -59,6 +59,7 @@ jobs:
           KEYSTORE="$RUNNER_TEMP/knowme-release.jks"
           (umask 077; printf '%s' "$KNOWME_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE")
           test -s "$KEYSTORE"
+          export KNOWME_ANDROID_KEYSTORE_PATH="$KEYSTORE"
           echo "KNOWME_ANDROID_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
           node scripts/configure-knowme-android-signing.mjs
       - name: Compile signed Android update
