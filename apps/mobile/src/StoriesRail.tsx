@@ -602,7 +602,7 @@ export function StoriesRail({
         </Pressable>
       </Modal>
       <AndroidMediaLibraryPicker visible={pickerVisible} purpose="story"
-        allowVideo={storyType==='VIDEO'} mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'}
+        allowVideo={storyType==='VIDEO'} mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'} lockFilter
         onClose={()=>setPickerVisible(false)}
         onPicked={media=>{
           if(storyType==='VIDEO'&&media.mime!=='video/mp4')return;
