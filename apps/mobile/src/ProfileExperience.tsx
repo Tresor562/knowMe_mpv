@@ -2,6 +2,8 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import {
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +11,9 @@ import {
   TextInput,
   View
 } from 'react-native';
-import { apiFetch } from './api';
+import { API_URL, apiFetch } from './api';
+import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
 import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
@@ -19,7 +23,6 @@ import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
 import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
-import { KNOWME_PRODUCT_VERSION } from '@knowme/link-contract';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
 import { PaymentsExperience } from './PaymentsExperience';
 import { PrivacyExperience } from './PrivacyExperience';
@@ -219,11 +222,54 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
+  const [coverImageFailed, setCoverImageFailed] = useState(false);
 
   useEffect(() => {
     setDisplayName(user.displayName);
     setBio(user.bio ?? '');
   }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+    setCoverAssetId(null);
+    setCoverImageFailed(false);
+    void apiFetch<{ header: { coverAssetId: string | null } }>(
+      `/profile-experience/public/${encodeURIComponent(user.username)}`
+    ).then(snapshot => {
+      if (mounted) {
+        setCoverAssetId(snapshot.header.coverAssetId);
+        setCoverImageFailed(false);
+      }
+    }).catch(() => {
+      // The profile remains usable without a public cover.
+    });
+    return () => { mounted = false; };
+  }, [user.id, user.username]);
+
+  async function changeCover(media: SelectedAndroidMedia) {
+    setCoverPickerOpen(false);
+    if (coverBusy) return;
+    setCoverBusy(true);
+    try {
+      const assetId = await uploadKnowMeMobileMedia(media, 'COVER');
+      await apiFetch('/profile-experience/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ coverAssetId: assetId })
+      });
+      setCoverAssetId(assetId);
+      setCoverImageFailed(false);
+      Alert.alert('Couverture mise à jour', 'Ta nouvelle couverture est enregistrée.');
+    } catch (cause) {
+      Alert.alert('Couverture non modifiée', message(cause, 'Réessaie plus tard.'));
+    } finally {
+      setCoverBusy(false);
+    }
+  }
 
   async function save() {
     if (saving || displayName.trim().length < 2) return;
@@ -473,10 +519,34 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           style={styles.profileHero}
         >
         <View style={[styles.cover, { backgroundColor: colors.backgroundAccent }]}>
-          <View style={[styles.coverOrbOne, { backgroundColor: colors.accent }]} />
-          <View style={[styles.coverOrbTwo, { backgroundColor: colors.secondary }]} />
-          <View style={[styles.coverGlassLine, { backgroundColor: colors.surfaceGlass }]} />
-          <View style={[styles.coverGlassDot, { backgroundColor: colors.accent }]} />
+          {coverAssetId && !coverImageFailed ? (
+            <Image
+              source={{ uri: /^https:\/\//i.test(coverAssetId)
+                ? coverAssetId
+                : `${API_URL}/media/public/cover/${encodeURIComponent(coverAssetId)}` }}
+              resizeMode="cover"
+              onError={() => setCoverImageFailed(true)}
+              style={StyleSheet.absoluteFillObject}
+              accessibilityLabel="Couverture de profil"
+            />
+          ) : (
+            <>
+              <View style={[styles.coverOrbOne, { backgroundColor: colors.accent }]} />
+              <View style={[styles.coverOrbTwo, { backgroundColor: colors.secondary }]} />
+            </>
+          )}
+          <PressScale
+            onPress={() => setCoverPickerOpen(true)}
+            disabled={coverBusy}
+            accessibilityRole="button"
+            accessibilityLabel="Changer ma couverture"
+            style={[styles.coverEdit, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}
+          >
+            <KnowMeIcon name="create" size={16} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>
+              {coverBusy ? 'Envoi…' : 'Couverture'}
+            </Text>
+          </PressScale>
         </View>
 
         <View style={styles.profileAvatarRow}>
@@ -496,9 +566,20 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </View>
         </View>
 
-        <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
-        <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
-        <Text style={{color:colors.muted,fontSize:11,paddingHorizontal:18,marginTop:4}}>KnowMe {KNOWME_PRODUCT_VERSION} · Android</Text>
+        <View style={styles.profileNameRow}>
+          <View style={styles.flex}>
+            <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
+            <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
+          </View>
+          <PressScale
+            onPress={() => setMoreOpen(true)}
+            style={[styles.profileMoreButton, { borderColor: colors.border, backgroundColor: colors.surfaceGlass }]}
+            accessibilityRole="button"
+            accessibilityLabel="Options du profil"
+          >
+            <Text style={{ color: colors.text, fontSize: 23, fontWeight: '700' }}>⋮</Text>
+          </PressScale>
+        </View>
 
         <View style={styles.profileActions}>
           <PressScale
@@ -548,11 +629,11 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </PressScale>
         </View>
 
-        {user.bio ? (
-          <Text style={[styles.bio, { color: colors.text }]}>{user.bio}</Text>
-        ) : (
-          <Text style={[styles.bioMuted, { color: colors.muted }]}>Ajoute une bio pour raconter qui tu es.</Text>
-        )}
+        <PressScale onPress={() => setPanel('edit')} accessibilityRole="button" accessibilityLabel={user.bio ? 'Modifier la biographie' : 'Ajouter une bio'}>
+          <Text style={[user.bio ? styles.bio : styles.bioMuted, { color: user.bio ? colors.text : colors.muted }]}>
+            {user.bio || '✎  Ajouter une bio'}
+          </Text>
+        </PressScale>
 
         <View style={styles.badges}>
           {user.verification ? (
@@ -609,9 +690,17 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       </FadeRise>
 
       <FadeRise delay={70} style={styles.profileMenuSection}>
-        <Text style={[styles.profileMenuHeading, { color: colors.text }]}>
-          Mon espace
-        </Text>
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Afficher les paramètres du profil"
+          onPress={() => setSettingsOpen(value => !value)}
+          style={[styles.settingsToggle, { borderColor: colors.border, backgroundColor: colors.surfaceGlass }]}
+        >
+          <KnowMeIcon name="settings" size={21} color={colors.accent} />
+          <Text style={[styles.profileMenuHeading, { color: colors.text }]}>Paramètres du profil</Text>
+          <Text style={{ color: colors.muted, fontSize: 17 }}>{settingsOpen ? '⌃' : '⌄'}</Text>
+        </PressScale>
+        {settingsOpen ? <View style={{ gap: 9 }}>
 
         <Text style={[styles.profileGroupLabel, { color: colors.muted }]}>
           IDENTITÉ
@@ -739,7 +828,42 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             last
           />
         </ProfileMenuGroup>
+        </View> : null}
       </FadeRise>
+      <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+        <Pressable onPress={() => setMoreOpen(false)} style={styles.moreBackdrop}>
+          <Pressable onPress={event => event.stopPropagation()} style={[styles.moreSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.moreTitle, { color: colors.text }]}>Options du profil</Text>
+            {([
+              ['Modifier mon profil', 'edit'],
+              ['Changer la couverture', 'cover'],
+              ['Apparence et thèmes', 'appearance'],
+              ['Confidentialité', 'privacy'],
+              ['Sécurité du compte', 'security']
+            ] as const).map(([label, target]) => (
+              <Pressable key={target} accessibilityRole="button" style={styles.moreAction}
+                onPress={() => {
+                  setMoreOpen(false);
+                  if (target === 'cover') setCoverPickerOpen(true);
+                  else setPanel(target);
+                }}>
+                <Text style={{ color: colors.text, fontSize: 15 }}>{label}</Text>
+                <Text style={{ color: colors.muted, fontSize: 18 }}>›</Text>
+              </Pressable>
+            ))}
+            <Pressable accessibilityRole="button" style={styles.moreDismiss} onPress={() => setMoreOpen(false)}>
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>Fermer</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <AndroidMediaLibraryPicker
+        visible={coverPickerOpen}
+        allowVideo={false}
+        mediaFilter="photo"
+        onClose={() => setCoverPickerOpen(false)}
+        onPicked={media => { void changeCover(media); }}
+      />
     </ScrollView>
   );
 }
@@ -754,7 +878,16 @@ const styles = StyleSheet.create({
   panelTitle: { fontSize: 19, fontWeight: '800', flex: 1 },
   content: { padding: 16, paddingBottom: 30, gap: 12 },
   profileHero: { overflow: 'hidden', paddingBottom: 14 },
-  cover: { height: 104, position: 'relative', overflow: 'hidden' },
+  cover: { height: 152, position: 'relative', overflow: 'hidden' },
+  coverEdit: { position: 'absolute', top: 10, right: 10, minHeight: 38, minWidth: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 12 },
+  profileNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 14, gap: 8 },
+  profileMoreButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  settingsToggle: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, minHeight: 53, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth },
+  moreBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.6)' },
+  moreSheet: { padding: 16, paddingBottom: 28, borderWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  moreTitle: { fontSize: 18, fontWeight: '800', marginBottom: 9 },
+  moreAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, minHeight: 50 },
+  moreDismiss: { minHeight: 46, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   coverOrbOne: { position: 'absolute', width: 180, height: 180, borderRadius: 90, opacity: 0.22, right: -40, top: -72 },
   coverOrbTwo: { position: 'absolute', width: 130, height: 130, borderRadius: 65, opacity: 0.14, left: -30, bottom: -75 },
   coverGlassLine: { position: 'absolute', width: 170, height: 24, borderRadius: 12, right: -28, bottom: 16, opacity: 0.22, transform: [{ rotate: '-12deg' }] },
