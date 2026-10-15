@@ -51,6 +51,13 @@ export default function ProfilePage() {
   const coverFileRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDetailsElement>(null);
 
+  // A settings shortcut must open the editor, not merely the profile overview.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('edit') === '1') {
+      setEditing(true);
+    }
+  }, []);
+
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
@@ -262,6 +269,9 @@ export default function ProfilePage() {
               </details>
             </div>
             <p className="km-profile-handle">@{user.username}</p>
+            <button type="button" className="btn km-profile-edit-direct" onClick={() => setEditing(true)}>
+              {tr('Modifier mes informations', 'Edit my information')}
+            </button>
             {user.bio?.trim()
               ? <div className="km-profile-bio-row">
                   <p className="km-profile-bio">{user.bio}</p>
@@ -288,7 +298,7 @@ export default function ProfilePage() {
       {message && <p className="km-profile-notice" role="status">{message}</p>}
 
       {editing && (
-        <section className="card km-profile-editor">
+        <section id="edit" className="card km-profile-editor">
           <h2>{en?'Edit my identity':'Personnaliser mon identité'}</h2>
           <form className="grid" onSubmit={updateProfile}>
             <label >{en?'Display name':'Nom affiché'}
