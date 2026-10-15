@@ -55,6 +55,58 @@ export class SocialService {
     return users.map((user) => withAccountBadges(user, now));
   }
 
+  async relationshipForProfile(viewerId: string, username: string) {
+    const target = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, isSuspended: true }
+    });
+    if (!target || target.isSuspended) {
+      throw new NotFoundException('Profil introuvable.');
+    }
+
+    if (target.id === viewerId) {
+      return { status: 'SELF', targetUserId: target.id, friendshipId: null };
+    }
+
+    const friendship = await this.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { requesterId: viewerId, addresseeId: target.id },
+          { requesterId: target.id, addresseeId: viewerId }
+        ]
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    if (!friendship || friendship.status === 'DECLINED') {
+      return { status: 'NONE', targetUserId: target.id, friendshipId: null };
+    }
+
+    // A blocked relationship never exposes which side initiated the block.
+    if (friendship.status === 'BLOCKED') {
+      return { status: 'BLOCKED', targetUserId: target.id, friendshipId: null };
+    }
+
+    const status = friendship.status === 'ACCEPTED'
+      ? 'FRIENDS'
+      : friendship.requesterId === viewerId
+        ? 'OUTGOING'
+        : 'INCOMING';
+
+    return { status, targetUserId: target.id, friendshipId: friendship.id };
+  }
+
+  async cancelRequest(userId: string, requestId: string) {
+    // Atomic guard: a request accepted during cancellation must not be deleted.
+    const result = await this.prisma.friendship.deleteMany({
+      where: { id: requestId, requesterId: userId, status: 'PENDING' }
+    });
+    if (result.count !== 1) {
+      throw new NotFoundException('Demande en attente introuvable.');
+    }
+    return { removed: true };
+  }
+
   async sendRequest(requesterId: string, addresseeId: string) {
     if (requesterId === addresseeId) {
       throw new BadRequestException(
@@ -85,6 +137,10 @@ export class SocialService {
         ]
       }
     });
+
+    if (existing?.status === 'BLOCKED') {
+      throw new ConflictException('Cette relation est indisponible.');
+    }
 
     if (existing?.status === 'ACCEPTED') {
       throw new ConflictException('Vous êtes déjà amis.');
@@ -173,11 +229,15 @@ export class SocialService {
       throw new BadRequestException('Cette demande a déjà été traitée.');
     }
 
-    const updated = await this.prisma.friendship.update({
-      where: { id: friendshipId },
-      data: {
-        status: accept ? 'ACCEPTED' : 'DECLINED'
-      }
+    const changed = await this.prisma.friendship.updateMany({
+      where: { id: friendshipId, addresseeId: userId, status: 'PENDING' },
+      data: { status: accept ? 'ACCEPTED' : 'DECLINED' }
+    });
+    if (changed.count !== 1) {
+      throw new ConflictException('Cette demande a déjà été traitée.');
+    }
+    const updated = await this.prisma.friendship.findUniqueOrThrow({
+      where: { id: friendshipId }
     });
 
     if (accept) {
