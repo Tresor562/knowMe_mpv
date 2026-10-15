@@ -35,6 +35,7 @@ import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
 import { LinkedProfileExperience } from './src/LinkedProfileExperience';
+import { ProfileNavigationProvider } from './src/profile-navigation';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
@@ -1282,6 +1283,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }
 
   return (
+    <ProfileNavigationProvider onOpenProfile={openUserProfile}>
     <SafeAreaView
       style={[
         styles.root,
@@ -1433,6 +1435,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         }}
       />
     </SafeAreaView>
+    </ProfileNavigationProvider>
   );
 }
 
