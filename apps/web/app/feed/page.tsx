@@ -6,6 +6,7 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import { useI18n } from '../../components/i18n-provider';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 
 type Post = {
   id: string;
@@ -171,7 +172,7 @@ export default function FeedPage() {
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
         <div className="km-feed-compose-row">
           <Link href="/profile" className="km-post-avatar" aria-label={en?'My profile':'Mon profil'}>
-            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.displayName?.[0] ?? '?'}</span>}
+            <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} />
           </Link>
           <textarea name="content" placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
             rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
@@ -202,7 +203,7 @@ export default function FeedPage() {
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
                 <span className="km-post-avatar">
-                  {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" /> : <span>{post.author.displayName[0]}</span>}
+                  <KnowMeAvatarImage src={post.author.avatarUrl} name={post.author.displayName} />
                 </span>
                 <span className="km-post-author-copy">
                   <strong>{post.author.displayName}</strong>
