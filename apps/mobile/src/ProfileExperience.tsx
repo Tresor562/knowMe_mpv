@@ -85,6 +85,20 @@ type ProfilePanel =
   | 'edit'
   | 'session';
 
+type ProfilePublicContent = {
+  header: { coverAssetId: string | null };
+  statistics?: Record<string, number | string | boolean | null> | null;
+  wall?: Array<{ id: string; text: string | null; createdAt: string }> | null;
+};
+
+const PROFILE_STAT_LABELS: Record<string, string> = {
+  friends: 'Amis',
+  followers: 'Abonnés',
+  following: 'Abonnements',
+  level: 'Niveau',
+  xp: 'XP'
+};
+
 type ReauthResult = {
   proofToken: string;
   assurance: string;
@@ -227,6 +241,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [coverPickerOpen, setCoverPickerOpen] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverAssetId, setCoverAssetId] = useState<string | null>(null);
+  const [publicContent, setPublicContent] = useState<ProfilePublicContent | null>(null);
   const [coverImageFailed, setCoverImageFailed] = useState(false);
 
   useEffect(() => {
@@ -237,12 +252,14 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   useEffect(() => {
     let mounted = true;
     setCoverAssetId(null);
+    setPublicContent(null);
     setCoverImageFailed(false);
-    void apiFetch<{ header: { coverAssetId: string | null } }>(
+    void apiFetch<ProfilePublicContent>(
       `/profile-experience/public/${encodeURIComponent(user.username)}`
     ).then(snapshot => {
       if (mounted) {
         setCoverAssetId(snapshot.header.coverAssetId);
+        setPublicContent(snapshot);
         setCoverImageFailed(false);
       }
     }).catch(() => {
@@ -262,6 +279,9 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         body: JSON.stringify({ coverAssetId: assetId })
       });
       setCoverAssetId(assetId);
+      setPublicContent(current => current ? {
+        ...current, header: { ...current.header, coverAssetId: assetId }
+      } : null);
       setCoverImageFailed(false);
       Alert.alert('Couverture mise à jour', 'Ta nouvelle couverture est enregistrée.');
     } catch (cause) {
@@ -689,6 +709,39 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         </GlassSurface>
       </FadeRise>
 
+      {publicContent ? (
+        <View style={styles.profileSocialSections}>
+          {publicContent.statistics ? (
+            <View style={[styles.profileStatStrip, { borderColor: colors.border }]}>
+              {Object.entries(publicContent.statistics)
+                .filter(([key, value]) => key in PROFILE_STAT_LABELS && value != null && typeof value !== 'boolean')
+                .slice(0, 4)
+                .map(([key, value]) => (
+                  <View key={key} style={styles.profileStat}>
+                    <Text style={[styles.profileStatValue, { color: colors.text }]}>{String(value)}</Text>
+                    <Text style={[styles.profileStatLabel, { color: colors.muted }]}>{PROFILE_STAT_LABELS[key]}</Text>
+                  </View>
+                ))}
+            </View>
+          ) : null}
+          {publicContent.wall ? (
+            <View style={{ gap: 9 }}>
+              <Text style={[styles.profileSectionTitle, { color: colors.text }]}>Publications du mur</Text>
+              {publicContent.wall.length > 0 ? publicContent.wall.slice(0, 5).map(entry => (
+                <View key={entry.id} style={[styles.profileWallEntry, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.muted, fontSize: 11 }}>
+                    {new Date(entry.createdAt).toLocaleDateString('fr-FR')}
+                  </Text>
+                  {entry.text ? <Text style={{ color: colors.text, fontSize: 14, lineHeight: 21 }}>{entry.text}</Text> : null}
+                </View>
+              )) : (
+                <Text style={{ color: colors.muted, fontSize: 13 }}>Aucune publication visible sur ton mur.</Text>
+              )}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <FadeRise delay={70} style={styles.profileMenuSection}>
         <PressScale
           accessibilityRole="button"
@@ -907,6 +960,13 @@ const styles = StyleSheet.create({
   identityBadge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   identityBadgeText: { fontWeight: '900', fontSize: 11.5 },
   profileMenuSection: { gap: 9 },
+  profileSocialSections: { gap: 14, marginTop: 2 },
+  profileStatStrip: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  profileStat: { flex: 1, minWidth: 0, alignItems: 'center', gap: 5 },
+  profileStatValue: { fontSize: 18, fontWeight: '800' },
+  profileStatLabel: { fontSize: 11, textAlign: 'center' },
+  profileSectionTitle: { fontSize: 17, fontWeight: '800' },
+  profileWallEntry: { paddingVertical: 9, gap: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   profileMenuHeading: { fontSize: 18, fontWeight: '800', marginTop: 3, marginBottom: 1 },
   profileGroupLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.15, marginTop: 8, marginLeft: 4 },
   profileMenuGroup: { overflow: 'hidden' },
