@@ -84,13 +84,19 @@ export default function StoryViewersPage() {
             <div className="grid" style={{ gap: 10 }}>
               {analytics.viewers.map((entry) => (
                 <article key={entry.viewerUserId} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--surface-2)' }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', background: 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-                    {entry.user?.avatarUrl ? <img src={entry.user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : entry.user?.displayName?.[0] ?? '?'}
-                  </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <strong>{entry.user?.displayName ?? 'Unavailable account'}</strong>
-                    <div style={{ color: 'var(--muted)', fontSize: 13 }}>{entry.user ? `@${entry.user.username}` : entry.viewerUserId}</div>
-                  </div>
+                  {entry.user ? (
+                    <Link href={`/profile/${encodeURIComponent(entry.user.username)}`}
+                      aria-label={`Voir le profil de ${entry.user.displayName}`}
+                      style={{display:'flex',alignItems:'center',gap:12,color:'inherit',textDecoration:'none',minWidth:0,flex:1}}>
+                      <div style={{width:44,height:44,borderRadius:'50%',overflow:'hidden',background:'var(--surface-2)',display:'grid',placeItems:'center',fontWeight:800}}>
+                        {entry.user.avatarUrl ? <img src={entry.user.avatarUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : entry.user.displayName?.[0] ?? '?'}
+                      </div>
+                      <div style={{minWidth:0,flex:1}}>
+                        <strong>{entry.user.displayName}</strong>
+                        <div style={{color:'var(--muted)',fontSize:13}}>@{entry.user.username}</div>
+                      </div>
+                    </Link>
+                  ) : <span>Compte indisponible</span>}
                   <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--muted)' }}>
                     <div>{entry.viewCount}×</div>
                     <div>{Math.round(entry.completionBps / 100)}% viewed</div>

@@ -13,9 +13,13 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import { apiFetch } from './api';
+import { API_URL, apiFetch } from './api';
+import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
+import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeMentionText } from './KnowMeMentionText';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { StoriesRail } from './StoriesRail';
 
 type Author = {
   id: string;
@@ -42,6 +46,10 @@ type Comment = {
   createdAt: string;
   author: Author;
 };
+
+function resolvePostImage(url: string) {
+  return url.startsWith('/media/public/post/') ? `${API_URL}${url}` : url;
+}
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -117,12 +125,13 @@ function MetricButton({
   );
 }
 
-function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: {
+function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, onOpenProfile }: {
   postId: string;
   userId: string;
   onBack: () => void;
   onDeleted: (postId: string) => void;
   targetCommentId?: string | null;
+  onOpenProfile?: (username: string) => void;
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -298,14 +307,14 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.authorRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${post.author.displayName}`} onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
           <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
-        </View>
-        <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
+        </Pressable>
+        <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         {post.imageUrl ? (
           <Image
-            source={{ uri: post.imageUrl }}
+            source={{ uri: resolvePostImage(post.imageUrl) }}
             style={styles.postImage}
             resizeMode="cover"
           />
@@ -354,9 +363,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
               }
             }}
             style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: comment.id === targetCommentId ? colors.accent : colors.border }]}>
-            <View style={styles.authorRow}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${comment.author.displayName}`} onPress={() => onOpenProfile?.(comment.author.username)} style={styles.authorRow}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
               <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
+            </Pressable>
+            <View style={styles.authorRow}>
               <ActionButton title="Lien" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }} />
               {canDelete && (
                 <ActionButton
@@ -367,7 +378,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
                 />
               )}
             </View>
-            <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
+            <KnowMeMentionText text={comment.content} style={[styles.commentText, { color: colors.text }]}/>
             <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(comment.createdAt, true)}</Text>
           </View>
         );
@@ -378,10 +389,35 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
   );
 }
 
-export function FeedExperience({ userId, initialPostId, initialCommentId }: { userId: string; initialPostId?: string | null; initialCommentId?: string | null }) {
+export function FeedExperience({
+  userId,
+  initialPostId,
+  initialCommentId,
+  mode = 'discover',
+  currentUser,
+  onOpenDiscover,
+  onOpenProfile,
+  storyComposerRequest = false,
+  initialStoryId,
+  onStoryComposerHandled
+}: {
+  userId: string;
+  initialPostId?: string | null;
+  initialCommentId?: string | null;
+  mode?: 'home' | 'discover';
+  currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
+  onOpenDiscover?: () => void;
+  onOpenProfile?: (username: string) => void;
+  storyComposerRequest?: boolean;
+  initialStoryId?: string | null;
+  onStoryComposerHandled?: () => void;
+}) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
+  const [postPhotoSupported, setPostPhotoSupported] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   const [publishing, setPublishing] = useState(false);
@@ -402,6 +438,15 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    setPostPhotoSupported(false);
+    void apiFetch<{ publicPostImage: boolean }>('/media/public/post-capabilities')
+      .then(result => { if (active) setPostPhotoSupported(Boolean(result.publicPostImage)); })
+      .catch(() => { if (active) setPostPhotoSupported(false); });
+    return () => { active = false; };
+  }, [userId]);
 
   async function loadMore() {
     const cursor = posts[posts.length - 1]?.id;
@@ -426,8 +471,15 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
     if (!value || publishing) return;
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content: value }) });
+      const mediaAssetId = selectedPhoto
+        ? await uploadKnowMeMobileMedia(selectedPhoto, 'POST')
+        : undefined;
+      await apiFetch('/posts', {
+        method: 'POST',
+        body: JSON.stringify({ content: value, ...(mediaAssetId ? { mediaAssetId } : {}) })
+      });
       setContent('');
+      setSelectedPhoto(null);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
@@ -455,6 +507,7 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
         targetCommentId={selectedPostId === initialPostId ? initialCommentId : null}
         userId={userId}
         onBack={() => setSelectedPostId(null)}
+        onOpenProfile={onOpenProfile}
         onDeleted={(postId) => setPosts((current) => current.filter((item) => item.id !== postId))}
       />
     );
@@ -480,14 +533,23 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
             <View style={styles.discoverBrand}>
               <BrandMark size={30} />
               <View>
-                <Text style={[styles.heading, { color: colors.text }]}>Discover</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>Le monde KnowMe, sans bruit inutile.</Text>
+                <Text style={[styles.heading, { color: colors.text }]}>{mode === "home" ? "KnowMe" : "Discover"}</Text>
+                <Text style={[styles.discoverSub, { color: colors.muted }]}>{mode === "home" ? "Fil d’actualité" : "Découvre de nouveaux contenus."}</Text>
               </View>
             </View>
             <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
               <KnowMeIcon name="discover" size={22} color={colors.accent} />
             </GlassSurface>
           </GlassSurface>
+          {mode === 'home' && currentUser ? (
+            <StoriesRail
+              currentUser={currentUser}
+              onOpenDiscover={onOpenDiscover ?? (() => {})}
+              openComposer={storyComposerRequest}
+              initialStoryId={initialStoryId}
+              onComposerOpened={onStoryComposerHandled}
+            />
+          ) : null}
           <GlassSurface
             strength="soft"
             borderRadius={20}
@@ -498,7 +560,7 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
               maxLength={1000}
               value={content}
               onChangeText={setContent}
-              placeholder="Partage une découverte, une question ou un défi…"
+              placeholder={mode === "home" ? "Qu’as-tu envie de partager ?" : "Partage une découverte, une question ou un défi…"}
               placeholderTextColor={colors.muted}
               selectionColor={colors.accent}
               style={[
@@ -510,10 +572,23 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
                 }
               ]}
             />
+
+            {selectedPhoto ? (
+              <View style={styles.composerPhotoPreview}>
+                <Image source={{ uri: selectedPhoto.uri }} style={styles.composerPreviewImage} resizeMode="cover" />
+                <ActionButton title="Retirer" disabled={publishing} onPress={() => setSelectedPhoto(null)} />
+              </View>
+            ) : null}
             <View style={styles.composerFooter}>
+              {postPhotoSupported ? <ActionButton title="Photo" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} /> : null}
               <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
+            <AndroidMediaLibraryPicker
+              visible={photoPickerOpen} mediaFilter="photo" allowVideo={false}
+              onClose={() => setPhotoPickerOpen(false)}
+              onPicked={photo => { setPhotoPickerOpen(false); setSelectedPhoto(photo); }}
+            />
           </GlassSurface>
         </View>
       )}
@@ -525,17 +600,17 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
           style={[
             styles.card,
             styles.postCard,
-            { backgroundColor: colors.surfaceGlass, borderColor: colors.border }
+            { backgroundColor: colors.background, borderColor: colors.border }
           ]}
         >
-          <View style={styles.authorRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${item.author.displayName}`} onPress={() => onOpenProfile?.(item.author.username)} style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
             <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
-          </View>
-          <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
+          </Pressable>
+          <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           {item.imageUrl ? (
             <Image
-              source={{ uri: item.imageUrl }}
+              source={{ uri: resolvePostImage(item.imageUrl) }}
               style={styles.postImage}
               resizeMode="cover"
             />
@@ -553,23 +628,25 @@ export function FeedExperience({ userId, initialPostId, initialCommentId }: { us
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 28, gap: 11 },
+  content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28, gap: 8 },
   headerBlock: { gap: 10, marginBottom: 2 },
   discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
   discoverIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  composerCard: { padding: 10, borderRadius: 20 },
-  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  composerCard: { padding: 10, borderRadius: 18 },
+  composerFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' },
+  composerPhotoPreview: { gap: 8, alignSelf: 'flex-start' },
+  composerPreviewImage: { width: 144, height: 128, borderRadius: 14 },
   composerHint: { fontSize: 11 },
-  postCard: { borderRadius: 20, paddingVertical: 13 },
+  postCard: { borderRadius: 0, borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 2, paddingVertical: 13 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
   heading: { fontSize: 20, fontWeight: '800', letterSpacing: -0.35 },
   sectionTitle: { fontSize: 19, fontWeight: '800', marginTop: 3 },
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 10 },
   commentCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, gap: 9 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
   flex: { flex: 1 },
   title: { fontSize: 17, fontWeight: '800' },

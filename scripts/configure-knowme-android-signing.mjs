@@ -2,6 +2,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 const requiredSecrets = [
   'KNOWME_ANDROID_KEYSTORE_PATH',
@@ -52,7 +53,7 @@ async function main() {
   console.log('Android release configured to use stable private signing key.');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((cause) => {
     console.error(cause instanceof Error ? cause.message : String(cause));
     process.exitCode = 1;

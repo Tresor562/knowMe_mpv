@@ -9,6 +9,7 @@ import {
   useState
 } from 'react';
 import { apiFetch } from '../../lib/api';
+import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
 
@@ -631,7 +632,7 @@ export default function NotificationsPage() {
                   }}
                 >
                   <div>
-                    <strong>{notification.title}</strong>
+                    <strong><KnowMeMentionText text={notification.title}/></strong>
                     {group.grouped && (
                       <span
                         style={{
@@ -656,7 +657,7 @@ export default function NotificationsPage() {
                   </small>
                 </div>
                 <p style={{ color: 'var(--muted)', marginBottom: 10 }}>
-                  {notification.body}
+                  <KnowMeMentionText text={notification.body}/>
                 </p>
                 {notification.state?.snoozedUntil && (
                   <small style={{ color: 'var(--orange)' }}>

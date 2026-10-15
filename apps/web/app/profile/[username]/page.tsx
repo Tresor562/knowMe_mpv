@@ -193,7 +193,15 @@ export default function PublicProfilePage() {
   }
 
   if (sessionLoading || !authorityFresh || !profile) {
-    return <main className="shell"><p>{notice || 'Chargement du profil…'}</p></main>;
+    return (
+      <main className="shell km-public-profile">
+        <p role={notice ? 'alert' : 'status'}>{notice || (en ? 'Loading profile…' : 'Chargement du profil…')}</p>
+        {notice && <div className="km-public-actions">
+          <button type="button" onClick={() => void load()}>{en ? 'Try again' : 'Réessayer'}</button>
+          <Link href="/discover">{en ? 'Discover people' : 'Découvrir des personnes'}</Link>
+        </div>}
+      </main>
+    );
   }
 
   const initials = profile.header.displayName[0]?.toLocaleUpperCase('fr') ?? '?';
@@ -222,7 +230,7 @@ export default function PublicProfilePage() {
             {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
           </div>
           <div className="km-public-actions">
-            {profile.viewer.owner && <Link className="km-public-primary" href="/profile">{en?'Edit profile':'Modifier le profil'}</Link>}
+            {profile.viewer.owner && <Link className="km-public-primary" href="/profile?edit=1#edit">{en?'Edit profile':'Modifier le profil'}</Link>}
             <button type="button" className={profile.viewer.owner ? '' : 'km-public-primary'} onClick={shareProfile}>
               {en?'Share':'Partager'}
             </button>

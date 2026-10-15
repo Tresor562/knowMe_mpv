@@ -481,7 +481,10 @@ export default function ConversationPage() {
             state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
           ):[];
           return <article id={`knowme-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id} style={{scrollMarginTop:90,outline:targetMessage===item.id?'2px solid var(--mint)':undefined}}>
-            {!mine&&<strong className="km-message-author">{nexus?'Nexus':item.sender.displayName}</strong>}
+            {!mine&&(nexus
+              ? <strong className="km-message-author">Nexus</strong>
+              : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`} aria-label={`Voir le profil de ${item.sender.displayName}`}>{item.sender.displayName}</Link>
+            )}
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
