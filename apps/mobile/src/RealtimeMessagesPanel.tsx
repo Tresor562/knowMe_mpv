@@ -22,6 +22,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -783,12 +784,10 @@ export function RealtimeMessagesPanel({
                         ? item.presentation.text : item.content)
                       ? <AnimatedEmoji size={50} glyph={(item.presentation?.kind==='TEXT'
                           ? item.presentation.text : item.content).trim()}/>
-                      : <Text style={[
-                        mine ? styles.bubbleMineText : styles.bubbleText,
-                        {color: mine ? colors.accentText : colors.text}
-                      ]}>
-                          {item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
-                        </Text>}
+                      : <KnowMeMentionText
+                        text={item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
+                        style={[mine ? styles.bubbleMineText : styles.bubbleText,
+                          { color: mine ? colors.accentText : colors.text }]}/>}
                 <Pressable onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})}); }} accessibilityRole="button" accessibilityLabel="Partager le lien du message">
                   <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien</Text>
                 </Pressable>
