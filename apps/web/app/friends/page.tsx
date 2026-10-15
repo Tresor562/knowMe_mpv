@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { AccountBadges, AccountBadgeSet } from '../../components/AccountBadges';
 import { apiFetch } from '../../lib/api';
@@ -25,7 +26,7 @@ type Friend = {
 
 function ProfileSummary({ user }: { user: UserResult }) {
   return (
-    <div>
+    <Link href={`/profile/${encodeURIComponent(user.username)}`} aria-label={`Voir le profil de ${user.displayName}`} style={{color:'inherit',textDecoration:'none'}}>
       <strong>{user.displayName}</strong>
       <AccountBadges
         compact
@@ -35,7 +36,7 @@ function ProfileSummary({ user }: { user: UserResult }) {
       />
       <div style={{ color: 'var(--muted)' }}>@{user.username}</div>
       {user.bio && <small>{user.bio}</small>}
-    </div>
+    </Link>
   );
 }
 
