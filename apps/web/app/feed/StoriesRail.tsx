@@ -81,12 +81,18 @@ export function StoriesRail() {
         ))}
 
         {!loading && !error && others.map(story => (
-          <Link href={`/stories/${story.id}`} className="km-story-tile" key={story.id}>
-            <span className="km-story-avatar has-story">
+          <div className="km-story-tile" key={story.id}>
+            <Link href={`/stories/${story.id}`} className="km-story-avatar has-story"
+              aria-label={`Voir la story de ${story.author?.displayName ?? 'KnowMe'}`}>
               <KnowMeAvatarImage src={story.author?.avatarUrl} name={story.author?.displayName ?? '?'} />
-            </span>
-            <small>{story.author?.displayName ?? ui.stories}</small>
-          </Link>
+            </Link>
+            {story.author?.username
+              ? <Link className="km-story-profile-label"
+                  href={`/profile/${encodeURIComponent(story.author.username)}`}>
+                  <small>{story.author.displayName}</small>
+                </Link>
+              : <small>{ui.stories}</small>}
+          </div>
         ))}
       </div>
       {!loading && error && (
