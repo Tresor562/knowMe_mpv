@@ -1112,6 +1112,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkedChannel, setLinkedChannel] = useState<{channelId:string;postId?:string} | null>(null);
   const [linkedGiftId, setLinkedGiftId] = useState<string | null>(null);
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
+  const [profileReturnScreen, setProfileReturnScreen] = useState<Screen>('social');
   const [linkedChallengeId, setLinkedChallengeId] = useState<string | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
@@ -1224,6 +1225,18 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     return () => { active = false; };
   }, [user?.id, pendingLink]);
 
+  function openUserProfile(username: string) {
+    const normalized = username.trim().replace(/^@/, '');
+    if (!normalized) return;
+    if (user?.username.toLowerCase() === normalized.toLowerCase()) {
+      setScreen('profile');
+      return;
+    }
+    setProfileReturnScreen(screen);
+    setLinkedUsername(normalized);
+    setScreen('linked-profile');
+  }
+
   async function resetLocalSession() {
     disconnectRealtimeSocket();
     await clearSession();
@@ -1308,6 +1321,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
               avatarUrl: user.avatarUrl
             }}
             onOpenDiscover={() => setScreen('discover')}
+            onOpenProfile={openUserProfile}
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
@@ -1321,6 +1335,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             key={'discover:' + user.id + ':' + linkRevision}
             userId={user.id}
             mode="discover"
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
@@ -1329,6 +1344,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             key={'notifications:' + user.id + ':' + linkRevision}
             userId={user.id}
             mode="notifications"
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
@@ -1339,11 +1355,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             linkedConversationId={linkedConversationId}
             linkedMessageId={linkedMessageId}
             linkedMediaId={linkedMediaId}
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
         {screen === 'linked-profile' && linkedUsername ? (
-          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen('social')} />
+          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen(profileReturnScreen)} />
         ) : null}
 
         {screen === 'linked-gift' && linkedGiftId ? (
