@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { checkKnowMeUpdateNow } from './updates/MobileUpdateNotice';
+import { KnowMeAlert } from './ui/KnowMeFeedback';
 
 type RuntimeVersion = {
   platform: 'web'|'api';
@@ -20,6 +22,7 @@ export function MobilePlatformSyncStatus() {
   const [api,setApi]=useState<RuntimeVersion|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
+  const [checkingUpdate,setCheckingUpdate]=useState(false);
 
   async function check() {
     setLoading(true);setError('');
@@ -37,6 +40,26 @@ export function MobilePlatformSyncStatus() {
       setError(cause instanceof Error?cause.message:'Vérification impossible.');
       setApi(null);setWeb(null);
     }finally{setLoading(false);}
+  }
+
+  async function checkUpdate() {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    try {
+      const result=await checkKnowMeUpdateNow();
+      // The shared updater opens its in-app installer sheet when available.
+      if (result==='available') return;
+      KnowMeAlert.alert(
+        'Mise à jour KnowMe',
+        result==='current'
+          ? 'Aucune APK plus récente et publiée n’est disponible actuellement.'
+          : result==='unsupported'
+            ? 'Cette APK ne dispose pas du module de mise à jour. Une première installation compatible sera nécessaire.'
+            : 'Impossible de contacter le service de mises à jour. Réessaie quand le réseau est disponible.'
+      );
+    } finally {
+      setCheckingUpdate(false);
+    }
   }
 
   useEffect(()=>{void check();},[]);
@@ -63,6 +86,17 @@ export function MobilePlatformSyncStatus() {
       style={[styles.button,{backgroundColor:colors.backgroundAccent,borderColor:colors.border}]}>
       <Text style={{color:colors.accent,fontWeight:'700'}}>Revérifier</Text>
     </Pressable>
+    <Pressable onPress={()=>void checkUpdate()} disabled={checkingUpdate} accessibilityRole="button"
+      accessibilityLabel="Rechercher et installer une mise à jour KnowMe"
+      style={[styles.button,{backgroundColor:colors.accent,borderColor:colors.border,opacity:checkingUpdate?0.6:1}]}>
+      <Text style={{color:colors.accentText,fontWeight:'700'}}>
+        {checkingUpdate?'Recherche d’une mise à jour…':'Vérifier les mises à jour'}
+      </Text>
+    </Pressable>
+    <Text style={{color:colors.muted,fontSize:12}}>
+      « Revérifier » contrôle les versions. « Vérifier les mises à jour » recherche une APK signée, plus récente et publiée.
+      Android demandera ton accord avant toute installation. Tes données sont conservées si la signature correspond.
+    </Text>
     <Text style={{color:colors.muted,fontSize:12}}>
       Le statut du code ne garantit pas que tous les écrans aient passé les tests fonctionnels.
     </Text>
