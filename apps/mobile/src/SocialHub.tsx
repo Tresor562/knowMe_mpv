@@ -39,7 +39,7 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages' }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications' }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
@@ -102,6 +102,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
           key={`friends:${userId}`}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
+          onOpenProfile={onOpenProfile}
         />
       )}
       {section === 'messages' && (
@@ -128,10 +129,12 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
 
 function FriendsPanel({
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onOpenProfile
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onOpenProfile?: (username: string) => void;
 }) {
   const { colors } = useAppearance();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -277,7 +280,7 @@ function FriendsPanel({
       )}
       {requests.map(({ id, requester }) => (
         <View key={id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
-          <Identity user={requester} />
+          <Identity user={requester} onOpenProfile={onOpenProfile} />
           <View style={styles.row}>
             <ActionButton
               title="Accepter"
@@ -297,7 +300,7 @@ function FriendsPanel({
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
         <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
-          <Identity user={user} />
+          <Identity user={user} onOpenProfile={onOpenProfile} />
           <SecondaryButton
             title="Retirer"
             disabled={busyId === friendshipId}
@@ -428,10 +431,10 @@ function NotificationsPanel({
   );
 }
 
-function Identity({ user }: { user: UserSummary }) {
+function Identity({ user, onOpenProfile }: { user: UserSummary; onOpenProfile?: (username: string) => void }) {
   const { colors } = useAppearance();
   return (
-    <View style={styles.identity}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${user.displayName}`} onPress={() => onOpenProfile?.(user.username)} style={styles.identity}>
       <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>{user.displayName}</Text>
@@ -440,7 +443,7 @@ function Identity({ user }: { user: UserSummary }) {
           <Text style={[styles.bio, { color: colors.muted }]} numberOfLines={2}>{user.bio}</Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
