@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -93,7 +94,7 @@ export default function SavedMessagesPage() {
                 Enregistré le {new Date(item.savedAt).toLocaleString('fr-FR')}
               </small>
             </div>
-            <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.message.content}</p>
+            <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><KnowMeMentionText text={item.message.content}/></p>
             <small style={{ color: 'var(--muted)' }}>
               Message du {new Date(item.message.createdAt).toLocaleString('fr-FR')}
               {item.message.editedAt ? ' · modifié' : ''}
