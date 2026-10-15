@@ -23,7 +23,7 @@ export async function uploadKnowMeMobileMedia(media:SelectedAndroidMedia,purpose
       throw new Error(`Le fichier doit peser entre 1 Ko et ${Math.round(maxBytes/1048576)} Mo.`);
     const session=await apiFetch<UploadSession>('/media/uploads',{
       method:'POST',
-      body:JSON.stringify({purpose,visibility:'PRIVATE',maxBytes:info.size,allowedMime:[media.mime]})
+      body:JSON.stringify({purpose:purpose==='COVER'?'POST':purpose,visibility:'PRIVATE',maxBytes:info.size,allowedMime:[media.mime]})
     });
     const data=new FormData();
     data.append('file',{uri:temporary,name:media.name,type:media.mime} as unknown as Blob);
