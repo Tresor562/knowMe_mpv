@@ -39,29 +39,29 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages' }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications' }) {
   const { colors } = useAppearance();
-  const [section, setSection] = useState<Section>('friends');
+  const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setRefreshing(false);
-    setSection(linkedConversationId ? 'messages' : 'friends');
-  }, [userId, linkedConversationId]);
+    setSection(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
+  }, [userId, linkedConversationId, mode]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <GlassSurface strength="soft" borderRadius={24} style={styles.headerTop}>
           <View style={styles.headerTitleBlock}>
-            <Text style={[styles.heading, { color: colors.text }]}>Messages</Text>
-            <Text style={[styles.headerSub, { color: colors.muted }]}>Ton cercle, en direct.</Text>
+            <Text style={[styles.heading, { color: colors.text }]}>{mode === "discover" ? "Suggestions" : mode === "notifications" ? "Notifications" : "Messages"}</Text>
+            <Text style={[styles.headerSub, { color: colors.muted }]}>{mode === "discover" ? "Retrouve des personnes et découvre leurs profils." : mode === "notifications" ? "Tes dernières activités." : "Tes conversations, en direct."}</Text>
           </View>
           <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-            <KnowMeIcon name="messages" size={21} color={colors.accent} />
+            <KnowMeIcon name={mode === "discover" ? "discover" : mode === "notifications" ? "bell" : "messages"} size={21} color={colors.accent} />
           </View>
         </GlassSurface>
-        <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
+        {mode === "messages" && <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
             <Pressable
               key={value}
@@ -94,7 +94,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
               </Text>
             </Pressable>
           ))}
-        </GlassSurface>
+        </GlassSurface>}
       </View>
 
       {section === 'friends' && (
