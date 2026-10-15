@@ -2,7 +2,7 @@
   "expo": {
     "name": "KnowMe",
     "slug": "knowme",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "knowme",
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.knowme.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/knowme-adaptive-foreground.png",
         "monochromeImage": "./assets/branding/knowme-monochrome.png",
