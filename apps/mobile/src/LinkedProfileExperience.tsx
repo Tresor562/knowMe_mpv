@@ -15,7 +15,37 @@ type FriendshipRelation = {
   status: 'SELF' | 'NONE' | 'OUTGOING' | 'INCOMING' | 'FRIENDS' | 'BLOCKED';
   targetUserId: string;
   friendshipId: string | null;
+  legacy?: boolean;
 };
+
+type SearchUser = { id: string; username: string };
+type Incoming = { id: string; requester: { id: string } };
+type Friend = { friendshipId: string; user: { id: string } };
+
+async function readFriendship(username: string): Promise<FriendshipRelation> {
+  try {
+    return await apiFetch<FriendshipRelation>(
+      `/social/friendships/by-username/${encodeURIComponent(username)}`
+    );
+  } catch (cause) {
+    if ((cause as { status?: number })?.status !== 404) throw cause;
+  }
+  const results = await apiFetch<SearchUser[]>(`/social/search?q=${encodeURIComponent(username)}`);
+  const target = results.find(user => user.username.toLowerCase() === username.toLowerCase());
+  if (!target) throw new Error('Utilisateur introuvable.');
+  const [friends, incoming] = await Promise.all([
+    apiFetch<Friend[]>('/social/friends'),
+    apiFetch<Incoming[]>('/social/friend-requests/incoming')
+  ]);
+  const friend = friends.find(item => item.user.id === target.id);
+  const request = incoming.find(item => item.requester.id === target.id);
+  return {
+    status: friend ? 'FRIENDS' : request ? 'INCOMING' : 'NONE',
+    targetUserId: target.id,
+    friendshipId: friend?.friendshipId ?? request?.id ?? null,
+    legacy: true
+  };
+}
 
 function FriendButton({ label, onPress, disabled = false, secondary = false }: {
   label: string;
@@ -71,7 +101,7 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
     setConfirmRemoval(false);
     void Promise.allSettled([
       apiFetch<PublicProfile>(`/profile-experience/public/${encodeURIComponent(username)}`),
-      apiFetch<FriendshipRelation>(`/social/friendships/by-username/${encodeURIComponent(username)}`)
+      readFriendship(username)
     ]).then(([publicResult, friendResult]) => {
       if (!live) return;
       if (publicResult.status === 'fulfilled') setProfile(publicResult.value);
@@ -92,9 +122,14 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
     setNotice('');
     try {
       if (action === 'send' && current.status === 'NONE') {
-        await apiFetch('/social/friend-requests', {
+        const sent = await apiFetch<{ id: string }>('/social/friend-requests', {
           method: 'POST', body: JSON.stringify({ addresseeId: current.targetUserId })
         });
+        if (current.legacy) {
+          setRelation({ ...current, status: 'OUTGOING', friendshipId: sent.id });
+          setNotice('Demande d’amitié envoyée.');
+          return;
+        }
       } else if (action === 'cancel' && current.status === 'OUTGOING' && current.friendshipId) {
         await apiFetch(`/social/friend-requests/${encodeURIComponent(current.friendshipId)}`, { method: 'DELETE' });
       } else if ((action === 'accept' || action === 'decline') && current.status === 'INCOMING' && current.friendshipId) {
@@ -105,9 +140,7 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
         return;
       }
 
-      const latest = await apiFetch<FriendshipRelation>(
-        `/social/friendships/by-username/${encodeURIComponent(profile.header.username)}`
-      );
+      const latest = await readFriendship(profile.header.username);
       setRelation(latest);
       setConfirmRemoval(false);
       setNotice(({
@@ -160,7 +193,9 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
               <FriendButton label="+ Ajouter en ami" disabled={busy} onPress={() => void updateFriendship('send')} />
             ) : null}
             {!profile.viewer.owner && relation?.status === 'OUTGOING' ? (
-              <FriendButton label="Demande envoyée · Annuler" secondary disabled={busy} onPress={() => void updateFriendship('cancel')} />
+              relation.legacy
+                ? <Text style={{ color: colors.accent, textAlign: 'center' }}>Demande envoyée</Text>
+                : <FriendButton label="Demande envoyée · Annuler" secondary disabled={busy} onPress={() => void updateFriendship('cancel')} />
             ) : null}
             {!profile.viewer.owner && relation?.status === 'INCOMING' ? (
               <>
