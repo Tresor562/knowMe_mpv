@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Image, Linking, Modal,
-  Pressable, StyleSheet, Text, View
+  Pressable, StatusBar, StyleSheet, Text, View
 } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
+import { mergeGalleryPage, toggleGallerySelection } from './gallery-selection-model';
 import {
   isKnowMeGallerySupported, readKnowMeAlbums, readKnowMeGallery,
   requestKnowMeMediaAccess,
@@ -12,18 +13,20 @@ import {
 } from './native-gallery';
 
 export type SelectedAndroidMedia = { uri: string; name: string; mime: string };
+export type GalleryPurpose = 'publication' | 'story' | 'message' | 'profile' | 'cover';
 
 const PAGE_SIZE = 45;
 
 export function AndroidMediaLibraryPicker({
   visible, allowVideo = true, mediaFilter, multiple = false,
-  maxSelection = 10, onClose, onPicked, onPickedMany
+  maxSelection = 10, purpose = 'message', onClose, onPicked, onPickedMany
 }: {
   visible: boolean;
   allowVideo?: boolean;
   mediaFilter?: 'all' | 'photo' | 'video';
   multiple?: boolean;
   maxSelection?: number;
+  purpose?: GalleryPurpose;
   onClose: () => void;
   onPicked?: (media: SelectedAndroidMedia) => void;
   onPickedMany?: (media: SelectedAndroidMedia[]) => void;
@@ -31,6 +34,14 @@ export function AndroidMediaLibraryPicker({
   const { colors } = useAppearance();
   const { locale } = useI18n();
   const en = locale === 'en';
+  const caption = ({
+    publication: en ? 'Choose a photo for your post' : 'Choisir une photo pour la publication',
+    story: en ? 'Choose media for your story' : 'Choisir un média pour la story',
+    message: en ? 'Attach photos and videos to your message' : 'Joindre des photos et vidéos au message',
+    profile: en ? 'Choose a profile photo' : 'Choisir une photo de profil',
+    cover: en ? 'Choose a cover photo' : 'Choisir une photo de couverture'
+  })[purpose];
+  const viewRevision = useRef(0);
   const [filter, setFilter] = useState<'all' | 'photo' | 'video'>(
     mediaFilter ?? (allowVideo ? 'all' : 'photo')
   );
@@ -65,7 +76,7 @@ export function AndroidMediaLibraryPicker({
         if (!isKnowMeGallerySupported()) {
           throw new Error(en ? 'Update KnowMe to use the built-in gallery.' : 'Mets KnowMe à jour pour utiliser sa galerie intégrée.');
         }
-        const granted = await requestKnowMeMediaAccess();
+        const granted = await requestKnowMeMediaAccess(allowVideo);
         if (!active) return;
         if (!granted) {
           setError(en ? 'Photo and video access was not granted. Check Android app permissions.'
@@ -87,37 +98,36 @@ export function AndroidMediaLibraryPicker({
   useEffect(() => {
     if (!visible || !permission) return;
     let active = true;
+    const revision = ++viewRevision.current;
     setItems([]);
-    setSelection([]);
     setHasMore(true);
     setLoading(true);
     setError('');
     const mode = allowVideo ? filter : 'photo';
     void readKnowMeGallery(mode, album, 0, PAGE_SIZE)
       .then(page => {
-        if (!active) return;
+        if (!active || revision !== viewRevision.current) return;
         setItems(page);
         setHasMore(page.length === PAGE_SIZE);
       })
       .catch(cause => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+        if (active && revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
       })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active && revision === viewRevision.current) setLoading(false); });
     return () => { active = false; };
   }, [visible, permission, filter, album, allowVideo, generation]);
 
   const loadMore = useCallback(async () => {
     if (!visible || !permission || loading || paging || !hasMore) return;
+    const revision = viewRevision.current;
     setPaging(true);
     try {
       const page = await readKnowMeGallery(allowVideo ? filter : 'photo', album, items.length, PAGE_SIZE);
-      setItems(current => {
-        const known = new Set(current.map(entry => entry.id));
-        return [...current, ...page.filter(entry => !known.has(entry.id))];
-      });
+      if (revision !== viewRevision.current) return;
+      setItems(current => mergeGalleryPage(current, page));
       setHasMore(page.length === PAGE_SIZE);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
+      if (revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
     } finally { setPaging(false); }
   }, [visible, permission, loading, paging, hasMore, allowVideo, filter, album, items.length]);
 
@@ -128,15 +138,14 @@ export function AndroidMediaLibraryPicker({
       return;
     }
     setSelection(current => {
-      if (current.some(item => item.id === entry.id)) {
-        return current.filter(item => item.id !== entry.id);
+      const next = toggleGallerySelection(current, entry, maxSelection);
+      if (next.limitReached) {
+        const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.min(10, Math.floor(maxSelection))) : 1;
+        setError(en ? `Choose up to ${limit} items.` : `Sélection limitée à ${limit} éléments.`);
+      } else {
+        setError('');
       }
-      if (current.length >= Math.min(Math.max(maxSelection, 1), 10)) {
-        setError(en ? 'Up to 10 items per selection.' : '10 éléments maximum par sélection.');
-        return current;
-      }
-      setError('');
-      return [...current, entry];
+      return next.items;
     });
   }
 
@@ -161,7 +170,7 @@ export function AndroidMediaLibraryPicker({
               {preview ? (en ? 'Preview' : 'Aperçu') : 'Galerie KnowMe'}
             </Text>
             {!preview && <Text style={[styles.subtitle, { color: colors.muted }]}>
-              {en ? 'Private device photos and videos' : 'Photos et vidéos du téléphone'}
+              {caption}
             </Text>}
           </View>
           {multiple && !preview && <Pressable accessibilityRole="button" onPress={confirm}
@@ -197,7 +206,7 @@ export function AndroidMediaLibraryPicker({
                 </Text>
               </Pressable>
               <View style={styles.tabs}>
-                {(['all','photo','video'] as const).filter(mode => allowVideo || mode !== 'video').map(mode =>
+                {(['all','photo','video'] as const).filter(mode => allowVideo || mode === 'photo').map(mode =>
                   <Pressable key={mode} accessibilityRole="button"
                     accessibilityState={{selected:filter === mode}}
                     onPress={() => {setAlbumOpen(false);setFilter(mode);}}
@@ -275,7 +284,7 @@ export function AndroidMediaLibraryPicker({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex:1,paddingTop:16 },
+  screen: { flex:1,paddingTop:StatusBar.currentHeight ?? 24 },
   header: { flexDirection:'row',minHeight:62,paddingHorizontal:12,alignItems:'center',
     borderBottomWidth:StyleSheet.hairlineWidth,gap:9 },
   headerButton: {minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'},
