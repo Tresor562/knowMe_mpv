@@ -11,8 +11,9 @@ export function KnowMeMentionText({ text }: { text: string }) {
   let index = 0;
   for (const match of text.matchAll(expression)) {
     const fullStart = match.index ?? 0;
-    const mentionStart = fullStart + match[1].length;
     const handle = match[2];
+    if (!handle) continue;
+    const mentionStart = fullStart + (match[1] ?? '').length;
     const end = mentionStart + handle.length + 1;
     if (mentionStart < cursor) continue;
     pieces.push(text.slice(cursor, mentionStart));
