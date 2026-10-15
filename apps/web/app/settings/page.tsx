@@ -94,8 +94,8 @@ export default function SettingsPage() {
 
       <section className="km-settings-group" aria-label={en ? 'Account' : 'Compte'}>
         <h2>{en ? 'Account' : 'Compte'}</h2>
-        <Link href="/profile" className="km-settings-row">
-          <span>{en ? 'Edit profile and bio' : 'Modifier le profil et la bio'}</span><span>›</span>
+        <Link href="/profile?edit=1#edit" className="km-settings-row">
+          <span>{en ? 'Edit my information' : 'Modifier mes informations'}</span><span>›</span>
         </Link>
         <Link href="/settings/appearance" className="km-settings-row">
           <span>{en ? 'Appearance and themes' : 'Apparence et thèmes'}</span><span>›</span>

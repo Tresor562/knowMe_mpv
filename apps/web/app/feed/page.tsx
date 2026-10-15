@@ -1,11 +1,22 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import { useI18n } from '../../components/i18n-provider';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
+
+type PostUploadSession = { id: string; uploadToken: string };
+type PostUploadedAsset = { id: string; status: string; scannerVerdict?: string };
+
+function resolvePostImage(url: string): string {
+  return url.startsWith('/media/public/post/')
+    ? `/api/knowme${url}`
+    : url;
+}
 
 type Post = {
   id: string;
@@ -39,8 +50,29 @@ export default function FeedPage() {
   const [message, setMessage] = useState('');
   const [shareNotice, setShareNotice] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [photoCapability, setPhotoCapability] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    setPhotoCapability(false);
+    if (sessionLoading || !user) return;
+    void apiFetch<{ publicPostImage: boolean }>('/media/public/post-capabilities')
+      .then(result => { if (active) setPhotoCapability(Boolean(result.publicPostImage)); })
+      .catch(() => { if (active) setPhotoCapability(false); });
+    return () => { active = false; };
+  }, [sessionLoading, user?.id]);
+
+  useEffect(() => {
+    if (!selectedImage) { setImagePreview(null); return; }
+    const url = URL.createObjectURL(selectedImage);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedImage]);
 
   const invalidateFeedAuthority = useCallback(() => {
     loadGeneration.current += 1;
@@ -118,8 +150,39 @@ export default function FeedPage() {
 
     setPublishing(true);
     try {
-      await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content }) });
+      let mediaAssetId: string | undefined;
+      if (selectedImage) {
+        const session = await apiFetch<PostUploadSession>('/media/uploads', {
+          method: 'POST',
+          body: JSON.stringify({
+            purpose: 'POST',
+            visibility: 'PRIVATE',
+            maxBytes: selectedImage.size,
+            allowedMime: [selectedImage.type]
+          })
+        });
+        const upload = new FormData();
+        upload.append('file', selectedImage, selectedImage.name);
+        const asset = await apiFetch<PostUploadedAsset>(
+          `/media/uploads/${encodeURIComponent(session.id)}/complete`, {
+            method: 'POST',
+            headers: { 'x-upload-token': session.uploadToken },
+            body: upload
+          }
+        );
+        if (asset.status !== 'AVAILABLE') {
+          throw new Error(en
+            ? 'The image could not pass the security check.'
+            : 'La photo n’a pas passé le contrôle de sécurité.');
+        }
+        mediaAssetId = asset.id;
+      }
+      await apiFetch('/posts', {
+        method: 'POST',
+        body: JSON.stringify({ content, ...(mediaAssetId ? { mediaAssetId } : {}) })
+      });
       form.reset();
+      setSelectedImage(null);
       await loadFeed();
     } catch (cause) {
       invalidateFeedAuthority();
@@ -169,15 +232,45 @@ export default function FeedPage() {
       </header>
       <StoriesRail />
       <form id="compose" className="km-feed-composer" onSubmit={publish}>
+        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+          className="km-visually-hidden-file" aria-label={en ? 'Choose a post photo' : 'Choisir une photo pour la publication'}
+          onChange={event => {
+            const photo = event.target.files?.[0];
+            event.target.value = '';
+            if (!photo) return;
+            if (!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)
+              || photo.size < 1024 || photo.size > 5*1024*1024) {
+              setMessage(en ? 'Choose a JPEG, PNG, WebP or GIF image of 1 KB to 5 MB.'
+                : 'Choisis une image JPEG, PNG, WebP ou GIF de 1 Ko à 5 Mo.');
+              return;
+            }
+            setMessage('');
+            setSelectedImage(photo);
+          }} />
         <div className="km-feed-compose-row">
           <Link href="/profile" className="km-post-avatar" aria-label={en?'My profile':'Mon profil'}>
-            {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.displayName?.[0] ?? '?'}</span>}
+            <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} />
           </Link>
           <textarea name="content" placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
             rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
         </div>
+        {imagePreview && <div className="km-feed-image-preview">
+          <img src={imagePreview} alt={en ? 'Selected photo' : 'Photo sélectionnée'} />
+          <button type="button" aria-label={en ? 'Remove photo' : 'Retirer la photo'}
+            onClick={() => setSelectedImage(null)}>×</button>
+        </div>}
         <div className="km-feed-compose-actions">
-          <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
+          <div className="km-feed-compose-tools">
+            {photoCapability && <button type="button" disabled={publishing} onClick={() => photoInputRef.current?.click()}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="3"/>
+                <circle cx="8" cy="9" r="1.4"/><path d="m4 17 5-5 3.5 3.5 3-3L21 18"/>
+              </svg>
+              {en ? 'Photo' : 'Photo'}
+            </button>}
+            <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
+          </div>
           <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
@@ -202,7 +295,7 @@ export default function FeedPage() {
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
                 <span className="km-post-avatar">
-                  {post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" /> : <span>{post.author.displayName[0]}</span>}
+                  <KnowMeAvatarImage src={post.author.avatarUrl} name={post.author.displayName} />
                 </span>
                 <span className="km-post-author-copy">
                   <strong>{post.author.displayName}</strong>
@@ -214,11 +307,14 @@ export default function FeedPage() {
                 <FeedIcon name="share" />
               </button>
             </header>
-            {post.content && <Link className="km-post-content" href={`/feed/${post.id}`}>
-              <p>{post.content}</p>
-            </Link>}
+            {post.content && <div className="km-post-content">
+              <p><KnowMeMentionText text={post.content}/></p>
+              <Link href={`/feed/${post.id}`} className="km-post-open-link">
+                {en ? 'Open post' : 'Voir la publication'}
+              </Link>
+            </div>}
             {post.imageUrl && <Link className="km-post-media" href={`/feed/${post.id}`}>
-              <img src={post.imageUrl} alt={en?'Post image':'Image de la publication'} loading="lazy"/>
+              <img src={resolvePostImage(post.imageUrl)} alt={en?'Post image':'Image de la publication'} loading="lazy"/>
             </Link>}
             <footer className="km-post-actions">
               <button type="button" onClick={() => void toggleLike(post.id)} disabled={!authorityFresh}

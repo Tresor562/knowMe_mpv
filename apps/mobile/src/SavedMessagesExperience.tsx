@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 
 type SavedMessage = {
   messageId: string;
@@ -36,6 +38,7 @@ export function SavedMessagesExperience({
   onOpenMessage?: (conversationId: string, messageId: string) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [items, setItems] = useState<SavedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -136,16 +139,19 @@ export function SavedMessagesExperience({
               style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}
             >
               <View style={styles.authorRow}>
-                <View style={styles.authorCopy}>
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={`Voir le profil de ${item.message.sender.displayName}`}
+                  onPress={() => openProfile?.(item.message.sender.username)}
+                  style={styles.authorCopy}>
                   <Text style={[styles.cardTitle, { color: colors.text }]}>{item.message.sender.displayName}</Text>
                   <Text style={[styles.handle, { color: colors.muted }]}>@{item.message.sender.username}</Text>
-                </View>
+                </Pressable>
                 <Text style={[styles.date, { color: colors.muted }]}>
                   {new Date(item.savedAt).toLocaleString()}
                 </Text>
               </View>
 
-              <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
+              <KnowMeMentionText text={item.message.content} style={[styles.message, { color: colors.text }]}/>
               <Text style={[styles.date, { color: colors.muted }]}>
                 Message du {new Date(item.message.createdAt).toLocaleString()}
                 {item.message.editedAt ? ' · modifié' : ''}
