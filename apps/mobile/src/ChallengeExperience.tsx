@@ -94,7 +94,6 @@ function Button({
   danger?: boolean;
 }) {
   const { colors, visual } = useAppearance();
-  const openProfile = useProfileNavigation();
   return (
     <Pressable
       disabled={disabled}
@@ -161,6 +160,7 @@ function ChallengeDetail({
   onChanged: () => Promise<void>;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
