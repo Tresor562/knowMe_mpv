@@ -197,7 +197,7 @@ export default function PostDetailPage() {
           )}
         </header>
         <p className="km-post-detail-text">{post.content}</p>
-        {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl} alt="Média de la publication" />}
+        {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl.startsWith('/media/public/post/') ? `/api/knowme${post.imageUrl}` : post.imageUrl} alt="Média de la publication" />}
         <div className="km-post-actions">
           <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
           <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
