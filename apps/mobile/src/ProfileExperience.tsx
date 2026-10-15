@@ -296,7 +296,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       security: 'Sécurité',
       sync: 'Versions et synchronisation',
       privacy: 'Confidentialité',
-      edit: 'Modifier mon profil',
+      edit: 'Modifier mes informations',
       session: 'Session & compte'
     };
 
@@ -624,8 +624,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             onPress={onOpenVerification}
           />
           <ProfileMenuRow
-            title="Modifier mon profil"
-            description="Nom et biographie."
+            title="Modifier mes informations"
+            description="Nom affiché, biographie et identité du compte."
             icon="profile"
             tone="secondary"
             onPress={() => setPanel('edit')}
