@@ -18,7 +18,7 @@ export function KnowMeMentionText({ text }: { text: string }) {
     pieces.push(text.slice(cursor, mentionStart));
     pieces.push(<Link key={index++} href={`/profile/${encodeURIComponent(handle)}`}
       style={{ color: 'var(--mint)', fontWeight: 650 }}
-      aria-label={`Voir le profil de @${handle}`}>@${handle}</Link>);
+      aria-label={`Voir le profil de @${handle}`}>@{handle}</Link>);
     cursor = end;
   }
   pieces.push(text.slice(cursor));
