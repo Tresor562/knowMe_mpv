@@ -50,10 +50,21 @@ export default function FeedPage() {
   const [shareNotice, setShareNotice] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [photoCapability, setPhotoCapability] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    setPhotoCapability(false);
+    if (sessionLoading || !user) return;
+    void apiFetch<{ publicPostImage: boolean }>('/media/public/post-capabilities')
+      .then(result => { if (active) setPhotoCapability(Boolean(result.publicPostImage)); })
+      .catch(() => { if (active) setPhotoCapability(false); });
+    return () => { active = false; };
+  }, [sessionLoading, user?.id]);
 
   useEffect(() => {
     if (!selectedImage) { setImagePreview(null); return; }
@@ -249,14 +260,14 @@ export default function FeedPage() {
         </div>}
         <div className="km-feed-compose-actions">
           <div className="km-feed-compose-tools">
-            <button type="button" disabled={publishing} onClick={() => photoInputRef.current?.click()}>
+            {photoCapability && <button type="button" disabled={publishing} onClick={() => photoInputRef.current?.click()}>
               <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none"
                 stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="3"/>
                 <circle cx="8" cy="9" r="1.4"/><path d="m4 17 5-5 3.5 3.5 3-3L21 18"/>
               </svg>
               {en ? 'Photo' : 'Photo'}
-            </button>
+            </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
           <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
