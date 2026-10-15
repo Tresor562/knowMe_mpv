@@ -118,12 +118,13 @@ function MetricButton({
   );
 }
 
-function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: {
+function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, onOpenProfile }: {
   postId: string;
   userId: string;
   onBack: () => void;
   onDeleted: (postId: string) => void;
   targetCommentId?: string | null;
+  onOpenProfile?: (username: string) => void;
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
@@ -299,10 +300,10 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.authorRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${post.author.displayName}`} onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
           <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
-        </View>
+        </Pressable>
         <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
         {post.imageUrl ? (
           <Image
@@ -355,9 +356,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId }: 
               }
             }}
             style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: comment.id === targetCommentId ? colors.accent : colors.border }]}>
-            <View style={styles.authorRow}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${comment.author.displayName}`} onPress={() => onOpenProfile?.(comment.author.username)} style={styles.authorRow}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
               <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
+            </Pressable>
+            <View style={styles.authorRow}>
               <ActionButton title="Lien" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }} />
               {canDelete && (
                 <ActionButton
@@ -386,6 +389,7 @@ export function FeedExperience({
   mode = 'discover',
   currentUser,
   onOpenDiscover,
+  onOpenProfile,
   storyComposerRequest = false,
   initialStoryId,
   onStoryComposerHandled
@@ -396,6 +400,7 @@ export function FeedExperience({
   mode?: 'home' | 'discover';
   currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   onOpenDiscover?: () => void;
+  onOpenProfile?: (username: string) => void;
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
   onStoryComposerHandled?: () => void;
@@ -476,6 +481,7 @@ export function FeedExperience({
         targetCommentId={selectedPostId === initialPostId ? initialCommentId : null}
         userId={userId}
         onBack={() => setSelectedPostId(null)}
+        onOpenProfile={onOpenProfile}
         onDeleted={(postId) => setPosts((current) => current.filter((item) => item.id !== postId))}
       />
     );
@@ -558,10 +564,10 @@ export function FeedExperience({
             { backgroundColor: colors.background, borderColor: colors.border }
           ]}
         >
-          <View style={styles.authorRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${item.author.displayName}`} onPress={() => onOpenProfile?.(item.author.username)} style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
             <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
-          </View>
+          </Pressable>
           <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
           {item.imageUrl ? (
             <Image
