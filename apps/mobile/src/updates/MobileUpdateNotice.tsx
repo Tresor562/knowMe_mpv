@@ -31,6 +31,21 @@ type AndroidReleaseNotice = {
 };
 type AndroidReleaseFeed = { release: AndroidReleaseNotice | null };
 
+export type MobileUpdateCheckResult =
+  | 'available'
+  | 'current'
+  | 'unavailable'
+  | 'unsupported';
+
+// The update modal is mounted once at the app root. Settings requests a fresh
+// check through this shared controller; it does not duplicate installers.
+let checkFromSettings: (() => Promise<MobileUpdateCheckResult>) | null = null;
+export async function checkKnowMeUpdateNow(): Promise<MobileUpdateCheckResult> {
+  if (Platform.OS !== 'android' || !installer || !checkFromSettings) return 'unsupported';
+  return checkFromSettings();
+}
+
+
 function trustedDownloadUrl(value: string) {
   try {
     const url = new URL(value);
@@ -59,8 +74,12 @@ export function MobileUpdateNotice() {
     if (Platform.OS !== 'android' || __DEV__ || !installer) return;
     let active = true;
 
-    const check = async () => {
-      if (requestInProgress.current || Date.now() - lastCheckAt.current < 60_000) return;
+    const check = async (manual = false): Promise<MobileUpdateCheckResult> => {
+      if (requestInProgress.current) return 'unavailable';
+      if (!manual && Date.now() - lastCheckAt.current < 60_000) {
+        return 'current';
+      }
+      if (manual) dismissedVersion.current = 0;
       lastCheckAt.current = Date.now();
       requestInProgress.current = true;
       try {
@@ -80,16 +99,20 @@ export function MobileUpdateNotice() {
           trustedDownloadUrl(next.url)
         ) {
           setRelease(next);
+          return 'available';
         } else {
           setRelease(null);
+          return 'current';
         }
       } catch {
         // Outages never prevent using existing KnowMe functionality.
+        return 'unavailable';
       } finally {
         requestInProgress.current = false;
       }
     };
 
+    checkFromSettings = () => check(true);
     void check();
     const foreground = AppState.addEventListener('change', (state) => {
       if (state === 'active') void check();
@@ -97,6 +120,7 @@ export function MobileUpdateNotice() {
     const interval = setInterval(() => void check(), 15 * 60_000);
     return () => {
       active = false;
+      checkFromSettings = null;
       foreground.remove();
       clearInterval(interval);
     };
