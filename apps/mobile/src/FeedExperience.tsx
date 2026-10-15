@@ -17,6 +17,7 @@ import { API_URL, apiFetch } from './api';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeMentionText } from './KnowMeMentionText';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { StoriesRail } from './StoriesRail';
 
@@ -310,7 +311,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
           <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
         </Pressable>
-        <Text style={[styles.postText, { color: colors.text }]}>{post.content}</Text>
+        <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         {post.imageUrl ? (
           <Image
             source={{ uri: resolvePostImage(post.imageUrl) }}
@@ -377,7 +378,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
                 />
               )}
             </View>
-            <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
+            <KnowMeMentionText text={comment.content} style={[styles.commentText, { color: colors.text }]}/>
             <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(comment.createdAt, true)}</Text>
           </View>
         );
@@ -606,7 +607,7 @@ export function FeedExperience({
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
             <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
           </Pressable>
-          <Text style={[styles.postText, { color: colors.text }]}>{item.content}</Text>
+          <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           {item.imageUrl ? (
             <Image
               source={{ uri: resolvePostImage(item.imageUrl) }}
