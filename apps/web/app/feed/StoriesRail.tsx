@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { storyUi } from '../stories/story-i18n';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 
 type Story = {
   id: string;
@@ -66,11 +67,7 @@ export function StoriesRail() {
           <Link className={'km-story-avatar' + (myStory ? ' has-story' : '')}
             href={myStory ? `/stories/${myStory.id}` : '/stories/new'}
             aria-label={myStory ? ui.yourStory : ui.createStory}>
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="" />
-            ) : (
-              <span>{user?.displayName?.charAt(0).toUpperCase() || '+'}</span>
-            )}
+            <KnowMeAvatarImage src={user?.avatarUrl} name={user?.displayName ?? '?'} />
           </Link>
           <Link className="km-story-add" href="/stories/new" aria-label={ui.createStory}>+</Link>
           <small>{ui.yourStory}</small>
@@ -84,16 +81,18 @@ export function StoriesRail() {
         ))}
 
         {!loading && !error && others.map(story => (
-          <Link href={`/stories/${story.id}`} className="km-story-tile" key={story.id}>
-            <span className="km-story-avatar has-story">
-              {story.author?.avatarUrl ? (
-                <img src={story.author.avatarUrl} alt="" />
-              ) : (
-                <span>{story.author?.displayName?.[0] ?? '?'}</span>
-              )}
-            </span>
-            <small>{story.author?.displayName ?? ui.stories}</small>
-          </Link>
+          <div className="km-story-tile" key={story.id}>
+            <Link href={`/stories/${story.id}`} className="km-story-avatar has-story"
+              aria-label={`Voir la story de ${story.author?.displayName ?? 'KnowMe'}`}>
+              <KnowMeAvatarImage src={story.author?.avatarUrl} name={story.author?.displayName ?? '?'} />
+            </Link>
+            {story.author?.username
+              ? <Link className="km-story-profile-label"
+                  href={`/profile/${encodeURIComponent(story.author.username)}`}>
+                  <small>{story.author.displayName}</small>
+                </Link>
+              : <small>{ui.stories}</small>}
+          </div>
         ))}
       </div>
       {!loading && error && (

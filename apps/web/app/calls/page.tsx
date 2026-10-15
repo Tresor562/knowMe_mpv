@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { getRealtimeSocket } from '../../lib/realtime';
@@ -420,7 +421,8 @@ export default function CallsPage() {
 
         {selectedFriend ? (
           <p style={{ color: selectedOnline ? 'var(--mint)' : 'var(--muted)' }}>
-            {selectedOnline ? '● En ligne' : '○ Hors ligne'} · {selectedFriend.displayName}
+            {selectedOnline ? '● En ligne' : '○ Hors ligne'} ·{' '}
+            <Link href={`/profile/${encodeURIComponent(selectedFriend.username)}`}>{selectedFriend.displayName}</Link>
           </p>
         ) : null}
 
@@ -456,7 +458,9 @@ export default function CallsPage() {
                 {call.media === 'video' ? 'Vidéo' : 'Audio'}
               </strong>
               <p style={{ margin: '6px 0' }}>
-                {call.peer?.displayName ?? 'Compte supprimé'} · {call.status}
+                {call.peer
+                  ? <Link href={`/profile/${encodeURIComponent(call.peer.username)}`}>{call.peer.displayName}</Link>
+                  : 'Compte supprimé'} · {call.status}
               </p>
               <small style={{ color: 'var(--muted)' }}>
                 {new Date(call.createdAt).toLocaleString()}

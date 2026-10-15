@@ -8,4 +8,9 @@ export class CreatePostDto {
   @IsOptional()
   @IsUrl()
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(10, 80)
+  mediaAssetId?: string;
 }

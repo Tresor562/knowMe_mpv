@@ -26,6 +26,7 @@ import {
   sendMobileSocialGift
 } from './social-gifts';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function message(cause: unknown, fallback: string) {
@@ -43,6 +44,7 @@ function GiftVisual({ gift }: { gift: MobileSocialGiftDefinition }) {
 
 export function SocialGiftsExperience() {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [catalog, setCatalog] = useState<MobileSocialGiftDefinition[]>([]);
   const [friends, setFriends] = useState<MobileFriend[]>([]);
   const [inbox, setInbox] = useState<MobileSocialGiftInboxItem[]>([]);
@@ -221,7 +223,13 @@ export function SocialGiftsExperience() {
                       name={friend.user.displayName}
                       size={38}
                     />
-                    <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>
+                    <Text style={[styles.friendName, { color: colors.accent }]} numberOfLines={1}
+                      accessibilityRole="link"
+                      accessibilityLabel={`Voir le profil de ${friend.user.displayName}`}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        openProfile?.(friend.user.username);
+                      }}>
                       {friend.user.displayName}
                     </Text>
                   </Pressable>
@@ -302,7 +310,10 @@ export function SocialGiftsExperience() {
                 <View style={styles.historyText}>
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{item.gift.name}</Text>
                   <Text style={[styles.muted, { color: colors.muted }]}>
-                    {item.sender?.displayName ?? 'Compte indisponible'} ·{' '}
+                    {item.sender
+                      ? <Text accessibilityRole="link" style={{color:colors.accent}}
+                          onPress={() => openProfile?.(item.sender!.username)}>{item.sender.displayName}</Text>
+                      : 'Compte indisponible'} ·{' '}
                     {new Date(item.sentAt).toLocaleDateString()}
                   </Text>
                   {item.message ? <Text style={[styles.historyMessage, { color: colors.muted }]}>“{item.message}”</Text> : null}
@@ -332,7 +343,10 @@ export function SocialGiftsExperience() {
                 <View style={styles.historyText}>
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{item.gift.name}</Text>
                   <Text style={[styles.muted, { color: colors.muted }]}>
-                    {item.recipient?.displayName ?? 'Compte indisponible'} ·{' '}
+                    {item.recipient
+                      ? <Text accessibilityRole="link" style={{color:colors.accent}}
+                          onPress={() => openProfile?.(item.recipient!.username)}>{item.recipient.displayName}</Text>
+                      : 'Compte indisponible'} ·{' '}
                     {item.priceKnowCoins} KC
                   </Text>
                 </View>

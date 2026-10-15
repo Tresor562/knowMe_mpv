@@ -113,7 +113,7 @@ export default function CreatorPublicPage() {
           <div style={{ flex: 1, minWidth: 220 }}>
             <small style={{ color: 'var(--mint)', fontWeight: 800 }}>{profile.category} · CRÉATEUR</small>
             <h1 style={{ marginBottom: 6 }}>{profile.title}</h1>
-            <p style={{ color: 'var(--muted)', margin: 0 }}>@{profile.owner.username} · {profile.followerCount} abonné{profile.followerCount === 1 ? '' : 's'}</p>
+            <p style={{ color: 'var(--muted)', margin: 0 }}><Link href={`/profile/${encodeURIComponent(profile.owner.username)}`}>@{profile.owner.username}</Link> · {profile.followerCount} abonné{profile.followerCount === 1 ? '' : 's'}</p>
           </div>
           <button className={following ? 'btn' : 'btn btn-primary'} disabled={busy} onClick={() => void toggleFollow()}>
             {following ? 'Ne plus suivre' : 'Suivre'}

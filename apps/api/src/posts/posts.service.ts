@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
+import { MediaService } from '../media/media.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -12,12 +13,19 @@ import { CreatePostDto } from './dto/create-post.dto';
 export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly media: MediaService
   ) {}
 
-  create(authorId: string, dto: CreatePostDto) {
+  async create(authorId: string, dto: CreatePostDto) {
+    const attachmentId = dto.mediaAssetId
+      ? await this.media.assertOwnedPostImage(authorId, dto.mediaAssetId)
+      : null;
+    const imageUrl = attachmentId
+      ? `/media/public/post/${attachmentId}`
+      : dto.imageUrl;
     return this.prisma.post.create({
-      data: { authorId, content: dto.content, imageUrl: dto.imageUrl },
+      data: { authorId, content: dto.content, imageUrl },
       include: {
         author: {
           select: {

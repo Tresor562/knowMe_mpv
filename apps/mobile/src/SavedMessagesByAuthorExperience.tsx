@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 
 type SavedMessage = {
   messageId: string;
@@ -27,6 +29,7 @@ export function SavedMessagesByAuthorExperience({
   onOpenMessage?: (conversationId: string, messageId: string) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [items, setItems] = useState<SavedMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -77,10 +80,13 @@ export function SavedMessagesByAuthorExperience({
       {groups.map((group) => (
         <View key={group.id} style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
           <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={`Voir le profil de ${group.displayName}`}
+              onPress={() => openProfile?.(group.username)}
+              style={{ flex: 1 }}>
               <Text style={[styles.title, { color: colors.text }]}>{group.displayName}</Text>
               <Text style={[styles.small, { color: colors.muted }]}>@{group.username}</Text>
-            </View>
+            </Pressable>
             <Text style={[styles.count, { color: colors.accent }]}>{group.items.length}</Text>
           </View>
           {group.items.map((item) => (
@@ -90,7 +96,7 @@ export function SavedMessagesByAuthorExperience({
               onPress={() => onOpenMessage?.(item.message.conversationId, item.message.id)}
               style={({ pressed }) => [styles.item, { borderColor: colors.border }, pressed && styles.pressed]}
             >
-              <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
+              <KnowMeMentionText text={item.message.content} style={[styles.message, { color: colors.text }]}/>
               <Text style={[styles.small, { color: colors.muted }]}>Enregistré le {new Date(item.savedAt).toLocaleString()}</Text>
             </Pressable>
           ))}

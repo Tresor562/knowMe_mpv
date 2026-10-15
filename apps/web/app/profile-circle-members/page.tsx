@@ -263,11 +263,12 @@ export default function ProfileCircleMembersPage() {
             >
               {selectedMember.user.displayName[0]?.toUpperCase()}
             </div>
-            <div>
+            <Link href={`/profile/${encodeURIComponent(selectedMember.user.username)}`}
+              style={{ color: 'inherit', textDecoration: 'none' }}>
               <h2 style={{ marginBottom: 2 }}>{selectedMember.user.displayName}</h2>
               <div style={{ color: 'var(--muted)' }}>@{selectedMember.user.username}</div>
               <small>Rôle actuel : {selectedMember.role}</small>
-            </div>
+            </Link>
           </div>
         </section>
       )}

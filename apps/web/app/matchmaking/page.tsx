@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 
@@ -490,9 +491,11 @@ export default function MatchmakingPage() {
         {proposal ? (
           <div style={{ display: 'grid', gap: 14 }}>
             <div>
-              <h3>{proposal.partner?.displayName ?? 'Compte supprimé'}</h3>
+              <h3>{proposal.partner
+                ? <Link href={`/profile/${encodeURIComponent(proposal.partner.username)}`}>{proposal.partner.displayName}</Link>
+                : 'Compte supprimé'}</h3>
               {proposal.partner ? (
-                <p style={{ color: 'var(--muted)' }}>@{proposal.partner.username}</p>
+                <p style={{ color: 'var(--muted)' }}><Link href={`/profile/${encodeURIComponent(proposal.partner.username)}`}>@{proposal.partner.username}</Link></p>
               ) : null}
               <strong>Score explicatif : {proposal.score}/100</strong>
             </div>
@@ -621,7 +624,9 @@ export default function MatchmakingPage() {
                 alignItems: 'center'
               }}
             >
-              <span>{block.user?.displayName ?? 'Compte indisponible'}</span>
+              <span>{block.user
+                ? <Link href={`/profile/${encodeURIComponent(block.user.username)}`}>{block.user.displayName}</Link>
+                : 'Compte indisponible'}</span>
               <button className="btn" onClick={() => unblock(block.blockedId)} disabled={busy}>
                 Débloquer
               </button>

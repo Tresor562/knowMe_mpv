@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { KnowMeMentionText } from './knowme-mention-text';
 import {
   getAnimatedEmojiMotion,
   isStandaloneAnimatedEmojiText,
@@ -33,6 +34,6 @@ export function AnimatedEmojiText({ text }: { text: string }) {
     style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
     {parts.map((part, index) => part.kind === 'emoji'
       ? <TappableEmoji key={index} glyph={part.value} large={large}/>
-      : <span key={index}>{part.value}</span>)}
+      : <span key={index}><KnowMeMentionText text={part.value}/></span>)}
   </div>;
 }

@@ -18,6 +18,7 @@ import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaL
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type StoryAuthor = {
@@ -70,6 +71,7 @@ export function StoriesRail({
   onComposerOpened?: () => void;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   const [stories, setStories] = useState<Story[]>([]);
   const [selected, setSelected] = useState<Story | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -264,27 +266,24 @@ export function StoriesRail({
         </PressScale>
 
         {stories.filter((story) => !story.viewer.own).slice(0, 12).map((story) => (
-          <PressScale
-            key={story.id}
-            onPress={() => void openStory(story)}
-            style={styles.item}
-          >
-            <View style={[styles.storyRing, { borderColor: colors.accent }]}>
-              <Avatar
-                uri={story.author?.avatarUrl}
-                name={story.author?.displayName ?? 'KnowMe'}
-                size={54}
-              />
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[styles.label, { color: colors.muted }]}
-            >
-              {story.viewer.own
-                ? 'Ta story'
-                : story.author?.displayName ?? 'Story'}
-            </Text>
-          </PressScale>
+          <View key={story.id} style={styles.item}>
+            <PressScale accessibilityRole="button"
+              accessibilityLabel={`Voir la story de ${story.author?.displayName ?? 'KnowMe'}`}
+              onPress={() => void openStory(story)}>
+              <View style={[styles.storyRing, { borderColor: colors.accent }]}>
+                <Avatar uri={story.author?.avatarUrl}
+                  name={story.author?.displayName ?? 'KnowMe'} size={54} />
+              </View>
+            </PressScale>
+            <Pressable accessibilityRole="button"
+              accessibilityLabel={`Voir le profil de ${story.author?.displayName ?? 'KnowMe'}`}
+              disabled={!story.author?.username}
+              onPress={() => story.author?.username && openProfile?.(story.author.username)}>
+              <Text numberOfLines={1} style={[styles.label, { color: colors.muted }]}>
+                {story.author?.displayName ?? 'Story'}
+              </Text>
+            </Pressable>
+          </View>
         ))}
 
         <PressScale onPress={onOpenDiscover} style={styles.item}>
@@ -329,7 +328,14 @@ export function StoriesRail({
           </View>
 
           <View style={styles.viewerHeader}>
-            <View style={styles.viewerIdentity}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Voir le profil de l'auteur"
+              onPress={() => {
+                const username = selected?.viewer.own ? currentUser.username : selected?.author?.username;
+                if (username) {
+                  setSelected(null);
+                  openProfile?.(username);
+                }
+              }} style={styles.viewerIdentity}>
               <Avatar
                 uri={selected?.author?.avatarUrl}
                 name={selected?.author?.displayName ?? 'KnowMe'}
@@ -347,7 +353,7 @@ export function StoriesRail({
                     : selected?.author?.username ?? 'knowme'}
                 </Text>
               </View>
-            </View>
+            </Pressable>
             {selected?.allowSharing ? (
               <PressScale accessibilityRole="button" accessibilityLabel="Partager la Story"
                 onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'story',id:selected.id})}); }}

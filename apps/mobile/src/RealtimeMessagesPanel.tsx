@@ -21,6 +21,8 @@ import { AnimatedEmoji } from './AnimatedEmoji';
 import { EmojiPicker } from './EmojiPicker';
 import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 import { getRealtimeSocket } from './realtime';
 import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -129,6 +131,7 @@ export function RealtimeMessagesPanel({
   setRefreshing: (value: boolean) => void;
 }) {
   const { colors, visual, chat } = useAppearance();
+  const openProfile = useProfileNavigation();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -637,7 +640,11 @@ export function RealtimeMessagesPanel({
         <ChatWallpaper />
         <GlassSurface strength="medium" borderRadius={visual.controlRadius} style={styles.conversationHeader}>
           <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
-          <View style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
+          <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
+            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
+            disabled={others.length !== 1}
+            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
+            style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
             {isNexusPrivate ? (
               <KnowMeIcon name="spark" size={19} color={colors.secondary} />
             ) : activeAvatarUrl ? (
@@ -647,8 +654,12 @@ export function RealtimeMessagesPanel({
                 {name.charAt(0).toUpperCase()}
               </Text>
             )}
-          </View>
-          <View style={styles.flex}>
+          </Pressable>
+          <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
+            disabled={others.length !== 1}
+            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
+            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
+            style={styles.flex}>
             <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{name}</Text>
             <Text style={[
               isNexusPrivate || online ? styles.online : styles.muted,
@@ -662,7 +673,7 @@ export function RealtimeMessagesPanel({
                     : 'Hors ligne'
                   : 'Connexion…'}
             </Text>
-          </View>
+          </Pressable>
           <IconButton
             icon="refresh"
             accessibilityLabel="Actualiser"
@@ -729,9 +740,19 @@ export function RealtimeMessagesPanel({
                 ]}
               >
                 {!mine ? (
-                  <Text style={[styles.senderName, { color: nexus ? colors.secondary : colors.accent }]}>
-                    {nexus ? '✦ Nexus' : item.sender?.displayName ?? 'Utilisateur'}
-                  </Text>
+                  nexus || !item.sender?.username ? (
+                    <Text style={[styles.senderName, { color: colors.secondary }]}>
+                      {nexus ? '✦ Nexus' : 'Utilisateur'}
+                    </Text>
+                  ) : (
+                    <Pressable accessibilityRole="button"
+                      accessibilityLabel={`Voir le profil de ${item.sender.displayName}`}
+                      onPress={() => openProfile?.(item.sender!.username)}>
+                      <Text style={[styles.senderName, { color: colors.accent }]}>
+                        {item.sender.displayName}
+                      </Text>
+                    </Pressable>
+                  )
                 ) : null}
                 {item.presentation?.kind==='GIF'||
                  item.presentation?.kind==='STICKER_IMAGE'||
@@ -763,12 +784,10 @@ export function RealtimeMessagesPanel({
                         ? item.presentation.text : item.content)
                       ? <AnimatedEmoji size={50} glyph={(item.presentation?.kind==='TEXT'
                           ? item.presentation.text : item.content).trim()}/>
-                      : <Text style={[
-                        mine ? styles.bubbleMineText : styles.bubbleText,
-                        {color: mine ? colors.accentText : colors.text}
-                      ]}>
-                          {item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
-                        </Text>}
+                      : <KnowMeMentionText
+                        text={item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
+                        style={[mine ? styles.bubbleMineText : styles.bubbleText,
+                          { color: mine ? colors.accentText : colors.text }]}/>}
                 <Pressable onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})}); }} accessibilityRole="button" accessibilityLabel="Partager le lien du message">
                   <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien</Text>
                 </Pressable>

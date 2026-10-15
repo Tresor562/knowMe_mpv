@@ -35,6 +35,7 @@ import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
 import { LinkedProfileExperience } from './src/LinkedProfileExperience';
+import { ProfileNavigationProvider } from './src/profile-navigation';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
@@ -57,6 +58,7 @@ import { VerificationExperience } from './src/VerificationExperience';
 type Screen =
   | 'home'
   | 'discover'
+  | 'notifications'
   | 'social'
   | 'challenges'
   | 'profile'
@@ -819,11 +821,13 @@ function CreateHub({
   visible,
   onClose,
   onPost,
+  onStory,
   onChallenge
 }: {
   visible: boolean;
   onClose: () => void;
   onPost: () => void;
+  onStory: () => void;
   onChallenge: () => void;
 }) {
   const { colors } = useAppearance();
@@ -917,6 +921,25 @@ function CreateHub({
               </PressScale>
 
               <PressScale
+                onPress={onStory}
+                accessibilityRole="button"
+                accessibilityLabel="Créer une story"
+                style={[
+                  styles.createChoice,
+                  { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
+                ]}
+              >
+                <View style={[styles.createChoiceIcon, { backgroundColor: colors.accent }]}>
+                  <KnowMeIcon name="create" size={24} color={colors.accentText} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={[styles.createChoiceTitle, { color: colors.text }]}>Story</Text>
+                  <Text style={[styles.createChoiceText, { color: colors.muted }]}>Ajoute une photo, une vidéo ou un texte à ta story.</Text>
+                </View>
+                <KnowMeIcon name="arrow" size={18} color={colors.muted} />
+              </PressScale>
+
+              <PressScale
                 onPress={onChallenge}
                 style={[
                   styles.createChoice,
@@ -970,12 +993,13 @@ function BottomNavigation({
   const { t } = useI18n();
 
   const items: Array<{
-    key: 'home' | 'discover' | 'social' | 'profile';
+    key: 'home' | 'discover' | 'notifications' | 'social' | 'profile';
     label: string;
-    icon: 'home' | 'discover' | 'messages' | 'profile';
+    icon: 'home' | 'discover' | 'bell' | 'messages' | 'profile';
   }> = [
     { key: 'home', label: t('nav.home'), icon: 'home' },
     { key: 'discover', label: t('nav.discover'), icon: 'discover' },
+    { key: 'notifications', label: 'Alertes', icon: 'bell' },
     { key: 'social', label: t('nav.messages'), icon: 'messages' },
     { key: 'profile', label: t('nav.profile'), icon: 'profile' }
   ];
@@ -1082,6 +1106,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [profileSubscreenActive, setProfileSubscreenActive] = useState(false);
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
   const [linkedStoryId, setLinkedStoryId] = useState<string | null>(null);
@@ -1089,6 +1114,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkedChannel, setLinkedChannel] = useState<{channelId:string;postId?:string} | null>(null);
   const [linkedGiftId, setLinkedGiftId] = useState<string | null>(null);
   const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
+  const [profileReturnScreen, setProfileReturnScreen] = useState<Screen>('social');
   const [linkedChallengeId, setLinkedChallengeId] = useState<string | null>(null);
   const [linkedCommentId, setLinkedCommentId] = useState<string | null>(null);
   const [linkedConversationId, setLinkedConversationId] = useState<string | null>(null);
@@ -1183,7 +1209,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         } else if (result.context.postId) {
           setLinkedPostId(result.context.postId);
           setLinkedCommentId(result.context.commentId ?? null);
-          setScreen('discover');
+          setScreen('home');
         } else if (result.context.conversationId) {
           setLinkedConversationId(result.context.conversationId);
           setLinkedMessageId(result.context.messageId ?? null);
@@ -1200,6 +1226,18 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     })();
     return () => { active = false; };
   }, [user?.id, pendingLink]);
+
+  function openUserProfile(username: string) {
+    const normalized = username.trim().replace(/^@/, '');
+    if (!normalized) return;
+    if (user?.username.toLowerCase() === normalized.toLowerCase()) {
+      setScreen('profile');
+      return;
+    }
+    setProfileReturnScreen(screen);
+    setLinkedUsername(normalized);
+    setScreen('linked-profile');
+  }
 
   async function resetLocalSession() {
     disconnectRealtimeSocket();
@@ -1246,6 +1284,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }
 
   return (
+    <ProfileNavigationProvider onOpenProfile={openUserProfile}>
     <SafeAreaView
       style={[
         styles.root,
@@ -1274,26 +1313,41 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           </GlassSurface>
         ) : null}
         {screen === 'home' ? (
-          <HomeScreen
-            key={'home:' + user.id + ':' + linkRevision}
-            user={user}
-            openSocial={() => setScreen('social')}
-            openDiscover={() => setScreen('discover')}
-            openChallenges={() => setScreen('challenges')}
-            openCreate={() => setCreateOpen(true)}
-            openProfile={() => setScreen('profile')}
+          <FeedExperience
+            key={'home-feed:' + user.id + ':' + linkRevision}
+            userId={user.id}
+            mode="home"
+            currentUser={{
+              id: user.id,
+              displayName: user.displayName,
+              username: user.username,
+              avatarUrl: user.avatarUrl
+            }}
+            onOpenDiscover={() => setScreen('discover')}
+            onOpenProfile={openUserProfile}
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
+            initialPostId={linkedPostId}
+            initialCommentId={linkedCommentId}
           />
         ) : null}
 
         {screen === 'discover' ? (
-          <FeedExperience
+          <SocialHub
             key={'discover:' + user.id + ':' + linkRevision}
             userId={user.id}
-            initialPostId={linkedPostId}
-            initialCommentId={linkedCommentId}
+            mode="discover"
+            onOpenProfile={openUserProfile}
+          />
+        ) : null}
+
+        {screen === 'notifications' ? (
+          <SocialHub
+            key={'notifications:' + user.id + ':' + linkRevision}
+            userId={user.id}
+            mode="notifications"
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
@@ -1304,11 +1358,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             linkedConversationId={linkedConversationId}
             linkedMessageId={linkedMessageId}
             linkedMediaId={linkedMediaId}
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
         {screen === 'linked-profile' && linkedUsername ? (
-          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen('social')} />
+          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen(profileReturnScreen)} />
         ) : null}
 
         {screen === 'linked-gift' && linkedGiftId ? (
@@ -1342,6 +1397,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
+            onSubscreenChange={setProfileSubscreenActive}
           />
         ) : null}
 
@@ -1355,7 +1411,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !keyboardVisible ? (
+      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !(screen === 'profile' && profileSubscreenActive) && !keyboardVisible ? (
         <BottomNavigation
           screen={screen}
           onNavigate={(next) => setScreen(next)}
@@ -1368,7 +1424,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         onClose={() => setCreateOpen(false)}
         onPost={() => {
           setCreateOpen(false);
-          setScreen('discover');
+          setScreen('home');
+        }}
+        onStory={() => {
+          setCreateOpen(false);
+          setStoryComposerRequest(true);
+          setScreen('home');
         }}
         onChallenge={() => {
           setCreateOpen(false);
@@ -1376,6 +1437,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         }}
       />
     </SafeAreaView>
+    </ProfileNavigationProvider>
   );
 }
 
@@ -1959,8 +2021,8 @@ const styles = StyleSheet.create({
 
   bottomDockWrap: {
     position: 'absolute',
-    left: 14,
-    right: 14,
+    left: 8,
+    right: 8,
     bottom: Platform.OS === 'ios' ? 9 : 8,
     zIndex: 50
   },
@@ -1969,8 +2031,8 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 5
+    paddingHorizontal: 3,
+    paddingVertical: 4
   },
   bottomItem: {
     flex: 1,
@@ -1984,7 +2046,7 @@ const styles = StyleSheet.create({
   bottomLabel: {
     width: '100%',
     textAlign: 'center',
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '700'
   },
   createSlot: {

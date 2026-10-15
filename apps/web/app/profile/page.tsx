@@ -4,6 +4,7 @@ import { buildKnowMePublicAvatarUrl } from '@knowme/link-contract';
 import Link from 'next/link';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { AccountBadges } from '../../components/AccountBadges';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AvatarQuickActions } from '../../components/avatar-quick-actions';
 import { ProfileCover } from '../../components/profile-cover';
 import { useI18n } from '../../components/i18n-provider';
@@ -49,6 +50,13 @@ export default function ProfilePage() {
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDetailsElement>(null);
+
+  // A settings shortcut must open the editor, not merely the profile overview.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('edit') === '1') {
+      setEditing(true);
+    }
+  }, []);
 
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
@@ -216,8 +224,6 @@ export default function ProfilePage() {
   }
 
   if (loading || !user) return <main className="shell"><p>Chargement du profil…</p></main>;
-  const initials = user.displayName.trim().charAt(0).toUpperCase() || '?';
-
   return (
     <main className="shell km-profile-page">
       <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp"
@@ -225,13 +231,23 @@ export default function ProfilePage() {
       <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp"
         className="km-visually-hidden-file" onChange={uploadCover} aria-label={tr('Choisir une couverture','Choose cover image')}/>
       <section className="km-profile-hero" aria-label="Mon profil KnowMe">
-        <ProfileCover assetId={coverId} />
+        <div className="km-profile-cover-wrap">
+          <ProfileCover assetId={coverId} />
+          <button type="button" className="km-profile-cover-change" disabled={coverBusy}
+            onClick={() => coverFileRef.current?.click()}
+            aria-label={tr('Changer la couverture du profil', 'Change profile cover')}>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {coverBusy ? tr('Envoi…', 'Uploading…') : tr('Changer la couverture', 'Change cover')}
+          </button>
+        </div>
         <div className="km-profile-details">
           <div className="km-profile-avatar-wrap">
             <div className="km-profile-avatar">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={`${en?'Profile photo of':'Photo de profil de'} ${user.displayName}`} />
-              ) : <span>{initials}</span>}
+              <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName}
+                alt={`${en ? 'Profile photo of' : 'Photo de profil de'} ${user.displayName}`} />
             </div>
             <AvatarQuickActions username={user.username} displayName={user.displayName}
               avatarUrl={user.avatarUrl} locale={en ? 'en' : 'fr'}
@@ -264,6 +280,9 @@ export default function ProfilePage() {
               </details>
             </div>
             <p className="km-profile-handle">@{user.username}</p>
+            <button type="button" className="btn km-profile-edit-direct" onClick={() => setEditing(true)}>
+              {tr('Modifier mes informations', 'Edit my information')}
+            </button>
             {user.bio?.trim()
               ? <div className="km-profile-bio-row">
                   <p className="km-profile-bio">{user.bio}</p>
@@ -290,7 +309,7 @@ export default function ProfilePage() {
       {message && <p className="km-profile-notice" role="status">{message}</p>}
 
       {editing && (
-        <section className="card km-profile-editor">
+        <section id="edit" className="card km-profile-editor">
           <h2>{en?'Edit my identity':'Personnaliser mon identité'}</h2>
           <form className="grid" onSubmit={updateProfile}>
             <label >{en?'Display name':'Nom affiché'}

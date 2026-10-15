@@ -242,7 +242,9 @@ export default function ChallengeDetailPage() {
           <small style={{ color: 'var(--orange)' }}>DÉFI KNOWME</small>
           <h1>{challenge.title}</h1>
           <p style={{ color: 'var(--muted)' }}>
-            Créé par {challenge.creator.displayName} (@{challenge.creator.username})
+            Créé par <Link href={`/profile/${encodeURIComponent(challenge.creator.username)}`}>
+              {challenge.creator.displayName} (@{challenge.creator.username})
+            </Link>
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -467,12 +469,13 @@ export default function ChallengeDetailPage() {
                 alignItems: 'center'
               }}
             >
-              <div>
+              <Link href={`/profile/${encodeURIComponent(participant.user.username)}`}
+                style={{color:'inherit',textDecoration:'none'}}>
                 <strong>{participant.user.displayName}</strong>
                 <div style={{ color: 'var(--muted)' }}>
                   @{participant.user.username} · version {participant.challengeVersion}
                 </div>
-              </div>
+              </Link>
               <small
                 style={{
                   color: participant.completedAt ? 'var(--mint)' : 'var(--muted)'
