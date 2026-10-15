@@ -12,6 +12,8 @@ concurrency:
 
 jobs:
   publish-signed-update:
+    if: github.ref == 'refs/heads/main'
+    environment: android-updates
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -46,6 +48,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/platform-sync-preflight.mjs --release
+          node scripts/mobile-release-preflight.mjs
           node -e 'const app=require("./apps/mobile/app.json").expo;const sync=require("./packages/link-contract/src/platform-sync.json");if(app.version!==sync.productVersion||!Number.isSafeInteger(app.android.versionCode)||app.android.versionCode<=3||app.android.package!=="com.knowme.app")process.exit(1);'
           printf '%s\n' 'shamefully-hoist=true' > .npmrc
           pnpm install --frozen-lockfile
