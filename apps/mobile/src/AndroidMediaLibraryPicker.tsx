@@ -278,6 +278,34 @@ export function AndroidMediaLibraryPicker({
               </>}
             </>
         )}
+        {multiple && !preview && !albumOpen && selection.length > 0 && (
+          <View style={[styles.selectionTray, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <FlatList
+              horizontal
+              data={selection}
+              keyExtractor={item => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.selectionItems}
+              renderItem={({item, index}) => (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={(en ? 'Remove from selection: ' : 'Retirer de la sélection : ') + item.name}
+                  onPress={() => choose(item)}
+                  style={styles.selectedItem}>
+                  <Image source={{uri:item.thumbnail || item.uri}} style={styles.selectedThumb}/>
+                  <View style={[styles.selectedBadge,{backgroundColor:colors.accent}]}>
+                    <Text style={{color:colors.accentText,fontSize:10,fontWeight:'800'}}>{index + 1} ×</Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+            <Pressable accessibilityRole="button" onPress={confirm}
+              style={[styles.selectionSend,{backgroundColor:colors.accent}]}>
+              <Text style={{color:colors.accentText,fontWeight:'800',fontSize:12}}>
+                {en ? 'Add' : 'Ajouter'} ({selection.length})
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -318,5 +346,13 @@ const styles = StyleSheet.create({
   previewScreen: {flex:1,alignItems:'center',justifyContent:'center',padding:18,gap:16},
   previewImage: {height:'65%',width:'100%'},
   previewName: {fontSize:15,fontWeight:'700'},
-  previewSelect: {minHeight:52,paddingHorizontal:20,alignItems:'center',justifyContent:'center',borderRadius:16}
+  previewSelect: {minHeight:52,paddingHorizontal:20,alignItems:'center',justifyContent:'center',borderRadius:16},
+  selectionTray: {position:'absolute',bottom:0,left:0,right:0,borderTopWidth:StyleSheet.hairlineWidth,
+    minHeight:79,paddingHorizontal:10,paddingVertical:10,flexDirection:'row',alignItems:'center',gap:8},
+  selectionItems: {alignItems:'center',gap:7,paddingRight:10},
+  selectedItem: {height:53,width:53,position:'relative',borderRadius:11,overflow:'visible'},
+  selectedThumb: {height:53,width:53,borderRadius:11},
+  selectedBadge: {position:'absolute',right:-3,top:-4,minWidth:23,height:20,borderRadius:10,
+    alignItems:'center',justifyContent:'center'},
+  selectionSend: {minHeight:44,paddingHorizontal:13,borderRadius:16,alignItems:'center',justifyContent:'center'}
 });
