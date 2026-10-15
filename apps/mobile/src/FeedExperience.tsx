@@ -580,12 +580,12 @@ export function FeedExperience({
               </View>
             ) : null}
             <View style={styles.composerFooter}>
-              {postPhotoSupported ? <ActionButton title="Photo" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} /> : null}
+              {postPhotoSupported ? <ActionButton title="Galerie KnowMe" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} /> : null}
               <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
               <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
             </View>
             <AndroidMediaLibraryPicker
-              visible={photoPickerOpen} mediaFilter="photo" allowVideo={false}
+              visible={photoPickerOpen} purpose="publication" mediaFilter="photo" allowVideo={false}
               onClose={() => setPhotoPickerOpen(false)}
               onPicked={photo => { setPhotoPickerOpen(false); setSelectedPhoto(photo); }}
             />
