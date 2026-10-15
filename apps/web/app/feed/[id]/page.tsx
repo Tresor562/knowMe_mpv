@@ -2,6 +2,7 @@
 import { knowMeConfirm } from '../../../components/knowme-feedback';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
@@ -196,7 +197,7 @@ export default function PostDetailPage() {
             </details>
           )}
         </header>
-        <p className="km-post-detail-text">{post.content}</p>
+        <p className="km-post-detail-text"><KnowMeMentionText text={post.content}/></p>
         {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl.startsWith('/media/public/post/') ? `/api/knowme${post.imageUrl}` : post.imageUrl} alt="Média de la publication" />}
         <div className="km-post-actions">
           <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
@@ -223,7 +224,7 @@ export default function PostDetailPage() {
                 <Link href={`/profile/${encodeURIComponent(item.author.username)}`}>
                   <strong>{item.author.displayName}</strong><small>@{item.author.username}</small>
                 </Link>
-                <p>{item.content}</p>
+                <p><KnowMeMentionText text={item.content}/></p>
                 <div className="km-post-comment-actions">
                   <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
                   <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
