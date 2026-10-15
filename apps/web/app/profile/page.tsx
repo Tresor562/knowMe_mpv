@@ -4,6 +4,7 @@ import { buildKnowMePublicAvatarUrl } from '@knowme/link-contract';
 import Link from 'next/link';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { AccountBadges } from '../../components/AccountBadges';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AvatarQuickActions } from '../../components/avatar-quick-actions';
 import { ProfileCover } from '../../components/profile-cover';
 import { useI18n } from '../../components/i18n-provider';
@@ -216,8 +217,6 @@ export default function ProfilePage() {
   }
 
   if (loading || !user) return <main className="shell"><p>Chargement du profil…</p></main>;
-  const initials = user.displayName.trim().charAt(0).toUpperCase() || '?';
-
   return (
     <main className="shell km-profile-page">
       <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp"
@@ -229,9 +228,8 @@ export default function ProfilePage() {
         <div className="km-profile-details">
           <div className="km-profile-avatar-wrap">
             <div className="km-profile-avatar">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={`${en?'Profile photo of':'Photo de profil de'} ${user.displayName}`} />
-              ) : <span>{initials}</span>}
+              <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName}
+                alt={`${en ? 'Profile photo of' : 'Photo de profil de'} ${user.displayName}`} />
             </div>
             <AvatarQuickActions username={user.username} displayName={user.displayName}
               avatarUrl={user.avatarUrl} locale={en ? 'en' : 'fr'}
