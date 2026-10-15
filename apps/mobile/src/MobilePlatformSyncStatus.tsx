@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { checkKnowMeUpdateNow, type MobileUpdateCheckResult } from './updates/MobileUpdateNotice';
 
 type RuntimeVersion = {
   platform: 'web'|'api';
@@ -20,6 +21,26 @@ export function MobilePlatformSyncStatus() {
   const [api,setApi]=useState<RuntimeVersion|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
+  const [updateChecking,setUpdateChecking]=useState(false);
+  const [updateMessage,setUpdateMessage]=useState('');
+
+  async function checkUpdate() {
+    if (updateChecking) return;
+    setUpdateChecking(true);
+    setUpdateMessage('');
+    try {
+      const result: MobileUpdateCheckResult=await checkKnowMeUpdateNow();
+      setUpdateMessage(result==='available'
+        ? 'Une nouvelle version est disponible : confirme depuis la fenêtre KnowMe.'
+        : result==='current'
+          ? 'Aucune mise à jour Android officielle n’est publiée pour le moment.'
+          : result==='unsupported'
+            ? 'La version installée ne contient pas le module de mise à jour compatible.'
+            : 'Vérification impossible : le serveur de mises à jour ne répond pas.');
+    } finally {
+      setUpdateChecking(false);
+    }
+  }
 
   async function check() {
     setLoading(true);setError('');
@@ -56,13 +77,19 @@ export function MobilePlatformSyncStatus() {
     <Text style={{color:colors.text}}>API : {api?.version||'indisponible'} · {api?.commit?.slice(0,8)||'non vérifié'}</Text>
     {loading?<ActivityIndicator color={colors.accent}/>:null}
     <Text style={{color:synchronized?colors.accent:colors.danger,fontWeight:'700'}}>
-      {synchronized?'Les trois builds correspondent.':'Synchronisation non confirmée.'}
+      {synchronized?'Les trois builds correspondent.':sameVersion ? 'Versions identiques, mais builds différents.' : 'Web, API et APK ne sont pas encore sur la même version.'}
     </Text>
     {error?<Text style={{color:colors.muted}}>{error}</Text>:null}
     <Pressable onPress={()=>void check()} disabled={loading} accessibilityRole="button"
       style={[styles.button,{backgroundColor:colors.backgroundAccent,borderColor:colors.border}]}>
       <Text style={{color:colors.accent,fontWeight:'700'}}>Revérifier</Text>
     </Pressable>
+    <Pressable onPress={()=>void checkUpdate()} disabled={updateChecking} accessibilityRole="button"
+      accessibilityLabel="Rechercher une mise à jour Android"
+      style={[styles.button,{backgroundColor:colors.accent,borderColor:colors.accent}]}>
+      <Text style={{color:colors.accentText,fontWeight:'800'}}>{updateChecking?'Recherche en cours…':'Rechercher une mise à jour Android'}</Text>
+    </Pressable>
+    {updateMessage ? <Text accessibilityRole="text" style={{color:colors.muted,fontSize:13}}>{updateMessage}</Text> : null}
     <Text style={{color:colors.muted,fontSize:12}}>
       Le statut du code ne garantit pas que tous les écrans aient passé les tests fonctionnels.
     </Text>
