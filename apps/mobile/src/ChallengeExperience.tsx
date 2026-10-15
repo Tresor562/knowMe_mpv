@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { useProfileNavigation } from './profile-navigation';
 import { BrandMark, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC';
@@ -93,6 +94,7 @@ function Button({
   danger?: boolean;
 }) {
   const { colors, visual } = useAppearance();
+  const openProfile = useProfileNavigation();
   return (
     <Pressable
       disabled={disabled}
@@ -375,9 +377,13 @@ function ChallengeDetail({
           <Text style={styles.badge}>{challenge.questions.length} question(s)</Text>
         </View>
         {challenge.creator && (
-          <Text style={[styles.muted, { color: colors.muted }]}>
-            Créé par {challenge.creator.displayName} (@{challenge.creator.username})
-          </Text>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={`Voir le profil de ${challenge.creator.displayName}`}
+            onPress={() => openProfile?.(challenge.creator.username)}>
+            <Text style={[styles.muted, { color: colors.accent }]}>
+              Créé par {challenge.creator.displayName} (@{challenge.creator.username})
+            </Text>
+          </Pressable>
         )}
         {!participant && isActive && (
           <Button
@@ -562,12 +568,14 @@ function ChallengeDetail({
               {item.user.displayName.charAt(0).toUpperCase()}
             </Text>
           </View>
-          <View style={styles.flex}>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={`Voir le profil de ${item.user.displayName}`}
+            onPress={() => openProfile?.(item.user.username)} style={styles.flex}>
             <Text style={[styles.title, { color: colors.text }]}>{item.user.displayName}</Text>
             <Text style={[styles.muted, { color: colors.muted }]}>
               @{item.user.username} · v{item.challengeVersion}
             </Text>
-          </View>
+          </Pressable>
           <Text style={[item.completedAt ? styles.success : styles.muted, { color: item.completedAt ? colors.accent : colors.muted }]}>
             {item.completedAt ? 'Terminé' : 'En cours'}
           </Text>
