@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -334,7 +335,7 @@ export default function StoryViewerPage() {
                 textAlign: story.type === 'TEXT' ? 'center' : 'left',
                 whiteSpace: 'pre-wrap',
                 textShadow: '0 2px 18px rgba(0,0,0,.7)'
-              }}>{story.caption}</p>
+              }}><KnowMeMentionText text={story.caption}/></p>
             )}
 
             {story.hashtags.length > 0 && (
