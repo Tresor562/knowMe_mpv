@@ -379,7 +379,7 @@ function ChallengeDetail({
         {challenge.creator && (
           <Pressable accessibilityRole="button"
             accessibilityLabel={`Voir le profil de ${challenge.creator.displayName}`}
-            onPress={() => openProfile?.(challenge.creator.username)}>
+            onPress={() => { if (challenge.creator?.username) openProfile?.(challenge.creator.username); }}>
             <Text style={[styles.muted, { color: colors.accent }]}>
               Créé par {challenge.creator.displayName} (@{challenge.creator.username})
             </Text>
