@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { ProfileCover } from '../../../components/profile-cover';
@@ -86,6 +86,7 @@ type FriendshipRelation = {
   legacy?: boolean;
 };
 
+type ProfileConversation = { id: string; isGroup: boolean; members: Array<{ userId: string }> };
 type SocialSearchUser = { id: string; username: string };
 type SocialIncoming = { id: string; requester: { id: string } };
 type SocialFriend = { friendshipId: string; user: { id: string } };
@@ -143,6 +144,7 @@ export default function PublicProfilePage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const params = useParams<{ username: string }>();
+  const router = useRouter();
   const { user, loading: sessionLoading } = useSession();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [notice, setNotice] = useState('');
@@ -150,6 +152,7 @@ export default function PublicProfilePage() {
   const [relationship, setRelationship] = useState<FriendshipRelation | null>(null);
   const [relationshipError, setRelationshipError] = useState('');
   const [relationshipBusy, setRelationshipBusy] = useState(false);
+  const [messagingBusy, setMessagingBusy] = useState(false);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
 
@@ -279,6 +282,32 @@ export default function PublicProfilePage() {
     }
   }
 
+  async function openPrivateConversation() {
+    if (!user || !profile || !relationship || profile.viewer.owner ||
+        relationship.status === 'BLOCKED' || messagingBusy) return;
+    setMessagingBusy(true);
+    setNotice('');
+    try {
+      const targetId = relationship.targetUserId;
+      const conversations = await apiFetch<ProfileConversation[]>('/conversations');
+      const existing = conversations.find(chat =>
+        !chat.isGroup && chat.members.length === 2 &&
+        chat.members.some(member => member.userId === user.id) &&
+        chat.members.some(member => member.userId === targetId)
+      );
+      const id = existing?.id ?? (await apiFetch<{ id: string }>('/conversations', {
+        method: 'POST',
+        body: JSON.stringify({ memberIds: [targetId] })
+      })).id;
+      router.push(`/messages/${encodeURIComponent(id)}`);
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message :
+        (en ? 'Unable to open the conversation.' : 'Impossible d’ouvrir la conversation.'));
+    } finally {
+      setMessagingBusy(false);
+    }
+  }
+
   async function shareProfile() {
     if (!profile || !authorityFresh) return;
     try {
@@ -334,10 +363,16 @@ export default function PublicProfilePage() {
             {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
           </div>
           <div className="km-public-actions">
+            {!profile.viewer.owner && user && relationship?.status !== 'BLOCKED' && (
+              <button type="button" className="km-public-primary"
+                disabled={!relationship || messagingBusy} onClick={() => void openPrivateConversation()}>
+                {messagingBusy ? (en ? 'Opening…' : 'Ouverture…') : (en ? 'Message' : 'Message')}
+              </button>
+            )}
             {profile.viewer.owner && <Link className="km-public-primary" href="/profile?edit=1#edit">{en?'Edit profile':'Modifier le profil'}</Link>}
             {!profile.viewer.owner && !user && <Link className="km-public-primary" href="/login">{en?'Sign in to add':'Se connecter pour ajouter'}</Link>}
             {!profile.viewer.owner && relationship?.status === 'NONE' && (
-              <button type="button" className="km-public-primary" disabled={relationshipBusy} onClick={() => void actOnFriendship('send')}>
+              <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('send')}>
                 {en ? '+ Add friend' : '+ Ajouter en ami'}
               </button>
             )}
@@ -350,7 +385,7 @@ export default function PublicProfilePage() {
             )}
             {!profile.viewer.owner && relationship?.status === 'INCOMING' && (
               <>
-                <button type="button" className="km-public-primary" disabled={relationshipBusy} onClick={() => void actOnFriendship('accept')}>
+                <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('accept')}>
                   {en ? 'Accept request' : 'Accepter la demande'}
                 </button>
                 <button type="button" disabled={relationshipBusy} onClick={() => void actOnFriendship('decline')}>
