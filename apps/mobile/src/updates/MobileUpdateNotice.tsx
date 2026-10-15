@@ -89,7 +89,7 @@ export function MobileUpdateNotice() {
           installer.getInstalledVersionCode()
         ]);
         const next = feed.release;
-        if (!active) return;
+        if (!active) return 'unavailable';
         if (
           next &&
           Number.isSafeInteger(next.versionCode) &&
