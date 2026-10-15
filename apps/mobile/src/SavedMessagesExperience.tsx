@@ -10,6 +10,7 @@ import {
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 
 type SavedMessage = {
   messageId: string;
@@ -150,7 +151,7 @@ export function SavedMessagesExperience({
                 </Text>
               </View>
 
-              <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
+              <KnowMeMentionText text={item.message.content} style={[styles.message, { color: colors.text }]}/>
               <Text style={[styles.date, { color: colors.muted }]}>
                 Message du {new Date(item.message.createdAt).toLocaleString()}
                 {item.message.editedAt ? ' · modifié' : ''}
