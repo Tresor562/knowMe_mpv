@@ -38,7 +38,9 @@ function errorMessage(cause: unknown, fallback: string) {
 function UserSummary({ user }: { user: SocialGiftUser | null }) {
   if (!user) return <span style={{ color: 'var(--muted)' }}>Compte indisponible</span>;
   return (
-    <div>
+    <Link href={`/profile/${encodeURIComponent(user.username)}`}
+      aria-label={`Voir le profil de ${user.displayName}`}
+      style={{color:'inherit',textDecoration:'none'}}>
       <strong>{user.displayName}</strong>
       <AccountBadges
         compact
@@ -47,7 +49,7 @@ function UserSummary({ user }: { user: SocialGiftUser | null }) {
         premium={user.premium as never}
       />
       <div style={{ color: 'var(--muted)', fontSize: 13 }}>@{user.username}</div>
-    </div>
+    </Link>
   );
 }
 
