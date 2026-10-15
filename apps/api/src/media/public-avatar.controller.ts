@@ -12,6 +12,9 @@ export class PublicAvatarController {
   @Get('avatar-capabilities')
   capabilities() { return { upload: true, publicAvatar: true }; }
 
+  @Get('post-capabilities')
+  postCapabilities() { return { upload: true, publicPostImage: true }; }
+
   @Get('post/:id')
   @Header('Cache-Control', 'public, max-age=60')
   async postImage(@Param('id') id: string) {
