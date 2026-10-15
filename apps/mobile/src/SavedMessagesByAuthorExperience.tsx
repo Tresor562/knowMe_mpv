@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
+import { KnowMeMentionText } from './KnowMeMentionText';
 
 type SavedMessage = {
   messageId: string;
@@ -95,7 +96,7 @@ export function SavedMessagesByAuthorExperience({
               onPress={() => onOpenMessage?.(item.message.conversationId, item.message.id)}
               style={({ pressed }) => [styles.item, { borderColor: colors.border }, pressed && styles.pressed]}
             >
-              <Text style={[styles.message, { color: colors.text }]}>{item.message.content}</Text>
+              <KnowMeMentionText text={item.message.content} style={[styles.message, { color: colors.text }]}/>
               <Text style={[styles.small, { color: colors.muted }]}>Enregistré le {new Date(item.savedAt).toLocaleString()}</Text>
             </Pressable>
           ))}
