@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { PaymentsExperience } from './PaymentsExperience';
+import { CosmeticsMarketplaceExperience } from './CosmeticsMarketplaceExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
 import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
-type StoreSection = 'gifts' | 'coins';
+type StoreSection = 'gifts' | 'styles' | 'coins';
 
 /**
  * Native KnowMe marketplace entry.
@@ -30,13 +31,14 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
         </Pressable>
         <View style={styles.heading}>
           <Text style={[styles.title, { color: colors.text }]}>Marketplace</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>Cadeaux et achats KnowMe</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>Cadeaux, styles et KnowCoins</Text>
         </View>
         <KnowMeIcon name="spark" size={23} color={colors.accent} />
       </GlassSurface>
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
           ['gifts', 'Cadeaux', 'spark'],
+          ['styles', 'Styles', 'spark'],
           ['coins', 'KnowCoins', 'coins']
         ] as const).map(([value, title, icon]) => {
           const active = section === value;
@@ -63,7 +65,9 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
         showsVerticalScrollIndicator={false}>
         {section === 'gifts'
           ? <SocialGiftsExperience />
-          : <PaymentsExperience />}
+          : section === 'styles'
+            ? <CosmeticsMarketplaceExperience />
+            : <PaymentsExperience />}
       </ScrollView>
     </View>
   );
