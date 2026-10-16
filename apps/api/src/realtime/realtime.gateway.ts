@@ -316,6 +316,16 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  // Public release metadata only. Clients still fetch the trusted update feed
+  // and verify APK hash/package before Android can request installation.
+  emitAndroidUpdateAvailable(release: { versionCode: number; version: string }) {
+    if (!this.server || !Number.isSafeInteger(release.versionCode) || release.versionCode < 1) return;
+    this.server.emit('update:available', {
+      versionCode: release.versionCode,
+      version: release.version
+    });
+  }
+
   emitNotificationCreated(userId: string, notification: unknown) {
     this.server.to(`user:${userId}`).emit('notification:created', notification);
   }
