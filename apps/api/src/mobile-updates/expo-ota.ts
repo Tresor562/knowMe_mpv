@@ -129,7 +129,7 @@ export async function getKnowMeExpoUpdate(
   if (headers['expo-runtime-version'] !== KNOWME_OTA_RUNTIME) return { status: 204 };
   // Only the vetted Android preview channel may receive previews.
   if (headers['expo-channel-name'] !== 'preview') return { status: 204 };
-  if (process.env.KNOWME_EXPO_OTA_ENABLED !== 'true') return { status: 204 };
+  if (process.env.KNOWME_EXPO_OTA_ENABLED === 'false') return { status: 204 };
   const manifest = await fetchUpdateManifest();
   return manifest ? { status: 200, manifest } : { status: 204 };
 }
