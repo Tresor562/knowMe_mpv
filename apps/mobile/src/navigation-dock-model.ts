@@ -39,3 +39,26 @@ export function shouldShowDock(context: DockContext) {
     'linked-gift', 'linked-profile'].includes(context.screen)) return false;
   return !context.autoHide || context.scrollVisible;
 }
+
+
+/** Measure the six slots from the real Android logical viewport, not from
+ * intrinsic text widths. The narrow dock keeps six independent 44dp+ targets. */
+export function navigationDockLayout(viewportWidth: number, position: DockPosition) {
+  const width = Number.isFinite(viewportWidth) ? Math.max(320, viewportWidth) : 320;
+  const compact = width < 400;
+  const narrow = width < 360;
+  const sideInset = position === 'top' ? 0 : compact ? 4 : 10;
+  // A top dock sits inside screen-header gutters (~14dp each side).
+  const surfaceWidth = width - sideInset * 2 - (position === 'top' ? 28 : 0);
+  const horizontalPadding = compact ? 3 : 4;
+  return {
+    compact,
+    narrow,
+    sideInset,
+    horizontalPadding,
+    cellWidth: (surfaceWidth - 2 * horizontalPadding) / 6,
+    iconSize: narrow ? 21 : 23,
+    captionFontSize: narrow ? 9 : 10,
+    minHeight: position === 'top' ? 66 : 74
+  };
+}
