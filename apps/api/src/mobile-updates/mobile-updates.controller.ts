@@ -1,4 +1,6 @@
-import { Controller, Get, Header } from '@nestjs/common';
+import { Controller, Get, Header, Headers, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { getKnowMeExpoUpdate } from './expo-ota';
 
 export type AndroidReleaseNotice = {
   versionCode: number;
@@ -119,6 +121,22 @@ async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice |
 
 @Controller('mobile-updates')
 export class MobileUpdatesController {
+  @Get('expo')
+  async getExpoManifest(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Res() res: Response
+  ) {
+    const result = await getKnowMeExpoUpdate(headers);
+    res.setHeader('Expo-Protocol-Version', '1');
+    res.setHeader('Expo-SFV-Version', '0');
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (result.status === 200 && result.manifest) {
+      res.setHeader('Content-Type', 'application/expo+json');
+      return res.status(200).json(result.manifest);
+    }
+    return res.status(result.status).end();
+  }
+
   @Get('android')
   @Header('Cache-Control', 'no-store')
   async getAndroidUpdate() {
