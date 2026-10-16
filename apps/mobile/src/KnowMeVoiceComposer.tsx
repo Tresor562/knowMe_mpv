@@ -52,7 +52,8 @@ export function KnowMeVoiceComposer({busy,onSend}:{
     setOpen(true);setSeconds(0);next('starting');
     try{
       await startKnowMeVoice();
-      if (phaseRef.current!=='starting') {
+      // The permission request is asynchronous: a close can change the phase.
+      if ((phaseRef.current as Phase)!=='starting') {
         await cancelKnowMeVoice();
         return;
       }
