@@ -27,12 +27,13 @@ export type DockContext = {
   createOpen: boolean;
   profileSubscreenActive: boolean;
   postDetailOpen: boolean;
+  socialImmersive: boolean;
   scrollVisible: boolean;
   autoHide: boolean;
 };
 
 export function shouldShowDock(context: DockContext) {
-  if (context.keyboardVisible || context.createOpen || context.postDetailOpen) return false;
+  if (context.keyboardVisible || context.createOpen || context.postDetailOpen || context.socialImmersive) return false;
   if (context.screen === 'profile' && context.profileSubscreenActive) return false;
   if (['challenges', 'verification', 'linked-sticker', 'linked-channel',
     'linked-gift', 'linked-profile'].includes(context.screen)) return false;
