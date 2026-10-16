@@ -72,7 +72,12 @@ export default function FeedPage() {
     };
     openLinkedComposer();
     window.addEventListener('hashchange', openLinkedComposer);
-    return () => window.removeEventListener('hashchange', openLinkedComposer);
+    const openFromMainNavigation = () => setComposeOpen(true);
+    window.addEventListener('knowme:open-post-composer', openFromMainNavigation);
+    return () => {
+      window.removeEventListener('hashchange', openLinkedComposer);
+      window.removeEventListener('knowme:open-post-composer', openFromMainNavigation);
+    };
   }, []);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
