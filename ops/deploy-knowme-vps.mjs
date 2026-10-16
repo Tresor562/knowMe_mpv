@@ -211,8 +211,8 @@ const env = {
   KNOWME_STARTUP_PHASE_DIAGNOSTIC: '1',
   KNOWME_ANDROID_UPDATES_DIR: '/srv/knowme-updates',
   KNOWME_ANDROID_UPDATE_BASE_URL: 'https://31-56-85-53.sslip.io/knowme-api',
-  // Never require GitHub at runtime after a verified VPS release is present.
-  KNOWME_ANDROID_SELF_HOST_ONLY: existsSync(join(UPDATES, 'android-preview.json')) ? 'true' : 'false',
+  // Fail closed on an unprovisioned VPS, never silently fall back to GitHub.
+  KNOWME_ANDROID_SELF_HOST_ONLY: 'true',
   DATABASE_URL: 'postgresql://knowme:' + dbPassword + '@knowme-postgres:5432/knowme?schema=public',
   JWT_SECRET: oldEnv.JWT_SECRET || randomHex(48),
   PORT: '4000',
