@@ -46,6 +46,7 @@ type SetupResult = { secret: string; otpauthUri: string };
 type RecoveryResult = { recoveryCodes: string[] };
 type ReauthResult = { proofToken: string; expiresAt: string };
 type AccountExport = { exportedAt: string; formatVersion: number; account: unknown };
+type EmailStatus = { email: string; verified: boolean; verifiedAt: string | null };
 
 function Button({ title, onPress, disabled = false, secondary = false, danger = false }: {
   title: string;
@@ -137,6 +138,11 @@ export function SecurityExperience({ onSessionClosed }: {
   const [newPassword, setNewPassword] = useState('');
   const [passwordCode, setPasswordCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
+  const [newAccountEmail, setNewAccountEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [awaitingEmailOtp, setAwaitingEmailOtp] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -147,6 +153,7 @@ export function SecurityExperience({ onSessionClosed }: {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void apiFetch<EmailStatus>('/auth/email/status').then(setEmailStatus).catch(() => undefined); }, []);
 
   async function beginSetup() {
     if (busy || setupPassword.length < 8) return;
@@ -258,6 +265,40 @@ export function SecurityExperience({ onSessionClosed }: {
     }
   }
 
+
+  async function startEmailChange() {
+    if (busy || !newAccountEmail.includes('@') || emailPassword.length < 8) return;
+    setBusy(true);
+    try {
+      await apiFetch('/auth/email/change/request', {
+        method: 'POST',
+        body: JSON.stringify({ newEmail: newAccountEmail.trim(), password: emailPassword })
+      });
+      setEmailPassword('');
+      setAwaitingEmailOtp(true);
+      Alert.alert('Code envoyé', 'Vérifie la nouvelle adresse email et saisis le code à six chiffres.');
+    } catch (cause) {
+      Alert.alert('Modification impossible', cause instanceof Error ? cause.message : 'Réessaie.');
+    } finally { setBusy(false); }
+  }
+
+  async function confirmEmailChange() {
+    if (busy || emailOtp.length !== 6) return;
+    setBusy(true);
+    try {
+      const data = await apiFetch<{ changed: true; email: string }>('/auth/email/change/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ code: emailOtp })
+      });
+      setEmailStatus({ email: data.email, verified: true, verifiedAt: new Date().toISOString() });
+      setEmailOtp(''); setNewAccountEmail('');
+      setAwaitingEmailOtp(false);
+      Alert.alert('Adresse confirmée', 'La nouvelle adresse email est maintenant associée à ton compte.');
+    } catch (cause) {
+      Alert.alert('Code invalide', cause instanceof Error ? cause.message : 'Réessaie.');
+    } finally { setBusy(false); }
+  }
+
   async function revokeSession(id: string, current: boolean) {
     setBusy(true);
     try {
@@ -362,6 +403,26 @@ export function SecurityExperience({ onSessionClosed }: {
         <Input value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Nouveau mot de passe fort" />
         {status.twoFactorEnabled ? <Input value={passwordCode} onChangeText={setPasswordCode} autoCapitalize="characters" placeholder="Code 2FA ou récupération" /> : null}
         <Button title="Modifier et fermer les autres sessions" disabled={busy || currentPassword.length < 8 || newPassword.length < 10} onPress={() => void changePassword()} />
+      </View>
+
+      <View style={[styles.section, { borderTopColor: colors.border }]}>
+        <Text style={[styles.subtitle, { color: colors.text }]}>Adresse email</Text>
+        <Text style={[styles.helper, { color: colors.muted }]}>
+          {emailStatus ? emailStatus.email + (emailStatus.verified ? ' · Confirmée' : ' · Non confirmée') : 'Chargement…'}
+        </Text>
+        {!awaitingEmailOtp ? <>
+          <Input value={newAccountEmail} onChangeText={setNewAccountEmail} autoCapitalize="none"
+            keyboardType="email-address" placeholder="Nouvelle adresse email" />
+          <Input value={emailPassword} onChangeText={setEmailPassword} secureTextEntry placeholder="Mot de passe actuel" />
+          <Button title="Envoyer un code à la nouvelle adresse" disabled={busy || !newAccountEmail.includes('@') || emailPassword.length < 8}
+            onPress={() => void startEmailChange()} />
+        </> : <>
+          <Text style={[styles.helper, { color: colors.muted }]}>Code envoyé à {newAccountEmail} (validité : 10 minutes)</Text>
+          <Input value={emailOtp} onChangeText={v=>setEmailOtp(v.replace(/[^0-9]/g,''))}
+            maxLength={6} keyboardType="number-pad" placeholder="Code à six chiffres" />
+          <Button title="Confirmer l'adresse" disabled={busy || emailOtp.length !== 6} onPress={() => void confirmEmailChange()} />
+          <Button title="Changer d'adresse" secondary disabled={busy} onPress={() => { setAwaitingEmailOtp(false);setEmailOtp(''); }} />
+        </>}
       </View>
 
       <View style={[styles.section, { borderTopColor: colors.border }]}>
