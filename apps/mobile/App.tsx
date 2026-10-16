@@ -84,7 +84,12 @@ type TwoFactorChallenge = {
   expiresIn: number;
 };
 
-type LoginResult = SessionTokens | TwoFactorChallenge;
+type RegistrationPending = { requiresEmailVerification: true; email: string };
+type LoginResult = SessionTokens | TwoFactorChallenge | RegistrationPending;
+
+function isRegistrationPending(value: LoginResult): value is RegistrationPending {
+  return 'requiresEmailVerification' in value && value.requiresEmailVerification;
+}
 
 function isTwoFactorChallenge(value: LoginResult): value is TwoFactorChallenge {
   return 'requiresTwoFactor' in value && value.requiresTwoFactor;
@@ -156,6 +161,9 @@ function AuthScreen({
   const [password, setPassword] = useState('');
   const [challengeToken, setChallengeToken] = useState('');
   const [securityCode, setSecurityCode] = useState('');
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [emailCode, setEmailCode] = useState('');
   const [trustDevice, setTrustDevice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -201,6 +209,12 @@ function AuthScreen({
         return;
       }
 
+      if (isRegistrationPending(result)) {
+        setPendingEmail(result.email);
+        setAwaitingConfirmation(true);
+        return;
+      }
+
       await saveSession(result);
       if (mode === 'register') {
         await syncLocale(locale).catch(() => null);
@@ -209,7 +223,14 @@ function AuthScreen({
       }
       await onAuthenticated();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('auth.failed'));
+      const message = cause instanceof Error ? cause.message : t('auth.failed');
+      if (message.includes('EMAIL_CONFIRMATION_REQUIRED')) {
+        setPendingEmail(identifier.includes('@') ? identifier.trim() : '');
+        setAwaitingConfirmation(true);
+        setError('Confirme ton adresse email pour continuer.');
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -243,6 +264,35 @@ function AuthScreen({
     }
   }
 
+
+  async function verifyRegistrationEmail() {
+    if (!pendingEmail.includes('@') || !/^\d{6}$/.test(emailCode)) return;
+    setBusy(true); setError('');
+    try {
+      const tokens = await apiFetch<SessionTokens>('/auth/email/confirm', {
+        method: 'POST', body: JSON.stringify({ email: pendingEmail.trim(), code: emailCode })
+      });
+      await saveSession(tokens);
+      await syncLocale(locale).catch(() => null);
+      await onAuthenticated();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Code invalide ou expiré.');
+    } finally { setBusy(false); }
+  }
+
+  async function resendRegistrationEmail() {
+    if (!pendingEmail.includes('@')) return;
+    setBusy(true); setError('');
+    try {
+      await apiFetch('/auth/email/resend', {
+        method: 'POST', body: JSON.stringify({ email: pendingEmail.trim() })
+      });
+      setError('Si cette adresse attend confirmation, un nouveau code lui sera envoyé.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Le code ne peut pas être renvoyé pour le moment.');
+    } finally { setBusy(false); }
+  }
+
   const usernameValid = /^[A-Za-z0-9_]{3,24}$/.test(username.trim());
   const valid =
     password.length >= 8 &&
@@ -251,6 +301,36 @@ function AuthScreen({
       : displayName.trim().length >= 2 &&
         usernameValid &&
         email.includes('@'));
+
+  if (awaitingConfirmation) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 64, gap: 16 }} keyboardShouldPersistTaps="handled">
+            <BrandMark size={54} />
+            <Text style={{ fontSize: 29, fontWeight: '800', color: colors.text }}>Confirmer votre email</Text>
+            <Text style={{ fontSize: 15, lineHeight: 22, color: colors.muted }}>
+              Un code à 6 chiffres a été envoyé à votre adresse email. Il est valable 10 minutes.
+            </Text>
+            <Field value={pendingEmail} onChangeText={setPendingEmail} placeholder="Adresse email" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+            <Field value={emailCode} onChangeText={value=>setEmailCode(value.replace(/\D/g, ''))}
+              maxLength={6} keyboardType="number-pad" textContentType="oneTimeCode" placeholder="Code à 6 chiffres" />
+            <PrimaryButton disabled={busy || emailCode.length !== 6 || !pendingEmail.includes('@')}
+              onPress={() => void verifyRegistrationEmail()} title={busy ? 'Vérification…' : 'Confirmer mon adresse'} />
+            <Pressable accessibilityRole="button" disabled={busy || !pendingEmail.includes('@')} onPress={() => void resendRegistrationEmail()}
+              style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>Renvoyer un code</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => { setAwaitingConfirmation(false);setEmailCode('');setError(''); }}
+              style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: colors.muted }}>Retour à la connexion</Text>
+            </Pressable>
+            {error ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger }}>{error}</Text> : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView

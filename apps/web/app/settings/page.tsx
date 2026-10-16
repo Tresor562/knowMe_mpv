@@ -100,6 +100,9 @@ export default function SettingsPage() {
         <Link href="/settings/appearance" className="km-settings-row">
           <span>{en ? 'Appearance and themes' : 'Apparence et thèmes'}</span><span>›</span>
         </Link>
+        <Link href="/account/email" className="km-settings-row">
+          <span>{en ? 'Email address and verification' : 'Adresse email et confirmation'}</span><span>›</span>
+        </Link>
         <Link href="/security" className="km-settings-row">
           <span>{en ? 'Security and privacy' : 'Sécurité et confidentialité'}</span><span>›</span>
         </Link>

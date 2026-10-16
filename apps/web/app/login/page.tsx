@@ -59,7 +59,11 @@ export default function LoginPage() {
       window.location.replace(safeAfterLoginPath());
     }catch(cause){
       const error = cause as ApiError;
-      if (error.status === 401) {
+      if (error.status === 403 && String(error.message).includes('EMAIL_CONFIRMATION_REQUIRED')) {
+        const identifier = String(form.get('identifier') ?? '').trim();
+        if (identifier.includes('@')) window.sessionStorage.setItem('knowme_pending_email',identifier);
+        setMessage('Ton adresse email doit être confirmée avant la connexion. Ouvre la page de confirmation.');
+      } else if (error.status === 401) {
         setMessage('Identifiant ou mot de passe incorrect. Si vous avez oublié votre mot de passe, utilisez la récupération de compte.');
       } else if (error.status === 429) {
         setMessage('Trop de tentatives. Attendez quelques minutes avant de réessayer.');
@@ -113,7 +117,7 @@ export default function LoginPage() {
           {submitting && <span className="km-spinner" aria-hidden="true"/>}
           {submitting ? 'Connexion en cours…' : 'Se connecter'}
         </button>
-        {message && <p className="km-auth-error" role="alert">{message}</p>}
+        {message && <p className="km-auth-error" role="alert">{message}{message.includes('confirmée') && <><br/><Link href="/verify-email">Confirmer mon adresse email →</Link></>}</p>}
         <p className="km-auth-alternate">Nouveau sur KnowMe ? <Link href="/register">Créer un compte</Link></p>
       </form> : <form onSubmit={verifySecondFactor}>
         <h1>Vérification</h1>

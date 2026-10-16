@@ -26,6 +26,7 @@ model User {
   email        String       @unique
   username     String       @unique
   passwordHash String
+  emailVerifiedAt DateTime?
   displayName  String
   bio          String?
   avatarUrl    String?
@@ -51,6 +52,7 @@ model User {
   notifications            Notification[]
   reports                  Report[]
   interests                UserInterest[]
+  emailChallenges          EmailChallenge[]
   authSessions             AuthSession[]
   featureFlagOverrides     FeatureFlagOverride[]
   entitlementGrants        EntitlementGrant[]
@@ -813,4 +815,20 @@ model ChannelPost {
   author  User    @relation("ChannelPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([channelId, createdAt, id])
+}
+
+model EmailChallenge {
+  id String @id @default(cuid())
+  userId String
+  purpose String
+  targetEmail String
+  codeHash String
+  attempts Int @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, consumedAt])
+  @@index([expiresAt])
 }

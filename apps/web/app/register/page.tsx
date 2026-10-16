@@ -2,9 +2,9 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { KnowMeBrand } from '../../components/knowme-brand';
-import { apiFetch, saveSession, type ApiError } from '../../lib/api';
+import { apiFetch, type ApiError } from '../../lib/api';
 
-type RegisterResult={accessToken:string;refreshToken?:string};
+type RegisterResult={requiresEmailVerification:true;email:string};
 export default function RegisterPage(){
   const [message,setMessage]=useState('');
   const [submitting,setSubmitting]=useState(false);
@@ -20,8 +20,8 @@ export default function RegisterPage(){
         email:String(form.get('email')??'').trim(),
         password:String(form.get('password')??'')
       })});
-      saveSession(data.accessToken,data.refreshToken);
-      window.location.replace('/messages');
+      window.sessionStorage.setItem('knowme_pending_email',data.email);
+      window.location.replace('/verify-email');
     }catch(cause){
       const error = cause as ApiError;
       if (error.status === 409) {

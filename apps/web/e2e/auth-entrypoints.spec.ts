@@ -63,9 +63,20 @@ test('password recovery request is a usable privacy-safe public entrypoint', asy
   expect(response?.ok()).toBeTruthy();
   await expect(page.getByRole('heading', { name: 'Mot de passe oublié ?' })).toBeVisible();
   await expect(page.getByPlaceholder('vous@exemple.com')).toBeEditable();
-  await expect(page.getByRole('button', { name: 'Recevoir un lien' })).toBeEnabled();
-  await expect(page.getByText(/Indiquez l’adresse e-mail de votre compte/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Recevoir mon code' })).toBeEnabled();
+  await expect(page.getByText(/Nous vous envoyons un code à 6 chiffres/i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Retour à la connexion/ })).toHaveAttribute('href', '/login');
+  expect(failures).toEqual([]);
+});
+
+test('email confirmation page shows a one-time-code entry point', async ({ page }) => {
+  const failures = collectPageFailures(page);
+  const response = await page.goto('/verify-email');
+  expect(response?.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Confirme ton adresse email' })).toBeVisible();
+  await expect(page.getByPlaceholder('000000')).toBeEditable();
+  await expect(page.getByRole('button', { name: 'Confirmer mon adresse' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Renvoyer un code' })).toBeDisabled();
   expect(failures).toEqual([]);
 });
 
