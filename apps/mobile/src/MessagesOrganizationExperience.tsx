@@ -434,7 +434,7 @@ export function MessagesOrganizationExperience({
 
   return (
     <View style={rootStyle}>
-      <View style={styles.entrypoint}>
+      {!conversationActive ? <View style={styles.entrypoint}>
         <GlassSurface strength="soft" borderRadius={20}>
           <Pressable
             accessibilityRole="button"
@@ -451,7 +451,7 @@ export function MessagesOrganizationExperience({
             <KnowMeIcon name="arrow" size={16} color={colors.muted} />
           </Pressable>
         </GlassSurface>
-      </View>
+      </View> : null}
       <View style={styles.messages}>
         <RealtimeMessagesPanel
           userId={userId}
