@@ -28,7 +28,7 @@ export function isKnowMeGallerySupported() {
   return Platform.OS === 'android' && Boolean(gallery);
 }
 
-export async function requestKnowMeMediaAccess() {
+export async function requestKnowMeMediaAccess(includeVideo = true) {
   if (!isKnowMeGallerySupported()) {
     throw new Error('La galerie KnowMe nécessite une APK native récente.');
   }
@@ -40,7 +40,7 @@ export async function requestKnowMeMediaAccess() {
   }
   const permissions = [
     'android.permission.READ_MEDIA_IMAGES',
-    'android.permission.READ_MEDIA_VIDEO',
+    ...(includeVideo ? ['android.permission.READ_MEDIA_VIDEO'] : []),
     ...(sdk >= 34 ? ['android.permission.READ_MEDIA_VISUAL_USER_SELECTED'] : [])
   ] as Parameters<typeof PermissionsAndroid.requestMultiple>[0];
   const result = await PermissionsAndroid.requestMultiple(permissions);

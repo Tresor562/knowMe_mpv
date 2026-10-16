@@ -938,6 +938,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       </Modal>
       <AndroidMediaLibraryPicker
         visible={coverPickerOpen}
+        purpose="cover"
         allowVideo={false}
         mediaFilter="photo"
         onClose={() => setCoverPickerOpen(false)}

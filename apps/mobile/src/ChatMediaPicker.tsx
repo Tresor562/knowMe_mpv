@@ -180,6 +180,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
     </Modal>
     <AndroidMediaLibraryPicker
       visible={galleryVisible}
+      purpose="message"
       multiple
       allowVideo
       maxSelection={10}

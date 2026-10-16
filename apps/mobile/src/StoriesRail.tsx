@@ -504,7 +504,7 @@ export function StoriesRail({
                 style={{minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:14,
                   backgroundColor:colors.backgroundAccent,marginBottom:10}}>
                 <Text style={{color:colors.text}}>{storyMedia?storyMedia.name:
-                  storyType==='PHOTO'?'Choisir une photo':'Choisir une vidéo MP4'}</Text>
+                  storyType==='PHOTO'?'Galerie KnowMe · Photos':'Galerie KnowMe · Vidéos'}</Text>
               </Pressable>:null}
               <View
                 style={[
@@ -601,7 +601,8 @@ export function StoriesRail({
           </View>
         </Pressable>
       </Modal>
-      <AndroidMediaLibraryPicker visible={pickerVisible} allowVideo={storyType==='VIDEO'}
+      <AndroidMediaLibraryPicker visible={pickerVisible} purpose="story"
+        allowVideo={storyType==='VIDEO'} mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'} lockFilter
         onClose={()=>setPickerVisible(false)}
         onPicked={media=>{
           if(storyType==='VIDEO'&&media.mime!=='video/mp4')return;

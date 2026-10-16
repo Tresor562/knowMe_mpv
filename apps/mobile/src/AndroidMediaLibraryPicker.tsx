@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Image, Linking, Modal,
-  Pressable, StyleSheet, Text, View
+  Pressable, StatusBar, StyleSheet, Text, View
 } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
+import { mergeGalleryPage, toggleGallerySelection } from './gallery-selection-model';
 import {
   isKnowMeGallerySupported, readKnowMeAlbums, readKnowMeGallery,
   requestKnowMeMediaAccess,
@@ -12,18 +13,21 @@ import {
 } from './native-gallery';
 
 export type SelectedAndroidMedia = { uri: string; name: string; mime: string };
+export type GalleryPurpose = 'publication' | 'story' | 'message' | 'profile' | 'cover';
 
 const PAGE_SIZE = 45;
 
 export function AndroidMediaLibraryPicker({
-  visible, allowVideo = true, mediaFilter, multiple = false,
-  maxSelection = 10, onClose, onPicked, onPickedMany
+  visible, allowVideo = true, mediaFilter, lockFilter = false, multiple = false,
+  maxSelection = 10, purpose = 'message', onClose, onPicked, onPickedMany
 }: {
   visible: boolean;
   allowVideo?: boolean;
   mediaFilter?: 'all' | 'photo' | 'video';
+  lockFilter?: boolean;
   multiple?: boolean;
   maxSelection?: number;
+  purpose?: GalleryPurpose;
   onClose: () => void;
   onPicked?: (media: SelectedAndroidMedia) => void;
   onPickedMany?: (media: SelectedAndroidMedia[]) => void;
@@ -31,6 +35,14 @@ export function AndroidMediaLibraryPicker({
   const { colors } = useAppearance();
   const { locale } = useI18n();
   const en = locale === 'en';
+  const caption = ({
+    publication: en ? 'Choose a photo for your post' : 'Choisir une photo pour la publication',
+    story: en ? 'Choose media for your story' : 'Choisir un média pour la story',
+    message: en ? 'Attach photos and videos to your message' : 'Joindre des photos et vidéos au message',
+    profile: en ? 'Choose a profile photo' : 'Choisir une photo de profil',
+    cover: en ? 'Choose a cover photo' : 'Choisir une photo de couverture'
+  })[purpose];
+  const viewRevision = useRef(0);
   const [filter, setFilter] = useState<'all' | 'photo' | 'video'>(
     mediaFilter ?? (allowVideo ? 'all' : 'photo')
   );
@@ -65,7 +77,7 @@ export function AndroidMediaLibraryPicker({
         if (!isKnowMeGallerySupported()) {
           throw new Error(en ? 'Update KnowMe to use the built-in gallery.' : 'Mets KnowMe à jour pour utiliser sa galerie intégrée.');
         }
-        const granted = await requestKnowMeMediaAccess();
+        const granted = await requestKnowMeMediaAccess(allowVideo);
         if (!active) return;
         if (!granted) {
           setError(en ? 'Photo and video access was not granted. Check Android app permissions.'
@@ -87,37 +99,36 @@ export function AndroidMediaLibraryPicker({
   useEffect(() => {
     if (!visible || !permission) return;
     let active = true;
+    const revision = ++viewRevision.current;
     setItems([]);
-    setSelection([]);
     setHasMore(true);
     setLoading(true);
     setError('');
     const mode = allowVideo ? filter : 'photo';
     void readKnowMeGallery(mode, album, 0, PAGE_SIZE)
       .then(page => {
-        if (!active) return;
+        if (!active || revision !== viewRevision.current) return;
         setItems(page);
         setHasMore(page.length === PAGE_SIZE);
       })
       .catch(cause => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+        if (active && revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
       })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active && revision === viewRevision.current) setLoading(false); });
     return () => { active = false; };
   }, [visible, permission, filter, album, allowVideo, generation]);
 
   const loadMore = useCallback(async () => {
     if (!visible || !permission || loading || paging || !hasMore) return;
+    const revision = viewRevision.current;
     setPaging(true);
     try {
       const page = await readKnowMeGallery(allowVideo ? filter : 'photo', album, items.length, PAGE_SIZE);
-      setItems(current => {
-        const known = new Set(current.map(entry => entry.id));
-        return [...current, ...page.filter(entry => !known.has(entry.id))];
-      });
+      if (revision !== viewRevision.current) return;
+      setItems(current => mergeGalleryPage(current, page));
       setHasMore(page.length === PAGE_SIZE);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
+      if (revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
     } finally { setPaging(false); }
   }, [visible, permission, loading, paging, hasMore, allowVideo, filter, album, items.length]);
 
@@ -128,15 +139,14 @@ export function AndroidMediaLibraryPicker({
       return;
     }
     setSelection(current => {
-      if (current.some(item => item.id === entry.id)) {
-        return current.filter(item => item.id !== entry.id);
+      const next = toggleGallerySelection(current, entry, maxSelection);
+      if (next.limitReached) {
+        const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.min(10, Math.floor(maxSelection))) : 1;
+        setError(en ? `Choose up to ${limit} items.` : `Sélection limitée à ${limit} éléments.`);
+      } else {
+        setError('');
       }
-      if (current.length >= Math.min(Math.max(maxSelection, 1), 10)) {
-        setError(en ? 'Up to 10 items per selection.' : '10 éléments maximum par sélection.');
-        return current;
-      }
-      setError('');
-      return [...current, entry];
+      return next.items;
     });
   }
 
@@ -161,7 +171,7 @@ export function AndroidMediaLibraryPicker({
               {preview ? (en ? 'Preview' : 'Aperçu') : 'Galerie KnowMe'}
             </Text>
             {!preview && <Text style={[styles.subtitle, { color: colors.muted }]}>
-              {en ? 'Private device photos and videos' : 'Photos et vidéos du téléphone'}
+              {caption}
             </Text>}
           </View>
           {multiple && !preview && <Pressable accessibilityRole="button" onPress={confirm}
@@ -197,7 +207,7 @@ export function AndroidMediaLibraryPicker({
                 </Text>
               </Pressable>
               <View style={styles.tabs}>
-                {(['all','photo','video'] as const).filter(mode => allowVideo || mode !== 'video').map(mode =>
+                {(['all','photo','video'] as const).filter(mode => (allowVideo || mode === 'photo') && (!lockFilter || mode === filter)).map(mode =>
                   <Pressable key={mode} accessibilityRole="button"
                     accessibilityState={{selected:filter === mode}}
                     onPress={() => {setAlbumOpen(false);setFilter(mode);}}
@@ -269,13 +279,42 @@ export function AndroidMediaLibraryPicker({
               </>}
             </>
         )}
+        {multiple && !preview && !albumOpen && selection.length > 0 && (
+          <View style={[styles.selectionTray, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <FlatList
+              horizontal
+              style={{flex:1}}
+              data={selection}
+              keyExtractor={item => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.selectionItems}
+              renderItem={({item, index}) => (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={(en ? 'Remove from selection: ' : 'Retirer de la sélection : ') + item.name}
+                  onPress={() => choose(item)}
+                  style={styles.selectedItem}>
+                  <Image source={{uri:item.thumbnail || item.uri}} style={styles.selectedThumb}/>
+                  <View style={[styles.selectedBadge,{backgroundColor:colors.accent}]}>
+                    <Text style={{color:colors.accentText,fontSize:10,fontWeight:'800'}}>{index + 1} ×</Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+            <Pressable accessibilityRole="button" onPress={confirm}
+              style={[styles.selectionSend,{backgroundColor:colors.accent}]}>
+              <Text style={{color:colors.accentText,fontWeight:'800',fontSize:12}}>
+                {en ? 'Add' : 'Ajouter'} ({selection.length})
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex:1,paddingTop:16 },
+  screen: { flex:1,paddingTop:StatusBar.currentHeight ?? 24 },
   header: { flexDirection:'row',minHeight:62,paddingHorizontal:12,alignItems:'center',
     borderBottomWidth:StyleSheet.hairlineWidth,gap:9 },
   headerButton: {minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'},
@@ -309,5 +348,13 @@ const styles = StyleSheet.create({
   previewScreen: {flex:1,alignItems:'center',justifyContent:'center',padding:18,gap:16},
   previewImage: {height:'65%',width:'100%'},
   previewName: {fontSize:15,fontWeight:'700'},
-  previewSelect: {minHeight:52,paddingHorizontal:20,alignItems:'center',justifyContent:'center',borderRadius:16}
+  previewSelect: {minHeight:52,paddingHorizontal:20,alignItems:'center',justifyContent:'center',borderRadius:16},
+  selectionTray: {position:'absolute',bottom:0,left:0,right:0,borderTopWidth:StyleSheet.hairlineWidth,
+    minHeight:79,paddingHorizontal:10,paddingVertical:10,flexDirection:'row',alignItems:'center',gap:8},
+  selectionItems: {alignItems:'center',gap:7,paddingRight:10},
+  selectedItem: {height:53,width:53,position:'relative',borderRadius:11,overflow:'visible'},
+  selectedThumb: {height:53,width:53,borderRadius:11},
+  selectedBadge: {position:'absolute',right:-3,top:-4,minWidth:23,height:20,borderRadius:10,
+    alignItems:'center',justifyContent:'center'},
+  selectionSend: {minHeight:44,paddingHorizontal:13,borderRadius:16,alignItems:'center',justifyContent:'center'}
 });
