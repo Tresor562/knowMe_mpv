@@ -7,7 +7,7 @@ set -euo pipefail
 command -v node >/dev/null || { echo "Node.js 22+ is required." >&2; exit 1; }
 command -v apksigner >/dev/null || { echo "Android apksigner is required." >&2; exit 1; }
 command -v aapt >/dev/null || { echo "Android aapt is required." >&2; exit 1; }
-SOURCE=/opt/nex/apps/public/knowme/source
+SOURCE=/opt/nex/ops/knowme-android-updates
 [[ -f "$SOURCE/ops/sync-knowme-android-vps.mjs" ]] ||
   { echo "Deploy the KnowMe source checkout to $SOURCE first." >&2; exit 1; }
 
@@ -28,7 +28,7 @@ Type=oneshot
 User=knowme-updates
 Group=knowme-updates
 Environment=KNOWME_ANDROID_UPDATES_HOST_DIR=/var/lib/knowme-android-updates
-ExecStart=/usr/bin/env node /opt/nex/apps/public/knowme/source/ops/sync-knowme-android-vps.mjs
+ExecStart=/usr/bin/env node /opt/nex/ops/knowme-android-updates/ops/sync-knowme-android-vps.mjs
 TimeoutStartSec=240
 UMask=0022
 NoNewPrivileges=true
