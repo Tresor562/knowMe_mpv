@@ -7,6 +7,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { staffAccountSelect, toStaffBadge } from '../staff/staff-profile';
+import {
+  premiumEntitlementSelect,
+  toPremiumBadge,
+  toVerificationBadge,
+  verificationRequestSelect
+} from '../verification/verification-profile';
 import { randomBytes } from 'crypto';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { AuditService } from '../observability/audit.service';
@@ -486,6 +492,7 @@ export class ProfileExperienceService {
   }
 
   async publicSnapshot(username: string, viewerId: string | null) {
+    const now = new Date();
     const target = await this.prisma.user.findUnique({
       where: { username },
       select: {
@@ -496,7 +503,9 @@ export class ProfileExperienceService {
         avatarUrl: true,
         createdAt: true,
         role: true,
-        staffAccount: { select: staffAccountSelect }
+        staffAccount: { select: staffAccountSelect },
+        verificationRequests: verificationRequestSelect,
+        entitlementGrants: premiumEntitlementSelect(now)
       }
     });
     if (!target) throw new NotFoundException('Profil introuvable.');
@@ -598,6 +607,8 @@ export class ProfileExperienceService {
         username: target.username,
         displayName: target.displayName,
         staff: toStaffBadge(target.staffAccount),
+        verification: toVerificationBadge(target.verificationRequests, now),
+        premium: toPremiumBadge(target.entitlementGrants),
         avatarUrl: target.avatarUrl,
         bio: access('BIO').visible ? target.bio : null,
         joinedYear: access('STATISTICS').visible ? target.createdAt.getUTCFullYear() : null,
