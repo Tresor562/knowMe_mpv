@@ -1,0 +1,151 @@
+/* KnowMe Messenger — Telegram Web-inspired density, with KnowMe navigation and tokens.
+   Scoped to messaging; no changes to backend, access control or other product surfaces. */
+.km-telegram-main-menu {
+  position: relative;
+  z-index: 25;
+  flex: 0 0 auto;
+}
+.km-telegram-main-menu > summary,
+.km-chat-context > summary {
+  list-style: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.km-telegram-main-menu > summary::-webkit-details-marker,
+.km-chat-context > summary::-webkit-details-marker { display: none; }
+.km-telegram-main-menu > summary svg { width: 23px; height: 23px; }
+.km-telegram-main-menu > summary:hover,
+.km-telegram-main-menu[open] > summary,
+.km-chat-context > summary:hover,
+.km-chat-context[open] > summary {
+  color: var(--text);
+  background: color-mix(in srgb, var(--mint) 11%, var(--surface));
+}
+.km-telegram-menu-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  display: grid;
+  width: min(290px, calc(100vw - 26px));
+  max-height: min(76dvh, 590px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  background: var(--surface-glass);
+  color: var(--text);
+  border: 1px solid var(--soft-border);
+  border-radius: 20px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.18);
+  backdrop-filter: blur(24px) saturate(1.16);
+  -webkit-backdrop-filter: blur(24px) saturate(1.16);
+}
+.km-telegram-menu-heading { padding: 7px 11px 13px; margin-bottom: 5px; border-bottom: 1px solid var(--soft-border); }
+.km-telegram-menu-heading .km-brand { font-size: 18px; }
+.km-telegram-menu-heading .km-brand-logo { width: 33px; height: 33px; }
+.km-telegram-menu-panel > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 13px;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--text);
+}
+.km-telegram-menu-panel > a:hover,
+.km-telegram-menu-panel > a:focus-visible,
+.km-telegram-menu-panel > a[aria-current='page'] {
+  background: color-mix(in srgb, var(--mint) 12%, var(--surface));
+  color: var(--mint);
+}
+.km-telegram-heading { flex: 1 1 auto; min-width: 0; }
+.km-messenger-shell .km-messages-header { justify-content: flex-start; gap: 8px; padding-block: 12px; }
+.km-messenger-shell .km-messages-header h1 { font-size: 21px; letter-spacing: -.025em; margin: 0 0 3px; }
+.km-messenger-shell .km-msg-status { font-size: 11px; }
+.km-messenger-shell .km-msg-actions { flex: 0 0 auto; }
+.km-messenger-shell .km-msg-actions .km-action { width: 44px; height: 44px; background: transparent; border: 0; border-radius: 50%; }
+.km-messenger-shell .km-chat-list { border-top: 0; }
+.km-messenger-shell .km-chat-row { position: relative; gap: 0; border-bottom-color: color-mix(in srgb, var(--soft-border) 55%, transparent); }
+.km-messenger-shell .km-chat-main { padding: 9px 3px 9px 11px; gap: 11px; }
+.km-messenger-shell .km-chat-avatar { width: 48px; height: 48px; flex-shrink: 0; overflow: hidden; }
+.km-messenger-shell .km-chat-firstline strong { font-size: 15px; }
+.km-messenger-shell .km-chat-preview { font-size: 13px; }
+.km-messenger-shell .km-chat-time { font-size: 11px; }
+.km-chat-context { position: relative; z-index: 3; flex: 0 0 44px; }
+.km-chat-context[open] { z-index: 28; }
+.km-chat-context > summary svg { width: 18px; height: 18px; }
+.km-chat-context-options {
+  position: absolute;
+  top: 42px;
+  right: 4px;
+  z-index: 29;
+  width: 208px;
+  display: grid;
+  gap: 2px;
+  border-radius: 17px;
+  padding: 6px;
+  border: 1px solid var(--soft-border);
+  background: var(--surface-glass);
+  box-shadow: 0 14px 36px rgba(0,0,0,.2);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.km-chat-context-options > a,
+.km-chat-context-options > button {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 11px;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.km-chat-context-options > a:hover,
+.km-chat-context-options > button:hover { background: var(--surface-2); }
+.km-chat-context-options > button:disabled { opacity: .55; cursor: not-allowed; }
+:root[data-reduce-transparency='true'] .km-telegram-menu-panel,
+:root[data-reduce-transparency='true'] .km-chat-context-options {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+@media(min-width:1000px) {
+  .km-messenger-shell.km-messages {
+    grid-template-columns: minmax(330px, 400px) minmax(0, 1fr);
+  }
+  .km-messenger-sidebar .km-messages-header { padding: 14px 12px 12px; }
+  .km-messenger-sidebar .km-chat-main { padding: 10px 2px 10px 14px; gap: 11px; }
+  .km-messenger-sidebar .km-chat-avatar { width: 50px; height: 50px; }
+  .km-messenger-sidebar .km-chat-row { min-height: 74px; }
+  .km-messenger-sidebar .km-chat-search { margin: 4px 12px 8px; }
+  .km-messenger-sidebar .km-chat-filters { padding-inline: 12px; }
+  .km-messenger-sidebar .km-nexus-fab { right: 0; }
+}
+@media(max-width:999px) {
+  .km-messenger-shell .km-messages-header { padding-inline: 0; }
+  .km-messenger-shell .km-chat-main { grid-template-columns: 46px minmax(0,1fr) auto; }
+}
+@media(max-width:560px) {
+  .km-messenger-shell .km-messages-header h1 { font-size: 20px; }
+  .km-messenger-shell .km-chat-main { gap: 9px; padding-left: 2px; }
+  .km-messenger-shell .km-chat-avatar { width: 45px; height: 45px; }
+  .km-messenger-shell .km-chat-context { flex-basis: 40px; }
+  .km-messenger-shell .km-chat-context > summary { width: 40px; }
+  .km-messenger-shell .km-chat-filters { overflow-x: auto; scrollbar-width: none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .km-telegram-main-menu *, .km-chat-context * { animation: none !important; transition: none !important; }
+}
