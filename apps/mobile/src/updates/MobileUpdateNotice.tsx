@@ -78,14 +78,22 @@ function latestTrustedRelease(
 }
 
 async function firstPartyRelease(): Promise<AndroidReleaseNotice | null> {
-  const response = await fetch(FIRST_PARTY_PREVIEW_FEED, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(9000),
-    cache: 'no-store'
-  });
-  if (!response.ok) throw new Error('PREVIEW_FEED_UNAVAILABLE');
-  const data = await response.json() as AndroidReleaseFeed;
-  return verifiedPreviewRelease(data.release);
+  // Expo/Hermes does not guarantee AbortSignal.timeout; use the native-safe
+  // AbortController pattern to bound this optional fallback request.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(FIRST_PARTY_PREVIEW_FEED, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('PREVIEW_FEED_UNAVAILABLE');
+    const data = await response.json() as AndroidReleaseFeed;
+    return verifiedPreviewRelease(data.release);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function formatDownloadProgress(value: number) {
