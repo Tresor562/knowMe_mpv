@@ -53,8 +53,18 @@ export async function GET(request: NextRequest) {
     if (!upstream.ok) {
       return NextResponse.json({ staff: null }, { status: upstream.status === 401 ? 401 : 503, headers: responseHeaders });
     }
-    const account = await upstream.json() as { id?: unknown; username?: unknown; email?: unknown };
-    if (typeof account.id !== 'string' || typeof account.username !== 'string' || !eligible(account.email)) {
+    const account = await upstream.json() as {
+      id?: unknown;
+      username?: unknown;
+      email?: unknown;
+      staff?: { isTeamMember?: boolean; shield?: string } | null;
+    };
+    // This compatibility route can only recolor an ACTIVE staff record already
+    // confirmed by the API. A missing staff field could mean REVOKED; do not
+    // reconstruct a gold badge from e-mail alone. The current API resolves
+    // separately approved cosmetic certifications authoritatively.
+    if (typeof account.id !== 'string' || typeof account.username !== 'string' ||
+        !eligible(account.email) || account.staff?.isTeamMember !== true) {
       return NextResponse.json({ staff: null }, { headers: responseHeaders });
     }
     return NextResponse.json({
