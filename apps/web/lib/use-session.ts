@@ -69,12 +69,13 @@ export function useSession(options: { required?: boolean; realtime?: boolean } =
       const profile = await apiFetch<SessionUser>('/users/me');
       if (generation !== refreshGeneration.current) return;
       setUser(profile);
-      // The deployed VPS may still serve the older /users/me shape without
-      // official badges. Ask our own server to verify this specific account's
-      // e-mail against the owner-approved Gmail list before displaying gold.
-      // A client-provided username/e-mail alone never grants a badge.
+      // Old API versions can label ACTIVE staff members with a neutral seal.
+      // Recolor only a server-confirmed active badge: a missing staff record
+      // might represent a revoked badge and cannot be recreated client-side.
+      // The updated API handles approved, non-staff Gmail certifications.
       if (profile.email?.trim().toLowerCase().endsWith('@gmail.com') &&
-          profile.staff?.shield !== 'GOLD') {
+          profile.staff?.isTeamMember === true &&
+          profile.staff.shield !== 'GOLD') {
         const token = getAccessToken();
         if (token) {
           void fetch('/api/owner-gmail-badge', {
