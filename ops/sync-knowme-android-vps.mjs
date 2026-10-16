@@ -17,7 +17,7 @@ import { pipeline } from 'node:stream/promises';
 const REPO = 'Tresor562/knowMe_mpv';
 const API = 'https://api.github.com/repos/' + REPO + '/releases?per_page=12';
 const ASSETS = 'https://github.com/' + REPO + '/releases/download/';
-const ROOT = process.env.KNOWME_ANDROID_UPDATES_HOST_DIR || '/var/lib/nex/runtime/knowme/updates';
+const ROOT = process.env.KNOWME_ANDROID_UPDATES_HOST_DIR || '/var/lib/knowme-android-updates';
 const MAX_APK_SIZE = 250_000_000;
 const TIMEOUT_MS = 180_000;
 
