@@ -6,6 +6,6 @@ import { MobileUpdatesController } from './mobile-updates.controller';
 @Module({
   imports: [RealtimeModule],
   controllers: [MobileUpdatesController],
-  providers: [MobileUpdateSignalsService]
+  providers: [MobileUpdatesController, MobileUpdateSignalsService]
 })
 export class MobileUpdatesModule {}
