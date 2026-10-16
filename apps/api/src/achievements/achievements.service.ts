@@ -75,7 +75,7 @@ const CATALOG: CatalogDefinition[] = [
 export class AchievementsService {
   // The catalog is static. Avoid re-upserting every definition on every
   // concurrent completion, which overloaded Prisma and caused HTTP 500.
-  private catalogPromise: Promise<Prisma.AchievementDefinitionGetPayload<object>[]> | null = null;
+  private catalogPromise: Promise<Array<{ id: string; key: string; version: number }>> | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
