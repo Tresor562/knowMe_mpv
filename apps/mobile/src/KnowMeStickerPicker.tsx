@@ -55,7 +55,7 @@ export function KnowMeStickerPicker<T>({conversationId,onSent}:{
     <PressScale accessibilityRole="button" accessibilityLabel="Choisir un sticker KnowMe"
       onPress={()=>setOpen(true)}
       style={[styles.trigger,{backgroundColor:colors.backgroundAccent}]}>
-      <Text style={{fontSize:21}}>✦</Text>
+      <KnowMeIcon name="spark" color={colors.accent} size={23}/>
     </PressScale>
     <Modal visible={open} transparent animationType="slide" onRequestClose={()=>setOpen(false)}>
       <View style={styles.backdrop}>
