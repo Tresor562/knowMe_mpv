@@ -1,5 +1,6 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { TransactionalEmailService } from './transactional-email.service';
+import * as nodemailer from 'nodemailer';
 
 describe('TransactionalEmailService / Resend', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -63,4 +64,56 @@ describe('TransactionalEmailService / Resend', () => {
     expect(payload.html).toContain('&lt;script&gt;');
     expect(payload.html).not.toContain('<script>');
   });
+  it('sends security codes with the authenticated Gmail address over implicit TLS', async () => {
+    const transport = { sendMail: jest.fn().mockResolvedValue({ accepted: ['alice@example.com'] }), close: jest.fn() };
+    const create = jest.spyOn(nodemailer, 'createTransport').mockReturnValue(transport as never);
+    const service = setup({
+      KNOWME_EMAIL_PROVIDER: 'gmail',
+      GMAIL_SMTP_USER: 'knowme.notifications@gmail.com',
+      GMAIL_SMTP_APP_PASSWORD: 'abcdefghijklmnop',
+      GMAIL_SMTP_FROM_NAME: 'KnowMe'
+    });
+    await service.send('alice@example.com', 'Code de récupération', 'Bonjour', '102938');
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user: 'knowme.notifications@gmail.com', pass: 'abcdefghijklmnop' },
+      tls: expect.objectContaining({ servername: 'smtp.gmail.com', minVersion: 'TLSv1.2' })
+    }));
+    expect(transport.sendMail).toHaveBeenCalledWith(expect.objectContaining({
+      from: { name: 'KnowMe', address: 'knowme.notifications@gmail.com' },
+      to: 'alice@example.com',
+      disableUrlAccess: true,
+      disableFileAccess: true,
+      html: expect.stringContaining('102938')
+    }));
+    expect(transport.close).toHaveBeenCalled();
+  });
+
+  it('does not claim Gmail is configured with the account password or missing app secret', () => {
+    const service = setup({
+      KNOWME_EMAIL_PROVIDER: 'gmail',
+      GMAIL_SMTP_USER: 'security@gmail.com',
+      GMAIL_SMTP_APP_PASSWORD: 'ordinarypasswordislong'
+    });
+    expect(() => service.assertReady()).toThrow(ServiceUnavailableException);
+  });
+
+  it('does not silently fallback from Gmail to Resend on SMTP delivery failure', async () => {
+    const transport = { sendMail: jest.fn().mockRejectedValue(new Error('535 Auth Failure')), close: jest.fn() };
+    jest.spyOn(nodemailer, 'createTransport').mockReturnValue(transport as never);
+    const http = jest.spyOn(global, 'fetch');
+    const service = setup({
+      KNOWME_EMAIL_PROVIDER: 'gmail',
+      GMAIL_SMTP_USER: 'security@gmail.com',
+      GMAIL_SMTP_APP_PASSWORD: 'abcdefghijklmnop',
+      RESEND_API_KEY: 'resend-available'
+    });
+    await expect(service.send('alice@example.com', 'Code', 'Bonjour', '987654'))
+      .rejects.toThrow('Envoi email indisponible');
+    expect(http).not.toHaveBeenCalled();
+    expect(transport.close).toHaveBeenCalledTimes(1);
+  });
+
 });
