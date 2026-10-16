@@ -84,3 +84,15 @@ test('desktop social home keeps the complete KnowMe main navigation visible', as
   await expect(navigation.getByRole('link', {name:'Messages'})).toBeVisible();
   await expect(navigation.getByRole('link', {name:'Profil'})).toBeVisible();
 });
+
+test('global Create opens the actual KnowMe publication editor', async ({page}) => {
+  await stubAuthenticatedSocialHome(page);
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/feed$/);
+  await checkSocialHome(page);
+  const navigation = page.locator('nav.km-smart-nav');
+  await navigation.getByRole('button', {name:'Créer'}).click();
+  await navigation.getByRole('menuitem', {name:'Publication'}).click();
+  await expect(page.getByRole('dialog', {name:'Créer une publication'})).toBeVisible();
+  await expect(page.getByRole('button', {name:'Publier'}).first()).toBeDisabled();
+});
