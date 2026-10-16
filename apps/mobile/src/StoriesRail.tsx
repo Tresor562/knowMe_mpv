@@ -90,7 +90,8 @@ export function StoriesRail({
       const response = await apiFetch<StoryFeedResponse>('/stories/feed');
       setStories(response.stories);
     } catch {
-      setStories([]);
+      // Keep the last known stories during temporary network failures.
+      // Emptying the rail here makes an outage look like deleted content.
     }
   }, []);
 
@@ -183,6 +184,7 @@ export function StoriesRail({
   async function createStory() {
     const value = caption.trim();
     if (publishing || (storyType==='TEXT'&&!value) || (storyType!=='TEXT'&&!storyMedia)) return;
+    let publishedId: string | null = null;
     setPublishing(true);
     try {
       const assetId=storyType!=='TEXT'&&storyMedia
@@ -204,20 +206,34 @@ export function StoriesRail({
           } : undefined
         })
       });
+      publishedId = story.id;
       setCaption('');
       setStoryMedia(null);
       setStoryType('TEXT');
       setCreateOpen(false);
-      await load();
-      const fresh = await apiFetch<Story>('/stories/' + story.id);
-      setSelected(fresh);
     } catch (cause) {
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' ||
+        error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
       Alert.alert(
-        'Story impossible',
-        cause instanceof Error ? cause.message : 'Réessaie.'
+        uncertain ? 'Publication non confirmée' : 'Story impossible',
+        uncertain
+          ? 'Vérifie tes stories avant de réessayer pour éviter un doublon.'
+          : cause instanceof Error ? cause.message : 'Réessaie.'
       );
     } finally {
       setPublishing(false);
+    }
+
+    if (!publishedId) return;
+    // A successful POST is definitive. Failure to refresh the rail or detail
+    // must never turn it into a false "Story impossible" / duplicate retry.
+    await load();
+    try {
+      const fresh = await apiFetch<Story>('/stories/' + publishedId);
+      setSelected(fresh);
+    } catch {
+      // Story is already published. It will be visible after the next refresh.
     }
   }
 
