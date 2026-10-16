@@ -19,6 +19,10 @@ export class EmailChallengeService {
     this.secret();
     this.mail.assertReady();
   }
+  assertCanDeliverTo(email: string) {
+    this.secret();
+    this.mail.assertCanDeliverTo(email);
+  }
   private secret() {
     const value = this.config.get<string>('EMAIL_OTP_SECRET');
     if (!value || value.length < 32) throw new ServiceUnavailableException('La confirmation email est temporairement indisponible.');
@@ -135,8 +139,12 @@ export class EmailChallengeService {
     await this.publicRequestBudget(email, context);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || user.isSuspended) return { accepted: true };
-    try { await this.send(user.id, 'RECOVERY', email, context); }
-    catch (error) { if (!(error instanceof TooManyRequestsException)) throw error; }
+    try {
+      await this.send(user.id, 'RECOVERY', email, context);
+    } catch {
+      // Public endpoint: provider failures must not reveal whether this account exists.
+      await this.audit('EMAIL_RECOVERY_DELIVERY_FAILED', user.id, context);
+    }
     return { accepted: true };
   }
 
