@@ -95,7 +95,7 @@ function MessageContent({item}:{item:Message}){
           <Link href={`/stickers/${encodeURIComponent(item.presentation.pack.key)}`}>
             Voir le pack
           </Link>
-          <Link href={`/open/v1/message/${encodeURIComponent(item.id)}`}>
+          <Link href={buildKnowMePublicLink({kind:'message',id:item.id})}>
             Ouvrir ce message
           </Link>
         </div>
