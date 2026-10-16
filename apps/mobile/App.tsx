@@ -37,6 +37,7 @@ import { FeedExperience } from './src/FeedExperience';
 import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
+import { MarketplaceExperience } from './src/MarketplaceExperience';
 import { LinkedProfileExperience } from './src/LinkedProfileExperience';
 import { ProfileNavigationProvider } from './src/profile-navigation';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
@@ -64,6 +65,7 @@ type Screen =
   | 'home'
   | 'discover'
   | 'notifications'
+  | 'marketplace'
   | 'social'
   | 'challenges'
   | 'profile'
@@ -1470,10 +1472,15 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             key={'discover:' + user.id + ':' + linkRevision}
             userId={user.id}
             mode="discover"
+            onOpenMarketplace={() => setScreen('marketplace')}
             onOpenProfile={openUserProfile}
             onContentScroll={onFeedScroll}
             topNavigation={topNavigation}
           />
+        ) : null}
+
+        {screen === 'marketplace' ? (
+          <MarketplaceExperience onBack={() => setScreen('discover')} />
         ) : null}
 
         {screen === 'notifications' ? (
