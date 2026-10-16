@@ -409,8 +409,9 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
     ? items.filter(item=>(item.presentation?.kind==='TEXT'?item.presentation.text:item.content).toLocaleLowerCase().includes(searchTerm.trim().toLocaleLowerCase()))
     : items;
 
+  const ScreenTag = embedded ? 'section' : 'main';
   return(
-    <main className={embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'}>
+    <ScreenTag className={embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'} aria-label={en?'Conversation':'Discussion'}>
       <header className="km-chat-header">
         {embedded&&onClose
           ? <button type="button" onClick={onClose} className="km-action km-chat-back" aria-label={en?'Close conversation':'Fermer la discussion'}>
@@ -515,6 +516,6 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
           {sending?<span className="km-spinner" aria-hidden="true"/>:<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7zM12 13l8-9"/></svg>}
         </button>
       </form>
-    </main>
+    </ScreenTag>
   );
 }
