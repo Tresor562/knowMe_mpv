@@ -10,6 +10,7 @@ import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActivateStaffAccountDto,
+  ActivateStaffByEmailDto,
   UpdateStaffAccountStatusDto
 } from './dto/staff-account.dto';
 
@@ -37,6 +38,25 @@ export class StaffService {
       },
       orderBy: [{ status: 'asc' }, { activatedAt: 'desc' }],
       take: 200
+    });
+  }
+
+  async activateByEmail(actorId: string, dto: ActivateStaffByEmailDto) {
+    const email = dto.email.trim().toLowerCase();
+    // Resolve a registered account to its immutable ID on the server.
+    // An email string alone never grants anything: this method inherits
+    // the STAFF_MANAGE + JWT guards from the controller.
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    });
+    if (!user) throw new NotFoundException('Compte KnowMe introuvable pour cette adresse.');
+    return this.activate(actorId, {
+      userId: user.id,
+      staffRole: dto.staffRole,
+      // An official gold badge is not an implicit administrator grant.
+      grantsAdminAccess: dto.grantsAdminAccess ?? false,
+      reason: dto.reason
     });
   }
 

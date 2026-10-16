@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsOptional,
   IsString,
@@ -21,6 +22,24 @@ export class ActivateStaffAccountDto {
   @IsString()
   @Length(10, 64)
   userId!: string;
+
+  @IsIn(STAFF_ROLES)
+  staffRole!: (typeof STAFF_ROLES)[number];
+
+  @IsOptional()
+  @IsBoolean()
+  grantsAdminAccess?: boolean;
+
+  @IsString()
+  @Length(3, 500)
+  reason!: string;
+}
+
+/** Admin-only address resolution; public clients cannot self-certify by email. */
+export class ActivateStaffByEmailDto {
+  @IsEmail()
+  @Length(6, 254)
+  email!: string;
 
   @IsIn(STAFF_ROLES)
   staffRole!: (typeof STAFF_ROLES)[number];

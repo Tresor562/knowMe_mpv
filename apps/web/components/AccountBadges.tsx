@@ -1,6 +1,36 @@
 'use client';
 
+import { useId } from 'react';
 import type { PremiumBadge, StaffBadge, VerificationBadge } from '../lib/use-session';
+
+// Rounded, twelve-lobed KnowMe seal — deliberately original artwork.
+const GOLD_SEAL_PATH = Array.from({ length: 145 }, (_, index) => {
+  const theta = (Math.PI * 2 * index) / 144 - Math.PI / 2;
+  const radius = 9.45 + 0.58 * Math.cos(12 * (theta + Math.PI / 2));
+  const x = (12 + radius * Math.cos(theta)).toFixed(3);
+  const y = (12 + radius * Math.sin(theta)).toFixed(3);
+  return `${index === 0 ? 'M' : 'L'}${x},${y}`;
+}).join(' ') + ' Z';
+
+function GoldVerifiedSeal({ size }: { size: number }) {
+  const gradientId = useId().replace(/:/g, '');
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFE9A0" />
+          <stop offset="39%" stopColor="#F5C54C" />
+          <stop offset="100%" stopColor="#C78A12" />
+        </linearGradient>
+      </defs>
+      <path d={GOLD_SEAL_PATH} fill={`url(#${gradientId})`}
+        stroke="#AE7612" strokeWidth=".36" strokeLinejoin="round" />
+      <path d="M7.35 12.05 10.65 15.1 16.8 8.8" stroke="#fff"
+        strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 
 export type AccountBadgeSet = {
   staff?: StaffBadge | null;
@@ -29,11 +59,7 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
       </span>}
       {staff && <span className="km-account-staff" title={staff.label + ' · ' + staff.role}
         aria-label={staff.label + ', ' + staff.role}>
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m12 1.8 3.4 1.6 3.7.4 1.1 3.5 2.2 2.9-1.5 3.3-.2 3.8-3.5 1.2L14.5 21 12 22.2 9.5 21l-2.7-2.5-3.5-1.2-.2-3.8-1.5-3.3 2.2-2.9 1.1-3.5 3.7-.4z"
-            fill="#e5b84f" stroke="#a87619" strokeWidth=".7"/>
-          <path d="m7.8 11.8 2.7 2.7 5.8-6" stroke="#482f08" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+<GoldVerifiedSeal size={size} />
       </span>}
     </span>
   );

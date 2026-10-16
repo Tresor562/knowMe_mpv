@@ -64,27 +64,35 @@ export function StaffAccountsPanel() {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    const emails = [...new Set(String(data.get('emails') ?? '')
+      .split(/[\s,;]+/).map(value => value.trim().toLowerCase()).filter(Boolean))];
+    if (emails.length === 0 || emails.length > 8) {
+      setMessage('Indique entre une et huit adresses e-mail.');
+      return;
+    }
     setBusyId('create');
-
+    let activated = 0;
+    const failed: string[] = [];
+    for (const email of emails) {
+      try {
+        await apiFetch('/admin/staff-accounts/by-email', {
+          method: 'POST',
+          body: JSON.stringify({
+            email,
+            staffRole: String(data.get('staffRole') ?? 'OWNER'),
+            grantsAdminAccess: data.get('grantsAdminAccess') === 'on',
+            reason: String(data.get('reason') ?? '').trim()
+          })
+        });
+        activated += 1;
+      } catch (cause) {
+        failed.push(`${email} : ${cause instanceof Error ? cause.message : 'échec'}`);
+      }
+    }
     try {
-      await apiFetch('/admin/staff-accounts', {
-        method: 'POST',
-        body: JSON.stringify({
-          userId: String(data.get('userId') ?? '').trim(),
-          staffRole: String(data.get('staffRole') ?? 'ADMINISTRATOR'),
-          grantsAdminAccess: data.get('grantsAdminAccess') === 'on',
-          reason: String(data.get('reason') ?? '').trim()
-        })
-      });
-      form.reset();
-      setMessage('Compte ajouté à l’équipe KnowMe.');
       await load();
-    } catch (cause) {
-      setMessage(
-        cause instanceof Error
-          ? cause.message
-          : 'Impossible d’activer ce compte staff.'
-      );
+      if (!failed.length) form.reset();
+      setMessage(`${activated} compte(s) activé(s). ${failed.length ? failed.join(' ; ') : ''}`);
     } finally {
       setBusyId(null);
     }
@@ -138,8 +146,9 @@ export function StaffAccountsPanel() {
           <small style={{ color: '#f4c95d' }}>ÉQUIPE KNOWME</small>
           <h2>Comptes officiels</h2>
           <p style={{ color: 'var(--muted)', maxWidth: 760 }}>
-            Le badge doré et les accès sont liés à l’identifiant immuable du
-            compte. Aucune adresse e-mail n’est codée dans l’application.
+            Badge doré lié au compte KnowMe, jamais attribué automatiquement
+            lors d’une inscription. Vérifiez que chaque adresse appartient à
+            son propriétaire avant de confirmer son statut officiel.
           </p>
         </div>
         <button className="btn" onClick={() => void load()}>
@@ -160,12 +169,14 @@ export function StaffAccountsPanel() {
       >
         <h3>Ajouter un membre officiel</h3>
         <label>
-          Identifiant du compte
-          <input name="userId" required minLength={10} placeholder="accountId" />
+          Adresses e-mail des comptes KnowMe (une par ligne, jusqu’à huit)
+          <textarea name="emails" required rows={3}
+            placeholder="adresse1@gmail.com&#10;adresse2@gmail.com"
+            aria-label="Adresses e-mail des comptes à certifier" />
         </label>
         <label>
           Fonction dans l’équipe
-          <select name="staffRole" defaultValue="ADMINISTRATOR">
+          <select name="staffRole" defaultValue="OWNER">
             {STAFF_ROLES.map(([value, label]) => (
               <option value={value} key={value}>
                 {label}
@@ -174,8 +185,8 @@ export function StaffAccountsPanel() {
           </select>
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <input name="grantsAdminAccess" type="checkbox" defaultChecked />
-          Accorder les accès administratifs actuels
+          <input name="grantsAdminAccess" type="checkbox" />
+          Accorder aussi les accès administratifs (facultatif, réservé aux comptes autorisés)
         </label>
         <label>
           Justification obligatoire

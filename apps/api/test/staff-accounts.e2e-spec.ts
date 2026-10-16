@@ -181,6 +181,53 @@ describe('KnowMe staff accounts (e2e)', () => {
       expect.objectContaining({ role: 'USER', staff: null })
     );
 
+    const emailBadgeAccount = await register('email_badge', 'badge@staff.knowme.test');
+    await request(app.getHttpServer())
+      .post('/admin/staff-accounts/by-email')
+      .set('Authorization', `Bearer ${emailBadgeAccount.body.accessToken}`)
+      .send({
+        email: 'badge@staff.knowme.test',
+        staffRole: 'OWNER',
+        reason: 'Auto-attribution interdite'
+      })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post('/admin/staff-accounts/by-email')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'missing@staff.knowme.test',
+        staffRole: 'OWNER',
+        reason: 'Compte introuvable'
+      })
+      .expect(404);
+
+    const byEmail = await request(app.getHttpServer())
+      .post('/admin/staff-accounts/by-email')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'BADGE@STAFF.KNOWME.TEST',
+        staffRole: 'OWNER',
+        reason: 'Identité contrôlée manuellement par un administrateur.'
+      })
+      .expect(201);
+
+    expect(byEmail.body).toEqual(expect.objectContaining({
+      userId: emailBadgeAccount.body.user.id,
+      status: 'ACTIVE',
+      shieldStyle: 'GOLD',
+      grantsAdminAccess: false
+    }));
+    const emailBadgeProfile = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${emailBadgeAccount.body.accessToken}`)
+      .expect(200);
+    expect(emailBadgeProfile.body.role).toBe('USER');
+    expect(emailBadgeProfile.body.staff).toEqual(expect.objectContaining({
+      shield: 'GOLD',
+      role: 'OWNER'
+    }));
+
     const adminStaff = await request(app.getHttpServer())
       .post('/admin/staff-accounts')
       .set('Authorization', `Bearer ${adminToken}`)
