@@ -226,6 +226,10 @@ export default function ProfilePage() {
   if (loading || !user) return <main className="shell"><p>Chargement du profil…</p></main>;
   return (
     <main className="shell km-profile-page">
+      <div className="km-header-nav-group km-profile-nav-group">
+        <header className="km-profile-inline-header"><strong>Profil</strong></header>
+        <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
+      </div>
       <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp"
         className="km-visually-hidden-file" onChange={uploadAvatar} aria-label={tr('Choisir une photo de profil','Choose profile picture')}/>
       <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp"
