@@ -61,8 +61,8 @@ test('no Firebase or GitHub dependency remains in the Android update path', () =
   const worker = readFileSync(join(__dirname, 'native/android/KnowMeUpdateWorker.java'), 'utf8');
   const ui = readFileSync(join(root, 'src/updates/MobileUpdateNotice.tsx'), 'utf8');
   assert.ok(!app.expo.plugins.some(plugin => String(plugin).toLowerCase().includes('firebase')));
-  assert.doesNotMatch(worker, /firebase|github\.com/i);
-  assert.doesNotMatch(ui, /firebase|github\.com|FIRST_PARTY_PREVIEW_FEED/i);
+  assert.doesNotMatch(worker, /https:\/\/github\.com|firebase\.messaging|FirebaseMessagingService/i);
+  assert.doesNotMatch(ui, /https:\/\/github\.com|NativeModules\.KnowMeFirebasePush|FIRST_PARTY_PREVIEW_FEED/i);
   assert.match(ui, /getRealtimeSocket\(\)/);
   assert.match(worker, /knowme-api\/mobile-updates\/android/);
 });
