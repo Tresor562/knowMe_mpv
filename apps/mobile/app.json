@@ -17,6 +17,7 @@
       ],
       "./plugins/with-animated-chat-media.cjs",
       "./plugins/with-knowme-gallery.cjs",
+      "./plugins/with-knowme-voice.cjs",
       "./plugins/with-knowme-story-video.cjs",
       "./plugins/withKnowMeInstaller",
       "./plugins/withKnowMeNotificationIcon.cjs"

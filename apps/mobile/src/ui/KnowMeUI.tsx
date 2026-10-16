@@ -32,6 +32,7 @@ export type KnowMeIconName =
   | 'discover'
   | 'create'
   | 'messages'
+  | 'microphone'
   | 'heart'
   | 'profile'
   | 'bell'
@@ -191,6 +192,27 @@ export function KnowMeIcon({
         <Line width={6 * s} height={sw} left={4.2 * s} top={17.6 * s} rotate="-36deg" color={color} />
         <Line width={6.7 * s} height={sw} left={7.3 * s} top={9 * s} color={color} />
         <Line width={4.8 * s} height={sw} left={7.3 * s} top={12.4 * s} color={color} />
+      </View>
+    );
+  }
+
+  if (name === 'microphone') {
+    return (
+      <View style={{width:size,height:size}}>
+        <View style={[commonBorder,{
+          position:'absolute',left:9*s,top:2*s,
+          width:6*s,height:13*s,borderRadius:3*s
+        }]}/>
+        <View style={{
+          position:'absolute',left:5.2*s,top:9*s,width:13.6*s,height:9*s,
+          borderBottomWidth:sw,borderLeftWidth:sw,borderRightWidth:sw,
+          borderBottomLeftRadius:7*s,borderBottomRightRadius:7*s,
+          borderColor:color
+        }}/>
+        <Line width={sw} height={4.3*s} left={12*s-sw/2}
+          top={18*s} color={color}/>
+        <Line width={9*s} height={sw} left={7.5*s}
+          top={22*s} color={color}/>
       </View>
     );
   }
