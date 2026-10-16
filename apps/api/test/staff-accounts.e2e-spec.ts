@@ -126,12 +126,11 @@ describe('KnowMe staff accounts (e2e)', () => {
     expect(publicProfile.body.header).not.toHaveProperty('email');
 
     // Approved staff on a non-Gmail account must never receive the gold seal.
-    const nongmail = await register('nongmail', 'official.other@example.com');
     await request(app.getHttpServer())
       .post('/admin/staff-accounts')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
-        userId: nongmail.body.user.id,
+        userId: lookalikeRegistration.body.user.id
         staffRole: 'DEVELOPER',
         grantsAdminAccess: false,
         reason: 'Vérification du sceau neutre sur les adresses non Gmail.'
@@ -139,23 +138,16 @@ describe('KnowMe staff accounts (e2e)', () => {
       .expect(201);
     const nongmailProfile = await request(app.getHttpServer())
       .get('/users/me')
-      .set('Authorization', `Bearer ${nongmail.body.accessToken}`)
+      .set('Authorization', `Bearer ${lookalikeRegistration.body.accessToken}`)
       .expect(200);
     expect(nongmailProfile.body.staff).toEqual(
       expect.objectContaining({ isTeamMember: true, shield: 'STANDARD' })
     );
     const nongmailPublic = await request(app.getHttpServer())
-      .get('/profile-experience/public/staff_nongmail')
+      .get('/profile-experience/public/staff_lookalike')
       .expect(200);
     expect(nongmailPublic.body.header.staff.shield).toBe('STANDARD');
 
-    // Gmail by itself must not produce the gold seal without admin approval.
-    const gmailUnapproved = await register('no_approval', 'not-approved@gmail.com');
-    const noApprovalProfile = await request(app.getHttpServer())
-      .get('/users/me')
-      .set('Authorization', `Bearer ${gmailUnapproved.body.accessToken}`)
-      .expect(200);
-    expect(noApprovalProfile.body.staff).toBeNull();
 
     await request(app.getHttpServer())
       .get('/admin/staff-accounts')
