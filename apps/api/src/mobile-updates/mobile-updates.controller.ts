@@ -61,8 +61,31 @@ let cachedRelease: AndroidReleaseNotice | null = null;
 
 type GitHubRelease = {
   draft?: boolean;
-  assets?: Array<{ name?: string; browser_download_url?: string }>;
+  prerelease?: boolean;
+  tag_name?: string;
+  assets?: Array<{ name?: string; browser_download_url?: string; size?: number }>;
 };
+
+/** An existing production signing channel must never be replaced with a
+ * debug-signed preview release. GitHub preview discovery only upgrades preview
+ * installations; Android still checks the APK signature itself. */
+export function chooseAndroidRelease(
+  configured: AndroidReleaseNotice | null,
+  discovered: AndroidReleaseNotice | null
+): AndroidReleaseNotice | null {
+  if (!configured) return discovered;
+  if (!/\/releases\/download\/v\d+\.\d+\.\d+-preview\//.test(configured.url)) {
+    return configured;
+  }
+  if (
+    discovered &&
+    /\/releases\/download\/v\d+\.\d+\.\d+-preview\//.test(discovered.url) &&
+    discovered.versionCode > configured.versionCode
+  ) {
+    return discovered;
+  }
+  return configured;
+}
 
 async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice | null> {
   if (Date.now() < nextReleaseCheckAt) return cachedRelease;
@@ -82,32 +105,49 @@ async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice |
 
     let newest: AndroidReleaseNotice | null = null;
     for (const release of releases) {
-      if (release.draft || !Array.isArray(release.assets)) continue;
+      if (
+        release.draft || release.prerelease !== true ||
+        !/^v\\d+\\.\\d+\\.\\d+-preview$/.test(release.tag_name ?? '') ||
+        !Array.isArray(release.assets)
+      ) continue;
+      const prefix = `https://github.com/Tresor562/knowMe_mpv/releases/download/${release.tag_name}/`;
       const manifest = release.assets.find((asset) =>
         asset.name === 'knowme-update.json' &&
-        typeof asset.browser_download_url === 'string' &&
-        asset.browser_download_url.startsWith(
-          'https://github.com/Tresor562/knowMe_mpv/releases/download/'
-        )
+        asset.browser_download_url === `${prefix}knowme-update.json`
       );
       if (!manifest?.browser_download_url) continue;
-      const manifestResponse = await fetch(manifest.browser_download_url, {
-        signal: AbortSignal.timeout(5000)
-      });
-      if (!manifestResponse.ok) continue;
-      const rawText = await manifestResponse.text();
-      if (rawText.length > 4096) continue;
-      const data = JSON.parse(rawText) as Record<string, unknown>;
-      const candidate = readAndroidReleaseNotice({
-        KNOWME_ANDROID_UPDATE_VERSION_CODE: String(data.versionCode ?? ''),
-        KNOWME_ANDROID_UPDATE_VERSION: String(data.version ?? ''),
-        KNOWME_ANDROID_UPDATE_URL: String(data.url ?? ''),
-        KNOWME_ANDROID_UPDATE_SHA256: String(data.sha256 ?? ''),
-        KNOWME_ANDROID_UPDATE_NOTES: typeof data.notes === 'string' ? data.notes : '',
-        KNOWME_ANDROID_UPDATE_REQUIRED: data.required === true ? 'true' : 'false'
-      });
-      if (candidate && (!newest || candidate.versionCode > newest.versionCode)) {
-        newest = candidate;
+      try {
+        const manifestResponse = await fetch(manifest.browser_download_url, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (!manifestResponse.ok) continue;
+        const rawText = await manifestResponse.text();
+        if (rawText.length > 4096) continue;
+        const data = JSON.parse(rawText) as Record<string, unknown>;
+        const candidate = readAndroidReleaseNotice({
+          KNOWME_ANDROID_UPDATE_VERSION_CODE: String(data.versionCode ?? ''),
+          KNOWME_ANDROID_UPDATE_VERSION: String(data.version ?? ''),
+          KNOWME_ANDROID_UPDATE_URL: String(data.url ?? ''),
+          KNOWME_ANDROID_UPDATE_SHA256: String(data.sha256 ?? ''),
+          KNOWME_ANDROID_UPDATE_NOTES: typeof data.notes === 'string' ? data.notes : '',
+          KNOWME_ANDROID_UPDATE_REQUIRED: data.required === true ? 'true' : 'false'
+        });
+        if (!candidate || release.tag_name !== `v${candidate.version}-preview`) continue;
+        const apkAsset = release.assets.find((asset) =>
+          asset.name === `KnowMe-${candidate.version}-preview.apk` &&
+          asset.browser_download_url === candidate.url &&
+          (asset.size ?? 0) > 10_000_000
+        );
+        const checksumAsset = release.assets.find((asset) =>
+          asset.name === `KnowMe-${candidate.version}-preview.apk.sha256` &&
+          asset.browser_download_url === `${prefix}KnowMe-${candidate.version}-preview.apk.sha256`
+        );
+        if (!apkAsset || !checksumAsset) continue;
+        if (!newest || candidate.versionCode > newest.versionCode) {
+          newest = candidate;
+        }
+      } catch {
+        // A broken release must not prevent evaluating the other releases.
       }
     }
     cachedRelease = newest;
@@ -122,18 +162,25 @@ export class MobileUpdatesController {
   @Get('android')
   @Header('Cache-Control', 'no-store')
   async getAndroidUpdate() {
-    const locallyConfigured = readAndroidReleaseNotice(process.env);
-    if (locallyConfigured) return { release: locallyConfigured };
+    const configured = readAndroidReleaseNotice(process.env);
 
-    // Partial/invalid manual configuration is not silently overridden.
+    // Fail closed for incomplete manual configuration; do not substitute an
+    // unverified source when an operator tried to pin a release.
     const manuallyConfigured = Boolean(
       process.env.KNOWME_ANDROID_UPDATE_URL ||
       process.env.KNOWME_ANDROID_UPDATE_SHA256 ||
       process.env.KNOWME_ANDROID_UPDATE_VERSION_CODE
     );
-    if (manuallyConfigured || process.env.KNOWME_ANDROID_AUTO_DISCOVER_GITHUB === 'false') {
-      return { release: null };
+    if (manuallyConfigured && !configured) return { release: null };
+    if (process.env.KNOWME_ANDROID_AUTO_DISCOVER_GITHUB === 'false') {
+      return { release: configured };
     }
-    return { release: await discoverPublishedAndroidRelease() };
+    // Production-signed releases always remain pinned to their own channel.
+    if (configured &&
+      !/\/releases\/download\/v\d+\.\d+\.\d+-preview\//.test(configured.url)) {
+      return { release: configured };
+    }
+    const publishedPreview = await discoverPublishedAndroidRelease();
+    return { release: chooseAndroidRelease(configured, publishedPreview) };
   }
 }
