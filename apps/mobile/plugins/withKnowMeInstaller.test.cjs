@@ -34,7 +34,7 @@ test('no background notification worker can ship without Gradle registration', (
   assert.throws(() => injectUpdateWorkManager('plugins {}'), /dependencies section missing/);
 });
 
-test('background checks never install APKs silently and have a verified notification tap', () => {
+test('self-hosted Android background checks notify without ever installing APKs silently', () => {
   const { readFileSync } = require('node:fs');
   const worker = readFileSync(require('node:path').join(__dirname, 'native/android/KnowMeUpdateWorker.java'), 'utf8');
   assert.match(worker, /PeriodicWorkRequest\.Builder/);
