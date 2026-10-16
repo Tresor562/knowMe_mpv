@@ -4,6 +4,7 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { API_URL, apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 
 type PublicProfile = {
   header: {
@@ -264,11 +265,7 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                   {profile.header.displayName}
                 </Text>
                 {profile.header.staff?.isTeamMember && profile.header.staff.shield === 'GOLD' ? (
-                  <View style={styles.goldShield} accessible accessibilityRole="image"
-                    accessibilityLabel={profile.header.staff.label + ', ' + profile.header.staff.role}>
-                    <Text style={styles.goldShieldShape}>⬟</Text>
-                    <Text style={styles.goldShieldCheck}>✓</Text>
-                  </View>
+                  <GoldVerifiedBadge size={23} label={profile.header.staff.label + ', ' + profile.header.staff.role} />
                 ) : null}
               </View>
               <Text style={[styles.handle, { color: colors.accent }]}>@{profile.header.username}</Text>
@@ -393,9 +390,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   nameRow: { flexDirection:'row', alignItems:'center', gap:6, minWidth:0 },
   truncatedName: { flexShrink:1 },
-  goldShield: {width:24,height:24,alignItems:'center',justifyContent:'center'},
-  goldShieldShape: {position:'absolute',fontSize:26,lineHeight:29,color:'#d6a02b',includeFontPadding:false},
-  goldShieldCheck: {fontSize:14,fontWeight:'900',color:'#fff',includeFontPadding:false},
   handle: { fontSize: 14, fontWeight: '700' },
   bio: { fontSize: 14, lineHeight: 20, marginTop: 2 },
   since: { fontSize: 12 },
