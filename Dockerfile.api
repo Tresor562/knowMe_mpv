@@ -10,7 +10,10 @@ RUN pnpm install --filter @knowme/api... --frozen-lockfile
 COPY apps/api apps/api
 RUN pnpm --filter @knowme/api prisma:generate
 RUN pnpm --filter @knowme/api... build
-RUN chown node:node /app
+# Git checkout may preserve restrictive 0600 modes (root-owned) on files.
+# Ensure the unprivileged runtime user can read package metadata for
+# Prisma migrations; do not run production API or migrations as root.
+RUN chown -R node:node /app
 
 ENV NODE_ENV=production
 USER node
