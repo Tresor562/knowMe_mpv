@@ -9,6 +9,7 @@ type PublicProfile = {
   header: {
     username: string;
     displayName: string;
+    staff: { isTeamMember: true; label: string; shield: string; role: string } | null;
     avatarUrl: string | null;
     bio: string | null;
     joinedYear: number | null;
@@ -258,7 +259,18 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
               <Avatar uri={profile.header.avatarUrl} name={profile.header.displayName} size={86} ring />
             </View>
             <View style={styles.identity}>
-              <Text style={[styles.name, { color: colors.text }]}>{profile.header.displayName}</Text>
+              <View style={styles.nameRow}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.name, styles.truncatedName, {color:colors.text}]}>
+                  {profile.header.displayName}
+                </Text>
+                {profile.header.staff?.isTeamMember && profile.header.staff.shield === 'GOLD' ? (
+                  <View style={styles.goldShield} accessible accessibilityRole="image"
+                    accessibilityLabel={profile.header.staff.label + ', ' + profile.header.staff.role}>
+                    <Text style={styles.goldShieldShape}>⬟</Text>
+                    <Text style={styles.goldShieldCheck}>✓</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.handle, { color: colors.accent }]}>@{profile.header.username}</Text>
               {profile.privacy.lockedForViewer ? (
                 <Text style={[styles.bio, { color: colors.muted }]}>
@@ -379,6 +391,11 @@ const styles = StyleSheet.create({
   avatarOverlap: { marginTop: -42, paddingHorizontal: 17 },
   identity: { paddingHorizontal: 17, paddingTop: 10, paddingBottom: 18, gap: 8 },
   name: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  nameRow: { flexDirection:'row', alignItems:'center', gap:6, minWidth:0 },
+  truncatedName: { flexShrink:1 },
+  goldShield: {width:24,height:24,alignItems:'center',justifyContent:'center'},
+  goldShieldShape: {position:'absolute',fontSize:26,lineHeight:29,color:'#d6a02b',includeFontPadding:false},
+  goldShieldCheck: {fontSize:14,fontWeight:'900',color:'#fff',includeFontPadding:false},
   handle: { fontSize: 14, fontWeight: '700' },
   bio: { fontSize: 14, lineHeight: 20, marginTop: 2 },
   since: { fontSize: 12 },
