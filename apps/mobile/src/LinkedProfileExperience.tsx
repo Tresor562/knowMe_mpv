@@ -11,6 +11,8 @@ type PublicProfile = {
     username: string;
     displayName: string;
     staff: { isTeamMember: true; label: string; shield: string; role: string } | null;
+    verification?: { isVerified: true; label: string } | null;
+    premium?: { isPremium: true; label: string } | null;
     avatarUrl: string | null;
     bio: string | null;
     joinedYear: number | null;
@@ -267,6 +269,18 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                 {profile.header.staff?.isTeamMember && profile.header.staff.shield === 'GOLD' ? (
                   <GoldVerifiedBadge size={23} label={profile.header.staff.label + ', ' + profile.header.staff.role} />
                 ) : null}
+                {profile.header.verification?.isVerified ? (
+                  <View style={[styles.verifiedBadge, {backgroundColor: colors.accent}]}
+                    accessible accessibilityRole="image" accessibilityLabel={profile.header.verification.label}>
+                    <Text style={styles.verifiedMark}>✓</Text>
+                  </View>
+                ) : null}
+                {profile.header.premium?.isPremium ? (
+                  <View style={styles.premiumBadge} accessible accessibilityRole="image"
+                    accessibilityLabel={profile.header.premium.label}>
+                    <Text style={styles.premiumMark}>◆</Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={[styles.handle, { color: colors.accent }]}>@{profile.header.username}</Text>
               {profile.privacy.lockedForViewer ? (
@@ -389,6 +403,10 @@ const styles = StyleSheet.create({
   identity: { paddingHorizontal: 17, paddingTop: 10, paddingBottom: 18, gap: 8 },
   name: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   nameRow: { flexDirection:'row', alignItems:'center', gap:6, minWidth:0 },
+  verifiedBadge: {width:20,height:20,borderRadius:11,alignItems:'center',justifyContent:'center'},
+  verifiedMark: {color:'#fff',fontWeight:'900',fontSize:13,includeFontPadding:false},
+  premiumBadge: {width:20,height:20,borderRadius:11,alignItems:'center',justifyContent:'center',backgroundColor:'#DA9436'},
+  premiumMark: {color:'#fff',fontWeight:'800',fontSize:13,includeFontPadding:false},
   truncatedName: { flexShrink:1 },
   handle: { fontSize: 14, fontWeight: '700' },
   bio: { fontSize: 14, lineHeight: 20, marginTop: 2 },
