@@ -55,7 +55,7 @@ describe('KnowMe first-party Android APK distribution', () => {
     expect(readHostedAndroidRelease()).toBeNull();
   });
 
-  it('serves only the exact advertised immutable artifact', () => {
+  it('serves only the exact advertised immutable artifact', async () => {
     const apkPath = join(directory, filename);
     writeFileSync(apkPath, '');
     truncateSync(apkPath, base.size);
@@ -64,7 +64,13 @@ describe('KnowMe first-party Android APK distribution', () => {
     expect(release?.versionCode).toBe(10);
     expect(release?.url).toMatch(/sslip\.io\/knowme-api\/mobile-updates\/android\/apk\//);
     expect(openHostedAndroidApk('KnowMe-1.1.7-preview.apk')).toBeNull();
-    expect(openHostedAndroidApk(filename)?.size).toBe(base.size);
-    openHostedAndroidApk(filename)?.stream.destroy();
+    const apk = openHostedAndroidApk(filename);
+    expect(apk?.size).toBe(base.size);
+    if (!apk) throw new Error('Expected hosted APK stream.');
+    await new Promise<void>((resolve, reject) => {
+      apk.stream.once('error', reject);
+      apk.stream.once('end', resolve);
+      apk.stream.resume();
+    });
   });
 });
