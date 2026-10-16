@@ -37,8 +37,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "$VPS_HOST" || -z "$VPS_USER" || -z "$VPS_KEY" || -z "$VPS_HOST_KEY" ]]; then
-            echo "VPS publish is not configured. No binaries will be pushed to unknown hosts."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::error::VPS publishing requires repository secrets KNOWME_VPS_HOST, KNOWME_VPS_SSH_USER, KNOWME_VPS_SSH_PRIVATE_KEY and KNOWME_VPS_HOST_KEY."
+            exit 1
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
