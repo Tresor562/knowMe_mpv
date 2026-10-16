@@ -69,6 +69,32 @@ export function useSession(options: { required?: boolean; realtime?: boolean } =
       const profile = await apiFetch<SessionUser>('/users/me');
       if (generation !== refreshGeneration.current) return;
       setUser(profile);
+      // The deployed VPS may still serve the older /users/me shape without
+      // official badges. Ask our own server to verify this specific account's
+      // e-mail against the owner-approved Gmail list before displaying gold.
+      // A client-provided username/e-mail alone never grants a badge.
+      if (profile.email?.trim().toLowerCase().endsWith('@gmail.com') &&
+          profile.staff?.shield !== 'GOLD') {
+        const token = getAccessToken();
+        if (token) {
+          void fetch('/api/owner-gmail-badge', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+            signal: AbortSignal.timeout(8000)
+          }).then(async (response) => {
+            if (!response.ok) return null;
+            const payload = await response.json() as { staff?: StaffBadge | null };
+            return payload.staff?.shield === 'GOLD' ? payload.staff : null;
+          }).then((staff) => {
+            if (generation !== refreshGeneration.current || !staff) return;
+            setUser((current) => current?.id === profile.id
+              ? { ...current, staff }
+              : current);
+          }).catch(() => {
+            // An unavailable backend must not alter the login session.
+          });
+        }
+      }
       if (realtimeEnabled) {
         getRealtimeSocket();
       }
