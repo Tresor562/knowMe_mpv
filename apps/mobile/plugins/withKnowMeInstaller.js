@@ -65,12 +65,12 @@ function withKnowMeInstaller(config) {
   config = withAppBuildGradle(config, (mod) => {
     const runtime = 'implementation("androidx.work:work-runtime:2.10.2")';
     if (!mod.modResults.contents.includes(runtime)) {
-      if (!/dependencies\\s*\\{/.test(mod.modResults.contents)) {
+      if (!/dependencies\s*\{/.test(mod.modResults.contents)) {
         throw new Error('KnowMe updater: Android Gradle dependencies section missing.');
       }
       mod.modResults.contents = mod.modResults.contents.replace(
-        /dependencies\\s*\\{/,
-        match => match + '\\n    ' + runtime
+        /dependencies\s*\{/,
+        match => match + '\n    ' + runtime
       );
     }
     return mod;
