@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/activate-owner-gmail-badges.yml
       - ops/activate-owner-gmail-badges.cjs
+  workflow_dispatch:
 
 permissions:
   contents: read
