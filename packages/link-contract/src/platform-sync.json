@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "product": "KnowMe",
-  "productVersion": "1.1.6",
-  "contractRevision": "2026-10-16.5",
+  "productVersion": "1.1.7",
+  "contractRevision": "2026-10-16.6",
   "platforms": [
     "web",
     "android"
