@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       staff: {
         isTeamMember: true,
-        label: 'Équipe KnowMe',
+        label: 'Compte certifié KnowMe',
         shield: 'GOLD',
-        role: 'OWNER'
+        role: 'CERTIFIED'
       }
     }, { headers: responseHeaders });
   } catch {
