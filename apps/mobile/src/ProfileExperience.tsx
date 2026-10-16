@@ -580,6 +580,26 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      <PressScale
+        accessibilityRole="button"
+        accessibilityLabel="Ouvrir les versions de KnowMe et vérifier les mises à jour"
+        onPress={() => setPanel('sync')}
+        style={[
+          styles.directUpdateAccess,
+          { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
+        ]}
+      >
+        <KnowMeIcon name="refresh" size={20} color={colors.accent} />
+        <View style={styles.flex}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>
+            Versions et mises à jour
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 11, marginTop: 2 }}>
+            Vérifier KnowMe Android, le site et le serveur
+          </Text>
+        </View>
+        <KnowMeIcon name="arrow" size={18} color={colors.accent} />
+      </PressScale>
       <FadeRise>
         <GlassSurface
           strength="medium"
@@ -992,6 +1012,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
+  directUpdateAccess: { minHeight: 64, borderWidth: 1, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 12 },
   panelContent: { padding: 16, paddingBottom: 30, gap: 12 },
   panelHeader: { minHeight: 52, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
   backButton: { minHeight: 38, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
