@@ -1,0 +1,140 @@
+name: Publish compatible KnowMe Android preview update
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: knowme-android-compatible-preview
+  cancel-in-progress: false
+
+jobs:
+  compatible-preview:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.head_branch == 'main' &&
+         github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: main
+      - name: Require latest tested main commit and new forward-only version
+        id: source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_KIND: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          REMOTE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          [[ "$SOURCE_SHA" == "$REMOTE_SHA" ]] || { echo '::error::Latest main has advanced; wait for its CI.'; exit 1; }
+          if [[ "$TRIGGER_KIND" == "workflow_run" && "$TRIGGER_SHA" != "$SOURCE_SHA" ]]; then
+            echo 'Older workflow completion; skip publication for superseded code.'
+            exit 0
+          fi
+          node scripts/platform-sync-preflight.mjs
+          VERSION="$(node -p 'require("./apps/mobile/app.json").expo.version')"
+          CODE="$(node -p 'require("./apps/mobile/app.json").expo.android.versionCode')"
+          [[ "$CODE" =~ ^[0-9]+$ && "$CODE" -gt 4 ]] ||
+            { echo '::error::Preview updates require versionCode greater than 4.'; exit 1; }
+          [[ "$VERSION" == "$(node -p 'require("./packages/link-contract/src/platform-sync.json").productVersion')" ]] ||
+            { echo '::error::Version mismatch'; exit 1; }
+          TAG="v$VERSION-preview"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "No operation: immutable preview release $TAG exists."
+            exit 0
+          fi
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Validate successful CI and APK build for the same commit
+        if: steps.source.outputs.sha != ''
+        id: artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # A workflow_run event already carries success, but dispatch must also pass both gates.
+          for attempt in $(seq 1 40); do
+            CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA/check-runs?per_page=100")"
+            QUALITY="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name == "quality" and .conclusion == "success")] | length')"
+            APK="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name == "android-apk" and .conclusion == "success")] | length')"
+            if [[ "$QUALITY" -ge 1 && "$APK" -ge 1 ]]; then break; fi
+            if [[ "$attempt" -eq 40 ]]; then
+              echo '::error::CI and Android APK must both succeed on the exact commit.'
+              exit 1
+            fi
+            sleep 20
+          done
+          DATA="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.name == "knowme-android-apk" and .expired == false) | [.created_at, .id, .workflow_run.head_sha, .workflow_run.id] | @tsv' | awk -v sha="$SOURCE_SHA" '$3==sha' | sort -r | head -n1)"
+          [[ -n "$DATA" ]] || { echo '::error::No APK artifact from the same commit.'; exit 1; }
+          RUN_ID="$(printf '%s' "$DATA" | cut -f4)"
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .conclusion)" == 'success' ]] ||
+            { echo '::error::APK producing workflow did not succeed.'; exit 1; }
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .name)" == 'KnowMe APK Build Once' ]] ||
+            { echo '::error::Wrong artifact producer.'; exit 1; }
+          echo "run=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Verify hash, APK identity and compatibility with existing preview installs
+        if: steps.source.outputs.sha != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.source.outputs.version }}
+          CODE: ${{ steps.source.outputs.code }}
+          RUN_ID: ${{ steps.artifact.outputs.run }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name knowme-android-apk --dir dist
+          APK="dist/KnowMe-$VERSION-preview.apk"
+          test -s "$APK"
+          (cd dist && sha256sum -c "KnowMe-$VERSION-preview.apk.sha256")
+          TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$TOOLS/apksigner" verify --print-certs "$APK" > "$RUNNER_TEMP/knowme-preview-signers.txt"
+          CERT="$(awk '/certificate SHA-256 digest:/ {print $NF;exit}' "$RUNNER_TEMP/knowme-preview-signers.txt" | tr 'A-F' 'a-f' | tr -d '\r')"
+          # This is the independently audited v1.1.1 -> v1.1.2 *preview* cert.
+          EXPECTED='fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c'
+          [[ "$CERT" == "$EXPECTED" ]] ||
+            { echo '::error::APK cannot update the existing preview-signature installation. No release published.'; exit 1; }
+          "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.knowme.app' versionCode='$CODE' versionName='$VERSION'"
+          test "$(stat -c %s "$APK")" -gt 10000000
+          unzip -tqq "$APK"
+          SHA256="$(sha256sum "$APK" | cut -d' ' -f1)"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION-preview/KnowMe-$VERSION-preview.apk"
+          node -e 'const fs=require("node:fs"); const m={versionCode:Number(process.argv[1]),version:process.argv[2],url:process.argv[3],sha256:process.argv[4],required:false,notes:"Préversion Android KnowMe : navigation, publications, messages vocaux et stickers. APK de test signée Android Debug, non destinée à la production."};fs.writeFileSync("dist/knowme-update.json",JSON.stringify(m,null,2)+"\n");' "$CODE" "$VERSION" "$URL" "$SHA256"
+      - name: Publish immutable test-channel update manifest and APK
+        if: steps.source.outputs.sha != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          VERSION: ${{ steps.source.outputs.version }}
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)" == "$SOURCE_SHA" ]] ||
+            { echo '::error::Main changed while verifying update; release canceled.'; exit 1; }
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo '::error::Immutable release tag already exists; refusing overwrite.'
+            exit 1
+          fi
+          gh release create "$TAG" "dist/KnowMe-$VERSION-preview.apk" "dist/KnowMe-$VERSION-preview.apk.sha256" dist/knowme-update.json \
+            --target "$SOURCE_SHA" --prerelease \
+            --title "KnowMe $VERSION · mise à jour préversion Android" \
+            --notes 'APK de test signée avec le même certificat Android Debug que les préversions 1.1.1/1.1.2. La mise à jour exige la confirmation Android; les appareils signés avec une autre clé ne sont pas compatibles. Les fonctionnalités non validées sur appareil réel restent en préversion.'
+          echo "Preview published: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
