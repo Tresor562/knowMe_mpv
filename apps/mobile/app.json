@@ -20,7 +20,6 @@
       "./plugins/with-knowme-voice.cjs",
       "./plugins/with-knowme-story-video.cjs",
       "./plugins/withKnowMeInstaller",
-      "./plugins/withKnowMeFirebasePush.cjs",
       "./plugins/withKnowMeNotificationIcon.cjs"
     ],
     "ios": {
