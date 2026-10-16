@@ -20,7 +20,7 @@ export default function AndroidUpdatesPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetch('/api/knowme/mobile-updates/android', {
+    void fetch('/api/updates/android', {
       cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json' }
     }).then(async response => {
       if (!response.ok) throw new Error('Le serveur ne répond pas');
@@ -53,7 +53,7 @@ export default function AndroidUpdatesPage() {
             <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
               {status === 'loading' ? 'Vérification auprès du serveur…'
                 : status === 'unavailable' ? 'Le contrôle automatique est indisponible. Consulte les versions publiées sur GitHub et vérifie leur compatibilité avant toute installation.'
-                  : 'Version Android annoncée par le serveur KnowMe.'}
+                  : 'Préversion vérifiée depuis les publications officielles KnowMe.'}
             </span>
           </div>
           <a href={link} rel="noopener noreferrer" style={{
