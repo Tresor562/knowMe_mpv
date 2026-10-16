@@ -31,7 +31,7 @@ import org.json.JSONObject;
  * No downloads or installations occur in background: the notification only
  * reopens KnowMe, where its existing verified APK installer handles consent. */
 public final class KnowMeUpdateWorker extends Worker {
-  private static final String FEED = "https://knowme-nextech.vercel.app/api/updates/android";
+  private static final String FEED = "https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android";
   private static final String CHANNEL = "knowme_app_updates";
   private static final String WORK = "knowme-periodic-verified-update-check";
   private static final String PREFS = "knowme_update_notifications";
@@ -98,8 +98,8 @@ public final class KnowMeUpdateWorker extends Worker {
       }
       if (!version.matches("[0-9]+\\.[0-9]+\\.[0-9]+") ||
           !digest.matches("(?i)[a-f0-9]{64}") ||
-          !url.equals("https://github.com/Tresor562/knowMe_mpv/releases/download/v" +
-            version + "-preview/KnowMe-" + version + "-preview.apk")) {
+          !url.equals("https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-" +
+            version + "-preview.apk")) {
         return Result.success();
       }
       Context context = getApplicationContext();
