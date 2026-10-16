@@ -6,6 +6,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common';
 import { AccountRecoveryService } from './account-recovery.service';
+import { TransactionalEmailService } from './transactional-email.service';
 
 describe('AccountRecoveryService', () => {
   const user = {
@@ -68,6 +69,30 @@ describe('AccountRecoveryService', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+
+  it('uses Gmail SMTP for the legacy recovery link without exposing delivery failures', async () => {
+    const { prisma, service } = setup({
+      KNOWME_EMAIL_PROVIDER: 'gmail',
+      GMAIL_SMTP_USER: 'knowme.notifications@gmail.com',
+      GMAIL_SMTP_APP_PASSWORD: 'abcdefghijklmnop'
+    });
+    prisma.user.findUnique.mockResolvedValue(user);
+    const transport = jest.spyOn(TransactionalEmailService.prototype, 'send').mockResolvedValue(undefined);
+    const http = jest.spyOn(global, 'fetch');
+    await expect(service.request(user.email)).resolves.toEqual({ accepted: true });
+    expect(transport).toHaveBeenCalledWith(
+      user.email,
+      expect.stringContaining('Réinitialise'),
+      expect.any(String),
+      undefined,
+      expect.objectContaining({
+        label: 'Réinitialiser mon mot de passe',
+        url: expect.stringMatching(/^https:\/\/knowme\.example\.test\/reset-password#token=/)
+      })
+    );
+    expect(http).not.toHaveBeenCalled();
   });
 
   it('returns the same accepted response for an unknown account without contacting the provider', async () => {
