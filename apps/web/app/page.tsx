@@ -23,6 +23,7 @@ export default function Home(){
         <p className="km-auth-subtitle">Accédez à votre compte ou rejoignez la communauté.</p>
         <Link className="km-auth-submit" href="/login">Se connecter</Link>
         <Link className="btn" href="/register" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:47,marginTop:12}}>Créer un compte</Link>
+        <Link href="/update" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:46,marginTop:12,color:'var(--mint)',fontWeight:750,textAlign:'center',textDecoration:'underline',textUnderlineOffset:4}}>Mettre à jour l’application Android</Link>
         <p className="km-auth-help" style={{textAlign:'center',marginTop:20}}>Un espace personnel pour vos conversations.</p>
       </section>
     </main>
