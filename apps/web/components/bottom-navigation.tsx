@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
@@ -37,6 +38,7 @@ export function BottomNavigation() {
   const [keyboardEditing, setKeyboardEditing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [position, setPosition] = useState<NavPosition>('bottom');
+  const [topHeaderSlot, setTopHeaderSlot] = useState<HTMLElement | null>(null);
   const lastScrollY = useRef(0);
   const directionDistance = useRef(0);
   const scrollSource = useRef<EventTarget | null>(null);
@@ -59,6 +61,16 @@ export function BottomNavigation() {
     window.addEventListener('knowme-nav-position-changed', update);
     return () => { window.removeEventListener('storage', update); window.removeEventListener('knowme-nav-position-changed', update); };
   }, []);
+
+  // The upper dock is hosted by the active page header, never fixed above it.
+  useEffect(() => {
+    if (position !== 'top') { setTopHeaderSlot(null); return; }
+    const findSlot = () => setTopHeaderSlot(document.querySelector<HTMLElement>('[data-knowme-header-nav-slot]'));
+    findSlot();
+    const observer = new MutationObserver(findSlot);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pathname, position]);
 
   useEffect(() => {
     setVisible(true);
@@ -136,9 +148,7 @@ export function BottomNavigation() {
     { href: '/messages/new', label: en ? 'Group or message' : 'Groupe ou message' }
   ];
   const hide = !visible || keyboardEditing;
-  return (
-    <>
-      {createOpen && <button type="button" className="km-nav-scrim" aria-label={en ? 'Close create menu' : 'Fermer le menu Créer'} onClick={() => setCreateOpen(false)}/>}
+  const navigation = (
       <nav className={'bottom-nav km-smart-nav' + (hide ? ' is-hidden' : '') + (createOpen ? ' has-create-menu' : '')}
         data-position={position} aria-label={en ? 'Main navigation' : 'Navigation principale'}>
         {items.slice(0, 2).map(item => (
@@ -170,6 +180,13 @@ export function BottomNavigation() {
           </Link>
         ))}
       </nav>
+  );
+  return (
+    <>
+      {createOpen && <button type="button" className="km-nav-scrim"
+        aria-label={en ? 'Close create menu' : 'Fermer le menu Créer'}
+        onClick={() => setCreateOpen(false)}/>}
+      {position === 'top' ? (topHeaderSlot ? createPortal(navigation, topHeaderSlot) : null) : navigation}
     </>
   );
 }

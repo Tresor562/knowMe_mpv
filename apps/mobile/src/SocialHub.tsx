@@ -1,5 +1,5 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   FlatList,
   Pressable,
@@ -40,7 +40,7 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile, onContentScroll, onImmersiveChange }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void; onContentScroll?: (offset: number) => void; onImmersiveChange?: (active: boolean) => void }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile, onContentScroll, onImmersiveChange, topNavigation }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void; onContentScroll?: (offset: number) => void; onImmersiveChange?: (active: boolean) => void; topNavigation?: ReactNode }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
@@ -53,14 +53,18 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <GlassSurface strength="soft" borderRadius={24} style={styles.headerTop}>
-          <View style={styles.headerTitleBlock}>
-            <Text style={[styles.heading, { color: colors.text }]}>{mode === "discover" ? "Suggestions" : mode === "notifications" ? "Notifications" : "Messages"}</Text>
-            <Text style={[styles.headerSub, { color: colors.muted }]}>{mode === "discover" ? "Retrouve des personnes et découvre leurs profils." : mode === "notifications" ? "Tes dernières activités." : "Tes conversations, en direct."}</Text>
+        <GlassSurface strength="soft" borderRadius={24}
+          style={topNavigation ? styles.joinedHeader : styles.headerTop}>
+          <View style={topNavigation ? styles.headerTop : styles.inlineHeader}>
+            <View style={styles.headerTitleBlock}>
+              <Text style={[styles.heading, { color: colors.text }]}>{mode === "discover" ? "Suggestions" : mode === "notifications" ? "Notifications" : "Messages"}</Text>
+              <Text style={[styles.headerSub, { color: colors.muted }]}>{mode === "discover" ? "Retrouve des personnes et découvre leurs profils." : mode === "notifications" ? "Tes dernières activités." : "Tes conversations, en direct."}</Text>
+            </View>
+            <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
+              <KnowMeIcon name={mode === "discover" ? "discover" : mode === "notifications" ? "bell" : "messages"} size={21} color={colors.accent} />
+            </View>
           </View>
-          <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-            <KnowMeIcon name={mode === "discover" ? "discover" : mode === "notifications" ? "bell" : "messages"} size={21} color={colors.accent} />
-          </View>
+          {topNavigation}
         </GlassSurface>
         {mode === "messages" && <GlassSurface strength="soft" borderRadius={22} style={styles.segmented}>
           {(['friends', 'messages', 'notifications'] as const).map((value) => (
@@ -529,6 +533,8 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingHorizontal: 14, paddingTop: 6, gap: 7 },
+  joinedHeader: { overflow: 'hidden', padding: 0 },
+  inlineHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitleBlock: { flex: 1 },
   headerSub: { fontSize: 10.5, marginTop: 0 },

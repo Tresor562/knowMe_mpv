@@ -65,6 +65,7 @@ export default function DiscoverPage() {
   if (sessionLoading || !user) return <main className="shell"><p>{en ? 'Loading…' : 'Chargement…'}</p></main>;
   return (
     <main className="shell km-discover-native">
+      <div className="km-header-nav-group">
       <header className="km-discover-header">
         <div>
           <h1>{en ? 'Discover' : 'Suggestions'}</h1>
@@ -76,6 +77,8 @@ export default function DiscoverPage() {
           </svg>
         </Link>
       </header>
+      <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
+      </div>
       <form className="km-discover-search" onSubmit={searchPeople}>
         <input aria-label={en ? 'Search people' : 'Rechercher des personnes'} value={query}
           onChange={event => setQuery(event.target.value)} minLength={2}

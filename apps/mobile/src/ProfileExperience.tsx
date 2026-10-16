@@ -222,7 +222,7 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, dockPreferences, onDockPreferencesChange }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, dockPreferences, onDockPreferencesChange, topNavigation }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
@@ -232,6 +232,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   onSubscreenChange?: (active: boolean) => void;
   dockPreferences: DockPreferences;
   onDockPreferencesChange: (next: DockPreferences) => void;
+  topNavigation?: ReactNode;
 }) {
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -602,6 +603,15 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      {topNavigation ? (
+        <GlassSurface strength="soft" borderRadius={25} style={styles.attachedHeaderGroup}>
+          <View style={styles.attachedHeaderTitle}>
+            <Text style={[styles.attachedHeaderText, { color: colors.text }]}>Profil</Text>
+            <KnowMeIcon name="profile" size={22} color={colors.accent} />
+          </View>
+          {topNavigation}
+        </GlassSurface>
+      ) : null}
       <PressScale
         accessibilityRole="button"
         accessibilityLabel="Ouvrir les versions de KnowMe et vérifier les mises à jour"
@@ -1041,6 +1051,9 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 }
 
 const styles = StyleSheet.create({
+  attachedHeaderGroup: { marginBottom: 8, padding: 0, overflow: 'hidden' },
+  attachedHeaderTitle: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  attachedHeaderText: { fontSize: 20, fontWeight: '800' },
   flex: { flex: 1 },
   root: { flex: 1 },
   directUpdateAccess: { minHeight: 64, borderWidth: 1, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 12 },

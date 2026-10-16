@@ -2299,3 +2299,108 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
   -webkit-backdrop-filter: none;
   background: var(--surface);
 }
+
+
+/* KnowMe: upper navigation is a joined header component, not a floating dock. */
+.km-header-nav-group:not(:has(.km-smart-nav[data-position='top'])) {
+  display: contents;
+}
+.km-profile-nav-group:not(:has(.km-smart-nav[data-position='top'])) {
+  display: none;
+}
+.km-header-nav-group:has(.km-smart-nav[data-position='top']) {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  background: var(--nav-glass);
+  border: 1px solid var(--soft-border);
+  border-radius: 24px;
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  box-shadow: none;
+  margin-bottom: 12px;
+}
+.km-header-nav-group:has(.km-smart-nav[data-position='top']) > header {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 24px 24px 0 0;
+  margin: 0;
+  padding: 12px 16px;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.km-joined-nav-slot:empty { display: none; }
+.km-joined-nav-slot:not(:empty) { display: block; width: 100%; min-width: 0; }
+.km-header-nav-group .bottom-nav.km-smart-nav[data-position='top'] {
+  position: relative;
+  inset: auto;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  display: grid;
+  width: 100%;
+  max-width: none;
+  min-height: 60px;
+  margin: 0;
+  padding: 4px 6px;
+  transform: none;
+  opacity: 1;
+  border: 0;
+  border-top: 1px solid var(--soft-border);
+  border-radius: 0 0 23px 23px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  will-change: opacity;
+  transition: opacity .2s ease, visibility .2s ease;
+}
+.km-header-nav-group .bottom-nav.km-smart-nav[data-position='top'].is-hidden {
+  transform: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.km-header-nav-group:has(.km-smart-nav.has-create-menu) { z-index: 930; }
+.km-header-nav-group .km-smart-nav[data-position='top'] .km-nav-create-menu {
+  top: calc(100% + 10px);
+  bottom: auto;
+}
+.km-profile-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  font-size: 20px;
+  font-weight: 750;
+}
+.km-profile-inline-header::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--mint);
+  border-radius: 50%;
+  opacity: .7;
+}
+@media (max-width: 390px) {
+  .km-header-nav-group:has(.km-smart-nav[data-position='top']) {
+    border-radius: 22px;
+  }
+  .km-header-nav-group .bottom-nav.km-smart-nav[data-position='top'] {
+    border-radius: 0 0 21px 21px;
+  }
+}
+:root[data-reduce-transparency='true'] .km-header-nav-group:has(.km-smart-nav[data-position='top']) {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-header-nav-group .bottom-nav.km-smart-nav[data-position='top'] { transition: none; }
+}

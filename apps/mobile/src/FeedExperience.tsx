@@ -1,5 +1,5 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
   Image,
@@ -404,7 +404,8 @@ export function FeedExperience({
   openComposerRequest = false,
   onComposerOpened,
   onContentScroll,
-  onDetailChange
+  onDetailChange,
+  topNavigation
 }: {
   userId: string;
   initialPostId?: string | null;
@@ -420,6 +421,7 @@ export function FeedExperience({
   onComposerOpened?: () => void;
   onContentScroll?: (offset: number) => void;
   onDetailChange?: (open: boolean) => void;
+  topNavigation?: ReactNode;
 }) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
@@ -576,17 +578,21 @@ export function FeedExperience({
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <GlassSurface strength="soft" borderRadius={28} style={styles.discoverHeader}>
-            <View style={styles.discoverBrand}>
-              <BrandMark size={30} />
-              <View>
-                <Text style={[styles.heading, { color: colors.text }]}>{mode === "home" ? "KnowMe" : "Discover"}</Text>
-                <Text style={[styles.discoverSub, { color: colors.muted }]}>{mode === "home" ? "Fil d’actualité" : "Découvre de nouveaux contenus."}</Text>
+          <GlassSurface strength="soft" borderRadius={topNavigation ? 26 : 28}
+            style={topNavigation ? styles.joinedHeader : styles.discoverHeader}>
+            <View style={topNavigation ? styles.discoverHeader : styles.inlineHeader}>
+              <View style={styles.discoverBrand}>
+                <BrandMark size={30} />
+                <View>
+                  <Text style={[styles.heading, { color: colors.text }]}>{mode === "home" ? "KnowMe" : "Discover"}</Text>
+                  <Text style={[styles.discoverSub, { color: colors.muted }]}>{mode === "home" ? "Fil d’actualité" : "Découvre de nouveaux contenus."}</Text>
+                </View>
               </View>
+              <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
+                <KnowMeIcon name="discover" size={22} color={colors.accent} />
+              </GlassSurface>
             </View>
-            <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
-              <KnowMeIcon name="discover" size={22} color={colors.accent} />
-            </GlassSurface>
+            {topNavigation}
           </GlassSurface>
           <Pressable
             accessibilityRole="button"
@@ -673,6 +679,8 @@ export function FeedExperience({
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28, gap: 8 },
   headerBlock: { gap: 10, marginBottom: 2 },
+  joinedHeader: { overflow: 'hidden', padding: 0 },
+  inlineHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   quickComposer:{minHeight:60,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,paddingHorizontal:6,paddingVertical:8},
   quickPrompt:{flex:1,minHeight:42,borderRadius:21,justifyContent:'center',paddingHorizontal:14},
   postMenu:{position:'absolute',right:0,top:9,minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:21,zIndex:2},

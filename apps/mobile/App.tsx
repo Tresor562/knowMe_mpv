@@ -1073,21 +1073,8 @@ function BottomNavigation({
     );
   }
 
-  return (
-    <Animated.View pointerEvents={visible ? 'box-none' : 'none'}
-      accessibilityElementsHidden={!visible}
-      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
-      style={[styles.bottomDockWrap,position==='top'?styles.topDockWrap:null,{
-        opacity:progress,
-        transform:[{translateY:progress.interpolate({
-          inputRange:[0,1],outputRange:[position==='top'?-105:105,0]
-        })}]
-      }]}>
-      <GlassSurface
-        strength="medium"
-        borderRadius={30}
-        style={styles.bottomBar}
-      >
+  const navigationItems = (
+    <>
         {items.slice(0, 2).map((item) => (
           <NavItem
             key={item.key}
@@ -1103,6 +1090,7 @@ function BottomNavigation({
             onPress={onCreate}
             style={[
               styles.createNavButton,
+              position === 'top' ? styles.attachedCreateNavButton : null,
               {
                 backgroundColor: colors.accent,
                 borderColor: colors.surfaceGlass
@@ -1137,7 +1125,33 @@ function BottomNavigation({
             }
           />
         ))}
-      </GlassSurface>
+    </>
+  );
+
+  return (
+    <Animated.View
+      pointerEvents={visible ? 'box-none' : 'none'}
+      accessibilityElementsHidden={!visible}
+      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
+      style={position === 'top'
+        ? [styles.topDockAttached, { opacity: progress }]
+        : [styles.bottomDockWrap, {
+            opacity: progress,
+            transform: [{ translateY: progress.interpolate({
+              inputRange: [0, 1], outputRange: [105, 0]
+            }) }]
+          }]
+      }
+    >
+      {position === 'top' ? (
+        <View style={[styles.topDockBar, { borderTopColor: colors.border }]}>
+          {navigationItems}
+        </View>
+      ) : (
+        <GlassSurface strength="medium" borderRadius={30} style={styles.bottomBar}>
+          {navigationItems}
+        </GlassSurface>
+      )}
     </Animated.View>
   );
 }
@@ -1365,6 +1379,21 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     );
   }
 
+  const navigation = (
+    <BottomNavigation
+      screen={screen}
+      visible={shouldShowDock({
+        screen, keyboardVisible, createOpen, profileSubscreenActive,
+        postDetailOpen, socialImmersive, scrollVisible: dockScrollVisible,
+        autoHide: dockPreferences.autoHide
+      })}
+      position={dockPreferences.position}
+      onNavigate={(next) => setScreen(next)}
+      onCreate={() => setCreateOpen(true)}
+    />
+  );
+  const topNavigation = dockPreferences.position === 'top' ? navigation : undefined;
+
   return (
     <ProfileNavigationProvider onOpenProfile={openUserProfile}>
     <SafeAreaView
@@ -1416,6 +1445,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             initialCommentId={linkedCommentId}
             onContentScroll={onFeedScroll}
             onDetailChange={setPostDetailOpen}
+            topNavigation={topNavigation}
           />
         ) : null}
 
@@ -1426,6 +1456,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             mode="discover"
             onOpenProfile={openUserProfile}
             onContentScroll={onFeedScroll}
+            topNavigation={topNavigation}
           />
         ) : null}
 
@@ -1436,6 +1467,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             mode="notifications"
             onOpenProfile={openUserProfile}
             onContentScroll={onFeedScroll}
+            topNavigation={topNavigation}
           />
         ) : null}
 
@@ -1449,6 +1481,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onOpenProfile={openUserProfile}
             onContentScroll={onFeedScroll}
             onImmersiveChange={setSocialImmersive}
+            topNavigation={topNavigation}
           />
         ) : null}
 
@@ -1492,6 +1525,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onSubscreenChange={setProfileSubscreenActive}
             dockPreferences={dockPreferences}
             onDockPreferencesChange={updateDockPreferences}
+            topNavigation={topNavigation}
           />
         ) : null}
 
@@ -1505,16 +1539,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      <BottomNavigation
-        screen={screen}
-        visible={shouldShowDock({
-          screen, keyboardVisible, createOpen, profileSubscreenActive,
-          postDetailOpen, socialImmersive, scrollVisible:dockScrollVisible,autoHide:dockPreferences.autoHide
-        })}
-        position={dockPreferences.position}
-        onNavigate={(next) => setScreen(next)}
-        onCreate={() => setCreateOpen(true)}
-      />
+      {dockPreferences.position === 'bottom' ? navigation : null}
 
       <CreateHub
         visible={createOpen}
@@ -1554,7 +1579,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { flex: 1 },
   bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
-  bodyWithTopDock: { paddingTop: 74 },
+  bodyWithTopDock: { paddingTop: 0 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
@@ -2125,7 +2150,25 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 10 : 8,
     zIndex: 50
   },
-  topDockWrap: {bottom:undefined,top:8},
+  // In the top preference the navigation belongs to the screen header: it is not floating.
+  topDockAttached: {
+    alignSelf: 'stretch',
+    width: '100%',
+    position: 'relative',
+    zIndex: 1
+  },
+  topDockBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 60,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderTopWidth: StyleSheet.hairlineWidth
+  },
+  attachedCreateNavButton: {
+    shadowOpacity: 0,
+    elevation: 0
+  },
   bottomBar: {
     minHeight: 64,
     borderRadius: 28,
