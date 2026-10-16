@@ -20,7 +20,7 @@ cette mise à jour soit installée. NE PAS DÉSINSTALLER la version installée.
 
 ## Stockage et endpoints
 
-Répertoire hôte : /var/lib/nex/runtime/knowme/updates
+Répertoire hôte : /var/lib/knowme-android-updates
 Montage Docker en lecture seule : /srv/knowme-updates
 Manifeste atomique : android-preview.json
 
@@ -44,35 +44,43 @@ le conteneur et préserve la procédure de retour arrière de l'API.
 La modification GitHub ne redéploie pas automatiquement ce VPS. Vérifier
 l'endpoint de santé et le manifeste depuis la connexion HTTPS publique.
 
-## 2 — Configurer l'envoi automatique des APK compilées vers le VPS
+## 2 — Synchronisation automatique sans clés GitHub→VPS
 
-Installer Node.js 22+ ainsi que les Android SDK build-tools, pour disposer
-de apksigner et aapt sur le VPS (vérification indépendante du runner CI).
-Le compte SSH de publication doit pouvoir écrire dans le répertoire hôte
-/var/lib/nex/runtime/knowme/updates, qui reste monté en lecture seule côté
-API. Préférer un compte de publication dédié et accès limité.
+Le workflow GitHub qui réclamait des clés SSH a été retiré. Aucune clé
+privée VPS ne doit être enregistrée dans GitHub pour distribuer KnowMe.
 
-Dans les GitHub Actions Secrets (NE JAMAIS les envoyer dans le chat) :
+**Pré-requis** : Node.js 22+, `apksigner`, `aapt` et une copie à jour de
+KnowMe dans `/opt/nex/apps/public/knowme/source`. Ces prérequis
+s'installent une fois sur le VPS via un accès administrateur existant.
 
-- KNOWME_VPS_HOST : l'hôte SSH vérifié du VPS.
-- KNOWME_VPS_SSH_USER : compte autorisé à publier les APK.
-- KNOWME_VPS_SSH_PRIVATE_KEY : clé privée dédiée.
-- KNOWME_VPS_HOST_KEY : ligne known_hosts obtenue et validée hors bande.
+Installer le minuteur local en tant qu'administrateur :
 
-Le workflow .github/workflows/knowme-vps-android-update.yml attend la
-réussite des tests et de la compilation sur le même commit, vérifie la
-signature historique des préversions, puis transmet l'APK sur le VPS par SSH.
-Il ne fait rien si un des quatre secrets est absent. Le VPS doit lui-même
-posséder apksigner et aapt dans le PATH du compte SSH (ou via
-KNOWME_APKSIGNER_PATH et KNOWME_AAPT_PATH).
+```bash
+sudo bash /opt/nex/apps/public/knowme/source/ops/install-knowme-android-pull-timer.sh
+sudo systemctl status knowme-android-updates.timer
+```
 
-La publication manuelle reste possible sans CI externe :
+Le timer `knowme-android-updates.timer` consulte toutes les cinq minutes
+les préversions publiques de KnowMe sur GitHub. Il ne télécharge que
+l'APK officielle et le manifeste correspondant, vérifie la somme SHA-256,
+puis vérifie localement le package Android, le `versionCode` et
+la signature via `apksigner` / `aapt`. Le manifeste public
+`android-preview.json` n'est remplacé qu'une fois les contrôles réussis.
 
-node ops/publish-knowme-android-vps.mjs /tmp/KnowMe-1.1.8-preview.apk 1.1.8 10
+Le compte de service `knowme-updates` n'a pas de shell ni de droits
+administrateur ; seul `/var/lib/knowme-android-updates` lui est accessible
+en écriture. GitHub ne peut donc pas se connecter directement au VPS.
 
-Ce script refuse les signatures incorrectes, les versions régressives,
-les collisions de versionCode et les APK dont l'identité ne correspond
-pas. Il vérifie l'empreinte et remplace le manifeste atomiquement.
+Après l'installation, le **site et les APK clientes** ne dépendent plus
+de GitHub pour consulter ou télécharger une mise à jour : le VPS sert
+l'APK. En revanche, **la synchronisation du code source et des nouvelles
+préversions sur le VPS reste liée à GitHub**. Cette architecture n'est
+pas une indépendance totale de l'ensemble des fournisseurs externes.
+
+Cette configuration n'est active que lorsque l'agent NexControl / une
+session d'administration a réellement installé le timer et déployé
+l'API mise à jour avec son montage de distribution. Une modification
+GitHub seule ne remplace pas une installation sur le VPS.
 
 ## 3 — Vérifications après mise en service
 
