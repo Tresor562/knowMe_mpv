@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityContext } from '../security/security.service';
+import { TransactionalEmailService } from './transactional-email.service';
 
 type RecoveryPayload = {
   v: 1;
@@ -37,10 +38,13 @@ export class AccountRecoveryService {
     const apiKey = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_API_KEY');
     const from = this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
     const webUrl = this.config.get<string>('WEB_URL');
-
-    if (!secret || secret.length < 32 || !endpoint || !apiKey || !from || !webUrl) {
+    const gmail = this.config.get<string>('KNOWME_EMAIL_PROVIDER')?.toLowerCase() === 'gmail';
+    // Keep legacy Resend configuration intact, while permitting the very same
+    // recovery link flow over the authenticated Gmail provider.
+    if (!secret || secret.length < 32 || !webUrl || (!gmail && (!endpoint || !apiKey || !from))) {
       throw new ServiceUnavailableException('La récupération de compte est temporairement indisponible.');
     }
+    if (gmail) new TransactionalEmailService(this.config).assertReady();
 
     const audience = this.recoveryAudience(webUrl);
     const email = emailInput.trim().toLowerCase();
@@ -65,7 +69,16 @@ export class AccountRecoveryService {
     const resetUrl = `${audience}/reset-password#token=${encodeURIComponent(token)}`;
 
     try {
-      const response = await fetch(endpoint, {
+      if (gmail) {
+        await new TransactionalEmailService(this.config).send(
+          user.email,
+          'Réinitialise ton mot de passe KnowMe',
+          'Une réinitialisation de mot de passe a été demandée pour ton compte KnowMe. Ce lien expire dans 15 minutes. Si tu n’es pas à l’origine de cette demande, ignore cet e-mail.',
+          undefined,
+          { url: resetUrl, label: 'Réinitialiser mon mot de passe' }
+        );
+      } else {
+      const response = await fetch(endpoint!, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -85,6 +98,7 @@ export class AccountRecoveryService {
           providerStatus: response.status
         });
         return { accepted: true };
+      }
       }
     } catch {
       await this.writeAudit('ACCOUNT_RECOVERY_DELIVERY_FAILED', user.id, context, {
