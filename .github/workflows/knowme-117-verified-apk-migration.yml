@@ -1,0 +1,89 @@
+name: Publish verified KnowMe 1.1.7 Android migration preview
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  actions: read
+  issues: read
+
+concurrency:
+  group: knowme-android-compatible-preview
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.issue.user.id == 232972883 &&
+      github.event.issue.title == '[KNOWME/APK] Publish verified preview 1.1.7'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      GH_TOKEN: {{ github.token }}
+      VERIFIED_SHA: 8e1a696ae9c46dc6b304e74cd873a1a379891301
+      VERIFIED_CI_RUN: '38970987307'
+      VERIFIED_APK_RUN: '38970987221'
+      VERSION: '1.1.7'
+      CODE: '9'
+      EXPECTED_CERT: fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 8e1a696ae9c46dc6b304e74cd873a1a379891301
+          persist-credentials: false
+      - name: Require immutable verified source and independent CI results
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$VERIFIED_SHA" ]]
+          [[ "$(node -p 'require("./apps/mobile/app.json").expo.version')" == "$VERSION" ]]
+          [[ "$(node -p 'require("./apps/mobile/app.json").expo.android.versionCode')" == "$CODE" ]]
+          node scripts/platform-sync-preflight.mjs
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_CI_RUN" --jq .head_sha)" == "$VERIFIED_SHA" ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_CI_RUN" --jq .conclusion)" == success ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_APK_RUN" --jq .head_sha)" == "$VERIFIED_SHA" ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_APK_RUN" --jq .conclusion)" == success ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_APK_RUN" --jq .name)" == 'KnowMe APK Build Once' ]]
+          if gh release view "v$VERSION-preview" >/dev/null 2>&1; then
+            echo "Verified release already published; leaving immutable assets unchanged."
+            exit 0
+          fi
+      - name: Download and verify exact CI-generated Android APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download "$VERIFIED_APK_RUN" --repo "$GITHUB_REPOSITORY" --name knowme-android-apk --dir dist
+          APK="dist/KnowMe-$VERSION-preview.apk"
+          [[ -s "$APK" ]]
+          (cd dist && sha256sum -c "KnowMe-$VERSION-preview.apk.sha256")
+          TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$TOOLS/apksigner" verify --print-certs "$APK" > "$RUNNER_TEMP/knowme-117-signers.txt"
+          CERT="$(awk '/certificate SHA-256 digest:/ {print $NF;exit}' "$RUNNER_TEMP/knowme-117-signers.txt" | tr 'A-F' 'a-f' | tr -d '\r')"
+          [[ "$CERT" == "$EXPECTED_CERT" ]] || { echo "::error::APK incompatible with installed previews"; exit 1; }
+          "$TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.knowme.app' versionCode='$CODE' versionName='$VERSION'"
+          unzip -tqq "$APK"
+          [[ "$(stat -c %s "$APK")" -gt 10000000 ]]
+          DIGEST="$(sha256sum "$APK" | cut -d' ' -f1)"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION-preview/KnowMe-$VERSION-preview.apk"
+          node -e 'const fs=require("node:fs"); fs.writeFileSync("dist/knowme-update.json",JSON.stringify({versionCode:Number(process.argv[1]),version:process.argv[2],url:process.argv[3],sha256:process.argv[4],notes:"KnowMe 1.1.7 : mise à jour de transition vers la distribution autonome et les notifications KnowMe.",required:false},null,2)+"\n")' "$CODE" "$VERSION" "$URL" "$DIGEST"
+      - name: Publish once without modifying any existing release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_CI_RUN" --jq .conclusion)" == success ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFIED_APK_RUN" --jq .conclusion)" == success ]]
+          if gh release view "v$VERSION-preview" >/dev/null 2>&1; then
+            echo '::error::Release already exists; refusing overwrite.'
+            exit 1
+          fi
+          gh release create "v$VERSION-preview" \
+            "dist/KnowMe-$VERSION-preview.apk" \
+            "dist/KnowMe-$VERSION-preview.apk.sha256" \
+            dist/knowme-update.json \
+            --target "$VERIFIED_SHA" --prerelease \
+            --title "KnowMe $VERSION · mise à jour Android vérifiée" \
+            --notes 'APK de préversion issue du build Android validé avec la CI du même commit. Certificat historique et empreinte SHA-256 vérifiés. Nécessite la confirmation Android ; téléchargement automatique ensuite depuis le VPS KnowMe.'
+          echo "Published $VERSION from tested commit $VERIFIED_SHA" >> "$GITHUB_STEP_SUMMARY"
