@@ -2170,3 +2170,30 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
 @media(prefers-reduced-motion:reduce){
   .km-feed-editor-overlay,.km-feed-editor-form,.km-post-menu-items{transition:none!important}
 }
+
+
+/* Sticker content is interactive media, never an ordinary photo card. */
+.km-sticker-actions-panel{width:min(92vw,410px);margin:auto;padding:12px 16px 24px;
+  border-radius:22px;background:var(--surface, #151923);border:1px solid var(--soft-border)}
+.km-sticker-actions-panel .km-chat-media-viewer-bar{margin:0 -2px 8px}
+.km-sticker-actions-panel .km-chat-media-viewer-bar button{height:44px;width:44px;
+  border:0;border-radius:22px;background:rgba(255,255,255,.08);color:inherit;cursor:pointer}
+.km-sticker-actions-panel .km-chat-media-viewer-bar svg{width:22px;height:22px}
+.km-sticker-actions-image{width:100%;height:min(43vh,290px);object-fit:contain}
+.km-sticker-actions-buttons{display:grid;gap:8px;margin-top:12px}
+.km-sticker-actions-buttons button,.km-sticker-actions-buttons a{min-height:46px;border:0;
+  border-radius:14px;padding:12px 16px;text-align:left;background:var(--surface-2);
+  color:var(--text);font:inherit;font-size:14px;font-weight:680;text-decoration:none;cursor:pointer}
+.km-sticker-actions-buttons :is(button,a):focus-visible{outline:2px solid var(--mint)}
+.km-sticker-actions-meta{color:var(--muted);font-size:12px;margin:12px 0 0}
+.km-chat-glyph-sticker{position:relative;width:max-content;max-width:100%;min-width:90px}
+.km-chat-glyph-sticker>summary{cursor:pointer;list-style:none;display:grid;
+  place-items:center;gap:4px;min-height:72px}
+.km-chat-glyph-sticker>summary::-webkit-details-marker{display:none}
+.km-chat-glyph-sticker>summary small{font-size:12px;opacity:.8}
+.km-chat-glyph-sticker-actions{display:grid;gap:4px;min-width:175px;padding:9px;
+  border-radius:14px;background:var(--surface-2);border:1px solid var(--soft-border)}
+.km-chat-glyph-sticker-actions strong{font-size:12px;padding:4px 7px}
+.km-chat-glyph-sticker-actions a{padding:9px 7px;border-radius:9px;
+  text-decoration:none;color:var(--text);font-size:13px}
+.km-chat-glyph-sticker-actions a:hover{background:var(--surface)}
