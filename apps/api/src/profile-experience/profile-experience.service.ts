@@ -504,12 +504,13 @@ export class ProfileExperienceService {
         avatarUrl: true,
         createdAt: true,
         role: true,
+        isSuspended: true,
         staffAccount: { select: staffAccountSelect },
         verificationRequests: verificationRequestSelect,
         entitlementGrants: premiumEntitlementSelect(now)
       }
     });
-    if (!target) throw new NotFoundException('Profil introuvable.');
+    if (!target || target.isSuspended) throw new NotFoundException('Profil introuvable.');
 
     const profile = await this.ensureProfile(target.id);
     const relation = await this.resolveViewerRelation(target.id, viewerId);
