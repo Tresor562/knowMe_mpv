@@ -18,7 +18,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
+  useWindowDimensions
 } from 'react-native';
 import {
   apiFetch,
@@ -999,6 +1000,8 @@ function BottomNavigation({
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
+  const { width: viewportWidth } = useWindowDimensions();
+  const compact = viewportWidth < 380;
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [reduceMotion,setReduceMotion] = useState(false);
 
@@ -1058,10 +1061,10 @@ function BottomNavigation({
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.72}
-          maxFontSizeMultiplier={1.08}
+          maxFontSizeMultiplier={1.15}
           style={[
             styles.bottomLabel,
-            { color: active ? colors.accent : colors.muted }
+            { fontSize: compact ? 9 : 10, color: active ? colors.accent : colors.muted }
           ]}
         >
           {item.label}
@@ -1117,8 +1120,8 @@ function BottomNavigation({
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.72}
-            maxFontSizeMultiplier={1.08}
-            style={[styles.createNavLabel, { color: colors.accent }]}
+            maxFontSizeMultiplier={1.15}
+            style={[styles.createNavLabel, { fontSize: compact ? 9 : 10, color: colors.accent }]}
           >
             {t('nav.create')}
           </Text>
@@ -2117,45 +2120,55 @@ const styles = StyleSheet.create({
 
   bottomDockWrap: {
     position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: Platform.OS === 'ios' ? 9 : 8,
+    left: 10,
+    right: 10,
+    bottom: Platform.OS === 'ios' ? 10 : 8,
     zIndex: 50
   },
   topDockWrap: {bottom:undefined,top:8},
   bottomBar: {
-    minHeight: 60,
-    borderRadius: 26,
+    minHeight: 64,
+    borderRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 3,
-    paddingVertical: 4
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+    overflow: 'visible'
   },
   bottomItem: {
     flex: 1,
     minWidth: 0,
-    minHeight: 46,
+    minHeight: 51,
+    maxWidth: '100%',
+    overflow: 'hidden',
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2
+    paddingHorizontal: 1,
+    gap: 3
   },
   bottomLabel: {
     width: '100%',
+    maxWidth: '100%',
+    overflow: 'hidden',
     textAlign: 'center',
-    fontSize: 8,
+    includeFontPadding: false,
+    lineHeight: 13,
+    fontSize: 10,
     fontWeight: '700'
   },
   createSlot: {
     flex: 1,
     minWidth: 0,
+    maxWidth: '100%',
     alignItems: 'center',
-    marginTop: -14
+    justifyContent: 'center',
+    marginTop: -6
   },
   createNavButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2167,8 +2180,12 @@ const styles = StyleSheet.create({
   },
   createNavLabel: {
     width: '100%',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    includeFontPadding: false,
+    lineHeight: 13,
     textAlign: 'center',
-    fontSize: 8.5,
+    fontSize: 10,
     fontWeight: '800',
     marginTop: 2
   }

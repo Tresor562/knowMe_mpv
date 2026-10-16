@@ -39,6 +39,7 @@ export function BottomNavigation() {
   const [position, setPosition] = useState<NavPosition>('bottom');
   const lastScrollY = useRef(0);
   const directionDistance = useRef(0);
+  const scrollSource = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     const update = () => setHasSession(Boolean(window.localStorage.getItem('knowme_token')));
@@ -64,12 +65,23 @@ export function BottomNavigation() {
     setCreateOpen(false);
     lastScrollY.current = window.scrollY;
     directionDistance.current = 0;
+    scrollSource.current = null;
   }, [pathname]);
 
   useEffect(() => {
-    const onScroll = () => {
+    const onScroll = (event: Event) => {
       if (createOpen || keyboardEditing) return;
-      const now = Math.max(0, window.scrollY);
+      // Nested scroll containers are used by the feed and messaging screens.
+      const source = event.target;
+      const now = source instanceof HTMLElement
+        ? Math.max(0, source.scrollTop)
+        : Math.max(0, window.scrollY);
+      if (scrollSource.current !== source) {
+        scrollSource.current = source;
+        lastScrollY.current = now;
+        directionDistance.current = 0;
+        return;
+      }
       const previous = lastScrollY.current;
       const delta = now - previous;
       if (now < 24) {
@@ -94,12 +106,12 @@ export function BottomNavigation() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setCreateOpen(false);
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('scroll', onScroll, true);
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
       document.removeEventListener('keydown', onKeyDown);
@@ -109,10 +121,10 @@ export function BottomNavigation() {
   // Secondary screens own their back controls, not the global navigation.
   if (!hasSession || !ROOT_ROUTES.has(pathname)) return null;
 
-  const items: { href: string; label: string; icon: IconName; matches: string[] }[] = [
+  const items: { href: string; label: string; compactLabel?: string; icon: IconName; matches: string[] }[] = [
     { href: '/feed', label: en ? 'Home' : 'Accueil', icon: 'home', matches: ['/feed', '/dashboard'] },
-    { href: '/discover', label: en ? 'Discover' : 'Suggestions', icon: 'discover', matches: ['/discover'] },
-    { href: '/notifications', label: en ? 'Alerts' : 'Notifications', icon: 'notifications', matches: ['/notifications'] },
+    { href: '/discover', label: en ? 'Discover' : 'Suggestions', compactLabel: en ? 'Discover' : 'Découvrir', icon: 'discover', matches: ['/discover'] },
+    { href: '/notifications', label: en ? 'Alerts' : 'Notifications', compactLabel: en ? 'Alerts' : 'Alertes', icon: 'notifications', matches: ['/notifications'] },
     { href: '/messages', label: en ? 'Messages' : 'Messages', icon: 'chats', matches: ['/messages'] },
     { href: '/profile', label: en ? 'Profile' : 'Profil', icon: 'profile', matches: ['/profile'] }
   ];
@@ -131,9 +143,11 @@ export function BottomNavigation() {
         data-position={position} aria-label={en ? 'Main navigation' : 'Navigation principale'}>
         {items.slice(0, 2).map(item => (
           <Link key={item.href} href={item.href} aria-current={item.matches.includes(pathname) ? 'page' : undefined}
+            aria-label={item.label}
             className={'bottom-nav-item' + (item.matches.includes(pathname) ? ' is-active' : '')}>
             <span className="bottom-nav-icon"><NavIcon name={item.icon}/></span>
-            <span className="bottom-nav-label">{item.label}</span>
+            <span className={'bottom-nav-label' + (item.compactLabel ? ' km-nav-label-full' : '')}>{item.label}</span>
+            {item.compactLabel && <span aria-hidden="true" className="bottom-nav-label km-nav-label-compact">{item.compactLabel}</span>}
           </Link>
         ))}
         <div className="km-nav-create-wrap">
@@ -148,9 +162,11 @@ export function BottomNavigation() {
         </div>
         {items.slice(2).map(item => (
           <Link key={item.href} href={item.href} aria-current={item.matches.includes(pathname) ? 'page' : undefined}
+            aria-label={item.label}
             className={'bottom-nav-item' + (item.matches.includes(pathname) ? ' is-active' : '')}>
             <span className="bottom-nav-icon"><NavIcon name={item.icon}/></span>
-            <span className="bottom-nav-label">{item.label}</span>
+            <span className={'bottom-nav-label' + (item.compactLabel ? ' km-nav-label-full' : '')}>{item.label}</span>
+            {item.compactLabel && <span aria-hidden="true" className="bottom-nav-label km-nav-label-compact">{item.compactLabel}</span>}
           </Link>
         ))}
       </nav>
