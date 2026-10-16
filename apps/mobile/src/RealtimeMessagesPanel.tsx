@@ -121,12 +121,14 @@ export function RealtimeMessagesPanel({
   setRefreshing,
   linkedConversationId,
   linkedMessageId,
-  linkedMediaId
+  linkedMediaId,
+  onConversationModeChange
 }: {
   userId: string;
   linkedConversationId?: string | null;
   linkedMessageId?: string | null;
   linkedMediaId?: string | null;
+  onConversationModeChange?: (active: boolean) => void;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
@@ -168,6 +170,11 @@ export function RealtimeMessagesPanel({
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
+
+  useEffect(() => {
+    onConversationModeChange?.(Boolean(active));
+    return () => onConversationModeChange?.(false);
+  }, [active, onConversationModeChange]);
 
   const applyPinData = useCallback((pinData: ConversationPinsResponse) => {
     setPinnedConversationIds(new Set(pinData.items.map((pin) => pin.conversationId)));
