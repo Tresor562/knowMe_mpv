@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
+import {buildKnowMePublicLink} from '@knowme/link-contract';
 
 type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 type ChatMediaViewProps = {
@@ -21,6 +22,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
   const [failure,setFailure] = useState(false);
   const [attempt,setAttempt] = useState(0);
   const [previewOpen,setPreviewOpen] = useState(false);
+  const [stickerOptions,setStickerOptions] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
@@ -31,6 +33,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
     setSource(null);
     setFailure(false);
     setPreviewOpen(false);
+    setStickerOptions(false);
     void (async ()=>{
       try {
         const grant = await apiFetch<{path:string}>(`/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'});
@@ -107,14 +110,40 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
 
     return <>
       <button className="km-chat-media-trigger" type="button" ref={triggerRef}
-        onClick={()=>setPreviewOpen(true)}
-        aria-label={en ? `Open ${description} fullscreen` : `Agrandir ${description === 'Image' ? "l'image" : 'le média'}`}>
+        onClick={()=>{setStickerOptions(kind==='STICKER_IMAGE');setPreviewOpen(true);}}
+        onContextMenu={kind==='STICKER_IMAGE'?event=>{event.preventDefault();setStickerOptions(false);setPreviewOpen(true);}:undefined}
+        aria-label={kind==='STICKER_IMAGE'?(en?'Sticker options':'Options du sticker'):
+          en ? `Open ${description} fullscreen` : `Agrandir ${description === 'Image' ? "l'image" : 'le média'}`}>
         {media}
       </button>
       {previewOpen && createPortal(
         <div className="km-chat-media-viewer" role="dialog" aria-modal="true"
           aria-label={en ? 'Media viewer' : 'Visionneuse de médias'}
           onClick={event=>{if(event.target===event.currentTarget)setPreviewOpen(false);}}>
+          {kind==='STICKER_IMAGE'&&stickerOptions ? (
+          <div className="km-sticker-actions-panel">
+            <div className="km-chat-media-viewer-bar">
+              <span className="km-chat-media-viewer-title">Sticker KnowMe</span>
+              <button ref={closeRef} type="button" onClick={()=>setPreviewOpen(false)}
+                aria-label={en?'Close sticker options':'Fermer les options du sticker'}>
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" fill="none" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg>
+              </button>
+            </div>
+            <img className="km-sticker-actions-image" src={source} alt={description}/>
+            <div className="km-sticker-actions-buttons">
+              <button type="button" onClick={()=>setStickerOptions(false)}>
+                {en?'Preview sticker':'Agrandir le sticker'}
+              </button>
+              <a href={buildKnowMePublicLink({kind:'media',id:assetId})}
+                target="_blank" rel="noopener noreferrer">{en?'Open sticker link':'Ouvrir le lien du sticker'}</a>
+              <a ref={downloadRef} href={source} download={fileName ?? 'knowme-sticker.png'}>
+                {en?'Download sticker':'Télécharger le sticker'}
+              </a>
+            </div>
+            <p className="km-sticker-actions-meta">{fileName ?? 'Sticker KnowMe'}</p>
+          </div>
+          ):<>
           <div className="km-chat-media-viewer-bar">
             <span className="km-chat-media-viewer-title">{fileName ?? description}</span>
             <div className="km-chat-media-viewer-actions">
@@ -133,6 +162,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
             </div>
           </div>
           <img className="km-chat-media-viewer-image" src={source} alt={description} draggable={false} />
+          </>}
         </div>, document.body
       )}
     </>;
