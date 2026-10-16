@@ -115,8 +115,9 @@ export function MobileUpdateNotice() {
     // The native module is part of the next APK, never present retroactively.
     if (Platform.OS !== 'android' || __DEV__ || !installer) return;
     let active = true;
-    // Register an Android background check. Notifications are advisory: they
-    // open KnowMe; only a direct tap on "Mettre à jour" starts installation.
+    // Register an Android WorkManager check even when KnowMe is closed.
+    // Android notifications only reopen the app; installation remains opt-in
+    // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
 
     const check = async (manual = false): Promise<MobileUpdateCheckResult> => {
