@@ -96,3 +96,22 @@ test('global Create opens the actual KnowMe publication editor', async ({page}) 
   await expect(page.getByRole('dialog', {name:'Créer une publication'})).toBeVisible();
   await expect(page.getByRole('button', {name:'Publier'}).first()).toBeDisabled();
 });
+
+test('mobile social dock remains usable at narrow phone widths', async ({page}) => {
+  await stubAuthenticatedSocialHome(page);
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({width, height:780});
+    await page.goto('/feed');
+    await checkSocialHome(page);
+    const navigation = page.locator('nav.km-smart-nav');
+    await expect(navigation).toBeVisible();
+    await expect(navigation).toHaveAttribute('data-layout', 'mobile');
+    const bounds = await navigation.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(-1);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    await expect(navigation.getByRole('button', {name:'Créer'})).toBeVisible();
+    await expect(navigation.locator('a[href="/feed"]')).toBeVisible();
+    await expect(navigation.locator('a[href="/messages"]')).toBeVisible();
+  }
+});
