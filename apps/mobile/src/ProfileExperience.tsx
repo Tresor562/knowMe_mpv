@@ -373,7 +373,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       sync: 'Versions et synchronisation',
       privacy: 'Confidentialité',
       edit: 'Modifier mes informations',
-      session: 'Session & compte'
+      session: 'Comptes et déconnexion'
     };
 
     return (
@@ -525,9 +525,31 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         {panel === 'session' ? (
           <>
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Session</Text>
-              <Text style={[styles.description, { color: colors.text }]}>Déconnecte cet appareil sans supprimer ton compte. L’autorisation d’appareil de confiance reste révocable séparément.</Text>
-              <Button title="Se déconnecter" onPress={() => void onLogout()} />
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Mon compte</Text>
+              <View style={styles.editIdentityRow}>
+                <Avatar uri={user.avatarUrl} name={user.displayName} size={47}/>
+                <View style={styles.flex}>
+                  <Text style={[styles.editIdentityName,{color:colors.text}]}>{user.displayName}</Text>
+                  <Text style={[styles.editIdentityHandle,{color:colors.muted}]}>@{user.username}</Text>
+                </View>
+              </View>
+              <Text style={[styles.description,{color:colors.muted}]}>
+                Pour utiliser un autre compte sur ce téléphone, déconnecte d'abord la session actuelle.
+              </Text>
+              <Button title="Se connecter avec un autre compte" secondary onPress={()=>{
+                Alert.alert('Changer de compte',
+                  'Ta session actuelle sera déconnectée. Tu pourras ensuite te connecter avec un autre compte KnowMe.',[
+                    {text:'Annuler',style:'cancel'},
+                    {text:'Continuer',onPress:()=>{void onLogout();}}
+                  ]);
+              }}/>
+              <Button title="Se déconnecter" danger onPress={()=>{
+                Alert.alert('Se déconnecter ?',
+                  'Tu devras te reconnecter pour retrouver tes conversations.',[
+                    {text:'Annuler',style:'cancel'},
+                    {text:'Déconnexion',style:'destructive',onPress:()=>{void onLogout();}}
+                  ]);
+              }}/>
             </View>
 
             <View style={[styles.card, styles.dangerZone, { backgroundColor: colors.surface, borderColor: colors.danger }]}>
@@ -716,6 +738,15 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             </GlassSurface>
           </PressScale>
         </View>
+        <PressScale accessibilityRole="button" accessibilityLabel="Comptes et déconnexion"
+          onPress={()=>setPanel('session')}
+          style={[styles.profileAccountAccess,{borderColor:colors.border}]}>
+          <KnowMeIcon name="profile" size={18} color={colors.accent}/>
+          <Text style={{flex:1,color:colors.text,fontSize:13,fontWeight:'700'}}>
+            Comptes et déconnexion
+          </Text>
+          <KnowMeIcon name="arrow" size={17} color={colors.muted}/>
+        </PressScale>
 
         <PressScale onPress={() => setPanel('edit')} accessibilityRole="button" accessibilityLabel={user.bio ? 'Modifier la biographie' : 'Ajouter une bio'}>
           <Text style={[user.bio ? styles.bio : styles.bioMuted, { color: user.bio ? colors.text : colors.muted }]}>
@@ -1036,6 +1067,8 @@ const styles = StyleSheet.create({
   coverGlassDot: { position: 'absolute', width: 14, height: 14, borderRadius: 7, left: 22, top: 22, opacity: 0.34 },
   profileAvatarRow: { marginTop: -36, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-end' },
   profileActions: { flexDirection: 'row', gap: 7, paddingHorizontal: 16, marginTop: 11 },
+  profileAccountAccess:{marginHorizontal:16,marginTop:9,minHeight:44,paddingHorizontal:12,
+    flexDirection:'row',alignItems:'center',gap:9,borderTopWidth:StyleSheet.hairlineWidth},
   profileActionPress: { flex: 1, borderRadius: 18 },
   profileAction: { minHeight: 38, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   profileActionText: { fontSize: 10.5, fontWeight: '700' },
