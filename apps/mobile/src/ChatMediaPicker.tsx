@@ -28,8 +28,8 @@ function detectKind(mime: string, preferSticker: boolean): MediaKind {
   return 'DOCUMENT';
 }
 
-export function ChatMediaPicker<T>({conversationId,onSent}:{
-  conversationId:string;onSent:(message:T)=>void;
+export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true}:{
+  conversationId:string;onSent:(message:T)=>void;showVoice?:boolean;
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
@@ -137,7 +137,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
         {busy ? <ActivityIndicator color={colors.accent} size="small"/> :
           <KnowMeIcon name="create" size={24} color={colors.text}/>}
       </Pressable>
-      <KnowMeVoiceComposer busy={busy} onSend={file=>sendFiles([file])}/>
+      {showVoice ? <KnowMeVoiceComposer busy={busy} onSend={file=>sendFiles([file])}/> : null}
     </View>
     {!!progress && <Text style={[styles.progress,{color:colors.muted}]}>{progress}</Text>}
     {!!notice && !busy && <Pressable onPress={()=>setMenuVisible(true)}>
