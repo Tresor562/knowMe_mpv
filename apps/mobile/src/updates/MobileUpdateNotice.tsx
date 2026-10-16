@@ -15,6 +15,7 @@ import { apiFetch } from '../api';
 import { useAppearance } from '../AppearanceProvider';
 
 type ApkInstaller = {
+  startUpdateWatcher?: () => Promise<boolean>;
   getInstalledVersionCode(): Promise<number>;
   installApk(uri: string, sha256: string, versionCode: number): Promise<boolean>;
 };
@@ -114,6 +115,9 @@ export function MobileUpdateNotice() {
     // The native module is part of the next APK, never present retroactively.
     if (Platform.OS !== 'android' || __DEV__ || !installer) return;
     let active = true;
+    // Register an Android background check. Notifications are advisory: they
+    // open KnowMe; only a direct tap on "Mettre à jour" starts installation.
+    void installer.startUpdateWatcher?.().catch(() => undefined);
 
     const check = async (manual = false): Promise<MobileUpdateCheckResult> => {
       if (requestInProgress.current) return 'unavailable';
