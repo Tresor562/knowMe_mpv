@@ -12,6 +12,7 @@ import {
   View
 } from 'react-native';
 import { apiFetch } from '../api';
+import { getRealtimeSocket } from '../realtime';
 import { useAppearance } from '../AppearanceProvider';
 
 type ApkInstaller = {
@@ -21,10 +22,7 @@ type ApkInstaller = {
 };
 
 const installer = NativeModules.KnowMeApkInstaller as ApkInstaller | undefined;
-// Present only when the APK was built with a real Firebase Android config.
-const firebasePush = NativeModules.KnowMeFirebasePush as
-  | { subscribeToUpdates(): Promise<boolean> }
-  | undefined;
+
 
 type AndroidReleaseNotice = {
   versionCode: number;
@@ -123,13 +121,11 @@ export function MobileUpdateNotice() {
     // Android notifications only reopen the app; installation remains opt-in
     // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
-    // Subscribe once per app launch. Firebase persists and renews the topic
-    // membership; failure never blocks the existing WorkManager fallback.
-    void firebasePush?.subscribeToUpdates().catch(() => undefined);
 
-    const check = async (manual = false): Promise<MobileUpdateCheckResult> => {
+
+    const check = async (manual = false, immediate = false): Promise<MobileUpdateCheckResult> => {
       if (requestInProgress.current) return 'unavailable';
-      if (!manual && Date.now() - lastCheckAt.current < 60_000) {
+      if (!manual && !immediate && Date.now() - lastCheckAt.current < 60_000) {
         return 'current';
       }
       if (manual) dismissedVersion.current = 0;
@@ -171,13 +167,32 @@ export function MobileUpdateNotice() {
 
     checkFromSettings = () => check(true);
     void check();
+    // Live release signals travel through KnowMe's existing authenticated
+    // Socket.IO connection. No Google/Firebase token or provider required.
+    let subscribedSocket: Awaited<ReturnType<typeof getRealtimeSocket>> = null;
+    const onUpdateAvailable = () => { void check(false, true); };
+    const connectSignals = () => {
+      void getRealtimeSocket().then((socket) => {
+        if (!active || !socket || socket === subscribedSocket) return;
+        subscribedSocket?.off('update:available', onUpdateAvailable);
+        subscribedSocket = socket;
+        socket.on('update:available', onUpdateAvailable);
+      }).catch(() => undefined);
+    };
+    connectSignals();
     const foreground = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void check();
+      if (state === 'active') {
+        connectSignals();
+        void check();
+      }
     });
-    const interval = setInterval(() => void check(), 15 * 60_000);
+    // While the app is open, check occasionally even without a session
+    // (guests have no authenticated Socket.IO connection).
+    const interval = setInterval(() => { connectSignals(); void check(); }, 2 * 60_000);
     return () => {
       active = false;
       checkFromSettings = null;
+      subscribedSocket?.off('update:available', onUpdateAvailable);
       foreground.remove();
       clearInterval(interval);
     };
