@@ -10,6 +10,7 @@ const REPO = 'https://github.com/Tresor562/knowMe_mpv.git';
 const APP_ROOT = '/opt/nex/apps/public/knowme';
 const SOURCE = join(APP_ROOT, 'source');
 const RUNTIME = '/var/lib/nex/runtime/knowme';
+const UPDATES = join(RUNTIME, 'updates');
 const ENV_FILE = join(RUNTIME, 'knowme.env');
 const DEPLOY_LOG = join(RUNTIME, 'deploy.log');
 const IMAGE = 'knowme-api:' + SHA.slice(0, 12);
@@ -20,6 +21,8 @@ const API_CONTAINER = 'knowme-api';
 
 mkdirSync(APP_ROOT, { recursive: true, mode: 0o755 });
 mkdirSync(RUNTIME, { recursive: true, mode: 0o700 });
+// Public APK directory is mounted read-only into the unprivileged API container.
+mkdirSync(UPDATES, { recursive: true, mode: 0o755 });
 
 function run(cmd, args = [], options = {}) {
   return execFileSync(cmd, args, { encoding: 'utf8', timeout: options.timeout ?? 120_000, ...options }).trim();
@@ -152,6 +155,7 @@ function startApi() {
     '--name', API_CONTAINER,
     '--network', NETWORK,
     '--env-file', ENV_FILE,
+    '-v', UPDATES + ':/srv/knowme-updates:ro',
     '-p', '127.0.0.1:4000:4000',
     IMAGE
   ], { timeout: 120_000 });
@@ -178,6 +182,7 @@ function startApi() {
         '--name', API_CONTAINER,
         '--network', NETWORK,
         '--env-file', ENV_FILE,
+        '-v', UPDATES + ':/srv/knowme-updates:ro',
         '-p', '127.0.0.1:4000:4000',
         previousImage
       ], { timeout: 120_000 });
@@ -204,6 +209,10 @@ const env = {
   KNOWME_RELEASE_COMMIT: SHA,
   KNOWME_RELEASE_VERSION: oldEnv.KNOWME_RELEASE_VERSION || '1.0.0-preview',
   KNOWME_STARTUP_PHASE_DIAGNOSTIC: '1',
+  KNOWME_ANDROID_UPDATES_DIR: '/srv/knowme-updates',
+  KNOWME_ANDROID_UPDATE_BASE_URL: 'https://31-56-85-53.sslip.io/knowme-api',
+  // Never require GitHub at runtime after a verified VPS release is present.
+  KNOWME_ANDROID_SELF_HOST_ONLY: existsSync(join(UPDATES, 'android-preview.json')) ? 'true' : 'false',
   DATABASE_URL: 'postgresql://knowme:' + dbPassword + '@knowme-postgres:5432/knowme?schema=public',
   JWT_SECRET: oldEnv.JWT_SECRET || randomHex(48),
   PORT: '4000',
