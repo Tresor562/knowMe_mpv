@@ -60,6 +60,20 @@ export default function FeedPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // The global Create → Publication action must open the real post editor,
+  // including when navigating from another section of KnowMe. Consume the hash
+  // so the same action can open the editor again after it has been closed.
+  useEffect(() => {
+    const openLinkedComposer = () => {
+      if (window.location.hash !== '#compose') return;
+      setComposeOpen(true);
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    };
+    openLinkedComposer();
+    window.addEventListener('hashchange', openLinkedComposer);
+    return () => window.removeEventListener('hashchange', openLinkedComposer);
+  }, []);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
 
