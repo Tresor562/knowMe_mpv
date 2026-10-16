@@ -42,3 +42,13 @@ test('self-hosted Android background checks notify without ever installing APKs 
   assert.match(worker, /31-56-85-53\.sslip\.io\/knowme-api\/mobile-updates\/android/);
   assert.doesNotMatch(worker, /installApk\(|ACTION_INSTALL_PACKAGE|PackageInstaller\.Session/);
 });
+
+test('in-app update downloads only from the KnowMe VPS origin', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const screen = readFileSync(join(__dirname, '../src/updates/MobileUpdateNotice.tsx'), 'utf8');
+  assert.match(screen, /31-56-85-53\.sslip\.io\/knowme-api\/mobile-updates\/android\/apk/);
+  assert.match(screen, /trustedKnowMeApk\(next\)/);
+  assert.doesNotMatch(screen, /fetch\(FIRST_PARTY_PREVIEW_FEED/);
+  assert.doesNotMatch(screen, /https:\/\/github\.com\/Tresor562\/knowMe_mpv\/releases/);
+});
