@@ -15,7 +15,7 @@ function safeAfterLoginPath(): string {
   // Returning to a deep link is allowed; arbitrary external and protocol-relative
   // destinations are not, even after a successful login or a 2FA challenge.
   const match = new RegExp('^/link-targets/([a-z-]+)/([A-Za-z0-9_-]{3,128})$').exec(next);
-  if (!match) return '/messages';
+  if (!match) return '/feed';
   const [, kind, id] = match;
   const safe = kind === 'profile'
     ? /^[A-Za-z0-9_]{3,24}$/.test(id)
