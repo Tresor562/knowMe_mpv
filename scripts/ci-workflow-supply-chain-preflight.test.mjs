@@ -16,7 +16,7 @@ const PATCHED_IMAGE_SIZE_ALIAS = 'npm:image-size-next@1.2.2';
 const AUDITED_ACTION_PINS = new Map([
   ['actions/checkout', 'd23441a48e516b6c34aea4fa41551a30e30af803'],
   ['pnpm/action-setup', '0977fd99725f1db4007ccb2928dbb4e90d06cc86'],
-  ['actions/setup-node', '249970729cb0ef3589644e2896645e5dc5ba9c38'],
+  ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
   ['actions/upload-artifact', 'ea165f8d65b6e75b540449e92b4886f43607fa02'],
 ]);
 

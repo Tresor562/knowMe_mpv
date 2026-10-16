@@ -14,6 +14,7 @@ import { GuestQuickMathExperience } from './GuestQuickMathExperience';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
 import { MobileUpdateNotice } from './updates/MobileUpdateNotice';
+import { AutoOtaUpdates } from './updates/AutoOtaUpdates';
 import {
   MobileEntryMode,
   reconcileMobileEntrySession,
@@ -187,6 +188,7 @@ export function MobileEntryExperience() {
     <AppearanceProvider>
       <EntryContent />
       <MobileUpdateNotice />
+      <AutoOtaUpdates />
     </AppearanceProvider>
   );
 }

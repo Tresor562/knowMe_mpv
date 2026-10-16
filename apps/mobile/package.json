@@ -21,7 +21,8 @@
     "expo-status-bar": "2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5",
-    "socket.io-client": "4.8.1"
+    "socket.io-client": "4.8.1",
+    "expo-updates": "0.28.18"
   },
   "devDependencies": {
     "@types/node": "22.10.0",

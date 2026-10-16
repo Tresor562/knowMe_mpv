@@ -61,6 +61,16 @@
       "image": "./assets/branding/knowme-splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0D0825"
+    },
+    "runtimeVersion": "knowme-android-sdk53-native7",
+    "updates": {
+      "enabled": true,
+      "url": "https://31-56-85-53.sslip.io/knowme-api/mobile-updates/expo",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     }
   }
 }
