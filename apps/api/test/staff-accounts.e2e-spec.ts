@@ -130,7 +130,7 @@ describe('KnowMe staff accounts (e2e)', () => {
       .post('/admin/staff-accounts')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
-        userId: lookalikeRegistration.body.user.id
+        userId: lookalikeRegistration.body.user.id,
         staffRole: 'DEVELOPER',
         grantsAdminAccess: false,
         reason: 'Vérification du sceau neutre sur les adresses non Gmail.'
