@@ -1,5 +1,10 @@
 import { Controller, Get, Header, Headers, Res } from '@nestjs/common';
-import type { Response } from 'express';
+// Keep the adapter-independent response shape; the API package does not
+// depend directly on Express types under pnpm strict isolation.
+type ExpoOtaResponse = {
+  setHeader(name: string, value: string): void;
+  status(code: number): { json(body: unknown): unknown; end(): unknown };
+};
 import { getKnowMeExpoUpdate } from './expo-ota';
 
 export type AndroidReleaseNotice = {
@@ -124,7 +129,7 @@ export class MobileUpdatesController {
   @Get('expo')
   async getExpoManifest(
     @Headers() headers: Record<string, string | string[] | undefined>,
-    @Res() res: Response
+    @Res() res: ExpoOtaResponse
   ) {
     const result = await getKnowMeExpoUpdate(headers);
     res.setHeader('Expo-Protocol-Version', '1');
