@@ -123,8 +123,8 @@ jobs:
           SCP=(scp -i "$RUNNER_TEMP/ssh/id" -o BatchMode=yes -o StrictHostKeyChecking=yes
             -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts")
           TARGET="$VPS_USER@$VPS_HOST"
-          "${{ SSH[@] }}" "$TARGET" 'mkdir -p ~/knowme-release-staging'
-          "${{ SCP[@] }}" "artifacts/$FILE" "$TARGET:knowme-release-staging/$FILE"
-          "${{ SCP[@] }}" ops/publish-knowme-android-vps.mjs "$TARGET:knowme-release-staging/publish.mjs"
-          "${{ SSH[@] }}" "$TARGET" "node ~/knowme-release-staging/publish.mjs ~/knowme-release-staging/$FILE $VERSION $CODE"
+          "${SSH[@]}" "$TARGET" 'mkdir -p ~/knowme-release-staging'
+          "${SCP[@]}" "artifacts/$FILE" "$TARGET:knowme-release-staging/$FILE"
+          "${SCP[@]}" ops/publish-knowme-android-vps.mjs "$TARGET:knowme-release-staging/publish.mjs"
+          "${SSH[@]}" "$TARGET" "node ~/knowme-release-staging/publish.mjs ~/knowme-release-staging/$FILE $VERSION $CODE"
           echo "APK $VERSION published to KnowMe-controlled VPS" >> "$GITHUB_STEP_SUMMARY"
