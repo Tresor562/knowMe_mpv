@@ -73,6 +73,10 @@ const CATALOG: CatalogDefinition[] = [
 
 @Injectable()
 export class AchievementsService {
+  // The catalog is static. Avoid re-upserting every definition on every
+  // concurrent completion, which overloaded Prisma and caused HTTP 500.
+  private catalogPromise: Promise<Prisma.AchievementDefinitionGetPayload<object>[]> | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async processChallengeCompletion(
@@ -281,25 +285,30 @@ export class AchievementsService {
     });
   }
 
-  private async ensureCatalog() {
-    return Promise.all(
-      CATALOG.map((definition) =>
-        this.prisma.achievementDefinition.upsert({
-          where: {
-            key_version: { key: definition.key, version: definition.version }
-          },
-          create: definition,
-          update: {
-            type: definition.type,
-            name: definition.name,
-            description: definition.description,
-            icon: definition.icon,
-            criteria: definition.criteria,
-            active: true
-          }
-        })
-      )
-    );
+  private ensureCatalog() {
+    if (!this.catalogPromise) {
+      this.catalogPromise = Promise.all(
+        CATALOG.map((definition) =>
+          this.prisma.achievementDefinition.upsert({
+            where: { key_version: { key: definition.key, version: definition.version } },
+            create: definition,
+            update: {
+              type: definition.type,
+              name: definition.name,
+              description: definition.description,
+              icon: definition.icon,
+              criteria: definition.criteria,
+              active: true
+            }
+          })
+        )
+      ).catch((error) => {
+        // A temporary database outage must not poison future requests.
+        this.catalogPromise = null;
+        throw error;
+      });
+    }
+    return this.catalogPromise;
   }
 
   private async grant(input: {
