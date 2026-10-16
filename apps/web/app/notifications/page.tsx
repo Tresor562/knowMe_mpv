@@ -389,6 +389,7 @@ export default function NotificationsPage() {
       className="shell"
       style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gap: 18 }}
     >
+      <div className="km-header-nav-group">
       <header className="card" style={{ padding: 26 }}>
         <div
           style={{
@@ -456,6 +457,8 @@ export default function NotificationsPage() {
           <p role="status" style={{ color: 'var(--mint)' }}>{message}</p>
         )}
       </header>
+      <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
+      </div>
 
       {settingsOpen && center && (
         <form
