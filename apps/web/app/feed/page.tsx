@@ -48,6 +48,8 @@ export default function FeedPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [message, setMessage] = useState('');
+  const [publishMessage, setPublishMessage] = useState('');
+  const publishInFlight = useRef(false);
   const [shareNotice, setShareNotice] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [composeOpen,setComposeOpen] = useState(false);
@@ -107,8 +109,7 @@ export default function FeedPage() {
     const generation = ++loadGeneration.current;
     setLoading(true);
     setAuthorityFresh(false);
-    setPosts([]);
-    setHasMore(false);
+    // Keep previously loaded posts visible during transient network failures.
     setMessage('');
 
     try {
@@ -120,8 +121,6 @@ export default function FeedPage() {
     } catch (cause) {
       if (generation !== loadGeneration.current) return;
       setAuthorityFresh(false);
-      setPosts([]);
-      setHasMore(false);
       setMessage(cause instanceof Error ? cause.message : 'Fil indisponible.');
     } finally {
       if (generation === loadGeneration.current) setLoading(false);
@@ -159,17 +158,16 @@ export default function FeedPage() {
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!authorityFresh) {
-      setMessage(en ? 'Refresh the feed before publishing.' : 'Recharge le fil avant de publier.');
-      return;
-    }
+    if (publishInFlight.current) return;
 
     const form = event.currentTarget;
     const data = new FormData(form);
     const content = String(data.get('content') ?? '').trim();
     if (!content) return;
 
+    publishInFlight.current = true;
     setPublishing(true);
+    setPublishMessage('');
     try {
       let mediaAssetId: string | undefined;
       if (selectedImage) {
@@ -205,12 +203,22 @@ export default function FeedPage() {
       form.reset();
       setSelectedImage(null);
       setDraftContent('');
+      setPublishMessage('');
       setComposeOpen(false);
       await loadFeed();
     } catch (cause) {
-      invalidateFeedAuthority();
-      setMessage(cause instanceof Error ? cause.message : (en ? 'Could not publish.' : 'Publication impossible.'));
+      // A failed upload must never erase the draft or disable the composer.
+      // In particular, do not retry an uncertain POST automatically:
+      // the server may have accepted it before the response was lost.
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' || error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setPublishMessage(uncertain
+        ? (en
+          ? 'Publication not confirmed. Check your profile before trying again to avoid a duplicate.'
+          : 'Publication non confirmée. Vérifie ton profil avant de réessayer pour éviter un doublon.')
+        : cause instanceof Error ? cause.message : (en ? 'Could not publish.' : 'Publication impossible.'));
     } finally {
+      publishInFlight.current = false;
       setPublishing(false);
     }
   }
@@ -289,7 +297,7 @@ export default function FeedPage() {
           <button type="button" aria-label={en?'Close editor':'Fermer l’éditeur'} disabled={publishing}
             className="km-feed-editor-back" onClick={()=>setComposeOpen(false)}>‹</button>
           <h2>{en?'Create a post':'Créer une publication'}</h2>
-          <button className="btn btn-primary" type="submit" disabled={!authorityFresh||publishing||!draftContent.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={publishing||!draftContent.trim()}>
             {publishing?(en?'Publishing…':'Publication…'):(en?'Post':'Publier')}
           </button>
         </div>
@@ -320,7 +328,7 @@ export default function FeedPage() {
         <div className="km-feed-compose-row">
           <textarea name="content" ref={composerInputRef} value={draftContent} onChange={event=>setDraftContent(event.target.value)}
             placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
-            rows={7} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+            rows={7} maxLength={2000} required disabled={publishing}/>
         </div>
         <small className="km-feed-editor-counter">{draftContent.length}/2000</small>
         {imagePreview && <div className="km-feed-image-preview">
@@ -340,16 +348,21 @@ export default function FeedPage() {
             </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing || !draftContent.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={publishing || !draftContent.trim()}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
         </div>
-        {message && <p role="alert" style={{color:'var(--orange)',fontSize:13}}>{message}</p>}
+        {publishMessage && <p role="alert" style={{color:'var(--orange)',fontSize:13}}>{publishMessage}</p>}
       </form>
       </div>}
 
       {!authorityFresh && !message && <p style={{ color: 'var(--muted)' }}>{en?'Validating feed…':'Validation du fil…'}</p>}
-      {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
+      {message && <div role="alert" className="km-feed-network-notice" style={{ color: 'var(--muted)' }}>
+        <span>{message}</span>{' '}
+        <button type="button" className="btn" onClick={() => void loadFeed()} disabled={loading}>
+          {en ? 'Retry' : 'Réessayer'}
+        </button>
+      </div>}
       {shareNotice && <p className="km-feed-notice" role="status" onClick={() => setShareNotice('')}>{shareNotice}</p>}
       {loading && <p>{en?'Loading posts…':'Chargement des publications…'}</p>}
 
