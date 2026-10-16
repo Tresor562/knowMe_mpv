@@ -71,18 +71,26 @@ async function refreshSession() {
     const refreshToken = getRefreshToken();
     if (!refreshToken) return false;
 
-    const response = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept-Language': getRuntimeLocale()
-      },
-      body: JSON.stringify({ refreshToken }),
-      cache: 'no-store'
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': getRuntimeLocale()
+        },
+        body: JSON.stringify({ refreshToken }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(16000)
+      });
+    } catch {
+      // A transient backend outage must not log the user out.
+      return false;
+    }
 
     if (!response.ok) {
-      clearSession();
+      // Only an explicitly rejected refresh token invalidates the session.
+      if ([400, 401, 403].includes(response.status)) clearSession();
       return false;
     }
 
@@ -94,6 +102,49 @@ async function refreshSession() {
   });
 
   return refreshRequest;
+}
+
+
+/** Retry only read-only requests. POST uploads/posts can have succeeded before
+ * their response was lost; retrying them here would create duplicates. */
+async function fetchWithReadRetries(path: string, init: RequestInit, headers: Headers): Promise<Response> {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const readOnly = method === 'GET' || method === 'HEAD';
+  const attempts = readOnly ? 3 : 1;
+  const timeout = init.body instanceof FormData ? 120000 : 16000;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        ...init,
+        headers,
+        cache: 'no-store',
+        signal: init.signal ?? AbortSignal.timeout(timeout)
+      });
+      if (readOnly && [502, 503, 504].includes(response.status) && attempt < attempts - 1) {
+        await new Promise<void>(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+      return response;
+    } catch (cause) {
+      if (init.signal?.aborted) throw cause;
+      if (readOnly && attempt < attempts - 1) {
+        await new Promise<void>(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const timedOut = cause instanceof Error &&
+        (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+      const error = new Error(offline
+        ? 'Connexion Internet indisponible. Vérifie ton réseau.'
+        : timedOut
+          ? 'Le serveur KnowMe met trop de temps à répondre. Réessaie.'
+          : 'KnowMe est momentanément inaccessible. Réessaie.') as ApiError;
+      error.code = offline ? 'KNOWME_OFFLINE' : timedOut ? 'KNOWME_TIMEOUT' : 'KNOWME_NETWORK_UNAVAILABLE';
+      throw error;
+    }
+  }
+  throw new Error('Requête KnowMe non aboutie.');
 }
 
 async function request(path: string, init: RequestInit, retryAfterRefresh: boolean) {
@@ -111,19 +162,7 @@ async function request(path: string, init: RequestInit, retryAfterRefresh: boole
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers,
-      cache: 'no-store',
-      signal: init.signal ?? AbortSignal.timeout(init.body instanceof FormData ? 120000 : 16000)
-    });
-  } catch {
-    const error = new Error('Impossible de joindre KnowMe. Vérifiez votre connexion et réessayez.') as ApiError;
-    error.code = 'KNOWME_NETWORK_UNAVAILABLE';
-    throw error;
-  }
+  const response = await fetchWithReadRetries(path, init, headers);
 
   if (response.status === 401 && retryAfterRefresh && !path.startsWith('/auth/')) {
     const refreshed = await refreshSession();
