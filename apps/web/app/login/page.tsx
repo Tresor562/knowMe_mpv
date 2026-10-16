@@ -88,16 +88,13 @@ export default function LoginPage() {
     <section className="km-auth-intro">
       <KnowMeBrand />
       <div className="km-auth-visual">
-        <h2>Vos échanges.<br/><span>Votre univers.</span></h2>
-        <p>Discutez avec vos proches, partagez vos moments et retrouvez vos communautés dans un espace qui vous ressemble.</p>
+        <h2>Votre univers.<br/><span>À portée de main.</span></h2>
       </div>
-      <span className="km-auth-pill">Une expérience plus personnelle</span>
     </section>
     <section className="km-auth-panel" aria-label="Connexion à KnowMe">
       <KnowMeBrand className="km-native-auth-brand" />
       {!challengeToken ? <form onSubmit={submit}>
-        <h1>Bon retour</h1>
-        <p className="km-auth-subtitle">Connectez-vous pour retrouver vos conversations.</p>
+        <h1 style={{marginBottom:24}}>Bon retour</h1>
         <div className="km-auth-fields">
           <label className="km-auth-field"><span>Identifiant ou adresse e-mail</span>
             <input name="identifier" type="text" placeholder="Votre identifiant" autoComplete="username" autoCapitalize="none" spellCheck={false} required/>
@@ -133,7 +130,6 @@ export default function LoginPage() {
         {message && <p className="km-auth-error" role="alert">{message}</p>}
         <button className="btn" style={{width:'100%',marginTop:12}} type="button" disabled={submitting} onClick={()=>{setChallengeToken('');setMessage('');setSecondFactorCode('');setTrustDevice(false);}}>Revenir à la connexion</button>
       </form>}
-      <p className="km-auth-help" style={{textAlign:'center',margin:'24px 0 0'}}>Votre compte et vos conversations restent associés à votre profil KnowMe.</p>
     </section>
   </main>;
 }

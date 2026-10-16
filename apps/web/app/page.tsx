@@ -12,19 +12,15 @@ export default function Home(){
       <section className="km-auth-intro">
         <KnowMeBrand />
         <div className="km-auth-visual">
-          <h2>Une autre façon<br/><span>de rester proches.</span></h2>
-          <p>Des messages, des communautés et des expériences partagées. Retrouvez vos proches dans KnowMe, partout où vous êtes.</p>
+          <h2>Créez. Partagez.<br/><span>Découvrez.</span></h2>
         </div>
-        <span className="km-auth-pill">KnowMe · par NexTech</span>
       </section>
       <section className="km-auth-panel">
         <KnowMeBrand className="km-native-auth-brand" />
-        <h1>Bienvenue sur KnowMe</h1>
-        <p className="km-auth-subtitle">Accédez à votre compte ou rejoignez la communauté.</p>
+        <h1 style={{marginBottom:24}}>Bienvenue sur KnowMe</h1>
         <Link className="km-auth-submit" href="/login">Se connecter</Link>
         <Link className="btn" href="/register" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:47,marginTop:12}}>Créer un compte</Link>
         <Link href="/update" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:46,marginTop:12,color:'var(--mint)',fontWeight:750,textAlign:'center',textDecoration:'underline',textUnderlineOffset:4}}>Mettre à jour l’application Android</Link>
-        <p className="km-auth-help" style={{textAlign:'center',marginTop:20}}>Un espace personnel pour vos conversations.</p>
       </section>
     </main>
   );
