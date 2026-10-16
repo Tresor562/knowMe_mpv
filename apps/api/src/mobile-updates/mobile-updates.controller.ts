@@ -1,6 +1,7 @@
 import { Controller, Get, Header, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
-type ApkResponse = { setHeader(name: string, value: string): void };
 import { openHostedAndroidApk, readHostedAndroidRelease } from './self-hosted-android-update';
+
+type ApkResponse = { setHeader(name: string, value: string): void };
 
 export type AndroidReleaseNotice = {
   versionCode: number;
