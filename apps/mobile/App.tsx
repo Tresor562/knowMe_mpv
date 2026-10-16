@@ -43,7 +43,7 @@ import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
-import { INITIAL_DOCK_SCROLL, nextDockScroll, shouldShowDock, type DockPosition } from './src/navigation-dock-model';
+import { INITIAL_DOCK_SCROLL, nextDockScroll, shouldShowDock, navigationDockLayout, type DockPosition } from './src/navigation-dock-model';
 import { DEFAULT_DOCK_PREFERENCES, loadDockPreferences, saveDockPreferences, type DockPreferences } from './src/navigation-dock-preferences';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
@@ -1001,7 +1001,7 @@ function BottomNavigation({
   const { colors } = useAppearance();
   const { t } = useI18n();
   const { width: viewportWidth } = useWindowDimensions();
-  const compact = viewportWidth < 380;
+  const layout = navigationDockLayout(viewportWidth, position);
   const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [reduceMotion,setReduceMotion] = useState(false);
 
@@ -1041,35 +1041,38 @@ function BottomNavigation({
     active: boolean;
   }) {
     return (
-      <PressScale
-        accessibilityRole="tab"
-        accessibilityLabel={item.label}
-        accessibilityState={{selected:active}}
-        onPress={() => onNavigate(item.key)}
-        style={[
-          styles.bottomItem,
-          active ? { backgroundColor: colors.backgroundAccent } : null
-        ]}
-      >
-        <KnowMeIcon
-          name={item.icon}
-          size={23}
-          color={active ? colors.accent : colors.muted}
-          strokeWidth={active ? 2.05 : 1.8}
-        />
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          maxFontSizeMultiplier={1.15}
-          style={[
-            styles.bottomLabel,
-            { fontSize: compact ? 9 : 10, color: active ? colors.accent : colors.muted }
-          ]}
+      <View style={styles.bottomTabSlot}>
+        <PressScale
+          accessibilityRole="tab"
+          accessibilityLabel={item.label}
+          accessibilityState={{selected: active}}
+          onPress={() => onNavigate(item.key)}
+          style={styles.bottomItem}
         >
-          {item.label}
-        </Text>
-      </PressScale>
+          <View style={[styles.bottomIconHalo,
+            active ? { backgroundColor: colors.backgroundAccent } : null
+          ]}>
+            <KnowMeIcon
+              name={item.icon}
+              size={layout.iconSize}
+              color={active ? colors.accent : colors.muted}
+              strokeWidth={active ? 2.05 : 1.8}
+            />
+          </View>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            maxFontSizeMultiplier={1.15}
+            style={[
+              styles.bottomLabel,
+              { fontSize: layout.captionFontSize, color: active ? colors.accent : colors.muted }
+            ]}
+          >
+            {layout.narrow && item.key === 'social' ? 'Chats' : item.label}
+          </Text>
+        </PressScale>
+      </View>
     );
   }
 
@@ -1088,31 +1091,37 @@ function BottomNavigation({
             accessibilityRole="button"
             accessibilityLabel={t('nav.create')}
             onPress={onCreate}
-            style={[
-              styles.createNavButton,
-              position === 'top' ? styles.attachedCreateNavButton : null,
-              {
-                backgroundColor: colors.accent,
-                borderColor: colors.surfaceGlass
-              }
-            ]}
+            style={styles.createNavTouchTarget}
           >
-            <KnowMeIcon
-              name="create"
-              size={27}
-              color={colors.accentText}
-              strokeWidth={2.1}
-            />
+            <View
+              style={[
+                styles.createNavButton,
+                position === 'top' ? styles.attachedCreateNavButton : null,
+                {
+                  backgroundColor: colors.accent,
+                  borderColor: colors.surfaceGlass
+                }
+              ]}
+            >
+              <KnowMeIcon
+                name="create"
+                size={25}
+                color={colors.accentText}
+                strokeWidth={2.1}
+              />
+            </View>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              maxFontSizeMultiplier={1.15}
+              style={[styles.createNavLabel, {
+                fontSize: layout.captionFontSize, color: colors.accent
+              }]}
+            >
+              {t('nav.create')}
+            </Text>
           </PressScale>
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-            maxFontSizeMultiplier={1.15}
-            style={[styles.createNavLabel, { fontSize: compact ? 9 : 10, color: colors.accent }]}
-          >
-            {t('nav.create')}
-          </Text>
         </View>
 
         {items.slice(2).map((item) => (
@@ -1136,6 +1145,7 @@ function BottomNavigation({
       style={position === 'top'
         ? [styles.topDockAttached, { opacity: progress }]
         : [styles.bottomDockWrap, {
+            left: layout.sideInset, right: layout.sideInset,
             opacity: progress,
             transform: [{ translateY: progress.interpolate({
               inputRange: [0, 1], outputRange: [105, 0]
@@ -1144,11 +1154,16 @@ function BottomNavigation({
       }
     >
       {position === 'top' ? (
-        <View style={[styles.topDockBar, { borderTopColor: colors.border }]}>
+        <View style={[styles.topDockBar, {
+          borderTopColor: colors.border, paddingHorizontal: layout.horizontalPadding,
+          minHeight: layout.minHeight
+        }]}>
           {navigationItems}
         </View>
       ) : (
-        <GlassSurface strength="medium" borderRadius={30} style={styles.bottomBar}>
+        <GlassSurface strength="medium" borderRadius={30} style={[styles.bottomBar, {
+          minHeight: layout.minHeight, paddingHorizontal: layout.horizontalPadding
+        }]}>
           {navigationItems}
         </GlassSurface>
       )}
@@ -1578,7 +1593,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1 },
   body: { flex: 1 },
-  bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
+  bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 91 : 87 },
   bodyWithTopDock: { paddingTop: 0 },
   loadingRoot: {
     flex: 1,
@@ -2145,8 +2160,8 @@ const styles = StyleSheet.create({
 
   bottomDockWrap: {
     position: 'absolute',
-    left: 10,
-    right: 10,
+    left: 4,
+    right: 4,
     bottom: Platform.OS === 'ios' ? 10 : 8,
     zIndex: 50
   },
@@ -2170,25 +2185,38 @@ const styles = StyleSheet.create({
     elevation: 0
   },
   bottomBar: {
-    minHeight: 64,
+    minHeight: 74,
     borderRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     paddingVertical: 5,
     overflow: 'visible'
   },
-  bottomItem: {
+  // PressScale wraps a Pressable around its Animated.View. Without this
+  // flex slot, RN lays out each Pressable at intrinsic caption width.
+  bottomTabSlot: {
     flex: 1,
     minWidth: 0,
-    minHeight: 51,
+    alignSelf: 'stretch',
+    justifyContent: 'center'
+  },
+  bottomItem: {
+    width: '100%',
+    minHeight: 62,
     maxWidth: '100%',
-    overflow: 'hidden',
-    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 1,
-    gap: 3
+    paddingVertical: 2,
+    gap: 4
+  },
+  bottomIconHalo: {
+    width: 42,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   bottomLabel: {
     width: '100%',
@@ -2204,14 +2232,22 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     maxWidth: '100%',
+    alignSelf: 'stretch',
+    alignItems: 'stretch',
+    justifyContent: 'center'
+  },
+  createNavTouchTarget: {
+    width: '100%',
+    minHeight: 62,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -6
+    paddingVertical: 2,
+    gap: 3
   },
   createNavButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2230,6 +2266,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 10,
     fontWeight: '800',
-    marginTop: 2
+    marginTop: 0
   }
 });
