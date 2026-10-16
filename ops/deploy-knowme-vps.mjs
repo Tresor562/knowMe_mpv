@@ -163,7 +163,11 @@ function startApi() {
   let healthy = false;
   for (let i = 0; i < 60; i++) {
     try {
-      const raw = run('curl', ['-fsS', '--max-time', '3', 'http://127.0.0.1:4000/health/ready'], { timeout: 5000 });
+      // Production correctly rejects plain HTTP with 426. Verify the actual
+      // public HTTPS route *and* Docker's local healthcheck instead.
+      const containerHealth = run('docker', ['inspect', '-f', '{{.State.Health.Status}}', API_CONTAINER], { timeout: 5000 });
+      if (containerHealth !== 'healthy') throw new Error('Container not healthy yet');
+      const raw = run('curl', ['-fsS', '--max-time', '6', 'https://31-56-85-53.sslip.io/knowme-api/health/ready'], { timeout: 8000 });
       const data = JSON.parse(raw);
       if (data?.status === 'ready' && data?.checks?.database === 'up') {
         healthy = true;
