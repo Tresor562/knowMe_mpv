@@ -1,5 +1,5 @@
 import { Controller, Get, Header, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
-import type { Response } from 'express';
+type ApkResponse = { setHeader(name: string, value: string): void };
 import { openHostedAndroidApk, readHostedAndroidRelease } from './self-hosted-android-update';
 
 export type AndroidReleaseNotice = {
@@ -167,7 +167,7 @@ export class MobileUpdatesController {
   @Header('Cache-Control', 'public, max-age=3600, immutable')
   getHostedApk(
     @Param('filename') filename: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: ApkResponse
   ) {
     const apk = openHostedAndroidApk(filename);
     if (!apk) throw new NotFoundException('APK KnowMe indisponible.');
