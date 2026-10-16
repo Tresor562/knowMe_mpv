@@ -39,6 +39,6 @@ test('background checks never install APKs silently and have a verified notifica
   const worker = readFileSync(require('node:path').join(__dirname, 'native/android/KnowMeUpdateWorker.java'), 'utf8');
   assert.match(worker, /PeriodicWorkRequest\.Builder/);
   assert.match(worker, /setContentIntent\(tap\)/);
-  assert.match(worker, /knowme-nextech\.vercel\.app\/api\/updates\/android/);
+  assert.match(worker, /31-56-85-53\.sslip\.io\/knowme-api\/mobile-updates\/android/);
   assert.doesNotMatch(worker, /installApk\(|ACTION_INSTALL_PACKAGE|PackageInstaller\.Session/);
 });
