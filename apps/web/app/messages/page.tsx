@@ -219,6 +219,8 @@ export default function MessagesPage() {
             <Link href="/discover">{en?'Discover':'Suggestions'}</Link>
             <Link href="/channels">{en?'Channels':'Chaînes'}</Link>
             <Link href="/friends">{en?'Friends':'Amis'}</Link>
+            <Link href="/marketplace">{en?'Marketplace':'Marketplace'}</Link>
+            <Link href="/games/center">{en?'Games':'Jeux'}</Link>
             <Link href="/saved-messages">{en?'Saved messages':'Messages enregistrés'}</Link>
             <Link href="/conversation-pins">{en?'Pinned chats':'Discussions épinglées'}</Link>
             <Link href="/profile">{en?'My profile':'Mon profil'}</Link>
