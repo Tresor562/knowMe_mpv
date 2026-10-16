@@ -40,7 +40,7 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile, onContentScroll, onImmersiveChange }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void; onContentScroll?: (offset: number) => void; onImmersiveChange?: (active: boolean) => void }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
@@ -104,6 +104,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
           refreshing={refreshing}
           setRefreshing={setRefreshing}
           onOpenProfile={onOpenProfile}
+          onContentScroll={onContentScroll}
         />
       )}
       {section === 'messages' && (
@@ -113,6 +114,8 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
           linkedConversationId={linkedConversationId}
           linkedMessageId={linkedMessageId}
           linkedMediaId={linkedMediaId}
+          onImmersiveChange={onImmersiveChange}
+          onContentScroll={onContentScroll}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
@@ -120,6 +123,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
       {section === 'notifications' && (
         <NotificationsPanel
           key={`notifications:${userId}`}
+          onContentScroll={onContentScroll}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />
@@ -131,11 +135,13 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
 function FriendsPanel({
   refreshing,
   setRefreshing,
-  onOpenProfile
+  onOpenProfile,
+  onContentScroll
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
   onOpenProfile?: (username: string) => void;
+  onContentScroll?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -217,6 +223,8 @@ function FriendsPanel({
 
   return (
     <ScrollView
+      onScroll={event=>onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -330,10 +338,12 @@ function FriendsPanel({
 
 function NotificationsPanel({
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onContentScroll
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onContentScroll?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
   const [items, setItems] = useState<Notification[]>([]);
@@ -385,6 +395,8 @@ function NotificationsPanel({
 
   return (
     <FlatList
+      onScroll={event=>onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       data={items}
       keyExtractor={(item) => item.id}
       refreshControl={
