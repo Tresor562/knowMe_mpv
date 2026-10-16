@@ -49,7 +49,7 @@ export class AuthService {
     // Legacy integration fixtures run in isolated Jest workers without a mail provider.
     // Production and ordinary development must always verify email ownership.
     const isIsolatedTestFixture = process.env.NODE_ENV === 'test' && Boolean(process.env.JEST_WORKER_ID);
-    if (!isIsolatedTestFixture) this.emailCodes.assertReady();
+    if (!isIsolatedTestFixture) this.emailCodes.assertCanDeliverTo(email);
     const username = dto.username.toLowerCase();
 
     const existing = await this.prisma.user.findFirst({
