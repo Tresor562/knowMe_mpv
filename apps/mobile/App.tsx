@@ -2155,7 +2155,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     lineHeight: 13,
     fontSize: 10,
-    fontWeight: '650'
+    fontWeight: '700'
   },
   createSlot: {
     flex: 1,
