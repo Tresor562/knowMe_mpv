@@ -39,13 +39,17 @@ export class TransactionalEmailService {
   }
   assertReady() { this.settings(); }
 
-  async send(to: string, subject: string, body: string, code?: string) {
-    const { endpoint, key, from, testSender, testRecipient } = this.settings();
-    // Resend's shared onboarding domain can deliver only to the owner's email.
-    // Fail closed: never pretend OTPs can reach arbitrary users in test mode.
+  assertCanDeliverTo(to: string) {
+    const { testSender, testRecipient } = this.settings();
+    // Prevent even creating an account that cannot receive its signup OTP.
     if (testSender && to.trim().toLowerCase() !== testRecipient) {
       throw new ServiceUnavailableException('Les emails de test ne peuvent être envoyés qu’au destinataire autorisé.');
     }
+  }
+
+  async send(to: string, subject: string, body: string, code?: string) {
+    this.assertCanDeliverTo(to);
+    const { endpoint, key, from } = this.settings();
     const html = '<!doctype html><html lang="fr"><body style="margin:0;background:#f1f4f8;padding:24px 12px;font-family:Arial,sans-serif;color:#18212d">'
       + '<main style="max-width:520px;margin:auto;background:#fff;border-radius:22px;padding:30px">'
       + '<div style="font-size:24px;font-weight:800;color:#139c90">KnowMe</div>'
