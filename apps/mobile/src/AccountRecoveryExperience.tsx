@@ -27,6 +27,11 @@ export function AccountRecoveryExperience({ onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+  const [done, setDone] = useState(false);
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
 
   async function submit() {
     const normalized = normalizeRecoveryEmail(email);
@@ -36,16 +41,33 @@ export function AccountRecoveryExperience({ onBack }: Props) {
     setMessage('');
     setError('');
     try {
-      await apiFetch<{ accepted: true }>('/auth/password-recovery', {
+      await apiFetch<{ accepted: true }>('/auth/password-recovery/code', {
         method: 'POST',
         body: JSON.stringify({ email: normalized })
       });
+      setSent(true);
       setMessage(GENERIC_ACCOUNT_RECOVERY_MESSAGE);
     } catch {
       setError('La récupération de compte est temporairement indisponible. Réessaie plus tard.');
     } finally {
       setBusy(false);
     }
+  }
+
+  async function reset() {
+    if (code.length !== 6 || password.length < 12) return;
+    if (password !== confirmation) { setError('Les mots de passe ne correspondent pas.'); return; }
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await apiFetch('/auth/password-reset/code', {
+        method: 'POST',
+        body: JSON.stringify({ email: normalizeRecoveryEmail(email), code, password })
+      });
+      setDone(true);
+      setMessage('Mot de passe modifié. Tes anciennes sessions ont été fermées.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Code invalide ou expiré.');
+    } finally { setBusy(false); }
   }
 
   const ready = isRecoveryEmailReady(email);
@@ -63,10 +85,10 @@ export function AccountRecoveryExperience({ onBack }: Props) {
           <Text style={[styles.eyebrow, { color: colors.accent }]}>RÉCUPÉRATION DE COMPTE</Text>
           <Text style={[styles.title, { color: colors.text }]}>Mot de passe oublié</Text>
           <Text style={[styles.copy, { color: colors.muted }]}>
-            Entre l’adresse e-mail de ton compte KnowMe. Pour protéger ta vie privée, la réponse reste identique qu’un compte existe ou non.
+            Saisis ton adresse email pour recevoir un code temporaire et récupérer ton compte.
           </Text>
 
-          <TextInput
+          {!sent && !done ? <TextInput
             accessibilityLabel="Adresse e-mail de récupération"
             value={email}
             onChangeText={setEmail}
@@ -85,22 +107,39 @@ export function AccountRecoveryExperience({ onBack }: Props) {
                 backgroundColor: colors.surface
               }
             ]}
-          />
+          /> : null}
 
-          <Pressable
+          {sent && !done ? <>
+            <Text style={[styles.copy, { color: colors.muted }]}>{email}</Text>
+            <TextInput value={code} onChangeText={v=>setCode(v.replace(/[^0-9]/g,''))} maxLength={6}
+              keyboardType="number-pad" placeholder="Code à 6 chiffres" placeholderTextColor={colors.muted}
+              style={[styles.input,{color:colors.text,borderColor:colors.border,backgroundColor:colors.surface}]} />
+            <TextInput value={password} onChangeText={setPassword} secureTextEntry
+              placeholder="Nouveau mot de passe (12 caractères minimum)" placeholderTextColor={colors.muted}
+              style={[styles.input,{color:colors.text,borderColor:colors.border,backgroundColor:colors.surface}]} />
+            <TextInput value={confirmation} onChangeText={setConfirmation} secureTextEntry
+              placeholder="Confirmer le mot de passe" placeholderTextColor={colors.muted}
+              style={[styles.input,{color:colors.text,borderColor:colors.border,backgroundColor:colors.surface}]} />
+          </> : null}
+
+          {!done ? <Pressable
             accessibilityRole="button"
-            disabled={busy || !ready}
-            onPress={() => void submit()}
+            disabled={busy || (sent ? code.length !== 6 || password.length < 12 : !ready)}
+            onPress={() => void (sent ? reset() : submit())}
             style={[
               styles.primary,
               { backgroundColor: colors.accent },
-              (busy || !ready) && styles.disabled
+              (busy || (sent ? code.length !== 6 || password.length < 12 : !ready)) && styles.disabled
             ]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
-              {busy ? 'Envoi…' : 'Recevoir un lien de récupération'}
+              {busy ? 'Traitement…' : sent ? 'Réinitialiser mon mot de passe' : 'Recevoir un code'}
             </Text>
-          </Pressable>
+          </Pressable> : null}
+
+          {sent && !done ? <Pressable onPress={() => { setSent(false);setCode('');setError('');setMessage(''); }} disabled={busy} accessibilityRole="button">
+            <Text style={[styles.back,{color:colors.accent}]}>Demander un nouveau code</Text>
+          </Pressable> : null}
 
           {message ? (
             <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.muted }]}>
@@ -114,7 +153,7 @@ export function AccountRecoveryExperience({ onBack }: Props) {
           ) : null}
 
           <Text style={[styles.note, { color: colors.muted }]}>
-            Le lien reçu ouvre le parcours sécurisé de réinitialisation KnowMe. Il expire selon la politique serveur et une réinitialisation réussie révoque les sessions et appareils de confiance existants.
+            Ce code expire dans 10 minutes et ne peut être utilisé qu’une fois. La récupération révoque les sessions précédentes.
           </Text>
         </View>
       </KeyboardAvoidingView>
