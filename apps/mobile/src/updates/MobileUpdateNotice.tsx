@@ -51,7 +51,8 @@ export async function checkKnowMeUpdateNow(): Promise<MobileUpdateCheckResult> {
 
 // The APK feed and binaries are hosted directly by KnowMe on its VPS.
 // No Firebase, Vercel, GitHub Releases or external notification provider
-// is needed for the installed APK's update checks.
+// is needed for the installed APK's update checks. The server publishes the
+// APK only after checking its signing certificate, package and SHA-256.
 function trustedKnowMeApk(release: AndroidReleaseNotice | null): boolean {
   if (!release || !Number.isSafeInteger(release.versionCode) || release.versionCode < 1 ||
     !/^\d+\.\d+\.\d+$/.test(release.version) ||
