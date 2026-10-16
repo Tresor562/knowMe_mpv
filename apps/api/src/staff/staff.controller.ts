@@ -14,6 +14,7 @@ import { PermissionsGuard } from '../access-control/permissions.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   ActivateStaffAccountDto,
+  ActivateStaffByEmailDto,
   UpdateStaffAccountStatusDto
 } from './dto/staff-account.dto';
 import { StaffService } from './staff.service';
@@ -35,6 +36,15 @@ export class StaffController {
     @Body() dto: ActivateStaffAccountDto
   ) {
     return this.staff.activate(req.user.userId, dto);
+  }
+
+  /** Accessible only to STAFF_MANAGE, never by unauthenticated registration. */
+  @Post('by-email')
+  activateByEmail(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: ActivateStaffByEmailDto
+  ) {
+    return this.staff.activateByEmail(req.user.userId, dto);
   }
 
   @Patch(':id/status')
