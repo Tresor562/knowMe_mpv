@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { EmailChallengeService } from './email-challenge.service';
 
 type SessionContext = SecurityContext;
 
@@ -38,11 +40,13 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly security: SecurityService
+    private readonly security: SecurityService,
+    private readonly emailCodes: EmailChallengeService
   ) {}
 
   async register(dto: RegisterDto, context: SessionContext = {}) {
-    const email = dto.email.toLowerCase();
+    const email = dto.email.trim().toLowerCase();
+    this.emailCodes.assertReady();
     const username = dto.username.toLowerCase();
 
     const existing = await this.prisma.user.findFirst({
@@ -76,7 +80,16 @@ export class AuthService {
       }
     });
 
-    return this.createSession(user, context, 'REGISTRATION');
+    await this.emailCodes.resendSignup(email, context);
+    return { requiresEmailVerification: true, email: user.email };
+  }
+
+  async confirmRegistration(email: string, code: string, context: SessionContext = {}) {
+    const userId = await this.emailCodes.confirmSignup(email, code, context);
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId }, include: { staffAccount: { select: staffAccountSelect } }
+    });
+    return this.createSession(this.toSessionUser(user), context, 'EMAIL_VERIFIED');
   }
 
   async login(dto: LoginDto, context: SessionContext = {}) {
@@ -97,6 +110,10 @@ export class AuthService {
       !(await argon2.verify(user.passwordHash, dto.password))
     ) {
       throw new UnauthorizedException('Identifiants invalides.');
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException('EMAIL_CONFIRMATION_REQUIRED');
     }
 
     const secondFactor = await this.security.beginLogin(
