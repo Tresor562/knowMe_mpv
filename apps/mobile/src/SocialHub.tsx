@@ -40,7 +40,7 @@ function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile, onContentScroll, onImmersiveChange, topNavigation }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void; onContentScroll?: (offset: number) => void; onImmersiveChange?: (active: boolean) => void; topNavigation?: ReactNode }) {
+export function SocialHub({ userId, linkedConversationId, linkedMessageId, linkedMediaId, mode = 'messages', onOpenProfile, onOpenMarketplace, onContentScroll, onImmersiveChange, topNavigation }: { userId: string; linkedConversationId?: string | null; linkedMessageId?: string | null; linkedMediaId?: string | null; mode?: 'messages' | 'discover' | 'notifications'; onOpenProfile?: (username: string) => void; onOpenMarketplace?: () => void; onContentScroll?: (offset: number) => void; onImmersiveChange?: (active: boolean) => void; topNavigation?: ReactNode }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
@@ -115,6 +115,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
           refreshing={refreshing}
           setRefreshing={setRefreshing}
           onOpenProfile={onOpenProfile}
+          onOpenMarketplace={mode === 'discover' ? onOpenMarketplace : undefined}
           onContentScroll={onContentScroll}
         />
       )}
@@ -147,11 +148,13 @@ function FriendsPanel({
   refreshing,
   setRefreshing,
   onOpenProfile,
+  onOpenMarketplace,
   onContentScroll
 }: {
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
   onOpenProfile?: (username: string) => void;
+  onOpenMarketplace?: () => void;
   onContentScroll?: (offset: number) => void;
 }) {
   const { colors } = useAppearance();
@@ -250,6 +253,36 @@ function FriendsPanel({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      {onOpenMarketplace ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ouvrir la marketplace KnowMe"
+          onPress={onOpenMarketplace}
+          style={({pressed}) => [
+            {
+              minHeight: 68,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 11,
+              paddingHorizontal: 13,
+              paddingVertical: 11,
+              borderRadius: 20,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: colors.border,
+              backgroundColor: pressed ? colors.backgroundAccent : colors.surfaceGlass
+            }
+          ]}>
+          <View style={{width:42,height:42,borderRadius:15,backgroundColor:colors.backgroundAccent,alignItems:'center',justifyContent:'center'}}>
+            <KnowMeIcon name="spark" size={24} color={colors.accent} />
+          </View>
+          <View style={{flex:1,minWidth:0,gap:3}}>
+            <Text style={{color:colors.text,fontSize:15,fontWeight:'700'}}>Marketplace</Text>
+            <Text style={{color:colors.muted,fontSize:12}}>Cadeaux et achats KnowMe</Text>
+          </View>
+          <KnowMeIcon name="arrow" size={19} color={colors.muted} />
+        </Pressable>
+      ) : null}
+
       <GlassSurface strength="soft" borderRadius={20} style={styles.searchCard}>
         <Text style={[styles.searchLabel, { color: colors.muted }]}>Trouver une personne</Text>
         <View style={styles.searchRow}>

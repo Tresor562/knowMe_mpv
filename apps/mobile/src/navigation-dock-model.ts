@@ -35,7 +35,7 @@ export type DockContext = {
 export function shouldShowDock(context: DockContext) {
   if (context.keyboardVisible || context.createOpen || context.postDetailOpen || context.socialImmersive) return false;
   if (context.screen === 'profile' && context.profileSubscreenActive) return false;
-  if (['challenges', 'verification', 'linked-sticker', 'linked-channel',
+  if (['challenges', 'marketplace', 'verification', 'linked-sticker', 'linked-channel',
     'linked-gift', 'linked-profile'].includes(context.screen)) return false;
   return !context.autoHide || context.scrollVisible;
 }

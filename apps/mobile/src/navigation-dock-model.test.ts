@@ -24,6 +24,7 @@ test('immersive screens hide dock even with autohide disabled', () => {
   const base={screen:'home',keyboardVisible:false,createOpen:false,profileSubscreenActive:false,postDetailOpen:false,socialImmersive:false,scrollVisible:true,autoHide:true};
   assert.equal(shouldShowDock(base),true);
   assert.equal(shouldShowDock({...base,screen:'linked-sticker'}),false);
+  assert.equal(shouldShowDock({...base,screen:'marketplace'}),false);
   assert.equal(shouldShowDock({...base,keyboardVisible:true}),false);
   assert.equal(shouldShowDock({...base,postDetailOpen:true}),false);
   assert.equal(shouldShowDock({...base,socialImmersive:true}),false);
