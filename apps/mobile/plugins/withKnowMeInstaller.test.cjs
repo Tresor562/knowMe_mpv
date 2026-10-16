@@ -52,3 +52,17 @@ test('in-app update downloads only from the KnowMe VPS origin', () => {
   assert.doesNotMatch(screen, /fetch\(FIRST_PARTY_PREVIEW_FEED/);
   assert.doesNotMatch(screen, /https:\/\/github\.com\/Tresor562\/knowMe_mpv\/releases/);
 });
+
+test('no Firebase or GitHub dependency remains in the Android update path', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const root = join(__dirname, '..');
+  const app = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8'));
+  const worker = readFileSync(join(__dirname, 'native/android/KnowMeUpdateWorker.java'), 'utf8');
+  const ui = readFileSync(join(root, 'src/updates/MobileUpdateNotice.tsx'), 'utf8');
+  assert.ok(!app.expo.plugins.some(plugin => String(plugin).toLowerCase().includes('firebase')));
+  assert.doesNotMatch(worker, /firebase|github\.com/i);
+  assert.doesNotMatch(ui, /firebase|github\.com|FIRST_PARTY_PREVIEW_FEED/i);
+  assert.match(ui, /getRealtimeSocket\(\)/);
+  assert.match(worker, /knowme-api\/mobile-updates\/android/);
+});
