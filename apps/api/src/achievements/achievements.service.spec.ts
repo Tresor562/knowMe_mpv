@@ -76,4 +76,37 @@ describe('AchievementsService', () => {
       BadRequestException
     );
   });
+  it('initializes the static catalog only once for simultaneous and later requests', async () => {
+    const upsert = jest.fn().mockImplementation(async ({ create }: { create: { key: string; version: number } }) =>
+      ({ id: create.key, key: create.key, version: create.version })
+    );
+    const prisma = { achievementDefinition: { upsert } };
+    const service = new AchievementsService(prisma as never);
+    const method = (service as unknown as { ensureCatalog: () => Promise<unknown[]> })
+      .ensureCatalog.bind(service);
+
+    const [first, second] = await Promise.all([method(), method()]);
+    expect(first).toHaveLength(4);
+    expect(second).toHaveLength(4);
+    await method();
+    expect(upsert).toHaveBeenCalledTimes(4);
+  });
+
+  it('retries catalogue initialization when an earlier database attempt fails', async () => {
+    const upsert = jest.fn()
+      .mockRejectedValueOnce(new Error('database offline'))
+      .mockImplementation(async ({ create }: { create: { key: string; version: number } }) =>
+        ({ id: create.key, key: create.key, version: create.version })
+      );
+    const service = new AchievementsService({
+      achievementDefinition: { upsert }
+    } as never);
+    const method = (service as unknown as { ensureCatalog: () => Promise<unknown[]> })
+      .ensureCatalog.bind(service);
+
+    await expect(method()).rejects.toThrow('database offline');
+    await expect(method()).resolves.toHaveLength(4);
+    expect(upsert).toHaveBeenCalledTimes(8);
+  });
+
 });
