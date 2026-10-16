@@ -27,6 +27,7 @@ if [ -f /var/lib/nex/runtime/knowme/knowme.env ]; then
   cp -p /var/lib/nex/runtime/knowme/knowme.env "$envbackup"
   chmod 600 "$envbackup"
 fi
+echo 'Creating PostgreSQL recovery snapshot...'
 docker exec "$DB" pg_dump -U knowme -d knowme -Fc > "$backup"
 [ -s "$backup" ] || { echo 'Empty database backup; refusing deployment.' >&2; exit 1; }
 docker exec -i "$DB" pg_restore -l < "$backup" >/dev/null
@@ -61,14 +62,27 @@ fs.writeFileSync(temp,rows.join('\n')+'\n',{mode:0o600});
 fs.chmodSync(temp,0o600);
 fs.renameSync(temp,path);
 NODE
+echo 'Building and deploying KnowMe API (may take several minutes)...'
 KNOWME_DEPLOY_SHA="$SHA" node "$temp/deploy.mjs"
-# Verify local and HTTPS public endpoints, and refuse a false success.
-for URL in http://127.0.0.1:4000/platform-sync/version https://knowme-nextech.vercel.app/api/knowme/platform-sync/version; do
-  RESPONSE="$(curl -fsS --max-time 15 "$URL")"
-  printf '%s' "$RESPONSE" | EXPECTED_SHA="$SHA" node -e '
+# Internal health is exempt from HTTPS enforcement; direct HTTP calls to
+# /platform-sync/version are *not* exempt and intentionally return HTTP 426.
+echo 'Checking local API health and public HTTPS version...'
+READY="$(curl -fsS --max-time 10 http://127.0.0.1:4000/health/ready)"
+printf '%s' "$READY" | EXPECTED_SHA="$SHA" node -e '
 let b="";process.stdin.on("data",x=>b+=x);process.stdin.on("end",()=>{
 const x=JSON.parse(b);
-if(x.platform!=="api"||x.version!=="1.1.2"||x.commit!==process.env.EXPECTED_SHA)process.exit(7);
+if(x.status!=="ready"||x.release?.commit!==process.env.EXPECTED_SHA||x.checks?.database!=="up")process.exit(8);
 });'
-done
-printf 'KnowMe Web/API 1.1.2 now share SHA %s. Backup: %s\n' "$SHA" "$backup"
+PUBLIC="$(curl -fsS --max-time 15 https://knowme-nextech.vercel.app/api/knowme/platform-sync/version)"
+printf '%s' "$PUBLIC" | EXPECTED_SHA="$SHA" node -e '
+let b="";process.stdin.on("data",x=>b+=x);process.stdin.on("end",()=>{
+const x=JSON.parse(b);
+if(x.platform!=="api"||x.version!=="1.1.2"||x.commit!==process.env.EXPECTED_SHA)process.exit(9);
+});'
+UPDATE="$(curl -fsS --max-time 15 https://knowme-nextech.vercel.app/api/knowme/mobile-updates/android)"
+printf '%s' "$UPDATE" | node -e '
+let b="";process.stdin.on("data",x=>b+=x);process.stdin.on("end",()=>{
+const x=JSON.parse(b);
+if(x.release?.versionCode!==4||x.release?.version!=="1.1.2")process.exit(10);
+});'
+printf 'KnowMe Web/API 1.1.2 synchronized to %s. Backup: %s\n' "$SHA" "$backup"
