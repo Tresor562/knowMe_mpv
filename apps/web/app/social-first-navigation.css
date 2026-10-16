@@ -1,0 +1,141 @@
+/* KnowMe is a social-first platform, not a Telegram messaging clone.
+   On desktops this is a six-destination product rail. The chat split-pane is
+   handled separately by the messenger screen. On phones keep the native dock. */
+
+@media (min-width: 1100px) {
+  body:has(.km-smart-nav[data-layout='desktop']):not(:has(.km-messenger-shell)) {
+    padding-bottom: 0;
+  }
+
+  body:not(:has(.km-messenger-shell)) .bottom-nav.km-smart-nav[data-layout='desktop'] {
+    position: fixed;
+    top: max(18px, env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    bottom: max(18px, env(safe-area-inset-bottom, 0px));
+    right: auto;
+    transform: none;
+    width: 76px;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 9px;
+    padding: 11px 7px;
+    border-radius: 25px;
+    background: var(--nav-glass);
+    border: 1px solid var(--soft-border);
+    box-shadow: 0 14px 35px rgba(0,0,0,.10);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    backdrop-filter: blur(24px) saturate(1.2);
+    overflow: visible;
+    z-index: 80;
+  }
+
+
+  /* The create menu must be above the screen scrim (z-index 910).
+     The wider desktop-rail selector otherwise overrides .has-create-menu (920). */
+  body:not(:has(.km-messenger-shell)) .bottom-nav.km-smart-nav[data-layout='desktop'].has-create-menu {
+    z-index: 920;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .bottom-nav-item {
+    flex: 0 0 auto;
+    display: flex;
+    width: 60px;
+    height: 61px;
+    min-height: 61px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 2px;
+    border-radius: 18px;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .bottom-nav-icon,
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .bottom-nav-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .bottom-nav-label {
+    font-size: 10px;
+    line-height: 14px;
+    letter-spacing: -.015em;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .km-nav-create-wrap {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .km-nav-create {
+    border-radius: 18px;
+    background: var(--mint);
+    color: var(--on-primary);
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .km-nav-create-menu,
+  .bottom-nav.km-smart-nav[data-position='top'][data-layout='desktop'] .km-nav-create-menu {
+    top: 0;
+    bottom: auto;
+    left: calc(100% + 13px);
+    transform: none;
+    width: 218px;
+    max-width: 218px;
+  }
+
+  .bottom-nav.km-smart-nav[data-layout='desktop'].is-hidden,
+  .bottom-nav.km-smart-nav[data-position='top'][data-layout='desktop'].is-hidden {
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* An independent product rail must not displace the social feed or obscure
+     the full-screen conversation's own controls. */
+  body:not(:has(.km-messenger-shell)) .km-feed-page,
+  body:not(:has(.km-messenger-shell)) .km-discover-native,
+  body:not(:has(.km-messenger-shell)) .km-profile-page,
+  body:not(:has(.km-messenger-shell)) .km-messages {
+    width: min(100% - 132px, 900px);
+    max-width: 900px;
+    margin-left: max(112px, calc((100vw - 900px) / 2));
+    margin-right: auto;
+  }
+
+  body:has(.km-messenger-shell) .bottom-nav.km-smart-nav[data-layout='desktop'] {
+    display: none;
+  }
+}
+
+@media (max-height: 560px) and (min-width: 1100px) {
+  .bottom-nav.km-smart-nav[data-layout='desktop'] {
+    gap: 0;
+    padding-block: 4px;
+  }
+  .bottom-nav.km-smart-nav[data-layout='desktop'] .bottom-nav-item {
+    min-height: 52px;
+    height: 52px;
+    gap: 1px;
+  }
+}
+
+:root[data-reduce-transparency='true'] .bottom-nav.km-smart-nav[data-layout='desktop'] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav.km-smart-nav[data-layout='desktop'],
+  .bottom-nav.km-smart-nav[data-layout='desktop'] * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

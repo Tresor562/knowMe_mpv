@@ -5,7 +5,7 @@ import { KnowMeBrand } from '../components/knowme-brand';
 
 export default function Home(){
   useEffect(()=>{
-    if(window.localStorage.getItem('knowme_token'))window.location.replace('/messages');
+    if(window.localStorage.getItem('knowme_token'))window.location.replace('/feed');
   },[]);
   return (
     <main className="km-auth km-native-entry">

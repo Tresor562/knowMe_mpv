@@ -38,6 +38,7 @@ export function BottomNavigation() {
   const [keyboardEditing, setKeyboardEditing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [position, setPosition] = useState<NavPosition>('bottom');
+  const [wideLayout,setWideLayout] = useState(false);
   const [topHeaderSlot, setTopHeaderSlot] = useState<HTMLElement | null>(null);
   const lastScrollY = useRef(0);
   const directionDistance = useRef(0);
@@ -60,6 +61,16 @@ export function BottomNavigation() {
     window.addEventListener('storage', update);
     window.addEventListener('knowme-nav-position-changed', update);
     return () => { window.removeEventListener('storage', update); window.removeEventListener('knowme-nav-position-changed', update); };
+  }, []);
+
+  // On desktop, all six KnowMe destinations remain accessible in a compact rail.
+  // The stored top/bottom dock preference is preserved for mobile, not overwritten.
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1100px)');
+    const update = () => setWideLayout(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
   }, []);
 
   // The upper dock is hosted by the active page header, never fixed above it.
@@ -147,10 +158,11 @@ export function BottomNavigation() {
     { href: '/challenges', label: en ? 'Challenge' : 'Défi' },
     { href: '/messages/new', label: en ? 'Group or message' : 'Groupe ou message' }
   ];
-  const hide = !visible || keyboardEditing;
+  const hide = !wideLayout && (!visible || keyboardEditing);
   const navigation = (
       <nav className={'bottom-nav km-smart-nav' + (hide ? ' is-hidden' : '') + (createOpen ? ' has-create-menu' : '')}
-        data-position={position} aria-label={en ? 'Main navigation' : 'Navigation principale'}>
+        data-position={position} data-layout={wideLayout ? 'desktop' : 'mobile'}
+        aria-label={en ? 'Main navigation' : 'Navigation principale'}>
         {items.slice(0, 2).map(item => (
           <Link key={item.href} href={item.href} aria-current={item.matches.includes(pathname) ? 'page' : undefined}
             aria-label={item.label}
@@ -167,7 +179,14 @@ export function BottomNavigation() {
             <span className="bottom-nav-label">{en ? 'Create' : 'Créer'}</span>
           </button>
           {createOpen && <div className="km-nav-create-menu" role="menu" aria-label={en ? 'Create' : 'Créer'}>
-            {createLinks.map(item => <Link role="menuitem" key={item.href} href={item.href} onClick={() => setCreateOpen(false)}>{item.label}</Link>)}
+            {createLinks.map(item => <Link role="menuitem" key={item.href} href={item.href} onClick={() => {
+              setCreateOpen(false);
+              // Next.js may handle same-page hash links with pushState without a
+              // browser hashchange event. Open the actual feed editor explicitly.
+              if (item.href === '/feed#compose' && pathname === '/feed') {
+                window.dispatchEvent(new Event('knowme:open-post-composer'));
+              }
+            }}>{item.label}</Link>)}
           </div>}
         </div>
         {items.slice(2).map(item => (
@@ -186,7 +205,7 @@ export function BottomNavigation() {
       {createOpen && <button type="button" className="km-nav-scrim"
         aria-label={en ? 'Close create menu' : 'Fermer le menu Créer'}
         onClick={() => setCreateOpen(false)}/>}
-      {position === 'top' ? (topHeaderSlot ? createPortal(navigation, topHeaderSlot) : null) : navigation}
+      {position === 'top' && !wideLayout ? (topHeaderSlot ? createPortal(navigation, topHeaderSlot) : navigation) : navigation}
     </>
   );
 }
