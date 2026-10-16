@@ -248,7 +248,7 @@ describe('KnowMe staff accounts (e2e)', () => {
       .expect(200);
     expect(emailBadgeProfile.body.role).toBe('USER');
     expect(emailBadgeProfile.body.staff).toEqual(expect.objectContaining({
-      shield: 'GOLD',
+      shield: 'STANDARD',
       role: 'OWNER'
     }));
 
