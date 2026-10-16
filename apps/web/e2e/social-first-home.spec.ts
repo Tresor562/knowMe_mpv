@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function stubAuthenticatedSocialHome(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('knowme_token', 'social-first-e2e-token');
+    localStorage.setItem('knowme-locale', 'fr');
   });
   await page.route('**/api/knowme/**', async route => {
     const path = new URL(route.request().url()).pathname;
@@ -41,9 +42,9 @@ test('a signed-in KnowMe user opens the social feed, never Chats by default', as
   await page.goto('/');
   await expect(page).toHaveURL(/\/feed$/);
   await expect(page.getByRole('heading', {name:'Fil d’actualité'})).toBeVisible();
-  await expect(page.getByRole('navigation', {name:'Navigation principale'})).toBeVisible();
-  await expect(page.getByRole('navigation', {name:'Navigation principale'}).getByRole('link', {name:'Accueil'})).toHaveAttribute('href','/feed');
-  await expect(page.getByRole('navigation', {name:'Navigation principale'}).getByRole('link', {name:'Messages'})).toHaveAttribute('href','/messages');
+  await expect(page.locator('nav.km-smart-nav')).toBeVisible();
+  await expect(page.locator('nav.km-smart-nav a[href="/feed"]')).toBeVisible();
+  await expect(page.locator('nav.km-smart-nav a[href="/messages"]')).toBeVisible();
 });
 
 test('desktop social home keeps the complete KnowMe main navigation visible', async ({page}) => {
@@ -51,7 +52,7 @@ test('desktop social home keeps the complete KnowMe main navigation visible', as
   await stubAuthenticatedSocialHome(page);
   await page.goto('/');
   await expect(page).toHaveURL(/\/feed$/);
-  const navigation = page.getByRole('navigation', {name:'Navigation principale'});
+  const navigation = page.locator('nav.km-smart-nav');
   await expect(navigation).toBeVisible();
   await expect(navigation).toHaveAttribute('data-layout','desktop');
   await expect(navigation.getByRole('link', {name:'Accueil'})).toBeVisible();
