@@ -313,7 +313,8 @@ export function MessagesOrganizationExperience({
 
   if (organizationOpen) {
     return (
-      <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
+      <ScrollView style={rootStyle} contentContainerStyle={styles.content}
+        onScroll={event=>onContentScroll?.(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
         <View style={styles.toolbar}>
           <PressScale
             accessibilityRole="button"
