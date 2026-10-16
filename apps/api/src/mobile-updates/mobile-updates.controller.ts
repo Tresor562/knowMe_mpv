@@ -55,7 +55,9 @@ export function readAndroidReleaseNotice(env: NodeJS.ProcessEnv): AndroidRelease
 
 const OFFICIAL_RELEASES_API =
   'https://api.github.com/repos/Tresor562/knowMe_mpv/releases?per_page=8';
-const RELEASE_CACHE_MS = 15 * 60 * 1000;
+// The VPS broadcasts new releases to online clients after discovery.
+// A short cache bounds GitHub load while keeping alerts reasonably timely.
+const RELEASE_CACHE_MS = 2 * 60 * 1000;
 let nextReleaseCheckAt = 0;
 let cachedRelease: AndroidReleaseNotice | null = null;
 
