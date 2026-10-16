@@ -6,24 +6,44 @@ import { getRuntimeLocale, localizeApiFailure } from './i18n-runtime';
 const DEVELOPMENT_API_URL = 'http://10.0.2.2:4000';
 const REQUEST_TIMEOUT_MS = 15_000;
 
+/** Retry safe reads, never POST requests (which may have succeeded already). */
 async function fetchWithTimeout(input: string, init: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(),
-    init.body instanceof FormData ? 120_000 : REQUEST_TIMEOUT_MS);
+  const method = (init.method ?? 'GET').toUpperCase();
+  const readOnly = method === 'GET' || method === 'HEAD';
+  const attempts = readOnly ? 3 : 1;
 
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: init.signal ?? controller.signal
-    });
-  } catch (cause) {
-    if (!init.signal && controller.signal.aborted) {
-      throw new Error('Le serveur KnowMe ne répond pas. Vérifie ta connexion puis réessaie.');
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(),
+      init.body instanceof FormData ? 120_000 : REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(input, {
+        ...init,
+        signal: init.signal ?? controller.signal
+      });
+      if (readOnly && [502, 503, 504].includes(response.status) && attempt < attempts - 1) {
+        await new Promise<void>(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+      return response;
+    } catch (cause) {
+      if (init.signal?.aborted) throw cause;
+      if (readOnly && attempt < attempts - 1) {
+        await new Promise<void>(resolve => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+      const timedOut = controller.signal.aborted ||
+        (cause instanceof Error && (cause.name === 'AbortError' || cause.name === 'TimeoutError'));
+      const error = new Error(timedOut
+        ? 'Le serveur KnowMe met trop de temps à répondre. Réessaie.'
+        : 'KnowMe est momentanément inaccessible. Réessaie.') as ApiError;
+      error.code = timedOut ? 'KNOWME_TIMEOUT' : 'KNOWME_NETWORK_UNAVAILABLE';
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-    throw cause;
-  } finally {
-    clearTimeout(timeout);
   }
+  throw new Error('Requête KnowMe non aboutie.');
 }
 
 export function resolveApiUrl(rawValue: string | undefined, isDevelopment: boolean) {
@@ -193,17 +213,23 @@ async function refreshAccessToken() {
     const refreshToken = await secureGet(REFRESH_KEY);
     if (!refreshToken) return null;
 
-    const response = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept-Language': getRuntimeLocale()
-      },
-      body: JSON.stringify({ refreshToken })
-    });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': getRuntimeLocale()
+        },
+        body: JSON.stringify({ refreshToken })
+      });
+    } catch {
+      // Keep the refresh token for a later attempt when the backend recovers.
+      return null;
+    }
 
     if (!response.ok) {
-      await clearSession();
+      if ([400, 401, 403].includes(response.status)) await clearSession();
       return null;
     }
 
