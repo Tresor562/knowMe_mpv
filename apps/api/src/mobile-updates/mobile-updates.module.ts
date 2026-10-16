@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../realtime/realtime.module';
+import { MobileUpdateSignalsService } from './mobile-update-signals.service';
 import { MobileUpdatesController } from './mobile-updates.controller';
 
-@Module({ controllers: [MobileUpdatesController] })
+@Module({
+  imports: [RealtimeModule],
+  controllers: [MobileUpdatesController],
+  providers: [MobileUpdateSignalsService]
+})
 export class MobileUpdatesModule {}
