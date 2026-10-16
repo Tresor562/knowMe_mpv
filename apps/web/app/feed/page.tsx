@@ -262,10 +262,13 @@ export default function FeedPage() {
 
   return (
     <main className="shell km-feed-page">
+      <div className="km-header-nav-group">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
         <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
       </header>
+      <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
+      </div>
       <section className="km-feed-quick-compose" aria-label={en?'Create a post':'Créer une publication'}>
         <span className="km-post-avatar"><KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} /></span>
         <button type="button" className="km-feed-quick-compose-open"
