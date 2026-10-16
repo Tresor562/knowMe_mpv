@@ -1394,14 +1394,15 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     );
   }
 
+  const dockVisible = shouldShowDock({
+    screen, keyboardVisible, createOpen, profileSubscreenActive,
+    postDetailOpen, socialImmersive, scrollVisible: dockScrollVisible,
+    autoHide: dockPreferences.autoHide
+  });
   const navigation = (
     <BottomNavigation
       screen={screen}
-      visible={shouldShowDock({
-        screen, keyboardVisible, createOpen, profileSubscreenActive,
-        postDetailOpen, socialImmersive, scrollVisible: dockScrollVisible,
-        autoHide: dockPreferences.autoHide
-      })}
+      visible={dockVisible}
       position={dockPreferences.position}
       onNavigate={(next) => setScreen(next)}
       onCreate={() => setCreateOpen(true)}
@@ -1426,7 +1427,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           styles.body,
           { backgroundColor: colors.background },
           screen !== 'challenges' && screen !== 'verification'
-            ? (dockPreferences.position==='top' ? styles.bodyWithTopDock : styles.bodyWithDock)
+            ? (dockPreferences.position === 'top' ? styles.bodyWithTopDock : dockVisible ? styles.bodyWithDock : null)
             : null
         ]}
       >
