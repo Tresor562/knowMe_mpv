@@ -1167,6 +1167,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [dockPreferences,setDockPreferences] = useState<DockPreferences>(DEFAULT_DOCK_PREFERENCES);
   const [dockScrollVisible,setDockScrollVisible] = useState(true);
   const [postDetailOpen,setPostDetailOpen] = useState(false);
+  const [socialImmersive,setSocialImmersive] = useState(false);
   const dockScroll=useRef({...INITIAL_DOCK_SCROLL});
 
   useEffect(() => {
@@ -1192,6 +1193,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     dockScroll.current={...INITIAL_DOCK_SCROLL};
     setDockScrollVisible(true);
     setPostDetailOpen(false);
+    setSocialImmersive(false);
   },[screen]);
 
   useEffect(() => {
@@ -1417,6 +1419,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             userId={user.id}
             mode="discover"
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
           />
         ) : null}
 
@@ -1426,6 +1429,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             userId={user.id}
             mode="notifications"
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
           />
         ) : null}
 
@@ -1437,6 +1441,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             linkedMessageId={linkedMessageId}
             linkedMediaId={linkedMediaId}
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
+            onImmersiveChange={setSocialImmersive}
           />
         ) : null}
 
@@ -1497,7 +1503,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         screen={screen}
         visible={shouldShowDock({
           screen, keyboardVisible, createOpen, profileSubscreenActive,
-          postDetailOpen, scrollVisible:dockScrollVisible,autoHide:dockPreferences.autoHide
+          postDetailOpen, socialImmersive, scrollVisible:dockScrollVisible,autoHide:dockPreferences.autoHide
         })}
         position={dockPreferences.position}
         onNavigate={(next) => setScreen(next)}
