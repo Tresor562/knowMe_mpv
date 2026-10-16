@@ -1239,6 +1239,14 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     setScreen('linked-profile');
   }
 
+  function openConversationFromProfile(conversationId: string) {
+    setLinkedConversationId(conversationId);
+    setLinkedMessageId(null);
+    setLinkedMediaId(null);
+    setLinkRevision(revision => revision + 1);
+    setScreen('social');
+  }
+
   async function resetLocalSession() {
     disconnectRealtimeSocket();
     await clearSession();
@@ -1363,7 +1371,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
 
         {screen === 'linked-profile' && linkedUsername ? (
-          <LinkedProfileExperience username={linkedUsername} onBack={() => setScreen(profileReturnScreen)} />
+          <LinkedProfileExperience username={linkedUsername}
+            onBack={() => setScreen(profileReturnScreen)}
+            onOpenConversation={openConversationFromProfile} />
         ) : null}
 
         {screen === 'linked-gift' && linkedGiftId ? (

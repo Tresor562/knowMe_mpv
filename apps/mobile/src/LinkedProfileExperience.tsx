@@ -28,6 +28,7 @@ type FriendshipRelation = {
   legacy?: boolean;
 };
 
+type ProfileConversation = { id: string; isGroup: boolean; members: Array<{ userId: string }> };
 type SearchUser = { id: string; username: string };
 type Incoming = { id: string; requester: { id: string } };
 type Friend = { friendshipId: string; user: { id: string } };
@@ -108,11 +109,16 @@ function coverSource(value: string | null | undefined): string | null {
 
 /** Every section comes from the server-filtered public profile. Never request
  *  private owner data in order to render another person's profile. */
-export function LinkedProfileExperience({ username, onBack }: { username: string; onBack: () => void }) {
+export function LinkedProfileExperience({ username, onBack, onOpenConversation }: {
+  username: string;
+  onBack: () => void;
+  onOpenConversation: (conversationId: string) => void;
+}) {
   const { colors } = useAppearance();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [relation, setRelation] = useState<FriendshipRelation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [messageBusy, setMessageBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmRemoval, setConfirmRemoval] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -189,6 +195,30 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
     }
   }
 
+  async function openPrivateConversation() {
+    if (messageBusy || !profile || !relation || profile.viewer.owner ||
+        relation.status === 'BLOCKED') return;
+    setMessageBusy(true);
+    setNotice('');
+    try {
+      const targetId = relation.targetUserId;
+      const conversations = await apiFetch<ProfileConversation[]>('/conversations');
+      const existing = conversations.find(chat =>
+        !chat.isGroup && chat.members.length === 2 &&
+        chat.members.some(member => member.userId === targetId)
+      );
+      const id = existing?.id ?? (await apiFetch<{ id: string }>('/conversations', {
+        method: 'POST',
+        body: JSON.stringify({ memberIds: [targetId] })
+      })).id;
+      onOpenConversation(id);
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'Impossible d’ouvrir la conversation.');
+    } finally {
+      setMessageBusy(false);
+    }
+  }
+
   const accessible = profile ? !profile.privacy.lockedForViewer : false;
   const stats = accessible && profile?.statistics
     ? Object.entries(profile.statistics)
@@ -261,6 +291,11 @@ export function LinkedProfileExperience({ username, onBack }: { username: string
           </View>
           {!profile.viewer.owner && (
             <GlassSurface strength="soft" borderRadius={22} style={{padding:14,gap:10}}>
+            {relation?.status !== 'BLOCKED' ? (
+              <FriendButton label={messageBusy ? 'Ouverture…' : 'Message'}
+                disabled={messageBusy || !relation}
+                onPress={() => void openPrivateConversation()} />
+            ) : null}
             {!profile.viewer.owner && relation?.status === 'NONE' ? (
               <FriendButton label="+ Ajouter en ami" disabled={busy} onPress={() => void updateFriendship('send')} />
             ) : null}
