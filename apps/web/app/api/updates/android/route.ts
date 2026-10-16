@@ -2,50 +2,65 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// The Web update screen is a convenience proxy. The VPS remains the single
-// authority for versions and hosts the APKs. GitHub/Vercel do not store APKs.
-const KNOWME_VPS_FEED =
-  'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android';
+// One-time bridge for KnowMe 1.1.6 and older APKs. These APKs expect
+// GitHub-style preview URLs and cannot be reprogrammed retroactively.
+// The new APK from 1.1.7 onward reads only the KnowMe-owned VPS API.
+// This compatibility endpoint never authorizes installation by itself.
+const TAG = 'v1.1.7-preview';
+const VERSION = '1.1.7';
+const CODE = 9;
+const REPO = 'Tresor562/knowMe_mpv';
+const PREFIX = 'https://github.com/' + REPO + '/releases/download/' + TAG + '/';
+const APK = 'KnowMe-' + VERSION + '-preview.apk';
+const RELEASE_API = 'https://api.github.com/repos/' + REPO + '/releases/tags/' + TAG;
+const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'KnowMe-1.1.6-Bridge' };
 
-type Release = {
-  versionCode: number; version: string; url: string;
-  sha256: string; notes: string; required: boolean;
-};
+type Asset = { name?: string; browser_download_url?: string; size?: number };
+type GitHubRelease = { prerelease?: boolean; draft?: boolean; tag_name?: string; assets?: Asset[] };
 
-function verifiedVpsRelease(raw: unknown): Release | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const r = raw as Record<string, unknown>;
-  if (!Number.isSafeInteger(r.versionCode) || Number(r.versionCode) < 1 ||
-      typeof r.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(r.version) ||
-      typeof r.sha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(r.sha256)) return null;
-  const expected = 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-' +
-    r.version + '-preview.apk';
-  if (r.url !== expected) return null;
+async function oneTimeBridge() {
+  const response = await fetch(RELEASE_API, {
+    headers, cache: 'no-store', signal: AbortSignal.timeout(6500)
+  });
+  if (!response.ok) return null;
+  const release = await response.json() as GitHubRelease;
+  if (release.draft || release.prerelease !== true || release.tag_name !== TAG) return null;
+  const apk = release.assets?.find(asset =>
+    asset.name === APK && asset.browser_download_url === PREFIX + APK &&
+    typeof asset.size === 'number' && asset.size >= 10_000_000);
+  const digest = release.assets?.find(asset =>
+    asset.name === APK + '.sha256' &&
+    asset.browser_download_url === PREFIX + APK + '.sha256');
+  const manifest = release.assets?.find(asset =>
+    asset.name === 'knowme-update.json' &&
+    asset.browser_download_url === PREFIX + 'knowme-update.json');
+  if (!apk || !digest || !manifest) return null;
+  const manifestResult = await fetch(PREFIX + 'knowme-update.json', {
+    cache: 'no-store', signal: AbortSignal.timeout(6500)
+  });
+  if (!manifestResult.ok) return null;
+  const text = await manifestResult.text();
+  if (text.length > 4096) return null;
+  const data = JSON.parse(text) as Record<string, unknown>;
+  if (data.version !== VERSION || data.versionCode !== CODE ||
+      data.url !== PREFIX + APK || typeof data.sha256 !== 'string' ||
+      !/^[0-9a-f]{64}$/i.test(data.sha256)) return null;
   return {
-    versionCode: Number(r.versionCode),
-    version: r.version,
-    url: expected,
-    sha256: r.sha256,
-    notes: typeof r.notes === 'string' ? r.notes.slice(0, 500) : '',
-    required: r.required === true
+    version: VERSION,
+    versionCode: CODE,
+    url: PREFIX + APK,
+    sha256: data.sha256.toLowerCase(),
+    notes: 'Mise à jour de transition vers les notifications gérées par KnowMe.',
+    required: false
   };
 }
 
 export async function GET() {
   try {
-    const response = await fetch(KNOWME_VPS_FEED, {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(7000)
-    });
-    if (!response.ok) throw new Error('VPS_FEED_UNAVAILABLE');
-    const data = await response.json() as { release?: unknown };
-    return NextResponse.json({
-      release: verifiedVpsRelease(data.release)
-    }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ release: await oneTimeBridge() },
+      { headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
   } catch {
-    return NextResponse.json({ release: null }, {
-      headers: { 'Cache-Control': 'no-store' }
-    });
+    return NextResponse.json({ release: null },
+      { headers: { 'Cache-Control': 'no-store' } });
   }
 }
