@@ -1,0 +1,99 @@
+name: Publish compatible KnowMe OTA preview
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: knowme-ota-preview
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GITHUB_SHA_SOURCE: ${{ github.event.workflow_run.head_sha }}
+      TRIGGER_KIND: ${{ github.event_name }}
+      EXPO_PUBLIC_API_URL: https://31-56-85-53.sslip.io/knowme-api
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645dc5ba9c38 # v6
+        with:
+          node-version: 22.23.2
+          cache: pnpm
+      - name: Prove matching native preview is already published
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          [[ "$HEAD_SHA" == "$REMOTE_SHA" ]] || { echo 'Superseded main commit'; exit 1; }
+          if [[ "$TRIGGER_KIND" == 'workflow_run' && "$HEAD_SHA" != "$GITHUB_SHA_SOURCE" ]]; then
+            echo 'Superseded CI workflow'; exit 0
+          fi
+          node scripts/platform-sync-preflight.mjs
+          test "$(node -p 'require("./apps/mobile/app.json").expo.android.versionCode')" = 7
+          test "$(node -p 'require("./apps/mobile/app.json").expo.version')" = 1.1.5
+          GH_JSON="$(gh release view v1.1.5-preview --json targetCommitish,assets --json targetCommitish,assets)"
+          SOURCE="$(printf '%s' "$GH_JSON" | jq -r .targetCommitish)"
+          [[ "$SOURCE" =~ ^[a-f0-9]{40}$ ]] || { echo 'Native release must be tied to an immutable SHA'; exit 1; }
+          # OTA is allowed only when NO changes to native plugins, dependency graph,
+          # app build config or native ABI have occurred after that signed APK.
+          if ! git diff --quiet "$SOURCE" HEAD -- \
+            apps/mobile/plugins/ apps/mobile/app.json apps/mobile/app.config.js \
+            apps/mobile/package.json apps/mobile/eas.json pnpm-lock.yaml; then
+            echo 'Native runtime changed: build and sign a new APK before OTA.'
+            exit 1
+          fi
+          TAG="knowme-ota-preview-native7-$HEAD_SHA"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo 'Same update already exists'; exit 0
+          fi
+          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Install frozen workspace dependencies
+        if: steps.gate.outputs.sha != ''
+        run: |
+          printf '%s\n' 'shamefully-hoist=true' > .npmrc
+          pnpm install --frozen-lockfile
+          pnpm --filter @knowme/mobile... build
+      - name: Export Android OTA with Expo SDK 53
+        if: steps.gate.outputs.sha != ''
+        env:
+          GITHUB_SHA: ${{ steps.gate.outputs.sha }}
+        run: |
+          pnpm --filter @knowme/mobile exec expo export --platform android --output-dir dist
+          pnpm --filter @knowme/mobile exec expo config --type public --json > apps/mobile/dist/expo-config.json
+          node scripts/build-knowme-expo-ota.mjs
+      - name: Publish immutable preview JS bundle and assets
+        if: steps.gate.outputs.sha != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.gate.outputs.tag }}
+          SOURCE_SHA: ${{ steps.gate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)" == "$SOURCE_SHA" ]] || exit 1
+          gh release create "$TAG" artifacts/knowme-ota/* \
+            --target "$SOURCE_SHA" --prerelease \
+            --title "KnowMe Android OTA preview $SOURCE_SHA" \
+            --notes 'Expo Updates runtime native7 only; immutable preview assets.'
+          echo "Published: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
