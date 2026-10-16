@@ -6,6 +6,7 @@
     "build": "next build",
     "lint": "next lint",
     "start": "next start",
+    "test": "node --experimental-strip-types --test lib/voice-wav.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
