@@ -19,6 +19,7 @@ import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { AnimatedEmoji } from './AnimatedEmoji';
 import { EmojiPicker } from './EmojiPicker';
+import {KnowMeStickerPicker} from './KnowMeStickerPicker';
 import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
@@ -781,12 +782,23 @@ export function RealtimeMessagesPanel({
                     </Pressable>
                   </View>
                   : item.presentation?.kind==='STICKER'
-                    ? <View style={{alignItems:'flex-start',gap:2}}>
+                    ? <Pressable accessibilityRole="button"
+                        accessibilityLabel={`Options du sticker ${item.presentation.sticker.label}`}
+                        onPress={()=>{
+                          const name=item.presentation?.kind==='STICKER'?item.presentation.sticker.label:'Sticker';
+                          Alert.alert('Sticker KnowMe',name,[
+                            {text:'Partager le message',onPress:()=>{
+                              void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})});
+                            }},
+                            {text:'Fermer',style:'cancel'}
+                          ]);
+                        }}
+                        style={{alignItems:'flex-start',gap:2}}>
                         <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={46}/>
                         <Text style={{color:mine?colors.accentText:colors.text,fontSize:12}}>
                           {item.presentation.sticker.label}
                         </Text>
-                      </View>
+                      </Pressable>
                     : isStandaloneAnimatedEmojiText(item.presentation?.kind==='TEXT'
                         ? item.presentation.text : item.content)
                       ? <AnimatedEmoji size={50} glyph={(item.presentation?.kind==='TEXT'
@@ -824,6 +836,12 @@ export function RealtimeMessagesPanel({
 
         <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
           <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
+          <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
+            onSent={created=>{
+              setHistory(current=>mergeMessages(current,[created]));
+              setConversations(current=>current.map(item=>item.id===active.id
+                ? {...item,messages:[created]}:item));
+            }}/>
           <ChatMediaPicker<ConversationMessage> conversationId={active.id}
             onSent={created=>{
               setHistory(current=>mergeMessages(current,[created]));
