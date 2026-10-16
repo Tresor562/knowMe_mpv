@@ -260,9 +260,10 @@ export function MobileUpdateNotice() {
             {release.notes}
           </Text>
           <Text style={[styles.caption, { color: colors.muted }]}>
-            La mise à jour reste dans l’application, sans fichier dans tes
-            téléchargements. Android peut demander ton autorisation pour
-            l’installation. Tes données sont conservées.
+            La mise à jour se télécharge dans KnowMe, sans fichier dans tes
+            téléchargements. Android demandera ton accord pour l’installation.
+            Si la signature ne correspond pas, l’installation est refusée et
+            tes données existantes restent en place.
           </Text>
           <Pressable
             accessibilityRole="button"
