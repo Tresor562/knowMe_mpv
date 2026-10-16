@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 22
     env:
-      GH_TOKEN: {{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       VERIFIED_SHA: 8e1a696ae9c46dc6b304e74cd873a1a379891301
       VERIFIED_CI_RUN: '38970987307'
       VERIFIED_APK_RUN: '38970987221'
