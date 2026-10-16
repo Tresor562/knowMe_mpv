@@ -51,9 +51,9 @@ describe('Expo OTA feed', () => {
       'expo-channel-name': 'preview'
     })).status).toBe(204);
   });
-  it('defaults to disabled until API deployment is explicitly enabled', async () => {
+  it('supports an emergency server-side kill switch', async () => {
     const previous = process.env.KNOWME_EXPO_OTA_ENABLED;
-    delete process.env.KNOWME_EXPO_OTA_ENABLED;
+    process.env.KNOWME_EXPO_OTA_ENABLED = 'false';
     try {
       expect((await getKnowMeExpoUpdate({
         'expo-protocol-version': '1', 'expo-platform': 'android',
