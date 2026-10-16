@@ -10,7 +10,7 @@ Les adresses historiques ou officielles peuvent être utilisées par l’équipe
 
 ## Badge public
 
-Seul un enregistrement au statut `ACTIVE` produit le badge public :
+Seul un enregistrement au statut `ACTIVE` produit le badge public. Le sceau **doré** exige en plus que l'adresse actuelle du compte KnowMe concerné se termine exactement par `@gmail.com` (casse ignorée). Le compte doit être explicitement approuvé par un administrateur autorisé. Une inscription ou une modification de l'adresse e-mail n'active jamais seule un badge, ni des droits staff :
 
 - libellé `Équipe KnowMe` ;
 - bouclier doré ;

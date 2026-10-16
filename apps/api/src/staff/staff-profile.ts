@@ -12,13 +12,21 @@ export type StaffProfileRecord = {
   shieldStyle: string;
 } | null;
 
-export function toStaffBadge(staffAccount: StaffProfileRecord) {
+export function toStaffBadge(staffAccount: StaffProfileRecord, accountEmail?: string | null) {
   if (!staffAccount || staffAccount.status !== 'ACTIVE') return null;
+
+  // A public gold seal is restricted to explicitly approved Gmail accounts.
+  // Staff membership and access rights remain independent from badge color.
+  // The account email comes from the enclosing DB user, never from client input.
+  const gmailAccount = (accountEmail ?? '').trim().toLowerCase().endsWith('@gmail.com');
+  const shield = staffAccount.shieldStyle === 'GOLD' && !gmailAccount
+    ? 'STANDARD'
+    : staffAccount.shieldStyle;
 
   return {
     isTeamMember: true as const,
     label: staffAccount.badgeLabel,
-    shield: staffAccount.shieldStyle,
+    shield,
     role: staffAccount.staffRole
   };
 }

@@ -125,6 +125,30 @@ describe('KnowMe staff accounts (e2e)', () => {
     expect(publicProfile.body.header.staff).toEqual(activeProfile.body.staff);
     expect(publicProfile.body.header).not.toHaveProperty('email');
 
+    // Approved staff on a non-Gmail account must never receive the gold seal.
+    await request(app.getHttpServer())
+      .post('/admin/staff-accounts')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        userId: lookalikeRegistration.body.user.id
+        staffRole: 'DEVELOPER',
+        grantsAdminAccess: false,
+        reason: 'Vérification du sceau neutre sur les adresses non Gmail.'
+      })
+      .expect(201);
+    const nongmailProfile = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${lookalikeRegistration.body.accessToken}`)
+      .expect(200);
+    expect(nongmailProfile.body.staff).toEqual(
+      expect.objectContaining({ isTeamMember: true, shield: 'STANDARD' })
+    );
+    const nongmailPublic = await request(app.getHttpServer())
+      .get('/profile-experience/public/staff_lookalike')
+      .expect(200);
+    expect(nongmailPublic.body.header.staff.shield).toBe('STANDARD');
+
+
     await request(app.getHttpServer())
       .get('/admin/staff-accounts')
       .set('Authorization', `Bearer ${officialToken}`)
@@ -224,7 +248,7 @@ describe('KnowMe staff accounts (e2e)', () => {
       .expect(200);
     expect(emailBadgeProfile.body.role).toBe('USER');
     expect(emailBadgeProfile.body.staff).toEqual(expect.objectContaining({
-      shield: 'GOLD',
+      shield: 'STANDARD',
       role: 'OWNER'
     }));
 
