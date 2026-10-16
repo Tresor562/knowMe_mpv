@@ -51,8 +51,9 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
           Activity activity = getCurrentActivity();
           if (activity != null) {
             prefs.edit().putBoolean("notification_permission_requested", true).apply();
-            ActivityCompat.requestPermissions(
-              activity, new String[] { Manifest.permission.POST_NOTIFICATIONS }, 11705);
+            activity.runOnUiThread(() ->
+              ActivityCompat.requestPermissions(
+                activity, new String[] { Manifest.permission.POST_NOTIFICATIONS }, 11705));
           }
         }
       }
