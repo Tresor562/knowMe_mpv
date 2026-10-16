@@ -158,7 +158,7 @@ export function BottomNavigation() {
     { href: '/challenges', label: en ? 'Challenge' : 'Défi' },
     { href: '/messages/new', label: en ? 'Group or message' : 'Groupe ou message' }
   ];
-  const hide = !visible || keyboardEditing;
+  const hide = !wideLayout && (!visible || keyboardEditing);
   const navigation = (
       <nav className={'bottom-nav km-smart-nav' + (hide ? ' is-hidden' : '') + (createOpen ? ' has-create-menu' : '')}
         data-position={position} data-layout={wideLayout ? 'desktop' : 'mobile'}
