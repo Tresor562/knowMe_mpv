@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { PaymentsExperience } from './PaymentsExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
@@ -15,6 +15,16 @@ type StoreSection = 'gifts' | 'coins';
 export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<StoreSection>('gifts');
+
+  // Android hardware/gesture back should match the visible header back action.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+    return () => listener.remove();
+  }, [onBack]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
