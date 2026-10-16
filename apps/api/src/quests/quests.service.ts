@@ -27,7 +27,9 @@ type QuestProgress = {
 const DAILY_EXPLORER_KEY = 'daily_challenge_explorer';
 const DAILY_EXPLORER_TARGET = 1;
 const MINIMUM_CHALLENGE_QUESTIONS = 3;
-const SERIALIZABLE_ATTEMPTS = 3;
+// Concurrent completions can serialize against the same user's quest row.
+// Use bounded exponential retries rather than surfacing a transient P2034 as HTTP 500.
+const SERIALIZABLE_ATTEMPTS = 8;
 
 @Injectable()
 export class QuestsService {
@@ -294,6 +296,8 @@ export class QuestsService {
   }
 
   private async transactionBackoff(attempt: number) {
-    await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)));
+    const exponential = Math.min(20 * (2 ** attempt), 800);
+    const jitter = Math.floor(Math.random() * 21);
+    await new Promise((resolve) => setTimeout(resolve, exponential + jitter));
   }
 }
