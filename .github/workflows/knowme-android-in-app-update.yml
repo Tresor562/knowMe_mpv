@@ -1,6 +1,11 @@
 name: Publish KnowMe signed in-app Android update
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/knowme-android-in-app-update.yml'
+      - 'apps/mobile/app.json'
   workflow_dispatch:
 
 permissions:
