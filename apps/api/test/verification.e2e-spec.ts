@@ -269,6 +269,19 @@ describe('KnowMe authoritative identity verification (e2e)', () => {
       })
     );
 
+    // Public profile badges must mirror authorized account status, independently.
+    const publicBadges = await request(app.getHttpServer())
+      .get('/profile-experience/public/verify_applicant')
+      .expect(200);
+    expect(publicBadges.body.header.staff).toEqual(allBadges.body.staff);
+    expect(publicBadges.body.header.verification).toEqual(
+      expect.objectContaining({ isVerified: true })
+    );
+    expect(publicBadges.body.header.premium).toEqual(
+      expect.objectContaining({ isPremium: true })
+    );
+    expect(publicBadges.body.header).not.toHaveProperty('email');
+
     const revoked = await request(app.getHttpServer())
       .patch(`/admin/verification/requests/${submitted.body.id}/revoke`)
       .set(auth(reviewerTwoToken))
