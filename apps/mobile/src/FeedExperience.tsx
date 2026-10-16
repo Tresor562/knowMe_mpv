@@ -20,6 +20,7 @@ import { useAppearance } from './AppearanceProvider';
 import { KnowMeMentionText } from './KnowMeMentionText';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { StoriesRail } from './StoriesRail';
+import { PostComposerExperience } from './PostComposerExperience';
 
 type Author = {
   id: string;
@@ -399,7 +400,9 @@ export function FeedExperience({
   onOpenProfile,
   storyComposerRequest = false,
   initialStoryId,
-  onStoryComposerHandled
+  onStoryComposerHandled,
+  openComposerRequest = false,
+  onComposerOpened
 }: {
   userId: string;
   initialPostId?: string | null;
@@ -411,10 +414,18 @@ export function FeedExperience({
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
   onStoryComposerHandled?: () => void;
+  openComposerRequest?: boolean;
+  onComposerOpened?: () => void;
 }) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
+  const [composerOpen,setComposerOpen] = useState(false);
+  useEffect(()=>{
+    if(!openComposerRequest)return;
+    setComposerOpen(true);
+    onComposerOpened?.();
+  },[openComposerRequest,onComposerOpened]);
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [postPhotoSupported, setPostPhotoSupported] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
@@ -468,7 +479,7 @@ export function FeedExperience({
 
   async function publish() {
     const value = content.trim();
-    if (!value || publishing) return;
+    if (!value || publishing || value.length>2000) return;
     setPublishing(true);
     try {
       const mediaAssetId = selectedPhoto
@@ -480,11 +491,39 @@ export function FeedExperience({
       });
       setContent('');
       setSelectedPhoto(null);
+      setComposerOpen(false);
       await load();
     } catch (cause) {
       Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
       setPublishing(false);
+    }
+  }
+
+  function showPostMenu(post: PostSummary) {
+    const share = () => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})}); };
+    const options: Array<{text:string;style?:'destructive'|'cancel';onPress?:()=>void}> = [
+      {text:'Voir la publication',onPress:()=>setSelectedPostId(post.id)},
+      {text:'Partager',onPress:share},
+      ...(post.authorId===userId ? [{
+        text:'Supprimer',style:'destructive' as const,onPress:()=>{
+          Alert.alert('Supprimer la publication ?','Cette action est définitive.',[
+            {text:'Annuler',style:'cancel'},
+            {text:'Supprimer',style:'destructive',onPress:()=>{void removePost(post.id);}}
+          ]);
+        }
+      }] : []),
+      {text:'Annuler',style:'cancel' as const}
+    ];
+    Alert.alert('Options de publication',undefined,options);
+  }
+
+  async function removePost(id: string) {
+    try {
+      await apiFetch(`/posts/${encodeURIComponent(id)}`,{method:'DELETE'});
+      setPosts(current=>current.filter(post=>post.id!==id));
+    } catch (cause) {
+      Alert.alert('Suppression impossible',errorMessage(cause,'Réessaie.'));
     }
   }
 
@@ -514,6 +553,7 @@ export function FeedExperience({
   }
 
   return (
+    <>
     <FlatList
       style={{ backgroundColor: colors.background }}
       data={posts}
@@ -541,6 +581,19 @@ export function FeedExperience({
               <KnowMeIcon name="discover" size={22} color={colors.accent} />
             </GlassSurface>
           </GlassSurface>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Créer une publication"
+            onPress={()=>setComposerOpen(true)}
+            style={[styles.quickComposer,{borderBottomColor:colors.border}]}>
+            <Avatar uri={currentUser?.avatarUrl} name={currentUser?.displayName ?? 'KnowMe'} size={40}/>
+            <View style={[styles.quickPrompt,{backgroundColor:colors.backgroundAccent}]}>
+              <Text numberOfLines={1} style={{color:colors.muted,fontSize:13}}>
+                {content.trim() || 'Qu’as-tu envie de partager ?'}
+              </Text>
+            </View>
+            <KnowMeIcon name="create" size={23} color={colors.accent}/>
+          </Pressable>
           {mode === 'home' && currentUser ? (
             <StoriesRail
               currentUser={currentUser}
@@ -550,46 +603,6 @@ export function FeedExperience({
               onComposerOpened={onStoryComposerHandled}
             />
           ) : null}
-          <GlassSurface
-            strength="soft"
-            borderRadius={20}
-            style={styles.composerCard}
-          >
-            <TextInput
-              multiline
-              maxLength={1000}
-              value={content}
-              onChangeText={setContent}
-              placeholder={mode === "home" ? "Qu’as-tu envie de partager ?" : "Partage une découverte, une question ou un défi…"}
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.backgroundAccent,
-                  borderColor: colors.border,
-                  color: colors.text
-                }
-              ]}
-            />
-
-            {selectedPhoto ? (
-              <View style={styles.composerPhotoPreview}>
-                <Image source={{ uri: selectedPhoto.uri }} style={styles.composerPreviewImage} resizeMode="cover" />
-                <ActionButton title="Retirer" disabled={publishing} onPress={() => setSelectedPhoto(null)} />
-              </View>
-            ) : null}
-            <View style={styles.composerFooter}>
-              {postPhotoSupported ? <ActionButton title="Galerie KnowMe" disabled={publishing} onPress={() => setPhotoPickerOpen(true)} /> : null}
-              <Text style={[styles.composerHint, { color: colors.muted }]}>{content.length}/1000</Text>
-              <ActionButton title={publishing ? 'Publication…' : 'Publier'} disabled={publishing || !content.trim()} onPress={() => void publish()} />
-            </View>
-            <AndroidMediaLibraryPicker
-              visible={photoPickerOpen} purpose="publication" mediaFilter="photo" allowVideo={false}
-              onClose={() => setPhotoPickerOpen(false)}
-              onPicked={photo => { setPhotoPickerOpen(false); setSelectedPhoto(photo); }}
-            />
-          </GlassSurface>
         </View>
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
@@ -606,6 +619,10 @@ export function FeedExperience({
           <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${item.author.displayName}`} onPress={() => onOpenProfile?.(item.author.username)} style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
             <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication"
+            onPress={()=>showPostMenu(item)} style={[styles.postMenu,{backgroundColor:colors.backgroundAccent}]}>
+            <Text style={{fontSize:24,lineHeight:26,color:colors.text}}>⋯</Text>
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           {item.imageUrl ? (
@@ -624,12 +641,34 @@ export function FeedExperience({
         </Pressable>
       )}
     />
+    <PostComposerExperience
+      visible={composerOpen&&!photoPickerOpen}
+      author={currentUser ?? {displayName:'KnowMe',username:'knowme'}}
+      content={content}
+      onChangeContent={setContent}
+      media={selectedPhoto}
+      canAttachPhoto={postPhotoSupported}
+      onChoosePhoto={()=>setPhotoPickerOpen(true)}
+      onRemovePhoto={()=>setSelectedPhoto(null)}
+      onPublish={()=>void publish()}
+      publishing={publishing}
+      onClose={()=>{if(!publishing)setComposerOpen(false);}}
+    />
+    <AndroidMediaLibraryPicker
+      visible={photoPickerOpen} purpose="publication" mediaFilter="photo" allowVideo={false}
+      onClose={()=>setPhotoPickerOpen(false)}
+      onPicked={photo=>{setSelectedPhoto(photo);setPhotoPickerOpen(false);setComposerOpen(true);}}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28, gap: 8 },
   headerBlock: { gap: 10, marginBottom: 2 },
+  quickComposer:{minHeight:60,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,paddingHorizontal:6,paddingVertical:8},
+  quickPrompt:{flex:1,minHeight:42,borderRadius:21,justifyContent:'center',paddingHorizontal:14},
+  postMenu:{position:'absolute',right:0,top:9,minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:21,zIndex:2},
   discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   discoverSub: { fontSize: 10.5, marginTop: 0 },
