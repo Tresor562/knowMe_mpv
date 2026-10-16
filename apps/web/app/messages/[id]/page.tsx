@@ -8,6 +8,7 @@ import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession } from '../../../lib/use-session';
 import { StickerPicker } from './StickerPicker';
+import {WebVoiceRecorder} from './WebVoiceRecorder';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiText, AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 import { useI18n } from '../../../components/i18n-provider';
@@ -501,6 +502,8 @@ export default function ConversationPage() {
         {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent} onInsertEmoji={emoji => changeDraft(draft + emoji)}/>}
         <input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)} onBlur={stopTyping} maxLength={2000}
           placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):(en?'Message…':'Écrire un message…')} required autoComplete="off" aria-label={en?'Your message':'Votre message'}/>
+        <WebVoiceRecorder<Message> conversationId={conversationId}
+          onSent={acceptSent} disabled={sending||nexusPending}/>
         <button className="km-send-button" disabled={sending||nexusPending||!draft.trim()} aria-label={sending?(en?'Sending message':'Envoi du message'):(en?'Send message':'Envoyer le message')}>
           {sending?<span className="km-spinner" aria-hidden="true"/>:<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7zM12 13l8-9"/></svg>}
         </button>
