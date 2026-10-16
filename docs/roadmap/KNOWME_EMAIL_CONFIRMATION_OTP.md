@@ -34,3 +34,50 @@ POST /auth/password-reset/code (email,code,password) : nouveau mot de passe.
 GET /auth/email/status (JWT) : statut.
 POST /auth/email/change/request (JWT,newEmail,password) : code vers nouvelle adresse.
 POST /auth/email/change/confirm (JWT,code) : applique l'adresse confirmée.
+
+
+## Brancher Resend (sans changer le code)
+
+Le backend KnowMe envoie directement via \`POST https://api.resend.com/emails\`.
+Aucune librairie supplémentaire n'est requise. Configurer les secrets **sur l'API
+NestJS déployée sur le VPS**, pas seulement sur le projet Vercel qui héberge le site.
+
+1. Créer/autoriser un compte Resend : https://resend.com/signup
+2. Dans https://resend.com/api-keys, générer une clé limitée à l'envoi.
+3. Définir dans le gestionnaire de secrets de l'API :
+   - \`RESEND_API_KEY\` : valeur secrète de la clé d'envoi.
+   - \`EMAIL_OTP_SECRET\` : valeur secrète aléatoire de 32+ caractères, distincte du JWT.
+   - \`RESEND_FROM_EMAIL\` : identité expéditeur sur **un domaine dont on contrôle le DNS**
+     et qui est vérifié dans https://resend.com/domains (ex. \`KnowMe <security@domaine-possédé>\`).
+4. Dans la zone DNS du domaine, appliquer exactement les enregistrements indiqués par
+   Resend pour DKIM/SPF (et DMARC). Vérifier que Resend indique l'envoi autorisé.
+5. Appliquer la migration Prisma, redémarrer l'API et tester l'inscription d'un
+   compte sur une vraie boîte email ; contrôler les logs d'envoi dans Resend.
+
+### Démarrage gratuit sans domaine — **tests uniquement**
+
+Resend fournit \`onboarding@resend.dev\` pour envoyer à **l'adresse du compte
+Resend uniquement**. Cela ne permet pas de faire fonctionner l'inscription publique.
+Afin de ne pas tromper les utilisateurs, KnowMe refuse toute autre destination
+avec cet expéditeur. Activer temporairement sur une API de test seulement :
+
+\`\`\`dotenv
+RESEND_API_KEY="(secret stocké sur le serveur)"
+RESEND_FROM_EMAIL="KnowMe <onboarding@resend.dev>"
+KNOWME_EMAIL_TEST_MODE="true"
+RESEND_TEST_RECIPIENT="adresse-du-compte-resend@example.com"
+EMAIL_OTP_SECRET="(secret aléatoire de 32 caractères minimum)"
+\`\`\`
+
+Ne jamais exposer les secrets, créer un compte Resend à la place de son
+propriétaire, ni configurer un faux domaine non vérifié. Les domaines Vercel
+\`.vercel.app\` ne donnent pas le contrôle DNS nécessaire à une vérification Resend.
+
+### Limitations et tests d'acceptation
+
+- La création de clé et la vérification du domaine requièrent l'intervention de
+  l'administrateur Resend / DNS ; aucun connecteur Resend n'est installé.
+- Un appel API accepté ne prouve pas la livraison dans la boîte : vérifier le
+  statut Resend et la réception réelle.
+- Ne pas déployer la vérification obligatoire avant que le domaine, les
+  identifiants, la base de données, les tests et l'APK soient prêts.
