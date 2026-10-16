@@ -6,6 +6,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { staffAccountSelect, toStaffBadge } from '../staff/staff-profile';
 import { randomBytes } from 'crypto';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { AuditService } from '../observability/audit.service';
@@ -494,7 +495,8 @@ export class ProfileExperienceService {
         bio: true,
         avatarUrl: true,
         createdAt: true,
-        role: true
+        role: true,
+        staffAccount: { select: staffAccountSelect }
       }
     });
     if (!target) throw new NotFoundException('Profil introuvable.');
@@ -595,6 +597,7 @@ export class ProfileExperienceService {
       header: {
         username: target.username,
         displayName: target.displayName,
+        staff: toStaffBadge(target.staffAccount),
         avatarUrl: target.avatarUrl,
         bio: access('BIO').visible ? target.bio : null,
         joinedYear: access('STATISTICS').visible ? target.createdAt.getUTCFullYear() : null,

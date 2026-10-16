@@ -688,7 +688,22 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
 
         <View style={styles.profileNameRow}>
           <View style={styles.flex}>
-            <Text style={[styles.heading, { color: colors.text }]}>{user.displayName}</Text>
+            <View style={styles.verifiedNameRow}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.heading, styles.verifiedName, { color: colors.text }]}>{user.displayName}</Text>
+              {user.staff?.isTeamMember && user.staff.shield === 'GOLD' ? (
+                <View style={styles.staffShield} accessible accessibilityRole="image"
+                  accessibilityLabel={user.staff.label + ', ' + user.staff.role}>
+                  <Text style={styles.staffShieldShape}>⬟</Text>
+                  <Text style={styles.staffShieldCheck}>✓</Text>
+                </View>
+              ) : null}
+              {user.verification && !user.staff ? (
+                <View style={[styles.verifiedCheck, {backgroundColor: colors.accent}]} accessible accessibilityRole="image"
+                  accessibilityLabel={user.verification.label}>
+                  <Text style={styles.verifiedCheckText}>✓</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={[styles.handle, { color: colors.accent }]}>@{user.username}</Text>
           </View>
           <PressScale
@@ -764,56 +779,6 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </Text>
         </PressScale>
 
-        <View style={styles.badges}>
-          {user.verification ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.accent,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.verification.label}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.accent }]}>
-                VERIFIED · {user.verification.label}
-              </Text>
-            </View>
-          ) : null}
-          {user.premium ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.secondary,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.premium.label}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.secondary }]}>
-                PREMIUM · {user.premium.label}
-              </Text>
-            </View>
-          ) : null}
-          {user.staff ? (
-            <View
-              style={[
-                styles.identityBadge,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.backgroundAccent
-                }
-              ]}
-              accessibilityLabel={user.staff.label + ', ' + user.staff.role}
-            >
-              <Text style={[styles.identityBadgeText, { color: colors.text }]}>
-                STAFF · {user.staff.label} · {user.staff.role}
-              </Text>
-            </View>
-          ) : null}
-        </View>
 
         </GlassSurface>
       </FadeRise>
@@ -1067,6 +1032,13 @@ const styles = StyleSheet.create({
   cover: { height: 152, position: 'relative', overflow: 'hidden' },
   coverEdit: { position: 'absolute', top: 10, right: 10, minHeight: 38, minWidth: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, paddingHorizontal: 12 },
   profileNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 14, gap: 8 },
+  verifiedNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  verifiedName: { flexShrink: 1 },
+  staffShield: {width: 24, height: 24, alignItems: 'center', justifyContent: 'center', overflow:'visible'},
+  staffShieldShape: {position:'absolute', fontSize: 26, lineHeight: 29, color:'#d6a02b', includeFontPadding:false},
+  staffShieldCheck: {fontSize: 14, fontWeight:'900', color:'#fff', includeFontPadding:false},
+  verifiedCheck: {width:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center'},
+  verifiedCheckText: {fontSize:13,fontWeight:'900',color:'#fff',includeFontPadding:false},
   profileMoreButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   settingsToggle: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, minHeight: 53, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth },
   moreBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.6)' },
