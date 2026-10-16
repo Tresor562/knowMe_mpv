@@ -27,6 +27,15 @@ function injectInstallerPackage(contents) {
   throw new Error('KnowMe APK installer: unsupported MainApplication structure.');
 }
 
+function injectUpdateWorkManager(contents) {
+  const runtime = 'implementation("androidx.work:work-runtime:2.10.2")';
+  if (contents.includes(runtime)) return contents;
+  if (!/dependencies\s*\{/.test(contents)) {
+    throw new Error('KnowMe updater: Android Gradle dependencies section missing.');
+  }
+  return contents.replace(/dependencies\s*\{/, match => match + '\n    ' + runtime);
+}
+
 function withKnowMeInstaller(config) {
   config = withAndroidManifest(config, (mod) => {
     const manifest = mod.modResults.manifest;
@@ -63,16 +72,7 @@ function withKnowMeInstaller(config) {
   });
 
   config = withAppBuildGradle(config, (mod) => {
-    const runtime = 'implementation("androidx.work:work-runtime:2.10.2")';
-    if (!mod.modResults.contents.includes(runtime)) {
-      if (!/dependencies\s*\{/.test(mod.modResults.contents)) {
-        throw new Error('KnowMe updater: Android Gradle dependencies section missing.');
-      }
-      mod.modResults.contents = mod.modResults.contents.replace(
-        /dependencies\s*\{/,
-        match => match + '\n    ' + runtime
-      );
-    }
+    mod.modResults.contents = injectUpdateWorkManager(mod.modResults.contents);
     return mod;
   });
 
@@ -104,3 +104,5 @@ function withKnowMeInstaller(config) {
 
 module.exports = withKnowMeInstaller;
 module.exports.injectInstallerPackage = injectInstallerPackage;
+
+module.exports.injectUpdateWorkManager = injectUpdateWorkManager;
