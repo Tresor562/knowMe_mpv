@@ -1,4 +1,6 @@
-import { Controller, Get, Header } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
+import { openHostedAndroidApk, readHostedAndroidRelease } from './self-hosted-android-update';
 
 export type AndroidReleaseNotice = {
   versionCode: number;
@@ -161,9 +163,35 @@ async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice |
 
 @Controller('mobile-updates')
 export class MobileUpdatesController {
+  @Get('android/apk/:filename')
+  @Header('Cache-Control', 'public, max-age=3600, immutable')
+  getHostedApk(
+    @Param('filename') filename: string,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const apk = openHostedAndroidApk(filename);
+    if (!apk) throw new NotFoundException('APK KnowMe indisponible.');
+    response.setHeader('Content-Length', String(apk.size));
+    return new StreamableFile(apk.stream, {
+      type: 'application/vnd.android.package-archive',
+      disposition: 'attachment; filename="' + apk.filename + '"',
+      length: apk.size
+    });
+  }
+
   @Get('android')
   @Header('Cache-Control', 'no-store')
   async getAndroidUpdate() {
+    // New releases on the KnowMe VPS take priority over legacy GitHub
+    // preview pins. Once VPS-only mode is active, never consult GitHub.
+    const hosted = readHostedAndroidRelease();
+    if (hosted) {
+      const { filename, size, ...release } = hosted;
+      return { release };
+    }
+    if (process.env.KNOWME_ANDROID_SELF_HOST_ONLY === 'true') {
+      return { release: null };
+    }
     const configured = readAndroidReleaseNotice(process.env);
 
     // Fail closed for incomplete manual configuration; do not substitute an
