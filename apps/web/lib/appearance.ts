@@ -199,17 +199,41 @@ export function applyAppearance(response: AppearanceResponse) {
   for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value);
 }
 
+/**
+ * Appearance is an external server/cache payload at runtime, even though API
+ * callers use a TypeScript type. A partial response must not poison the theme
+ * cache and crash the social home on the next navigation.
+ */
+function isUsableAppearance(value: unknown): value is AppearanceResponse {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Partial<AppearanceResponse>;
+  const preference = record.preference;
+  if (!preference || typeof preference !== 'object' || !Array.isArray(record.themes)) return false;
+  return (
+    typeof preference.effectiveThemeKey === 'string' &&
+    typeof preference.selectedThemeKey === 'string' &&
+    ['OFF', 'ACCENT', 'EFFECTS', 'BALANCED'].includes(preference.effectiveThemeBlendMode) &&
+    typeof preference.effectIntensity === 'string' &&
+    typeof preference.contrast === 'string' &&
+    typeof preference.effectiveIconPackKey === 'string'
+  );
+}
+
 export function saveLocalAppearance(response: AppearanceResponse) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
+  if (!isUsableAppearance(response)) throw new Error('Invalid appearance response');
+  // Apply before committing the cache: a malformed response must never persist.
   applyAppearance(response);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
 }
 
 export function loadLocalAppearance(): AppearanceResponse | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as AppearanceResponse | AppearancePreference;
-    return 'preference' in parsed ? parsed : null;
+    const parsed: unknown = JSON.parse(raw);
+    if (isUsableAppearance(parsed)) return parsed;
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
   } catch {
     return null;
   }
