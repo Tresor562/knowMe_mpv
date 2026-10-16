@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, ServiceUnavailableException, TooManyRequestsException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,6 +38,8 @@ export class EmailChallengeService {
     const now = new Date();
     const code = randomInt(0, 1000000).toString().padStart(6, '0');
     const entry = await this.prisma.$transaction(async (tx) => {
+      const lockKey = createHmac('sha256', this.secret()).update('issue:' + userId + ':' + purpose).digest().readInt32BE(0);
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${lockKey})`);
       const latest = await tx.emailChallenge.findFirst({ where: { userId, purpose }, orderBy: { createdAt: 'desc' } });
       if (latest && latest.createdAt.getTime() > Date.now() - COOLDOWN_MS) {
         throw new TooManyRequestsException('Un code a déjà été envoyé. Patientez une minute.');
@@ -80,11 +82,37 @@ export class EmailChallengeService {
     return consumed.count === 1;
   }
 
+  // Public requests are counted before account lookup (even when no account exists).
+  private async publicRequestBudget(email: string, context: SecurityContext) {
+    const fingerprint = createHmac('sha256', this.secret()).update('email-otp-request:' + email).digest('hex');
+    const since = new Date(Date.now() - 15 * 60 * 1000);
+    const counts = await this.prisma.$transaction(async (tx) => {
+      const lockKey = createHmac('sha256', this.secret()).update('budget:' + fingerprint).digest().readInt32BE(0);
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+      await tx.auditLog.create({
+        data: { action: 'EMAIL_CODE_PUBLIC_REQUEST', entity: 'EMAIL_CODE', entityId: fingerprint, ipAddress: context.ipAddress, userAgent: context.userAgent }
+      });
+      const emailCount = await tx.auditLog.count({
+        where: { action: 'EMAIL_CODE_PUBLIC_REQUEST', entityId: fingerprint, createdAt: { gte: since } }
+      });
+      const ipCount = context.ipAddress ? await tx.auditLog.count({
+        where: { action: 'EMAIL_CODE_PUBLIC_REQUEST', ipAddress: context.ipAddress, createdAt: { gte: since } }
+      }) : 0;
+      return { emailCount, ipCount };
+    });
+    if (counts.emailCount > 3 || counts.ipCount > 12) {
+      throw new TooManyRequestsException('Trop de demandes. Réessayez plus tard.');
+    }
+  }
+
   async resendSignup(input: string, context: SecurityContext = {}) {
     const email = this.normalize(input);
+    this.assertReady();
+    await this.publicRequestBudget(email, context);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || user.isSuspended || user.emailVerifiedAt) return { accepted: true };
-    return this.send(user.id, 'SIGNUP', email, context);
+    try { return await this.send(user.id, 'SIGNUP', email, context); }
+    catch (error) { if (error instanceof TooManyRequestsException) return { accepted: true }; throw error; }
   }
 
   async confirmSignup(input: string, code: string, context: SecurityContext = {}) {
@@ -103,9 +131,12 @@ export class EmailChallengeService {
 
   async requestRecovery(input: string, context: SecurityContext = {}) {
     const email = this.normalize(input);
+    this.assertReady();
+    await this.publicRequestBudget(email, context);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || user.isSuspended) return { accepted: true };
-    await this.send(user.id, 'RECOVERY', email, context);
+    try { await this.send(user.id, 'RECOVERY', email, context); }
+    catch (error) { if (!(error instanceof TooManyRequestsException)) throw error; }
     return { accepted: true };
   }
 
