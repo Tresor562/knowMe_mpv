@@ -19,7 +19,7 @@ import {
 import { join, resolve } from 'node:path';
 
 const EXPECTED_CERT = 'fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c';
-const root = resolve(process.env.KNOWME_ANDROID_UPDATES_HOST_DIR || '/var/lib/nex/runtime/knowme/updates');
+const root = resolve(process.env.KNOWME_ANDROID_UPDATES_HOST_DIR || '/var/lib/knowme-android-updates');
 const [source, version, codeRaw] = process.argv.slice(2);
 if (!source || !version || !codeRaw) {
   throw new Error('Usage: node ops/publish-knowme-android-vps.mjs <apk-path> <version> <versionCode>');
