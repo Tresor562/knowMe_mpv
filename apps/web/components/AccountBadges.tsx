@@ -12,19 +12,19 @@ const GOLD_SEAL_PATH = Array.from({ length: 145 }, (_, index) => {
   return `${index === 0 ? 'M' : 'L'}${x},${y}`;
 }).join(' ') + ' Z';
 
-function GoldVerifiedSeal({ size }: { size: number }) {
+function StaffVerifiedSeal({ size, gold }: { size: number; gold: boolean }) {
   const gradientId = useId().replace(/:/g, '');
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFE9A0" />
-          <stop offset="39%" stopColor="#F5C54C" />
-          <stop offset="100%" stopColor="#C78A12" />
+          <stop offset="0%" stopColor={gold ? '#FFE9A0' : '#D9E1E9'} />
+          <stop offset="39%" stopColor={gold ? '#F5C54C' : '#9CA9B8'} />
+          <stop offset="100%" stopColor={gold ? '#C78A12' : '#657386'} />
         </linearGradient>
       </defs>
       <path d={GOLD_SEAL_PATH} fill={`url(#${gradientId})`}
-        stroke="#AE7612" strokeWidth=".36" strokeLinejoin="round" />
+        stroke={gold ? '#AE7612' : '#59677A'} strokeWidth=".36" strokeLinejoin="round" />
       <path d="M7.35 12.05 10.65 15.1 16.8 8.8" stroke="#fff"
         strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -59,7 +59,7 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
       </span>}
       {staff && <span className="km-account-staff" title={staff.label + ' · ' + staff.role}
         aria-label={staff.label + ', ' + staff.role}>
-<GoldVerifiedSeal size={size} />
+<StaffVerifiedSeal size={size} gold={staff.shield === 'GOLD'} />
       </span>}
     </span>
   );
