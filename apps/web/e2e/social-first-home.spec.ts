@@ -2,11 +2,20 @@ import { expect, test, type Page } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
 
+const browserExceptions: string[] = [];
+test.beforeEach(async ({page}) => {
+  browserExceptions.length = 0;
+  page.on('pageerror', error => browserExceptions.push(error.stack ?? error.message));
+  page.on('console', message => {
+    if (message.type() === 'error') browserExceptions.push('console: ' + message.text());
+  });
+});
+
 async function checkSocialHome(page: Page) {
   try {
     await expect(page.getByRole('heading', {name:/^(Fil d’actualité|Feed)$/})).toBeVisible({timeout:15000});
   } catch (cause) {
-    console.log('KnowMe social home diagnostic', {url:page.url(), body:(await page.locator('body').innerText()).slice(0,700)});
+    console.log('KnowMe social home diagnostic', {url:page.url(), body:(await page.locator('body').innerText()).slice(0,700), browserExceptions});
     throw cause;
   }
 }
