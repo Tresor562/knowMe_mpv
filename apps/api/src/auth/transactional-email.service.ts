@@ -7,9 +7,18 @@ const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g,
 export class TransactionalEmailService {
   constructor(private readonly config: ConfigService) {}
   private settings() {
-    const endpoint = this.config.get<string>('KNOWME_EMAIL_ENDPOINT') || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_ENDPOINT');
-    const key = this.config.get<string>('KNOWME_EMAIL_API_KEY') || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_API_KEY');
-    const from = this.config.get<string>('KNOWME_EMAIL_FROM') || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
+    // Zero-dependency Resend integration: the existing NestJS email sender calls
+    // the official REST endpoint directly. No API key is ever sent to the client.
+    const resendKey = this.config.get<string>('RESEND_API_KEY');
+    const endpoint = this.config.get<string>('KNOWME_EMAIL_ENDPOINT')
+      || (resendKey ? 'https://api.resend.com/emails' : undefined)
+      || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_ENDPOINT');
+    const key = this.config.get<string>('KNOWME_EMAIL_API_KEY')
+      || resendKey
+      || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_API_KEY');
+    const from = this.config.get<string>('KNOWME_EMAIL_FROM')
+      || this.config.get<string>('RESEND_FROM_EMAIL')
+      || this.config.get<string>('ACCOUNT_RECOVERY_EMAIL_FROM');
     let url: URL;
     try {
       url = new URL(endpoint || '');
@@ -21,12 +30,22 @@ export class TransactionalEmailService {
     if (!key || !from || /[\r\n]/.test(from) || !senderEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(senderEmail)) {
       throw new ServiceUnavailableException('Le service email KnowMe est indisponible.');
     }
-    return { endpoint: url.toString(), key, from };
+    const testSender = senderEmail.toLowerCase() === 'onboarding@resend.dev';
+    const testRecipient = this.config.get<string>('RESEND_TEST_RECIPIENT')?.trim().toLowerCase();
+    if (testSender && (!testRecipient || this.config.get<string>('KNOWME_EMAIL_TEST_MODE') !== 'true')) {
+      throw new ServiceUnavailableException('Le domaine d’envoi doit être vérifié avant ouverture aux utilisateurs.');
+    }
+    return { endpoint: url.toString(), key, from, testSender, testRecipient };
   }
   assertReady() { this.settings(); }
 
   async send(to: string, subject: string, body: string, code?: string) {
-    const { endpoint, key, from } = this.settings();
+    const { endpoint, key, from, testSender, testRecipient } = this.settings();
+    // Resend's shared onboarding domain can deliver only to the owner's email.
+    // Fail closed: never pretend OTPs can reach arbitrary users in test mode.
+    if (testSender && to.trim().toLowerCase() !== testRecipient) {
+      throw new ServiceUnavailableException('Les emails de test ne peuvent être envoyés qu’au destinataire autorisé.');
+    }
     const html = '<!doctype html><html lang="fr"><body style="margin:0;background:#f1f4f8;padding:24px 12px;font-family:Arial,sans-serif;color:#18212d">'
       + '<main style="max-width:520px;margin:auto;background:#fff;border-radius:22px;padding:30px">'
       + '<div style="font-size:24px;font-weight:800;color:#139c90">KnowMe</div>'
