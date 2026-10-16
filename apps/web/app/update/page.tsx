@@ -12,7 +12,7 @@ type AndroidRelease = {
   required: boolean;
 };
 
-const preview = 'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.2-preview/KnowMe-1.1.2-preview.apk';
+const previews = 'https://github.com/Tresor562/knowMe_mpv/releases';
 
 export default function AndroidUpdatesPage() {
   const [release, setRelease] = useState<AndroidRelease | null>(null);
@@ -35,7 +35,7 @@ export default function AndroidUpdatesPage() {
     return () => controller.abort();
   }, []);
 
-  const link = status === 'available' ? release?.url : preview;
+  const link = status === 'available' ? release?.url : previews;
   return (
     <main style={{ minHeight: '100dvh', background: 'var(--bg)', color: 'var(--text)', padding: 'clamp(18px,5vw,56px) 16px 100px' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
@@ -49,10 +49,10 @@ export default function AndroidUpdatesPage() {
             La page de mise à jour reste accessible depuis ton navigateur, même si la page des paramètres de ton ancienne APK ne s’ouvre pas.
           </p>
           <div style={{ borderRadius: 16, padding: 15, background: 'var(--bg-accent)', display: 'grid', gap: 6 }}>
-            <strong>{status === 'available' ? `KnowMe ${release?.version} disponible` : 'KnowMe 1.1.2 — préversion Android'}</strong>
+            <strong>{status === 'available' ? `KnowMe ${release?.version} disponible` : 'Préversions Android KnowMe'}</strong>
             <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--muted)' }}>
               {status === 'loading' ? 'Vérification auprès du serveur…'
-                : status === 'unavailable' ? 'Le contrôle automatique est momentanément indisponible. Le lien de la préversion vérifiée reste accessible.'
+                : status === 'unavailable' ? 'Le contrôle automatique est indisponible. Consulte les versions publiées sur GitHub et vérifie leur compatibilité avant toute installation.'
                   : 'Version Android annoncée par le serveur KnowMe.'}
             </span>
           </div>
@@ -61,10 +61,10 @@ export default function AndroidUpdatesPage() {
             minHeight: 54, padding: 12, borderRadius: 17,
             background: 'var(--mint)', color: 'var(--on-primary)', fontWeight: 800, textDecoration: 'none'
           }}>
-            Télécharger l’APK {release?.version ?? '1.1.2'}
+            {status === 'available' ? `Télécharger l’APK ${release?.version}` : 'Voir les APK publiées'}
           </a>
           <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13, lineHeight: 1.55 }}>
-            Préversion signée avec une clé Android de développement. Elle ne remplace l’application existante que si leurs signatures correspondent.
+            Les APK de prévisualisation emploient une signature Android de test. Elles ne remplacent la version installée que si package, certificat et version sont compatibles. L’installation nécessite ton accord Android.
           </p>
           <section style={{ display: 'grid', gap: 8 }}>
             <h2 style={{ margin: 0, fontSize: 17 }}>Installation sur Android</h2>
