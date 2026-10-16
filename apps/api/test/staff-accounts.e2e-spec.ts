@@ -118,6 +118,13 @@ describe('KnowMe staff accounts (e2e)', () => {
       })
     );
 
+    // A public viewer must see the same server-authoritative gold shield.
+    const publicProfile = await request(app.getHttpServer())
+      .get('/profile-experience/public/staff_official')
+      .expect(200);
+    expect(publicProfile.body.header.staff).toEqual(activeProfile.body.staff);
+    expect(publicProfile.body.header).not.toHaveProperty('email');
+
     await request(app.getHttpServer())
       .get('/admin/staff-accounts')
       .set('Authorization', `Bearer ${officialToken}`)
