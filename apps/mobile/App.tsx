@@ -1264,6 +1264,21 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     void loadSession();
   }, [loadSession]);
 
+  // A newly approved/revoked official badge must refresh when the user opens
+  // their profile; the login-time snapshot may be hours old. Never log out
+  // on a transient error from this cosmetic profile refresh.
+  useEffect(() => {
+    if (screen !== 'profile' || !user?.id) return;
+    let active = true;
+    const userId = user.id;
+    void apiFetch<MobileUser>('/users/me')
+      .then((latest) => {
+        if (active && latest?.id === userId) setUser(latest);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [screen, user?.id]);
+
   useEffect(() => {
     setScreen('home');
   }, [user?.id]);
