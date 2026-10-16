@@ -59,7 +59,7 @@ const FIRST_PARTY_PREVIEW_FEED = 'https://knowme-nextech.vercel.app/api/updates/
 
 function verifiedPreviewRelease(release: AndroidReleaseNotice | null): AndroidReleaseNotice | null {
   if (!release || !Number.isSafeInteger(release.versionCode) || release.versionCode < 1 ||
-    !/^\\d+\\.\\d+\\.\\d+$/.test(release.version) || !/^[a-f0-9]{64}$/i.test(release.sha256)) {
+    !/^\d+\.\d+\.\d+$/.test(release.version) || !/^[a-f0-9]{64}$/i.test(release.sha256)) {
     return null;
   }
   const expected = `https://github.com/Tresor562/knowMe_mpv/releases/download/v${release.version}-preview/KnowMe-${release.version}-preview.apk`;
