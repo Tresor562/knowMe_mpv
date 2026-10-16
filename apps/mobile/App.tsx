@@ -1163,6 +1163,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
+  const [postComposerRequest,setPostComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [dockPreferences,setDockPreferences] = useState<DockPreferences>(DEFAULT_DOCK_PREFERENCES);
   const [dockScrollVisible,setDockScrollVisible] = useState(true);
@@ -1406,6 +1407,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
+            openComposerRequest={postComposerRequest}
+            onComposerOpened={()=>setPostComposerRequest(false)}
             initialPostId={linkedPostId}
             initialCommentId={linkedCommentId}
             onContentScroll={onFeedScroll}
@@ -1515,6 +1518,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         onClose={() => setCreateOpen(false)}
         onPost={() => {
           setCreateOpen(false);
+          setPostComposerRequest(true);
           setScreen('home');
         }}
         onStory={() => {

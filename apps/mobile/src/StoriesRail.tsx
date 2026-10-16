@@ -457,29 +457,26 @@ export function StoriesRail({
       <Modal
         visible={createOpen&&!pickerVisible}
         animationType="slide"
-        transparent
-        onRequestClose={() => setCreateOpen(false)}
+        transparent={false}
+        onRequestClose={() => {if(!publishing)setCreateOpen(false);}}
       >
-        <Pressable
-          style={styles.createBackdrop}
-          onPress={() => setCreateOpen(false)}
-        >
-          <View style={styles.createWrap}>
-            <Pressable onPress={(event) => event.stopPropagation()}>
-              <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.createSheet}>
+        <View style={[styles.createBackdrop,{backgroundColor:colors.background}]}>
+          <ScrollView style={styles.createWrap} keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.createContent}>
+            <View style={styles.createSheet}>
               <View style={styles.createHeader}>
                 <View style={styles.flex}>
                   <Text style={[styles.createTitle, { color: colors.text }]}>
-                    Nouvelle Story
+                    Nouvelle story
                   </Text>
                   <Text style={[styles.createSub, { color: colors.muted }]}>
-                    Visible pendant 24 heures
+                    Choisis un format, puis personnalise ta story.
                   </Text>
                 </View>
                 <PressScale
                   accessibilityRole="button"
                   accessibilityLabel="Fermer"
-                  onPress={() => setCreateOpen(false)}
+                  onPress={() => {if(!publishing)setCreateOpen(false);}}
                   style={[
                     styles.createClose,
                     { backgroundColor: colors.backgroundAccent, borderColor: colors.border }
@@ -489,7 +486,10 @@ export function StoriesRail({
                 </PressScale>
               </View>
 
-              <View style={{flexDirection:'row',gap:8,marginBottom:10}}>
+              <Text style={{color:colors.muted,fontSize:12,fontWeight:'800',marginBottom:8}}>
+                CRÉER
+              </Text>
+              <View style={{flexDirection:'row',gap:8,marginBottom:12}}>
                 {(['TEXT','PHOTO','VIDEO'] as const).map(type=><Pressable key={type}
                   accessibilityRole="button" style={{flex:1,minHeight:44,borderRadius:14,justifyContent:'center',alignItems:'center',
                     backgroundColor:storyType===type?colors.accent:colors.backgroundAccent}}
@@ -506,6 +506,24 @@ export function StoriesRail({
                 <Text style={{color:colors.text}}>{storyMedia?storyMedia.name:
                   storyType==='PHOTO'?'Galerie KnowMe · Photos':'Galerie KnowMe · Vidéos'}</Text>
               </Pressable>:null}
+              {storyMedia ? (
+                <View style={styles.storyMediaPreview}>
+                  <Image source={{uri:storyMedia.uri}} style={styles.storyMediaThumb} resizeMode="cover" />
+                  <View style={{flex:1,gap:5}}>
+                    <Text numberOfLines={1} style={{color:colors.text,fontSize:13,fontWeight:'800'}}>
+                      {storyMedia.name}
+                    </Text>
+                    <Text style={{color:colors.muted,fontSize:11}}>
+                      {storyType==='VIDEO'?'Vidéo sélectionnée':'Photo sélectionnée'}
+                    </Text>
+                  </View>
+                  <PressScale accessibilityRole="button" accessibilityLabel="Retirer le média"
+                    disabled={publishing} onPress={()=>setStoryMedia(null)}
+                    style={[styles.storyRemove,{backgroundColor:colors.backgroundAccent}]}>
+                    <KnowMeIcon name="close" size={16} color={colors.text}/>
+                  </PressScale>
+                </View>
+              ) : null}
               <View
                 style={[
                   styles.preview,
@@ -596,10 +614,9 @@ export function StoriesRail({
                   color={colors.accentText}
                 />
               </PressScale>
-              </GlassSurface>
-            </Pressable>
-          </View>
-        </Pressable>
+            </View>
+          </ScrollView>
+        </View>
       </Modal>
       <AndroidMediaLibraryPicker visible={pickerVisible} purpose="story"
         allowVideo={storyType==='VIDEO'} mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'} lockFilter
@@ -769,21 +786,13 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700'
   },
-  createBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(2,4,9,0.7)',
-    justifyContent: 'flex-end'
-  },
-  createWrap: {
-    padding: 10,
-    paddingBottom: 14
-  },
-  createSheet: {
-    borderRadius: 28,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    gap: 12
-  },
+  createBackdrop: {flex:1,justifyContent:'flex-start'},
+  createWrap: {flex:1},
+  createContent:{flexGrow:1,paddingBottom:24},
+  createSheet: {flex:1,paddingHorizontal:16,paddingVertical:18,gap:12},
+  storyMediaPreview:{flexDirection:'row',alignItems:'center',minHeight:84,gap:12},
+  storyMediaThumb:{height:74,width:74,borderRadius:15},
+  storyRemove:{height:40,width:40,borderRadius:20,justifyContent:'center',alignItems:'center'},
   createHeader: {
     flexDirection: 'row',
     alignItems: 'center',
