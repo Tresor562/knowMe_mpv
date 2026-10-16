@@ -57,8 +57,26 @@ export default function FeedPage() {
   const [photoCapability, setPhotoCapability] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
+
+  useEffect(()=>{
+    if(!composeOpen)return;
+    const previousFocus=document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    if(window.innerWidth>760)composerInputRef.current?.focus();
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&!publishing)setComposeOpen(false);
+    };
+    window.addEventListener('keydown',onKey);
+    return ()=>{
+      document.body.style.overflow=previousOverflow;
+      window.removeEventListener('keydown',onKey);
+      previousFocus?.focus();
+    };
+  },[composeOpen,publishing]);
 
   useEffect(() => {
     let active = true;
@@ -297,7 +315,7 @@ export default function FeedPage() {
             setSelectedImage(photo);
           }} />
         <div className="km-feed-compose-row">
-          <textarea name="content" value={draftContent} onChange={event=>setDraftContent(event.target.value)}
+          <textarea name="content" ref={composerInputRef} value={draftContent} onChange={event=>setDraftContent(event.target.value)}
             placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
             rows={7} maxLength={2000} required disabled={!authorityFresh || publishing}/>
         </div>
