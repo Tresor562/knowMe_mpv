@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {ActivityIndicator, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 import type {RecordedKnowMeVoice} from './native-voice';
 import {cancelKnowMeVoice,discardKnowMeVoice,playKnowMeVoice,
   startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
@@ -95,6 +95,15 @@ export function KnowMeVoiceComposer({busy,onSend}:{
       }else next('preview');
     }catch(error){next('preview');showError(error);}
   }
+  useEffect(()=>{
+    // A backgrounded app must not keep an unattended open microphone.
+    const listener=AppState.addEventListener('change',status=>{
+      if(status!=='active'&&phaseRef.current==='recording') {
+        void cancel();
+      }
+    });
+    return ()=>listener.remove();
+  },[]);
   const time=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
   return <>
     <PressScale accessibilityRole="button" accessibilityLabel="Enregistrer un message vocal"
