@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { KnowMeBrand } from '../../components/knowme-brand';
+import { ConversationView } from './[id]/conversation-view';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
@@ -57,6 +58,7 @@ export default function MessagesPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [search, setSearch] = useState('');
+  const [selectedConversationId,setSelectedConversationId] = useState<string|null>(null);
   const [filter, setFilter] = useState<'all'|'unread'|'pinned'>('all');
   const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
@@ -200,46 +202,36 @@ export default function MessagesPage() {
 
   return (
     <main className="shell km-messages km-messenger-shell">
-      <nav className="km-messenger-rail" aria-label={en?'Desktop navigation':'Navigation ordinateur'}>
-        <KnowMeBrand compact href="/messages" className="km-messenger-rail-brand" />
-        <Link href="/messages" aria-current="page" aria-label={en?'Chats':'Discussions'} className="km-messenger-rail-item active">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8.5 8A10 10 0 0 1 8 18.9L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/></svg>
-          <span>{en?'Chats':'Messages'}</span>
-        </Link>
-        <Link href="/feed" aria-label={en?'Feed':'Actualités'} className="km-messenger-rail-item">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="4"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-          <span>{en?'Feed':'Actualités'}</span>
-        </Link>
-        <Link href="/channels" aria-label={en?'Channels':'Chaînes'} className="km-messenger-rail-item">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 17-7-5 16-4-6-8-3Z"/><path d="m11 14 9-10"/></svg>
-          <span>{en?'Channels':'Chaînes'}</span>
-        </Link>
-        <Link href="/profile" aria-label={en?'My profile':'Mon profil'} className="km-messenger-rail-item">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.5-4 3.2-6 8-6s7.5 2 8 6"/></svg>
-          <span>{en?'Profile':'Profil'}</span>
-        </Link>
-        <Link href="/settings" aria-label={en?'Settings':'Réglages'} className="km-messenger-rail-item km-messenger-rail-bottom">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="m10 2-.5 3-2.4 1.3L4.5 5l-2 3.4 2.2 2.2v2.8L2.5 16l2 3.4 2.6-1.3L9.5 19l.5 3h4l.5-3 2.4-1.3 2.6 1.3 2-3.4-2.2-2.2v-2.8l2.2-2.2-2-3.4-2.6 1.3L14.5 5 14 2Z"/></svg>
-          <span>{en?'Settings':'Réglages'}</span>
-        </Link>
-      </nav>
       <div className="km-messenger-sidebar">
       <div className="km-header-nav-group">
       <header className="km-messages-header">
-        <div>
-          <div className="km-msg-eyebrow">KnowMe</div>
+        <details className="km-telegram-main-menu" onKeyDown={event=>{if(event.key==='Escape')event.currentTarget.open=false;}}
+          onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))event.currentTarget.open=false;}}>
+          <summary aria-label={en?'Open navigation menu':'Ouvrir le menu de navigation'} title={en?'Menu':'Menu'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 6.5h16M4 12h16M4 17.5h16"/>
+            </svg>
+          </summary>
+          <nav className="km-telegram-menu-panel" aria-label={en?'KnowMe sections':'Rubriques de KnowMe'}>
+            <div className="km-telegram-menu-heading"><KnowMeBrand compact href="/messages" /></div>
+            <Link href="/messages" aria-current="page">{en?'Chats':'Discussions'}</Link>
+            <Link href="/feed">{en?'Feed':'Accueil'}</Link>
+            <Link href="/discover">{en?'Discover':'Suggestions'}</Link>
+            <Link href="/channels">{en?'Channels':'Chaînes'}</Link>
+            <Link href="/friends">{en?'Friends':'Amis'}</Link>
+            <Link href="/saved-messages">{en?'Saved messages':'Messages enregistrés'}</Link>
+            <Link href="/conversation-pins">{en?'Pinned chats':'Discussions épinglées'}</Link>
+            <Link href="/profile">{en?'My profile':'Mon profil'}</Link>
+            <Link href="/settings">{en?'Settings':'Paramètres'}</Link>
+          </nav>
+        </details>
+        <div className="km-telegram-heading">
           <h1>{en?'Chats':'Discussions'}</h1>
           <p className="km-msg-status"><span className={live?'km-live-dot':'km-offline-dot'}/> {live?(en?'Connected':'Connecté'):(en?'Connecting…':'Connexion en attente')}{totalUnread>0 ? ` · ${totalUnread} ${en?'unread':`non lu${totalUnread>1?'s':''}`}` : ''}</p>
         </div>
         <div className="km-msg-actions">
           <Link href="/messages/new" className="km-action" aria-label={en?'New message':'Nouveau message'} title={en?'New message':'Nouveau message'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </Link>
-          <Link href="/saved-messages" className="km-action" aria-label="Messages enregistrés" title="Messages enregistrés">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5h12v17L12 17l-6 3.5z"/></svg>
-          </Link>
-          <Link href="/conversation-pins" className="km-action" aria-label="Discussions épinglées" title="Discussions épinglées">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 3 6 6-3 1-4 4-1 4-7-7 4-1 4-4zM3 21l7-7"/></svg>
           </Link>
           <button type="button" className="km-action" onClick={()=>void load()} disabled={refreshing} aria-label={refreshing?'Actualisation en cours':'Actualiser'} title="Actualiser">
             <svg className={refreshing?'km-rotate':''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 0-14.5-5.8L3.5 8.3M3.5 3.5v4.8h4.8M3.5 12.5a8.5 8.5 0 0 0 14.5 5.8l2.5-2.6M20.5 20.5v-4.8h-4.8"/></svg>
@@ -275,8 +267,15 @@ export default function MessagesPage() {
           const photo=!conversation.isGroup&&otherMembers.length===1?otherMembers[0]?.user.avatarUrl:null;
           const online=!isNexus&&otherMembers.some(member=>onlineUserIds.has(member.user.id));
           const pinDisabled=pinBusyId!==null || (!pinned && (pinLimit===null || pinnedConversationIds.size>=pinLimit));
-          return <article className={`km-chat-row${unread?' km-chat-unread':''}`} key={conversation.id}>
-            <Link href={`/messages/${conversation.id}`} className="km-chat-main" aria-label={`${en?'Open chat':'Ouvrir la discussion'} ${name}`}>
+          return <article className={`km-chat-row${unread?' km-chat-unread':''}${selectedConversationId===conversation.id?' km-chat-selected':''}`} key={conversation.id}>
+            <Link href={`/messages/${conversation.id}`} className="km-chat-main" aria-label={`${en?'Open chat':'Ouvrir la discussion'} ${name}`}
+              onClick={event=>{
+                if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.button!==0)return;
+                if(window.matchMedia('(min-width: 1000px)').matches) {
+                  event.preventDefault();
+                  setSelectedConversationId(conversation.id);
+                }
+              }}>
               <div className={`km-chat-avatar${isNexus?' km-chat-ai':''}`}>
                 {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : photo ? <img src={photo} alt="" className="km-chat-avatar-image" /> : (Array.from(name)[0] || '?').toUpperCase()}
                 {online && <span className="km-chat-online" aria-label={en?'Online':'En ligne'}/>}
@@ -291,14 +290,16 @@ export default function MessagesPage() {
               </div>
               <time className="km-chat-time" dateTime={last?.createdAt}>{last?new Date(last.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</time>
             </Link>
-            <div className="km-chat-quick-actions">
-              <Link href={`/messages/${conversation.id}/organization`} className="km-mini-action" title={en?'Chat organization':'Organisation de la discussion'} aria-label={`${en?'Organize':'Organisation de'} ${name}`}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h16M8 4v7M16 4v7M5 20h14V11H5z"/></svg>
-              </Link>
-              <button type="button" className="km-mini-action" aria-pressed={pinned} aria-label={pinned?`${en?'Unpin':'Désépingler'} ${name}`:`${en?'Pin':'Épingler'} ${name}`} title={pinned?(en?'Unpin':'Désépingler'):(en?'Pin':'Épingler')} disabled={pinDisabled} onClick={()=>void togglePin(conversation.id)}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-3 1-4 4-1 4-7-7 4-1 4-4zM4 20l6-6"/></svg>
-              </button>
-            </div>
+            <details className="km-chat-context" onKeyDown={event=>{if(event.key==='Escape')event.currentTarget.open=false;}}>
+              <summary title={en?'Chat options':'Options de discussion'} aria-label={`${en?'Options for':'Options pour'} ${name}`}>
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+              </summary>
+              <div className="km-chat-context-options">
+                <Link href={`/messages/${conversation.id}/organization`}>{en?'Organize chat':'Organiser la discussion'}</Link>
+                <button type="button" aria-pressed={pinned} disabled={pinDisabled}
+                  onClick={()=>void togglePin(conversation.id)}>{pinned?(en?'Unpin':'Désépingler'):(en?'Pin':'Épingler')}</button>
+              </div>
+            </details>
           </article>;
         })}
         {!orderedConversations.length && <div className="km-chat-empty">
@@ -320,8 +321,10 @@ export default function MessagesPage() {
         {creatingNexus&&<span className="km-nexus-fab-progress" aria-hidden="true"/>}
       </button>
       </div>
-      <aside className="km-messenger-empty-panel" aria-label={en?'Choose a conversation':'Sélectionner une discussion'}>
-        <div className="km-messenger-empty-content">
+      <aside className={selectedConversationId?'km-messenger-empty-panel km-messenger-active-panel':'km-messenger-empty-panel'} aria-label={selectedConversationId?(en?'Selected conversation':'Discussion sélectionnée'):(en?'Choose a conversation':'Sélectionner une discussion')}>
+        {selectedConversationId
+          ? <ConversationView key={selectedConversationId} conversationId={selectedConversationId} embedded onClose={()=>setSelectedConversationId(null)}/>
+          : <div className="km-messenger-empty-content">
           <img src="/brand/knowme-logo.svg" alt="" width="76" height="76" />
           <h2>{en?'Your conversations, naturally.':'Vos échanges, simplement.'}</h2>
           <p>{en?'Select a chat to start messaging, or create a new conversation.':'Choisissez une discussion ou commencez une nouvelle conversation.'}</p>
@@ -329,6 +332,8 @@ export default function MessagesPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
           </Link>
         </div>
+
+        }
       </aside>
     </main>
   );

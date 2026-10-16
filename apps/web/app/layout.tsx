@@ -1,4 +1,5 @@
 import './globals.css';
+import './telegram-messenger.css';
 import '../components/knowme-feedback.css';
 import { KnowMeDialogHost } from '../components/knowme-feedback';
 import { BottomNavigation } from '../components/bottom-navigation';
