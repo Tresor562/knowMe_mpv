@@ -224,6 +224,7 @@ export default function MessagesPage() {
         </Link>
       </nav>
       <div className="km-messenger-sidebar">
+      <div className="km-header-nav-group">
       <header className="km-messages-header">
         <div>
           <div className="km-msg-eyebrow">KnowMe</div>
@@ -245,6 +246,8 @@ export default function MessagesPage() {
           </button>
         </div>
       </header>
+      <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
+      </div>
 
       <div className="km-chat-search">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"/><path d="m16 16 5 5"/></svg>
