@@ -367,7 +367,7 @@ export default function PublicProfilePage() {
               <h1 title={profile.header.displayName} style={{minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                 {profile.privacy.profileLocked && <span aria-label={en?'Locked':'Verrouillé'}>♢ </span>}{profile.header.displayName}
               </h1>
-              <AccountBadges staff={profile.header.staff} verification={profile.header.verification} premium={profile.header.premium} compact />
+              <AccountBadges staff={profile.header.staff ?? (user?.username.toLowerCase() === profile.header.username.toLowerCase() ? user.staff : null)} verification={profile.header.verification} premium={profile.header.premium} compact />
             </div>
             <p>@{profile.header.username}{profile.header.joinedYear ? ` · ${en?'Since':'Depuis'} ${profile.header.joinedYear}` : ''}</p>
             {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
