@@ -1124,6 +1124,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
+  const [postComposerRequest, setPostComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -1336,6 +1337,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
             onStoryComposerHandled={() => setStoryComposerRequest(false)}
+            openComposerRequest={postComposerRequest}
+            onComposerOpened={()=>setPostComposerRequest(false)}
             initialPostId={linkedPostId}
             initialCommentId={linkedCommentId}
           />
@@ -1434,6 +1437,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         onClose={() => setCreateOpen(false)}
         onPost={() => {
           setCreateOpen(false);
+          setPostComposerRequest(true);
           setScreen('home');
         }}
         onStory={() => {
