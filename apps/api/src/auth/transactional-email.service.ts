@@ -94,8 +94,8 @@ export class TransactionalEmailService {
           from: { name: settings.senderName, address: settings.email },
           to,
           subject,
-          text: body + (code ? '\\n\\nCode KnowMe : ' + code : '')
-            + '\\n\\nNe partagez jamais votre code ou mot de passe.',
+          text: body + (code ? '\n\nCode KnowMe : ' + code : '')
+            + '\n\nNe partagez jamais votre code ou mot de passe.',
           html,
           disableFileAccess: true,
           disableUrlAccess: true
