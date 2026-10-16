@@ -107,7 +107,7 @@ async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice |
     for (const release of releases) {
       if (
         release.draft || release.prerelease !== true ||
-        !/^v\\d+\\.\\d+\\.\\d+-preview$/.test(release.tag_name ?? '') ||
+        !/^v\d+\.\d+\.\d+-preview$/.test(release.tag_name ?? '') ||
         !Array.isArray(release.assets)
       ) continue;
       const prefix = `https://github.com/Tresor562/knowMe_mpv/releases/download/${release.tag_name}/`;
