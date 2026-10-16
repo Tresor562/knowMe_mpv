@@ -694,10 +694,16 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               {user.staff?.isTeamMember && user.staff.shield === 'GOLD' ? (
                 <GoldVerifiedBadge size={23} label={user.staff.label + ', ' + user.staff.role} />
               ) : null}
-              {user.verification && !user.staff ? (
+              {user.verification?.isVerified ? (
                 <View style={[styles.verifiedCheck, {backgroundColor: colors.accent}]} accessible accessibilityRole="image"
                   accessibilityLabel={user.verification.label}>
                   <Text style={styles.verifiedCheckText}>✓</Text>
+                </View>
+              ) : null}
+              {user.premium?.isPremium ? (
+                <View style={styles.premiumBadge} accessible accessibilityRole="image"
+                  accessibilityLabel={user.premium.label}>
+                  <Text style={styles.premiumMark}>◆</Text>
                 </View>
               ) : null}
             </View>
@@ -1033,6 +1039,8 @@ const styles = StyleSheet.create({
   verifiedName: { flexShrink: 1 },
   verifiedCheck: {width:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center'},
   verifiedCheckText: {fontSize:13,fontWeight:'900',color:'#fff',includeFontPadding:false},
+  premiumBadge: {width:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center',backgroundColor:'#DA9436'},
+  premiumMark: {fontSize:13,fontWeight:'900',color:'#fff',includeFontPadding:false},
   profileMoreButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   settingsToggle: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, minHeight: 53, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth },
   moreBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.6)' },
