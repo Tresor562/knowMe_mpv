@@ -64,13 +64,10 @@ function PublicChoice({
             <BrandMark size={58} />
           </GlassSurface>
           <Text style={[styles.eyebrow, { color: colors.accent }]}>
-            MESSAGES · PLAY · DISCOVER
+            CRÉER · PARTAGER · DÉCOUVRIR
           </Text>
           <Text style={[styles.title, { color: colors.text }]}>
             Bienvenue sur KnowMe.
-          </Text>
-          <Text style={[styles.copy, { color: colors.muted }]}>
-            Une messagerie sociale rapide, personnelle et vivante — avec ton identité, tes conversations et ton univers au même endroit.
           </Text>
         </View>
 
@@ -112,9 +109,6 @@ function PublicChoice({
             </Text>
           </PressScale>
 
-          <Text style={[styles.note, { color: colors.muted }]}>
-            La langue suit ton appareil par défaut et reste modifiable à tout moment.
-          </Text>
         </GlassSurface>
       </View>
     </SafeAreaView>
@@ -280,13 +274,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     textAlign: 'center'
   },
-  copy: {
-    maxWidth: 350,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-    marginTop: 8
-  },
   actionsCard: {
     padding: 12,
     gap: 9
@@ -324,12 +311,5 @@ const styles = StyleSheet.create({
   textButtonText: {
     fontWeight: '800',
     fontSize: 13.5
-  },
-  note: {
-    fontSize: 11.5,
-    lineHeight: 17,
-    textAlign: 'center',
-    paddingHorizontal: 12,
-    paddingBottom: 2
   }
 });
