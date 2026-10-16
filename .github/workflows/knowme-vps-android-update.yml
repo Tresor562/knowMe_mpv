@@ -22,7 +22,7 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 70
     env:
       GH_TOKEN: ${{ github.token }}
       VPS_HOST: ${{ secrets.KNOWME_VPS_HOST }}
@@ -126,5 +126,25 @@ jobs:
           "${SSH[@]}" "$TARGET" 'mkdir -p ~/knowme-release-staging'
           "${SCP[@]}" "artifacts/$FILE" "$TARGET:knowme-release-staging/$FILE"
           "${SCP[@]}" ops/publish-knowme-android-vps.mjs "$TARGET:knowme-release-staging/publish.mjs"
+          "${SCP[@]}" ops/deploy-knowme-vps.mjs "$TARGET:knowme-release-staging/deploy.mjs"
+          # Deploy the exact CI-validated API commit before switching the APK manifest.
+          # The VPS deploy script builds the Docker image and checks database/readiness,
+          # rolling the API back if the new service does not come up.
+          SHA="${{ steps.source.outputs.sha }}"
+          "${SSH[@]}" "$TARGET" "KNOWME_DEPLOY_SHA=$SHA node ~/knowme-release-staging/deploy.mjs"
           "${SSH[@]}" "$TARGET" "node ~/knowme-release-staging/publish.mjs ~/knowme-release-staging/$FILE $VERSION $CODE"
-          echo "APK $VERSION published to KnowMe-controlled VPS" >> "$GITHUB_STEP_SUMMARY"
+          # Do not report deployment success until the actual public KnowMe API
+          # serves the matching VPS-hosted version and APK URL.
+          for attempt in $(seq 1 12); do
+            if curl -fsS --max-time 8 --retry 1 \
+              https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android |
+              jq -e --arg ver "$VERSION" --argjson code "$CODE" \
+                '.release.version == $ver and .release.versionCode == $code and
+                 (.release.url == ("https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-" + $ver + "-preview.apk"))' > /dev/null; then
+              echo "KnowMe $VERSION is publicly available from its own VPS." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::VPS has not served the verified APK manifest; publication unconfirmed."
+          exit 1
