@@ -21,11 +21,12 @@ test('large jumps and invalid scroll events do not hide navigation', () => {
   assert.deepEqual(nextDockScroll(INITIAL_DOCK_SCROLL, Number.NaN),INITIAL_DOCK_SCROLL);
 });
 test('immersive screens hide dock even with autohide disabled', () => {
-  const base={screen:'home',keyboardVisible:false,createOpen:false,profileSubscreenActive:false,postDetailOpen:false,scrollVisible:true,autoHide:true};
+  const base={screen:'home',keyboardVisible:false,createOpen:false,profileSubscreenActive:false,postDetailOpen:false,socialImmersive:false,scrollVisible:true,autoHide:true};
   assert.equal(shouldShowDock(base),true);
   assert.equal(shouldShowDock({...base,screen:'linked-sticker'}),false);
   assert.equal(shouldShowDock({...base,keyboardVisible:true}),false);
   assert.equal(shouldShowDock({...base,postDetailOpen:true}),false);
+  assert.equal(shouldShowDock({...base,socialImmersive:true}),false);
   assert.equal(shouldShowDock({...base,createOpen:true}),false);
   assert.equal(shouldShowDock({...base,screen:'profile',profileSubscreenActive:true}),false);
   assert.equal(shouldShowDock({...base,scrollVisible:false,autoHide:false}),true);
