@@ -162,6 +162,8 @@ export function RealtimeMessagesPanel({
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(44);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
   const [creatingNexus, setCreatingNexus] = useState(false);
@@ -621,6 +623,8 @@ export function RealtimeMessagesPanel({
       });
     }
     setActive(null);
+    setToolsOpen(false);
+    setComposerHeight(44);
     setHistory([]);
     setReadStates([]);
     setTypingUsers({});
@@ -714,7 +718,30 @@ export function RealtimeMessagesPanel({
               : [];
 
             return (
-              <View
+              <Pressable
+                accessibilityHint="Appui long pour partager le message"
+                onLongPress={() => {
+                  const media = item.presentation && 'assetId' in item.presentation
+                    ? item.presentation : null;
+                  const shareMessage = () => void Share.share({
+                    message: buildKnowMePublicLink({ kind: 'message', id: item.id })
+                  });
+                  Alert.alert('Options du message', 'Partager un lien KnowMe',
+                    media ? [
+                      { text: 'Lien du message', onPress: shareMessage },
+                      { text: 'Lien du média', onPress: () => void Share.share({
+                        message: buildKnowMePublicLink({
+                          kind: media.kind === 'GIF' ? 'gif' : 'media',
+                          id: media.assetId
+                        })
+                      }) },
+                      { text: 'Fermer', style: 'cancel' }
+                    ] : [
+                      { text: 'Partager le message', onPress: shareMessage },
+                      { text: 'Fermer', style: 'cancel' }
+                    ]
+                  );
+                }}
                 style={[
                   styles.bubble,
                   { borderRadius: visual.bubbleRadius },
@@ -770,16 +797,6 @@ export function RealtimeMessagesPanel({
                     <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}
                       fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
                       autoOpen={linkedMediaId === item.presentation.assetId}/>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Partager le lien de ce média"
-                      onPress={() => {
-                        const presentation = item.presentation;
-                        if (!presentation || !('assetId' in presentation)) return;
-                        void Share.share({message:buildKnowMePublicLink({
-                          kind:presentation.kind==='GIF'?'gif':'media',id:presentation.assetId
-                        })});
-                      }}>
-                      <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien du média</Text>
-                    </Pressable>
                   </View>
                   : item.presentation?.kind==='STICKER'
                     ? <Pressable accessibilityRole="button"
@@ -807,9 +824,6 @@ export function RealtimeMessagesPanel({
                         text={item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
                         style={[mine ? styles.bubbleMineText : styles.bubbleText,
                           { color: mine ? colors.accentText : colors.text }]}/>}
-                <Pressable onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'message',id:item.id})}); }} accessibilityRole="button" accessibilityLabel="Partager le lien du message">
-                  <Text style={{color:mine?colors.accentText:colors.accent,fontSize:12}}>↗ Lien</Text>
-                </Pressable>
                 <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
                   {formatMessageTime(item.createdAt)}
                 </Text>
@@ -820,7 +834,7 @@ export function RealtimeMessagesPanel({
                       .join(', ')}
                   </Text>
                 ) : null}
-              </View>
+              </Pressable>
             );
           }}
           ListEmptyComponent={<Empty text={isNexusPrivate ? 'Écris ton premier message à Nexus.' : 'Commence la conversation.'} />}
@@ -834,46 +848,70 @@ export function RealtimeMessagesPanel({
           ) : null}
         />
 
-        <GlassSurface strength="medium" borderRadius={visual.cardRadius} style={styles.composer}>
-          <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
-          <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
-            onSent={created=>{
-              setHistory(current=>mergeMessages(current,[created]));
-              setConversations(current=>current.map(item=>item.id===active.id
-                ? {...item,messages:[created]}:item));
-            }}/>
-          <ChatMediaPicker<ConversationMessage> conversationId={active.id}
-            onSent={created=>{
-              setHistory(current=>mergeMessages(current,[created]));
-              setConversations(current=>current.map(item=>item.id===active.id
-                ? {...item,messages:[created]}:item));
-            }}/>
-          <TextInput
-            value={draft}
-            onChangeText={changeDraft}
-            onBlur={stopTyping}
-            maxLength={2000}
-            placeholder={isNexusPrivate ? 'Écris à Nexus…' : 'Écris… @Nexus pour l’invoquer'}
-            placeholderTextColor={colors.muted}
-            selectionColor={colors.accent}
-            style={[
-              styles.input,
-              styles.composerInput,
-              { borderRadius: visual.inputRadius },
-              {
-                backgroundColor: colors.backgroundAccent,
-                borderColor: colors.border,
-                color: colors.text
-              }
-            ]}
-          />
-          <IconButton
-            icon="arrow"
-            accessibilityLabel="Envoyer"
-            disabled={sending || nexusPending || !draft.trim()}
-            onPress={() => void send()}
-            filled
-          />
+        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.composer}>
+          <View style={styles.composerRow}>
+            <PressScale
+              accessibilityRole="button"
+              accessibilityLabel={toolsOpen ? 'Masquer les emojis et stickers' : 'Afficher les emojis et stickers'}
+              accessibilityState={{ expanded: toolsOpen }}
+              onPress={() => setToolsOpen(value => !value)}
+              style={[styles.composerToolsTrigger, { backgroundColor: toolsOpen ? colors.backgroundAccent : 'transparent' }]}
+            >
+              <KnowMeIcon name="spark" size={20} color={colors.accent} />
+            </PressScale>
+            <TextInput
+              value={draft}
+              onChangeText={changeDraft}
+              onFocus={() => setToolsOpen(false)}
+              onBlur={stopTyping}
+              onContentSizeChange={event => {
+                const next = Math.min(116, Math.max(44, Math.ceil(event.nativeEvent.contentSize.height) + 14));
+                setComposerHeight(current => current === next ? current : next);
+              }}
+              multiline
+              textAlignVertical="center"
+              maxLength={2000}
+              maxFontSizeMultiplier={1.3}
+              placeholder={isNexusPrivate ? 'Message à Nexus' : 'Message'}
+              placeholderTextColor={colors.muted}
+              selectionColor={colors.accent}
+              style={[
+                styles.composerInput,
+                { height: composerHeight, borderRadius: visual.inputRadius },
+                { color: colors.text }
+              ]}
+            />
+            <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+              showVoice={!draft.trim()}
+              onSent={created=>{
+                setHistory(current=>mergeMessages(current,[created]));
+                setConversations(current=>current.map(item=>item.id===active.id
+                  ? {...item,messages:[created]}:item));
+              }}/>
+            {draft.trim() ? (
+              <IconButton
+                icon="arrow"
+                accessibilityLabel="Envoyer"
+                disabled={sending || nexusPending}
+                onPress={() => void send()}
+                filled
+              />
+            ) : null}
+          </View>
+          {toolsOpen ? (
+            <View style={[styles.composerTools, { borderTopColor: colors.border }]}>
+              <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
+              <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
+                onSent={created=>{
+                  setHistory(current=>mergeMessages(current,[created]));
+                  setConversations(current=>current.map(item=>item.id===active.id
+                    ? {...item,messages:[created]}:item));
+                }}/>
+              <Text style={[styles.composerToolsLabel, { color: colors.muted }]}>
+                Emojis et stickers
+              </Text>
+            </View>
+          ) : null}
         </GlassSurface>
       </View>
     );
@@ -1340,18 +1378,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7
   },
   unreadBadgeText: { fontWeight: '900', fontSize: 12 },
-  conversationRoot: { flex: 1, paddingTop: 8, position: 'relative', overflow: 'hidden' },
+  conversationRoot: { flex: 1, position: 'relative', overflow: 'hidden' },
   conversationHeader: {
-    marginHorizontal: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
+    marginHorizontal: 4,
+    marginTop: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
   },
   messages: {
-    padding: 12,
-    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 5,
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
@@ -1369,14 +1410,43 @@ const styles = StyleSheet.create({
   receipt: { fontSize: 9, fontWeight: '700' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
   composer: {
-    marginHorizontal: 10,
-    marginBottom: 8,
+    marginHorizontal: 5,
+    marginBottom: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    gap: 3
+  },
+  composerRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 7,
-    padding: 6
+    gap: 2,
+    minHeight: 44
   },
-  composerInput: { flex: 1 },
+  composerToolsTrigger: {
+    width: 38,
+    minHeight: 44,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  composerTools: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 4,
+    paddingHorizontal: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  composerToolsLabel: { fontSize: 12, fontWeight: '600' },
+  composerInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    fontSize: 15,
+    lineHeight: 21,
+    includeFontPadding: false
+  },
   iconButton: {
     width: 42,
     height: 42,
