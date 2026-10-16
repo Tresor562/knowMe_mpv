@@ -250,12 +250,12 @@ const styles = StyleSheet.create({
   preview: { width: 77, height: 77, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   photo: { width: '100%', height: '100%' },
   details: { flex: 1, minWidth: 0, gap: 5 },
-  name: { fontSize: 15, fontWeight: '750' },
+  name: { fontSize: 15, fontWeight: '700' },
   kind: { fontSize: 12 },
   description: { fontSize: 12, lineHeight: 17 },
   actionRow: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 7, justifyContent: 'space-between' },
   price: { flex: 1, fontSize: 12, fontWeight: '700' },
   action: { minWidth: 94, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  actionText: { fontSize: 12, fontWeight: '750' },
+  actionText: { fontSize: 12, fontWeight: '700' },
   footer: { fontSize: 11, lineHeight: 17, paddingTop: 2 }
 });
