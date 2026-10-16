@@ -60,6 +60,23 @@ describe('KnowMe staff accounts (e2e)', () => {
     const adminToken = adminRegistration.body.accessToken as string;
     const officialToken = officialRegistration.body.accessToken as string;
 
+    // Approved profiles must display gold without depending on the historical
+    // one-off VPS migration, and without acquiring StaffAccount permissions.
+    const initialOfficial = await request(app.getHttpServer())
+      .get('/users/me')
+      .set('Authorization', `Bearer ${officialToken}`)
+      .expect(200);
+    expect(initialOfficial.body.role).toBe('USER');
+    expect(initialOfficial.body.staff).toEqual(expect.objectContaining({
+      shield: 'GOLD',
+      role: 'CERTIFIED'
+    }));
+    const initialPublicOfficial = await request(app.getHttpServer())
+      .get('/profile-experience/public/staff_official')
+      .expect(200);
+    expect(initialPublicOfficial.body.header.staff).toEqual(initialOfficial.body.staff);
+    expect(initialPublicOfficial.body.header).not.toHaveProperty('email');
+
     const lookalikeProfile = await request(app.getHttpServer())
       .get('/users/me')
       .set('Authorization', `Bearer ${lookalikeRegistration.body.accessToken}`)
