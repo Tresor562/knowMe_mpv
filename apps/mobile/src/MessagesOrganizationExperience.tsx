@@ -51,6 +51,8 @@ type Props = {
   linkedMediaId?: string | null;
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
+  onImmersiveChange?: (active: boolean) => void;
+  onContentScroll?: (offset: number) => void;
 };
 
 const organizationTools: Array<{
@@ -101,10 +103,17 @@ export function MessagesOrganizationExperience({
   linkedMessageId,
   linkedMediaId,
   refreshing,
-  setRefreshing
+  setRefreshing,
+  onImmersiveChange,
+  onContentScroll
 }: Props) {
   const { colors } = useAppearance();
   const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [conversationActive, setConversationActive] = useState(false);
+  useEffect(() => {
+    onImmersiveChange?.(organizationOpen || conversationActive);
+    return () => onImmersiveChange?.(false);
+  }, [organizationOpen,conversationActive,onImmersiveChange]);
   const [organizationTool, setOrganizationTool] = useState<OrganizationTool | null>(null);
   const [organizationConversationId, setOrganizationConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -304,7 +313,8 @@ export function MessagesOrganizationExperience({
 
   if (organizationOpen) {
     return (
-      <ScrollView style={rootStyle} contentContainerStyle={styles.content}>
+      <ScrollView style={rootStyle} contentContainerStyle={styles.content}
+        onScroll={event=>onContentScroll?.(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
         <View style={styles.toolbar}>
           <PressScale
             accessibilityRole="button"
@@ -448,6 +458,7 @@ export function MessagesOrganizationExperience({
           linkedConversationId={linkedConversationId}
           linkedMessageId={linkedMessageId}
           linkedMediaId={linkedMediaId}
+          onConversationModeChange={setConversationActive}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
         />

@@ -353,15 +353,23 @@ Telegram's strongest design principle is low-friction navigation:
 - controls placed where expected;
 - overlays/sheets used for contextual actions rather than whole-screen detours.
 
-KnowMe current target:
-- floating bottom dock;
-- Home;
-- Discover;
-- central Create;
-- Messages;
-- Profile.
+KnowMe canonical mobile navigation has **six destinations** in this exact order:
+1. Accueil (Home).
+2. Suggestions / Discover.
+3. Créer (central prominent creation action).
+4. Notifications.
+5. Messages.
+6. Profil.
 
-Navigation should look like a floating object rather than a rectangular footer.
+The navigation is a compact floating dock, not a rectangular footer. On Android,
+its top/bottom placement can be changed and saved from Profil > Apparence.
+Auto-hide on sustained downward scrolling, restore when scrolling upward or
+reaching the top. Hide it while the keyboard, creation sheet, a post-detail screen,
+a private conversation or a secondary immersive screen is open. Hidden controls
+must not receive touch or accessibility focus. Reduced-motion users receive an
+immediate transition. Never show the dock on authentication screens.
+Web mobile/desktop should adapt the same six destinations to their viewport
+without mechanically copying Android's placement.
 
 ## 13. Action bars and floating headers
 

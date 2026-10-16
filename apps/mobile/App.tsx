@@ -1,8 +1,10 @@
 import { KnowMeAlert as Alert } from './src/ui/KnowMeFeedback';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AccessibilityInfo,
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -40,6 +42,8 @@ import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
+import { INITIAL_DOCK_SCROLL, nextDockScroll, shouldShowDock, type DockPosition } from './src/navigation-dock-model';
+import { DEFAULT_DOCK_PREFERENCES, loadDockPreferences, saveDockPreferences, type DockPreferences } from './src/navigation-dock-preferences';
 import { MobileUser, ProfileExperience } from './src/ProfileExperience';
 import { disconnectRealtimeSocket, getRealtimeSocket } from './src/realtime';
 import { SocialHub } from './src/SocialHub';
@@ -983,14 +987,36 @@ function CreateHub({
 function BottomNavigation({
   screen,
   onNavigate,
-  onCreate
+  onCreate,
+  visible,
+  position
 }: {
   screen: Screen;
   onNavigate: (screen: Screen) => void;
   onCreate: () => void;
+  visible: boolean;
+  position: DockPosition;
 }) {
   const { colors } = useAppearance();
   const { t } = useI18n();
+  const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const [reduceMotion,setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let active=true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
+      if(active)setReduceMotion(enabled);
+    }).catch(() => undefined);
+    const subscription=AccessibilityInfo.addEventListener('reduceMotionChanged',setReduceMotion);
+    return () => {active=false;subscription.remove();};
+  }, []);
+
+  useEffect(() => {
+    if(reduceMotion) {progress.setValue(visible ? 1 : 0);return;}
+    const animation=Animated.timing(progress,{toValue:visible ? 1 : 0,duration:185,useNativeDriver:true});
+    animation.start();
+    return () => animation.stop();
+  },[visible,reduceMotion,progress]);
 
   const items: Array<{
     key: 'home' | 'discover' | 'notifications' | 'social' | 'profile';
@@ -1013,6 +1039,9 @@ function BottomNavigation({
   }) {
     return (
       <PressScale
+        accessibilityRole="tab"
+        accessibilityLabel={item.label}
+        accessibilityState={{selected:active}}
         onPress={() => onNavigate(item.key)}
         style={[
           styles.bottomItem,
@@ -1042,7 +1071,15 @@ function BottomNavigation({
   }
 
   return (
-    <View pointerEvents="box-none" style={styles.bottomDockWrap}>
+    <Animated.View pointerEvents={visible ? 'box-none' : 'none'}
+      accessibilityElementsHidden={!visible}
+      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
+      style={[styles.bottomDockWrap,position==='top'?styles.topDockWrap:null,{
+        opacity:progress,
+        transform:[{translateY:progress.interpolate({
+          inputRange:[0,1],outputRange:[position==='top'?-105:105,0]
+        })}]
+      }]}>
       <GlassSurface
         strength="medium"
         borderRadius={30}
@@ -1058,6 +1095,8 @@ function BottomNavigation({
 
         <View style={styles.createSlot}>
           <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.create')}
             onPress={onCreate}
             style={[
               styles.createNavButton,
@@ -1096,7 +1135,7 @@ function BottomNavigation({
           />
         ))}
       </GlassSurface>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1124,8 +1163,39 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [linkFeedback, setLinkFeedback] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [storyComposerRequest, setStoryComposerRequest] = useState(false);
-  const [postComposerRequest, setPostComposerRequest] = useState(false);
+  const [postComposerRequest,setPostComposerRequest] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [dockPreferences,setDockPreferences] = useState<DockPreferences>(DEFAULT_DOCK_PREFERENCES);
+  const [dockScrollVisible,setDockScrollVisible] = useState(true);
+  const [postDetailOpen,setPostDetailOpen] = useState(false);
+  const [socialImmersive,setSocialImmersive] = useState(false);
+  const dockScroll=useRef({...INITIAL_DOCK_SCROLL});
+
+  useEffect(() => {
+    let alive=true;
+    void loadDockPreferences().then(value=>{if(alive)setDockPreferences(value);});
+    return ()=>{alive=false;};
+  },[]);
+
+  function updateDockPreferences(next:DockPreferences) {
+    setDockPreferences(next);
+    void saveDockPreferences(next).catch(()=> {
+      Alert.alert('Navigation','Impossible d’enregistrer la préférence sur cet appareil.');
+    });
+  }
+
+  const onFeedScroll=useCallback((offset:number)=>{
+    const updated=nextDockScroll(dockScroll.current,offset);
+    dockScroll.current=updated;
+    setDockScrollVisible(updated.visible);
+  },[]);
+
+  useEffect(()=>{
+    dockScroll.current={...INITIAL_DOCK_SCROLL};
+    setDockScrollVisible(true);
+    setPostDetailOpen(false);
+    setSocialImmersive(false);
+  },[screen]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
@@ -1309,7 +1379,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           styles.body,
           { backgroundColor: colors.background },
           screen !== 'challenges' && screen !== 'verification'
-            ? styles.bodyWithDock
+            ? (dockPreferences.position==='top' ? styles.bodyWithTopDock : styles.bodyWithDock)
             : null
         ]}
       >
@@ -1341,6 +1411,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onComposerOpened={()=>setPostComposerRequest(false)}
             initialPostId={linkedPostId}
             initialCommentId={linkedCommentId}
+            onContentScroll={onFeedScroll}
+            onDetailChange={setPostDetailOpen}
           />
         ) : null}
 
@@ -1350,6 +1422,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             userId={user.id}
             mode="discover"
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
           />
         ) : null}
 
@@ -1359,6 +1432,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             userId={user.id}
             mode="notifications"
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
           />
         ) : null}
 
@@ -1370,6 +1444,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             linkedMessageId={linkedMessageId}
             linkedMediaId={linkedMediaId}
             onOpenProfile={openUserProfile}
+            onContentScroll={onFeedScroll}
+            onImmersiveChange={setSocialImmersive}
           />
         ) : null}
 
@@ -1411,6 +1487,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
             onSubscreenChange={setProfileSubscreenActive}
+            dockPreferences={dockPreferences}
+            onDockPreferencesChange={updateDockPreferences}
           />
         ) : null}
 
@@ -1424,13 +1502,16 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         ) : null}
       </View>
 
-      {screen !== 'challenges' && screen !== 'verification' && screen !== 'linked-sticker' && screen !== 'linked-channel' && screen !== 'linked-gift' && screen !== 'linked-profile' && !(screen === 'profile' && profileSubscreenActive) && !keyboardVisible ? (
-        <BottomNavigation
-          screen={screen}
-          onNavigate={(next) => setScreen(next)}
-          onCreate={() => setCreateOpen(true)}
-        />
-      ) : null}
+      <BottomNavigation
+        screen={screen}
+        visible={shouldShowDock({
+          screen, keyboardVisible, createOpen, profileSubscreenActive,
+          postDetailOpen, socialImmersive, scrollVisible:dockScrollVisible,autoHide:dockPreferences.autoHide
+        })}
+        position={dockPreferences.position}
+        onNavigate={(next) => setScreen(next)}
+        onCreate={() => setCreateOpen(true)}
+      />
 
       <CreateHub
         visible={createOpen}
@@ -1470,6 +1551,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { flex: 1 },
   bodyWithDock: { paddingBottom: Platform.OS === 'ios' ? 72 : 66 },
+  bodyWithTopDock: { paddingTop: 74 },
   loadingRoot: {
     flex: 1,
     alignItems: 'center',
@@ -2040,6 +2122,7 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 9 : 8,
     zIndex: 50
   },
+  topDockWrap: {bottom:undefined,top:8},
   bottomBar: {
     minHeight: 60,
     borderRadius: 26,

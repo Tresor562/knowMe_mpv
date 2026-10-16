@@ -484,7 +484,8 @@ export function PressScale({
   disabled = false,
   style,
   accessibilityRole,
-  accessibilityLabel
+  accessibilityLabel,
+  accessibilityState
 }: {
   children: ReactNode;
   onPress?: () => void;
@@ -492,6 +493,7 @@ export function PressScale({
   style?: StyleProp<ViewStyle>;
   accessibilityRole?: PressableProps['accessibilityRole'];
   accessibilityLabel?: string;
+  accessibilityState?: PressableProps['accessibilityState'];
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
@@ -511,6 +513,7 @@ export function PressScale({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
       onPressIn={() => to(0.97)}
