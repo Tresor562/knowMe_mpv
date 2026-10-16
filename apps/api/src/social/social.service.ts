@@ -45,6 +45,7 @@ export class SocialService {
         avatarUrl: true,
         bio: true,
         knowCoins: true,
+        email: true,
         staffAccount: { select: staffAccountSelect },
         verificationRequests: verificationRequestSelect,
         entitlementGrants: premiumEntitlementSelect(now)
@@ -198,6 +199,7 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
+            email: true,
             staffAccount: { select: staffAccountSelect },
             verificationRequests: verificationRequestSelect,
             entitlementGrants: premiumEntitlementSelect(now)
@@ -273,6 +275,7 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
+            email: true,
             staffAccount: { select: staffAccountSelect },
             verificationRequests: verificationRequestSelect,
             entitlementGrants: premiumEntitlementSelect(now)
@@ -285,6 +288,7 @@ export class SocialService {
             displayName: true,
             avatarUrl: true,
             bio: true,
+            email: true,
             staffAccount: { select: staffAccountSelect },
             verificationRequests: verificationRequestSelect,
             entitlementGrants: premiumEntitlementSelect(now)

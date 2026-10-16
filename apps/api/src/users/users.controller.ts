@@ -49,7 +49,7 @@ export class UsersController {
       ...profile,
       knowCoins: knowCoinWallet?.balance ?? user.knowCoins,
       accountId: user.id,
-      staff: toStaffBadge(staffAccount),
+      staff: toStaffBadge(staffAccount, user.email),
       verification: toVerificationBadge(verificationRequests, now),
       premium: toPremiumBadge(entitlementGrants)
     };

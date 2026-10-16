@@ -81,6 +81,7 @@ export function toPremiumBadge(grants: PremiumProfileRecord) {
 
 export function withAccountBadges<
   T extends {
+    email?: string;
     staffAccount: StaffProfileRecord;
     verificationRequests: VerificationProfileRecord;
     entitlementGrants: PremiumProfileRecord;
@@ -88,6 +89,7 @@ export function withAccountBadges<
 >(user: T, now = new Date()) {
   const {
     staffAccount,
+    email,
     verificationRequests,
     entitlementGrants,
     ...profile
@@ -95,7 +97,7 @@ export function withAccountBadges<
 
   return {
     ...profile,
-    staff: toStaffBadge(staffAccount),
+    staff: toStaffBadge(staffAccount, email),
     verification: toVerificationBadge(verificationRequests, now),
     premium: toPremiumBadge(entitlementGrants)
   };

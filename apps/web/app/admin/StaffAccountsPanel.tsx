@@ -146,9 +146,10 @@ export function StaffAccountsPanel() {
           <small style={{ color: '#f4c95d' }}>ÉQUIPE KNOWME</small>
           <h2>Comptes officiels</h2>
           <p style={{ color: 'var(--muted)', maxWidth: 760 }}>
-            Badge doré lié au compte KnowMe, jamais attribué automatiquement
-            lors d’une inscription. Vérifiez que chaque adresse appartient à
-            son propriétaire avant de confirmer son statut officiel.
+            Le sceau doré n'apparaît que sur un compte Gmail approuvé comme
+            compte officiel. Les autres comptes staff reçoivent un sceau neutre.
+            Une inscription Gmail ne suffit jamais : vérifiez la propriété
+            de chaque adresse avant toute activation.
           </p>
         </div>
         <button className="btn" onClick={() => void load()}>
@@ -250,7 +251,7 @@ export function StaffAccountsPanel() {
 
             <p>
               <strong>{account.badgeLabel}</strong> · {account.staffRole} ·
-              bouclier {account.shieldStyle}
+              bouclier {account.shieldStyle === 'GOLD' && !account.user.email.trim().toLowerCase().endsWith('@gmail.com') ? 'STANDARD' : account.shieldStyle}
             </p>
             <p style={{ color: 'var(--muted)' }}>
               Accès admin : {account.grantsAdminAccess ? 'oui' : 'non'} · rôle

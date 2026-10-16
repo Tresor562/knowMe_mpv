@@ -476,6 +476,7 @@ export class SocialGiftsService {
         username: true,
         displayName: true,
         avatarUrl: true,
+        email: true,
         staffAccount: { select: staffAccountSelect },
         verificationRequests: verificationRequestSelect,
         entitlementGrants: premiumEntitlementSelect(now)

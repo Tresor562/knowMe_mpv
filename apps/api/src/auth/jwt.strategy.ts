@@ -34,6 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         select: {
           id: true,
           username: true,
+          email: true,
           role: true,
           isSuspended: true,
           staffAccount: { select: staffAccountSelect }
@@ -59,7 +60,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: user.username,
       role: user.role,
       sessionId: session.id,
-      staff: toStaffBadge(user.staffAccount)
+      staff: toStaffBadge(user.staffAccount, user.email)
     };
   }
 }

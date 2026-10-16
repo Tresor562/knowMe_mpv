@@ -498,6 +498,7 @@ export class ProfileExperienceService {
       select: {
         id: true,
         username: true,
+        email: true,
         displayName: true,
         bio: true,
         avatarUrl: true,
@@ -606,7 +607,7 @@ export class ProfileExperienceService {
       header: {
         username: target.username,
         displayName: target.displayName,
-        staff: toStaffBadge(target.staffAccount),
+        staff: toStaffBadge(target.staffAccount, target.email),
         verification: toVerificationBadge(target.verificationRequests, now),
         premium: toPremiumBadge(target.entitlementGrants),
         avatarUrl: target.avatarUrl,
