@@ -149,3 +149,47 @@
 @media(prefers-reduced-motion:reduce) {
   .km-telegram-main-menu *, .km-chat-context * { animation: none !important; transition: none !important; }
 }
+
+/* A real chat lives in the right column on wide screens; mobile keeps its
+   existing full-screen route and back navigation. */
+@media(min-width:1000px) {
+  .km-messenger-shell .km-chat-row.km-chat-selected {
+    background: color-mix(in srgb, var(--mint) 15%, var(--surface));
+  }
+  .km-messenger-empty-panel.km-messenger-active-panel {
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    min-height: 0;
+    background: var(--bg);
+  }
+  .km-messenger-active-panel .km-chat-embedded {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+  .km-messenger-active-panel .km-chat-header {
+    height: 68px;
+    padding-inline: 18px;
+    flex-shrink: 0;
+  }
+  .km-messenger-active-panel .km-chat-transcript {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-bottom: 25px;
+  }
+  .km-messenger-active-panel .km-chat-composer {
+    position: relative;
+    flex-shrink: 0;
+    bottom: auto;
+    padding-bottom: 13px;
+  }
+}
