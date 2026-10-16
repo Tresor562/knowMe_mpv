@@ -85,14 +85,22 @@ function MessageContent({item}:{item:Message}){
   }
   if(item.presentation?.kind==='STICKER'){
     return(
-      <div
-        aria-label={item.presentation.sticker.accessibilityLabel}
-        title={`${item.presentation.pack.name} · ${item.presentation.sticker.label}`}
-        style={{display:'grid',placeItems:'center',gap:4,minWidth:90,minHeight:72}}
-      >
-        <span style={{fontSize:44,lineHeight:1}}><AnimatedEmojiGlyph glyph={item.presentation.sticker.glyph}/></span>
-        <small style={{opacity:.75}}>{item.presentation.sticker.label}</small>
-      </div>
+      <details className="km-chat-glyph-sticker">
+        <summary aria-label={`Options du sticker : ${item.presentation.sticker.accessibilityLabel}`}
+          title={`${item.presentation.pack.name} · ${item.presentation.sticker.label}`}>
+          <span style={{fontSize:44,lineHeight:1}}><AnimatedEmojiGlyph glyph={item.presentation.sticker.glyph}/></span>
+          <small>{item.presentation.sticker.label}</small>
+        </summary>
+        <div className="km-chat-glyph-sticker-actions">
+          <strong>{item.presentation.pack.name}</strong>
+          <Link href={`/stickers/${encodeURIComponent(item.presentation.pack.key)}`}>
+            Voir le pack
+          </Link>
+          <Link href={buildKnowMePublicLink({kind:'message',id:item.id})}>
+            Ouvrir ce message
+          </Link>
+        </div>
+      </details>
     );
   }
   return <AnimatedEmojiText text={item.presentation?.kind==='TEXT'?item.presentation.text:item.content}/>;

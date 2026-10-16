@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Modal, Pressable, SafeAreaView, Share, StyleSheet, Text, View } from 'react-native';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
 
@@ -9,6 +10,7 @@ type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean }) {
   const [opening,setOpening]=useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
+  const [stickerExpanded,setStickerExpanded]=useState(false);
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
   const [attempt,setAttempt] = useState(0);
@@ -101,15 +103,44 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
     <Pressable
       style={styles.imageTrigger}
       accessibilityRole="button"
-      accessibilityLabel={`Agrandir ${mediaLabel === 'Image' ? "l'image" : mediaLabel}`}
-      onPress={()=>setPreviewOpen(true)}
+      accessibilityLabel={compact?'Options du sticker':`Agrandir ${mediaLabel === 'Image' ? "l'image" : mediaLabel}`}
+      accessibilityHint={compact?'Appuie pour voir les options, maintiens pour agrandir.':undefined}
+      onPress={()=>{setStickerExpanded(!compact);setPreviewOpen(true);}}
+      onLongPress={compact?()=>{setStickerExpanded(true);setPreviewOpen(true);}:undefined}
     >
       <Image source={source} style={compact ? styles.sticker : styles.image}
         resizeMode="contain" accessibilityLabel={mediaLabel}
         onError={()=>{setPreviewOpen(false);setFailed(true);}} />
     </Pressable>
     <Modal visible={previewOpen} animationType="fade" transparent={false}
-      onRequestClose={()=>setPreviewOpen(false)}>
+      onRequestClose={()=>{setPreviewOpen(false);setStickerExpanded(false);}}>
+      {compact&&!stickerExpanded ? (
+        <SafeAreaView style={styles.stickerOptionRoot}>
+          <View style={styles.stickerOptionTop}>
+            <Text style={styles.stickerOptionTitle}>Sticker KnowMe</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Fermer les options du sticker"
+              onPress={()=>{setPreviewOpen(false);setStickerExpanded(false);}}
+              style={styles.viewerClose}>
+              <KnowMeIcon name="close" size={21} color="#fff"/>
+            </Pressable>
+          </View>
+          <Image source={source} style={styles.stickerOptionImage} resizeMode="contain"
+            accessibilityLabel={fileName||'Sticker'}/>
+          <View style={styles.stickerOptions}>
+            <Pressable accessibilityRole="button" style={styles.stickerOptionAction}
+              onPress={()=>setStickerExpanded(true)}>
+              <Text style={styles.stickerOptionActionText}>Agrandir le sticker</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" style={styles.stickerOptionAction}
+              onPress={()=>{void Share.share({message:buildKnowMePublicLink({kind:'media',id:assetId})});}}>
+              <Text style={styles.stickerOptionActionText}>Partager le lien</Text>
+            </Pressable>
+            <Text style={styles.stickerMetadata}>
+              {fileName||'Sticker'} · {mimeType||'Image'}
+            </Text>
+          </View>
+        </SafeAreaView>
+      ) : (
       <SafeAreaView style={styles.viewerRoot}>
         <View style={styles.viewerToolbar}>
           <Text style={styles.viewerTitle} numberOfLines={1}>
@@ -131,12 +162,22 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
           onError={()=>{setPreviewOpen(false);setFailed(true);}}/>
         <Text style={styles.viewerCaption}>KnowMe · {mediaLabel}</Text>
       </SafeAreaView>
+      )}
     </Modal>
   </>;
 }
 
 const styles=StyleSheet.create({
   imageTrigger:{alignSelf:'flex-start',borderRadius:14,overflow:'hidden'},
+  stickerOptionRoot:{flex:1,backgroundColor:'#05080f',paddingHorizontal:18},
+  stickerOptionTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',minHeight:66},
+  stickerOptionTitle:{fontSize:19,fontWeight:'800',color:'#fff'},
+  stickerOptionImage:{height:280,width:'100%',marginTop:14},
+  stickerOptions:{gap:9,paddingTop:15},
+  stickerOptionAction:{minHeight:50,borderRadius:17,justifyContent:'center',
+    backgroundColor:'rgba(255,255,255,.1)',paddingHorizontal:17},
+  stickerOptionActionText:{fontSize:15,fontWeight:'700',color:'#fff'},
+  stickerMetadata:{fontSize:12,color:'#aab2c7',marginTop:8},
   viewerRoot:{flex:1,backgroundColor:'#05080f',justifyContent:'space-between'},
   viewerToolbar:{height:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',
     justifyContent:'space-between',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,

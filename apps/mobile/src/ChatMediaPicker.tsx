@@ -8,6 +8,7 @@ import { useI18n } from './I18nProvider';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { openKnowMeFiles, type SelectedKnowMeFile } from './native-gallery';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import {KnowMeVoiceComposer} from './KnowMeVoiceComposer';
 
 type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 type UploadSession = { id: string; uploadToken: string };
@@ -87,8 +88,8 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
     }
   }
 
-  async function sendFiles(files: SelectedKnowMeFile[] | SelectedAndroidMedia[]) {
-    if (busy || !files.length) return;
+  async function sendFiles(files: SelectedKnowMeFile[] | SelectedAndroidMedia[]): Promise<boolean> {
+    if (busy || !files.length) return false;
     setMenuVisible(false);
     setGalleryVisible(false);
     setBusy(true);
@@ -102,10 +103,12 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
         onSent(message);
       }
       setProgress('');
+      return true;
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : 'Le transfert a échoué.');
       Alert.alert(en ? 'Upload failed' : 'Envoi impossible',
         cause instanceof Error ? cause.message : 'Réessaie.');
+      return false;
     } finally {
       setBusy(false);
       setProgress('');
@@ -125,14 +128,17 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
   }
 
   return <>
-    <Pressable accessibilityRole="button"
-      accessibilityLabel={en ? 'Attach photos, videos or files' : 'Joindre photos, vidéos ou fichiers'}
-      disabled={busy}
-      onPress={()=>setMenuVisible(true)}
-      style={[styles.trigger,{backgroundColor:colors.backgroundAccent}]}>
-      {busy ? <ActivityIndicator color={colors.accent} size="small"/> :
-        <KnowMeIcon name="create" size={24} color={colors.text}/>}
-    </Pressable>
+    <View style={styles.recordAndAttach}>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={en ? 'Attach photos, videos or files' : 'Joindre photos, vidéos ou fichiers'}
+        disabled={busy}
+        onPress={()=>setMenuVisible(true)}
+        style={[styles.trigger,{backgroundColor:colors.backgroundAccent}]}>
+        {busy ? <ActivityIndicator color={colors.accent} size="small"/> :
+          <KnowMeIcon name="create" size={24} color={colors.text}/>}
+      </Pressable>
+      <KnowMeVoiceComposer busy={busy} onSend={file=>sendFiles([file])}/>
+    </View>
     {!!progress && <Text style={[styles.progress,{color:colors.muted}]}>{progress}</Text>}
     {!!notice && !busy && <Pressable onPress={()=>setMenuVisible(true)}>
       <Text numberOfLines={2} style={[styles.notice,{color:colors.danger}]}>{notice}</Text>
@@ -192,6 +198,7 @@ export function ChatMediaPicker<T>({conversationId,onSent}:{
 
 const styles=StyleSheet.create({
   trigger:{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center'},
+  recordAndAttach:{flexDirection:'row',alignItems:'center',gap:3},
   progress:{fontSize:11,fontWeight:'700'},
   notice:{maxWidth:120,fontSize:10},
   scrim:{flex:1,backgroundColor:'rgba(0,0,0,.55)',justifyContent:'flex-end'},
