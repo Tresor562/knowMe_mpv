@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "product": "KnowMe",
-  "productVersion": "1.1.4",
-  "contractRevision": "2026-10-16.3",
+  "productVersion": "1.1.5",
+  "contractRevision": "2026-10-16.4",
   "platforms": [
     "web",
     "android"
   ],
-  "note": "Implemented means code is present, not yet verified on a physical device or in production. Release is blocked until every required feature has parity and verification.",
+  "note": "Implemented means code is present; production proof and account-level staff activation must still be verified. Release gate enforces Web/Android parity.",
   "features": [
     {
       "id": "auth.account",
