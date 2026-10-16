@@ -13,7 +13,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
-  copyFileSync, existsSync, mkdirSync, openSync, readFileSync,
+  chmodSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync,
   renameSync, statSync, unlinkSync, writeFileSync
 } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -80,6 +80,8 @@ if (existsSync(target)) {
       throw new Error('Copy checksum mismatch');
     }
     renameSync(tmp, target);
+    // The API runs as the non-root node user in a read-only bind mount.
+    chmodSync(target, 0o644);
   } finally {
     if (existsSync(tmp)) unlinkSync(tmp);
   }
@@ -101,9 +103,9 @@ try {
   try {
     writeFileSync(fd, body);
   } finally {
-    const { closeSync } = await import('node:fs');
     closeSync(fd);
   }
+  chmodSync(tempManifest, 0o644);
   renameSync(tempManifest, manifest);
 } finally {
   if (existsSync(tempManifest)) unlinkSync(tempManifest);
