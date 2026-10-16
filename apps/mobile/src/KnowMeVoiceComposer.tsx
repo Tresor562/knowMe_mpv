@@ -52,6 +52,10 @@ export function KnowMeVoiceComposer({busy,onSend}:{
     setOpen(true);setSeconds(0);next('starting');
     try{
       await startKnowMeVoice();
+      if (phaseRef.current!=='starting') {
+        await cancelKnowMeVoice();
+        return;
+      }
       startedAt.current=Date.now();
       next('recording');
     }catch(e){
@@ -95,8 +99,7 @@ export function KnowMeVoiceComposer({busy,onSend}:{
     <PressScale accessibilityRole="button" accessibilityLabel="Enregistrer un message vocal"
       disabled={busy||phase!=='idle'} onPress={()=>void begin()}
       style={[styles.microphone,{backgroundColor:colors.backgroundAccent}]}>
-      <KnowMeIcon name="messages" size={21} color={colors.accent}/>
-      <Text style={{fontSize:12,fontWeight:'800',color:colors.accent}}>MIC</Text>
+      <KnowMeIcon name="microphone" size={23} color={colors.accent}/>
     </PressScale>
     <Modal visible={open} transparent animationType="fade" onRequestClose={()=>{void cancel();}}>
       <View style={styles.backdrop}>
@@ -147,7 +150,7 @@ export function KnowMeVoiceComposer({busy,onSend}:{
   </>;
 }
 const styles=StyleSheet.create({
-  microphone:{minHeight:44,minWidth:50,paddingHorizontal:5,borderRadius:22,
+  microphone:{minHeight:44,minWidth:44,paddingHorizontal:5,borderRadius:22,
     alignItems:'center',justifyContent:'center'},
   backdrop:{flex:1,backgroundColor:'rgba(0,0,0,.5)',justifyContent:'flex-end'},
   sheet:{borderTopLeftRadius:26,borderTopRightRadius:26,borderWidth:StyleSheet.hairlineWidth,
