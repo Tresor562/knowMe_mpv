@@ -115,6 +115,13 @@ export default function DiscoverPage() {
         </Link>)}
       </section>}
       <section className="km-discover-section">
+        <h2>{en ? 'Elsewhere on KnowMe' : 'À découvrir sur KnowMe'}</h2>
+        <div className="km-discover-links">
+          <Link href="/marketplace"><span>{en ? 'Marketplace · gifts and customization' : 'Marketplace · cadeaux et personnalisation'}</span><span aria-hidden="true">›</span></Link>
+          <Link href="/games/center"><span>{en ? 'Games and challenges' : 'Jeux et défis'}</span><span aria-hidden="true">›</span></Link>
+        </div>
+      </section>
+      <section className="km-discover-section">
         <h2>{en ? 'Explore communities' : 'Explorer les communautés'}</h2>
         <div className="km-discover-links">
           <Link href="/friends"><span>{en ? 'Friends and requests' : 'Amis et demandes'}</span><span aria-hidden="true">›</span></Link>
