@@ -1,4 +1,4 @@
-import { readAndroidReleaseNotice } from './mobile-updates.controller';
+import { chooseAndroidRelease, readAndroidReleaseNotice } from './mobile-updates.controller';
 
 describe('Android release feed', () => {
   const valid = {
@@ -44,6 +44,29 @@ describe('Android release feed', () => {
       KNOWME_ANDROID_UPDATE_URL: 'https://updates.knowme.example/KnowMe.apk',
       KNOWME_ANDROID_UPDATE_ALLOWED_HOST: 'updates.knowme.example'
     })?.url).toBe('https://updates.knowme.example/KnowMe.apk');
+  });
+
+
+  it('selects newer preview over pinned legacy preview without crossing signing channels', () => {
+    const pinned = readAndroidReleaseNotice({
+      ...valid,
+      KNOWME_ANDROID_UPDATE_VERSION_CODE: '4',
+      KNOWME_ANDROID_UPDATE_VERSION: '1.1.2',
+      KNOWME_ANDROID_UPDATE_URL: 'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.2-preview/KnowMe-1.1.2-preview.apk'
+    });
+    const newer = readAndroidReleaseNotice({
+      ...valid,
+      KNOWME_ANDROID_UPDATE_VERSION_CODE: '6',
+      KNOWME_ANDROID_UPDATE_VERSION: '1.1.4',
+      KNOWME_ANDROID_UPDATE_URL: 'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.4-preview/KnowMe-1.1.4-preview.apk'
+    });
+    expect(chooseAndroidRelease(pinned, newer)).toEqual(newer);
+    expect(chooseAndroidRelease(newer, pinned)).toEqual(newer);
+    expect(chooseAndroidRelease(pinned, null)).toEqual(pinned);
+    expect(chooseAndroidRelease(null, newer)).toEqual(newer);
+    const signedProduction = readAndroidReleaseNotice(valid);
+    expect(chooseAndroidRelease(signedProduction, newer)).toEqual(signedProduction);
+    expect(chooseAndroidRelease(pinned, signedProduction)).toEqual(pinned);
   });
 
   it('rejects missing or malformed digest and invalid identifiers', () => {
