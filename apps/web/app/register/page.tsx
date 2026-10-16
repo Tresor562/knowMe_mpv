@@ -21,7 +21,7 @@ export default function RegisterPage(){
         password:String(form.get('password')??'')
       })});
       saveSession(data.accessToken,data.refreshToken);
-      window.location.replace('/messages');
+      window.location.replace('/feed');
     }catch(cause){
       const error = cause as ApiError;
       if (error.status === 409) {
