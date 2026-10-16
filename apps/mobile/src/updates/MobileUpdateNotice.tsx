@@ -21,6 +21,10 @@ type ApkInstaller = {
 };
 
 const installer = NativeModules.KnowMeApkInstaller as ApkInstaller | undefined;
+// Present only when the APK was built with a real Firebase Android config.
+const firebasePush = NativeModules.KnowMeFirebasePush as
+  | { subscribeToUpdates(): Promise<boolean> }
+  | undefined;
 
 type AndroidReleaseNotice = {
   versionCode: number;
@@ -119,6 +123,9 @@ export function MobileUpdateNotice() {
     // Android notifications only reopen the app; installation remains opt-in
     // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
+    // Subscribe once per app launch. Firebase persists and renews the topic
+    // membership; failure never blocks the existing WorkManager fallback.
+    void firebasePush?.subscribeToUpdates().catch(() => undefined);
 
     const check = async (manual = false): Promise<MobileUpdateCheckResult> => {
       if (requestInProgress.current) return 'unavailable';
