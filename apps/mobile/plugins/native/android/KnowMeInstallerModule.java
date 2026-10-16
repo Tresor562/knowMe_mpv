@@ -1,5 +1,7 @@
 package com.knowme.app.updates;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -7,6 +9,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -31,6 +35,31 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
 
   private long versionCode(PackageInfo info) {
     return Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+  }
+
+  @ReactMethod
+  public void startUpdateWatcher(Promise promise) {
+    try {
+      // WorkManager persists the 15-minute check even while KnowMe is closed.
+      KnowMeUpdateWorker.schedule(context);
+      if (Build.VERSION.SDK_INT >= 33 &&
+          ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED) {
+        android.content.SharedPreferences prefs = context.getSharedPreferences(
+          "knowme_update_notifications", android.content.Context.MODE_PRIVATE);
+        if (!prefs.getBoolean("notification_permission_requested", false)) {
+          Activity activity = getCurrentActivity();
+          if (activity != null) {
+            prefs.edit().putBoolean("notification_permission_requested", true).apply();
+            ActivityCompat.requestPermissions(
+              activity, new String[] { Manifest.permission.POST_NOTIFICATIONS }, 11705);
+          }
+        }
+      }
+      promise.resolve(true);
+    } catch (Exception error) {
+      promise.reject("UPDATE_WATCH_UNAVAILABLE", "Surveillance des mises à jour indisponible.", error);
+    }
   }
 
   @ReactMethod
