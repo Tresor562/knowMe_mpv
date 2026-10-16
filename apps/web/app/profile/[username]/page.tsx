@@ -8,6 +8,7 @@ import { ProfileCover } from '../../../components/profile-cover';
 import { AccountBadges } from '../../../components/AccountBadges';
 import { useI18n } from '../../../components/i18n-provider';
 import { useSession } from '../../../lib/use-session';
+import type { PremiumBadge, VerificationBadge } from '../../../lib/use-session';
 
 type Access = { visible: boolean; reason: string };
 type PublicProfile = {
@@ -15,6 +16,8 @@ type PublicProfile = {
     username: string;
     displayName: string;
     staff: { isTeamMember: true; label: string; shield: string; role: string } | null;
+    verification?: VerificationBadge | null;
+    premium?: PremiumBadge | null;
     avatarUrl: string | null;
     bio: string | null;
     joinedYear: number | null;
@@ -364,7 +367,7 @@ export default function PublicProfilePage() {
               <h1 title={profile.header.displayName} style={{minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                 {profile.privacy.profileLocked && <span aria-label={en?'Locked':'Verrouillé'}>♢ </span>}{profile.header.displayName}
               </h1>
-              <AccountBadges staff={profile.header.staff} compact />
+              <AccountBadges staff={profile.header.staff} verification={profile.header.verification} premium={profile.header.premium} compact />
             </div>
             <p>@{profile.header.username}{profile.header.joinedYear ? ` · ${en?'Since':'Depuis'} ${profile.header.joinedYear}` : ''}</p>
             {profile.header.bio&&<p className="km-public-bio">{profile.header.bio}</p>}
