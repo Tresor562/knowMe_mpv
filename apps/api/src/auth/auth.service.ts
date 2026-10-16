@@ -305,7 +305,7 @@ export class AuthService {
       user: {
         ...publicUser,
         accountId: user.id,
-        staff: toStaffBadge(staffAccount)
+        staff: toStaffBadge(staffAccount, user.email)
       },
       accessToken,
       refreshToken: `${session.id}.${secret}`,
