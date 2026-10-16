@@ -23,6 +23,7 @@ import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
 import { checkKnowMeUpdateNow } from './updates/MobileUpdateNotice';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
@@ -691,11 +692,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             <View style={styles.verifiedNameRow}>
               <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.heading, styles.verifiedName, { color: colors.text }]}>{user.displayName}</Text>
               {user.staff?.isTeamMember && user.staff.shield === 'GOLD' ? (
-                <View style={styles.staffShield} accessible accessibilityRole="image"
-                  accessibilityLabel={user.staff.label + ', ' + user.staff.role}>
-                  <Text style={styles.staffShieldShape}>⬟</Text>
-                  <Text style={styles.staffShieldCheck}>✓</Text>
-                </View>
+                <GoldVerifiedBadge size={23} label={user.staff.label + ', ' + user.staff.role} />
               ) : null}
               {user.verification && !user.staff ? (
                 <View style={[styles.verifiedCheck, {backgroundColor: colors.accent}]} accessible accessibilityRole="image"
@@ -1034,9 +1031,6 @@ const styles = StyleSheet.create({
   profileNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 14, gap: 8 },
   verifiedNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   verifiedName: { flexShrink: 1 },
-  staffShield: {width: 24, height: 24, alignItems: 'center', justifyContent: 'center', overflow:'visible'},
-  staffShieldShape: {position:'absolute', fontSize: 26, lineHeight: 29, color:'#d6a02b', includeFontPadding:false},
-  staffShieldCheck: {fontSize: 14, fontWeight:'900', color:'#fff', includeFontPadding:false},
   verifiedCheck: {width:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center'},
   verifiedCheckText: {fontSize:13,fontWeight:'900',color:'#fff',includeFontPadding:false},
   profileMoreButton: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
