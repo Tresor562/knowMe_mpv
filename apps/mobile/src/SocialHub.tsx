@@ -44,15 +44,22 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
   const { colors } = useAppearance();
   const [section, setSection] = useState<Section>(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   const [refreshing, setRefreshing] = useState(false);
+  // Opening a conversation removes hub chrome and gives the chat the full screen.
+  const [immersive, setImmersive] = useState(false);
+  const handleImmersiveChange = useCallback((active: boolean) => {
+    setImmersive(active);
+    onImmersiveChange?.(active);
+  }, [onImmersiveChange]);
 
   useEffect(() => {
     setRefreshing(false);
+    setImmersive(false);
     setSection(mode === 'discover' ? 'friends' : mode === 'notifications' ? 'notifications' : 'messages');
   }, [userId, linkedConversationId, mode]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
+      {!immersive ? <View style={styles.header}>
         <GlassSurface strength="soft" borderRadius={24}
           style={topNavigation ? styles.joinedHeader : styles.headerTop}>
           <View style={topNavigation ? styles.headerTop : styles.inlineHeader}>
@@ -100,7 +107,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
             </Pressable>
           ))}
         </GlassSurface>}
-      </View>
+      </View> : null}
 
       {section === 'friends' && (
         <FriendsPanel
@@ -118,7 +125,7 @@ export function SocialHub({ userId, linkedConversationId, linkedMessageId, linke
           linkedConversationId={linkedConversationId}
           linkedMessageId={linkedMessageId}
           linkedMediaId={linkedMediaId}
-          onImmersiveChange={onImmersiveChange}
+          onImmersiveChange={handleImmersiveChange}
           onContentScroll={onContentScroll}
           refreshing={refreshing}
           setRefreshing={setRefreshing}
