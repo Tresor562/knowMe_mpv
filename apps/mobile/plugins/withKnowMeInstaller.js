@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const {
   withAndroidManifest,
+  withAppBuildGradle,
   withDangerousMod,
   withMainApplication
 } = require('expo/config-plugins');
@@ -29,10 +30,14 @@ function injectInstallerPackage(contents) {
 function withKnowMeInstaller(config) {
   config = withAndroidManifest(config, (mod) => {
     const manifest = mod.modResults.manifest;
-    const permission = 'android.permission.REQUEST_INSTALL_PACKAGES';
     manifest['uses-permission'] ||= [];
-    if (!manifest['uses-permission'].some((value) => value.$?.['android:name'] === permission)) {
-      manifest['uses-permission'].push({ $: { 'android:name': permission } });
+    for (const permission of [
+      'android.permission.REQUEST_INSTALL_PACKAGES',
+      'android.permission.POST_NOTIFICATIONS'
+    ]) {
+      if (!manifest['uses-permission'].some((value) => value.$?.['android:name'] === permission)) {
+        manifest['uses-permission'].push({ $: { 'android:name': permission } });
+      }
     }
     const app = manifest.application?.[0];
     if (!app) throw new Error('KnowMe installer: Android application missing.');
@@ -57,6 +62,20 @@ function withKnowMeInstaller(config) {
     return mod;
   });
 
+  config = withAppBuildGradle(config, (mod) => {
+    const runtime = 'implementation("androidx.work:work-runtime:2.10.2")';
+    if (!mod.modResults.contents.includes(runtime)) {
+      if (!/dependencies\\s*\\{/.test(mod.modResults.contents)) {
+        throw new Error('KnowMe updater: Android Gradle dependencies section missing.');
+      }
+      mod.modResults.contents = mod.modResults.contents.replace(
+        /dependencies\\s*\\{/,
+        match => match + '\\n    ' + runtime
+      );
+    }
+    return mod;
+  });
+
   config = withMainApplication(config, (mod) => {
     mod.modResults.contents = injectInstallerPackage(mod.modResults.contents);
     return mod;
@@ -74,6 +93,8 @@ function withKnowMeInstaller(config) {
       path.join(javaTarget, 'KnowMeInstallerModule.java'));
     await fs.copyFile(path.join(root, 'KnowMeInstallerPackage.java'),
       path.join(javaTarget, 'KnowMeInstallerPackage.java'));
+    await fs.copyFile(path.join(root, 'KnowMeUpdateWorker.java'),
+      path.join(javaTarget, 'KnowMeUpdateWorker.java'));
     await fs.copyFile(path.join(root, 'knowme_update_paths.xml'),
       path.join(resources, 'knowme_update_paths.xml'));
     return mod;
