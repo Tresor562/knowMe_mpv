@@ -17,19 +17,19 @@ concurrency:
 jobs:
   publish:
     if: >-
-      {{ github.event_name == 'workflow_dispatch' ||
+      ${{ github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      GH_TOKEN: {{ github.token }}
-      VPS_HOST: {{ secrets.KNOWME_VPS_HOST }}
-      VPS_USER: {{ secrets.KNOWME_VPS_SSH_USER }}
-      VPS_KEY: {{ secrets.KNOWME_VPS_SSH_PRIVATE_KEY }}
-      VPS_HOST_KEY: {{ secrets.KNOWME_VPS_HOST_KEY }}
-      TRIGGER_SHA: {{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+      VPS_HOST: ${{ secrets.KNOWME_VPS_HOST }}
+      VPS_USER: ${{ secrets.KNOWME_VPS_SSH_USER }}
+      VPS_KEY: ${{ secrets.KNOWME_VPS_SSH_PRIVATE_KEY }}
+      VPS_HOST_KEY: ${{ secrets.KNOWME_VPS_HOST_KEY }}
+      TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Check VPS publishing credentials
         id: config
@@ -77,7 +77,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SHA="{{ steps.source.outputs.sha }}"
+          SHA="${{ steps.source.outputs.sha }}"
           for attempt in $(seq 1 40); do
             CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?per_page=100")"
             QUALITY="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name == "quality" and .conclusion == "success")] | length')"
@@ -95,7 +95,7 @@ jobs:
             { echo "::error::Unexpected artifact producer"; exit 1; }
           mkdir -p artifacts
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name knowme-android-apk --dir artifacts
-          FILE="KnowMe-{{ steps.source.outputs.version }}-preview.apk"
+          FILE="KnowMe-${{ steps.source.outputs.version }}-preview.apk"
           (cd artifacts && sha256sum -c "$FILE.sha256")
           TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$TOOLS/apksigner" verify --print-certs "artifacts/$FILE" > cert.txt
@@ -103,15 +103,15 @@ jobs:
           [[ "$CERT" == "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c" ]] ||
             { echo "::error::Incompatible APK signing identity"; exit 1; }
           "$TOOLS/aapt" dump badging "artifacts/$FILE" |
-            grep -F "package: name='com.knowme.app' versionCode='{{ steps.source.outputs.code }}' versionName='{{ steps.source.outputs.version }}'"
+            grep -F "package: name='com.knowme.app' versionCode='${{ steps.source.outputs.code }}' versionName='${{ steps.source.outputs.version }}'"
 
       - name: Publish atomically to the KnowMe VPS over pinned-host SSH
         if: steps.source.outputs.sha != ''
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="{{ steps.source.outputs.version }}"
-          CODE="{{ steps.source.outputs.code }}"
+          VERSION="${{ steps.source.outputs.version }}"
+          CODE="${{ steps.source.outputs.code }}"
           FILE="KnowMe-$VERSION-preview.apk"
           mkdir -p "$RUNNER_TEMP/ssh"
           printf '%s\n' "$VPS_KEY" > "$RUNNER_TEMP/ssh/id"
@@ -123,8 +123,8 @@ jobs:
           SCP=(scp -i "$RUNNER_TEMP/ssh/id" -o BatchMode=yes -o StrictHostKeyChecking=yes
             -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts")
           TARGET="$VPS_USER@$VPS_HOST"
-          "{{ SSH[@] }}" "$TARGET" 'mkdir -p ~/knowme-release-staging'
-          "{{ SCP[@] }}" "artifacts/$FILE" "$TARGET:knowme-release-staging/$FILE"
-          "{{ SCP[@] }}" ops/publish-knowme-android-vps.mjs "$TARGET:knowme-release-staging/publish.mjs"
-          "{{ SSH[@] }}" "$TARGET" "node ~/knowme-release-staging/publish.mjs ~/knowme-release-staging/$FILE $VERSION $CODE"
+          "${{ SSH[@] }}" "$TARGET" 'mkdir -p ~/knowme-release-staging'
+          "${{ SCP[@] }}" "artifacts/$FILE" "$TARGET:knowme-release-staging/$FILE"
+          "${{ SCP[@] }}" ops/publish-knowme-android-vps.mjs "$TARGET:knowme-release-staging/publish.mjs"
+          "${{ SSH[@] }}" "$TARGET" "node ~/knowme-release-staging/publish.mjs ~/knowme-release-staging/$FILE $VERSION $CODE"
           echo "APK $VERSION published to KnowMe-controlled VPS" >> "$GITHUB_STEP_SUMMARY"
