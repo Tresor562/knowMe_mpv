@@ -15,6 +15,7 @@ import { API_URL, apiFetch } from './api';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
+import type { DockPreferences } from './navigation-dock-preferences';
 import { AppearanceExperience } from './AppearanceExperience';
 import { AvatarStudioExperience } from './AvatarStudioExperience';
 import { CreatorSettingsExperience } from './CreatorSettingsExperience';
@@ -221,7 +222,7 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, dockPreferences, onDockPreferencesChange }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
@@ -229,6 +230,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   onOpenVerification: () => void;
   onCreateStory: () => void;
   onSubscreenChange?: (active: boolean) => void;
+  dockPreferences: DockPreferences;
+  onDockPreferencesChange: (next: DockPreferences) => void;
 }) {
   const { colors, visual } = useAppearance();
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -397,7 +400,45 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           <Text style={[styles.panelTitle, { color: colors.text }]}>{titleByPanel[panel]}</Text>
         </GlassSurface>
 
-        {panel === 'appearance' ? <AppearanceExperience /> : null}
+        {panel === 'appearance' ? (
+          <>
+            <GlassSurface strength="soft" borderRadius={20} style={styles.navSettingsPanel}>
+              <Text style={[styles.cardTitle,{color:colors.text}]}>Barre de navigation</Text>
+              <Text style={[styles.helper,{color:colors.muted}]}>
+                Six actions, position et masquage pendant le défilement.
+              </Text>
+              <View style={styles.navPositionRow}>
+                {(['bottom','top'] as const).map(position=>(
+                  <PressScale key={position}
+                    accessibilityRole="button"
+                    accessibilityLabel={position==='bottom'?'Position en bas':'Position en haut'}
+                    accessibilityState={{selected:dockPreferences.position===position}}
+                    onPress={()=>onDockPreferencesChange({...dockPreferences,position})}
+                    style={[styles.navPositionButton,{
+                      backgroundColor:dockPreferences.position===position?colors.backgroundAccent:colors.surface,
+                      borderColor:dockPreferences.position===position?colors.accent:colors.border
+                    }]}>
+                    <Text style={{color:dockPreferences.position===position?colors.accent:colors.text,fontWeight:'800'}}>
+                      {position==='bottom'?'En bas':'En haut'}
+                    </Text>
+                  </PressScale>
+                ))}
+              </View>
+              <PressScale accessibilityRole="switch"
+                accessibilityState={{checked:dockPreferences.autoHide}}
+                onPress={()=>onDockPreferencesChange({...dockPreferences,autoHide:!dockPreferences.autoHide})}
+                style={styles.navAutohideRow}>
+                <Text style={{color:colors.text,flex:1,fontSize:13,fontWeight:'700'}}>
+                  Masquer pendant le défilement
+                </Text>
+                <Text style={{color:colors.accent,fontWeight:'800'}}>
+                  {dockPreferences.autoHide?'Activé':'Désactivé'}
+                </Text>
+              </PressScale>
+            </GlassSurface>
+            <AppearanceExperience />
+          </>
+        ) : null}
         {panel === 'language' ? <LanguageSettingsExperience /> : null}
         {panel === 'downloads' ? <MediaDownloadSettingsExperience /> : null}
         {panel === 'creator' ? <CreatorSettingsExperience /> : null}
@@ -977,6 +1018,11 @@ const styles = StyleSheet.create({
   profileActionPress: { flex: 1, borderRadius: 18 },
   profileAction: { minHeight: 38, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   profileActionText: { fontSize: 10.5, fontWeight: '700' },
+  navSettingsPanel: {padding:14,gap:10},
+  navPositionRow: {flexDirection:'row',gap:9},
+  navPositionButton: {flex:1,minHeight:44,borderRadius:14,borderWidth:1,
+    alignItems:'center',justifyContent:'center'},
+  navAutohideRow: {flexDirection:'row',minHeight:44,alignItems:'center',gap:9},
   heading: { fontSize: 24, fontWeight: '800', paddingHorizontal: 16, marginTop: 10, letterSpacing: -0.5 },
   handle: { fontWeight: '800', paddingHorizontal: 18, marginTop: 3 },
   bio: { fontSize: 14, lineHeight: 20, paddingHorizontal: 18, marginTop: 11 },

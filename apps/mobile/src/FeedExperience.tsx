@@ -399,7 +399,9 @@ export function FeedExperience({
   onOpenProfile,
   storyComposerRequest = false,
   initialStoryId,
-  onStoryComposerHandled
+  onStoryComposerHandled,
+  onContentScroll,
+  onDetailChange
 }: {
   userId: string;
   initialPostId?: string | null;
@@ -411,6 +413,8 @@ export function FeedExperience({
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
   onStoryComposerHandled?: () => void;
+  onContentScroll?: (offset: number) => void;
+  onDetailChange?: (open: boolean) => void;
 }) {
   const { colors } = useAppearance();
   const [posts, setPosts] = useState<PostSummary[]>([]);
@@ -420,6 +424,7 @@ export function FeedExperience({
   const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
+  useEffect(() => { onDetailChange?.(Boolean(selectedPostId)); return () => onDetailChange?.(false); },[selectedPostId,onDetailChange]);
   const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -516,6 +521,8 @@ export function FeedExperience({
   return (
     <FlatList
       style={{ backgroundColor: colors.background }}
+      onScroll={event => onContentScroll?.(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
       data={posts}
       keyExtractor={(item) => item.id}
       refreshControl={

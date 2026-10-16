@@ -277,15 +277,22 @@ Utiliser uniquement pour :
 
 ## Mobile
 
-Navigation principale possible :
+**Structure de navigation KnowMe décidée pour l'application sociale actuelle :**
+Accueil → Suggestions → Créer (action centrale) → Notifications → Messages → Profil.
 
-- Chats ;
-- Contacts ;
-- Calls ;
-- Discover/Channels selon produit ;
-- Settings/Profile.
+Cette structure à six entrées est contractuelle pour l'écran principal et prime
+sur les exemples génériques de navigation d'une messagerie. La barre est
+flottante, compacte, personnalisable en haut ou en bas, et se masque
+automatiquement lorsque le défilement ou un contexte immersif l'exige
+(conversation ouverte, clavier, création, story, lecteur plein écran, sous-écran).
+La barre masquée ne capte ni les gestes ni le focus d'accessibilité. Une préférence
+d'utilisateur peut désactiver son masquage **au défilement**, sans réactiver la barre
+dans les écrans où elle doit obligatoirement disparaître. Sur Web et bureau, les
+mêmes destinations sont adaptées aux usages et espaces disponibles.
 
-La navigation doit rester compacte et ne jamais manger inutilement la hauteur.
+Les appels, contacts, chaînes, groupes, jeux, Reels et Marketplace conservent
+leurs accès contextuels ou dédiés sans réordonner arbitrairement les six entrées.
+La navigation ne doit jamais manger inutilement la hauteur.
 
 ## Tablette
 
