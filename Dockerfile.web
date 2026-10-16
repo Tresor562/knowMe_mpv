@@ -8,7 +8,7 @@ COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --filter @knowme/web... --frozen-lockfile
 
 COPY apps/web apps/web
-RUN pnpm --filter @knowme/web build
+RUN pnpm --filter @knowme/web... build
 RUN chown -R node:node /app
 
 ENV NODE_ENV=production
