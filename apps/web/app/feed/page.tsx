@@ -50,12 +50,33 @@ export default function FeedPage() {
   const [message, setMessage] = useState('');
   const [shareNotice, setShareNotice] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const [composeOpen,setComposeOpen] = useState(false);
+  const [draftContent,setDraftContent] = useState('');
+  const [deletePending,setDeletePending] = useState<string|null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [photoCapability, setPhotoCapability] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const loadGeneration = useRef(0);
+
+  useEffect(()=>{
+    if(!composeOpen)return;
+    const previousFocus=document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    if(window.innerWidth>760)composerInputRef.current?.focus();
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&!publishing)setComposeOpen(false);
+    };
+    window.addEventListener('keydown',onKey);
+    return ()=>{
+      document.body.style.overflow=previousOverflow;
+      window.removeEventListener('keydown',onKey);
+      previousFocus?.focus();
+    };
+  },[composeOpen,publishing]);
 
   useEffect(() => {
     let active = true;
@@ -183,6 +204,8 @@ export default function FeedPage() {
       });
       form.reset();
       setSelectedImage(null);
+      setDraftContent('');
+      setComposeOpen(false);
       await loadFeed();
     } catch (cause) {
       invalidateFeedAuthority();
@@ -202,6 +225,19 @@ export default function FeedPage() {
     } catch (cause) {
       invalidateFeedAuthority();
       setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
+    }
+  }
+
+  async function deletePost(id: string) {
+    if (!authorityFresh || !user) return;
+    try {
+      await apiFetch(`/posts/${encodeURIComponent(id)}`, {method:'DELETE'});
+      setPosts(current=>current.filter(post=>post.id!==id));
+      setDeletePending(null);
+    } catch (cause) {
+      setDeletePending(null);
+      setMessage(cause instanceof Error ? cause.message :
+        (en ? 'Could not delete this post.' : 'Suppression impossible.'));
     }
   }
 
@@ -230,8 +266,39 @@ export default function FeedPage() {
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
         <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
       </header>
+      <section className="km-feed-quick-compose" aria-label={en?'Create a post':'Créer une publication'}>
+        <span className="km-post-avatar"><KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} /></span>
+        <button type="button" className="km-feed-quick-compose-open"
+          onClick={()=>setComposeOpen(true)}>
+          {draftContent || (en?'What would you like to share?':'Qu’as-tu envie de partager ?')}
+        </button>
+        <button type="button" className="km-feed-quick-add" aria-label={en?'Open post editor':'Ouvrir l’éditeur'}
+          onClick={()=>setComposeOpen(true)}>+</button>
+      </section>
       <StoriesRail />
-      <form id="compose" className="km-feed-composer" onSubmit={publish}>
+      {composeOpen && <div className="km-feed-editor-overlay" role="presentation" onMouseDown={event=>{
+        if(event.target===event.currentTarget&&!publishing)setComposeOpen(false);
+      }}>
+      <form id="compose" role="dialog" aria-modal="true"
+        aria-label={en?'Create a post':'Créer une publication'}
+        className="km-feed-composer km-feed-editor-form" onSubmit={publish}>
+        <div className="km-feed-editor-header">
+          <button type="button" aria-label={en?'Close editor':'Fermer l’éditeur'} disabled={publishing}
+            className="km-feed-editor-back" onClick={()=>setComposeOpen(false)}>‹</button>
+          <h2>{en?'Create a post':'Créer une publication'}</h2>
+          <button className="btn btn-primary" type="submit" disabled={!authorityFresh||publishing||!draftContent.trim()}>
+            {publishing?(en?'Publishing…':'Publication…'):(en?'Post':'Publier')}
+          </button>
+        </div>
+        <div className="km-feed-editor-identity">
+          <Link href="/profile" className="km-post-avatar" aria-label={en?'My profile':'Mon profil'}>
+            <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} />
+          </Link>
+          <div>
+            <strong>{user.displayName}</strong>
+            <span className="km-feed-editor-audience">{en?'Public':'Public'}</span>
+          </div>
+        </div>
         <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
           className="km-visually-hidden-file" aria-label={en ? 'Choose a post photo' : 'Choisir une photo pour la publication'}
           onChange={event => {
@@ -248,12 +315,11 @@ export default function FeedPage() {
             setSelectedImage(photo);
           }} />
         <div className="km-feed-compose-row">
-          <Link href="/profile" className="km-post-avatar" aria-label={en?'My profile':'Mon profil'}>
-            <KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} />
-          </Link>
-          <textarea name="content" placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
-            rows={2} maxLength={2000} required disabled={!authorityFresh || publishing}/>
+          <textarea name="content" ref={composerInputRef} value={draftContent} onChange={event=>setDraftContent(event.target.value)}
+            placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
+            rows={7} maxLength={2000} required disabled={!authorityFresh || publishing}/>
         </div>
+        <small className="km-feed-editor-counter">{draftContent.length}/2000</small>
         {imagePreview && <div className="km-feed-image-preview">
           <img src={imagePreview} alt={en ? 'Selected photo' : 'Photo sélectionnée'} />
           <button type="button" aria-label={en ? 'Remove photo' : 'Retirer la photo'}
@@ -271,11 +337,13 @@ export default function FeedPage() {
             </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing}>
+          <button className="btn btn-primary" type="submit" disabled={!authorityFresh || publishing || !draftContent.trim()}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
         </div>
+        {message && <p role="alert" style={{color:'var(--orange)',fontSize:13}}>{message}</p>}
       </form>
+      </div>}
 
       {!authorityFresh && !message && <p style={{ color: 'var(--muted)' }}>{en?'Validating feed…':'Validation du fil…'}</p>}
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
@@ -302,10 +370,17 @@ export default function FeedPage() {
                   <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
                 </span>
               </Link>
-              <button type="button" className="km-post-header-share"
-                onClick={() => void sharePost(post)} aria-label={en?'Share post':'Partager la publication'}>
-                <FeedIcon name="share" />
-              </button>
+              <details className="km-post-menu">
+                <summary aria-label={en?'Post options':'Options de la publication'} title={en?'Post options':'Options de la publication'}>⋯</summary>
+                <div className="km-post-menu-items">
+                  <Link href={`/feed/${encodeURIComponent(post.id)}`}>{en?'Open post':'Voir la publication'}</Link>
+                  <button type="button" onClick={()=>void sharePost(post)}>{en?'Share':'Partager'}</button>
+                  {post.author.id===user.id && (
+                    <button type="button" className="km-post-menu-danger"
+                      onClick={()=>setDeletePending(post.id)}>{en?'Delete':'Supprimer'}</button>
+                  )}
+                </div>
+              </details>
             </header>
             {post.content && <div className="km-post-content">
               <p><KnowMeMentionText text={post.content}/></p>
@@ -332,6 +407,20 @@ export default function FeedPage() {
           </article>
         ))}
       </section>
+
+      {deletePending && <div className="km-post-delete-overlay" role="presentation"
+        onMouseDown={event=>{if(event.target===event.currentTarget)setDeletePending(null);}}>
+        <section role="alertdialog" aria-modal="true" className="km-post-delete-dialog"
+          aria-label={en?'Delete post':'Supprimer la publication'}>
+          <h2>{en?'Delete this post?':'Supprimer cette publication ?'}</h2>
+          <p>{en?'The post and its comments will be permanently removed.':'La publication et ses commentaires seront supprimés définitivement.'}</p>
+          <div className="km-post-delete-actions">
+            <button type="button" onClick={()=>setDeletePending(null)}>{en?'Cancel':'Annuler'}</button>
+            <button type="button" className="btn btn-primary"
+              onClick={()=>void deletePost(deletePending)}>{en?'Delete':'Supprimer'}</button>
+          </div>
+        </section>
+      </div>}
 
       {authorityFresh && hasMore && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
