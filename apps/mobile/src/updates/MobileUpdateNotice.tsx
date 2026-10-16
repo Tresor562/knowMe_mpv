@@ -55,6 +55,39 @@ function trustedDownloadUrl(value: string) {
   }
 }
 
+const FIRST_PARTY_PREVIEW_FEED = 'https://knowme-nextech.vercel.app/api/updates/android';
+
+function verifiedPreviewRelease(release: AndroidReleaseNotice | null): AndroidReleaseNotice | null {
+  if (!release || !Number.isSafeInteger(release.versionCode) || release.versionCode < 1 ||
+    !/^\\d+\\.\\d+\\.\\d+$/.test(release.version) || !/^[a-f0-9]{64}$/i.test(release.sha256)) {
+    return null;
+  }
+  const expected = `https://github.com/Tresor562/knowMe_mpv/releases/download/v${release.version}-preview/KnowMe-${release.version}-preview.apk`;
+  return release.url === expected ? release : null;
+}
+
+function latestTrustedRelease(
+  primary: AndroidReleaseNotice | null,
+  firstPartyPreview: AndroidReleaseNotice | null
+): AndroidReleaseNotice | null {
+  const preview = verifiedPreviewRelease(firstPartyPreview);
+  if (!primary) return preview;
+  // The production signing channel must not be replaced by a debug-signed preview.
+  if (!verifiedPreviewRelease(primary)) return primary;
+  return preview && preview.versionCode > primary.versionCode ? preview : primary;
+}
+
+async function firstPartyRelease(): Promise<AndroidReleaseNotice | null> {
+  const response = await fetch(FIRST_PARTY_PREVIEW_FEED, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(9000),
+    cache: 'no-store'
+  });
+  if (!response.ok) throw new Error('PREVIEW_FEED_UNAVAILABLE');
+  const data = await response.json() as AndroidReleaseFeed;
+  return verifiedPreviewRelease(data.release);
+}
+
 function formatDownloadProgress(value: number) {
   return `Téléchargement… ${Math.round(value * 100)} %`;
 }
@@ -83,12 +116,16 @@ export function MobileUpdateNotice() {
       lastCheckAt.current = Date.now();
       requestInProgress.current = true;
       try {
-        // Public endpoint: works before sign-in and for guest accounts.
-        const [feed, installedVersion] = await Promise.all([
-          apiFetch<AndroidReleaseFeed>('/mobile-updates/android'),
+        // Both endpoints are public. The trusted Web feed continues working
+        // when the VPS API still advertises an older preview release.
+        const [apiResult, previewResult, installedVersion] = await Promise.all([
+          apiFetch<AndroidReleaseFeed>('/mobile-updates/android')
+            .then(feed => feed.release)
+            .catch(() => null),
+          firstPartyRelease().catch(() => null),
           installer.getInstalledVersionCode()
         ]);
-        const next = feed.release;
+        const next = latestTrustedRelease(apiResult, previewResult);
         if (!active) return 'unavailable';
         if (
           next &&
