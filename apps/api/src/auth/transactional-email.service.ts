@@ -65,15 +65,26 @@ export class TransactionalEmailService {
     }
   }
 
-  async send(to: string, subject: string, body: string, code?: string) {
+  async send(to: string, subject: string, body: string, code?: string, action?: { url: string; label: string }) {
     this.assertCanDeliverTo(to);
     const settings = this.settings();
+    if (action) {
+      let destination: URL;
+      try {
+        destination = new URL(action.url);
+        if (destination.protocol !== 'https:' || destination.username || destination.password
+          || /[\\r\\n]/.test(action.label) || action.label.length > 120) throw new Error();
+      } catch {
+        throw new ServiceUnavailableException('Lien de sécurité KnowMe invalide.');
+      }
+    }
     const html = '<!doctype html><html lang="fr"><body style="margin:0;background:#f1f4f8;padding:24px 12px;font-family:Arial,sans-serif;color:#18212d">'
       + '<main style="max-width:520px;margin:auto;background:#fff;border-radius:22px;padding:30px">'
       + '<div style="font-size:24px;font-weight:800;color:#139c90">KnowMe</div>'
       + '<h1 style="font-size:22px;margin-top:28px">' + escapeHtml(subject) + '</h1>'
       + '<p style="line-height:1.6;font-size:15px">' + escapeHtml(body) + '</p>'
       + (code ? '<p style="letter-spacing:8px;font-size:35px;font-weight:800;text-align:center">' + escapeHtml(code) + '</p>' : '')
+      + (action ? '<p><a href="' + escapeHtml(action.url) + '" style="color:#139c90">' + escapeHtml(action.label) + '</a></p>' : '')
       + '<p style="font-size:13px;color:#677684">Ne partagez jamais votre code ou votre mot de passe. Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>'
       + '</main></body></html>';
     if (settings.provider === 'gmail') {
@@ -95,6 +106,7 @@ export class TransactionalEmailService {
           to,
           subject,
           text: body + (code ? '\n\nCode KnowMe : ' + code : '')
+            + (action ? '\n\n' + action.label + ' : ' + action.url : '')
             + '\n\nNe partagez jamais votre code ou mot de passe.',
           html,
           disableFileAccess: true,
