@@ -179,7 +179,14 @@ export function BottomNavigation() {
             <span className="bottom-nav-label">{en ? 'Create' : 'Créer'}</span>
           </button>
           {createOpen && <div className="km-nav-create-menu" role="menu" aria-label={en ? 'Create' : 'Créer'}>
-            {createLinks.map(item => <Link role="menuitem" key={item.href} href={item.href} onClick={() => setCreateOpen(false)}>{item.label}</Link>)}
+            {createLinks.map(item => <Link role="menuitem" key={item.href} href={item.href} onClick={() => {
+              setCreateOpen(false);
+              // Next.js may handle same-page hash links with pushState without a
+              // browser hashchange event. Open the actual feed editor explicitly.
+              if (item.href === '/feed#compose' && pathname === '/feed') {
+                window.dispatchEvent(new Event('knowme:open-post-composer'));
+              }
+            }}>{item.label}</Link>)}
           </div>}
         </div>
         {items.slice(2).map(item => (
