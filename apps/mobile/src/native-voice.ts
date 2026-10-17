@@ -8,6 +8,8 @@ type VoiceBridge = {
   cancel():Promise<boolean>;
   play(uri:string):Promise<boolean>;
   stopPlayback():Promise<boolean>;
+  playbackStatus?():Promise<{playing:boolean;durationMs:number;positionMs:number;uri:string|null}>;
+  seekPlayback?(positionMs:number):Promise<boolean>;
   discardFile(uri:string):Promise<boolean>;
 };
 function bridge():VoiceBridge {
@@ -43,4 +45,16 @@ export async function stopKnowMeVoicePlayback():Promise<void> {
 }
 export async function discardKnowMeVoice(uri:string):Promise<void> {
   await bridge().discardFile(uri);
+}
+
+/** Optional on older installed APKs; future Android builds expose exact position. */
+export async function getKnowMeVoicePlaybackStatus() {
+  const native=bridge();
+  if(!native.playbackStatus)return null;
+  return native.playbackStatus();
+}
+export async function seekKnowMeVoicePlayback(positionMs:number):Promise<void> {
+  const native=bridge();
+  if(!native.seekPlayback)throw new Error('La recherche audio nécessite la nouvelle version de KnowMe.');
+  await native.seekPlayback(positionMs);
 }
