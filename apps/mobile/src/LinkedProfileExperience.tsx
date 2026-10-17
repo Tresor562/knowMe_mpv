@@ -267,7 +267,7 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                 <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.name, styles.truncatedName, {color:colors.text}]}>
                   {profile.header.displayName}
                 </Text>
-                {profile.header.staff?.isTeamMember && profile.header.staff.shield === 'GOLD' ? (
+                {!profile.header.verification?.isVerified && profile.header.staff?.isTeamMember && profile.header.staff.shield === 'GOLD' ? (
                   <GoldVerifiedBadge size={23} label={profile.header.staff.label + ', ' + profile.header.staff.role} />
                 ) : null}
                 {profile.header.verification?.isVerified ? (
