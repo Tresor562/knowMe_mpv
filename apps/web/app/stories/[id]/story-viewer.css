@@ -1,0 +1,49 @@
+/* Media Story captions belong to the reading area below the visible media. */
+.km-story-viewer-footer {
+  position: relative;
+  flex: 0 0 auto;
+  max-height: min(44dvh, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.km-story-viewer-caption {
+  max-height: min(23dvh, 220px);
+  padding: 2px 2px 10px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 520;
+  text-shadow: none;
+  scrollbar-width: thin;
+}
+.km-story-viewer-caption-tags {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.km-story-viewer-caption-tags span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.13);
+  font-size: 11px;
+}
+.km-story-text-body {
+  max-width: 100%;
+  max-height: 60dvh;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-align: center;
+  font-size: clamp(20px, 5.5vw, 32px);
+  font-weight: 720;
+  line-height: 1.35;
+  text-shadow: 0 2px 18px rgba(0,0,0,.65);
+}
+@media (max-width: 380px) {
+  .km-story-viewer-caption { font-size: 14px; }
+}
