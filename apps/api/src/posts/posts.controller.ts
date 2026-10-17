@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -12,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { EditCommentDto } from './dto/edit-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostsService } from './posts.service';
 
@@ -71,6 +73,23 @@ export class PostsController {
       targetId: id
     });
     return this.posts.comment(req.user.userId, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':postId/comments/:commentId')
+  async editComment(
+    @Req() req: { user: { userId: string } },
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: EditCommentDto
+  ) {
+    await this.moderation.assertAllowed({
+      actorId: req.user.userId,
+      action: 'COMMENT_CREATE',
+      content: dto.content,
+      targetId: postId
+    });
+    return this.posts.editComment(req.user.userId, postId, commentId, dto.content);
   }
 
   @UseGuards(JwtAuthGuard)
