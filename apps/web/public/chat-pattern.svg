@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="400" viewBox="0 0 340 400">
+<g fill="none" stroke="#314047" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" opacity=".5">
+  <g transform="translate(18 16) rotate(-16)"><rect width="34" height="25" rx="5"/><circle cx="17" cy="12" r="6"/><path d="M8 0 12 -4h9l4 4"/></g>
+  <g transform="translate(95 10) rotate(20)"><rect width="47" height="30" rx="6"/><path d="M9 9h28M9 16h23M9 23h16"/></g>
+  <g transform="translate(232 25) rotate(-13)"><path d="M0 15 16 0l16 15-16 16zM10 15h12"/></g>
+  <g transform="translate(289 53)"><path d="M0 0h30v19H16l-9 7v-7H0zM7 8h16"/></g>
+  <g transform="translate(17 99)"><circle cx="17" cy="17" r="16"/><path d="M11 14h1m11 0h1M9 20q8 11 16 0"/></g>
+  <g transform="translate(92 103) rotate(18)"><rect width="42" height="29" rx="3"/><path d="M3 4h36l-18 14z"/></g>
+  <g transform="translate(175 110) rotate(-19)"><path d="M0 0h26v23H0zM4 4h18M4 10h13M5 18h10"/></g>
+  <g transform="translate(276 121)"><path d="M14 0v32M0 16h28M4 5l20 23M24 5 4 28"/></g>
+  <g transform="translate(28 193)"><path d="M2 3h35v32H2zM10 0h18M8 10h23M8 18h23M8 26h17"/></g>
+  <g transform="translate(119 189) rotate(13)"><path d="M0 8h42v20H0zM10 0h20v8M12 15h18"/></g>
+  <g transform="translate(220 188)"><circle cx="15" cy="15" r="14"/><circle cx="15" cy="15" r="7"/><circle cx="15" cy="15" r="2"/></g>
+  <g transform="translate(292 221) rotate(-25)"><path d="M12 0c7 0 12 6 12 12v5L32 25H0l8-8v-5c0-6 1-12 4-12z"/></g>
+  <g transform="translate(40 300) rotate(-14)"><path d="M2 12 14 0l14 12-14 13z"/></g>
+  <g transform="translate(116 296)"><path d="M10 0h22v20H10zM0 28h43M8 20l-8 8m32-8 11 8"/></g>
+  <g transform="translate(205 308) rotate(20)"><path d="M2 8q5-11 14-1l4 6q10 12 20 8l-7 11Q14 32 2 8z"/></g>
+  <g transform="translate(296 323)"><circle cx="12" cy="12" r="10"/><path d="M12 0v24M0 12h24"/></g>
+  <path d="m161 38 2 7 7 2-7 2-2 7-2-7-7-2 7-2zM260 273l2 7 7 2-7 2-2 7-2-7-7-2 7-2zM68 254l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>
+</g>
+</svg>
