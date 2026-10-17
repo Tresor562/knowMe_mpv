@@ -145,7 +145,7 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
               <PressScale accessibilityRole="button" accessibilityLabel="Écouter la note"
                 onPress={()=>void playKnowMeVoice(recorded.uri).catch(showError)}
                 style={[styles.secondary,{backgroundColor:colors.backgroundAccent}]}>
-                <KnowMeIcon name="play" size={19} color={colors.text}/>
+                <Text style={{color:colors.text,fontSize:18}}>▶</Text>
                 <Text style={{color:colors.text,fontWeight:'800'}}>Écouter</Text>
               </PressScale>
               <PressScale accessibilityRole="button" accessibilityLabel="Envoyer la note vocale"
