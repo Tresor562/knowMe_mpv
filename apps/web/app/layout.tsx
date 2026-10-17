@@ -7,6 +7,7 @@ import { BottomNavigation } from '../components/bottom-navigation';
 import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
 import { ThemeRuntime } from '../components/theme-runtime';
+import { RuntimeExperienceProvider } from '../components/runtime-experience-provider';
 
 export const metadata = {
   title: 'KnowMe',
@@ -122,9 +123,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <I18nRuntime />
         <ThemeRuntime />
         <ServiceWorkerRegistration />
-        <KnowMeDialogHost />
-        {children}
-        <BottomNavigation />
+        <RuntimeExperienceProvider>
+          <KnowMeDialogHost />
+          {children}
+          <BottomNavigation />
+        </RuntimeExperienceProvider>
       </body>
     </html>
   );
