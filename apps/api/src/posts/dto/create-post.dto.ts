@@ -1,8 +1,8 @@
-import { IsOptional, IsString, IsUrl, Length } from 'class-validator';
+import { IsOptional, IsString, IsUrl, Length, MinLength } from 'class-validator';
 
 export class CreatePostDto {
   @IsString()
-  @Length(1, 2000)
+  @MinLength(1)
   content!: string;
 
   @IsOptional()
