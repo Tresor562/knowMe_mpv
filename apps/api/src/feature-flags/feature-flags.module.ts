@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { RolesGuard } from '../common/roles.guard';
+import { RealtimeModule } from '../realtime/realtime.module';
 import {
   AdminFeatureFlagsController,
   FeatureFlagsController
@@ -8,6 +9,7 @@ import { FeatureFlagsService } from './feature-flags.service';
 
 @Global()
 @Module({
+  imports: [RealtimeModule],
   controllers: [FeatureFlagsController, AdminFeatureFlagsController],
   providers: [FeatureFlagsService, RolesGuard],
   exports: [FeatureFlagsService]
