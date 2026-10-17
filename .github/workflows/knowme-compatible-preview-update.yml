@@ -172,3 +172,13 @@ jobs:
             --notes 'Compilation automatique après réussite de la CI. APK de préversion compatible uniquement avec les installations portant la signature de test KnowMe. Le VPS doit synchroniser cette release, puis Android demande la confirmation d installation.'
           echo "Published update: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
           echo 'Le VPS KnowMe doit disposer du timer et du montage APK actifs pour annoncer la nouvelle version.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Confirm published APK is actually downloadable inside KnowMe from the VPS
+        if: steps.release.outputs.tag != ''
+        shell: bash
+        timeout-minutes: 11
+        run: |
+          set -euo pipefail
+          node --check scripts/verify-android-vps-delivery.mjs
+          node scripts/verify-android-vps-delivery.mjs dist/knowme-update.json
+          echo '✅ VPS KnowMe serves the release with matching version and SHA256.' >> "$GITHUB_STEP_SUMMARY"
