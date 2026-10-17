@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Linking, Modal, Pressable, SafeAreaView, Share, StyleSheet, Text, View } from 'react-native';
 import { KnowMeIcon } from './ui/KnowMeUI';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
+import {isKnowMeVoiceAvailable,playKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
@@ -14,6 +15,15 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
   const [source, setSource] = useState<{uri:string;headers:{Authorization:string}} | null>(null);
   const [failed,setFailed] = useState(false);
   const [attempt,setAttempt] = useState(0);
+  const [inlinePlaying,setInlinePlaying]=useState(false);
+  const localVoice=useRef<string|null>(null);
+  const inlinePlayingRef=useRef(false);
+  useEffect(()=>()=>{
+    if(inlinePlayingRef.current)void stopKnowMeVoicePlayback().catch(()=>undefined);
+    const file=localVoice.current;
+    if(file)void FileSystem.deleteAsync(file,{idempotent:true}).catch(()=>undefined);
+    localVoice.current=null;
+  },[assetId]);
 
   useEffect(()=>{
     // Large non-image attachments are fetched only after the user taps Open.
@@ -51,6 +61,51 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
     }
   }, [autoOpen, source, kind]);
 
+  async function toggleVoice(){
+    if(opening)return;
+    if(inlinePlayingRef.current) {
+      await stopKnowMeVoicePlayback().catch(()=>undefined);
+      inlinePlayingRef.current=false;setInlinePlaying(false);
+      return;
+    }
+    if(!isKnowMeVoiceAvailable()) {
+      await openFile();
+      return;
+    }
+    setOpening(true);setFailed(false);
+    try{
+      let sourceUri=localVoice.current;
+      if(!sourceUri){
+        if(!FileSystem.cacheDirectory)throw new Error('VOICE_CACHE_UNAVAILABLE');
+        const grant=await apiFetch<{path:string}>(
+          `/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'});
+        const expected=`/media/${encodeURIComponent(assetId)}/content?token=`;
+        if(!grant.path.startsWith(expected))throw new Error('MEDIA_GRANT_PATH_INVALID');
+        const accessToken=await getAccessToken();
+        if(!accessToken)throw new Error('SESSION_REQUIRED');
+        const folder=`${FileSystem.cacheDirectory}knowme-voice/`;
+        await FileSystem.makeDirectoryAsync(folder,{intermediates:true});
+        const target=`${folder}inbox-${assetId}-${Date.now()}.ogg`;
+        try{
+          const reply=await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,
+            {headers:{Authorization:`Bearer ${accessToken}`}});
+          const stat=await FileSystem.getInfoAsync(reply.uri);
+          if(reply.status!==200||!stat.exists||stat.isDirectory||!stat.size||stat.size<1024)
+            throw new Error('VOICE_DOWNLOAD_FAILED');
+          sourceUri=reply.uri;
+          localVoice.current=sourceUri;
+        }catch(error){
+          await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>undefined);
+          throw error;
+        }
+      }
+      await playKnowMeVoice(sourceUri);
+      inlinePlayingRef.current=true;setInlinePlaying(true);
+    }catch{
+      setFailed(true);inlinePlayingRef.current=false;setInlinePlaying(false);
+    }finally{setOpening(false);}
+  }
+
   async function openFile() {
     if(opening)return;
     setOpening(true);
@@ -78,6 +133,26 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
     }catch{
       setFailed(true);
     }finally{setOpening(false);}
+  }
+
+  if(kind==='AUDIO'&&mimeType==='audio/ogg'&&isKnowMeVoiceAvailable()){
+    return <View style={styles.voiceCard}>
+      <KnowMeIcon name="microphone" size={22} color="#9A83FF"/>
+      <View style={{flex:1}}>
+        <Text numberOfLines={1} style={styles.fileTitle}>{fileName??'Note vocale'}</Text>
+        <Text style={styles.caption}>{opening?'Chargement…':inlinePlaying?'Lecture en cours':'Note vocale Ogg'}</Text>
+      </View>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={inlinePlaying?'Arrêter le vocal':'Écouter le vocal'}
+        disabled={opening} onPress={()=>void toggleVoice()}
+        style={styles.voiceAction}>
+        <Text style={styles.voiceActionText}>{opening?'…':inlinePlaying?'Arrêter':'Écouter'}</Text>
+      </Pressable>
+      {failed&&<Pressable accessibilityRole="button" onPress={()=>void openFile()}
+        style={styles.retry}>
+        <Text style={styles.retryText}>Ouvrir fichier</Text>
+      </Pressable>}
+    </View>;
   }
 
   if (kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
@@ -193,6 +268,12 @@ const styles=StyleSheet.create({
   placeholder:{minHeight:100,minWidth:150,justifyContent:'center',gap:7},
   retry:{minHeight:44,alignSelf:'flex-start',paddingHorizontal:12,justifyContent:'center',borderRadius:12},
   retryText:{fontSize:13,fontWeight:'600'},
+  voiceCard:{minWidth:220,maxWidth:285,minHeight:66,padding:11,flexDirection:'row',
+    alignItems:'center',gap:10,borderRadius:18,flexWrap:'wrap',
+    backgroundColor:'rgba(128,128,128,.12)'},
+  voiceAction:{minHeight:42,borderRadius:18,paddingHorizontal:12,alignItems:'center',
+    justifyContent:'center',backgroundColor:'rgba(154,131,255,.14)'},
+  voiceActionText:{fontSize:12,fontWeight:'800',color:'#9A83FF'},
   fileCard:{minWidth:150,maxWidth:260,padding:12,gap:7,borderRadius:16,
     backgroundColor:'rgba(128,128,128,.1)'},
   fileIcon:{fontSize:27},

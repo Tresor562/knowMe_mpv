@@ -10,6 +10,9 @@ type VoiceBridge = {
   stopPlayback():Promise<boolean>;
   discardFile(uri:string):Promise<boolean>;
 };
+export function isKnowMeVoiceAvailable():boolean {
+  return Platform.OS==='android'&&Number(Platform.Version)>=29&&Boolean(NativeModules.KnowMeVoice);
+}
 function bridge():VoiceBridge {
   const module=NativeModules.KnowMeVoice as VoiceBridge|undefined;
   if(Platform.OS!=='android'||!module) {
