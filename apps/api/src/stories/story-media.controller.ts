@@ -7,6 +7,18 @@ import { StoryMediaService } from './story-media.service';
 export class StoryMediaController {
   constructor(private readonly media: StoryMediaService) {}
 
+  @Get(':id/thumbnail')
+  async thumbnail(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string
+  ) {
+    const content = await this.media.readThumbnail(req.user.userId, id);
+    return new StreamableFile(content.buffer, {
+      type: content.mimeType,
+      disposition: `inline; filename="${content.fileName.replace(/["\r\n]/g, '_')}"`
+    });
+  }
+
   @Get(':id/media')
   async read(
     @Req() req: { user: { userId: string } },

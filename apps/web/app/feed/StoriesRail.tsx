@@ -39,9 +39,9 @@ type StoryRailResponse = {
 
 /**
  * Stories remain ACL-protected: request through the authenticated Story
- * endpoint, NEVER embed raw private media URLs in the DOM. Only photos are
- * prefetched here. The current API does not expose a thumbnail endpoint for
- * videos, so a video card uses the author's avatar until that API exists.
+ * endpoint, NEVER embed raw private media URLs in the DOM. Photo originals
+ * and small authorised video thumbnails are loaded only when near the screen.
+ * If no video thumbnail exists, fall back to the author's avatar.
  */
 function StoryCover({ story, avatarUrl, name }: {
   story?: Story;
@@ -70,10 +70,13 @@ function StoryCover({ story, avatarUrl, name }: {
     let cancelled = false;
     let objectUrl: string | null = null;
     setPreviewUrl(null);
-    if (!visible || !story || story.type !== 'PHOTO' || !story.assetId ||
+    if (!visible || !story ||
+        !((story.type === 'PHOTO' && story.assetId) ||
+          (story.type === 'VIDEO' && story.thumbnailAssetId)) ||
         (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
 
-    void apiFetchBlob(`/stories/${encodeURIComponent(story.id)}/media`)
+    const endpoint = story.type === 'VIDEO' ? 'thumbnail' : 'media';
+    void apiFetchBlob(`/stories/${encodeURIComponent(story.id)}/${endpoint}`)
       .then(blob => {
         if (cancelled || !blob.type.startsWith('image/')) return;
         objectUrl = URL.createObjectURL(blob);
@@ -85,7 +88,7 @@ function StoryCover({ story, avatarUrl, name }: {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [story?.id, story?.assetId, story?.type, visible]);
+  }, [story?.id, story?.assetId, story?.thumbnailAssetId, story?.type, visible]);
 
   return (
     <div ref={element} className="km-story-card-cover" aria-hidden="true">
