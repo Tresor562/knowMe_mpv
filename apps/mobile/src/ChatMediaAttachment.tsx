@@ -129,19 +129,19 @@ function InlineVoiceAttachment({assetId, mimeType, avatarUrl}: {assetId:string;m
           const amplitude=6+((i*17+assetId.charCodeAt(i%assetId.length||0))%20);
           return <View key={i} style={[voiceStyles.bar,{
             height:amplitude,
-            backgroundColor:i/32<=progress?colors.accentText:colors.muted,
+            backgroundColor:i/32<=progress?'#d9e3e7':'#8da6af',
             opacity:i/32<=progress?1:0.62
           }]}/>;
         })}
       </Pressable>
-      <Text style={[voiceStyles.duration,{color:colors.muted}]}>{time(position)}{duration>0?` / ${time(duration)}`:''}</Text>
+      <Text style={[voiceStyles.duration,{color:'#c5d2d7'}]}>{time(position)}{duration>0?` / ${time(duration)}`:''}</Text>
       {error?<Text style={[voiceStyles.error,{color:colors.danger}]}>{error}</Text>:null}
     </View>
   </View>;
 }
 
 const voiceStyles=StyleSheet.create({
-  root:{width:240,maxWidth:'100%',flexDirection:'row',alignItems:'center',gap:8,minHeight:62,paddingVertical:3},
+  root:{width:260,maxWidth:'100%',flexDirection:'row',alignItems:'center',gap:7,minHeight:65,paddingVertical:2},
   avatar:{width:35,height:35,borderRadius:18},
   avatarFallback:{alignItems:'center',justifyContent:'center'},
   control:{width:37,height:37,borderRadius:19,alignItems:'center',justifyContent:'center'},
@@ -257,7 +257,7 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
       onLongPress={compact?()=>{setStickerExpanded(true);setPreviewOpen(true);}:undefined}
     >
       <Image source={source} style={compact ? styles.sticker : styles.image}
-        resizeMode="contain" accessibilityLabel={mediaLabel}
+        resizeMode="cover" accessibilityLabel={mediaLabel}
         onError={()=>{setPreviewOpen(false);setFailed(true);}} />
     </Pressable>
     <Modal visible={previewOpen} animationType="fade" transparent={false}
@@ -316,7 +316,7 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
 }
 
 const styles=StyleSheet.create({
-  imageTrigger:{alignSelf:'flex-start',borderRadius:14,overflow:'hidden'},
+  imageTrigger:{alignSelf:'flex-start',borderRadius:5,overflow:'hidden'},
   stickerOptionRoot:{flex:1,backgroundColor:'#05080f',paddingHorizontal:18},
   stickerOptionTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',minHeight:66},
   stickerOptionTitle:{fontSize:19,fontWeight:'800',color:'#fff'},
@@ -335,7 +335,7 @@ const styles=StyleSheet.create({
     borderRadius:24,backgroundColor:'rgba(255,255,255,.12)'},
   viewerImage:{flex:1,width:'100%',alignSelf:'center'},
   viewerCaption:{color:'#aab2c7',fontSize:12,textAlign:'center',paddingVertical:12},
-  image:{width:280,height:260,maxWidth:'100%',borderRadius:14},
+  image:{width:245,height:245,maxWidth:'100%',borderRadius:5},
   sticker:{width:190,height:190,maxWidth:'100%'},
   caption:{fontSize:12,opacity:.75},
   placeholder:{minHeight:100,minWidth:150,justifyContent:'center',gap:7},
