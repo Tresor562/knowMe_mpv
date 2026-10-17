@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: knowme-pride-blue-badge-once
@@ -59,3 +60,41 @@ jobs:
           "${SSH[@]}" "$TARGET" 'docker exec -i -w /app/apps/api knowme-api node -' \
             < ops/activate-pride-blue-badge.cjs
           echo "Database operation and post-write badge check executed; see job logs for ACTIVATED or ALREADY_CERTIFIED." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report actual production outcome to commit status
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOB_RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          state = 'success' if os.environ['JOB_RESULT'] == 'success' else 'failure'
+          payload = {
+              'state': state,
+              'context': 'KnowMe blue certification @pride',
+              'description': ('Badge persisted and checked on VPS' if state == 'success'
+                              else 'Badge not confirmed; inspect execution logs'),
+              'target_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY']
+                            + '/actions/runs/' + os.environ['GITHUB_RUN_ID']
+          }
+          req = urllib.request.Request(
+              'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY']
+              + '/statuses/' + os.environ['GITHUB_SHA'],
+              data=json.dumps(payload).encode('utf-8'),
+              headers={
+                  'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json'
+              },
+              method='POST'
+          )
+          with urllib.request.urlopen(req, timeout=10) as response:
+              if response.status != 201:
+                  raise SystemExit('Could not record status')
+          PY
