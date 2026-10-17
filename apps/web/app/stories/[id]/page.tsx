@@ -1,5 +1,6 @@
 'use client';
 
+import { AccountBadges } from '../../../components/AccountBadges';
 import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
@@ -30,6 +31,7 @@ type Story = {
     username: string;
     displayName: string;
     avatarUrl?: string | null;
+    verification?: {isVerified:true;label:string}|null;
   } | null;
   metrics: { reactions: number; replies: number };
   viewer: { own: boolean; reaction?: { reaction: string } | null };
@@ -298,7 +300,7 @@ export default function StoryViewerPage() {
                   {story.author.avatarUrl ? <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : story.author.displayName?.[0] ?? '?'}
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <strong>{story.author.displayName}</strong>
+                  <strong style={{display:'inline-flex',alignItems:'center',gap:5}}>{story.author.displayName}<AccountBadges verification={story.author.verification} compact/></strong>
                   <div style={{ fontSize: 12, opacity: .75 }}>@{story.author.username}</div>
                 </div>
               </Link>
