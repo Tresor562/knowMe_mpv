@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { verificationRequestSelect, toVerificationBadge } from '../verification/verification-profile';
 import { normalizeStoryHashtag } from './stories.domain';
 
 @Injectable()
@@ -40,9 +41,9 @@ export class StoryDiscoveryService {
     const authorIds = [...new Set(page.map((story) => story.authorUserId))];
     const authors = await this.prisma.user.findMany({
       where: { id: { in: authorIds } },
-      select: { id: true, username: true, displayName: true, avatarUrl: true }
+      select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
     });
-    const authorMap = new Map(authors.map((author) => [author.id, author]));
+    const authorMap = new Map(authors.map((author) => [author.id, { id:author.id, username:author.username, displayName:author.displayName, avatarUrl:author.avatarUrl, verification:toVerificationBadge(author.verificationRequests) }]));
 
     return {
       filters: { hashtag, location },
