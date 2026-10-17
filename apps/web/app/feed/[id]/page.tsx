@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import './comment-actions.css';
 import { apiFetch } from '../../../lib/api';
 import { useSession, type StaffBadge, type VerificationBadge } from '../../../lib/use-session';
 import { AccountBadges } from '../../../components/AccountBadges';
@@ -43,6 +44,73 @@ export default function PostDetailPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
+  const [contextCommentId, setContextCommentId] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [editFeedback, setEditFeedback] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const saveInFlight = useRef(false);
+  const holdTimer = useRef<number | null>(null);
+  const selectedComment = comments.find(entry => entry.id === contextCommentId) ?? null;
+
+  const clearHold = useCallback(() => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!contextCommentId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setContextCommentId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [contextCommentId]);
+
+  useEffect(() => () => clearHold(), [clearHold]);
+
+  async function submitCommentEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingComment || editingComment.author.id !== user?.id || saveInFlight.current) return;
+    const content = editDraft.trim();
+    if (!content || content.length > 500) {
+      setEditFeedback('Le commentaire doit contenir entre 1 et 500 caractères.');
+      return;
+    }
+    saveInFlight.current = true;
+    setSavingEdit(true);
+    setEditFeedback('');
+    try {
+      const updated = await apiFetch<Comment>(
+        `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(editingComment.id)}`,
+        { method: 'PATCH', body: JSON.stringify({ content }) }
+      );
+      setComments(current => current.map(item =>
+        item.id === editingComment.id ? { ...item, content: updated.content } : item
+      ));
+      setEditingComment(null);
+      setShareNotice('Commentaire modifié.');
+    } catch (cause) {
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' || error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setEditFeedback(uncertain
+        ? 'Modification non confirmée. Vérifie le commentaire avant de réessayer.'
+        : cause instanceof Error ? cause.message : 'Modification impossible.');
+    } finally {
+      saveInFlight.current = false;
+      setSavingEdit(false);
+    }
+  }
+
+  async function copyCommentText(item: Comment) {
+    try {
+      await navigator.clipboard.writeText(item.content);
+      setShareNotice('Texte du commentaire copié.');
+      setContextCommentId(null);
+    } catch {
+      setMessage('Impossible de copier le texte sur cet appareil.');
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -229,6 +297,20 @@ export default function PostDetailPage() {
           const canDelete = item.author.id === user?.id || post.authorId === user?.id;
           return (
             <article className="km-post-comment" key={item.id} id={`knowme-comment-${item.id}`}
+              onContextMenu={event => {
+                event.preventDefault();
+                clearHold();
+                setContextCommentId(item.id);
+              }}
+              onPointerDown={event => {
+                if (event.pointerType !== 'mouse') {
+                  clearHold();
+                  holdTimer.current = window.setTimeout(() => setContextCommentId(item.id), 440);
+                }
+              }}
+              onPointerUp={clearHold}
+              onPointerCancel={clearHold}
+              onPointerLeave={clearHold}
               style={{ outline: targetComment === item.id ? '2px solid var(--mint)' : undefined }}>
               <div className="km-post-comment-avatar">
                 {item.author.avatarUrl ? <img src={item.author.avatarUrl} alt="" /> : item.author.displayName.charAt(0)}
@@ -241,6 +323,8 @@ export default function PostDetailPage() {
                 <div className="km-post-comment-actions">
                   <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
                   <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
+                  <button type="button" onClick={() => setContextCommentId(item.id)}
+                    aria-label={`Actions pour le commentaire de ${item.author.displayName}`}>⋯</button>
                   {canDelete && <button type="button" disabled={busyCommentId === item.id}
                     onClick={() => void removeComment(item.id)}>
                     {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
@@ -253,6 +337,80 @@ export default function PostDetailPage() {
 
         {!comments.length && <div className="km-post-comments-empty"><span aria-hidden="true">☏</span><p>Sois le premier à commenter.</p></div>}
       </section>
+
+      {selectedComment && (
+        <div className="km-comment-actions-overlay" role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setContextCommentId(null);
+          }}>
+          <section className="km-comment-actions-sheet" role="dialog" aria-modal="true"
+            aria-label={`Actions sur le commentaire de ${selectedComment.author.displayName}`}>
+            <div className="km-comment-actions-handle" aria-hidden="true"/>
+            <header>
+              <strong>{selectedComment.author.displayName}</strong>
+              <button type="button" onClick={() => setContextCommentId(null)}
+                aria-label="Fermer les actions">×</button>
+            </header>
+            <p className="km-comment-actions-preview">{selectedComment.content}</p>
+            {selectedComment.author.id === user?.id && (
+              <button type="button" onClick={() => {
+                setEditDraft(selectedComment.content);
+                setEditFeedback('');
+                setEditingComment(selectedComment);
+                setContextCommentId(null);
+              }}>Modifier le commentaire</button>
+            )}
+            <button type="button" autoFocus onClick={() => void copyCommentText(selectedComment)}>
+              Copier le texte
+            </button>
+            <button type="button" onClick={() => {
+              const id = selectedComment.id;
+              setContextCommentId(null);
+              void copyLink('comment', id);
+            }}>Copier le lien</button>
+            {(selectedComment.author.id === user?.id || post.authorId === user?.id) && (
+              <button type="button" className="km-comment-actions-danger"
+                disabled={busyCommentId === selectedComment.id}
+                onClick={() => {
+                  const id = selectedComment.id;
+                  setContextCommentId(null);
+                  void removeComment(id);
+                }}>Supprimer le commentaire</button>
+            )}
+          </section>
+        </div>
+      )}
+
+      {editingComment && (
+        <div className="km-comment-actions-overlay" role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget && !savingEdit) setEditingComment(null);
+          }}>
+          <form className="km-comment-actions-sheet km-comment-edit-sheet"
+            role="dialog" aria-modal="true" aria-label="Modifier le commentaire"
+            onSubmit={event => void submitCommentEdit(event)}>
+            <div className="km-comment-actions-handle" aria-hidden="true"/>
+            <header>
+              <strong>Modifier le commentaire</strong>
+              <button type="button" onClick={() => setEditingComment(null)}
+                disabled={savingEdit} aria-label="Annuler la modification">×</button>
+            </header>
+            <label htmlFor="km-comment-edit-draft">Texte du commentaire</label>
+            <textarea id="km-comment-edit-draft" autoFocus value={editDraft}
+              onChange={event => setEditDraft(event.target.value)}
+              maxLength={500} rows={4} disabled={savingEdit} />
+            <small>{editDraft.length} / 500</small>
+            {editFeedback && <p role="alert">{editFeedback}</p>}
+            <div className="km-comment-edit-actions">
+              <button type="button" disabled={savingEdit}
+                onClick={() => setEditingComment(null)}>Annuler</button>
+              <button type="submit" disabled={savingEdit || !editDraft.trim()}>
+                {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {hasMore && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
