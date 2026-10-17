@@ -128,7 +128,7 @@ function bubbleForAccent(accent:string):string {
   const channel=(offset:number)=>parseInt(hex.slice(offset,offset+2),16);
   const bg=[11,20,26],ratio=0.62;
   return '#'+[0,2,4].map((offset,index)=>
-    Math.round(channel(offset)*ratio+bg[index]* (1-ratio)).toString(16).padStart(2,'0')).join('');
+    Math.round(channel(offset)*ratio+(bg[index] ?? 26)* (1-ratio)).toString(16).padStart(2,'0')).join('');
 }
 
 const REFERENCE_CHAT={
