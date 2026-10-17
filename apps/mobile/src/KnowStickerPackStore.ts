@@ -50,14 +50,15 @@ export async function createKnowStickerPack(name:string,media:SelectedAndroidMed
       }
     }
     const pack:KnowStickerPack={id,name:label,format:FORMAT,createdAt:new Date().toISOString(),items};
-    const existing=await readKnowStickerPacks();
-    await writePacks([pack,...existing]);
-    // Portable format identifier; the on-device pack remains usable offline.
+    // Persist the complete manifest before exposing the pack in the library;
+    // interrupted conversions must not leave broken user-visible packs.
     await FileSystem.writeAsStringAsync(root+'manifest.knowsticker',JSON.stringify({
       format:FORMAT,version:1,id,name:label,
       files:items.map((item,index)=>({filename:item.uri.slice(root.length),name:item.name,
         mime:item.mime,index}))
     }));
+    const existing=await readKnowStickerPacks();
+    await writePacks([pack,...existing]);
     return pack;
   }catch(error){
     await FileSystem.deleteAsync(root,{idempotent:true}).catch(()=>undefined);
