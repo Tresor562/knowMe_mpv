@@ -1,5 +1,5 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as FileSystem from 'expo-file-system';
 import {
   Image,
@@ -50,6 +50,21 @@ type StoryFeedResponse = {
   nextCursor: string | null;
 };
 
+type StoryGroup = { story: Story; count: number };
+type StoryRailResponse = { groups: StoryGroup[]; nextOffset: number | null };
+
+function groupLegacyStories(stories: Story[]): StoryGroup[] {
+  const index = new Map<string, StoryGroup>();
+  for (const story of stories) {
+    const key = story.viewer.own ? 'owner' : story.author?.id;
+    if (!key) continue;
+    const group = index.get(key);
+    if (group) group.count += 1;
+    else index.set(key, { story, count: 1 });
+  }
+  return [...index.values()];
+}
+
 type StoryCreateResult = {
   id: string;
 };
@@ -74,7 +89,9 @@ export function StoriesRail({
 }) {
   const { colors, visual } = useAppearance();
   const openProfile = useProfileNavigation();
-  const [stories, setStories] = useState<Story[]>([]);
+  const [groups, setGroups] = useState<StoryGroup[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const loadingNext = useRef(false);
   const [selected, setSelected] = useState<Story | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
@@ -89,8 +106,22 @@ export function StoriesRail({
 
   const load = useCallback(async () => {
     try {
-      const response = await apiFetch<StoryFeedResponse>('/stories/feed');
-      setStories(response.stories);
+      try {
+        const response = await apiFetch<StoryRailResponse>('/stories/rail');
+        if (!Array.isArray(response?.groups)) {
+          const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+          setGroups(groupLegacyStories(legacy.stories));
+          setNextOffset(null);
+        } else {
+          setGroups(response.groups);
+          setNextOffset(typeof response.nextOffset === 'number' ? response.nextOffset : null);
+        }
+      } catch (cause) {
+        if ((cause as { status?: number })?.status !== 404) throw cause;
+        const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+        setGroups(groupLegacyStories(legacy.stories));
+        setNextOffset(null);
+      }
     } catch {
       // Keep the last known stories during temporary network failures.
       // Emptying the rail here makes an outage look like deleted content.
@@ -100,6 +131,27 @@ export function StoriesRail({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadNext = useCallback(async () => {
+    if (loadingNext.current || nextOffset === null) return;
+    loadingNext.current = true;
+    try {
+      const next = await apiFetch<StoryRailResponse>(`/stories/rail?offset=${nextOffset}`);
+      if (!Array.isArray(next?.groups)) {
+        setNextOffset(null);
+        return;
+      }
+      setGroups(current => {
+        const known = new Set(current.map(g => g.story.author?.id));
+        return [...current, ...next.groups.filter(g => !known.has(g.story.author?.id))];
+      });
+      setNextOffset(next.nextOffset);
+    } catch {
+      // Keep visible cards intact, retry when the user scrolls again.
+    } finally {
+      loadingNext.current = false;
+    }
+  }, [nextOffset]);
 
   useEffect(() => {
     if (!initialStoryId) return;
@@ -234,71 +286,67 @@ export function StoriesRail({
     }catch{/* Already published; refresh may be temporarily unavailable. */}
   }
 
+  const myGroup = groups.find(group => group.story.viewer.own);
   return (
     <>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
+        onScroll={({nativeEvent}) => {
+          const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+          if (contentOffset.x + layoutMeasurement.width >= contentSize.width - 170) void loadNext();
+        }}
+        scrollEventThrottle={180}
       >
-        <PressScale onPress={() => setCreateOpen(true)} style={styles.item}>
-          <View
-            style={[
-              styles.createRing,
-              { borderColor: colors.accent }
-            ]}
-          >
-            <Avatar
-              uri={currentUser.avatarUrl}
-              name={currentUser.displayName}
-              size={54}
-            />
-            <View
-              style={[
-                styles.plus,
-                {
-                  backgroundColor: colors.accent,
-                  borderColor: colors.background
-                }
-              ]}
-            >
-              <KnowMeIcon
-                name="create"
-                size={13}
-                color={colors.accentText}
-                strokeWidth={2.1}
-              />
-            </View>
-          </View>
-          <Text
-            numberOfLines={1}
-            style={[styles.label, { color: colors.muted }]}
-          >
-            Ta story
-          </Text>
-        </PressScale>
+        <View style={[styles.storyCard,{backgroundColor:colors.surfaceRaised,borderColor:colors.border}]}>
+          <PressScale onPress={() => myGroup ? void openStory(myGroup.story) : setCreateOpen(true)}
+            style={styles.storyCardTap} accessibilityLabel={myGroup ? `Ta story (${myGroup.count})` : 'Créer une story'}>
+            {currentUser.avatarUrl
+              ? <Image source={{uri:currentUser.avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>
+              : <View style={[styles.storyCardBackdrop,{backgroundColor:colors.backgroundAccent,justifyContent:'center',alignItems:'center'}]}>
+                  <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={70}/>
+                </View>}
+            <View style={styles.storyCardShade}/>
+            {myGroup && myGroup.count > 1 ? (
+              <View style={[styles.storyCardCount,{backgroundColor:colors.accent}]}>
+                <Text style={[styles.storyCardCountText,{color:colors.accentText}]}>{myGroup.count}</Text>
+              </View>
+            ):null}
+            <Text numberOfLines={2} style={styles.storyCardLabel}>{myGroup ? 'Ta story' : 'Créer une story'}</Text>
+          </PressScale>
+          <PressScale onPress={() => setCreateOpen(true)} accessibilityRole="button"
+            accessibilityLabel="Ajouter une story" style={[styles.storyCardPlus,{backgroundColor:colors.accent,borderColor:colors.background}]}>
+            <KnowMeIcon name="create" size={16} strokeWidth={2.2} color={colors.accentText}/>
+          </PressScale>
+        </View>
 
-        {stories.filter((story) => !story.viewer.own).slice(0, 12).map((story) => (
-          <View key={story.id} style={styles.item}>
+        {groups.filter(g => !g.story.viewer.own).map(({story,count}) => (
+          <View key={story.author?.id ?? story.id}
+            style={[styles.storyCard,{backgroundColor:colors.surfaceRaised,borderColor:colors.border}]}>
             <PressScale accessibilityRole="button"
-              accessibilityLabel={`Voir la story de ${story.author?.displayName ?? 'KnowMe'}`}
-              onPress={() => void openStory(story)}>
-              <View style={[styles.storyRing, { borderColor: colors.accent }]}>
-                <Avatar uri={story.author?.avatarUrl}
-                  name={story.author?.displayName ?? 'KnowMe'} size={54} />
-              </View>
+              accessibilityLabel={`Voir les ${count} stories de ${story.author?.displayName ?? 'KnowMe'}`}
+              onPress={() => void openStory(story)} style={styles.storyCardTap}>
+              {story.author?.avatarUrl
+                ? <Image source={{uri:story.author.avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>
+                : <View style={[styles.storyCardBackdrop,{backgroundColor:colors.backgroundAccent,justifyContent:'center',alignItems:'center'}]}>
+                    <Avatar name={story.author?.displayName ?? 'KnowMe'} size={70}/>
+                  </View>}
+              <View style={styles.storyCardShade}/>
+              {count>1 && (
+                <View style={[styles.storyCardCount,{backgroundColor:colors.accent}]}>
+                  <Text style={[styles.storyCardCountText,{color:colors.accentText}]}>{count}</Text>
+                </View>
+              )}
+              <Text numberOfLines={2} style={styles.storyCardLabel}>{story.author?.displayName ?? 'KnowMe'}</Text>
             </PressScale>
-            <Pressable accessibilityRole="button"
-              accessibilityLabel={`Voir le profil de ${story.author?.displayName ?? 'KnowMe'}`}
-              disabled={!story.author?.username}
-              onPress={() => story.author?.username && openProfile?.(story.author.username)}>
-              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4}}>
-              <Text numberOfLines={1} style={[styles.label, { color: colors.muted, flexShrink:1 }]}>
-                {story.author?.displayName ?? 'Story'}
-              </Text>
-              {story.author?.verification?.isVerified?<BlueVerifiedBadge size={16} label={story.author.verification.label}/>:null}
-              </View>
-            </Pressable>
+            {story.author?.username && (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${story.author.displayName}`}
+                onPress={() => openProfile?.(story.author!.username)}
+                style={styles.storyCardProfileLink}>
+                <KnowMeIcon name="profile" size={14} color="#fff"/>
+              </Pressable>
+            )}
           </View>
         ))}
 
@@ -658,9 +706,33 @@ export function StoriesRail({
 
 const styles = StyleSheet.create({
   rail: {
-    gap: 15,
-    paddingBottom: 22
+    gap: 9,
+    paddingBottom: 12
   },
+  storyCard: {
+    width: 124,
+    height: 190,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  storyCardTap: { width: 124, height: 190, position: 'relative' },
+  storyCardBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
+  storyCardShade: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor:'rgba(0,0,0,.35)' },
+  storyCardLabel: { position: 'absolute', bottom: 9, left: 10, right: 8,
+    fontSize: 12, fontWeight:'700', color:'#fff', textShadowColor:'rgba(0,0,0,.85)',
+    textShadowOffset:{width:0,height:1},textShadowRadius:3 },
+  storyCardCount: { position: 'absolute', top: 9, right: 9,
+    minWidth: 24, height: 24, paddingHorizontal:6, borderRadius:7,
+    alignItems: 'center',justifyContent: 'center' },
+  storyCardCountText: { fontSize: 12,fontWeight:'800' },
+  storyCardPlus: { position: 'absolute',top:8,left:8,borderRadius:18,
+    width:34,height:34,borderWidth:2,justifyContent:'center',alignItems:'center' },
+  storyCardProfileLink: { position:'absolute',top:8,left:8,width:34,height:34,
+    borderRadius:17,backgroundColor:'rgba(0,0,0,.36)',
+    alignItems:'center',justifyContent:'center' },
   item: {
     width: 68,
     alignItems: 'center'
