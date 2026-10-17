@@ -28,7 +28,7 @@ export function PostComposerExperience({
   author: { displayName: string; username: string; avatarUrl?: string | null };
   content: string;
   onChangeContent: (value: string) => void;
-  media: SelectedAndroidMedia | null;
+  media: SelectedAndroidMedia[];
   canAttachPhoto: boolean;
   onChoosePhoto: () => void;
   onRemovePhoto: () => void;
@@ -38,7 +38,7 @@ export function PostComposerExperience({
 }) {
   const { colors } = useAppearance();
   const inputRef = useRef<TextInput>(null);
-  const canPublish = content.trim().length > 0 && !publishing;
+  const canPublish = (content.trim().length > 0 || media.length > 0) && !publishing;
 
   function insertMention() {
     onChangeContent(content + (content && !content.endsWith(' ') ? ' ' : '') + '@');
@@ -95,16 +95,30 @@ export function PostComposerExperience({
             accessibilityLabel="Texte de la publication"
           />
 
-          {media ? (
-            <View style={[styles.previewBox,{borderColor:colors.border}]}>
-              <Image source={{uri:media.uri}} style={styles.preview} resizeMode="contain"/>
-              <Pressable accessibilityRole="button" accessibilityLabel="Retirer la photo"
-                disabled={publishing} onPress={onRemovePhoto}
-                style={[styles.previewRemove,{backgroundColor:colors.surface}]}>
-                <KnowMeIcon name="close" size={18} color={colors.text}/>
+          {media.length>0 ? <View style={[styles.previewBox,{borderColor:colors.border}]}>
+            <View style={{flexDirection:'row',flexWrap:'wrap',gap:3}}>
+              {media.slice(0,5).map((item,index)=><View key={item.uri}
+                style={{width:media.length===1?'100%':index<2?'49%':'32%',
+                  height:media.length===1?235:index<2?175:112,position:'relative',
+                  borderRadius:4,overflow:'hidden',backgroundColor:colors.surface}}>
+                <Image source={{uri:item.uri}} style={{width:'100%',height:'100%'}} resizeMode="cover"/>
+                {item.mime.startsWith('video/')?<Text style={{position:'absolute',bottom:7,left:7,
+                  color:'#fff',backgroundColor:'#0008',padding:4,borderRadius:5}}>▶ Vidéo</Text>:null}
+                {index===4&&media.length>5?<View style={{position:'absolute',top:0,bottom:0,left:0,
+                  right:0,backgroundColor:'#0009',justifyContent:'center',alignItems:'center'}}>
+                  <Text style={{color:'#fff',fontSize:26,fontWeight:'800'}}>+{media.length-5}</Text>
+                </View>:null}
+              </View>)}
+            </View>
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:8}}>
+              <Text style={{color:colors.muted,fontSize:12}}>{media.length} média(s) sélectionné(s)</Text>
+              <Pressable accessibilityRole="button" disabled={publishing} onPress={onRemovePhoto}
+                style={[styles.previewRemove,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="close" size={17} color={colors.text}/>
+                <Text style={{color:colors.text}}>Retirer tout</Text>
               </Pressable>
             </View>
-          ) : null}
+          </View> : null}
           <Text style={[styles.counter,{color:colors.muted}]}>{content.length} caractères</Text>
 
           <View style={[styles.actions,{borderTopColor:colors.border}]}>
@@ -116,7 +130,7 @@ export function PostComposerExperience({
                 <View style={[styles.actionIcon,{backgroundColor:colors.backgroundAccent}]}>
                   <KnowMeIcon name="create" size={19} color={colors.accent}/>
                 </View>
-                <Text style={[styles.actionName,{color:colors.text}]}>Photo · Galerie KnowMe</Text>
+                <Text style={[styles.actionName,{color:colors.text}]}>Photos et vidéos · Galerie KnowMe</Text>
                 <KnowMeIcon name="arrow" size={17} color={colors.muted}/>
               </Pressable>
             ) : null}
