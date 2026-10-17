@@ -20,6 +20,7 @@ import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
 import { KnowMeMentionText } from './KnowMeMentionText';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 
@@ -28,6 +29,7 @@ type Author = {
   displayName: string;
   username: string;
   avatarUrl?: string | null;
+  staff?: {shield?:string}|null;
 };
 
 type PostSummary = {
@@ -360,7 +362,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={42} />
           <View style={styles.flex}>
-            <Text style={[styles.compactAuthor, { color: colors.text }]}>{post.author.displayName}</Text>
+            <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{post.author.displayName}</Text>{post.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}</View>
             <Text style={[styles.smallMeta, { color: colors.muted }]}>@{post.author.username} · {formatPostDate(post.createdAt)}</Text>
           </View>
         </Pressable>
@@ -405,7 +407,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
             <View style={styles.flex}>
               <View style={styles.threadIdentity}>
                 <Pressable accessibilityRole="button" onPress={() => onOpenProfile?.(comment.author.username)}>
-                  <Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>
+                  <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>{comment.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
                 </Pressable>
                 <Text style={[styles.smallMeta, { color: colors.muted }]}>{formatPostDate(comment.createdAt)}</Text>
               </View>
@@ -685,7 +687,7 @@ export function FeedExperience({
         >
           <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${item.author.displayName}`} onPress={() => onOpenProfile?.(item.author.username)} style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+            <View style={styles.flex}><View style={styles.verifiedName}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text>{item.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={19}/>:null}</View><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication"
             onPress={()=>setMenuPost(item)} style={[styles.postMenu,{backgroundColor:colors.backgroundAccent}]}>
@@ -790,6 +792,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 15, gap: 10 },
   commentCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, gap: 9 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  verifiedName: {flexDirection:'row',alignItems:'center',gap:5,flexShrink:1},
   actionsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 },
   flex: { flex: 1 },
   title: { fontSize: 17, fontWeight: '800' },
