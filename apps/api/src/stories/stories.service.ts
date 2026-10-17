@@ -234,7 +234,7 @@ export class StoriesService {
       take: 100
     });
     return {
-      profile: { ...user, verification:toVerificationBadge(user.verificationRequests) },
+      profile: { id:user.id, username:user.username, displayName:user.displayName, avatarUrl:user.avatarUrl, verification:toVerificationBadge(user.verificationRequests) },
       stories: await Promise.all(stories.map((story) => this.serialize(story, null)))
     };
   }
@@ -382,7 +382,7 @@ export class StoriesService {
         ? Math.round(views.reduce((sum, view) => sum + view.completionBps, 0) / views.length)
         : 0,
       screenshots: views.filter((view) => view.screenshotAt).length,
-      viewers: views.map((view) => ({ ...view, user: userMap.has(view.viewerUserId) ? { ...userMap.get(view.viewerUserId), verification:toVerificationBadge(userMap.get(view.viewerUserId)!.verificationRequests) } : null }))
+      viewers: views.map((view) => { const u = userMap.get(view.viewerUserId); return { ...view, user: u ? { id:u.id, username:u.username, displayName:u.displayName, avatarUrl:u.avatarUrl, verification:toVerificationBadge(u.verificationRequests) } : null }; })
     };
   }
 
