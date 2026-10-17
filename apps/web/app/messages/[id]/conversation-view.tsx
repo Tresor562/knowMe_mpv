@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { getRealtimeSocket } from '../../../lib/realtime';
-import { useSession, type StaffBadge } from '../../../lib/use-session';
+import { useSession, type StaffBadge, type VerificationBadge } from '../../../lib/use-session';
 import { AccountBadges } from '../../../components/AccountBadges';
 import { StickerPicker } from './StickerPicker';
 import { ChatMediaView } from './ChatMediaView';
@@ -20,6 +20,7 @@ type Sender = {
   username:string;
   avatarUrl?:string|null;
   staff?:StaffBadge|null;
+  verification?:VerificationBadge|null;
 };
 type StickerPresentation = {
   kind:'STICKER';
@@ -442,7 +443,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
         </Link>
         <Link href={infoHref} className="km-chat-header-details km-chat-profile-trigger"
           aria-label={en?'Open conversation information':'Voir les informations de la discussion'}>
-          <h1 style={{display:'flex',alignItems:'center',gap:5}}>{chatTitle}{peer?.staff?.shield==='GOLD'&&!isGroup?<AccountBadges staff={peer.staff} compact/>:null}</h1>
+          <h1 style={{display:'flex',alignItems:'center',gap:5}}>{chatTitle}{peer&&!isGroup?<AccountBadges staff={peer.staff} verification={peer.verification} compact/>:null}</h1>
           <p>
             {isNexusPrivate ? (en?'KnowMe assistant':'Assistant KnowMe')
               : isGroup ? `${readStates.length} ${en?'members':'membres'}`
@@ -514,7 +515,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
             <article id={`knowme-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} style={{scrollMarginTop:90,outline:targetMessage===item.id?'2px solid var(--mint)':undefined}}>
             {!mine&&(nexus||isGroup)&&(nexus
               ? <strong className="km-message-author">Nexus</strong>
-              : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`} aria-label={`Voir le profil de ${item.sender.displayName}`}>{item.sender.displayName}<AccountBadges staff={item.sender.staff} compact/></Link>
+              : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`} aria-label={`Voir le profil de ${item.sender.displayName}`}>{item.sender.displayName}<AccountBadges staff={item.sender.staff} verification={item.sender.verification} compact/></Link>
             )}
             <MessageContent item={item}/>
             <div className="km-message-meta">
