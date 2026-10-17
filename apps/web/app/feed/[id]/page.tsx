@@ -249,19 +249,36 @@ export default function PostDetailPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const content = String(new FormData(form).get('content') ?? '').trim();
-    if (!content) return;
+    if (!content || sending) return;
 
+    const replyingTo = replyTarget;
     setSending(true);
     try {
-      const replyingTo = replyTarget;
       await apiFetch(`/posts/${postId}/comments`, {
         method: 'POST',
         body: JSON.stringify({
           content, ...(replyingTo ? { parentId: replyingTo.id } : {})
         })
       });
-      form.reset();
-      setReplyTarget(null);
+    } catch (cause) {
+      // An uncertain POST may have committed on the server. Do not silently
+      // retry it or tell the user with certainty that their reply was lost.
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error.code === 'KNOWME_TIMEOUT' ||
+        error.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setMessage(uncertain
+        ? 'Envoi non confirmé. Vérifie les commentaires avant de réessayer pour éviter un doublon.'
+        : cause instanceof Error ? cause.message : 'Commentaire impossible.');
+      setSending(false);
+      return;
+    }
+
+    // The POST is successful. A failed subsequent GET is a refresh problem,
+    // not a failed publication; preserve this distinction in user feedback.
+    form.reset();
+    setReplyTarget(null);
+    setShareNotice(replyingTo ? 'Réponse publiée.' : 'Commentaire publié.');
+    try {
       await load();
       if (replyingTo) {
         const replies = await apiFetch<Comment[]>(
@@ -274,8 +291,8 @@ export default function PostDetailPage() {
         setExpandedReplies(prev => prev.includes(replyingTo.id)
           ? prev : [...prev, replyingTo.id]);
       }
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Commentaire impossible.');
+    } catch {
+      setMessage('Commentaire publié, mais actualisation impossible. Réessaie de charger les réponses.');
     } finally {
       setSending(false);
     }
