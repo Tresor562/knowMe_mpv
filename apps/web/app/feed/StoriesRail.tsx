@@ -92,7 +92,7 @@ export function StoriesRail() {
             {story.author?.username
               ? <Link className="km-story-profile-label"
                   href={`/profile/${encodeURIComponent(story.author.username)}`}>
-                  <small style={{display:'inline-flex',alignItems:'center',gap:4}}>{story.author.displayName}<AccountBadges verification={story.author.verification} compact/></small>
+                  <small style={{display:'inline-flex',alignItems:'center',gap:4}}>{story.author.displayName}<AccountBadges username={story.author.username} verification={story.author.verification} compact/></small>
                 </Link>
               : <small>{ui.stories}</small>}
           </div>
