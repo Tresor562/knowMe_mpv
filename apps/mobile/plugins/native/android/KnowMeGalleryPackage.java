@@ -111,9 +111,11 @@ public final class KnowMeGalleryPackage implements ReactPackage {
             selection += " AND " + bucketColumn + " = ?";
             args.add(bucket);
           }
-          // Bounded native query, not a scan of all files in app JavaScript memory.
+          // MediaStore's sortOrder must be an ORDER BY expression only.
+          // Appending SQL LIMIT/OFFSET makes gallery reads fail on some Android providers.
+          // Page the returned Cursor instead; at most PAGE_LIMIT assets reach React Native.
           String order = MediaStore.MediaColumns.DATE_ADDED + " DESC, "
-            + MediaStore.MediaColumns._ID + " DESC LIMIT " + count + " OFFSET " + offset;
+            + MediaStore.MediaColumns._ID + " DESC";
           String[] cols = {
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.MIME_TYPE,
@@ -127,7 +129,12 @@ public final class KnowMeGalleryPackage implements ReactPackage {
           try (Cursor cursor = resolver.query(source, cols, selection,
               args.toArray(new String[0]), order)) {
             if (cursor == null) throw new IllegalStateException("MediaStore non disponible");
-            while (cursor.moveToNext()) {
+            if (offset > 0 && !cursor.moveToPosition(offset - 1)) {
+              promise.resolve(items);
+              return;
+            }
+            int emitted = 0;
+            while (emitted < count && cursor.moveToNext()) {
               long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));
               int type = cursor.getInt(cursor.getColumnIndexOrThrow(mediaType));
               boolean video = type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
@@ -149,6 +156,7 @@ public final class KnowMeGalleryPackage implements ReactPackage {
               asset.putDouble("timestamp", cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)));
               asset.putString("thumbnail", thumbnail(resolver, uri, id, video));
               items.pushMap(asset);
+              emitted++;
             }
           }
           promise.resolve(items);

@@ -112,7 +112,10 @@ export function AndroidMediaLibraryPicker({
         setHasMore(page.length === PAGE_SIZE);
       })
       .catch(cause => {
-        if (active && revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+        if (active && revision === viewRevision.current) {
+          setHasMore(false);
+          setError(cause instanceof Error ? cause.message : 'Galerie indisponible.');
+        }
       })
       .finally(() => { if (active && revision === viewRevision.current) setLoading(false); });
     return () => { active = false; };
@@ -128,7 +131,10 @@ export function AndroidMediaLibraryPicker({
       setItems(current => mergeGalleryPage(current, page));
       setHasMore(page.length === PAGE_SIZE);
     } catch (cause) {
-      if (revision === viewRevision.current) setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
+      if (revision === viewRevision.current) {
+        setHasMore(false);
+        setError(cause instanceof Error ? cause.message : 'Impossible de continuer le chargement.');
+      }
     } finally { setPaging(false); }
   }, [visible, permission, loading, paging, hasMore, allowVideo, filter, album, items.length]);
 
@@ -244,7 +250,7 @@ export function AndroidMediaLibraryPicker({
                   </Pressable>
                 </View>}
                 {loading ? <ActivityIndicator color={colors.accent} style={{marginTop:42}}/> : null}
-                {!loading && permission && !items.length ? <Text style={[styles.empty,{color:colors.muted}]}>
+                {!loading && permission && !items.length && !error ? <Text style={[styles.empty,{color:colors.muted}]}>
                   {en ? 'No photos or videos found in this album.' : 'Aucun média trouvé dans cet album.'}
                 </Text> : null}
                 <FlatList
