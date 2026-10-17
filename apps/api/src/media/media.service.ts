@@ -320,17 +320,31 @@ export class MediaService {
         purpose: 'POST',
         deletedAt: null,
         status: 'AVAILABLE',
-        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] }
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4'] }
       },
       select: { id: true, ownerId: true, storageKey: true, detectedMime: true }
     });
-    if (!asset) throw new NotFoundException('Image indisponible.');
+    if (!asset) throw new NotFoundException('Média indisponible.');
     const attached = await this.prisma.post.findFirst({
-      where: { authorId: asset.ownerId, imageUrl: `/media/public/post/${assetId}` },
+      where: {
+        authorId: asset.ownerId,
+        OR: [{imageUrl: `/media/public/post/${assetId}`},
+          {media:{some:{assetId}}}]
+      },
       select: { id: true }
     });
     if (!attached) throw new NotFoundException('Image indisponible.');
     return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
+  }
+
+  async assertOwnedPostMedia(ownerId:string,assetId:string) {
+    const asset=await this.prisma.mediaAsset.findFirst({
+      where:{id:assetId,ownerId,purpose:'POST',deletedAt:null,status:'AVAILABLE',
+        detectedMime:{in:['image/jpeg','image/png','image/webp','image/gif','video/mp4']}},
+      select:{id:true,detectedMime:true}
+    });
+    if(!asset)throw new BadRequestException('Média non disponible ou non autorisé.');
+    return {id:asset.id,mimeType:asset.detectedMime};
   }
 
   async assertOwnedPostImage(ownerId: string, assetId: string) {
