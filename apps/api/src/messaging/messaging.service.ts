@@ -4,6 +4,18 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { staffAccountSelect, toStaffBadge, type StaffProfileRecord } from '../staff/staff-profile';
+
+const publicSenderSelect = {
+  id:true, username:true, displayName:true, avatarUrl:true,
+  email:true, staffAccount:{select:staffAccountSelect}
+} as const;
+
+function toPublicSender<T extends {email?:string|null;staffAccount?:StaffProfileRecord}>(user:T) {
+  const {email,staffAccount,...profile}=user;
+  return {...profile,staff:toStaffBadge(staffAccount??null,email)};
+}
+
 import {
   StickerPresentation,
   StickerTokenService
@@ -25,10 +37,10 @@ export class MessagingService {
     private readonly stickerTokens: StickerTokenService
   ) {}
 
-  createConversation(userId: string, dto: CreateConversationDto) {
+  async createConversation(userId: string, dto: CreateConversationDto) {
     const memberIds = [...new Set([userId, ...dto.memberIds])];
 
-    return this.prisma.conversation.create({
+    const conversation = await this.prisma.conversation.create({
       data: {
         title: dto.title,
         isGroup: memberIds.length > 2,
@@ -39,17 +51,15 @@ export class MessagingService {
         members: {
           include: {
             user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true
-              }
+              select: publicSenderSelect
             }
           }
         }
       }
     });
+  }
+
+    return {...conversation,members:conversation.members.map(member=>({...member,user:toPublicSender(member.user)}))};
   }
 
   async list(userId: string) {
@@ -59,12 +69,7 @@ export class MessagingService {
         members: {
           include: {
             user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true
-              }
+              select: publicSenderSelect
             }
           }
         },
@@ -73,12 +78,7 @@ export class MessagingService {
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           include: {
             sender: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true
-              }
+              select: publicSenderSelect
             },
             mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
           }
@@ -130,6 +130,7 @@ export class MessagingService {
 
         return {
           ...conversation,
+          members:conversation.members.map(member=>({...member,user:toPublicSender(member.user)})),
           messages: latest ? [latest] : [],
           unreadCount: humanUnread + nexusUnread,
           lastReadAt: membership?.lastReadAt ?? null
@@ -225,12 +226,7 @@ export class MessagingService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         include: {
           sender: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true
-            }
+            select: publicSenderSelect
           },
           mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
         }
@@ -246,12 +242,7 @@ export class MessagingService {
           userId: true,
           lastReadAt: true,
           user: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true
-            }
+            select: publicSenderSelect
           }
         }
       })
@@ -270,7 +261,7 @@ export class MessagingService {
     return {
       items: [...pageDescending].reverse(),
       nextCursor,
-      readStates: members
+      readStates: members.map(member=>({...member,user:toPublicSender(member.user)}))
     };
   }
 
@@ -357,12 +348,7 @@ export class MessagingService {
         data: { conversationId, senderId: userId, content, mediaAssetId: mediaAssetId ?? null },
         include: {
           sender: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true
-            }
+            select: publicSenderSelect
           },
           mediaAsset: { select: { id: true, detectedMime: true, originalName: true, size: true, status: true, deletedAt: true } }
         }
@@ -448,8 +434,10 @@ export class MessagingService {
       (message.content === 'DOCUMENT' && asset.detectedMime === 'application/pdf')
     ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT',
       assetId: asset.id, mimeType: asset.detectedMime, fileName: asset.originalName, sizeBytes: asset.size } : null;
+    const sender = (message as T & {sender?:{email?:string|null;staffAccount?:StaffProfileRecord}}).sender;
     return {
       ...message,
+      ...(sender ? {sender:toPublicSender(sender)} : {}),
       presentation: mediaPresentation ?? sticker ?? {
         kind: 'TEXT' as const,
         text: message.content
