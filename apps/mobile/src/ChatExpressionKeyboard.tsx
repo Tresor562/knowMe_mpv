@@ -8,6 +8,7 @@ import {AnimatedEmoji} from './AnimatedEmoji';
 import {ChatMediaAttachment} from './ChatMediaAttachment';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
+import {UNICODE_EMOJI_CATALOG,UNICODE_EMOJI_GROUPS} from './unicode-emoji-catalog';
 
 export type ExpressionTab='emoji'|'gifs'|'stickers';
 type Sticker={key:string;version?:number;label:string;glyph:string;accessibilityLabel:string};
@@ -64,6 +65,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const [retryToken,setRetryToken]=useState(0);
   const dragStartY=useRef(0);
   const [recentPage,setRecentPage]=useState(false);
+  const [emojiPageSize,setEmojiPageSize]=useState(112);
   const textColor='#e4e7f1',muted='#a6a9be',panelBg='#222536',deepBg='#2b2e40';
   const activeColor=colors.accent;
 
@@ -136,13 +138,19 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
 
   const pack=packs.find(item=>item.key===packKey)??packs[0];
   const emojiResults=useMemo(()=>{
-    let list=category==='Favoris'?favorites:category==='Récents'?recent:GLYPHS;
-    const selected=EMOJI_CATEGORIES.find(item=>item.name===category);
-    if(selected)list=list.filter(glyph=>selected.match.test(glyph));
     const query=search.trim().toLocaleLowerCase();
-    return list.filter(glyph=>!query||glyph.includes(query)||
-      (EMOJI_KEYWORDS[glyph]??'').includes(query));
+    const glyphFilter=category==='Favoris'?favorites:category==='Récents'?recent:null;
+    const selected=EMOJI_CATEGORIES.find(item=>item.name===category);
+    return UNICODE_EMOJI_CATALOG.filter(item=>
+      (!glyphFilter||glyphFilter.includes(item.glyph))&&
+      (!selected||selected.match.test(item.glyph))&&
+      (!category||category==='Favoris'||category==='Récents'||
+        !UNICODE_EMOJI_GROUPS.includes(category)||item.group===category)&&
+      (!query||item.glyph.includes(query)||
+        item.name.toLocaleLowerCase().includes(query)||
+        (EMOJI_KEYWORDS[item.glyph]??'').includes(query)));
   },[category,favorites,recent,search]);
+  useEffect(()=>{setEmojiPageSize(112);},[category,search,tab]);
   const stickerResults=useMemo(()=>{
     const query=search.trim().toLocaleLowerCase();
     return (pack?.stickers??[]).filter(item=>(category!=='Favoris'||favorites.includes(item.glyph))&&
@@ -253,6 +261,20 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     <ScrollView style={styles.contentScroll} keyboardShouldPersistTaps="always"
       contentContainerStyle={styles.content}>
       {tab==='emoji'? <>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{gap:7,alignItems:'center',paddingVertical:5}}>
+          <Pressable onPress={()=>setCategory(null)} accessibilityRole="button"
+            accessibilityState={{selected:!category}}
+            style={[styles.groupChip,!category&&styles.groupSelected]}>
+            <Text style={styles.groupLabel}>Tous</Text>
+          </Pressable>
+          {UNICODE_EMOJI_GROUPS.map(group=><Pressable key={group}
+            onPress={()=>setCategory(group)} accessibilityRole="button"
+            accessibilityState={{selected:category===group}}
+            style={[styles.groupChip,category===group&&styles.groupSelected]}>
+            <Text style={styles.groupLabel}>{group}</Text>
+          </Pressable>)}
+        </ScrollView>
         {!search&&category===null&&favorites.length>0?<View style={styles.section}>
           <Text style={styles.sectionTitle}>Favoris</Text>
           <View style={styles.grid}>{favorites.slice(0,12).map((glyph,i)=>
@@ -271,12 +293,19 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         </View>:null}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{category||'Expressions et emojis animés'}</Text>
-          <View style={styles.grid}>{emojiResults.map((glyph,i)=>
-            <Pressable key={glyph+i} style={[styles.emojiTile,{width:(screenWidth-28)/numberOfColumns}]}
-              accessibilityRole="button" accessibilityLabel={`Insérer ${glyph}`}
-              onPress={()=>chooseEmoji(glyph)} onLongPress={()=>toggleFavorite(glyph)}>
-              <AnimatedEmoji glyph={glyph} size={34} autoPlay={false}/>
+          <View style={styles.grid}>{emojiResults.slice(0,emojiPageSize).map((item,i)=>
+            <Pressable key={item.glyph+i} style={[styles.emojiTile,{width:(screenWidth-28)/numberOfColumns}]}
+              accessibilityRole="button" accessibilityLabel={`Insérer ${item.name}`}
+              onPress={()=>chooseEmoji(item.glyph)} onLongPress={()=>toggleFavorite(item.glyph)}>
+              <Text style={{fontSize:32,color:textColor}}>{item.glyph}</Text>
             </Pressable>)}</View>
+          {emojiResults.length>emojiPageSize?<Pressable accessibilityRole="button"
+            onPress={()=>setEmojiPageSize(old=>old+112)}
+            style={[styles.importGif,{borderColor:activeColor}]}>
+            <Text style={{fontWeight:'700',color:activeColor}}>
+              Afficher la suite · {Math.min(emojiPageSize,emojiResults.length)}/{emojiResults.length}
+            </Text>
+          </Pressable>:null}
         </View>
       </>:tab==='stickers'?<>
         {savedStickers.length>0?<View style={styles.section}>
@@ -351,6 +380,10 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
 
 const styles=StyleSheet.create({
   root:{width:'100%',overflow:'hidden',borderTopLeftRadius:23,borderTopRightRadius:23},
+  groupChip:{paddingHorizontal:12,minHeight:34,backgroundColor:'#33384b',borderRadius:18,
+    justifyContent:'center',alignItems:'center'},
+  groupSelected:{backgroundColor:'#57648a'},
+  groupLabel:{color:'#e4e7f1',fontWeight:'700',fontSize:12},
   grabArea:{height:24,alignItems:'center',justifyContent:'center'},
   grab:{width:38,height:4,borderRadius:3,backgroundColor:'#596073'},
   packStrip:{maxHeight:58,flexGrow:0},
