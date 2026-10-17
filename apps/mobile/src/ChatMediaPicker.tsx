@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import * as FileSystem from 'expo-file-system';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
@@ -28,9 +28,9 @@ function detectKind(mime: string, preferSticker: boolean): MediaKind {
   return 'DOCUMENT';
 }
 
-export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot}:{
+export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot,gifGalleryRequest=0}:{
   conversationId:string;onSent:(message:T)=>void;showVoice?:boolean;
-  referenceChat?:boolean;inputSlot?:ReactNode;
+  referenceChat?:boolean;inputSlot?:ReactNode;gifGalleryRequest?:number;
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
@@ -41,6 +41,10 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
   const [notice,setNotice] = useState('');
   const [progress,setProgress] = useState('');
   const [preferSticker,setPreferSticker] = useState(false);
+  useEffect(()=>{
+    // Only user-triggered requests open the native picker, never the initial render.
+    if(gifGalleryRequest>0&&!busy)setGalleryVisible(true);
+  },[gifGalleryRequest]);
 
   async function uploadOne(file: SelectedKnowMeFile): Promise<T> {
     const mime = file.mime.toLowerCase();
