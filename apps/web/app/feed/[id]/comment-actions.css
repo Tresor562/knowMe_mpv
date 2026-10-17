@@ -112,3 +112,66 @@
 }
 .km-comment-edit-actions button[type="submit"] {background:var(--mint);color:var(--on-primary);font-weight:700;}
 .km-comment-edit-actions button:disabled {opacity:.5;cursor:wait;}
+
+/* Threaded replies use subtle connectors, compact bubbles and readable spacing. */
+.km-comment-thread {
+  min-width: 0;
+}
+.km-comment-thread-children {
+  border-left: 2px solid var(--soft-border);
+  margin-left: 18px;
+  padding-left: 6px;
+}
+.km-post-comment--reply {
+  position: relative;
+}
+.km-post-comment--reply::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 24px;
+  width: 12px;
+  height: 10px;
+  border-left: 2px solid var(--soft-border);
+  border-bottom: 2px solid var(--soft-border);
+  border-bottom-left-radius: 9px;
+  pointer-events: none;
+}
+.km-comment-thread-toggle {
+  display: inline-block;
+  min-height: 38px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--mint);
+  font-size: 12px;
+  font-weight: 680;
+  text-align: left;
+  cursor: pointer;
+}
+.km-comment-thread-toggle:is(:hover,:focus-visible) {
+  background: var(--surface-2);
+}
+.km-comment-reply-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--mint);
+  background: var(--surface-2);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.km-comment-reply-indicator strong { color: var(--text); }
+.km-comment-reply-indicator button {
+  border: 0;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: 23px;
+}
