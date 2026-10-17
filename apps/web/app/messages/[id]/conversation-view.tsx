@@ -117,6 +117,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
   const [searchOpen,setSearchOpen]=useState(false);
   const [searchTerm,setSearchTerm]=useState('');
   const [menuOpen,setMenuOpen]=useState(false);
+  const [expressionLayout,setExpressionLayout]=useState<'closed'|'compact'|'expanded'>('closed');
   const [targetMessage,setTargetMessage]=useState('');
   const [shareNotice,setShareNotice]=useState('');
   const soughtCursors=useRef<Set<string>>(new Set());
@@ -415,7 +416,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
 
   const ScreenTag = embedded ? 'section' : 'main';
   return(
-    <ScreenTag className={`${embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'} ${referenceStyles.chat}`} aria-label={en?'Conversation':'Discussion'}>
+    <ScreenTag className={`${embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'} ${referenceStyles.chat} ${expressionLayout==='compact'?referenceStyles.panelCompact:expressionLayout==='expanded'?referenceStyles.panelExpanded:''}`} aria-label={en?'Conversation':'Discussion'}>
       <header className="km-chat-header">
         {embedded&&onClose
           ? <button type="button" onClick={onClose} className="km-action km-chat-back" aria-label={en?'Close conversation':'Fermer la discussion'}>
@@ -450,13 +451,13 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
           </p>
         </Link>
         <button className="km-action km-reference-call-action" type="button" aria-label={en?'Video call':'Appel vidéo'}
-          onClick={()=>knowMeToast(en?'Video calls are not available in this version.':'Les appels vidéo ne sont pas encore disponibles sur cette version.')}>
+          onClick={()=>{window.location.assign(`/calls?peer=${encodeURIComponent(peer?.id??'')}&media=video`);}}>
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden="true">
             <rect x="2.5" y="4.8" width="15.2" height="14.3" rx="2.2"/><path d="m17.7 9 4-2v10l-4-2"/>
           </svg>
         </button>
         <button className="km-action km-reference-call-action" type="button" aria-label={en?'Voice call':'Appel vocal'}
-          onClick={()=>knowMeToast(en?'Voice calls are not available in this version.':'Les appels vocaux ne sont pas encore disponibles sur cette version.')}>
+          onClick={()=>{window.location.assign(`/calls?peer=${encodeURIComponent(peer?.id??'')}&media=audio`);}}>
           <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
             <path d="m4.6 3 4.5 1.5L9.7 9l-2.4 1.8a18 18 0 0 0 5.9 5.9l1.8-2.4 4.5.6L21 19.4c.2 1.1-.7 2-1.8 1.8A19 19 0 0 1 2.8 4.8c-.2-1.1.7-2 1.8-1.8Z"/>
           </svg>
@@ -528,7 +529,8 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
       </section>
       <form className="km-chat-composer" onSubmit={send}>
         <StickerPicker<Message> conversationId={conversationId} onSent={acceptSent}
-          referenceChat onInsertEmoji={emoji=>changeDraft(draft+emoji)}
+          referenceChat draftHasText={Boolean(draft.trim())} onPanelChange={setExpressionLayout}
+          onInsertEmoji={emoji=>changeDraft(draft+emoji)}
           inputSlot={<input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)}
             onBlur={stopTyping} maxLength={2000} placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):'Message'}
             autoComplete="off" aria-label={en?'Your message':'Votre message'}/>}
