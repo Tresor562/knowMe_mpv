@@ -1,0 +1,121 @@
+/* KnowMe story rail: one portrait preview card per author.
+   This component intentionally uses new selectors so other avatar/story rings
+   retain their current geometry until the shared avatar migration. */
+.km-story-card-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 9px;
+  padding: 3px 2px 11px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+.km-story-card {
+  position: relative;
+  flex: 0 0 122px;
+  width: 122px;
+  height: 194px;
+  isolation: isolate;
+  overflow: hidden;
+  scroll-snap-align: start;
+  border-radius: 17px;
+  background: var(--surface-2);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--soft-border);
+}
+.km-story-card-cover {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(145deg, var(--surface-2), var(--bg));
+}
+.km-story-card-cover > img,
+.km-story-card-cover > span,
+.km-story-card-cover > div,
+.km-story-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.km-story-card-open {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 9px;
+  gap: 6px;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(180deg, rgba(0,0,0,.08) 15%, transparent 28%, rgba(0,0,0,.74) 100%);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.km-story-card-open:focus-visible {
+  outline: 3px solid var(--mint);
+  outline-offset: -3px;
+  border-radius: inherit;
+}
+.km-story-card-open:active { background-color: rgba(0,0,0,.17); }
+.km-story-card-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-height: 2.4em;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 4px rgba(0,0,0,.75);
+}
+.km-story-card-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: var(--mint);
+  color: var(--on-primary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+}
+.km-story-card-add {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mint);
+  border: 2px solid var(--bg);
+  color: var(--on-primary);
+  font-size: 23px;
+  line-height: 1;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 150ms ease, filter 150ms ease;
+}
+.km-story-card-add:active { transform: scale(.92); }
+.km-story-card-add:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.km-story-card-loading {
+  background: linear-gradient(110deg,var(--surface-2) 20%,var(--soft-border) 50%,var(--surface-2) 80%);
+  background-size: 220% 100%;
+  animation: km-story-card-shimmer 1.25s linear infinite;
+}
+@keyframes km-story-card-shimmer { to { background-position-x: -220%; } }
+@media (max-width: 380px) {
+  .km-story-card { flex-basis: 112px; width: 112px; height: 183px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-story-card-loading { animation: none; }
+  .km-story-card-add { transition: none; }
+}
+:root[data-animations='false'] .km-story-card-loading { animation: none; }
+:root[data-animations='false'] .km-story-card-add { transition: none; }
