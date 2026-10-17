@@ -316,6 +316,15 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     });
   }
 
+  // Invalidate data only. Clients must refetch server-authoritative badges and flags.
+  emitRuntimeExperienceChanged(payload: { revision: number }) {
+    if (this.server) this.server.emit('runtime-experience:changed', payload);
+  }
+
+  emitRuntimeBadgeChanged(userId: string) {
+    if (this.server) this.server.emit('runtime-badge:changed', { userId });
+  }
+
   // Public release metadata only. Clients still fetch the trusted update feed
   // and verify APK hash/package before Android can request installation.
   emitAndroidUpdateAvailable(release: { versionCode: number; version: string }) {
