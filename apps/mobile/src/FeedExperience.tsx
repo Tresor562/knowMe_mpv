@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   FlatList,
   Image, type ImageStyle,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -23,6 +24,7 @@ import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
+import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PublicPostVideo} from './PublicPostVideo';
@@ -511,6 +513,7 @@ export function FeedExperience({
   topNavigation?: ReactNode;
 }) {
   const { colors } = useAppearance();
+  const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [composerOpen,setComposerOpen] = useState(false);
@@ -669,6 +672,15 @@ export function FeedExperience({
             </View>
             {topNavigation}
           </GlassSurface>
+          {runtimeModules.map(module => (
+            <Pressable key={module.key} accessibilityRole={module.href?'link':'text'}
+              disabled={!module.href} onPress={() => {
+                if (module.href) void Linking.openURL('https://knowme-nextech.vercel.app'+module.href);
+              }} style={{padding:12,marginTop:8,borderRadius:16,
+                backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border}}>
+              <Text style={{color:colors.text,fontWeight:'700'}}>{module.title}{module.href ? ' →' : ''}</Text>
+            </Pressable>
+          ))}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Créer une publication"
