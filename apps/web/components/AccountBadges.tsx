@@ -47,7 +47,7 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
       {verification && <span className="km-account-verification" title={verification.label}
         aria-label={verification.label}>
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" fill="#4a9fea"/>
+          <path d={GOLD_SEAL_PATH} fill="#258CEB" stroke="#1467BA" strokeWidth=".36" strokeLinejoin="round" />
           <path d="m7.4 12 3.2 3.2 6-6" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </span>}
