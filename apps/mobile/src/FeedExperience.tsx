@@ -185,6 +185,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const discussionScroll = useRef<ScrollView>(null);
+  const commentsStart = useRef(0);
   const soughtCommentCursors = useRef(new Set<string>());
 
   const load = useCallback(async () => {
@@ -259,7 +260,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         body: JSON.stringify({ content })
       });
       setCommentText('');
-      setComments((current) => [...current, created]);
+      setComments((current) => [created, ...current.filter(item => item.id !== created.id)]);
+      discussionScroll.current?.scrollTo({ y: Math.max(0, commentsStart.current - 12), animated: true });
       setPost((current) => current ? {
         ...current,
         _count: { ...current._count, comments: current._count.comments + 1 }
@@ -383,7 +385,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </View>
       </View>
 
-      <View style={styles.commentsHeadingRow}>
+      <View style={styles.commentsHeadingRow} onLayout={event => { commentsStart.current = event.nativeEvent.layout.y; }}>
         <Text style={[styles.commentsHeading, { color: colors.text }]}>Commentaires · {post._count.comments}</Text>
       </View>
       {comments.map((comment) => {
