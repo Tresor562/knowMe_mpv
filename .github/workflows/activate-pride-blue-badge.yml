@@ -1,0 +1,61 @@
+name: Activate KnowMe blue badge for pride (one time)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/activate-pride-blue-badge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowme-pride-blue-badge-once
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    name: Certify the existing pride account in KnowMe production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      VPS_HOST: ${{ secrets.KNOWME_VPS_HOST }}
+      VPS_USER: ${{ secrets.KNOWME_VPS_SSH_USER }}
+      VPS_KEY: ${{ secrets.KNOWME_VPS_SSH_PRIVATE_KEY }}
+      VPS_HOST_KEY: ${{ secrets.KNOWME_VPS_HOST_KEY }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate approved production target and script
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          [[ "$GITHUB_REF" = 'refs/heads/main' ]]
+          node --check ops/activate-pride-blue-badge.cjs
+          if [[ -z "$VPS_HOST" || -z "$VPS_USER" || -z "$VPS_KEY" || -z "$VPS_HOST_KEY" ]]; then
+            echo "::error::Required VPS SSH credentials are not configured; certification not performed."
+            exit 1
+          fi
+
+      - name: Execute and verify database-scoped certification in production
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$RUNNER_TEMP/knowme-ssh"
+          printf '%s\n' "$VPS_KEY" > "$RUNNER_TEMP/knowme-ssh/id"
+          printf '%s\n' "$VPS_HOST_KEY" > "$RUNNER_TEMP/knowme-ssh/known_hosts"
+          chmod 0600 "$RUNNER_TEMP/knowme-ssh/id" "$RUNNER_TEMP/knowme-ssh/known_hosts"
+          SSH=(ssh -i "$RUNNER_TEMP/knowme-ssh/id"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts"
+            -o ConnectTimeout=12)
+          TARGET="$VPS_USER@$VPS_HOST"
+          "${SSH[@]}" "$TARGET" 'docker inspect -f "{{.State.Running}}" knowme-api | grep -Fx true'
+          "${SSH[@]}" "$TARGET" 'docker exec -i -w /app/apps/api knowme-api node -' \
+            < ops/activate-pride-blue-badge.cjs
+          echo "Database operation and post-write badge check executed; see job logs for ACTIVATED or ALREADY_CERTIFIED." >> "$GITHUB_STEP_SUMMARY"
