@@ -3,11 +3,6 @@ name: KnowMe APK Build Once
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/knowme-apk-build-once.yml'
-      - 'apps/mobile/**'
-      - 'packages/i18n-contract/**'
-      - 'packages/ui/**'
   pull_request:
     paths:
       - '.github/workflows/knowme-apk-build-once.yml'
@@ -18,6 +13,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: knowme-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android-apk:
@@ -43,6 +42,15 @@ jobs:
         shell: bash
         run: printf '%s\n' 'shamefully-hoist=true' > .npmrc
 
+      - name: Validate automatic Android versioning
+        run: node --test scripts/prepare-android-auto-version.test.mjs
+
+      - name: Stamp a new update version for this CI run
+        if: github.event_name != 'pull_request'
+        env:
+          KNOWME_BUILD_SEQUENCE: ${{ github.run_number }}
+        run: node scripts/prepare-android-auto-version.mjs "$KNOWME_BUILD_SEQUENCE"
+
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
@@ -65,6 +73,9 @@ jobs:
           APK="KnowMe-${VERSION}-preview.apk"
           cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "artifacts/$APK"
           (cd artifacts && sha256sum "$APK" > "$APK.sha256")
+          if [[ -f .knowme-android-release.json ]]; then
+            cp .knowme-android-release.json artifacts/release-source.json
+          fi
           ls -lh "artifacts/$APK"
 
       - name: Upload APK artifact
@@ -74,5 +85,6 @@ jobs:
           path: |
             artifacts/KnowMe-*-preview.apk
             artifacts/KnowMe-*-preview.apk.sha256
+            artifacts/release-source.json
           if-no-files-found: error
           retention-days: 7
