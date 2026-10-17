@@ -14,6 +14,7 @@ import { GuestQuickMathExperience } from './GuestQuickMathExperience';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
 import { MobileUpdateNotice } from './updates/MobileUpdateNotice';
+import { RuntimeExperienceProvider } from './RuntimeExperienceProvider';
 import {
   MobileEntryMode,
   reconcileMobileEntrySession,
@@ -185,8 +186,10 @@ function EntryContent() {
 export function MobileEntryExperience() {
   return (
     <AppearanceProvider>
-      <EntryContent />
-      <MobileUpdateNotice />
+      <RuntimeExperienceProvider>
+        <EntryContent />
+        <MobileUpdateNotice />
+      </RuntimeExperienceProvider>
     </AppearanceProvider>
   );
 }
