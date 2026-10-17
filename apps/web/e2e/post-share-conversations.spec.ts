@@ -40,7 +40,7 @@ test('sharing a post into a selected group sends a real message only after confi
   await sheet.getByRole('button',{name:'Messages et groupes'}).click();
   const picker=sheet.getByRole('region',{name:'Choisir une conversation'});
   await expect(picker.getByText('Nexus Team')).toBeVisible();
-  await picker.getByLabel('Rechercher des conversations').fill('Nexus');
+  await picker.getByRole('textbox',{name:'Rechercher une conversation ou un groupe'}).fill('Nexus');
   await expect(picker.getByText('Moi et une amie')).toHaveCount(0);
   await picker.getByRole('radio',{name:/Nexus Team/}).check();
   await expect(messages).toHaveLength(0);
