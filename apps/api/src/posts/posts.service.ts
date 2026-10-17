@@ -9,16 +9,26 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { staffAccountSelect, toStaffBadge, type StaffProfileRecord } from '../staff/staff-profile';
+import { verificationRequestSelect, toVerificationBadge, type VerificationProfileRecord } from '../verification/verification-profile';
 
 const publicAuthorSelect = {
   id:true, username:true, displayName:true, avatarUrl:true,
-  email:true, staffAccount:{select:staffAccountSelect}
+  email:true, staffAccount:{select:staffAccountSelect},
+  verificationRequests:verificationRequestSelect
 } as const;
 
-/** Certified identity is resolved by the server; private email never reaches the feed. */
-function publicAuthor<T extends {email:string|null;staffAccount:StaffProfileRecord}>(author:T) {
-  const {email,staffAccount,...profile}=author;
-  return {...profile,staff:toStaffBadge(staffAccount,email)};
+/** Show current verified status on posts/comments, without leaking email or verification history. */
+function publicAuthor<T extends {
+  email:string|null;
+  staffAccount:StaffProfileRecord;
+  verificationRequests:VerificationProfileRecord;
+}>(author:T) {
+  const {email,staffAccount,verificationRequests,...profile}=author;
+  return {
+    ...profile,
+    staff:toStaffBadge(staffAccount,email),
+    verification:toVerificationBadge(verificationRequests,new Date())
+  };
 }
 
 
