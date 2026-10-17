@@ -369,7 +369,23 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </View>
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
-        {post.imageUrl ? <Image source={{ uri: resolvePostImage(post.imageUrl) }} style={styles.postImage as ImageStyle} resizeMode="cover"/> : null}
+        {post.media?.length ? <View style={{flexDirection:'row',flexWrap:'wrap',gap:3}}>
+          {post.media.slice(0,5).map((medium,index)=><View key={medium.url}
+            style={{width:post.media!.length===1?'100%':index<2?'49%':'32%',
+              height:post.media!.length===1?290:index<2?205:127,
+              backgroundColor:colors.surface,overflow:'hidden',position:'relative',borderRadius:3}}>
+            {medium.mimeType.startsWith('image/')?
+              <Image source={{uri:resolvePostImage(medium.url)}} style={{width:'100%',height:'100%'}}
+                resizeMode="cover"/>:<PublicPostVideo url={medium.url}/>}
+            {index===4&&post.media!.length>5?<View
+              style={{position:'absolute',top:0,bottom:0,left:0,right:0,
+                backgroundColor:'#000a',justifyContent:'center',alignItems:'center'}}>
+              <Text style={{color:'#fff',fontSize:29,fontWeight:'800'}}>+{post.media!.length-5}</Text>
+            </View>:null}
+          </View>)}
+        </View>:post.imageUrl?
+          <Image source={{uri:resolvePostImage(post.imageUrl)}} style={styles.postImage as ImageStyle}
+            resizeMode="cover"/>:null}
         <View style={styles.discussionMetrics}>
           <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
             style={styles.metricInline}>
