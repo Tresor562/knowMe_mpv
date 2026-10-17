@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
+import { PostShareSheet } from '../../components/post-share-sheet';
+import '../../components/post-share-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
@@ -54,6 +56,7 @@ export default function FeedPage() {
   const [publishMessage, setPublishMessage] = useState('');
   const publishInFlight = useRef(false);
   const [shareNotice, setShareNotice] = useState('');
+  const [sharingPost, setSharingPost] = useState<Post | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [composeOpen,setComposeOpen] = useState(false);
   const [draftContent,setDraftContent] = useState('');
@@ -281,21 +284,8 @@ export default function FeedPage() {
     }
   }
 
-  async function sharePost(post: Post) {
-    const url = `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `${post.author.displayName} · KnowMe`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareNotice(en ? 'Link copied.' : 'Lien copié.');
-      }
-    } catch (cause) {
-      // Closing the share sheet is not an error in the feed.
-      if ((cause as Error)?.name !== 'AbortError') {
-        setShareNotice(en ? 'Sharing unavailable on this device.' : 'Partage indisponible sur cet appareil.');
-      }
-    }
+  function sharePost(post: Post) {
+    setSharingPost(post);
   }
 
   if (sessionLoading || !user) return <main className="shell"><p>Chargement du fil...</p></main>;
@@ -459,6 +449,12 @@ export default function FeedPage() {
         ))}
       </section>
 
+      {sharingPost && <PostShareSheet post={sharingPost} en={en}
+        onClose={() => setSharingPost(null)}
+        onPublished={() => {
+          setShareNotice(en ? 'Shared on KnowMe.' : 'Partagé sur KnowMe.');
+          void loadFeed();
+        }}/>}
       {deletePending && <div className="km-post-delete-overlay" role="presentation"
         onMouseDown={event=>{if(event.target===event.currentTarget)setDeletePending(null);}}>
         <section role="alertdialog" aria-modal="true" className="km-post-delete-dialog"
