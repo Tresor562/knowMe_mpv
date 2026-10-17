@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { staffAccountSelect, toStaffBadge, type StaffProfileRecord } from '../staff/staff-profile';
+import { verificationRequestSelect, toVerificationBadge, type VerificationProfileRecord } from '../verification/verification-profile';
 import {
   StickerPresentation,
   StickerTokenService
@@ -13,12 +14,20 @@ import {
 
 const publicSenderSelect = {
   id:true, username:true, displayName:true, avatarUrl:true,
-  email:true, staffAccount:{select:staffAccountSelect}
+  email:true, staffAccount:{select:staffAccountSelect},
+  verificationRequests:verificationRequestSelect
 } as const;
 
-function toPublicSender<T extends {email?:string|null;staffAccount?:StaffProfileRecord}>(user:T) {
-  const {email,staffAccount,...profile}=user;
-  return {...profile,staff:toStaffBadge(staffAccount??null,email)};
+function toPublicSender<T extends {
+  email?:string|null;staffAccount?:StaffProfileRecord;
+  verificationRequests?:VerificationProfileRecord
+}>(user:T) {
+  const {email,staffAccount,verificationRequests,...profile}=user;
+  return {
+    ...profile,
+    staff:toStaffBadge(staffAccount??null,email),
+    verification:toVerificationBadge(verificationRequests??[],new Date())
+  };
 }
 
 
@@ -433,7 +442,7 @@ export class MessagingService {
       (message.content === 'DOCUMENT' && asset.detectedMime === 'application/pdf')
     ) ? { kind: message.content as 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT',
       assetId: asset.id, mimeType: asset.detectedMime, fileName: asset.originalName, sizeBytes: asset.size } : null;
-    const sender = (message as T & {sender?:{email?:string|null;staffAccount?:StaffProfileRecord}}).sender;
+    const sender = (message as T & {sender?:{email?:string|null;staffAccount?:StaffProfileRecord;verificationRequests?:VerificationProfileRecord}}).sender;
     return {
       ...message,
       ...(sender ? {sender:toPublicSender(sender)} : {}),
