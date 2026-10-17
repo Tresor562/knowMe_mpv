@@ -77,7 +77,7 @@ export function StoriesRail({
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
   const [storyType, setStoryType] = useState<'TEXT'|'PHOTO'|'VIDEO'>('TEXT');
-  const [storyMedia, setStoryMedia] = useState<SelectedAndroidMedia|null>(null);
+  const [storyMedia, setStoryMedia] = useState<SelectedAndroidMedia[]>([]);
   const [pickerVisible,setPickerVisible] = useState(false);
   const [selectedPhotoUri,setSelectedPhotoUri] = useState<string|null>(null);
   const [selectedVideoUri,setSelectedVideoUri] = useState<string|null>(null);
@@ -182,59 +182,54 @@ export function StoriesRail({
   }
 
   async function createStory() {
-    const value = caption.trim();
-    if (publishing || (storyType==='TEXT'&&!value) || (storyType!=='TEXT'&&!storyMedia)) return;
-    let publishedId: string | null = null;
+    const value=caption.trim();
+    if(publishing||(storyType==='TEXT'&&!value)||(storyType!=='TEXT'&&!storyMedia.length))return;
+    if(storyMedia.length>10){
+      Alert.alert('Trop de stories','Sélectionne jusqu’à 10 médias par envoi.');
+      return;
+    }
     setPublishing(true);
+    let publishedId:string|null=null;
     try {
-      const assetId=storyType!=='TEXT'&&storyMedia
-        ? await uploadKnowMeMobileMedia(storyMedia,'STORY') : undefined;
-      const story = await apiFetch<StoryCreateResult>('/stories', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: storyType,
-          audience,
-          caption: value||undefined,
-          assetId,
-          durationHours: 24,
-          allowReplies: true,
-          allowReactions: true,
-          allowSharing: true,
-          background: storyType==='TEXT' ? {
-            preset: 'knowme-gradient',
-            alignment: 'center'
-          } : undefined
-        })
-      });
-      publishedId = story.id;
+      const shared={audience,caption:value||undefined,durationHours:24,
+        allowReplies:true,allowReactions:true,allowSharing:true};
+      if(storyType==='TEXT'){
+        const story=await apiFetch<StoryCreateResult>('/stories',{
+          method:'POST',body:JSON.stringify({...shared,type:'TEXT',
+            background:{preset:'knowme-gradient',alignment:'center'}})
+        });
+        publishedId=story.id;
+      }else{
+        const payload=[];
+        // Keep media validation and error reporting on a per-file basis.
+        // Publish only after every media transfer has passed inspection.
+        for(const media of storyMedia){
+          const type=media.mime.startsWith('video/')?'VIDEO':'PHOTO';
+          const assetId=await uploadKnowMeMobileMedia(media,'STORY');
+          payload.push({...shared,type,assetId});
+        }
+        const batch=await apiFetch<{stories:StoryCreateResult[]}>('/stories/batch',{
+          method:'POST',body:JSON.stringify({stories:payload})
+        });
+        publishedId=batch.stories[0]?.id??null;
+      }
       setCaption('');
-      setStoryMedia(null);
+      setStoryMedia([]);
       setStoryType('TEXT');
       setCreateOpen(false);
-    } catch (cause) {
-      const error = cause as { code?: string; message?: string };
-      const uncertain = error?.code === 'KNOWME_TIMEOUT' ||
-        error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
-      Alert.alert(
-        uncertain ? 'Publication non confirmée' : 'Story impossible',
-        uncertain
-          ? 'Vérifie tes stories avant de réessayer pour éviter un doublon.'
-          : cause instanceof Error ? cause.message : 'Réessaie.'
-      );
-    } finally {
-      setPublishing(false);
-    }
-
-    if (!publishedId) return;
-    // A successful POST is definitive. Failure to refresh the rail or detail
-    // must never turn it into a false "Story impossible" / duplicate retry.
+    }catch(cause){
+      const error=cause as {code?:string;message?:string};
+      const uncertain=error?.code==='KNOWME_TIMEOUT'||error?.code==='KNOWME_NETWORK_UNAVAILABLE';
+      Alert.alert(uncertain?'Publication non confirmée':'Story impossible',
+        uncertain?'Vérifie tes stories avant de réessayer pour éviter un doublon.'
+          :cause instanceof Error?cause.message:'Réessaie.');
+    }finally{setPublishing(false);}
+    if(!publishedId)return;
     await load();
-    try {
-      const fresh = await apiFetch<Story>('/stories/' + publishedId);
+    try{
+      const fresh=await apiFetch<Story>('/stories/'+publishedId);
       setSelected(fresh);
-    } catch {
-      // Story is already published. It will be visible after the next refresh.
-    }
+    }catch{/* Already published; refresh may be temporarily unavailable. */}
   }
 
   return (
@@ -509,7 +504,7 @@ export function StoriesRail({
                 {(['TEXT','PHOTO','VIDEO'] as const).map(type=><Pressable key={type}
                   accessibilityRole="button" style={{flex:1,minHeight:44,borderRadius:14,justifyContent:'center',alignItems:'center',
                     backgroundColor:storyType===type?colors.accent:colors.backgroundAccent}}
-                  onPress={()=>{setStoryType(type);setStoryMedia(null);}}>
+                  onPress={()=>{setStoryType(type);setStoryMedia([]);}}>
                   <Text style={{color:storyType===type?colors.accentText:colors.text,fontWeight:'700'}}>
                     {type==='TEXT'?'Texte':type==='PHOTO'?'Photo':'Vidéo'}
                   </Text>
@@ -519,22 +514,22 @@ export function StoriesRail({
                 onPress={()=>setPickerVisible(true)}
                 style={{minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:14,
                   backgroundColor:colors.backgroundAccent,marginBottom:10}}>
-                <Text style={{color:colors.text}}>{storyMedia?storyMedia.name:
+                <Text style={{color:colors.text}}>{storyMedia.length?`${storyMedia.length} média(s) sélectionné(s)`:
                   storyType==='PHOTO'?'Galerie KnowMe · Photos':'Galerie KnowMe · Vidéos'}</Text>
               </Pressable>:null}
-              {storyMedia ? (
+              {storyMedia.length>0 ? (
                 <View style={styles.storyMediaPreview}>
-                  <Image source={{uri:storyMedia.uri}} style={styles.storyMediaThumb} resizeMode="cover" />
+                  <Image source={{uri:storyMedia[0]!.uri}} style={styles.storyMediaThumb} resizeMode="cover" />
                   <View style={{flex:1,gap:5}}>
                     <Text numberOfLines={1} style={{color:colors.text,fontSize:13,fontWeight:'800'}}>
-                      {storyMedia.name}
+                      {storyMedia.length===1?storyMedia[0]!.name:`${storyMedia.length} stories distinctes`}
                     </Text>
                     <Text style={{color:colors.muted,fontSize:11}}>
                       {storyType==='VIDEO'?'Vidéo sélectionnée':'Photo sélectionnée'}
                     </Text>
                   </View>
                   <PressScale accessibilityRole="button" accessibilityLabel="Retirer le média"
-                    disabled={publishing} onPress={()=>setStoryMedia(null)}
+                    disabled={publishing} onPress={()=>setStoryMedia([])}
                     style={[styles.storyRemove,{backgroundColor:colors.backgroundAccent}]}>
                     <KnowMeIcon name="close" size={16} color={colors.text}/>
                   </PressScale>
@@ -559,14 +554,13 @@ export function StoriesRail({
                   value={caption}
                   onChangeText={setCaption}
                   multiline
-                  maxLength={4000}
                   placeholder="Partage un moment, une pensée ou une idée…"
                   placeholderTextColor={colors.muted}
                   selectionColor={colors.accent}
                   style={[styles.captionInput, { color: colors.text }]}
                 />
                 <Text style={[styles.captionCounter, { color: colors.muted }]}>
-                  {caption.length}/4000
+                  {caption.length} caractères
                 </Text>
               </View>
 
@@ -609,7 +603,7 @@ export function StoriesRail({
               </View>
 
               <PressScale
-                disabled={publishing||(storyType==='TEXT'?!caption.trim():!storyMedia)}
+                disabled={publishing||(storyType==='TEXT'?!caption.trim():!storyMedia.length)}
                 onPress={() => void createStory()}
                 style={[
                   styles.publishButton,
@@ -635,13 +629,21 @@ export function StoriesRail({
         </View>
       </Modal>
       <AndroidMediaLibraryPicker visible={pickerVisible} purpose="story"
-        allowVideo={storyType==='VIDEO'} mediaFilter={storyType==='VIDEO' ? 'video' : 'photo'} lockFilter
+        multiple maxSelection={10}
+        allowVideo mediaFilter="all"
         onClose={()=>setPickerVisible(false)}
-        onPicked={media=>{
-          if(storyType==='VIDEO'&&media.mime!=='video/mp4')return;
-          if(storyType==='PHOTO'&&!media.mime.startsWith('image/'))return;
-          setStoryMedia(media);setPickerVisible(false);
+        onPickedMany={media=>{
+          if(media.length>10){
+            Alert.alert('Limite atteinte','10 médias maximum par série de stories.');
+            return;
+          }
+          setStoryMedia(media);
+          if(media.length){
+            setStoryType(media[0]!.mime.startsWith('video/')?'VIDEO':'PHOTO');
+          }
+          setPickerVisible(false);
         }}/>
+
     </>
   );
 }
