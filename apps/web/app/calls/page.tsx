@@ -72,6 +72,19 @@ export default function CallsPage() {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [targetUserId, setTargetUserId] = useState('');
   const [status, setStatus] = useState('Prêt');
+  const [linkedContact,setLinkedContact]=useState('');
+  useEffect(()=>{
+    // The chat phone action opens the existing verified WebRTC workflow.
+    const params=new URLSearchParams(window.location.search);
+    const target=params.get('peer');
+    if(target&&target.length<150&&/^[a-zA-Z0-9_-]+$/.test(target)){
+      setTargetUserId(target);
+      setLinkedContact(target);
+      setStatus(params.get('media')==='video'
+        ? 'Contact sélectionné · appuie sur Appel vidéo pour commencer.'
+        : 'Contact sélectionné · appuie sur Appel audio pour commencer.');
+    }
+  },[]);
   const [activeCallId, setActiveCallIdState] = useState<string | null>(null);
   const [incoming, setIncomingState] = useState<IncomingCall | null>(null);
   const [starting, setStarting] = useState(false);
@@ -411,6 +424,8 @@ export default function CallsPage() {
             onChange={(event) => setTargetUserId(event.target.value)}
           >
             <option value="">Sélectionne un ami</option>
+            {linkedContact&&!friends.some(({user})=>user.id===linkedContact)?
+              <option value={linkedContact}>Contact de cette discussion</option>:null}
             {friends.map(({ user }) => (
               <option key={user.id} value={user.id}>
                 {onlineUserIds.has(user.id) ? '●' : '○'} {user.displayName} (@{user.username})
