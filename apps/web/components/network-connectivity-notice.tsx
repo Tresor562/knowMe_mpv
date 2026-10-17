@@ -82,7 +82,7 @@ export function NetworkConnectivityNotice() {
           ? (en ? 'You appear to be offline' : 'Tu sembles hors connexion')
           : (en ? 'Network connection restored' : 'Connexion réseau rétablie')}</strong>
         <span>{offline
-          ? (en ? 'Only content saved on this device is available.' : 'Seuls les contenus enregistrés sur cet appareil restent accessibles.')
+          ? (en ? 'Some features require Internet. Previously available offline content may remain accessible.' : 'Certaines fonctions nécessitent Internet. Les contenus déjà disponibles hors ligne peuvent rester accessibles.')
           : (en ? 'KnowMe can reconnect to its services.' : 'KnowMe peut se reconnecter à ses services.')}</span>
       </span>
       <button type="button" className="km-network-notice-dismiss"
