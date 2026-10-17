@@ -1,13 +1,159 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Linking, Modal, Pressable, SafeAreaView, Share, StyleSheet, Text, View } from 'react-native';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { useAppearance } from './AppearanceProvider';
+import { getKnowMeVoicePlaybackStatus, playKnowMeVoice, seekKnowMeVoicePlayback, stopKnowMeVoicePlayback } from './native-voice';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import * as FileSystem from 'expo-file-system';
 import { API_URL, apiFetch, getAccessToken } from './api';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean }) {
+/** Private, authenticated inline player. Never exposes a temporary media grant in the UI. */
+function InlineVoiceAttachment({assetId, mimeType, avatarUrl}: {assetId:string;mimeType?:string;avatarUrl?:string|null}) {
+  const {colors}=useAppearance();
+  const [loading,setLoading]=useState(false);
+  const [playing,setPlaying]=useState(false);
+  const [duration,setDuration]=useState(0);
+  const [position,setPosition]=useState(0);
+  const [error,setError]=useState<string|null>(null);
+  const fileRef=useRef<string|null>(null);
+  const widthRef=useRef(1);
+  const busyRef=useRef(false);
+
+  useEffect(()=>{
+    if(!playing)return;
+    let live=true;
+    const interval=setInterval(()=>{
+      void (async ()=>{
+        try {
+          const status=await getKnowMeVoicePlaybackStatus();
+          if(!live||!status)return;
+          if(status.uri!==fileRef.current) {setPlaying(false);return;}
+          setDuration(status.durationMs);
+          setPosition(status.positionMs);
+          if(!status.playing)setPlaying(false);
+        } catch {if(live)setPlaying(false);}
+      })();
+    },250);
+    return()=>{live=false;clearInterval(interval);};
+  },[playing]);
+
+  useEffect(()=>()=>{
+    const uri=fileRef.current;
+    if(!uri)return;
+    void (async ()=>{
+      try {
+        const status=await getKnowMeVoicePlaybackStatus();
+        if(status?.uri===uri)await stopKnowMeVoicePlayback();
+      } catch {/* Old installed builds do not expose status. */}
+      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
+    })();
+  },[]);
+
+  async function togglePlayback() {
+    if(busyRef.current)return;
+    busyRef.current=true;
+    setError(null);
+    try {
+      if(playing) {
+        await stopKnowMeVoicePlayback();
+        setPlaying(false);
+        return;
+      }
+      let uri=fileRef.current;
+      if(!uri) {
+        setLoading(true);
+        const grant=await apiFetch<{path:string}>(`/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'});
+        const expected=`/media/${encodeURIComponent(assetId)}/content?token=`;
+        if(!grant.path.startsWith(expected))throw new Error('MEDIA_GRANT_PATH_INVALID');
+        const accessToken=await getAccessToken();
+        if(!accessToken||!FileSystem.cacheDirectory)throw new Error('SESSION_REQUIRED');
+        const suffix=mimeType==='audio/mpeg'?'.mp3':mimeType==='audio/wav'?'.wav':'.ogg';
+        const directory=`${FileSystem.cacheDirectory}knowme-voice/`;
+        await FileSystem.makeDirectoryAsync(directory,{intermediates:true});
+        const safeId=assetId.replace(/[^a-zA-Z0-9_-]/g,'');
+        const target=`${directory}attachment-${safeId}${suffix}`;
+        const downloaded=await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,{
+          headers:{Authorization:`Bearer ${accessToken}`}
+        });
+        if(downloaded.status!==200) {
+          await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>undefined);
+          throw new Error('AUDIO_DOWNLOAD_FAILED');
+        }
+        uri=downloaded.uri;
+        fileRef.current=uri;
+      }
+      await playKnowMeVoice(uri);
+      setPlaying(true);
+      const status=await getKnowMeVoicePlaybackStatus();
+      if(status){setDuration(status.durationMs);setPosition(status.positionMs);}
+    } catch {
+      setPlaying(false);
+      setError('Lecture impossible. Réessayer');
+    } finally {
+      busyRef.current=false;
+      setLoading(false);
+    }
+  }
+
+  async function seekAt(x:number) {
+    if(!fileRef.current||duration<=0)return;
+    try {
+      const next=Math.round(Math.max(0,Math.min(1,x/widthRef.current))*duration);
+      await seekKnowMeVoicePlayback(next);
+      setPosition(next);
+    } catch {setError('Avance rapide disponible après la mise à jour.');}
+  }
+  const time=(ms:number)=>{
+    const seconds=Math.max(0,Math.floor(ms/1000));
+    return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
+  };
+  const progress=duration>0?Math.max(0,Math.min(1,position/duration)):0;
+  return <View style={voiceStyles.root} accessibilityLabel="Message vocal KnowMe">
+    {avatarUrl?<Image source={{uri:avatarUrl}} style={voiceStyles.avatar}/>:(
+      <View style={[voiceStyles.avatar,voiceStyles.avatarFallback,{backgroundColor:colors.backgroundAccent}]}>
+        <KnowMeIcon name="microphone" color={colors.accent} size={19}/>
+      </View>
+    )}
+    <Pressable accessibilityRole="button" accessibilityLabel={playing?'Arrêter le vocal':'Écouter le vocal'}
+      disabled={loading} onPress={()=>void togglePlayback()} style={[voiceStyles.control,{backgroundColor:colors.backgroundAccent}]}>
+      <Text style={[voiceStyles.playIcon,{color:colors.text}]}>{loading?'…':playing?'Ⅱ':'▶'}</Text>
+    </Pressable>
+    <View style={voiceStyles.timeline}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Avancer dans le message vocal"
+        onLayout={event=>{widthRef.current=event.nativeEvent.layout.width;}}
+        onPress={event=>{void seekAt(event.nativeEvent.locationX);}}
+        style={voiceStyles.wave}>
+        {Array.from({length:32},(_,i)=>{
+          const amplitude=6+((i*17+assetId.charCodeAt(i%assetId.length||0))%20);
+          return <View key={i} style={[voiceStyles.bar,{
+            height:amplitude,
+            backgroundColor:i/32<=progress?colors.accentText:colors.muted,
+            opacity:i/32<=progress?1:0.62
+          }]}/>;
+        })}
+      </Pressable>
+      <Text style={[voiceStyles.duration,{color:colors.muted}]}>{time(position)}{duration>0?` / ${time(duration)}`:''}</Text>
+      {error?<Text style={[voiceStyles.error,{color:colors.danger}]}>{error}</Text>:null}
+    </View>
+  </View>;
+}
+
+const voiceStyles=StyleSheet.create({
+  root:{width:240,maxWidth:'100%',flexDirection:'row',alignItems:'center',gap:8,minHeight:62,paddingVertical:3},
+  avatar:{width:35,height:35,borderRadius:18},
+  avatarFallback:{alignItems:'center',justifyContent:'center'},
+  control:{width:37,height:37,borderRadius:19,alignItems:'center',justifyContent:'center'},
+  playIcon:{fontSize:18,fontWeight:'700'},
+  timeline:{flex:1,minWidth:0,justifyContent:'center',gap:4},
+  wave:{height:28,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:1},
+  bar:{width:2.5,borderRadius:4},
+  duration:{fontSize:11,fontWeight:'600'},
+  error:{fontSize:10}
+});
+
+export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false, avatarUrl }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean; avatarUrl?: string|null }) {
   const [opening,setOpening]=useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
   const [stickerExpanded,setStickerExpanded]=useState(false);
@@ -80,7 +226,9 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
     }finally{setOpening(false);}
   }
 
-  if (kind==='VIDEO'||kind==='AUDIO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
+  if(kind==='AUDIO')return <InlineVoiceAttachment assetId={assetId} mimeType={mimeType} avatarUrl={avatarUrl}/>;
+
+  if (kind==='VIDEO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
     <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':kind==='AUDIO'?'🎵':'📄'}</Text>
     <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Fichier audio':'Document PDF')}</Text>
     <Pressable accessibilityRole="button" onPress={()=>void openFile()} disabled={opening}
