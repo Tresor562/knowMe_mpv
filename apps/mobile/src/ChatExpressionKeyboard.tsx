@@ -21,6 +21,22 @@ type Props<T>={conversationId:string;tab:ExpressionTab;onChangeTab:(tab:Expressi
 
 const STORAGE_KEY='knowme.chat.expression.recents.v1';
 const GLYPHS=KNOWME_ANIMATED_EMOJIS.map(emoji=>emoji.glyph);
+
+const EMOJI_KEYWORDS:Record<string,string>={
+  '😀':'sourire smile joyeux happy','😂':'rire laugh drôle',
+  '😍':'amour love yeux coeur','🥰':'amour tendre love',
+  '😘':'bisou kiss','🥹':'émotion touché','🥺':'mignon supplie cute',
+  '😭':'triste pleure cry','😡':'colère rage angry',
+  '😎':'cool lunettes','🤔':'pensée réflexion think',
+  '😱':'surprise peur fear','🔥':'feu fire','✨':'brillant sparkles',
+  '⭐':'étoile star','🎉':'fête célébration party','👍':'bravo pouce like',
+  '👎':'pas bien dislike','👏':'applaudir clap',
+  '🙏':'merci thanks','❤️':'amour coeur heart love',
+  '💙':'bleu blue heart','💜':'violet purple heart',
+  '👋':'salut bonjour hello','🫶':'coeur mains heart hands',
+  '🎁':'cadeau gift','🚀':'fusée rocket','🌍':'terre monde earth'
+};
+
 const EMOJI_CATEGORIES=[
   {label:'❤️',name:'Amour',match:/[❤🧡💛💚💙💜💕💖💘😍🥰😘]/u},
   {label:'👍',name:'Gestes',match:/[👍👏🙏👋🤙👌✌🫶]/u},
@@ -125,7 +141,8 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     const selected=EMOJI_CATEGORIES.find(item=>item.name===category);
     if(selected)list=list.filter(glyph=>selected.match.test(glyph));
     const query=search.trim().toLocaleLowerCase();
-    return list.filter(glyph=>!query||glyph.includes(query));
+    return list.filter(glyph=>!query||glyph.includes(query)||
+      (EMOJI_KEYWORDS[glyph]??'').includes(query));
   },[category,favorites,recent,search]);
   const stickerResults=useMemo(()=>{
     const query=search.trim().toLocaleLowerCase();
