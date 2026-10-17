@@ -114,19 +114,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     </PressScale>
     <Modal visible={open} transparent animationType="fade" onRequestClose={()=>{void cancel();}}>
       <View style={styles.backdrop}>
-        <View style={[styles.sheet,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+        <View style={[styles.sheet,{backgroundColor:referenceChat?'#202c33':colors.surface,borderColor:referenceChat?'#35444b':colors.border}]}>
           <View style={styles.header}>
-            <Text style={[styles.heading,{color:colors.text}]}>Note vocale</Text>
+            <Text style={[styles.heading,{color:referenceChat?'#e9edef':colors.text}]}>Note vocale</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Annuler le vocal"
               disabled={phase==='sending'||phase==='stopping'} onPress={()=>{void cancel();}}
               style={styles.close}>
               <KnowMeIcon name="close" color={colors.text} size={23}/>
             </Pressable>
           </View>
-          <Text style={[styles.time,{color:colors.accent}]} accessibilityLiveRegion="polite">
+          <Text style={[styles.time,{color:referenceChat?'#53bdeb':colors.accent}]} accessibilityLiveRegion="polite">
             {phase==='recording'?'● ':''}{time}
           </Text>
-          <Text style={[styles.hint,{color:colors.muted}]}>
+          <Text style={[styles.hint,{color:referenceChat?'#aebac1':colors.muted}]}>
             {phase==='recording'?'Enregistrement en cours… Appuie sur Terminer pour le vérifier.'
              :phase==='preview'?'Note enregistrée. Tu peux l’écouter, l’envoyer ou l’annuler.'
              :phase==='sending'?'Envoi sécurisé…':'Préparation du microphone…'}
