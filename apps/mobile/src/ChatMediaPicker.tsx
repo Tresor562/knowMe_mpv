@@ -96,27 +96,33 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
   }
 
   async function sendFiles(files: SelectedKnowMeFile[] | SelectedAndroidMedia[]): Promise<boolean> {
-    if (busy || !files.length) return false;
-    setMenuVisible(false);
-    setGalleryVisible(false);
-    setBusy(true);
-    setNotice('');
-    try {
-      for (let index=0;index<files.length;index++) {
-        setProgress((index+1) + '/' + files.length);
-        const file = files[index];
-        if (!file) continue;
-        const message = await uploadOne(file);
-        onSent(message);
+    if(busy||!files.length)return false;
+    setMenuVisible(false);setGalleryVisible(false);setBusy(true);setNotice('');
+    let delivered=0;
+    const errors:string[]=[];
+    try{
+      // Bound active uploads to one at a time; do not load a potentially huge
+      // media selection into memory or fail the whole batch for one bad item.
+      for(let index=0;index<files.length;index++){
+        const file=files[index];
+        if(!file)continue;
+        setProgress(`${index+1}/${files.length} · ${delivered} envoyé(s)`);
+        try{
+          const message=await uploadOne(file);
+          onSent(message);
+          delivered++;
+        }catch(cause){
+          const reason=cause instanceof Error?cause.message:'Échec du transfert.';
+          errors.push(`${file.name}: ${reason}`);
+        }
       }
-      setProgress('');
-      return true;
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : 'Le transfert a échoué.');
-      Alert.alert(en ? 'Upload failed' : 'Envoi impossible',
-        cause instanceof Error ? cause.message : 'Réessaie.');
-      return false;
-    } finally {
+      if(errors.length){
+        const summary=`${delivered}/${files.length} envoyé(s). ${errors.length} échec(s).`;
+        setNotice(summary);
+        Alert.alert('Transfert partiel',summary+'\n'+errors.slice(0,3).join('\n'));
+      }
+      return delivered===files.length;
+    }finally{
       setBusy(false);
       setProgress('');
     }
