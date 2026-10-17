@@ -76,3 +76,39 @@
 @media(prefers-reduced-motion:reduce) {
   .km-comment-actions-sheet > button:active {transform:none;}
 }
+
+.km-comment-edit-sheet label {
+  display:block;
+  font-size:13px;
+  font-weight:650;
+  margin-top:5px;
+}
+.km-comment-edit-sheet textarea {
+  width:100%;
+  min-height:105px;
+  border:1px solid var(--soft-border);
+  border-radius:15px;
+  background:var(--surface-2);
+  color:var(--text);
+  padding:12px;
+  resize:vertical;
+  font:inherit;
+  font-size:15px;
+  line-height:1.4;
+}
+.km-comment-edit-sheet textarea:focus-visible {outline:2px solid var(--mint);outline-offset:1px;}
+.km-comment-edit-sheet small {align-self:flex-end;color:var(--muted);}
+.km-comment-edit-sheet [role="alert"] {color:var(--danger);font-size:13px;}
+.km-comment-edit-actions {display:flex;gap:9px;justify-content:flex-end;}
+.km-comment-edit-actions button {
+  min-height:44px;
+  border:0;
+  padding:9px 15px;
+  border-radius:13px;
+  background:var(--surface-2);
+  color:var(--text);
+  font:inherit;
+  cursor:pointer;
+}
+.km-comment-edit-actions button[type="submit"] {background:var(--mint);color:var(--on-primary);font-weight:700;}
+.km-comment-edit-actions button:disabled {opacity:.5;cursor:wait;}
