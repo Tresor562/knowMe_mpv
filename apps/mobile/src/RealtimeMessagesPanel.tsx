@@ -26,7 +26,7 @@ import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { KnowMeMentionText } from './KnowMeMentionText';
 import { getRealtimeSocket } from './realtime';
-import { ChatWallpaper, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 type UserSummary = {
   id: string;
@@ -160,7 +160,7 @@ export function RealtimeMessagesPanel({
   refreshing: boolean;
   setRefreshing: (value: boolean) => void;
 }) {
-  const { colors, visual, chat } = useAppearance();
+  const { colors, visual } = useAppearance();
   const openProfile = useProfileNavigation();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
