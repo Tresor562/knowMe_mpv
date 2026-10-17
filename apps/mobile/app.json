@@ -61,6 +61,15 @@
       "image": "./assets/branding/knowme-splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0D0825"
+    },
+    "runtimeVersion": "knowme-android-ota1",
+    "updates": {
+      "url": "https://31-56-85-53.sslip.io/knowme-api/mobile-updates/ota",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     }
   }
 }
