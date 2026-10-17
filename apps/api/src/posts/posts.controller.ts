@@ -49,8 +49,21 @@ export class PostsController {
   }
 
   @Get(':id/comments')
-  comments(@Param('id') id: string, @Query('cursor') cursor?: string) {
-    return this.posts.comments(id, cursor);
+  comments(
+    @Param('id') id: string,
+    @Query('cursor') cursor?: string,
+    @Query('roots') roots?: string
+  ) {
+    return this.posts.comments(id, cursor, roots === 'true');
+  }
+
+  @Get(':postId/comments/:commentId/replies')
+  commentReplies(
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Query('cursor') cursor?: string
+  ) {
+    return this.posts.commentReplies(postId, commentId, cursor);
   }
 
   @UseGuards(JwtAuthGuard)
