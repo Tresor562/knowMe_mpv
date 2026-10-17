@@ -1687,6 +1687,9 @@ body:has([aria-modal='true']) .km-smart-nav { opacity:0; visibility:hidden; poin
 .km-discover-person-info { min-width:0; flex:1 1 auto; display:grid; align-items:center; grid-template-columns:minmax(0,max-content) auto; column-gap:5px; }
 .km-discover-person-info strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
 .km-discover-person-info small { grid-column:1/-1; color:var(--muted); font-size:12px; }
+.km-discover-profile-link { color:var(--text); text-decoration:none; border-radius:12px; padding:3px 0; }
+.km-discover-profile-link:hover strong { color:var(--mint); }
+.km-discover-profile-link:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }
 .km-discover-person-actions { display:flex; gap:5px; flex-shrink:0; }
 .km-discover-links { display:grid; }
 .km-discover-links a { display:flex; justify-content:space-between; align-items:center; min-height:52px; border-bottom:1px solid var(--soft-border); font-size:14px; font-weight:600; }
