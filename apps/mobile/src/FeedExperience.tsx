@@ -2,7 +2,7 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
-  Image,
+  Image, type ImageStyle,
   Modal,
   Pressable,
   RefreshControl,
@@ -363,7 +363,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </View>
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
-        {post.imageUrl ? <Image source={{ uri: resolvePostImage(post.imageUrl) }} style={styles.postImage} resizeMode="cover"/> : null}
+        {post.imageUrl ? <Image source={{ uri: resolvePostImage(post.imageUrl) }} style={styles.postImage as ImageStyle} resizeMode="cover"/> : null}
         <View style={styles.discussionMetrics}>
           <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
             style={styles.metricInline}>
@@ -693,7 +693,7 @@ export function FeedExperience({
           {item.imageUrl ? (
             <Image
               source={{ uri: resolvePostImage(item.imageUrl) }}
-              style={styles.postImage}
+              style={styles.postImage as ImageStyle}
               resizeMode="cover"
             />
           ) : null}
