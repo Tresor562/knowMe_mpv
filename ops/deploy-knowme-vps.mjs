@@ -196,7 +196,24 @@ function startApi() {
   return previousImage;
 }
 
+// Checkout and validate the exact requested release before changing production config.
+ensureSource();
+const contract = JSON.parse(readFileSync(join(SOURCE, 'packages/link-contract/src/platform-sync.json'), 'utf8'));
+const releaseVersion = String(contract.productVersion || '');
+if (!/^\\d+\\.\\d+\\.\\d+$/.test(releaseVersion)) throw new Error('Invalid KnowMe release version.');
 const oldEnv = existsSync(ENV_FILE) ? parseEnv(readFileSync(ENV_FILE, 'utf8')) : {};
+const oldOrigins = (() => {
+  try {
+    const data = JSON.parse(oldEnv.CORS_ALLOWED_ORIGINS_JSON || '[]');
+    return Array.isArray(data) ? data.filter((x) => typeof x === 'string') : [];
+  } catch { return []; }
+})();
+const allowedOrigins = JSON.stringify([...new Set([
+  ...oldOrigins,
+  'https://knowme.31-56-85-53.sslip.io',
+  'https://knowme-nextech.vercel.app',
+  'https://knowmempv.vercel.app'
+])]);
 // Preserve a verified existing KnowMe storage connection. Older NexAI Mongo
 // configuration is only a bootstrap fallback, not an availability dependency.
 const currentToken = String(oldEnv.MEDIA_TELEGRAM_BOT_TOKEN || '').trim();
@@ -211,7 +228,7 @@ const env = {
   KNOWME_DB_PASSWORD: dbPassword,
   NODE_ENV: 'production',
   KNOWME_RELEASE_COMMIT: SHA,
-  KNOWME_RELEASE_VERSION: oldEnv.KNOWME_RELEASE_VERSION || '1.0.0-preview',
+  KNOWME_RELEASE_VERSION: releaseVersion,
   KNOWME_STARTUP_PHASE_DIAGNOSTIC: '1',
   KNOWME_ANDROID_UPDATES_DIR: '/srv/knowme-updates',
   KNOWME_ANDROID_UPDATE_BASE_URL: 'https://31-56-85-53.sslip.io/knowme-api',
@@ -221,8 +238,8 @@ const env = {
   JWT_SECRET: oldEnv.JWT_SECRET || randomHex(48),
   PORT: '4000',
   // Prefer the current KnowMe Web origin for reset links while preserving the legacy site for connected clients.
-  WEB_URL: 'https://knowme-nextech.vercel.app',
-  CORS_ALLOWED_ORIGINS_JSON: '["https://knowme-nextech.vercel.app","https://knowmempv.vercel.app"]',
+  WEB_URL: 'https://knowme.31-56-85-53.sslip.io',
+  CORS_ALLOWED_ORIGINS_JSON: allowedOrigins,
   TRUSTED_PROXY_HOPS: '1',
   API_INSTANCE_COUNT: '1',
   API_RATE_LIMIT_TTL_MS: '60000',
@@ -230,7 +247,7 @@ const env = {
   API_REQUEST_TIMEOUT_MS: '30000',
   API_HEADERS_TIMEOUT_MS: '15000',
   API_KEEP_ALIVE_TIMEOUT_MS: '5000',
-  MEDIA_STORAGE_DRIVER: 'telegram',
+  MEDIA_STORAGE_DRIVER: oldEnv.MEDIA_STORAGE_DRIVER || 'telegram',
   MEDIA_ACCOUNT_QUOTA_BYTES: '524288000',
   MEDIA_UPLOAD_MAX_BYTES: '20971520',
   // Scan uploads through the isolated, unexposed ClamAV sidecar on knowme-net.
@@ -260,7 +277,6 @@ const env = {
   MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS: oldEnv.MEDIA_PURGE_ALERT_WEBHOOK_TIMEOUT_MS || '2000'
 };
 writeEnv(env);
-ensureSource();
 buildImage();
 ensureDatabase(env);
 migrate();
