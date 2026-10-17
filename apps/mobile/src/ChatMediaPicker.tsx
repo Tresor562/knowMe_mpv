@@ -212,7 +212,7 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
       purpose="message"
       multiple
       allowVideo
-      maxSelection={10}
+      maxSelection={Infinity}
       onPickedMany={files=>{void sendFiles(files);}}
       onClose={()=>setGalleryVisible(false)}
     />
