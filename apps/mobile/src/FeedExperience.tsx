@@ -132,7 +132,7 @@ function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenPro
   post: PostSummary | null;
   userId: string;
   onClose: () => void;
-  onView: (id: string) => void;
+  onView?: (id: string) => void;
   onDelete: (id: string) => void;
   onOpenProfile?: (username: string) => void;
 }) {
@@ -155,7 +155,7 @@ function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenPro
         <View style={[styles.sheetPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.muted }]} />
           <Text style={[styles.sheetHeading, { color: colors.text }]}>Options de la publication</Text>
-          {action('Voir la publication', () => onView(post.id))}
+          {onView ? action('Voir la publication', () => onView(post.id)) : null}
           {action('Partager la publication', () => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); })}
           {onOpenProfile ? action('Voir le profil', () => onOpenProfile(post.author.username)) : null}
           {post.authorId === userId ? action('Supprimer la publication', () => onDelete(post.id), true) : null}
@@ -445,7 +445,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     </View>
     <PublicationActions
       post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
-      onView={() => {}} onOpenProfile={onOpenProfile}
+      onOpenProfile={onOpenProfile}
       onDelete={() => confirmDeletePost()}
     />
     </View>
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 13, opacity: 0.45 },
   sheetHeading: { fontSize: 17, fontWeight: '800', marginBottom: 10 },
   sheetAction: { minHeight: 50, paddingHorizontal: 14, borderRadius: 14, justifyContent: 'center' },
-  sheetActionLabel: { fontSize: 15, fontWeight: '650' },
+  sheetActionLabel: { fontSize: 15, fontWeight: '600' },
 
   headerBlock: { gap: 10, marginBottom: 2 },
   joinedHeader: { overflow: 'hidden', padding: 0 },
