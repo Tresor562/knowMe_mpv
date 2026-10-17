@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getAccessToken } from '../lib/api';
 import { getRealtimeSocket } from '../lib/realtime';
 
 export type RuntimeBadge = { key: string; label: string; color: string; symbol: 'check' | 'star' | 'spark' };
@@ -31,6 +31,8 @@ export function useRuntimeExperience() {
 }
 export function RuntimeExperienceProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
+    // Public/login pages must never probe an unavailable protected backend.
+    if (!getAccessToken()) return;
     try {
       const result = await apiFetch<RuntimeConfig>('/runtime-experience');
       if (Array.isArray(result?.document?.badges) && Array.isArray(result?.document?.modules)) {
