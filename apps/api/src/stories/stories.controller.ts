@@ -97,7 +97,7 @@ export class StoriesController {
     @Req() req: { user: { userId: string } },
     @Query('offset') offset?: string
   ) {
-    if (offset !== undefined && (!/^(0|[1-9]\\d{0,5})$/.test(offset) || Number(offset) > 100000)) {
+    if (offset !== undefined && (!/^(0|[1-9]\d{0,5})$/.test(offset) || Number(offset) > 100000)) {
       throw new BadRequestException({ code: 'STORY_RAIL_OFFSET_INVALID', message: 'Invalid Story rail page.' });
     }
     return this.stories.rail(req.user.userId, offset ? Number(offset) : 0);
