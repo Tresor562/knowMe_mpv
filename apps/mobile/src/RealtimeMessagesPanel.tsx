@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,8 +20,7 @@ import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { AnimatedEmoji } from './AnimatedEmoji';
-import { EmojiPicker } from './EmojiPicker';
-import {KnowMeStickerPicker} from './KnowMeStickerPicker';
+import {ChatExpressionKeyboard, type ExpressionTab} from './ChatExpressionKeyboard';
 import { isStandaloneAnimatedEmojiText } from '@knowme/animation-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
@@ -119,6 +119,18 @@ function mergeMessages(
 }
 
 
+/** The selected user theme determines outgoing bubble color; no hard-coded green. */
+function bubbleForAccent(accent:string):string {
+  const raw=accent.trim().replace('#','');
+  const hex=/^[0-9a-f]{6}$/i.test(raw)?raw:/^[0-9a-f]{3}$/i.test(raw)?
+    raw.split('').map(x=>x+x).join(''):null;
+  if(!hex)return accent;
+  const channel=(offset:number)=>parseInt(hex.slice(offset,offset+2),16);
+  const bg=[11,20,26],ratio=0.62;
+  return '#'+[0,2,4].map((offset,index)=>
+    Math.round(channel(offset)*ratio+bg[index]* (1-ratio)).toString(16).padStart(2,'0')).join('');
+}
+
 const REFERENCE_CHAT={
   background:'#0b141a',header:'#0b141a',field:'#202c33',mine:'#005c4b',
   other:'#202c33',text:'#e9edef',muted:'#8696a0',blue:'#53bdeb'
@@ -161,6 +173,7 @@ export function RealtimeMessagesPanel({
   setRefreshing: (value: boolean) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const bubbleMineColor=bubbleForAccent(colors.accent);
   const openProfile = useProfileNavigation();
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
@@ -189,7 +202,11 @@ export function RealtimeMessagesPanel({
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [panelOpen,setPanelOpen]=useState(false);
+  const [panelTab,setPanelTab]=useState<ExpressionTab>('stickers');
+  const [typingFocused,setTypingFocused]=useState(false);
+  const [gifGalleryRequest,setGifGalleryRequest]=useState(0);
+  const composerInputRef=useRef<TextInput>(null);
   const [composerHeight, setComposerHeight] = useState(44);
   const [sending, setSending] = useState(false);
   const [nexusPending, setNexusPending] = useState(false);
@@ -650,7 +667,7 @@ export function RealtimeMessagesPanel({
       });
     }
     setActive(null);
-    setToolsOpen(false);
+    setPanelOpen(false);
     setComposerHeight(44);
     setHistory([]);
     setReadStates([]);
@@ -777,7 +794,7 @@ export function RealtimeMessagesPanel({
                 style={[
                   styles.bubble,
                   { borderRadius: 8 },
-                  mine? [styles.bubbleMine,{backgroundColor:REFERENCE_CHAT.mine}]:
+                  mine? [styles.bubbleMine,{backgroundColor:bubbleMineColor}]:
                     [styles.bubbleOther,{backgroundColor:REFERENCE_CHAT.other}],
                   imageOnly?styles.referenceImageBubble:null,
                   linkedMessageId === item.id ? { borderWidth: 2, borderColor: REFERENCE_CHAT.blue } : null
@@ -854,17 +871,28 @@ export function RealtimeMessagesPanel({
 
         <View style={styles.referenceComposer}>
           <View style={styles.referenceComposeRow}>
-            <ChatMediaPicker<ConversationMessage>
-              conversationId={active.id} referenceChat
-              showVoice={!draft.trim()}
+            <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+              referenceChat showVoice={!draft.trim()} gifGalleryRequest={gifGalleryRequest}
               inputSlot={<>
                 <Pressable accessibilityRole="button"
-                  accessibilityLabel={toolsOpen?'Fermer les emojis':'Ouvrir emojis et stickers'}
-                  onPress={()=>setToolsOpen(value=>!value)} style={styles.referenceEmoji}>
-                  <KnowMeIcon name="smile" size={26} color={REFERENCE_CHAT.muted}/>
+                  accessibilityLabel={panelOpen?'Revenir au clavier':'Ouvrir emojis GIF et stickers'}
+                  accessibilityState={{expanded:panelOpen}}
+                  onPress={()=>{
+                    if(panelOpen){
+                      setPanelOpen(false);
+                      composerInputRef.current?.focus();
+                      return;
+                    }
+                    setPanelTab(typingFocused||Boolean(draft.trim())?'emoji':'stickers');
+                    Keyboard.dismiss();
+                    setPanelOpen(true);
+                  }} style={styles.referenceEmoji}>
+                  <KnowMeIcon name={panelOpen?'keyboard':typingFocused||Boolean(draft.trim())?'smile':'sticker'}
+                    size={26} color={REFERENCE_CHAT.muted}/>
                 </Pressable>
-                <TextInput value={draft} onChangeText={changeDraft}
-                  onFocus={()=>setToolsOpen(false)} onBlur={stopTyping}
+                <TextInput ref={composerInputRef} value={draft} onChangeText={changeDraft}
+                  onFocus={()=>{setTypingFocused(true);setPanelOpen(false);}}
+                  onBlur={()=>{setTypingFocused(false);stopTyping();}}
                   onContentSizeChange={event=>{
                     const next=Math.min(116,Math.max(44,Math.ceil(event.nativeEvent.contentSize.height)+14));
                     setComposerHeight(current=>current===next?current:next);
@@ -872,7 +900,7 @@ export function RealtimeMessagesPanel({
                   multiline textAlignVertical="center" maxLength={2000}
                   maxFontSizeMultiplier={1.3}
                   placeholder={isNexusPrivate?'Message à Nexus':'Message'}
-                  placeholderTextColor={REFERENCE_CHAT.muted} selectionColor={REFERENCE_CHAT.blue}
+                  placeholderTextColor={REFERENCE_CHAT.muted} selectionColor={colors.accent}
                   style={[styles.referenceInput,{height:composerHeight}]}/>
               </>}
               onSent={created=>{
@@ -880,22 +908,24 @@ export function RealtimeMessagesPanel({
                 setConversations(current=>current.map(item=>item.id===active.id
                   ? {...item,messages:[created]}:item));
               }}/>
-            {draft.trim() ? <Pressable accessibilityRole="button" accessibilityLabel="Envoyer"
+            {draft.trim()?<Pressable accessibilityRole="button" accessibilityLabel="Envoyer"
               disabled={sending||nexusPending} onPress={()=>void send()}
-              style={styles.referenceSend}>
-              <KnowMeIcon name="arrow" size={25} color="#0b141a"/>
-            </Pressable> : null}
+              style={[styles.referenceSend,{backgroundColor:colors.accent}]}>
+              <KnowMeIcon name="arrow" size={25} color={colors.accentText}/>
+            </Pressable>:null}
           </View>
-          {toolsOpen?<View style={styles.referenceTools}>
-            <EmojiPicker onInsert={emoji=>changeDraft(draft+emoji)}/>
-            <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
-              onSent={created=>{
-                setHistory(current=>mergeMessages(current,[created]));
-                setConversations(current=>current.map(item=>item.id===active.id?{...item,messages:[created]}:item));
-              }}/>
-            <Text style={{color:REFERENCE_CHAT.muted,fontSize:12}}>Emojis et stickers</Text>
-          </View>:null}
         </View>
+        {panelOpen?<ChatExpressionKeyboard<ConversationMessage>
+          conversationId={active.id} tab={panelTab} onChangeTab={setPanelTab}
+          onClose={()=>{setPanelOpen(false);composerInputRef.current?.focus();}}
+          onInsertEmoji={emoji=>changeDraft(draft+emoji)}
+          onImportGif={()=>{setGifGalleryRequest(id=>id+1);}}
+          onSent={created=>{
+            setHistory(current=>mergeMessages(current,[created]));
+            setConversations(current=>current.map(item=>item.id===active.id
+              ? {...item,messages:[created]}:item));
+          }}
+        />:null}
       </View>
     );
   }
