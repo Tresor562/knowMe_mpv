@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative'
   },
-  storyCardTap: { flex: 1, position: 'relative' },
+  storyCardTap: { width: 124, height: 190, position: 'relative' },
   storyCardBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
   storyCardShade: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor:'rgba(0,0,0,.35)' },
