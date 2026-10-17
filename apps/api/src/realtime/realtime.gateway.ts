@@ -317,6 +317,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   // Invalidate data only. Clients must refetch server-authoritative badges and flags.
+  emitFeatureFlagsChanged() {
+    if (this.server) this.server.emit('feature-flags:changed', {});
+  }
+
   emitRuntimeExperienceChanged(payload: { revision: number }) {
     if (this.server) this.server.emit('runtime-experience:changed', payload);
   }
