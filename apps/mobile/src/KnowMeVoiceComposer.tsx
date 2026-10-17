@@ -139,22 +139,32 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
             </PressScale>}
           {phase==='preview'&&recorded&&<>
             <Text style={{color:colors.muted,fontSize:12}}>
-              ${Math.ceil(recorded.durationMs/1000)} s · ${Math.ceil((recorded.size??0)/1024)} Ko
+              {Math.ceil(recorded.durationMs/1000)} s · {Math.ceil((recorded.size??0)/1024)} Ko
             </Text>
-            <View style={styles.actions}>
+            <View style={styles.previewActions}>
               <PressScale accessibilityRole="button" accessibilityLabel="Écouter la note"
                 onPress={()=>void playKnowMeVoice(recorded.uri).catch(showError)}
                 style={[styles.secondary,{backgroundColor:colors.backgroundAccent}]}>
+                <KnowMeIcon name="play" size={19} color={colors.text}/>
                 <Text style={{color:colors.text,fontWeight:'800'}}>Écouter</Text>
               </PressScale>
               <PressScale accessibilityRole="button" accessibilityLabel="Envoyer la note vocale"
-                onPress={()=>void send()} style={[styles.primary,{backgroundColor:colors.accent}]}>
-                <Text style={{color:colors.accentText,fontWeight:'800'}}>Envoyer</Text>
+                onPress={()=>void send()}
+                style={[styles.sendVoice,{backgroundColor:colors.accent}]}>
+                <KnowMeIcon name="arrow" size={20} color={colors.accentText}/>
+                <Text style={{color:colors.accentText,fontWeight:'800',fontSize:16}}>Envoyer le vocal</Text>
               </PressScale>
             </View>
           </>}
-          {phase!=='sending'&&<Pressable accessibilityRole="button" onPress={()=>void cancel()}
-            style={styles.cancel}><Text style={{color:colors.muted,fontWeight:'700'}}>Annuler</Text></Pressable>}
+          {phase==='preview'&&<Pressable accessibilityRole="button" accessibilityLabel="Supprimer cet enregistrement"
+            onPress={()=>void cancel()} style={[styles.cancel,{borderColor:colors.border}]}>
+            <KnowMeIcon name="close" size={18} color={colors.muted}/>
+            <Text style={{color:colors.muted,fontWeight:'700'}}>Supprimer l’enregistrement</Text>
+          </Pressable>}
+          {phase==='recording'&&<Pressable accessibilityRole="button" onPress={()=>void cancel()}
+            style={[styles.cancel,{borderColor:colors.border}]}>
+            <Text style={{color:colors.muted,fontWeight:'700'}}>Annuler l’enregistrement</Text>
+          </Pressable>}
         </View>
       </View>
     </Modal>
@@ -173,7 +183,10 @@ const styles=StyleSheet.create({
   time:{fontSize:31,fontWeight:'800',textAlign:'center',fontVariant:['tabular-nums']},
   hint:{fontSize:13,lineHeight:20,textAlign:'center'},
   actions:{flexDirection:'row',gap:10},
+  previewActions:{gap:13,marginTop:10},
+  sendVoice:{height:58,width:'100%',borderRadius:18,flexDirection:'row',
+    gap:11,alignItems:'center',justifyContent:'center'},
   primary:{minHeight:48,flex:1,alignItems:'center',justifyContent:'center',borderRadius:19,paddingHorizontal:18},
-  secondary:{minHeight:48,flex:1,alignItems:'center',justifyContent:'center',borderRadius:19,paddingHorizontal:18},
-  cancel:{minHeight:44,alignItems:'center',justifyContent:'center'}
+  secondary:{minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:19,paddingHorizontal:18,flexDirection:'row',gap:8},
+  cancel:{minHeight:51,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:8,borderWidth:1,borderRadius:16,marginTop:9}
 });
