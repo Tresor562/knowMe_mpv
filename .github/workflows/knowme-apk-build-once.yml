@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths:
-      - '.github/workflows/knowme-apk-build-once.yml'
-      - 'apps/mobile/**'
-      - 'packages/i18n-contract/**'
-      - 'packages/ui/**'
   workflow_dispatch:
 
 permissions:
@@ -45,8 +40,7 @@ jobs:
       - name: Validate automatic Android versioning
         run: node --test scripts/prepare-android-auto-version.test.mjs
 
-      - name: Stamp a new update version for this CI run
-        if: github.event_name != 'pull_request'
+      - name: Stamp a candidate Android update version for this CI run
         env:
           KNOWME_BUILD_SEQUENCE: ${{ github.run_number }}
         run: node scripts/prepare-android-auto-version.mjs "$KNOWME_BUILD_SEQUENCE"
