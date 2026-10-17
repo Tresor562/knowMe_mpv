@@ -169,14 +169,22 @@ export class StickerTokenService {
       this.config.get<string>('NODE_ENV') === 'production'
         ? undefined
         : this.config.get<string>('JWT_SECRET')?.trim();
-    const secret = dedicated || developmentFallback;
+    // First-party domain separation uses the existing strong account-security
+    // encryption secret if a dedicated sticker key has not yet been installed.
+    // A missing key still fails closed; never issue unsigned sticker messages.
+    const accountKey=this.config.get<string>('ACCOUNT_SECURITY_ENCRYPTION_KEY')?.trim();
+    const accountSecret=!dedicated&&/^[a-f0-9]{64}$/i.test(accountKey??'')
+      ?createHmac('sha256',Buffer.from(accountKey!,'hex'))
+        .update('knowme.stickers.hmac.v1').digest('hex'):undefined;
+    const secret=dedicated||accountSecret||developmentFallback;
     if (!secret || secret.length < 32) {
       throw new ServiceUnavailableException('STICKER_TOKEN_KEY_UNAVAILABLE');
     }
-    if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) {
+    const chosenId=accountSecret?'account-security-v1':id;
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(chosenId)) {
       throw new ServiceUnavailableException('STICKER_TOKEN_KEY_ID_INVALID');
     }
-    return { id, secret };
+    return { id:chosenId, secret };
   }
 
   private keys() {
