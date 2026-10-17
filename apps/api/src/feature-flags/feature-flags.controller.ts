@@ -16,6 +16,7 @@ import { PERMISSIONS } from '../access-control/access-control.catalog';
 import { RequirePermissions } from '../access-control/permissions.decorator';
 import { PermissionsGuard } from '../access-control/permissions.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import {
   CreateFeatureFlagDto,
   CreateFeatureFlagRuleDto,
@@ -61,7 +62,7 @@ export class FeatureFlagsController {
 @RequirePermissions(PERMISSIONS.FEATURE_FLAGS_MANAGE)
 @Controller('admin/feature-flags')
 export class AdminFeatureFlagsController {
-  constructor(private readonly flags: FeatureFlagsService) {}
+  constructor(private readonly flags: FeatureFlagsService, private readonly realtime: RealtimeGateway) {}
 
   @Get()
   list() {
@@ -69,56 +70,68 @@ export class AdminFeatureFlagsController {
   }
 
   @Post()
-  create(
+  async create(
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateFeatureFlagDto
   ) {
-    return this.flags.create(req.user.userId, dto);
+    const result = await this.flags.create(req.user.userId, dto);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 
   @Patch(':key')
-  update(
+  async update(
     @Req() req: AuthenticatedRequest,
     @Param('key') key: string,
     @Body() dto: UpdateFeatureFlagDto
   ) {
-    return this.flags.update(req.user.userId, key, dto);
+    const result = await this.flags.update(req.user.userId, key, dto);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 
   @Post(':key/rules')
-  addRule(
+  async addRule(
     @Req() req: AuthenticatedRequest,
     @Param('key') key: string,
     @Body() dto: CreateFeatureFlagRuleDto
   ) {
-    return this.flags.addRule(req.user.userId, key, dto);
+    const result = await this.flags.addRule(req.user.userId, key, dto);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 
   @Delete(':key/rules/:ruleId')
-  removeRule(
+  async removeRule(
     @Req() req: AuthenticatedRequest,
     @Param('key') key: string,
     @Param('ruleId') ruleId: string
   ) {
-    return this.flags.removeRule(req.user.userId, key, ruleId);
+    const result = await this.flags.removeRule(req.user.userId, key, ruleId);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 
   @Put(':key/overrides/:userId')
-  setOverride(
+  async setOverride(
     @Req() req: AuthenticatedRequest,
     @Param('key') key: string,
     @Param('userId') userId: string,
     @Body() dto: SetFeatureFlagOverrideDto
   ) {
-    return this.flags.setOverride(req.user.userId, key, userId, dto);
+    const result = await this.flags.setOverride(req.user.userId, key, userId, dto);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 
   @Delete(':key/overrides/:userId')
-  removeOverride(
+  async removeOverride(
     @Req() req: AuthenticatedRequest,
     @Param('key') key: string,
     @Param('userId') userId: string
   ) {
-    return this.flags.removeOverride(req.user.userId, key, userId);
+    const result = await this.flags.removeOverride(req.user.userId, key, userId);
+    this.realtime.emitFeatureFlagsChanged();
+    return result;
   }
 }
