@@ -2,7 +2,9 @@ import './globals.css';
 import './telegram-messenger.css';
 import './social-first-navigation.css';
 import '../components/knowme-feedback.css';
+import '../components/network-connectivity-notice.css';
 import { KnowMeDialogHost } from '../components/knowme-feedback';
+import { NetworkConnectivityNotice } from '../components/network-connectivity-notice';
 import { BottomNavigation } from '../components/bottom-navigation';
 import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
@@ -125,6 +127,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegistration />
         <RuntimeExperienceProvider>
           <KnowMeDialogHost />
+          <NetworkConnectivityNotice />
           {children}
           <BottomNavigation />
         </RuntimeExperienceProvider>
