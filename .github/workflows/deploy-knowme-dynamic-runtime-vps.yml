@@ -1,0 +1,106 @@
+name: Deploy KnowMe dynamic runtime to VPS (one time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-knowme-dynamic-runtime-vps.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: knowme-dynamic-runtime-vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      VPS_HOST: ${{ secrets.KNOWME_VPS_HOST }}
+      VPS_USER: ${{ secrets.KNOWME_VPS_SSH_USER }}
+      VPS_KEY: ${{ secrets.KNOWME_VPS_SSH_PRIVATE_KEY }}
+      VPS_HOST_KEY: ${{ secrets.KNOWME_VPS_HOST_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Validate exact production target and available SSH credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == 'refs/heads/main' ]]
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ "$GITHUB_REPOSITORY" == 'Tresor562/knowMe_mpv' ]]
+          if [[ -z "$VPS_HOST" || -z "$VPS_USER" || -z "$VPS_KEY" || -z "$VPS_HOST_KEY" ]]; then
+            echo '::error::KnowMe VPS SSH credentials are not configured; no production change performed.'
+            exit 1
+          fi
+      - name: Require successful API/Web CI and signed APK build for exact main SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 120); do
+            [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" == "$GITHUB_SHA" ]] || {
+              echo '::error::Main has advanced; refusing to deploy superseded code.'
+              exit 1
+            }
+            CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100")"
+            QUALITY="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name=="quality" and .conclusion=="success")] | length')"
+            APK="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name=="android-apk" and .conclusion=="success")] | length')"
+            if [[ "$QUALITY" -ge 1 && "$APK" -ge 1 ]]; then exit 0; fi
+            sleep 20
+          done
+          echo '::error::Required CI and Android build never both succeeded.'
+          exit 1
+      - name: Connect with a pinned SSH host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$RUNNER_TEMP/knowme-ssh"
+          printf '%s\n' "$VPS_KEY" > "$RUNNER_TEMP/knowme-ssh/id"
+          printf '%s\n' "$VPS_HOST_KEY" > "$RUNNER_TEMP/knowme-ssh/known_hosts"
+          chmod 0600 "$RUNNER_TEMP/knowme-ssh/id" "$RUNNER_TEMP/knowme-ssh/known_hosts"
+          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
+            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
+            'docker inspect -f "{{.State.Running}}" knowme-postgres | grep -Fx true'
+      - name: Make an encrypted database backup before migrating
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
+            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
+            'node /opt/nex/apps/public/knowme/source/ops/backup-knowme-postgres-telegram.mjs >/dev/null'
+          echo 'Encrypted PostgreSQL backup uploaded and verified before deployment.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy the CI-qualified server with its built-in rollback checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
+          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
+            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
+            "KNOWME_DEPLOY_SHA=$GITHUB_SHA node /opt/nex/ops/knowme-platform/ops/deploy-knowme-vps.mjs"
+      - name: Check public VPS identity, readiness and dynamic runtime API
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://31-56-85-53.sslip.io/knowme-api'
+          node --input-type=module -e '
+            const base=process.env.BASE;
+            const sha=process.env.GITHUB_SHA;
+            const version=await fetch(base+"/platform-sync/version",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("version request failed");return r.json()});
+            if(version.commit!==sha)throw Error("API release does not match reviewed SHA");
+            const ready=await fetch(base+"/health/ready",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("health request failed");return r.json()});
+            if(ready.status!=="ready")throw Error("API readiness failed");
+            const cfg=await fetch(base+"/runtime-experience",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("runtime API request failed "+r.status);return r.json()});
+            if(!Number.isInteger(cfg.revision)||!Array.isArray(cfg.document?.badges))throw Error("invalid dynamic runtime contract");
+            process.stdout.write(JSON.stringify({status:"ok",commit:sha,revision:cfg.revision})+"\n");
+          ' 
+        env:
+          BASE: https://31-56-85-53.sslip.io/knowme-api
