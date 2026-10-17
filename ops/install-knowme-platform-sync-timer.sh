@@ -2,7 +2,7 @@
 # Install or repair the first-party KnowMe VPS API+Web release timer.
 set -Eeuo pipefail
 [[ "$(id -u)" -eq 0 ]] || { echo 'Root is required'; exit 1; }
-SOURCE="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd -P)"
+SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 for file in deploy-knowme-vps.mjs deploy-knowme-web-vps.mjs sync-knowme-platform-vps.mjs; do
   test -s "$SOURCE/$file" || { echo "Missing $file"; exit 1; }
   node --check "$SOURCE/$file" >/dev/null
