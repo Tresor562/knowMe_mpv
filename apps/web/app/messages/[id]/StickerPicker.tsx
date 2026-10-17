@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import { ChatMediaView } from './ChatMediaView';
@@ -49,11 +49,15 @@ const EMOJI_GROUPS = [
 export function StickerPicker<T>({
   conversationId,
   onSent,
-  onInsertEmoji
+  onInsertEmoji,
+  referenceChat=false,
+  inputSlot
 }: {
   conversationId: string;
   onSent: (message: T) => void;
   onInsertEmoji?: (emoji: string) => void;
+  referenceChat?: boolean;
+  inputSlot?: ReactNode;
 }) {
   const { locale } = useI18n();
   const en = locale === 'en';
@@ -75,6 +79,8 @@ export function StickerPicker<T>({
   const stickerInput = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const quickImageInput=useRef<HTMLInputElement>(null);
+  const quickAttachmentInput=useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -212,7 +218,7 @@ export function StickerPicker<T>({
     } finally {setSending(null);}
   }
 
-  return <div className="km-picker-anchor" ref={wrap}>
+  return <div className={referenceChat?'km-picker-anchor km-reference-picker':'km-picker-anchor'} ref={wrap}>
     <button type="button" className="km-picker-trigger" aria-expanded={open}
       aria-controls="knowme-sticker-picker" aria-label={en ? 'Emoji, stickers, GIF and photos' : 'Emojis, stickers, GIF et photos'}
       onClick={() => {if (!open) setError(''); setOpen(value => !value);}}>
@@ -220,6 +226,29 @@ export function StickerPicker<T>({
         <rect x="3" y="3" width="18" height="18" rx="6"/><path d="M8 14c2.1 3 5.9 3 8 0"/><path d="M8.5 10h.01M15.5 10h.01" strokeWidth="3"/>
       </svg>
     </button>
+    {referenceChat&&<>
+      {inputSlot}
+      <button type="button" className="km-reference-attach" aria-label={en?'Attach files':'Joindre un fichier'}
+        onClick={()=>quickAttachmentInput.current?.click()}>
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+          <path d="M20 11.5 11.2 20a5.5 5.5 0 0 1-7.8-7.8l9.3-9.3a3.8 3.8 0 0 1 5.4 5.4l-9.5 9.5a2 2 0 0 1-2.9-2.8l8.5-8.5"/>
+        </svg>
+      </button>
+      <button type="button" className="km-reference-attach" aria-label={en?'Send a photo':'Envoyer une photo'}
+        onClick={()=>quickImageInput.current?.click()}>
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round">
+          <rect x="2.5" y="6" width="19" height="15" rx="3"/><path d="M7 6 9 3h6l2 3"/><circle cx="12" cy="13.5" r="3.5"/>
+        </svg>
+      </button>
+      <input hidden ref={quickImageInput} type="file" accept="image/jpeg,image/png,image/webp"
+        onChange={event=>{const file=event.currentTarget.files?.[0];event.currentTarget.value='';if(file)void uploadAndSend(file,'IMAGE');}}/>
+      <input hidden ref={quickAttachmentInput} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,audio/mpeg,audio/ogg,audio/wav,application/pdf"
+        onChange={event=>{const file=event.currentTarget.files?.[0];event.currentTarget.value='';if(!file)return;
+          const kind=file.type==='video/mp4'?'VIDEO':['audio/mpeg','audio/ogg','audio/wav'].includes(file.type)?'AUDIO':
+            file.type==='application/pdf'?'DOCUMENT':['image/jpeg','image/png','image/webp'].includes(file.type)?'IMAGE':null;
+          if(kind)void uploadAndSend(file,kind);else setError(en?'Unsupported file type':'Type de fichier non pris en charge');
+        }}/>
+    </>}
     {open && <section id="knowme-sticker-picker" className="km-picker-sheet" role="dialog"
       aria-label={en ? 'Emoji, sticker and GIF selector' : 'Sélecteur d’emojis, stickers et GIF'}>
       <header className="km-picker-head">
