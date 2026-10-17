@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import {buildKnowMePublicLink} from '@knowme/link-contract';
+import styles from './ChatVoiceNote.module.css';
 
 type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 type ChatMediaViewProps = {
@@ -14,6 +15,46 @@ type ChatMediaViewProps = {
   /** Only enable within chat messages, never inside the picker's interactive media tiles. */
   enablePreview?: boolean;
 };
+
+/** Message audio with native browser media controls under a KnowMe waveform UI. */
+function InlineAudioPlayer({source,assetId,en}:{source:string;assetId:string;en:boolean}) {
+  const audio=useRef<HTMLAudioElement|null>(null);
+  const [playing,setPlaying]=useState(false);
+  const [duration,setDuration]=useState(0);
+  const [position,setPosition]=useState(0);
+  const [failure,setFailure]=useState(false);
+  const durationLabel=(value:number)=>{
+    if(!Number.isFinite(value))return '0:00';
+    const secs=Math.floor(value);
+    return `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  };
+  useEffect(()=>()=>{audio.current?.pause();},[]);
+  const bars=Array.from({length:32},(_,index)=>6+((index*17+assetId.charCodeAt(index%Math.max(1,assetId.length)))%20));
+  return <div className={styles.note} role="group" aria-label={en?'Voice message':'Message vocal'}>
+    <span className={styles.avatar} aria-hidden="true">♫</span>
+    <button type="button" className={styles.play} disabled={failure}
+      aria-label={playing?(en?'Pause voice message':'Mettre le vocal en pause'):(en?'Play voice message':'Lire le message vocal')}
+      onClick={()=>{const player=audio.current;if(!player)return;
+        if(player.paused){void player.play().catch(()=>setFailure(true));}
+        else player.pause();
+      }}>{playing?'Ⅱ':'▶'}</button>
+    <div className={styles.content}>
+      <div className={styles.wave} aria-hidden="true">
+        {bars.map((height,index)=><span key={index} style={{height,opacity:index/32<=position/Math.max(duration,0.001)?1:0.5}}/>)}
+      </div>
+      <input className={styles.seek} type="range" min="0" step="0.1"
+        max={Math.max(0.1,duration)} value={Math.min(position,Math.max(0.1,duration))}
+        onChange={event=>{if(audio.current)audio.current.currentTime=Number(event.target.value);}}
+        aria-label={en?'Seek voice message':'Avancer dans le message vocal'}/>
+      <small className={styles.time}>{failure?(en?'Audio unavailable':'Audio indisponible'):`${durationLabel(position)} / ${durationLabel(duration)}`}</small>
+    </div>
+    <audio ref={audio} src={source} preload="metadata"
+      onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)}
+      onTimeUpdate={event=>setPosition(event.currentTarget.currentTime)}
+      onLoadedMetadata={event=>setDuration(Number.isFinite(event.currentTarget.duration)?event.currentTarget.duration:0)}
+      onError={()=>{setFailure(true);setPlaying(false);}}/>
+  </div>;
+}
 
 export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: ChatMediaViewProps) {
   const {locale} = useI18n();
@@ -95,8 +136,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
 
   if(source&&kind==='VIDEO')return <video className="km-chat-media km-chat-media-video"
     controls playsInline preload="metadata" src={source} aria-label={en?'Video attachment':'Vidéo jointe'}/>;
-  if(source&&kind==='AUDIO')return <audio className="km-chat-media-audio"
-    controls preload="metadata" src={source} aria-label={en?'Audio attachment':'Fichier audio'}/>;
+  if(source&&kind==='AUDIO')return <InlineAudioPlayer source={source} assetId={assetId} en={en}/>;
   if(source&&kind==='DOCUMENT')return <a className="km-chat-media-download"
     href={source} download={fileName ?? 'knowme-document.pdf'} aria-label={fileName??(en?'Download PDF':'Télécharger le PDF')}>
     <span aria-hidden="true">▤</span> {en?'Download PDF':'Télécharger le PDF'}
