@@ -204,6 +204,7 @@ export function RealtimeMessagesPanel({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [panelOpen,setPanelOpen]=useState(false);
+  const [panelExpanded,setPanelExpanded]=useState(false);
   const [panelTab,setPanelTab]=useState<ExpressionTab>('stickers');
   const [typingFocused,setTypingFocused]=useState(false);
   const [gifGalleryRequest,setGifGalleryRequest]=useState(0);
@@ -881,7 +882,9 @@ export function RealtimeMessagesPanel({
         <View style={styles.referenceComposer}>
           <View style={styles.referenceComposeRow}>
             <ChatMediaPicker<ConversationMessage> conversationId={active.id}
-              referenceChat showVoice={!draft.trim()} gifGalleryRequest={gifGalleryRequest}
+              referenceChat showVoice={!draft.trim()&&!panelOpen} gifGalleryRequest={gifGalleryRequest}
+              expressionOpen={panelOpen} expressionExpanded={panelExpanded}
+              onToggleExpression={()=>setPanelExpanded(value=>!value)}
               inputSlot={<>
                 <Pressable accessibilityRole="button"
                   accessibilityLabel={panelOpen?'Revenir au clavier':'Ouvrir emojis GIF et stickers'}
@@ -889,10 +892,12 @@ export function RealtimeMessagesPanel({
                   onPress={()=>{
                     if(panelOpen){
                       setPanelOpen(false);
+                      setPanelExpanded(false);
                       composerInputRef.current?.focus();
                       return;
                     }
                     setPanelTab(typingFocused||Boolean(draft.trim())?'emoji':'stickers');
+                    setPanelExpanded(false);
                     Keyboard.dismiss();
                     setPanelOpen(true);
                   }} style={styles.referenceEmoji}>
@@ -926,7 +931,8 @@ export function RealtimeMessagesPanel({
         </View>
         {panelOpen?<ChatExpressionKeyboard<ConversationMessage>
           conversationId={active.id} tab={panelTab} onChangeTab={setPanelTab}
-          onClose={()=>{setPanelOpen(false);composerInputRef.current?.focus();}}
+          onClose={()=>{setPanelOpen(false);setPanelExpanded(false);composerInputRef.current?.focus();}}
+          expanded={panelExpanded} onExpandedChange={setPanelExpanded}
           onInsertEmoji={emoji=>changeDraft(draft+emoji)}
           onImportGif={()=>{setGifGalleryRequest(id=>id+1);}}
           onSent={created=>{
