@@ -23,6 +23,7 @@ import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
+import {PublicPostVideo} from './PublicPostVideo';
 
 type Author = {
   id: string;
@@ -701,10 +702,7 @@ export function FeedExperience({
               {medium.mimeType.startsWith('image/')?
                 <Image source={{uri:resolvePostImage(medium.url)}}
                   style={{width:'100%',height:'100%'}} resizeMode="cover"/>:
-                <View style={{flex:1,alignItems:'center',justifyContent:'center',gap:8}}>
-                  <Text style={{color:colors.text,fontSize:31}}>▶</Text>
-                  <Text style={{color:colors.text,fontSize:12}}>Vidéo · ouvrir la publication</Text>
-                </View>}
+                <PublicPostVideo url={medium.url}/>}
               {index===4&&item.media!.length>5?<View
                 style={{position:'absolute',top:0,bottom:0,left:0,right:0,
                   backgroundColor:'#000a',alignItems:'center',justifyContent:'center'}}>
