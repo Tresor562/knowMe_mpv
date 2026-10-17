@@ -118,6 +118,31 @@ function mergeMessages(
   return prepend ? [...fresh, ...current] : [...current, ...fresh];
 }
 
+
+const REFERENCE_CHAT={
+  background:'#0b141a',header:'#0b141a',field:'#202c33',mine:'#005c4b',
+  other:'#202c33',text:'#e9edef',muted:'#8696a0',blue:'#53bdeb'
+} as const;
+
+/** Quiet patterned conversation backdrop, independent of global feed themes. */
+function ReferenceChatWallpaper() {
+  const positions:[number,number,number][]=[
+    [6,5,-22],[26,8,19],[48,3,-9],[71,9,14],[89,4,23],
+    [15,20,16],[37,25,-15],[61,21,32],[85,30,-20],
+    [6,37,-28],[28,42,10],[48,37,25],[72,44,-17],[93,49,14],
+    [11,55,23],[32,61,-16],[55,58,8],[79,67,33],
+    [7,74,9],[25,82,-11],[47,77,28],[67,86,19],[91,83,-12],
+    [13,95,23],[40,95,-19],[74,96,25]
+  ];
+  const iconNames= ['camera','messages','heart','spark','discover','profile','video-call'] as const;
+  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    {positions.map(([x,y,rotation],index)=><View key={index} style={{
+      position:'absolute',left:`${x}%`,top:`${y}%`,opacity:0.24,
+      transform:[{rotate:`${rotation}deg`}]
+    }}><KnowMeIcon name={iconNames[index%iconNames.length]} size={31} color="#39444b" strokeWidth={1.3}/></View>)}
+  </View>;
+}
+
 export function RealtimeMessagesPanel({
   userId,
   refreshing,
@@ -650,49 +675,46 @@ export function RealtimeMessagesPanel({
     const activeAvatarUrl = !isNexusPrivate ? others[0]?.user.avatarUrl : null;
 
     return (
-      <View style={[styles.conversationRoot, { backgroundColor: colors.background }]}>
-        <ChatWallpaper />
-        <View style={[styles.conversationHeader,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
-          <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
-          <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
-            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
-            disabled={others.length !== 1}
-            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
-            style={[styles.headerAvatar, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
-            {isNexusPrivate ? (
-              <KnowMeIcon name="spark" size={19} color={colors.secondary} />
-            ) : activeAvatarUrl ? (
-              <Image source={{ uri: activeAvatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <Text style={[styles.avatarText, { color: colors.accent }]}>
-                {name.charAt(0).toUpperCase()}
-              </Text>
-            )}
+      <View style={[styles.conversationRoot, { backgroundColor: REFERENCE_CHAT.background }]}>
+        <ReferenceChatWallpaper />
+        <View style={[styles.referenceHeader,{backgroundColor:REFERENCE_CHAT.header}]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour aux conversations"
+            onPress={closeConversation} style={styles.referenceBack}>
+            <KnowMeIcon name="back" size={27} color={REFERENCE_CHAT.text}/>
           </Pressable>
-          <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
-            disabled={others.length !== 1}
-            accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
-            onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
-            style={styles.flex}>
-            <View style={styles.verifiedName}><Text style={[styles.cardTitle, { color: colors.text },styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={19}/>:null}</View>
-            <Text style={[
-              isNexusPrivate || online ? styles.online : styles.muted,
-              { color: isNexusPrivate || online ? colors.accent : colors.muted }
-            ]}>
-              {isNexusPrivate
-                ? 'Assistant privé'
-                : live
-                  ? online
-                    ? 'En ligne'
-                    : 'Hors ligne'
-                  : 'Connexion…'}
-            </Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Voir le profil"
+            disabled={others.length!==1}
+            onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
+            style={styles.referenceAvatar}>
+            {isNexusPrivate?<KnowMeIcon name="spark" size={24} color={REFERENCE_CHAT.blue}/>:
+              activeAvatarUrl?<Image source={{uri:activeAvatarUrl}} style={styles.avatarImage}/>:
+                <Text style={{color:REFERENCE_CHAT.text,fontSize:20}}>{name.charAt(0).toUpperCase()}</Text>}
           </Pressable>
-          <IconButton
-            icon="refresh"
-            accessibilityLabel="Actualiser"
-            onPress={() => void openConversation(active)}
-          />
+          <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${name}`}
+            disabled={others.length!==1}
+            onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
+            style={styles.referenceHeaderTitle}>
+            <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
+            {others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+          </Pressable>
+          <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
+            accessibilityLabel="Appel vidéo"
+            onPress={()=>Alert.alert('Appels KnowMe','La fonction d’appel vidéo n’est pas encore disponible dans cette version.')}>
+            <KnowMeIcon name="video-call" size={26} color={REFERENCE_CHAT.text}/>
+          </Pressable>
+          <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
+            accessibilityLabel="Appel vocal"
+            onPress={()=>Alert.alert('Appels KnowMe','La fonction d’appel vocal n’est pas encore disponible dans cette version.')}>
+            <KnowMeIcon name="phone-call" size={24} color={REFERENCE_CHAT.text}/>
+          </Pressable>
+          <Pressable style={styles.referenceMore} accessibilityRole="button" accessibilityLabel="Options de conversation"
+            onPress={()=>Alert.alert('Conversation',name,[
+              ...(others.length===1?[{text:'Voir le profil',onPress:()=>openProfile?.(others[0].user.username)}]:[]),
+              {text:'Actualiser',onPress:()=>void openConversation(active)},
+              {text:'Fermer',style:'cancel' as const}
+            ])}>
+            <KnowMeIcon name="more-vertical" size={24} color={REFERENCE_CHAT.text}/>
+          </Pressable>
         </View>
 
         <FlatList
@@ -708,9 +730,14 @@ export function RealtimeMessagesPanel({
               onPress={() => void loadOlder()}
             />
           ) : null}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
+            const showDate=index===0||new Date(history[index-1]!.createdAt).toDateString()!==new Date(item.createdAt).toDateString();
+            const day=new Date(item.createdAt);
+            const label=day.toDateString()===new Date().toDateString()?'Aujourd’hui':
+              day.toDateString()===new Date(Date.now()-86400000).toDateString()?'Hier':
+                day.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
             const readers = mine
               ? readStates.filter((state) =>
                   state.userId !== userId &&
@@ -720,6 +747,8 @@ export function RealtimeMessagesPanel({
               : [];
 
             return (
+              <View style={styles.referenceMessageItem}>
+                {showDate?<View style={styles.referenceDay}><Text style={styles.referenceDayText}>{label}</Text></View>:null}
               <Pressable
                 accessibilityHint="Appui long pour partager le message"
                 onLongPress={() => {
@@ -746,46 +775,22 @@ export function RealtimeMessagesPanel({
                 }}
                 style={[
                   styles.bubble,
-                  { borderRadius: visual.bubbleRadius },
-                  mine
-                    ? [
-                        styles.bubbleMine,
-                        {
-                          backgroundColor: colors.accent,
-                          borderWidth: chat.bubbleBorderWidth,
-                          borderColor: colors.accent
-                        }
-                      ]
-                    : nexus
-                      ? [
-                          styles.bubbleNexus,
-                          {
-                            backgroundColor: colors.surfaceRaised,
-                            borderColor: colors.secondary,
-                            borderWidth: Math.max(1, chat.bubbleBorderWidth)
-                          }
-                        ]
-                      : [
-                          styles.bubbleOther,
-                          {
-                            backgroundColor: colors.surface,
-                            borderWidth: chat.bubbleBorderWidth,
-                            borderColor: colors.border
-                          }
-                        ],
-                  linkedMessageId === item.id ? { borderWidth: 2, borderColor: colors.accent } : null
+                  { borderRadius: 8 },
+                  mine? [styles.bubbleMine,{backgroundColor:REFERENCE_CHAT.mine}]:
+                    [styles.bubbleOther,{backgroundColor:REFERENCE_CHAT.other}],
+                  linkedMessageId === item.id ? { borderWidth: 2, borderColor: REFERENCE_CHAT.blue } : null
                 ]}
               >
-                {!mine ? (
+                {!mine && (others.length>1 || nexus) ? (
                   nexus || !item.sender?.username ? (
-                    <Text style={[styles.senderName, { color: colors.secondary }]}>
+                    <Text style={[styles.senderName, { color: REFERENCE_CHAT.blue }]}>
                       {nexus ? '✦ Nexus' : 'Utilisateur'}
                     </Text>
                   ) : (
                     <Pressable accessibilityRole="button"
                       accessibilityLabel={`Voir le profil de ${item.sender.displayName}`}
                       onPress={() => openProfile?.(item.sender!.username)}>
-                      <View style={styles.verifiedName}><Text style={[styles.senderName, { color: colors.accent }]}>{item.sender.displayName}</Text>{item.sender.staff?.shield==='GOLD'?<GoldVerifiedBadge size={16}/>:null}</View>
+                      <View style={styles.verifiedName}><Text style={[styles.senderName, { color: REFERENCE_CHAT.blue }]}>{item.sender.displayName}</Text>{item.sender.staff?.shield==='GOLD'?<GoldVerifiedBadge size={16}/>:null}</View>
                     </Pressable>
                   )
                 ) : null}
@@ -813,7 +818,7 @@ export function RealtimeMessagesPanel({
                         }}
                         style={{alignItems:'flex-start',gap:2}}>
                         <AnimatedEmoji glyph={item.presentation.sticker.glyph} size={46}/>
-                        <Text style={{color:mine?colors.accentText:colors.text,fontSize:12}}>
+                        <Text style={{color:REFERENCE_CHAT.text,fontSize:12}}>
                           {item.presentation.sticker.label}
                         </Text>
                       </Pressable>
@@ -824,18 +829,14 @@ export function RealtimeMessagesPanel({
                       : <KnowMeMentionText
                         text={item.presentation?.kind==='TEXT' ? item.presentation.text : item.content}
                         style={[mine ? styles.bubbleMineText : styles.bubbleText,
-                          { color: mine ? colors.accentText : colors.text }]}/>}
-                <Text style={[styles.bubbleDate, { color: mine ? 'rgba(255,255,255,0.76)' : colors.muted }]}>
-                  {formatMessageTime(item.createdAt)}
-                </Text>
-                {mine && readers.length > 0 ? (
-                  <Text style={[styles.receipt, { color: colors.accentText }]}>
-                    Lu par {readers
-                      .map((state) => state.user.displayName)
-                      .join(', ')}
-                  </Text>
-                ) : null}
+                          { color: REFERENCE_CHAT.text,fontSize:16,lineHeight:21 }]}/>}
+                <View style={styles.referenceMeta}>
+                  <Text style={styles.referenceTime}>{formatMessageTime(item.createdAt)}</Text>
+                  {mine?<Text style={[styles.referenceTick,{color:readers.length?REFERENCE_CHAT.blue:REFERENCE_CHAT.muted}]}
+                    accessibilityLabel={readers.length?'Message lu':'Message envoyé'}>{readers.length?'✓✓':'✓'}</Text>:null}
+                </View>
               </Pressable>
+              </View>
             );
           }}
           ListEmptyComponent={<Empty text={isNexusPrivate ? 'Écris ton premier message à Nexus.' : 'Commence la conversation.'} />}
@@ -849,71 +850,50 @@ export function RealtimeMessagesPanel({
           ) : null}
         />
 
-        <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.composer}>
-          <View style={styles.composerRow}>
-            <PressScale
-              accessibilityRole="button"
-              accessibilityLabel={toolsOpen ? 'Masquer les emojis et stickers' : 'Afficher les emojis et stickers'}
-              accessibilityState={{ expanded: toolsOpen }}
-              onPress={() => setToolsOpen(value => !value)}
-              style={[styles.composerToolsTrigger, { backgroundColor: toolsOpen ? colors.backgroundAccent : 'transparent' }]}
-            >
-              <KnowMeIcon name="spark" size={20} color={colors.accent} />
-            </PressScale>
-            <TextInput
-              value={draft}
-              onChangeText={changeDraft}
-              onFocus={() => setToolsOpen(false)}
-              onBlur={stopTyping}
-              onContentSizeChange={event => {
-                const next = Math.min(116, Math.max(44, Math.ceil(event.nativeEvent.contentSize.height) + 14));
-                setComposerHeight(current => current === next ? current : next);
-              }}
-              multiline
-              textAlignVertical="center"
-              maxLength={2000}
-              maxFontSizeMultiplier={1.3}
-              placeholder={isNexusPrivate ? 'Message à Nexus' : 'Message'}
-              placeholderTextColor={colors.muted}
-              selectionColor={colors.accent}
-              style={[
-                styles.composerInput,
-                { height: composerHeight, borderRadius: visual.inputRadius },
-                { color: colors.text }
-              ]}
-            />
-            <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+        <View style={styles.referenceComposer}>
+          <View style={styles.referenceComposeRow}>
+            <ChatMediaPicker<ConversationMessage>
+              conversationId={active.id} referenceChat
               showVoice={!draft.trim()}
+              inputSlot={<>
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={toolsOpen?'Fermer les emojis':'Ouvrir emojis et stickers'}
+                  onPress={()=>setToolsOpen(value=>!value)} style={styles.referenceEmoji}>
+                  <KnowMeIcon name="smile" size={26} color={REFERENCE_CHAT.muted}/>
+                </Pressable>
+                <TextInput value={draft} onChangeText={changeDraft}
+                  onFocus={()=>setToolsOpen(false)} onBlur={stopTyping}
+                  onContentSizeChange={event=>{
+                    const next=Math.min(116,Math.max(44,Math.ceil(event.nativeEvent.contentSize.height)+14));
+                    setComposerHeight(current=>current===next?current:next);
+                  }}
+                  multiline textAlignVertical="center" maxLength={2000}
+                  maxFontSizeMultiplier={1.3}
+                  placeholder={isNexusPrivate?'Message à Nexus':'Message'}
+                  placeholderTextColor={REFERENCE_CHAT.muted} selectionColor={REFERENCE_CHAT.blue}
+                  style={[styles.referenceInput,{height:composerHeight}]}/>
+              </>}
               onSent={created=>{
                 setHistory(current=>mergeMessages(current,[created]));
                 setConversations(current=>current.map(item=>item.id===active.id
                   ? {...item,messages:[created]}:item));
               }}/>
-            {draft.trim() ? (
-              <IconButton
-                icon="arrow"
-                accessibilityLabel="Envoyer"
-                disabled={sending || nexusPending}
-                onPress={() => void send()}
-                filled
-              />
-            ) : null}
+            {draft.trim() ? <Pressable accessibilityRole="button" accessibilityLabel="Envoyer"
+              disabled={sending||nexusPending} onPress={()=>void send()}
+              style={styles.referenceSend}>
+              <KnowMeIcon name="arrow" size={25} color="#0b141a"/>
+            </Pressable> : null}
           </View>
-          {toolsOpen ? (
-            <View style={[styles.composerTools, { borderTopColor: colors.border }]}>
-              <EmojiPicker onInsert={emoji => changeDraft(draft + emoji)}/>
-              <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
-                onSent={created=>{
-                  setHistory(current=>mergeMessages(current,[created]));
-                  setConversations(current=>current.map(item=>item.id===active.id
-                    ? {...item,messages:[created]}:item));
-                }}/>
-              <Text style={[styles.composerToolsLabel, { color: colors.muted }]}>
-                Emojis et stickers
-              </Text>
-            </View>
-          ) : null}
-        </GlassSurface>
+          {toolsOpen?<View style={styles.referenceTools}>
+            <EmojiPicker onInsert={emoji=>changeDraft(draft+emoji)}/>
+            <KnowMeStickerPicker<ConversationMessage> conversationId={active.id}
+              onSent={created=>{
+                setHistory(current=>mergeMessages(current,[created]));
+                setConversations(current=>current.map(item=>item.id===active.id?{...item,messages:[created]}:item));
+              }}/>
+            <Text style={{color:REFERENCE_CHAT.muted,fontSize:12}}>Emojis et stickers</Text>
+          </View>:null}
+        </View>
       </View>
     );
   }
@@ -1380,6 +1360,31 @@ const styles = StyleSheet.create({
   },
   unreadBadgeText: { fontWeight: '900', fontSize: 12 },
   conversationRoot: { flex: 1, position: 'relative', overflow: 'hidden' },
+  referenceHeader:{height:62,paddingHorizontal:5,flexDirection:'row',alignItems:'center',gap:4},
+  referenceBack:{width:37,height:48,alignItems:'center',justifyContent:'center'},
+  referenceAvatar:{height:40,width:40,borderRadius:20,backgroundColor:'#1d2b34',
+    alignItems:'center',justifyContent:'center',overflow:'hidden',marginRight:4},
+  referenceHeaderTitle:{flex:1,minWidth:0,flexDirection:'row',alignItems:'center',gap:6},
+  referenceName:{fontSize:19,fontWeight:'500',color:REFERENCE_CHAT.text,flexShrink:1},
+  referenceHeaderAction:{width:37,height:46,alignItems:'center',justifyContent:'center'},
+  referenceMore:{width:27,height:46,alignItems:'center',justifyContent:'center'},
+  referenceMessageItem:{width:'100%',gap:0},
+  referenceDay:{alignSelf:'center',backgroundColor:'#1b2931',borderRadius:8,
+    paddingHorizontal:12,paddingVertical:5,marginVertical:13},
+  referenceDayText:{color:'#bec9ce',fontSize:12},
+  referenceMeta:{flexDirection:'row',alignItems:'center',alignSelf:'flex-end',gap:4,minHeight:15,marginTop:1},
+  referenceTime:{fontSize:10.5,color:'#afbdc3'},
+  referenceTick:{fontSize:12,fontWeight:'700'},
+  referenceComposer:{backgroundColor:REFERENCE_CHAT.background,paddingHorizontal:7,
+    paddingTop:5,paddingBottom:8},
+  referenceComposeRow:{flexDirection:'row',alignItems:'flex-end',gap:7},
+  referenceInput:{flex:1,minWidth:0,fontSize:16,paddingHorizontal:4,paddingVertical:6,
+    lineHeight:22,includeFontPadding:false,color:REFERENCE_CHAT.text},
+  referenceEmoji:{width:34,height:44,justifyContent:'center',alignItems:'center'},
+  referenceSend:{height:52,width:52,borderRadius:26,backgroundColor:'#f5f6f6',
+    alignItems:'center',justifyContent:'center'},
+  referenceTools:{backgroundColor:'#202c33',borderRadius:12,marginTop:7,
+    paddingHorizontal:10,paddingVertical:5,flexDirection:'row',alignItems:'center',gap:11},
   conversationHeader: {
     marginHorizontal: 0,
     marginTop: 0,
@@ -1392,13 +1397,13 @@ const styles = StyleSheet.create({
     gap: 9
   },
   messages: {
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     gap: 4,
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
-  bubble: { maxWidth: '88%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 13, gap: 3 },
+  bubble: {maxWidth:'87%',paddingHorizontal:9,paddingVertical:6,borderRadius:8,gap:2,elevation:1},
   bubbleMine: { alignSelf: 'flex-end' },
   bubbleOther: { alignSelf: 'flex-start' },
   bubbleNexus: {
