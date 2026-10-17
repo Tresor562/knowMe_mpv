@@ -92,11 +92,13 @@ export default function DiscoverPage() {
           incoming.length ? incoming.map(item =>
             <article className="km-discover-person" key={item.id}>
               {item.requester.avatarUrl ? <img src={item.requester.avatarUrl} alt=""/> : <span className="km-discover-person-letter">{item.requester.displayName.slice(0,1)}</span>}
-              <div className="km-discover-person-info">
+              <Link className="km-discover-person-info km-discover-profile-link"
+                href={'/profile/' + encodeURIComponent(item.requester.username)}
+                aria-label={(en ? 'View profile of ' : 'Voir le profil de ') + item.requester.displayName}>
                 <strong>{item.requester.displayName}</strong>
                 <AccountBadges staff={item.requester.staff} verification={item.requester.verification} compact/>
                 <small>@{item.requester.username}</small>
-              </div>
+              </Link>
               <div className="km-discover-person-actions">
                 <button type="button" disabled={busy === item.id} onClick={() => void respond(item.id, 'accept')}>{en ? 'Accept' : 'Accepter'}</button>
                 <button type="button" disabled={busy === item.id} onClick={() => void respond(item.id, 'decline')}>{en ? 'Decline' : 'Refuser'}</button>
@@ -128,9 +130,7 @@ export default function DiscoverPage() {
           <Link href="/channels"><span>{en ? 'Public channels' : 'Chaînes publiques'}</span><span aria-hidden="true">›</span></Link>
           <Link href="/circles"><span>{en ? 'Groups and circles' : 'Groupes et cercles'}</span><span aria-hidden="true">›</span></Link>
         </div>
-        <p className="km-discover-muted">{en
-          ? 'Interest-ranked recommendations will appear here once the server provides verified matching results.'
-          : 'Les recommandations personnalisées apparaîtront ici lorsque le serveur fournira des résultats de correspondance vérifiés.'}</p>
+
       </section>
     </main>
   );
