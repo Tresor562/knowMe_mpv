@@ -31,6 +31,7 @@ export function useRuntimeExperience() {
 }
 export function RuntimeExperienceProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
+    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true') return;
     // Public/login pages must never probe an unavailable protected backend.
     if (!getAccessToken()) return;
     try {
@@ -41,6 +42,7 @@ export function RuntimeExperienceProvider({ children }: { children: React.ReactN
     } catch { /* Preserve last known good config while offline. */ }
   }, []);
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true') return;
     void refresh();
     const poll = window.setInterval(() => void refresh(), 60000);
     const visible = () => { if (document.visibilityState === 'visible') void refresh(); };
