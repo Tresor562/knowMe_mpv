@@ -14,6 +14,7 @@ import { GuestQuickMathExperience } from './GuestQuickMathExperience';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
 import { MobileUpdateNotice } from './updates/MobileUpdateNotice';
+import { ExpoOtaRuntime } from './updates/ExpoOtaRuntime';
 import { RuntimeExperienceProvider } from './RuntimeExperienceProvider';
 import {
   MobileEntryMode,
@@ -189,6 +190,7 @@ export function MobileEntryExperience() {
       <RuntimeExperienceProvider>
         <EntryContent />
         <MobileUpdateNotice />
+        <ExpoOtaRuntime />
       </RuntimeExperienceProvider>
     </AppearanceProvider>
   );
