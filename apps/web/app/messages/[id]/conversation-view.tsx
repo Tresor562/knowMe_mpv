@@ -12,6 +12,8 @@ import { StickerPicker } from './StickerPicker';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiText, AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 import { useI18n } from '../../../components/i18n-provider';
+import { knowMeToast } from '../../../components/knowme-feedback';
+import referenceStyles from './reference-chat.module.css';
 
 type Sender = {
   id:string;
@@ -82,7 +84,7 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
 function MessageContent({item}:{item:Message}){
   if(item.presentation?.kind==='GIF'||item.presentation?.kind==='STICKER_IMAGE'||item.presentation?.kind==='IMAGE'||
     item.presentation?.kind==='VIDEO'||item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT') {
-    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} enablePreview/>;
+    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} avatarUrl={item.sender?.avatarUrl} enablePreview/>;
   }
   if(item.presentation?.kind==='STICKER'){
     return(
@@ -413,7 +415,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
 
   const ScreenTag = embedded ? 'section' : 'main';
   return(
-    <ScreenTag className={embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'} aria-label={en?'Conversation':'Discussion'}>
+    <ScreenTag className={`${embedded?'km-chat-screen km-chat-embedded':'km-chat-screen'} ${referenceStyles.chat}`} aria-label={en?'Conversation':'Discussion'}>
       <header className="km-chat-header">
         {embedded&&onClose
           ? <button type="button" onClick={onClose} className="km-action km-chat-back" aria-label={en?'Close conversation':'Fermer la discussion'}>
@@ -447,9 +449,17 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
                 : socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
           </p>
         </Link>
-        <button className="km-action" type="button" onClick={()=>{setSearchOpen(value=>!value);setMenuOpen(false);}}
-          aria-label={en?'Find in conversation':'Rechercher dans la discussion'} aria-expanded={searchOpen}>
-          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+        <button className="km-action km-reference-call-action" type="button" aria-label={en?'Video call':'Appel vidéo'}
+          onClick={()=>knowMeToast(en?'Video calls are not available in this version.':'Les appels vidéo ne sont pas encore disponibles sur cette version.')}>
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2.5" y="4.8" width="15.2" height="14.3" rx="2.2"/><path d="m17.7 9 4-2v10l-4-2"/>
+          </svg>
+        </button>
+        <button className="km-action km-reference-call-action" type="button" aria-label={en?'Voice call':'Appel vocal'}
+          onClick={()=>knowMeToast(en?'Voice calls are not available in this version.':'Les appels vocaux ne sont pas encore disponibles sur cette version.')}>
+          <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+            <path d="m4.6 3 4.5 1.5L9.7 9l-2.4 1.8a18 18 0 0 0 5.9 5.9l1.8-2.4 4.5.6L21 19.4c.2 1.1-.7 2-1.8 1.8A19 19 0 0 1 2.8 4.8c-.2-1.1.7-2 1.8-1.8Z"/>
+          </svg>
         </button>
         <div className="km-chat-menu-anchor">
           <button className="km-action" type="button" aria-expanded={menuOpen} aria-haspopup="menu"
@@ -472,9 +482,6 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
             </Link>
           </div>}
         </div>
-        <button className="km-action" disabled={refreshing} onClick={()=>void load()} aria-label={refreshing?(en?'Refreshing':'Actualisation'):(en?'Refresh conversation':'Actualiser la discussion')} title={en?'Refresh':'Actualiser'}>
-          <svg className={refreshing?'km-rotate':''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 0-14.5-5.8L3.5 8.3M3.5 3.5v4.8h4.8M3.5 12.5a8.5 8.5 0 0 0 14.5 5.8l2.5-2.6M20.5 20.5v-4.8h-4.8"/></svg>
-        </button>
       </header>
       {searchOpen&&<div className="km-chat-inline-search">
         <input autoFocus type="search" value={searchTerm} onChange={event=>setSearchTerm(event.target.value)}
@@ -487,36 +494,58 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
       {shareNotice&&<p role="status" style={{margin:'10px 20px'}}>{shareNotice}</p>}
       <section className="km-chat-transcript" aria-label={en?'Chat messages':'Messages de la conversation'}>
         {nextCursor&&<button className="km-history-button" disabled={loadingOlder} onClick={()=>void load(nextCursor)}>{loadingOlder?(en?'Loading…':'Chargement…'):(en?'Load older messages':'Afficher les messages précédents')}</button>}
-        {visibleMessages.map(item=>{
+        {visibleMessages.map((item,index)=>{
           const mine=item.senderId===user?.id;
           const nexus=item.nexusAuthored===true;
+          const previous=visibleMessages[index-1];
+          const showDay=index===0||new Date(previous!.createdAt).toDateString()!==new Date(item.createdAt).toDateString();
+          const date=new Date(item.createdAt);
+          const today=new Date();
+          const dateLabel=date.toDateString()===today.toDateString()?(en?'Today':'Aujourd’hui'):
+            date.toDateString()===new Date(today.getTime()-86400000).toDateString()?(en?'Yesterday':'Hier'):
+              date.toLocaleDateString(en?'en-US':'fr-FR',{day:'numeric',month:'short'});
           const readers=mine?readStates.filter(state=>
             state.userId!==user?.id&&new Date(state.lastReadAt).getTime()>=new Date(item.createdAt).getTime()
           ):[];
-          return <article id={`knowme-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} key={item.id} style={{scrollMarginTop:90,outline:targetMessage===item.id?'2px solid var(--mint)':undefined}}>
-            {!mine&&(nexus
+          return <div key={item.id} className="km-reference-message-row">
+            {showDay?<span className="km-reference-day">{dateLabel}</span>:null}
+            <article id={`knowme-message-${item.id}`} className={`km-message-bubble ${mine?'km-message-mine':nexus?'km-message-nexus':'km-message-other'}`} style={{scrollMarginTop:90,outline:targetMessage===item.id?'2px solid var(--mint)':undefined}}>
+            {!mine&&(nexus||isGroup)&&(nexus
               ? <strong className="km-message-author">Nexus</strong>
               : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`} aria-label={`Voir le profil de ${item.sender.displayName}`}>{item.sender.displayName}<AccountBadges staff={item.sender.staff} compact/></Link>
             )}
             <MessageContent item={item}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
-              <button type="button" title={en?'Copy direct message link':'Copier le lien du message'} aria-label={en?'Copy direct message link':'Copier le lien du message'} onClick={()=>void copyContentLink('message',item.id)} style={{border:0,background:'transparent',color:'inherit',cursor:'pointer',fontSize:12,padding:'2px 5px'}}>↗</button>
-              {mine&&readers.length>0&&<span aria-label={en?"Read":"Message lu"}>✓✓</span>}
+              {mine&&<span aria-label={readers.length>0?(en?'Read':'Lu'):(en?'Sent':'Envoyé')} className={readers.length?'km-reference-read':'km-reference-sent'}>{readers.length?'✓✓':'✓'}</span>}
             </div>
-          </article>;
+            </article>
+          </div>;
         })}
         {!visibleMessages.length&&<div className="km-chat-transcript-empty">{searchTerm.trim()?(en?'No matching messages':'Aucun message correspondant'):(en?'Say hello to start the conversation.':'Dis bonjour pour commencer la conversation.')}</div>}
         {nexusPending&&<p className="km-typing-indicator" aria-live="polite">{en?'Nexus is thinking':'Nexus réfléchit'}<span aria-hidden="true">…</span></p>}
         {typingNames.length>0&&<p className="km-typing-indicator" aria-live="polite">{typingNames.join(', ')} {en?'typing…':typingNames.length>1?'écrivent…':'écrit…'}</p>}
       </section>
       <form className="km-chat-composer" onSubmit={send}>
-        {!isNexusPrivate&&<StickerPicker<Message> conversationId={conversationId} onSent={acceptSent} onInsertEmoji={emoji => changeDraft(draft + emoji)}/>}
-        <input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)} onBlur={stopTyping} maxLength={2000}
-          placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):(en?'Message…':'Écrire un message…')} required autoComplete="off" aria-label={en?'Your message':'Votre message'}/>
-        <button className="km-send-button" disabled={sending||nexusPending||!draft.trim()} aria-label={sending?(en?'Sending message':'Envoi du message'):(en?'Send message':'Envoyer le message')}>
-          {sending?<span className="km-spinner" aria-hidden="true"/>:<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7zM12 13l8-9"/></svg>}
-        </button>
+        <StickerPicker<Message> conversationId={conversationId} onSent={acceptSent}
+          referenceChat onInsertEmoji={emoji=>changeDraft(draft+emoji)}
+          inputSlot={<input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)}
+            onBlur={stopTyping} maxLength={2000} placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):'Message'}
+            autoComplete="off" aria-label={en?'Your message':'Votre message'}/>}
+        />
+        {draft.trim()?<button className="km-send-button" disabled={sending||nexusPending}
+          aria-label={sending?(en?'Sending message':'Envoi du message'):(en?'Send message':'Envoyer le message')}>
+          {sending?<span className="km-spinner" aria-hidden="true"/>:
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12h14m-6-6 6 6-6 6"/>
+            </svg>}
+        </button>:<button type="button" className="km-send-button km-reference-microphone"
+          aria-label={en?'Voice message':'Message vocal'}
+          onClick={()=>knowMeToast(en?'Attach an audio recording using the paperclip.':'Pour envoyer un vocal depuis le navigateur, sélectionne un enregistrement audio avec le trombone.')}>
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5.7 10a6.3 6.3 0 0 0 12.6 0M12 16.5V22m-4 0h8"/>
+          </svg>
+        </button>}
       </form>
     </ScreenTag>
   );
