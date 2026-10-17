@@ -19,6 +19,7 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { AnimatedEmoji } from './AnimatedEmoji';
 import {ChatExpressionKeyboard, type ExpressionTab} from './ChatExpressionKeyboard';
@@ -35,6 +36,7 @@ type UserSummary = {
   displayName: string;
   avatarUrl?: string | null;
   staff?: {shield?:string}|null;
+  verification?: {isVerified:true;label:string}|null;
 };
 
 type Friend = { friendshipId: string; user: UserSummary };
@@ -726,7 +728,7 @@ export function RealtimeMessagesPanel({
             onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
             style={styles.referenceHeaderTitle}>
             <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
-            {others.length===1&&others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+            {others.length===1&&others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={18} label={others[0]?.user.verification?.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
           </Pressable>
           <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
             accessibilityLabel="Appel vocal"
@@ -819,7 +821,7 @@ export function RealtimeMessagesPanel({
                     <Pressable accessibilityRole="button"
                       accessibilityLabel={`Voir le profil de ${item.sender.displayName}`}
                       onPress={() => openProfile?.(item.sender!.username)}>
-                      <View style={styles.verifiedName}><Text style={[styles.senderName, { color: REFERENCE_CHAT.blue }]}>{item.sender.displayName}</Text>{item.sender.staff?.shield==='GOLD'?<GoldVerifiedBadge size={16}/>:null}</View>
+                      <View style={styles.verifiedName}><Text style={[styles.senderName, { color: REFERENCE_CHAT.blue }]}>{item.sender.displayName}</Text>{item.sender.verification?.isVerified?<BlueVerifiedBadge size={16} label={item.sender.verification?.label}/>:item.sender.staff?.shield==='GOLD'?<GoldVerifiedBadge size={16}/>:null}</View>
                     </Pressable>
                   )
                 ) : null}
@@ -1145,7 +1147,7 @@ export function RealtimeMessagesPanel({
                   ]} /> : null}
                 </View>
                 <View style={styles.flex}>
-                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
+                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={17} label={others[0]?.user.verification?.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
                   <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
                     {pinned ? 'Épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
