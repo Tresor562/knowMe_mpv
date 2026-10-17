@@ -17,7 +17,7 @@ type MediaAsset={id:string;detectedMime:string;status:string;originalName?:strin
   conversationId?:string|null;purpose?:string};
 type Props<T>={conversationId:string;tab:ExpressionTab;onChangeTab:(tab:ExpressionTab)=>void;
   onClose:()=>void;onInsertEmoji:(emoji:string)=>void;onSent:(message:T)=>void;
-  onImportGif:()=>void;onExpandedChange?:(expanded:boolean)=>void;};
+  onImportGif:()=>void;expanded:boolean;onExpandedChange:(expanded:boolean)=>void;};
 
 const STORAGE_KEY='knowme.chat.expression.recents.v1';
 const GLYPHS=KNOWME_ANIMATED_EMOJIS.map(emoji=>emoji.glyph);
@@ -44,11 +44,9 @@ const EMOJI_CATEGORIES=[
   {label:'🎉',name:'Fêtes',match:/[🎁🎉🎊✨🔥⭐⚡]/u}
 ] as const;
 
-export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClose,onInsertEmoji,onSent,onImportGif,onExpandedChange}:Props<T>){
+export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClose,onInsertEmoji,onSent,onImportGif,expanded,onExpandedChange}:Props<T>){
   const {colors}=useAppearance();
   const {height:screenHeight,width:screenWidth}=useWindowDimensions();
-  const [expanded,setExpanded]=useState(false);
-  useEffect(()=>{onExpandedChange?.(expanded);},[expanded,onExpandedChange]);
   const [search,setSearch]=useState('');
   const [searchOpen,setSearchOpen]=useState(false);
   const [category,setCategory]=useState<string|null>(null);
@@ -203,9 +201,9 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
       onResponderGrant={e=>{dragStartY.current=e.nativeEvent.pageY;}}
       onResponderRelease={e=>{
         const delta=e.nativeEvent.pageY-dragStartY.current;
-        if(delta < -35)setExpanded(true);
-        else if(delta > 35)setExpanded(false);
-        else setExpanded(value=>!value);
+        if(delta < -35)onExpandedChange(true);
+        else if(delta > 35)onExpandedChange(false);
+        else onExpandedChange(!expanded);
       }}>
       <View style={styles.grab}/>
     </View>
