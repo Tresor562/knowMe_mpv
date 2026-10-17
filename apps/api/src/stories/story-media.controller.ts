@@ -15,7 +15,7 @@ export class StoryMediaController {
     const content = await this.media.readThumbnail(req.user.userId, id);
     return new StreamableFile(content.buffer, {
       type: content.mimeType,
-      disposition: `inline; filename="${content.fileName.replace(/["\\r\\n]/g, '_')}"`
+      disposition: `inline; filename="${content.fileName.replace(/["\r\n]/g, '_')}"`
     });
   }
 
