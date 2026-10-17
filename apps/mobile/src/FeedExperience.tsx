@@ -37,6 +37,7 @@ type PostSummary = {
   authorId: string;
   content: string;
   imageUrl?: string | null;
+  media?: Array<{url:string;mimeType:string;position:number}>;
   createdAt: string;
   author: Author;
   _count: { likes: number; comments: number };
@@ -500,7 +501,7 @@ export function FeedExperience({
   },[openComposerRequest,onComposerOpened]);
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [postPhotoSupported, setPostPhotoSupported] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<SelectedAndroidMedia[]>([]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
@@ -552,26 +553,24 @@ export function FeedExperience({
   }
 
   async function publish() {
-    const value = content.trim();
-    if (!value || publishing || value.length>2000) return;
+    const value=content.trim();
+    if((!value&&!selectedPhotos.length)||publishing)return;
     setPublishing(true);
     try {
-      const mediaAssetId = selectedPhoto
-        ? await uploadKnowMeMobileMedia(selectedPhoto, 'POST')
-        : undefined;
-      await apiFetch('/posts', {
-        method: 'POST',
-        body: JSON.stringify({ content: value, ...(mediaAssetId ? { mediaAssetId } : {}) })
+      const mediaAssetIds:string[]=[];
+      for(const media of selectedPhotos){
+        mediaAssetIds.push(await uploadKnowMeMobileMedia(media,'POST'));
+      }
+      await apiFetch('/posts',{
+        method:'POST',body:JSON.stringify({content:value||' ',mediaAssetIds})
       });
       setContent('');
-      setSelectedPhoto(null);
+      setSelectedPhotos([]);
       setComposerOpen(false);
       await load();
-    } catch (cause) {
-      Alert.alert('Publication impossible', errorMessage(cause, 'Réessaie.'));
-    } finally {
-      setPublishing(false);
-    }
+    }catch(cause){
+      Alert.alert('Publication impossible',errorMessage(cause,'Réessaie.'));
+    }finally{setPublishing(false);}
   }
 
   function confirmRemovePost(id: string) {
@@ -694,13 +693,27 @@ export function FeedExperience({
             <Text style={{fontSize:24,lineHeight:26,color:colors.text}}>⋯</Text>
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
-          {item.imageUrl ? (
-            <Image
-              source={{ uri: resolvePostImage(item.imageUrl) }}
-              style={styles.postImage as ImageStyle}
-              resizeMode="cover"
-            />
-          ) : null}
+          {item.media?.length?<View style={{flexDirection:'row',flexWrap:'wrap',gap:3}}>
+            {item.media.slice(0,5).map((medium,index)=><View key={medium.url}
+              style={{width:item.media!.length===1?'100%':index<2?'49%':'32%',
+                height:item.media!.length===1?275:index<2?198:126,
+                backgroundColor:colors.surface,position:'relative',overflow:'hidden',borderRadius:3}}>
+              {medium.mimeType.startsWith('image/')?
+                <Image source={{uri:resolvePostImage(medium.url)}}
+                  style={{width:'100%',height:'100%'}} resizeMode="cover"/>:
+                <View style={{flex:1,alignItems:'center',justifyContent:'center',gap:8}}>
+                  <Text style={{color:colors.text,fontSize:31}}>▶</Text>
+                  <Text style={{color:colors.text,fontSize:12}}>Vidéo · ouvrir la publication</Text>
+                </View>}
+              {index===4&&item.media!.length>5?<View
+                style={{position:'absolute',top:0,bottom:0,left:0,right:0,
+                  backgroundColor:'#000a',alignItems:'center',justifyContent:'center'}}>
+                <Text style={{color:'white',fontSize:27,fontWeight:'800'}}>+{item.media!.length-5}</Text>
+              </View>:null}
+            </View>)}
+          </View>:item.imageUrl?<Image
+            source={{uri:resolvePostImage(item.imageUrl)}}
+            style={styles.postImage as ImageStyle} resizeMode="cover"/>:null}
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
@@ -719,18 +732,19 @@ export function FeedExperience({
       author={currentUser ?? {displayName:'KnowMe',username:'knowme'}}
       content={content}
       onChangeContent={setContent}
-      media={selectedPhoto}
+      media={selectedPhotos}
       canAttachPhoto={postPhotoSupported}
       onChoosePhoto={()=>setPhotoPickerOpen(true)}
-      onRemovePhoto={()=>setSelectedPhoto(null)}
+      onRemovePhoto={()=>setSelectedPhotos([])}
       onPublish={()=>void publish()}
       publishing={publishing}
       onClose={()=>{if(!publishing)setComposerOpen(false);}}
     />
     <AndroidMediaLibraryPicker
-      visible={photoPickerOpen} purpose="publication" mediaFilter="photo" allowVideo={false}
+      visible={photoPickerOpen} purpose="publication" mediaFilter="all" allowVideo multiple
+      maxSelection={500}
       onClose={()=>setPhotoPickerOpen(false)}
-      onPicked={photo=>{setSelectedPhoto(photo);setPhotoPickerOpen(false);setComposerOpen(true);}}
+      onPickedMany={media=>{setSelectedPhotos(media);setPhotoPickerOpen(false);setComposerOpen(true);}}
     />
     </>
   );
