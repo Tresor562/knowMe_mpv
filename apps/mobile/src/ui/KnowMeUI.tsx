@@ -53,7 +53,9 @@ export type KnowMeIconName =
   | 'paperclip'
   | 'smile'
   | 'sticker'
-  | 'keyboard';
+  | 'keyboard'
+  | 'chevron-down'
+  | 'chevron-up';
 
 export function BrandMark({ size = 38 }: { size?: number }) {
   // Single brand identity shared with the Web application and APK launcher.
@@ -115,6 +117,13 @@ export function KnowMeIcon({
   const sw = strokeWidth * s;
   const commonBorder = { borderColor: color, borderWidth: sw };
 
+  if(name==='chevron-down'||name==='chevron-up')return <View style={{width:size,height:size,
+    alignItems:'center',justifyContent:'center'}}>
+    <Line width={12*s} height={sw} left={2*s} top={11*s}
+      rotate={name==='chevron-down'?'43deg':'-43deg'} color={color}/>
+    <Line width={12*s} height={sw} left={10*s} top={11*s}
+      rotate={name==='chevron-down'?'-43deg':'43deg'} color={color}/>
+  </View>;
   if(name==='keyboard')return <View style={{width:size,height:size,justifyContent:'center',alignItems:'center'}}>
     <View style={{width:22*s,height:16*s,borderColor:color,borderWidth:sw,borderRadius:3*s,padding:3*s,
       flexDirection:'row',flexWrap:'wrap',justifyContent:'space-around',alignContent:'space-around'}}>
