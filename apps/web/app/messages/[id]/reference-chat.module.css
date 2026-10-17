@@ -255,3 +255,16 @@
   }
   .chat :global(.km-picker-reference-sheet .km-picker-tabs button) {min-width:81px;}
 }
+
+.chat :global(.km-reference-mic-recording) {
+  background:var(--mint)!important;color:#0b141a!important;
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--mint) 24%,transparent);
+  animation:km-recording-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes km-recording-pulse {
+  from { box-shadow:0 0 0 2px color-mix(in srgb,var(--mint) 25%,transparent); }
+  to { box-shadow:0 0 0 8px color-mix(in srgb,var(--mint) 15%,transparent); }
+}
+@media(prefers-reduced-motion:reduce) {
+ .chat :global(.km-reference-mic-recording) {animation:none;}
+}
