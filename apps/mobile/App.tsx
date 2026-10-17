@@ -259,7 +259,7 @@ function AuthScreen({
       style={[
         styles.authRoot,
         {
-          backgroundColor: socialImmersive ? '#0b141a' : colors.background,
+          backgroundColor: colors.background,
           paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
         }
       ]}
