@@ -695,7 +695,7 @@ export function RealtimeMessagesPanel({
             onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
             style={styles.referenceHeaderTitle}>
             <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
-            {others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+            {others.length===1&&others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
           </Pressable>
           <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
             accessibilityLabel="Appel vidéo"
@@ -709,7 +709,7 @@ export function RealtimeMessagesPanel({
           </Pressable>
           <Pressable style={styles.referenceMore} accessibilityRole="button" accessibilityLabel="Options de conversation"
             onPress={()=>Alert.alert('Conversation',name,[
-              ...(others.length===1?[{text:'Voir le profil',onPress:()=>openProfile?.(others[0].user.username)}]:[]),
+              ...(others.length===1?[{text:'Voir le profil',onPress:()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}]:[]),
               {text:'Actualiser',onPress:()=>void openConversation(active)},
               {text:'Fermer',style:'cancel' as const}
             ])}>
@@ -1100,7 +1100,7 @@ export function RealtimeMessagesPanel({
                   ]} /> : null}
                 </View>
                 <View style={styles.flex}>
-                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
+                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
                   <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
                     {pinned ? 'Épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
