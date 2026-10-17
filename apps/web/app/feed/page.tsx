@@ -268,6 +268,16 @@ export default function FeedPage() {
     }
   }
 
+  async function copyPostLink(post: Post) {
+    const url = `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareNotice(en ? 'Link copied.' : 'Lien copié.');
+    } catch {
+      setShareNotice(en ? 'Could not copy link on this device.' : 'Impossible de copier le lien sur cet appareil.');
+    }
+  }
+
   async function sharePost(post: Post) {
     const url = `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
     try {
@@ -409,10 +419,12 @@ export default function FeedPage() {
                 <summary aria-label={en?'Post options':'Options de la publication'} title={en?'Post options':'Options de la publication'}>⋯</summary>
                 <div className="km-post-menu-items">
                   <Link href={`/feed/${encodeURIComponent(post.id)}`}>{en?'Open post':'Voir la publication'}</Link>
-                  <button type="button" onClick={()=>void sharePost(post)}>{en?'Share':'Partager'}</button>
+                  <button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');void sharePost(post);}}>{en?'Share':'Partager'}</button>
+                  <button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');void copyPostLink(post);}}>{en?'Copy link':'Copier le lien'}</button>
+                  <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>{en?'View profile':'Voir le profil'}</Link>
                   {post.author.id===user.id && (
                     <button type="button" className="km-post-menu-danger"
-                      onClick={()=>setDeletePending(post.id)}>{en?'Delete':'Supprimer'}</button>
+                      onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');setDeletePending(post.id);}}>{en?'Delete':'Supprimer'}</button>
                   )}
                 </div>
               </details>
