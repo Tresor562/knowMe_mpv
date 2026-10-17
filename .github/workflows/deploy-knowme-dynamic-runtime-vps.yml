@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   checks: read
+  statuses: write
 
 concurrency:
   group: knowme-dynamic-runtime-vps-deploy
@@ -104,3 +105,42 @@ jobs:
           ' 
         env:
           BASE: https://31-56-85-53.sslip.io/knowme-api
+
+      - name: Publish factual VPS deployment result on the source commit
+        if: always()
+        shell: bash
+        env:
+          RESULT: ${{ job.status }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          ok = os.environ['RESULT'] == 'success'
+          payload = {
+              'state': 'success' if ok else 'failure',
+              'context': 'KnowMe dynamic runtime VPS deploy',
+              'description': ('API SHA, readiness and remote catalog verified' if ok
+                              else 'VPS rollout not completed; see workflow logs'),
+              'target_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY']
+                            + '/actions/runs/' + os.environ['GITHUB_RUN_ID']
+          }
+          req = urllib.request.Request(
+              'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY']
+              + '/statuses/' + os.environ['GITHUB_SHA'],
+              data=json.dumps(payload).encode('utf-8'),
+              headers={
+                  'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json'
+              },
+              method='POST'
+          )
+          with urllib.request.urlopen(req, timeout=15) as result:
+              if result.status != 201:
+                  raise SystemExit('Could not record VPS deployment status')
+          PY
