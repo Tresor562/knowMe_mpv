@@ -11,7 +11,9 @@ permissions:
 
 concurrency:
   group: knowme-apk-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve an active Android build when many commits land on main.
+  # GitHub queues only the newest pending run for this concurrency group.
+  cancel-in-progress: false
 
 jobs:
   android-apk:

@@ -5,6 +5,9 @@ on:
     workflows: ['CI']
     types: [completed]
   workflow_dispatch:
+  # Retry the latest qualified release if CI finished before the APK build.
+  schedule:
+    - cron: '17 * * * *'
 
 permissions:
   contents: write
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   compatible-preview:
     if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
+      ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') ||
         (github.event.workflow_run.conclusion == 'success' &&
          github.event.workflow_run.head_branch == 'main' &&
          github.event.workflow_run.head_repository.full_name == github.repository) }}
