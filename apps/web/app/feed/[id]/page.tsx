@@ -22,7 +22,7 @@ type Post = {
   imageUrl?: string | null;
   createdAt: string;
   authorId: string;
-  author: { id: string; displayName: string; username: string };
+  author: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   _count: { likes: number; comments: number };
 };
 
@@ -90,6 +90,16 @@ export default function PostDetailPage() {
       setShareNotice('Lien copié dans le presse-papiers.');
     } catch {
       setShareNotice('Copie indisponible sur cet appareil.');
+    }
+  }
+
+  async function sharePost() {
+    const url = buildKnowMePublicLink({ kind: 'post', id: postId });
+    try {
+      if (navigator.share) await navigator.share({ title: 'KnowMe', url });
+      else await copyLink('post', postId);
+    } catch (cause) {
+      if ((cause as Error)?.name !== 'AbortError') setShareNotice('Partage indisponible sur cet appareil.');
     }
   }
 
@@ -178,7 +188,7 @@ export default function PostDetailPage() {
       <header className="km-post-detail-top">
         <Link href="/feed" aria-label="Retour au fil" className="km-post-back">‹</Link>
         <h1>Publication</h1>
-        <button type="button" onClick={() => void copyLink('post', post.id)} aria-label="Copier le lien de la publication">↗</button>
+        <button type="button" onClick={() => void sharePost()} aria-label="Partager la publication">↗</button>
       </header>
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
@@ -187,29 +197,31 @@ export default function PostDetailPage() {
       <article className="km-post-detail-article">
         <header className="km-post-detail-author">
           <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>
-            <span className="km-post-avatar">{post.author.displayName.charAt(0).toUpperCase()}</span>
+            <span className="km-post-avatar">{post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" /> : post.author.displayName.charAt(0).toUpperCase()}</span>
             <span><strong>{post.author.displayName}</strong><small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString('fr-FR')}</small></span>
           </Link>
-          {post.authorId === user?.id && (
-            <details className="km-post-options">
-              <summary aria-label="Options de la publication">•••</summary>
-              <div><button type="button" onClick={() => void removePost()}>Supprimer la publication</button></div>
-            </details>
-          )}
+          <details className="km-post-options">
+            <summary aria-label="Options de la publication" title="Options de la publication">⋯</summary>
+            <div className="km-post-options-list">
+              <button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); void sharePost(); }}>Partager</button>
+              <button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); void copyLink('post', post.id); }}>Copier le lien</button>
+              <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>Voir le profil</Link>
+              {post.authorId === user?.id && <button type="button" className="km-post-options-delete" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); void removePost(); }}>Supprimer la publication</button>}
+            </div>
+          </details>
         </header>
         <p className="km-post-detail-text"><KnowMeMentionText text={post.content}/></p>
         {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl.startsWith('/media/public/post/') ? `/api/knowme${post.imageUrl}` : post.imageUrl} alt="Média de la publication" />}
         <div className="km-post-actions">
           <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
           <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
-          <button type="button" onClick={() => void copyLink('post', post.id)}>↗ <span>Partager</span></button>
+          <button type="button" onClick={() => void sharePost()}>↗ <span>Partager</span></button>
         </div>
       </article>
 
-      <form className="km-post-comment-form" onSubmit={comment}>
-        <input name="content" placeholder="Écris un commentaire…" maxLength={500} required aria-label="Commentaire" />
-        <button type="submit" disabled={sending}>{sending ? 'Envoi…' : 'Envoyer'}</button>
-      </form>
+      <div className="km-post-comments-heading">
+        <h2>Commentaires <span>{post._count.comments}</span></h2>
+      </div>
 
       <section id="km-post-comments" className="km-post-comments" aria-label="Commentaires">
         {comments.map((item) => {
@@ -238,7 +250,7 @@ export default function PostDetailPage() {
           );
         })}
 
-        {!comments.length && <p style={{ color: 'var(--muted)' }}>Aucun commentaire pour le moment.</p>}
+        {!comments.length && <div className="km-post-comments-empty"><span aria-hidden="true">☏</span><p>Sois le premier à commenter.</p></div>}
       </section>
 
       {hasMore && (
@@ -248,6 +260,11 @@ export default function PostDetailPage() {
           </button>
         </div>
       )}
+      <form className="km-post-comment-form" onSubmit={comment}>
+        <label className="km-sr-only" htmlFor="km-post-comment-draft">Ton commentaire</label>
+        <textarea id="km-post-comment-draft" name="content" rows={1} placeholder="Écris un commentaire…" maxLength={500} required aria-label="Commentaire" />
+        <button type="submit" disabled={sending} aria-label="Envoyer le commentaire">{sending ? 'Envoi…' : 'Envoyer'}</button>
+      </form>
     </main>
   );
 }
