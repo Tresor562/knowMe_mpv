@@ -24,6 +24,7 @@ import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
 import { checkKnowMeUpdateNow } from './updates/MobileUpdateNotice';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
@@ -695,10 +696,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
                 <GoldVerifiedBadge size={23} label={user.staff.label + ', ' + user.staff.role} />
               ) : null}
               {user.verification?.isVerified ? (
-                <View style={[styles.verifiedCheck, {backgroundColor: colors.accent}]} accessible accessibilityRole="image"
-                  accessibilityLabel={user.verification.label}>
-                  <Text style={styles.verifiedCheckText}>✓</Text>
-                </View>
+                <BlueVerifiedBadge size={23} label={user.verification.label} />
               ) : null}
               {user.premium?.isPremium ? (
                 <View style={styles.premiumBadge} accessible accessibilityRole="image"
