@@ -40,7 +40,7 @@ test('nested replies are retrieved and a new reply targets the correct parent', 
   await expect(page.locator('#knowme-comment-reply-a')).toBeVisible();
   await page.locator('#knowme-comment-root-a').getByRole('button',{name:'Répondre'}).click();
   await expect(page.getByText('Réponse à')).toBeVisible();
-  await page.getByLabel('Commentaire').fill('À mon tour');
+  await page.getByRole('textbox', { name:'Commentaire', exact:true }).fill('À mon tour');
   await page.getByRole('button',{name:'Envoyer le commentaire'}).click();
   await expect.poll(() => sent).toMatchObject({
     content:'À mon tour', parentId:'root-a'
