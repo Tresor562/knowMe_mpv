@@ -74,6 +74,34 @@ async function main() {
   const web = await deployed(webOrigin + '/api/version');
   const apiCurrent = api?.commit === sha;
   const webCurrent = web?.commit === sha;
+
+  // Owner-requested release freeze: API updates may serve the Android update
+  // channel, but Web MUST NOT be rolled out until explicitly enabled. Default
+  // is fail-closed so fresh installations cannot bypass the freeze.
+  const webDeployEnabled = process.env.KNOWME_WEB_DEPLOY_ENABLED === 'true';
+  if (!webDeployEnabled) {
+    if (!apiCurrent) start('deploy-knowme-vps.mjs', sha);
+    let afterApi = apiCurrent ? api : null;
+    for (let attempt = 0; attempt < 12 && afterApi?.commit !== sha; attempt++) {
+      afterApi = await deployed(apiOrigin + '/platform-sync/version');
+      if (afterApi?.commit === sha) break;
+      await new Promise(resolve => setTimeout(resolve, 2500));
+    }
+    if (afterApi?.commit !== sha) {
+      throw new Error('Android API release not ready; Web remains on hold');
+    }
+    const state = { sha, productVersion: afterApi.version,
+      apkVersion: notice.version, versionCode: notice.versionCode,
+      webDeployment: 'PAUSED', webSha: web?.commit ?? null,
+      updatedAt: new Date().toISOString() };
+    const statePath = join(runtime, 'current-release.json');
+    writeFileSync(statePath + '.tmp', JSON.stringify(state, null, 2) + '\n', { mode: 0o600 });
+    renameSync(statePath + '.tmp', statePath);
+    console.log(JSON.stringify({ ok: true, apiReady: true, webDeployed: false,
+      reason: 'Web rollout frozen by owner', ...state }));
+    return;
+  }
+
   if (apiCurrent && webCurrent && api.version === web.version) {
     console.log(JSON.stringify({ ok: true, deployed: false, sha, version: notice.version, reason: 'already synchronized' }));
     return;
