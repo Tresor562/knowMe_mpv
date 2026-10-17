@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import {apiFetch} from './api';
 import type {SelectedAndroidMedia} from './AndroidMediaLibraryPicker';
+import {convertToKnowStickerWebp} from './native-gallery';
 
 const REGISTRY='knowme.knowsticker.local.packs.v1';
 const FORMAT='KNOWSTICKER_V1';
@@ -34,14 +35,19 @@ export async function createKnowStickerPack(name:string,media:SelectedAndroidMed
   try{
     for(let index=0;index<media.length;index++){
       const file=media[index]!;
-      if(!['image/webp','image/png'].includes(file.mime))
-        throw new Error('Pour créer un sticker, choisis des images PNG ou WebP.');
-      const info=await FileSystem.getInfoAsync(file.uri);
-      if(!info.exists||!info.size||info.size<100||info.size>MAX_STICKER_SIZE)
-        throw new Error('Chaque sticker doit peser entre 100 octets et 8 Mo.');
-      const uri=root+String(index).padStart(3,'0')+(file.mime==='image/webp'?'.webp':'.png');
-      await FileSystem.copyAsync({from:file.uri,to:uri});
-      items.push({id:safeId(),uri,mime:file.mime,name:file.name});
+      if(!file.mime.startsWith('image/'))
+        throw new Error('Choisis des photos, pas des vidéos pour ce pack.');
+      const converted=await convertToKnowStickerWebp(file.uri);
+      try{
+        const info=await FileSystem.getInfoAsync(converted);
+        if(!info.exists||!info.size||info.size<100||info.size>MAX_STICKER_SIZE)
+          throw new Error('Chaque sticker doit peser entre 100 octets et 8 Mo.');
+        const uri=root+String(index).padStart(3,'0')+'.webp';
+        await FileSystem.copyAsync({from:converted,to:uri});
+        items.push({id:safeId(),uri,mime:'image/webp',name:file.name+'.webp'});
+      }finally{
+        await FileSystem.deleteAsync(converted,{idempotent:true}).catch(()=>undefined);
+      }
     }
     const pack:KnowStickerPack={id,name:label,format:FORMAT,createdAt:new Date().toISOString(),items};
     const existing=await readKnowStickerPacks();
