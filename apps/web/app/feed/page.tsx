@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
@@ -301,6 +302,7 @@ export default function FeedPage() {
 
   return (
     <main className="shell km-feed-page">
+      <RuntimeExperienceModules />
       <div className="km-header-nav-group">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
