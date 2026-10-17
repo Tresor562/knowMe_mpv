@@ -200,7 +200,7 @@ function startApi() {
 ensureSource();
 const contract = JSON.parse(readFileSync(join(SOURCE, 'packages/link-contract/src/platform-sync.json'), 'utf8'));
 const releaseVersion = String(contract.productVersion || '');
-if (!/^\\d+\\.\\d+\\.\\d+$/.test(releaseVersion)) throw new Error('Invalid KnowMe release version.');
+if (!/^\d+\.\d+\.\d+$/.test(releaseVersion)) throw new Error('Invalid KnowMe release version.');
 const oldEnv = existsSync(ENV_FILE) ? parseEnv(readFileSync(ENV_FILE, 'utf8')) : {};
 const oldOrigins = (() => {
   try {
