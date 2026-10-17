@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import * as FileSystem from 'expo-file-system';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
@@ -28,8 +28,9 @@ function detectKind(mime: string, preferSticker: boolean): MediaKind {
   return 'DOCUMENT';
 }
 
-export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true}:{
+export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot}:{
   conversationId:string;onSent:(message:T)=>void;showVoice?:boolean;
+  referenceChat?:boolean;inputSlot?:ReactNode;
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
@@ -128,16 +129,27 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true}:{
   }
 
   return <>
-    <View style={styles.recordAndAttach}>
-      <Pressable accessibilityRole="button"
+    <View style={referenceChat?styles.referenceRow:styles.recordAndAttach}>
+      {referenceChat ? <View style={styles.referencePill}>
+        {inputSlot}
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={en ? 'Attach files' : 'Joindre des fichiers'}
+          disabled={busy} onPress={()=>setMenuVisible(true)} style={styles.referenceTrigger}>
+          {busy?<ActivityIndicator color="#aebac1" size="small"/>:<KnowMeIcon name="paperclip" size={23} color="#aebac1"/>}
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Open media gallery':'Ouvrir la galerie KnowMe'}
+          disabled={busy} onPress={()=>setGalleryVisible(true)} style={styles.referenceTrigger}>
+          <KnowMeIcon name="camera" size={23} color="#aebac1"/>
+        </Pressable>
+      </View> : <Pressable accessibilityRole="button"
         accessibilityLabel={en ? 'Attach photos, videos or files' : 'Joindre photos, vidéos ou fichiers'}
         disabled={busy}
         onPress={()=>setMenuVisible(true)}
         style={[styles.trigger,{backgroundColor:colors.backgroundAccent}]}>
         {busy ? <ActivityIndicator color={colors.accent} size="small"/> :
           <KnowMeIcon name="create" size={24} color={colors.text}/>}
-      </Pressable>
-      {showVoice ? <KnowMeVoiceComposer busy={busy} onSend={file=>sendFiles([file])}/> : null}
+      </Pressable>}
+      {showVoice ? <KnowMeVoiceComposer busy={busy} referenceChat={referenceChat} onSend={file=>sendFiles([file])}/> : null}
     </View>
     {!!progress && <Text style={[styles.progress,{color:colors.muted}]}>{progress}</Text>}
     {!!notice && !busy && <Pressable onPress={()=>setMenuVisible(true)}>
@@ -199,6 +211,10 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true}:{
 const styles=StyleSheet.create({
   trigger:{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center'},
   recordAndAttach:{flexDirection:'row',alignItems:'center',gap:3},
+  referenceRow:{flex:1,flexDirection:'row',alignItems:'flex-end',gap:8,minWidth:0},
+  referencePill:{backgroundColor:'#202c33',borderRadius:25,minHeight:49,
+    paddingHorizontal:9,flex:1,flexDirection:'row',alignItems:'center',gap:4,minWidth:0},
+  referenceTrigger:{width:34,height:44,alignItems:'center',justifyContent:'center'},
   progress:{fontSize:11,fontWeight:'700'},
   notice:{maxWidth:120,fontSize:10},
   scrim:{flex:1,backgroundColor:'rgba(0,0,0,.55)',justifyContent:'flex-end'},
