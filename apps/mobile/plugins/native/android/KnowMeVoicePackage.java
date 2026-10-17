@@ -191,7 +191,7 @@ public final class KnowMeVoicePackage implements ReactPackage {
       if (uri == null || !uri.startsWith("file://")) throw new SecurityException("URI invalide");
       File file = new File(Uri.parse(uri).getPath()).getCanonicalFile();
       File directory = new File(context.getCacheDir(), "knowme-voice").getCanonicalFile();
-      if (!file.getParentFile().equals(directory) || !file.getName().endsWith(".ogg") || !file.isFile())
+      if (!file.getParentFile().equals(directory) || !(file.getName().endsWith(".ogg") || file.getName().endsWith(".mp3") || file.getName().endsWith(".wav")) || !file.isFile())
         throw new SecurityException("Le fichier doit appartenir au cache vocal KnowMe.");
       return file;
     }
