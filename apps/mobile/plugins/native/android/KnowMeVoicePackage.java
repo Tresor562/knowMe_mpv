@@ -38,6 +38,7 @@ public final class KnowMeVoicePackage implements ReactPackage {
     private final ReactApplicationContext context;
     private MediaRecorder recorder;
     private MediaPlayer player;
+    private String playbackUri;
     private File currentFile;
     private long startedAt;
 
@@ -131,6 +132,7 @@ public final class KnowMeVoicePackage implements ReactPackage {
       try {
         File file = allowedFile(uri);
         player = new MediaPlayer();
+        playbackUri = Uri.fromFile(file).toString();
         player.setDataSource(file.getAbsolutePath());
         player.setOnCompletionListener(completed -> stopPlaybackQuietly());
         player.prepare();
@@ -139,6 +141,33 @@ public final class KnowMeVoicePackage implements ReactPackage {
       } catch (Exception error) {
         stopPlaybackQuietly();
         promise.reject("VOICE_PLAY_FAILED", "Prévisualisation audio impossible.", error);
+      }
+    }
+
+    /** Playback metadata for the inline chat player; never exposes arbitrary device files. */
+    @ReactMethod public synchronized void playbackStatus(Promise promise) {
+      WritableMap status = Arguments.createMap();
+      try {
+        status.putBoolean("playing", player != null && player.isPlaying());
+        status.putInt("durationMs", player == null ? 0 : player.getDuration());
+        status.putInt("positionMs", player == null ? 0 : player.getCurrentPosition());
+        status.putString("uri", playbackUri);
+        promise.resolve(status);
+      } catch (Exception error) {
+        promise.reject("VOICE_STATUS_FAILED", "Lecture audio momentanément indisponible.", error);
+      }
+    }
+
+    @ReactMethod public synchronized void seekPlayback(int positionMs, Promise promise) {
+      if (player == null) {
+        promise.reject("VOICE_NOT_PLAYING", "Aucun audio en cours de lecture.");
+        return;
+      }
+      try {
+        player.seekTo(Math.max(0, Math.min(positionMs, player.getDuration())));
+        promise.resolve(true);
+      } catch (Exception error) {
+        promise.reject("VOICE_SEEK_FAILED", "Déplacement audio impossible.", error);
       }
     }
 
@@ -175,6 +204,7 @@ public final class KnowMeVoicePackage implements ReactPackage {
       startedAt = 0;
     }
     private void stopPlaybackQuietly() {
+      playbackUri = null;
       if (player == null) return;
       try { player.stop(); } catch (Exception ignored) {}
       try { player.release(); } catch (Exception ignored) {}
