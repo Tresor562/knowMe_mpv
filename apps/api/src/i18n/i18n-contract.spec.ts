@@ -7,6 +7,7 @@ import {
   resolveTextDirection,
   translate,
   translateApiError,
+  translateLoginFailure,
   translateCount,
   withSupportReference
 } from '@knowme/i18n-contract';
@@ -46,6 +47,20 @@ describe('KMD-049 shared i18n contract', () => {
     expect(translateApiError('fr', 'UNKNOWN_CODE', 'Message métier précis.')).toBe(
       'Message métier précis.'
     );
+  });
+
+  it('shows actionable localized login failures without support identifiers or leaked account existence', () => {
+    expect(translateLoginFailure('fr', 401, 'UNAUTHORIZED')).toBe(
+      'Identifiant ou mot de passe incorrect. Réessaie.'
+    );
+    expect(translateLoginFailure('en', 401, 'UNAUTHORIZED')).toBe(
+      'Incorrect email, username or password. Try again.'
+    );
+    expect(translateLoginFailure('fr', 429)).toContain('Trop de tentatives.');
+    expect(translateLoginFailure('en', 400)).toContain('Check your email');
+    expect(translateLoginFailure('fr', undefined, 'KNOWME_NETWORK_UNAVAILABLE')).toContain('connexion Internet.');
+    expect(translateLoginFailure('en', 503)).toContain('temporarily unavailable');
+    expect(translateLoginFailure('fr', 401)).not.toMatch(/support|request|[0-9a-f]{8}-[0-9a-f]{4}/i);
   });
 
   it('exposes deterministic direction and Intl-based formatting', () => {
