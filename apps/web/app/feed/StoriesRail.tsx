@@ -6,6 +6,8 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { storyUi } from '../stories/story-i18n';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
+import { AccountBadges } from '../../components/AccountBadges';
+import type { VerificationBadge } from '../../lib/use-session';
 
 type Story = {
   id: string;
@@ -19,6 +21,7 @@ type Story = {
     username: string;
     displayName: string;
     avatarUrl?: string | null;
+    verification?: VerificationBadge | null;
   } | null;
   viewer: { own: boolean; reaction?: unknown };
 };
@@ -89,7 +92,7 @@ export function StoriesRail() {
             {story.author?.username
               ? <Link className="km-story-profile-label"
                   href={`/profile/${encodeURIComponent(story.author.username)}`}>
-                  <small>{story.author.displayName}</small>
+                  <small style={{display:'inline-flex',alignItems:'center',gap:4}}>{story.author.displayName}<AccountBadges verification={story.author.verification} compact/></small>
                 </Link>
               : <small>{ui.stories}</small>}
           </div>
