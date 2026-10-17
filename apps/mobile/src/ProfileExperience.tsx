@@ -692,7 +692,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           <View style={styles.flex}>
             <View style={styles.verifiedNameRow}>
               <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.heading, styles.verifiedName, { color: colors.text }]}>{user.displayName}</Text>
-              {user.staff?.isTeamMember && user.staff.shield === 'GOLD' ? (
+              {!user.verification?.isVerified && user.staff?.isTeamMember && user.staff.shield === 'GOLD' ? (
                 <GoldVerifiedBadge size={23} label={user.staff.label + ', ' + user.staff.role} />
               ) : null}
               {user.verification?.isVerified ? (
