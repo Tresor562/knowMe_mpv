@@ -32,7 +32,7 @@ Les actions d'administration passent par RBAC, journal d'audit et gestion des co
 1. Revue, tests, sauvegarde PostgreSQL, compilation API/Web/Android.
 2. Fusionner le code validé seulement après contrôle CI et revue; déployer le backend avec
    `prisma migrate deploy`, vérifier l'API.
-3. Déployer une version Web contenant les lecteurs de configuration.
+3. Déployer une version Web contenant les lecteurs de configuration, avec `NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED=true` **seulement après** la migration et le déploiement vérifié de l'API. Ce drapeau est un réglage d'amorçage unique : après activation, les changements de badges, modules et flags se font sans redéploiement.
 4. Construire et installer **une APK compatible** contenant le moteur dynamique.
    Les anciennes APK ne comprennent pas les nouveaux messages ni les nouvelles routes.
 5. Tester : attribuer à un compte un badge décoratif, voir le résultat côté profils, feed,
