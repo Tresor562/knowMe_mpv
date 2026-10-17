@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { AuditService } from '../observability/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { verificationRequestSelect, toVerificationBadge } from '../verification/verification-profile';
 import {
   CreateStoryAlbumDto,
   CreateStoryDto,
@@ -217,7 +218,7 @@ export class StoriesService {
     await this.expireDue();
     const user = await this.prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, displayName: true, avatarUrl: true }
+      select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
     });
     if (!user) throw new NotFoundException({ code: 'STORY_PROFILE_NOT_FOUND', message: 'Profile not found.' });
     const now = new Date();
@@ -233,7 +234,7 @@ export class StoriesService {
       take: 100
     });
     return {
-      profile: user,
+      profile: { ...user, verification:toVerificationBadge(user.verificationRequests) },
       stories: await Promise.all(stories.map((story) => this.serialize(story, null)))
     };
   }
@@ -369,7 +370,7 @@ export class StoriesService {
     ]);
     const users = await this.prisma.user.findMany({
       where: { id: { in: views.map((view) => view.viewerUserId) } },
-      select: { id: true, username: true, displayName: true, avatarUrl: true }
+      select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
     });
     const userMap = new Map(users.map((user) => [user.id, user]));
     return {
@@ -381,7 +382,7 @@ export class StoriesService {
         ? Math.round(views.reduce((sum, view) => sum + view.completionBps, 0) / views.length)
         : 0,
       screenshots: views.filter((view) => view.screenshotAt).length,
-      viewers: views.map((view) => ({ ...view, user: userMap.get(view.viewerUserId) ?? null }))
+      viewers: views.map((view) => ({ ...view, user: userMap.has(view.viewerUserId) ? { ...userMap.get(view.viewerUserId), verification:toVerificationBadge(userMap.get(view.viewerUserId)!.verificationRequests) } : null }))
     };
   }
 
@@ -433,7 +434,7 @@ export class StoriesService {
     const [author, mentions, hashtags, areas, reactionCount, replyCount, viewerReaction] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: story.authorUserId },
-        select: { id: true, username: true, displayName: true, avatarUrl: true }
+        select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
       }),
       this.prisma.storyMention.findMany({ where: { storyId: story.id } }),
       this.prisma.storyHashtag.findMany({ where: { storyId: story.id } }),
@@ -446,7 +447,7 @@ export class StoriesService {
     ]);
     return {
       ...story,
-      author,
+      author: author ? { id:author.id, username:author.username, displayName:author.displayName, avatarUrl:author.avatarUrl, verification:toVerificationBadge(author.verificationRequests) } : null,
       mentions,
       hashtags: hashtags.map((item) => item.hashtag),
       interactiveAreas: areas,
