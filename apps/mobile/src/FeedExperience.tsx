@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   FlatList,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -126,6 +127,45 @@ function MetricButton({
   );
 }
 
+/** Native KnowMe action sheet: the same actions are available on Android and iOS. */
+function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenProfile }: {
+  post: PostSummary | null;
+  userId: string;
+  onClose: () => void;
+  onView: (id: string) => void;
+  onDelete: (id: string) => void;
+  onOpenProfile?: (username: string) => void;
+}) {
+  const { colors } = useAppearance();
+  if (!post) return null;
+  const action = (label: string, run: () => void, danger = false) => (
+    <Pressable
+      key={label}
+      accessibilityRole="button"
+      onPress={() => { onClose(); run(); }}
+      style={({ pressed }) => [styles.sheetAction, { backgroundColor: pressed ? colors.backgroundAccent : 'transparent' }]}
+    >
+      <Text style={[styles.sheetActionLabel, { color: danger ? colors.danger : colors.text }]}>{label}</Text>
+    </Pressable>
+  );
+  return (
+    <Modal visible animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
+      <View style={styles.sheetOverlay}>
+        <Pressable accessibilityLabel="Fermer les options" style={styles.sheetScrim} onPress={onClose} />
+        <View style={[styles.sheetPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: colors.muted }]} />
+          <Text style={[styles.sheetHeading, { color: colors.text }]}>Options de la publication</Text>
+          {action('Voir la publication', () => onView(post.id))}
+          {action('Partager la publication', () => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); })}
+          {onOpenProfile ? action('Voir le profil', () => onOpenProfile(post.author.username)) : null}
+          {post.authorId === userId ? action('Supprimer la publication', () => onDelete(post.id), true) : null}
+          {action('Annuler', onClose)}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, onOpenProfile }: {
   postId: string;
   userId: string;
@@ -143,6 +183,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const discussionScroll = useRef<ScrollView>(null);
   const soughtCommentCursors = useRef(new Set<string>());
 
@@ -292,101 +333,122 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   }
 
   return (
+    <View style={[styles.discussionScreen, { backgroundColor: colors.background }]}>
     <ScrollView
       ref={discussionScroll}
       style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={styles.discussionContent}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.eyebrow, { color: colors.accent }]}>DISCUSSION</Text>
-          <Text style={[styles.heading, { color: colors.text }]}>Publication</Text>
-        </View>
-        <ActionButton title="Retour" onPress={onBack} />
+      <View style={styles.discussionHeader}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" onPress={onBack}
+          style={[styles.roundControl, { backgroundColor: colors.backgroundAccent }]}>
+          <KnowMeIcon name="back" size={22} color={colors.text}/>
+        </Pressable>
+        <Text style={[styles.discussionTitle, { color: colors.text }]}>Commentaires</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication" onPress={() => setOptionsOpen(true)}
+          style={[styles.roundControl, { backgroundColor: colors.backgroundAccent }]}>
+          <Text style={{ fontSize: 24, lineHeight: 27, color: colors.text }}>⋯</Text>
+        </Pressable>
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${post.author.displayName}`} onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
-          <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={44} />
-          <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{post.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{post.author.username}</Text></View>
+      <View style={[styles.discussionPost, { borderBottomColor: colors.border }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${post.author.displayName}`}
+          onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
+          <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={42} />
+          <View style={styles.flex}>
+            <Text style={[styles.compactAuthor, { color: colors.text }]}>{post.author.displayName}</Text>
+            <Text style={[styles.smallMeta, { color: colors.muted }]}>@{post.author.username} · {formatPostDate(post.createdAt)}</Text>
+          </View>
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
-        {post.imageUrl ? (
-          <Image
-            source={{ uri: resolvePostImage(post.imageUrl) }}
-            style={styles.postImage}
-            resizeMode="cover"
-          />
-        ) : null}
-        <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(post.createdAt, true)}</Text>
-        <View style={styles.actionsRow}>
-          <MetricButton icon="heart" count={post._count.likes} label="J’aime" onPress={() => void toggleLike()} />
-          <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})}); }} />
-          <MetricButton icon="messages" count={post._count.comments} label="Commentaires" />
-          {post.authorId === userId && (
-            <ActionButton title={busyId === post.id ? 'Suppression…' : 'Supprimer'} disabled={busyId === post.id} danger onPress={confirmDeletePost} />
-          )}
+        {post.imageUrl ? <Image source={{ uri: resolvePostImage(post.imageUrl) }} style={styles.postImage} resizeMode="cover"/> : null}
+        <View style={styles.discussionMetrics}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
+            style={styles.metricInline}>
+            <KnowMeIcon name="heart" size={19} color={colors.muted}/>
+            <Text style={[styles.metaText, { color: colors.muted }]}>{post._count.likes}</Text>
+          </Pressable>
+          <View style={styles.metricInline}>
+            <KnowMeIcon name="messages" size={19} color={colors.muted}/>
+            <Text style={[styles.metaText, { color: colors.muted }]}>{post._count.comments}</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
+            onPress={() => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); }}
+            style={styles.metricInline}>
+            <KnowMeIcon name="arrow" size={18} color={colors.muted}/>
+            <Text style={[styles.metaText, { color: colors.muted }]}>Partager</Text>
+          </Pressable>
         </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Ajouter un commentaire</Text>
-        <TextInput
-          value={commentText}
-          onChangeText={setCommentText}
-          multiline
-          maxLength={500}
-          placeholder="Écris ce que tu penses…"
-          placeholderTextColor={colors.muted}
-          selectionColor={colors.accent}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.backgroundAccent,
-              borderColor: colors.border,
-              color: colors.text
-            }
-          ]}
-        />
-        <ActionButton title={sending ? 'Envoi…' : 'Commenter'} disabled={sending || !commentText.trim()} onPress={() => void sendComment()} />
+      <View style={styles.commentsHeadingRow}>
+        <Text style={[styles.commentsHeading, { color: colors.text }]}>Commentaires · {post._count.comments}</Text>
       </View>
-
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Commentaires</Text>
       {comments.map((comment) => {
         const canDelete = comment.author.id === userId || post.authorId === userId;
         return (
           <View key={comment.id}
             onLayout={event => {
               if (comment.id === targetCommentId) {
-                discussionScroll.current?.scrollTo({y:Math.max(0,event.nativeEvent.layout.y-80),animated:true});
+                discussionScroll.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 80), animated: true });
               }
             }}
-            style={[styles.commentCard, { backgroundColor: colors.surfaceRaised, borderColor: comment.id === targetCommentId ? colors.accent : colors.border }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${comment.author.displayName}`} onPress={() => onOpenProfile?.(comment.author.username)} style={styles.authorRow}>
+            style={[styles.threadComment, { borderBottomColor: colors.border, backgroundColor: comment.id === targetCommentId ? colors.backgroundAccent : 'transparent' }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${comment.author.displayName}`}
+              onPress={() => onOpenProfile?.(comment.author.username)}>
               <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
-              <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{comment.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{comment.author.username}</Text></View>
             </Pressable>
-            <View style={styles.authorRow}>
-              <ActionButton title="Lien" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }} />
-              {canDelete && (
-                <ActionButton
-                  title={busyId === comment.id ? '…' : 'Supprimer'}
-                  disabled={busyId === comment.id}
-                  danger
-                  onPress={() => confirmDeleteComment(comment)}
-                />
-              )}
+            <View style={styles.flex}>
+              <View style={styles.threadIdentity}>
+                <Pressable accessibilityRole="button" onPress={() => onOpenProfile?.(comment.author.username)}>
+                  <Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>
+                </Pressable>
+                <Text style={[styles.smallMeta, { color: colors.muted }]}>{formatPostDate(comment.createdAt)}</Text>
+              </View>
+              <KnowMeMentionText text={comment.content} style={[styles.threadBody, { color: colors.text }]}/>
+              <View style={styles.threadTools}>
+                <Pressable accessibilityRole="button" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }}>
+                  <Text style={[styles.threadToolText, { color: colors.muted }]}>Partager</Text>
+                </Pressable>
+                {canDelete ? (
+                  <Pressable accessibilityRole="button" disabled={busyId === comment.id} onPress={() => confirmDeleteComment(comment)}>
+                    <Text style={[styles.threadToolText, { color: colors.danger }]}>{busyId === comment.id ? 'Suppression…' : 'Supprimer'}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-            <KnowMeMentionText text={comment.content} style={[styles.commentText, { color: colors.text }]}/>
-            <Text style={[styles.dateText, { color: colors.muted }]}>{formatPostDate(comment.createdAt, true)}</Text>
           </View>
         );
       })}
-      {!comments.length && <Text style={[styles.muted, { color: colors.muted }]}>Aucun commentaire pour le moment.</Text>}
+      {!comments.length && <View style={styles.emptyDiscussion}><KnowMeIcon name="messages" size={27} color={colors.muted}/><Text style={[styles.emptyDiscussionText, {color:colors.muted}]}>Aucun commentaire pour l’instant. Lance la discussion !</Text></View>}
       {hasMore && <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus'} disabled={loadingMore} onPress={() => void loadMore()} />}
     </ScrollView>
+    <View style={[styles.commentDock, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      <TextInput
+        accessibilityLabel="Écrire un commentaire"
+        value={commentText}
+        onChangeText={setCommentText}
+        multiline
+        maxLength={500}
+        placeholder="Écris un commentaire…"
+        placeholderTextColor={colors.muted}
+        selectionColor={colors.accent}
+        style={[styles.commentDockInput, { backgroundColor: colors.backgroundAccent, color: colors.text }]}
+      />
+      <Pressable accessibilityRole="button" accessibilityLabel="Envoyer le commentaire"
+        disabled={sending || !commentText.trim()} onPress={() => void sendComment()}
+        style={[styles.commentSend, { backgroundColor: colors.accent, opacity: sending || !commentText.trim() ? 0.45 : 1 }]}>
+        <KnowMeIcon name="arrow" size={22} color={colors.accentText}/>
+      </Pressable>
+    </View>
+    <PublicationActions
+      post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
+      onView={() => {}} onOpenProfile={onOpenProfile}
+      onDelete={() => confirmDeletePost()}
+    />
+    </View>
   );
 }
 
@@ -436,6 +498,7 @@ export function FeedExperience({
   const [postPhotoSupported, setPostPhotoSupported] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<SelectedAndroidMedia | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
+  const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   useEffect(() => { onDetailChange?.(Boolean(selectedPostId)); return () => onDetailChange?.(false); },[selectedPostId,onDetailChange]);
   const [publishing, setPublishing] = useState(false);
@@ -507,22 +570,11 @@ export function FeedExperience({
     }
   }
 
-  function showPostMenu(post: PostSummary) {
-    const share = () => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})}); };
-    const options: Array<{text:string;style?:'destructive'|'cancel';onPress?:()=>void}> = [
-      {text:'Voir la publication',onPress:()=>setSelectedPostId(post.id)},
-      {text:'Partager',onPress:share},
-      ...(post.authorId===userId ? [{
-        text:'Supprimer',style:'destructive' as const,onPress:()=>{
-          Alert.alert('Supprimer la publication ?','Cette action est définitive.',[
-            {text:'Annuler',style:'cancel'},
-            {text:'Supprimer',style:'destructive',onPress:()=>{void removePost(post.id);}}
-          ]);
-        }
-      }] : []),
-      {text:'Annuler',style:'cancel' as const}
-    ];
-    Alert.alert('Options de publication',undefined,options);
+  function confirmRemovePost(id: string) {
+    Alert.alert('Supprimer cette publication ?', 'La publication et ses commentaires seront supprimés définitivement.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => { void removePost(id); } }
+    ]);
   }
 
   async function removePost(id: string) {
@@ -634,7 +686,7 @@ export function FeedExperience({
             <View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication"
-            onPress={()=>showPostMenu(item)} style={[styles.postMenu,{backgroundColor:colors.backgroundAccent}]}>
+            onPress={()=>setMenuPost(item)} style={[styles.postMenu,{backgroundColor:colors.backgroundAccent}]}>
             <Text style={{fontSize:24,lineHeight:26,color:colors.text}}>⋯</Text>
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
@@ -653,6 +705,10 @@ export function FeedExperience({
           </View>
         </Pressable>
       )}
+    />
+    <PublicationActions
+      post={menuPost} userId={userId} onClose={() => setMenuPost(null)}
+      onView={id => setSelectedPostId(id)} onDelete={confirmRemovePost} onOpenProfile={onOpenProfile}
     />
     <PostComposerExperience
       visible={composerOpen&&!photoPickerOpen}
@@ -678,6 +734,37 @@ export function FeedExperience({
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 28, gap: 8 },
+  discussionScreen: { flex: 1 },
+  discussionContent: { paddingHorizontal: 14, paddingBottom: 28, gap: 0 },
+  discussionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 60, gap: 12 },
+  discussionTitle: { flex: 1, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  roundControl: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  discussionPost: { paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  compactAuthor: { fontSize: 14.5, fontWeight: '800' },
+  smallMeta: { fontSize: 11.5 },
+  discussionMetrics: { flexDirection: 'row', alignItems: 'center', gap: 22, paddingTop: 3 },
+  metricInline: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { fontSize: 12, fontWeight: '600' },
+  commentsHeadingRow: { paddingTop: 20, paddingBottom: 8 },
+  commentsHeading: { fontSize: 15, fontWeight: '800' },
+  threadComment: { flexDirection: 'row', gap: 10, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
+  threadIdentity: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
+  threadBody: { fontSize: 14.5, lineHeight: 21, marginTop: 4 },
+  threadTools: { flexDirection: 'row', gap: 22, paddingTop: 7 },
+  threadToolText: { fontSize: 12, fontWeight: '600', paddingVertical: 4 },
+  emptyDiscussion: { alignItems: 'center', gap: 12, paddingVertical: 46 },
+  emptyDiscussionText: { fontSize: 13, textAlign: 'center' },
+  commentDock: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 },
+  commentDockInput: { flex: 1, minHeight: 44, maxHeight: 120, paddingVertical: 10, paddingHorizontal: 15, borderRadius: 22, fontSize: 14, textAlignVertical: 'center' },
+  commentSend: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-90deg' }] },
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  sheetScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheetPanel: { paddingHorizontal: 17, paddingTop: 10, paddingBottom: 32, borderTopLeftRadius: 26, borderTopRightRadius: 26, borderWidth: StyleSheet.hairlineWidth },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 13, opacity: 0.45 },
+  sheetHeading: { fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  sheetAction: { minHeight: 50, paddingHorizontal: 14, borderRadius: 14, justifyContent: 'center' },
+  sheetActionLabel: { fontSize: 15, fontWeight: '650' },
+
   headerBlock: { gap: 10, marginBottom: 2 },
   joinedHeader: { overflow: 'hidden', padding: 0 },
   inlineHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
