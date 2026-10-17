@@ -8,6 +8,8 @@ import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import { useI18n } from '../../components/i18n-provider';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
+import { AccountBadges } from '../../components/AccountBadges';
+import type {StaffBadge} from '../../lib/use-session';
 
 type PostUploadSession = { id: string; uploadToken: string };
 type PostUploadedAsset = { id: string; status: string; scannerVerdict?: string };
@@ -23,7 +25,7 @@ type Post = {
   content: string;
   imageUrl?: string | null;
   createdAt: string;
-  author: { id: string; username: string; displayName: string; avatarUrl?: string | null };
+  author: { id: string; username: string; displayName: string; avatarUrl?: string | null; staff?: StaffBadge | null };
   _count: { likes: number; comments: number };
 };
 
@@ -411,7 +413,7 @@ export default function FeedPage() {
                   <KnowMeAvatarImage src={post.author.avatarUrl} name={post.author.displayName} />
                 </span>
                 <span className="km-post-author-copy">
-                  <strong>{post.author.displayName}</strong>
+                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges staff={post.author.staff} compact/></strong>
                   <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
                 </span>
               </Link>
