@@ -90,8 +90,10 @@ export class ExpoOtaController {
       !safeRuntime(runtime) || !CHANNEL.test(channel ?? '')) {
       throw new BadRequestException('Requête Expo OTA incompatible.');
     }
-    // Refuse unsigned clients: OTA JS must always be verified with the embedded cert.
-    if (!expectSignature || !expectSignature.includes('sig')) {
+    // Prefer certificate-verified updates. An unsigned compatibility rollout
+    // requires explicit VPS opt-in and must not be used as a security baseline.
+    if ((!expectSignature || !expectSignature.includes('sig')) &&
+      process.env.KNOWME_OTA_ALLOW_UNSIGNED_CLIENTS !== 'true') {
       throw new BadRequestException('Signature Expo obligatoire.');
     }
     const manifest = loadManifest(channel!,runtime!);
