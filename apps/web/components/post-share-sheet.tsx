@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
 
+function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' }) {
+  const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
+    strokeWidth:2, strokeLinecap:'round' as const, strokeLinejoin:'round' as const,
+    width:23, height:23, 'aria-hidden':true as const };
+  if (name === 'feed') return <svg {...common}><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/><path d="M9 20v-6h6v6"/></svg>;
+  if (name === 'story') return <svg {...common}><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 8v8m-4-4h8"/></svg>;
+  if (name === 'apps') return <svg {...common}><path d="M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6"/></svg>;
+  return <svg {...common}><path d="M10 13a5 5 0 0 0 7.5.2l2-2a5 5 0 0 0-7.1-7.1l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.2l-2 2a5 5 0 0 0 7.1 7.1l1.5-1.5"/></svg>;
+}
+
 export type ShareablePost = {
   id: string;
   content: string;
@@ -135,16 +145,16 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
         </div>
         <div className="km-share-actions">
           <button type="button" disabled={busy} onClick={() => void shareToFeed()}>
-            <span aria-hidden="true">↗</span>{en ? 'To my feed' : 'Sur mon profil'}
+            <ShareGlyph name="feed"/>{en ? 'To my feed' : 'Sur mon profil'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareToStory()}>
-            <span aria-hidden="true">◎</span>{en ? 'To my Story' : 'Dans ma story'}
+            <ShareGlyph name="story"/>{en ? 'To my Story' : 'Dans ma story'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareOutside()}>
-            <span aria-hidden="true">⇪</span>{en ? 'Other apps' : 'Autres applis'}
+            <ShareGlyph name="apps"/>{en ? 'Other apps' : 'Autres applis'}
           </button>
           <button type="button" disabled={busy} onClick={() => void copyLink()}>
-            <span aria-hidden="true">↗</span>{en ? 'Copy link' : 'Copier le lien'}
+            <ShareGlyph name="link"/>{en ? 'Copy link' : 'Copier le lien'}
           </button>
         </div>
         {busy && <p role="status" className="km-share-feedback">{en ? 'Sharing…' : 'Partage en cours…'}</p>}
