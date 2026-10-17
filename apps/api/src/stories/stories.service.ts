@@ -162,6 +162,86 @@ export class StoriesService {
   async feed(userId: string, cursor?: string) {
     await this.expireDue();
     const now = new Date();
+    const where = await this.storyFeedWhere(userId, now);
+
+    const stories = await this.prisma.story.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 51,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+    });
+
+    const page = stories.slice(0, 50);
+    return {
+      stories: await Promise.all(page.map((story) => this.serialize(story, userId))),
+      nextCursor: stories.length > 50 ? page.at(-1)?.id ?? null : null
+    };
+  }
+
+
+  /**
+   * Story rail is paginated by author, not by Story. Counts include all
+   * published, unexpired Stories visible to this viewer, including those
+   * beyond the original feed's first 50 entries.
+   *
+   * The latest Story per author is fetched through the same ACL filter used
+   * by feed(). Private media remains protected by /stories/:id/media.
+   */
+  async rail(userId: string, offset = 0) {
+    await this.expireDue();
+    const where = await this.storyFeedWhere(userId, new Date());
+    const grouped = await this.prisma.story.groupBy({
+      by: ['authorUserId'],
+      where,
+      _count: { _all: true },
+      _max: { createdAt: true },
+      orderBy: [
+        { _max: { createdAt: 'desc' } },
+        { authorUserId: 'asc' }
+      ],
+      skip: offset,
+      take: 31
+    });
+    const page = grouped.slice(0, 30);
+    const latest = await Promise.all(page.map((group) =>
+      this.prisma.story.findFirst({
+        where: { AND: [where, { authorUserId: group.authorUserId }] },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: {
+          id: true, authorUserId: true, type: true, assetId: true,
+          thumbnailAssetId: true, caption: true, expiresAt: true
+        }
+      })
+    ));
+    const authors = await this.prisma.user.findMany({
+      where: { id: { in: page.map((group) => group.authorUserId) } },
+      select: {
+        id: true, username: true, displayName: true, avatarUrl: true,
+        verificationRequests: verificationRequestSelect
+      }
+    });
+    const authorById = new Map(authors.map((author) => [author.id, author]));
+    const groups = page.flatMap((group, index) => {
+      const story = latest[index];
+      const author = authorById.get(group.authorUserId);
+      if (!story || !author) return [];
+      return [{
+        count: group._count._all,
+        story: {
+          ...story,
+          author: {
+            id: author.id, username: author.username,
+            displayName: author.displayName, avatarUrl: author.avatarUrl,
+            verification: toVerificationBadge(author.verificationRequests)
+          },
+          viewer: { own: author.id === userId }
+        }
+      }];
+    });
+    return { groups, nextOffset: grouped.length > 30 ? offset + 30 : null };
+  }
+
+  private async storyFeedWhere(userId: string, now: Date): Promise<Prisma.StoryWhereInput> {
     const [friendships, follows, grants] = await Promise.all([
       this.prisma.friendship.findMany({
         where: {
@@ -184,33 +264,19 @@ export class StoriesService {
     );
     const followedIds = follows.map((item) => item.creatorId);
     const customStoryIds = grants.map((item) => item.storyId);
-
-    const stories = await this.prisma.story.findMany({
-      where: {
-        status: 'PUBLISHED',
-        startsAt: { lte: now },
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        AND: [
-          {
-            OR: [
-              { authorUserId: userId },
-              { audience: 'PUBLIC' },
-              { audience: 'FRIENDS', authorUserId: { in: friendIds } },
-              { audience: 'FOLLOWERS', authorUserId: { in: followedIds } },
-              { audience: 'CUSTOM', id: { in: customStoryIds } }
-            ]
-          }
-        ]
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 51,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
-    });
-
-    const page = stories.slice(0, 50);
     return {
-      stories: await Promise.all(page.map((story) => this.serialize(story, userId))),
-      nextCursor: stories.length > 50 ? page.at(-1)?.id ?? null : null
+      status: 'PUBLISHED',
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      AND: [{
+        OR: [
+          { authorUserId: userId },
+          { audience: 'PUBLIC' },
+          { audience: 'FRIENDS', authorUserId: { in: friendIds } },
+          { audience: 'FOLLOWERS', authorUserId: { in: followedIds } },
+          { audience: 'CUSTOM', id: { in: customStoryIds } }
+        ]
+      }]
     };
   }
 
