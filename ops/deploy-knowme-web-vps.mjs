@@ -54,7 +54,8 @@ if (original.split(anchor).length !== 2) throw new Error('Unexpected Dockerfile.
 const injected = original.replace(anchor,
   'ENV KNOWME_API_ORIGIN=' + api + '\n' +
   'ENV NEXT_PUBLIC_API_URL=' + api + '\n' +
-  'ENV NEXT_PUBLIC_RELEASE_COMMIT=' + sha + '\n' + anchor);
+  'ENV NEXT_PUBLIC_RELEASE_COMMIT=' + sha + '\n' +
+  'ENV KNOWME_RELEASE_COMMIT=' + sha + '\n' + anchor);
 writeFileSync(dockerfile, injected, { mode: 0o600 });
 const log = join(runtime, 'deploy.log');
 const fd = openSync(log, 'a', 0o600);
@@ -71,7 +72,8 @@ if (containerExists(container)) run('docker', ['rm', '-f', container], 120000);
 run('docker', ['run', '-d', '--restart', 'unless-stopped',
   '--name', container, '--network', 'knowme-net',
   '-p', '127.0.0.1:' + nextPort + ':3000',
-  '-e', 'KNOWME_API_ORIGIN=' + api, '-e', 'NEXT_PUBLIC_API_URL=' + api, dockerTag], 120000);
+  '-e', 'KNOWME_API_ORIGIN=' + api, '-e', 'NEXT_PUBLIC_API_URL=' + api,
+  '-e', 'KNOWME_RELEASE_COMMIT=' + sha, dockerTag], 120000);
 let candidateReady = false;
 for (let attempt = 0; attempt < 48; attempt++) {
   try {
