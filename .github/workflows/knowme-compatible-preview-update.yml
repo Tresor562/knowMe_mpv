@@ -18,7 +18,7 @@ concurrency:
 jobs:
   compatible-preview:
     if: >-
-      ${ github.event_name == 'workflow_dispatch' ||
+      ${{ github.event_name == 'workflow_dispatch' ||
         (github.event.workflow_run.conclusion == 'success' &&
          github.event.workflow_run.head_branch == 'main' &&
          github.event.workflow_run.head_repository.full_name == github.repository) }}
@@ -34,9 +34,9 @@ jobs:
         id: source
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          TRIGGER_SHA: ${ github.event.workflow_run.head_sha }}
-          TRIGGER_KIND: ${ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_KIND: ${{ github.event_name }}
         run: |
           set -euo pipefail
           SOURCE_SHA="$(git rev-parse HEAD)"
@@ -57,8 +57,8 @@ jobs:
         id: artifact
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          SOURCE_SHA: ${ steps.source.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           set -euo pipefail
           for attempt in $(seq 1 120); do
@@ -90,9 +90,9 @@ jobs:
         id: release
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          SOURCE_SHA: ${ steps.source.outputs.sha }}
-          RUN_ID: ${ steps.artifact.outputs.run }}
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          RUN_ID: ${{ steps.artifact.outputs.run }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -102,7 +102,7 @@ jobs:
             const fs=require("node:fs");
             const m=JSON.parse(fs.readFileSync("dist/release-source.json","utf8"));
             if (m.sourceSha!==process.env.SOURCE_SHA || m.channel!=="preview" ||
-                !/^\\d+\\.\\d+\\.\\d+$/.test(m.version) ||
+                !/^\d+\.\d+\.\d+$/.test(m.version) ||
                 !Number.isSafeInteger(m.versionCode) || m.versionCode <= 10000) {
               console.error("Invalid immutable APK build metadata");
               process.exit(1);
@@ -139,7 +139,7 @@ jobs:
             const m={versionCode:Number(process.argv[1]),version:process.argv[2],
               url:process.argv[3],sha256:process.argv[4],required:false,
               notes:"Nouvelle mise à jour KnowMe : corrections, interface et fonctionnalités améliorées."};
-            fs.writeFileSync("dist/knowme-update.json",JSON.stringify(m,null,2)+"\\n");
+            fs.writeFileSync("dist/knowme-update.json",JSON.stringify(m,null,2)+"\n");
           ' "$CODE" "$VERSION" "$URL" "$SHA256"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -148,10 +148,10 @@ jobs:
         if: steps.release.outputs.tag != ''
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          SOURCE_SHA: ${ steps.source.outputs.sha }}
-          TAG: ${ steps.release.outputs.tag }}
-          VERSION: ${ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)" == "$SOURCE_SHA" ]] ||
