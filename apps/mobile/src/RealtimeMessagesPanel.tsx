@@ -16,6 +16,7 @@ import type { Socket } from 'socket.io-client';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { AnimatedEmoji } from './AnimatedEmoji';
 import { EmojiPicker } from './EmojiPicker';
@@ -32,6 +33,7 @@ type UserSummary = {
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  staff?: {shield?:string}|null;
 };
 
 type Friend = { friendshipId: string; user: UserSummary };
@@ -672,7 +674,7 @@ export function RealtimeMessagesPanel({
             accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
             onPress={() => { const peer = others[0]?.user; if (peer) openProfile?.(peer.username); }}
             style={styles.flex}>
-            <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{name}</Text>
+            <View style={styles.verifiedName}><Text style={[styles.cardTitle, { color: colors.text },styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={19}/>:null}</View>
             <Text style={[
               isNexusPrivate || online ? styles.online : styles.muted,
               { color: isNexusPrivate || online ? colors.accent : colors.muted }
@@ -783,9 +785,7 @@ export function RealtimeMessagesPanel({
                     <Pressable accessibilityRole="button"
                       accessibilityLabel={`Voir le profil de ${item.sender.displayName}`}
                       onPress={() => openProfile?.(item.sender!.username)}>
-                      <Text style={[styles.senderName, { color: colors.accent }]}>
-                        {item.sender.displayName}
-                      </Text>
+                      <View style={styles.verifiedName}><Text style={[styles.senderName, { color: colors.accent }]}>{item.sender.displayName}</Text>{item.sender.staff?.shield==='GOLD'?<GoldVerifiedBadge size={16}/>:null}</View>
                     </Pressable>
                   )
                 ) : null}
@@ -1118,7 +1118,7 @@ export function RealtimeMessagesPanel({
                   ]} /> : null}
                 </View>
                 <View style={styles.flex}>
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>{name}</Text>
+                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0].user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
                   <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
                     {pinned ? 'Épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
@@ -1407,6 +1407,7 @@ const styles = StyleSheet.create({
   bubbleText: {},
   bubbleMineText: { fontWeight: '600' },
   senderName: { fontWeight: '800', fontSize: 11 },
+  verifiedName:{flexDirection:'row',alignItems:'center',gap:5,flexShrink:1},
   bubbleDate: { fontSize: 9 },
   receipt: { fontSize: 9, fontWeight: '700' },
   typing: { fontStyle: 'italic', paddingVertical: 8 },
