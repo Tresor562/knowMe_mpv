@@ -413,7 +413,7 @@ export default function FeedPage() {
                   <KnowMeAvatarImage src={post.author.avatarUrl} name={post.author.displayName} />
                 </span>
                 <span className="km-post-author-copy">
-                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges staff={post.author.staff} verification={post.author.verification} compact/></strong>
+                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges username={post.author.username} staff={post.author.staff} verification={post.author.verification} compact/></strong>
                   <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
                 </span>
               </Link>
