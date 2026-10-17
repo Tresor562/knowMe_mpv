@@ -67,9 +67,9 @@ export function StickerPicker<T>({
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
-  useEffect(()=>{onPanelChange?.(!open?'closed':expanded?'expanded':'compact');},[open,expanded,onPanelChange]);
   const [typing,setTyping]=useState(false);
   const [expanded,setExpanded]=useState(false);
+  useEffect(()=>{onPanelChange?.(!open?'closed':expanded?'expanded':'compact');},[open,expanded,onPanelChange]);
   const [selectedPack,setSelectedPack]=useState('');
   const [emojiFilter,setEmojiFilter]=useState<'all'|'recent'|'favorites'|'people'|'nature'>('all');
   const [favorites,setFavorites]=useState<string[]>([]);
