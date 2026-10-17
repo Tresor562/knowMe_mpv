@@ -65,7 +65,7 @@ public final class KnowMeGalleryPackage implements ReactPackage {
           WritableArray selected = Arguments.createArray();
           try {
             if (data.getClipData() != null) {
-              int count = Math.min(10, data.getClipData().getItemCount());
+              int count = data.getClipData().getItemCount();
               for (int i = 0; i < count; i++) {
                 selected.pushMap(fileDetail(data.getClipData().getItemAt(i).getUri()));
               }
