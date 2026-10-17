@@ -42,7 +42,7 @@ function UserSummary({ user }: { user: SocialGiftUser | null }) {
       aria-label={`Voir le profil de ${user.displayName}`}
       style={{color:'inherit',textDecoration:'none'}}>
       <strong>{user.displayName}</strong>
-      <AccountBadges
+      <AccountBadges username={user.username}
         compact
         staff={user.staff as never}
         verification={user.verification as never}
