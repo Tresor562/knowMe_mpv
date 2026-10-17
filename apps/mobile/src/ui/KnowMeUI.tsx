@@ -45,7 +45,13 @@ export type KnowMeIconName =
   | 'search'
   | 'refresh'
   | 'check'
-  | 'settings';
+  | 'settings'
+  | 'video-call'
+  | 'phone-call'
+  | 'more-vertical'
+  | 'camera'
+  | 'paperclip'
+  | 'smile';
 
 export function BrandMark({ size = 38 }: { size?: number }) {
   // Single brand identity shared with the Web application and APK launcher.
@@ -106,6 +112,33 @@ export function KnowMeIcon({
   const s = size / 24;
   const sw = strokeWidth * s;
   const commonBorder = { borderColor: color, borderWidth: sw };
+
+  if (name === 'more-vertical') return <View style={{width:size,height:size,alignItems:'center',justifyContent:'space-evenly',paddingVertical:4*s}}>
+    {[0,1,2].map(i=><View key={i} style={{width:3.6*s,height:3.6*s,borderRadius:2*s,backgroundColor:color}}/>)}
+  </View>;
+  if(name==='smile')return <View style={{width:size,height:size,borderRadius:size/2,borderWidth:sw,borderColor:color}}>
+    <View style={{position:'absolute',top:7*s,left:6*s,width:2.8*s,height:2.8*s,borderRadius:2*s,backgroundColor:color}}/>
+    <View style={{position:'absolute',top:7*s,right:6*s,width:2.8*s,height:2.8*s,borderRadius:2*s,backgroundColor:color}}/>
+    <View style={{position:'absolute',left:6*s,top:11*s,width:12*s,height:7*s,borderWidth:sw,borderTopWidth:0,borderColor:color,borderBottomLeftRadius:10*s,borderBottomRightRadius:10*s}}/>
+  </View>;
+  if(name==='camera')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
+    <View style={{width:20*s,height:15*s,borderWidth:sw,borderColor:color,borderRadius:3*s,justifyContent:'center',alignItems:'center'}}>
+      <View style={{width:8*s,height:8*s,borderRadius:4*s,borderWidth:sw,borderColor:color}}/>
+    </View>
+    <View style={{position:'absolute',top:3*s,left:6*s,width:7*s,height:3*s,backgroundColor:color,borderTopLeftRadius:2*s,borderTopRightRadius:2*s}}/>
+  </View>;
+  if(name==='video-call')return <View style={{width:size,height:size,justifyContent:'center'}}>
+    <View style={{width:15*s,height:15*s,borderWidth:sw,borderColor:color,borderRadius:2*s,marginLeft:1*s}}/>
+    <View style={{position:'absolute',right:1*s,top:6*s,width:7*s,height:12*s,borderWidth:sw,borderColor:color,
+      borderTopLeftRadius:5*s,borderBottomLeftRadius:5*s,transform:[{rotate:'25deg'}]}}/>
+  </View>;
+  if(name==='phone-call')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'-35deg'}]}}>
+    <View style={{width:11*s,height:19*s,borderWidth:sw,borderColor:color,borderTopLeftRadius:9*s,borderBottomRightRadius:9*s,borderTopRightRadius:2*s,borderBottomLeftRadius:2*s}}/>
+  </View>;
+  if(name==='paperclip')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'42deg'}]}}>
+    <View style={{height:21*s,width:13*s,borderColor:color,borderWidth:sw,borderRadius:7*s,borderBottomColor:'transparent'}}/>
+    <View style={{position:'absolute',height:14*s,width:5*s,borderColor:color,borderWidth:sw,borderRadius:4*s,top:5*s}}/>
+  </View>;
 
   if (name === 'home') {
     return (
