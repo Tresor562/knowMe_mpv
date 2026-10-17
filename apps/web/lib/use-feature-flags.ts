@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from './api';
+import { getRealtimeSocket } from './realtime';
 
 export type FeatureFlagValues = Record<string, boolean>;
 
@@ -41,6 +42,10 @@ export function useFeatureFlags(keys: string[]) {
 
   useEffect(() => {
     void reload();
+    const socket = getRealtimeSocket();
+    socket.on('feature-flags:changed', reload);
+    const timer = window.setInterval(() => void reload(), 60000);
+    return () => { socket.off('feature-flags:changed', reload); window.clearInterval(timer); };
   }, [reload]);
 
   return {
