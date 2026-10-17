@@ -652,7 +652,7 @@ export function RealtimeMessagesPanel({
     return (
       <View style={[styles.conversationRoot, { backgroundColor: colors.background }]}>
         <ChatWallpaper />
-        <GlassSurface strength="medium" borderRadius={visual.controlRadius} style={styles.conversationHeader}>
+        <View style={[styles.conversationHeader,{backgroundColor:colors.surface,borderBottomColor:colors.border}]}>
           <IconButton icon="back" accessibilityLabel="Retour" onPress={closeConversation} />
           <Pressable accessibilityRole={others.length === 1 ? 'button' : undefined}
             accessibilityLabel={others.length === 1 ? `Voir le profil de ${others[0]?.user.displayName}` : undefined}
@@ -693,7 +693,7 @@ export function RealtimeMessagesPanel({
             accessibilityLabel="Actualiser"
             onPress={() => void openConversation(active)}
           />
-        </GlassSurface>
+        </View>
 
         <FlatList
           ref={messageListRef}
@@ -1381,23 +1381,24 @@ const styles = StyleSheet.create({
   unreadBadgeText: { fontWeight: '900', fontSize: 12 },
   conversationRoot: { flex: 1, position: 'relative', overflow: 'hidden' },
   conversationHeader: {
-    marginHorizontal: 4,
-    marginTop: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    minHeight: 54,
+    marginHorizontal: 0,
+    marginTop: 0,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    minHeight: 58,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 9
   },
   messages: {
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    gap: 4,
     flexGrow: 1,
     justifyContent: 'flex-end'
   },
-  bubble: { maxWidth: '84%', paddingHorizontal: 11, paddingVertical: 9, borderRadius: 18, gap: 4 },
+  bubble: { maxWidth: '88%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 13, gap: 3 },
   bubbleMine: { alignSelf: 'flex-end' },
   bubbleOther: { alignSelf: 'flex-start' },
   bubbleNexus: {
