@@ -6,6 +6,7 @@ import android.content.ContentUris;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
@@ -25,6 +26,8 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ViewManager;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.UUID;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -81,6 +84,64 @@ public final class KnowMeGalleryPackage implements ReactPackage {
     }
 
     @Override public String getName() { return "KnowMeGallery"; }
+
+    /**
+     * Make a sticker from an image the owner selected using Android's scoped
+     * photo permission. Resize safely and store only in private app cache.
+     */
+    @ReactMethod public void createStickerWebp(String uriText, Promise promise) {
+      worker.execute(() -> {
+        Bitmap original = null;
+        Bitmap scaled = null;
+        try {
+          Uri uri = Uri.parse(uriText == null ? "" : uriText);
+          if (!"content".equals(uri.getScheme()) && !"file".equals(uri.getScheme())) {
+            throw new IllegalArgumentException("Source de sticker invalide.");
+          }
+          ContentResolver resolver = context.getContentResolver();
+          BitmapFactory.Options bounds = new BitmapFactory.Options();
+          bounds.inJustDecodeBounds = true;
+          try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) throw new IllegalArgumentException("Image indisponible.");
+            BitmapFactory.decodeStream(input, null, bounds);
+          }
+          if (bounds.outWidth < 1 || bounds.outHeight < 1 ||
+              bounds.outWidth > 12000 || bounds.outHeight > 12000) {
+            throw new IllegalArgumentException("Dimensions du sticker non autorisées.");
+          }
+          BitmapFactory.Options decode = new BitmapFactory.Options();
+          decode.inSampleSize = 1;
+          while (Math.max(bounds.outWidth / decode.inSampleSize,
+              bounds.outHeight / decode.inSampleSize) > 1024) decode.inSampleSize *= 2;
+          try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) throw new IllegalArgumentException("Image indisponible.");
+            original = BitmapFactory.decodeStream(input, null, decode);
+          }
+          if (original == null) throw new IllegalArgumentException("Image non décodable.");
+          double ratio = Math.min(512.0 / original.getWidth(), 512.0 / original.getHeight());
+          int width = Math.max(1, (int)Math.round(original.getWidth() * ratio));
+          int height = Math.max(1, (int)Math.round(original.getHeight() * ratio));
+          scaled = Bitmap.createScaledBitmap(original, width, height, true);
+          File output = new File(context.getCacheDir(),"knowme-sticker-" + UUID.randomUUID() + ".webp");
+          try (FileOutputStream stream = new FileOutputStream(output)) {
+            Bitmap.CompressFormat format = Build.VERSION.SDK_INT >= 30
+              ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP;
+            if (!scaled.compress(format, 84, stream))
+              throw new IllegalStateException("Conversion WebP impossible.");
+          }
+          if (output.length() < 100 || output.length() > 8L * 1024 * 1024) {
+            output.delete();
+            throw new IllegalStateException("Sticker trop volumineux.");
+          }
+          promise.resolve(Uri.fromFile(output).toString());
+        } catch (Exception error) {
+          promise.reject("STICKER_CONVERSION_FAILED","Impossible de convertir cette image en sticker.",error);
+        } finally {
+          if (scaled != null && scaled != original) scaled.recycle();
+          if (original != null) original.recycle();
+        }
+      });
+    }
 
     @ReactMethod public void listMedia(String filter, String album, int offset, int count, Promise promise) {
       final String mode = filter == null ? "all" : filter;
