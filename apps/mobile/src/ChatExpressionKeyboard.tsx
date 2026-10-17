@@ -100,18 +100,19 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   },[conversationId,tab]);
 
   const pack=packs.find(item=>item.key===packKey)??packs[0];
-  const results=useMemo(()=>{
+  const emojiResults=useMemo(()=>{
+    let list=category==='Favoris'?favorites:category==='Récents'?recent:GLYPHS;
+    const selected=EMOJI_CATEGORIES.find(item=>item.name===category);
+    if(selected)list=list.filter(glyph=>selected.match.test(glyph));
     const query=search.trim().toLocaleLowerCase();
-    if(tab==='emoji'){
-      let list=category==='Favoris'?favorites:category==='Récents'?recent:GLYPHS;
-      const selected=EMOJI_CATEGORIES.find(item=>item.name===category);
-      if(selected)list=list.filter(glyph=>selected.match.test(glyph));
-      return list.filter(glyph=>!query||glyph.includes(query));
-    }
+    return list.filter(glyph=>!query||glyph.includes(query));
+  },[category,favorites,recent,search]);
+  const stickerResults=useMemo(()=>{
+    const query=search.trim().toLocaleLowerCase();
     return (pack?.stickers??[]).filter(item=>!query||
       item.label.toLocaleLowerCase().includes(query)||
       item.accessibilityLabel.toLocaleLowerCase().includes(query));
-  },[tab,category,favorites,recent,search,pack]);
+  },[search,pack]);
 
   async function sendSticker(sticker:Sticker){
     if(busy||!pack)return;
@@ -161,14 +162,14 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.packStrip}
       contentContainerStyle={styles.packStripContent} keyboardShouldPersistTaps="always">
       <Pressable style={[styles.roundTab,recentPage&&styles.selectedTab]}
-        onPress={()=>{setRecentPage(true);setCategory('Récents');if(tab==='gifs')changeTab('stickers');}}
+        onPress={()=>{if(tab==='gifs')onChangeTab('emoji');setRecentPage(true);setCategory('Récents');}}
         accessibilityLabel="Récents"><Text style={[styles.categorySymbol,{color:muted}]}>◷</Text></Pressable>
       <Pressable style={[styles.roundTab,category==='Favoris'&&styles.selectedTab]}
-        onPress={()=>{setRecentPage(false);setCategory('Favoris');if(tab==='gifs')onChangeTab('emoji');}}
+        onPress={()=>{if(tab!=='emoji')onChangeTab('emoji');setRecentPage(false);setCategory('Favoris');}}
         accessibilityLabel="Favoris"><Text style={[styles.categorySymbol,{color:muted}]}>☆</Text></Pressable>
       {packs.slice(0,24).map(item=><Pressable key={item.key}
           style={[styles.packCover,packKey===item.key&&tab==='stickers'&&styles.packSelected]}
-          accessibilityLabel={`Pack ${item.name}`} onPress={()=>{setPackKey(item.key);changeTab('stickers');}}>
+          accessibilityLabel={`Pack ${item.name}`} onPress={()=>{changeTab('stickers');setPackKey(item.key);}}>
           <Text numberOfLines={1} style={styles.packCoverEmoji}>{item.stickers[0]?.glyph||'◈'}</Text>
         </Pressable>)}
       {!packs.length&&GLYPHS.slice(0,9).map((glyph,index)=>
@@ -222,7 +223,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         </View>:null}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{category||'Expressions et emojis animés'}</Text>
-          <View style={styles.grid}>{results.map((glyph,i)=>
+          <View style={styles.grid}>{emojiResults.map((glyph,i)=>
             <Pressable key={glyph+i} style={[styles.emojiTile,{width:(screenWidth-28)/numberOfColumns}]}
               accessibilityRole="button" accessibilityLabel={`Insérer ${glyph}`}
               onPress={()=>chooseEmoji(glyph)} onLongPress={()=>toggleFavorite(glyph)}>
@@ -233,7 +234,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{category||pack?.name||sectionHeading}</Text>
           <View style={styles.grid}>
-            {results.map((sticker,i)=><Pressable key={sticker.key+i}
+            {stickerResults.map((sticker,i)=><Pressable key={sticker.key+i}
               disabled={busy} onPress={()=>void sendSticker(sticker)}
               onLongPress={()=>toggleFavorite(sticker.glyph)}
               accessibilityLabel={`Envoyer ${sticker.accessibilityLabel}`}
