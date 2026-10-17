@@ -11,6 +11,7 @@ export function RemoteCosmeticBadges({ username, size = 18 }: { username: string
   const normalized = username.toLowerCase().replace(/^@/, '');
   const [badges, setBadges] = useState<RuntimeBadge[]>(() => cache.get(normalized) ?? []);
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true') return;
     let active = true;
     const refresh = async () => {
       try {
