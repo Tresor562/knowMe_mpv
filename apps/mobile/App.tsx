@@ -259,7 +259,7 @@ function AuthScreen({
       style={[
         styles.authRoot,
         {
-          backgroundColor: colors.background,
+          backgroundColor: socialImmersive ? '#0b141a' : colors.background,
           paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0
         }
       ]}
@@ -1438,11 +1438,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         }
       ]}
     >
-      <StatusBar style={colors.statusBar} />
+      <StatusBar style={socialImmersive ? 'light' : colors.statusBar} backgroundColor={socialImmersive ? '#0b141a' : undefined}/>
       <View
         style={[
           styles.body,
-          { backgroundColor: colors.background },
+          { backgroundColor: socialImmersive ? '#0b141a' : colors.background },
           screen !== 'challenges' && screen !== 'verification'
             ? (dockPreferences.position === 'top' ? styles.bodyWithTopDock : dockVisible ? styles.bodyWithDock : null)
             : null
