@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { PaymentsExperience } from './PaymentsExperience';
 import { CosmeticsMarketplaceExperience } from './CosmeticsMarketplaceExperience';
@@ -16,6 +16,15 @@ type StoreSection = 'gifts' | 'styles' | 'coins';
 export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
   const { colors } = useAppearance();
   const [section, setSection] = useState<StoreSection>('gifts');
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onBack]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
