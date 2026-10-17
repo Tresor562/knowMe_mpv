@@ -158,18 +158,18 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
     <Modal visible={menuVisible} transparent animationType="fade"
       onRequestClose={()=>setMenuVisible(false)}>
       <Pressable style={styles.scrim} onPress={()=>setMenuVisible(false)}>
-        <Pressable style={[styles.sheet,{backgroundColor:colors.surface,borderColor:colors.border}]}
+        <Pressable style={[styles.sheet,{backgroundColor:referenceChat?'#202c33':colors.surface,borderColor:referenceChat?'#35444b':colors.border}]}
           onPress={event=>event.stopPropagation()}>
-          <View style={[styles.grip,{backgroundColor:colors.border}]}/>
-          <Text style={[styles.title,{color:colors.text}]}>
+          <View style={[styles.grip,{backgroundColor:referenceChat?'#647882':colors.border}]}/>
+          <Text style={[styles.title,{color:referenceChat?'#e9edef':colors.text}]}>
             {en ? 'Add an attachment' : 'Ajouter une pièce jointe'}
           </Text>
           <Pressable accessibilityRole="button" style={styles.option}
             onPress={()=>{setMenuVisible(false);setGalleryVisible(true);}}>
             <KnowMeIcon name="discover" color={colors.accent} size={23}/>
             <View style={{flex:1}}>
-              <Text style={[styles.optionLabel,{color:colors.text}]}>{en ? 'Gallery' : 'Galerie KnowMe'}</Text>
-              <Text style={[styles.detail,{color:colors.muted}]}>
+              <Text style={[styles.optionLabel,{color:referenceChat?'#e9edef':colors.text}]}>{en ? 'Gallery' : 'Galerie KnowMe'}</Text>
+              <Text style={[styles.detail,{color:referenceChat?'#aebac1':colors.muted}]}>
                 {en ? 'Photos, videos and multiple selection' : 'Photos, vidéos et sélection multiple'}
               </Text>
             </View>
@@ -177,8 +177,8 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
           <Pressable accessibilityRole="button" style={styles.option} onPress={()=>{void chooseFiles();}}>
             <KnowMeIcon name="create" color={colors.accent} size={23}/>
             <View style={{flex:1}}>
-              <Text style={[styles.optionLabel,{color:colors.text}]}>{en ? 'Files' : 'Fichiers'}</Text>
-              <Text style={[styles.detail,{color:colors.muted}]}>
+              <Text style={[styles.optionLabel,{color:referenceChat?'#e9edef':colors.text}]}>{en ? 'Files' : 'Fichiers'}</Text>
+              <Text style={[styles.detail,{color:referenceChat?'#aebac1':colors.muted}]}>
                 {en ? 'Android documents, audio and other files' : 'Documents, musiques et fichiers Android'}
               </Text>
             </View>
@@ -186,7 +186,7 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
           <Pressable accessibilityRole="checkbox" accessibilityState={{checked:preferSticker}}
             style={styles.option} onPress={()=>setPreferSticker(v=>!v)}>
             <KnowMeIcon name="check" color={colors.muted} size={20}/>
-            <Text style={[styles.optionLabel,{color:colors.text}]}>
+            <Text style={[styles.optionLabel,{color:referenceChat?'#e9edef':colors.text}]}>
               {preferSticker?'☑':'☐'} {en?'Send PNG/WebP as stickers':'Envoyer PNG/WebP comme stickers'}
             </Text>
           </Pressable>
