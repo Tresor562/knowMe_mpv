@@ -1,6 +1,8 @@
 'use client';
 
 import { useId } from 'react';
+import { RemoteCosmeticBadges } from './remote-cosmetic-badges';
+import { useRuntimeBadge } from './runtime-experience-provider';
 import type { PremiumBadge, StaffBadge, VerificationBadge } from '../lib/use-session';
 
 // Rounded, twelve-lobed KnowMe seal — deliberately original artwork.
@@ -12,7 +14,7 @@ const GOLD_SEAL_PATH = Array.from({ length: 145 }, (_, index) => {
   return `${index === 0 ? 'M' : 'L'}${x},${y}`;
 }).join(' ') + ' Z';
 
-function StaffVerifiedSeal({ size, gold }: { size: number; gold: boolean }) {
+function StaffVerifiedSeal({ size, gold, color }: { size: number; gold: boolean; color?: string }) {
   const gradientId = useId().replace(/:/g, '');
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -23,7 +25,7 @@ function StaffVerifiedSeal({ size, gold }: { size: number; gold: boolean }) {
           <stop offset="100%" stopColor={gold ? '#C78A12' : '#657386'} />
         </linearGradient>
       </defs>
-      <path d={GOLD_SEAL_PATH} fill={`url(#${gradientId})`}
+      <path d={GOLD_SEAL_PATH} fill={color && gold ? color : `url(#${gradientId})`}
         stroke={gold ? '#AE7612' : '#59677A'} strokeWidth=".36" strokeLinejoin="round" />
       <path d="M7.35 12.05 10.65 15.1 16.8 8.8" stroke="#fff"
         strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round" />
@@ -39,15 +41,17 @@ export type AccountBadgeSet = {
 };
 
 /** Compact, server-authoritative identity markers. Subscriptions are not profile status plaques. */
-export function AccountBadges({ staff, verification, premium, compact = false }: AccountBadgeSet & { compact?: boolean }) {
-  if (!staff && !verification && !premium) return null;
+export function AccountBadges({ staff, verification, premium, compact = false, username }: AccountBadgeSet & { compact?: boolean; username?: string }) {
+  const blue = useRuntimeBadge('verified_blue');
+  const gold = useRuntimeBadge('staff_gold');
+  if (!staff && !verification && !premium && !username) return null;
   const size = compact ? 18 : 20;
   return (
     <span className="km-account-badges" aria-label="Statuts vérifiés du compte">
-      {verification && <span className="km-account-verification" title={verification.label}
+      {verification?.isVerified && <span className="km-account-verification" title={verification.label}
         aria-label={verification.label}>
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d={GOLD_SEAL_PATH} fill="#1877F2" strokeLinejoin="round" />
+          <path d={GOLD_SEAL_PATH} fill={blue?.color ?? '#1877F2'} strokeLinejoin="round" />
           <path d="M7.2 12.2 10.45 15.25 16.8 8.8" stroke="#fff" strokeWidth="2.55" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </span>}
@@ -59,8 +63,9 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
       </span>}
       {!verification?.isVerified && staff && <span className="km-account-staff" title={staff.label + ' · ' + staff.role}
         aria-label={staff.label + ', ' + staff.role}>
-<StaffVerifiedSeal size={size} gold={staff.shield === 'GOLD'} />
+<StaffVerifiedSeal size={size} gold={staff.shield === 'GOLD'} color={gold?.color} />
       </span>}
+      {username ? <RemoteCosmeticBadges username={username} size={size} /> : null}
     </span>
   );
 }
