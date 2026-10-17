@@ -1,0 +1,43 @@
+/* Compact, native-feeling connectivity notice above the bottom dock. */
+.km-network-notice {
+  position: fixed;
+  z-index: 110;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 440px);
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 10px 11px 12px;
+  border-radius: 19px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--soft-border);
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
+}
+.km-network-notice-icon {
+  display: grid;
+  flex: 0 0 31px;
+  place-items: center;
+  color: var(--orange);
+}
+.km-network-notice[data-offline="false"] .km-network-notice-icon { color: var(--mint); }
+.km-network-notice-icon svg { display: block; width: 24px; height: 24px; }
+.km-network-notice-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.km-network-notice-copy strong { font-size: 13px; line-height: 1.25; font-weight: 650; }
+.km-network-notice-copy span { font-size: 11px; line-height: 1.35; color: var(--muted); }
+.km-network-notice-dismiss {
+  flex: 0 0 38px; width: 38px; height: 38px; padding: 10px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.km-network-notice-dismiss svg { width: 20px; height: 20px; }
+.km-network-notice-dismiss:is(:hover,:focus-visible) { background: var(--surface-2); color: var(--text); }
+.km-network-notice-dismiss:active { transform: scale(.94); }
+@media (min-width: 900px) { .km-network-notice { bottom: 20px; } }
+@media (prefers-reduced-motion: reduce) { .km-network-notice-dismiss:active { transform: none; } }
+:root[data-animations='false'] .km-network-notice-dismiss:active { transform: none; }
