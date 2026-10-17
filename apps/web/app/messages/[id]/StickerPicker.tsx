@@ -52,6 +52,7 @@ export function StickerPicker<T>({
   onInsertEmoji,
   referenceChat=false,
   draftHasText=false,
+  onPanelChange,
   inputSlot
 }: {
   conversationId: string;
@@ -59,11 +60,13 @@ export function StickerPicker<T>({
   onInsertEmoji?: (emoji: string) => void;
   referenceChat?: boolean;
   draftHasText?: boolean;
+  onPanelChange?: (layout:'closed'|'compact'|'expanded')=>void;
   inputSlot?: ReactNode;
 }) {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
+  useEffect(()=>{onPanelChange?.(!open?'closed':expanded?'expanded':'compact');},[open,expanded,onPanelChange]);
   const [typing,setTyping]=useState(false);
   const [expanded,setExpanded]=useState(false);
   const [selectedPack,setSelectedPack]=useState('');
