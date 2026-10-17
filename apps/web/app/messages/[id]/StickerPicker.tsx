@@ -5,6 +5,7 @@ import { apiFetch } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
+import { knowMeToast } from '../../../components/knowme-feedback';
 
 type SavedMedia = {
   id:string;
@@ -41,6 +42,35 @@ type Catalog = {
   clientAssetAccepted: false;
 };
 
+/** Small mono WAV for KnowMe's existing first-party secure audio upload endpoint. */
+async function recordingToWav(blob:Blob):Promise<File> {
+  const ctx=new AudioContext();
+  try{
+    const decoded=await ctx.decodeAudioData(await blob.arrayBuffer());
+    const targetRate=24000;
+    const frames=Math.max(1,Math.ceil(decoded.duration*targetRate));
+    if(frames>targetRate*61)throw new Error('Enregistrement trop long (60 s max).');
+    const bytes=new ArrayBuffer(44+frames*2);
+    const view=new DataView(bytes);
+    const ascii=(offset:number,str:string)=>{for(let i=0;i<str.length;i++)view.setUint8(offset+i,str.charCodeAt(i));};
+    ascii(0,'RIFF');view.setUint32(4,36+frames*2,true);
+    ascii(8,'WAVE');ascii(12,'fmt ');
+    view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+    view.setUint32(24,targetRate,true);view.setUint32(28,targetRate*2,true);
+    view.setUint16(32,2,true);view.setUint16(34,16,true);
+    ascii(36,'data');view.setUint32(40,frames*2,true);
+    const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i));
+    for(let i=0;i<frames;i++){
+      const source=Math.min(decoded.length-1,Math.floor(i*decoded.sampleRate/targetRate));
+      let value=0;
+      for(const channel of channels)value+=channel[source]??0;
+      value=Math.max(-1,Math.min(1,value/Math.max(1,channels.length)));
+      view.setInt16(44+i*2,Math.round(value<0?value*32768:value*32767),true);
+    }
+    return new File([bytes],'vocal-knowme.wav',{type:'audio/wav'});
+  }finally{await ctx.close().catch(()=>undefined);}
+}
+
 const EMOJI_GROUPS = [
   { key: 'recent', fr: 'Expressions', en: 'Expressions', values: ['😀','😃','😂','🥹','😍','😘','😎','🤔','🥰','😭','🥺','😴','😡','😱','🤯','😇','🙃','🫶','❤️','💙','💜','🔥','✨','🎉','👍','👎','👏','🙏','💯','👀'] },
   { key: 'people', fr: 'Personnes et gestes', en: 'People and gestures', values: ['🙋','🙌','🤝','💪','🤙','✌️','👋','👌','💅','🧑‍💻','👩‍💻','👨‍💻','👑','🧠','👨‍🎨','🧑‍🚀'] },
@@ -54,6 +84,8 @@ export function StickerPicker<T>({
   referenceChat=false,
   draftHasText=false,
   onPanelChange,
+  voiceRequest=0,
+  onRecordingChange,
   inputSlot
 }: {
   conversationId: string;
@@ -62,12 +94,19 @@ export function StickerPicker<T>({
   referenceChat?: boolean;
   draftHasText?: boolean;
   onPanelChange?: (layout:'closed'|'compact'|'expanded')=>void;
+  voiceRequest?:number;
+  onRecordingChange?:(recording:boolean)=>void;
   inputSlot?: ReactNode;
 }) {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
   const [typing,setTyping]=useState(false);
+  const recorder=useRef<MediaRecorder|null>(null);
+  const activeStream=useRef<MediaStream|null>(null);
+  const recordedChunks=useRef<Blob[]>([]);
+  const recordingTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const lastVoiceRequest=useRef(0);
   const [expanded,setExpanded]=useState(false);
   useEffect(()=>{onPanelChange?.(!open?'closed':expanded?'expanded':'compact');},[open,expanded,onPanelChange]);
   const [selectedPack,setSelectedPack]=useState('');
@@ -248,6 +287,59 @@ export function StickerPicker<T>({
       setError(cause instanceof Error?cause.message:(en?'Sending media failed.':'Envoi du média impossible.'));
     } finally {setSending(null);}
   }
+
+  useEffect(()=>{
+    if(voiceRequest===0||lastVoiceRequest.current===voiceRequest)return;
+    lastVoiceRequest.current=voiceRequest;
+    const current=recorder.current;
+    if(current&&current.state==='recording'){
+      current.stop();
+      if(recordingTimer.current)clearTimeout(recordingTimer.current);
+      return;
+    }
+    let alive=true;
+    void (async()=>{
+      try{
+        if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined')
+          throw new Error('Microphone indisponible dans ce navigateur.');
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+        if(!alive){stream.getTracks().forEach(track=>track.stop());return;}
+        activeStream.current=stream;
+        const format=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(type=>MediaRecorder.isTypeSupported(type));
+        const media=new MediaRecorder(stream,format?{mimeType:format}:undefined);
+        recorder.current=media;recordedChunks.current=[];
+        media.ondataavailable=event=>{if(event.data.size)recordedChunks.current.push(event.data);};
+        media.onerror=()=>{
+          knowMeToast(en?'Recording failed.':'Enregistrement impossible.','error');
+        };
+        media.onstop=()=>{
+          onRecordingChange?.(false);
+          if(recordingTimer.current)clearTimeout(recordingTimer.current);
+          activeStream.current?.getTracks().forEach(track=>track.stop());
+          activeStream.current=null;recorder.current=null;
+          const parts=recordedChunks.current.slice();recordedChunks.current=[];
+          if(!parts.length)return;
+          void recordingToWav(new Blob(parts,{type:media.mimeType})).then(file=>uploadAndSend(file,'AUDIO'))
+            .catch(()=>knowMeToast(en?'Voice recording could not be processed.':'Impossible de traiter le message vocal.','error'));
+        };
+        media.start(250);onRecordingChange?.(true);
+        recordingTimer.current=setTimeout(()=>{if(media.state==='recording')media.stop();},60000);
+      }catch(error){
+        onRecordingChange?.(false);
+        knowMeToast(error instanceof Error?error.message:'Accès au microphone refusé.','error');
+      }
+    })();
+    return()=>{alive=false;};
+  },[voiceRequest]);
+
+  useEffect(()=>()=> {
+    if(recordingTimer.current)clearTimeout(recordingTimer.current);
+    if(recorder.current){
+      recorder.current.onstop=null;
+      if(recorder.current.state==='recording')recorder.current.stop();
+    }
+    activeStream.current?.getTracks().forEach(track=>track.stop());
+  },[]);
 
   return <div className={referenceChat?'km-picker-anchor km-reference-picker':'km-picker-anchor'} ref={wrap}
     onFocusCapture={event=>{if((event.target as HTMLElement).matches('.km-chat-compose-input')){setTyping(true);setOpen(false);}}}
