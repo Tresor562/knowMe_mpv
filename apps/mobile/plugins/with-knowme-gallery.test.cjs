@@ -47,3 +47,11 @@ test('native module requests only scoped MediaStore queries and Android file pic
   assert.match(java, /FLAG_GRANT_READ_URI_PERMISSION/);
   assert.doesNotMatch(java, /MANAGE_EXTERNAL_STORAGE|ACTION_GET_CONTENT/);
 });
+
+test('gallery uses provider-compatible sorting and bounded Cursor pagination', () => {
+  const java = fs.readFileSync(path.join(__dirname, 'native/android/KnowMeGalleryPackage.java'), 'utf8');
+  assert.match(java, /String order = MediaStore\\.MediaColumns\\.DATE_ADDED/);
+  assert.match(java, /cursor\\.moveToPosition\\(offset - 1\\)/);
+  assert.match(java, /while \\(emitted < count && cursor\\.moveToNext\\(\\)\\)/);
+  assert.doesNotMatch(java, /DESC LIMIT|DESC OFFSET/);
+});
