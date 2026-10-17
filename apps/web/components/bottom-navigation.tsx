@@ -156,7 +156,8 @@ export function BottomNavigation() {
     { href: '/stories/new', label: en ? 'Story' : 'Story' },
     { href: '/channels/new', label: en ? 'Channel' : 'Chaîne' },
     { href: '/challenges', label: en ? 'Challenge' : 'Défi' },
-    { href: '/messages/new', label: en ? 'Group or message' : 'Groupe ou message' }
+    { href: '/messages/new?type=group', label: en ? 'Group' : 'Groupe' },
+    { href: '/messages/new', label: en ? 'Message' : 'Message' }
   ];
   const hide = !wideLayout && (!visible || keyboardEditing);
   const navigation = (
