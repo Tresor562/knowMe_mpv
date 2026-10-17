@@ -7,7 +7,7 @@ type UploadSession = {id:string;uploadToken:string};
 type Asset = {id:string;status:string;scannerVerdict?:string};
 
 export async function uploadKnowMeMobileMedia(media:SelectedAndroidMedia,purpose:UploadPurpose) {
-  const allowed=purpose==='AVATAR'||purpose==='COVER'||purpose==='POST'
+  const allowed=purpose==='AVATAR'||purpose==='COVER'
     ? ['image/jpeg','image/png','image/webp']
     : ['image/jpeg','image/png','image/webp','image/gif','video/mp4'];
   if(!allowed.includes(media.mime))throw new Error('Ce type de fichier n’est pas autorisé.');
