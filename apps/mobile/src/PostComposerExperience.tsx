@@ -85,7 +85,6 @@ export function PostComposerExperience({
             ref={inputRef}
             multiline
             value={content}
-            maxLength={2000}
             onChangeText={onChangeContent}
             placeholder="Qu’as-tu envie de partager ?"
             placeholderTextColor={colors.muted}
@@ -106,7 +105,7 @@ export function PostComposerExperience({
               </Pressable>
             </View>
           ) : null}
-          <Text style={[styles.counter,{color:colors.muted}]}>{content.length}/2000</Text>
+          <Text style={[styles.counter,{color:colors.muted}]}>{content.length} caractères</Text>
 
           <View style={[styles.actions,{borderTopColor:colors.border}]}>
             <Text style={[styles.actionsTitle,{color:colors.text}]}>Ajouter à ta publication</Text>
