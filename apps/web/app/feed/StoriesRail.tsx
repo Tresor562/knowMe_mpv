@@ -8,7 +8,7 @@ import { storyUi } from '../stories/story-i18n';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AccountBadges } from '../../components/AccountBadges';
 import type { VerificationBadge } from '../../lib/use-session';
-import { groupStoriesByAuthor } from './story-rail-model';
+import { groupStoriesByAuthor, type StoryAuthorGroup } from './story-rail-model';
 import './StoriesRail.css';
 
 type Story = {
@@ -31,6 +31,10 @@ type Story = {
 type StoryFeedResponse = {
   stories: Story[];
   nextCursor: string | null;
+};
+type StoryRailResponse = {
+  groups: StoryAuthorGroup<Story>[];
+  nextOffset: number | null;
 };
 
 /**
@@ -95,7 +99,12 @@ function StoryCover({ story, avatarUrl, name }: {
 export function StoriesRail() {
   const ui = storyUi();
   const { user } = useSession();
-  const [stories, setStories] = useState<Story[]>([]);
+  const [groups, setGroups] = useState<StoryAuthorGroup<Story>[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const paginationPending = useRef(false);
+  const railRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -103,10 +112,27 @@ export function StoriesRail() {
     setLoading(true);
     setError('');
     try {
-      const response = await apiFetch<StoryFeedResponse>('/stories/feed');
-      setStories(response.stories);
+      try {
+        const response = await apiFetch<StoryRailResponse>('/stories/rail');
+        if (!Array.isArray(response?.groups)) {
+          // Older API proxies/mocks can respond with 200 {} during rollout.
+          const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+          setGroups(groupStoriesByAuthor(legacy.stories));
+          setNextOffset(null);
+        } else {
+          setGroups(response.groups);
+          setNextOffset(typeof response.nextOffset === 'number' ? response.nextOffset : null);
+        }
+      } catch (cause) {
+        // During gradual Web/API rollout, keep legacy clients functional.
+        if ((cause as { status?: number })?.status !== 404) throw cause;
+        const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+        setGroups(groupStoriesByAuthor(legacy.stories));
+        setNextOffset(null);
+      }
     } catch (cause) {
-      setStories([]);
+      setGroups([]);
+      setNextOffset(null);
       setError(cause instanceof Error ? cause.message : ui.unavailable);
     } finally {
       setLoading(false);
@@ -115,7 +141,42 @@ export function StoriesRail() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const groups = groupStoriesByAuthor(stories);
+  const loadMore = useCallback(async () => {
+    if (nextOffset === null || paginationPending.current) return;
+    paginationPending.current = true;
+    setLoadingMore(true);
+    try {
+      const response = await apiFetch<StoryRailResponse>(`/stories/rail?offset=${nextOffset}`);
+      if (!Array.isArray(response?.groups)) {
+        setNextOffset(null);
+        return;
+      }
+      setGroups(current => {
+        const existing = new Set(current.map(item => item.story.author?.id).filter(Boolean));
+        return [...current, ...response.groups.filter(item =>
+          item.story.author?.id && !existing.has(item.story.author.id)
+        )];
+      });
+      setNextOffset(response.nextOffset);
+    } catch (cause) {
+      // Keep the existing rail intact if the next page cannot be loaded.
+      setError(cause instanceof Error ? cause.message : ui.unavailable);
+    } finally {
+      paginationPending.current = false;
+      setLoadingMore(false);
+    }
+  }, [nextOffset, ui.unavailable]);
+
+  useEffect(() => {
+    if (nextOffset === null || !railRef.current || !sentinelRef.current) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some(item => item.isIntersecting)) void loadMore();
+    }, { root: railRef.current, rootMargin: '0px 160px 0px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [loadMore, nextOffset, groups.length]);
+
   const myGroup = groups.find(group => group.story.viewer.own);
   const otherGroups = groups.filter(group => !group.story.viewer.own);
 
@@ -125,7 +186,7 @@ export function StoriesRail() {
         <h2>{ui.stories}</h2>
         <Link href="/stories/new" className="km-stories-all">{ui.createStory}</Link>
       </div>
-      <div className="km-stories-rail km-story-card-rail">
+      <div ref={railRef} className="km-stories-rail km-story-card-rail">
         <div className="km-story-card" data-story-owner="true">
           <StoryCover story={myGroup?.story} avatarUrl={user?.avatarUrl} name={user?.displayName ?? '?'} />
           <Link className="km-story-card-open"
@@ -156,6 +217,11 @@ export function StoriesRail() {
             </Link>
           </div>
         ))}
+        {nextOffset !== null && (
+          <div ref={sentinelRef} className="km-story-card km-story-card-loading"
+            aria-label={loadingMore ? (ui.loading) : undefined}
+            aria-hidden="true" />
+        )}
       </div>
       {!loading && error && (
         <div className="km-stories-error" role="status">
