@@ -29,6 +29,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [caption, setCaption] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC'>('FRIENDS');
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   const [feedback, setFeedback] = useState('');
   const previousFocus = useRef<HTMLElement | null>(null);
   const url = typeof window === 'undefined' ? '' :
@@ -73,7 +74,8 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   }
 
   async function shareToFeed() {
-    if (busy) return;
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setFeedback('');
     try {
@@ -90,12 +92,14 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } catch (cause) {
       setFeedback(cause instanceof Error ? cause.message : (en ? 'Could not publish.' : 'Publication impossible.'));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
 
   async function shareToStory() {
-    if (busy) return;
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setFeedback('');
     try {
@@ -109,6 +113,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } catch (cause) {
       setFeedback(cause instanceof Error ? cause.message : (en ? 'Could not share to Story.' : 'Partage en story impossible.'));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -135,6 +140,9 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
           onChange={event => setCaption(event.target.value)}
           placeholder={en ? 'Your message (optional)' : 'Votre message (facultatif)'}
           rows={2}/>
+        <p className="km-share-feedback">{en
+          ? 'Shares to your feed are public. The audience selector applies to stories only.'
+          : 'Les partages sur le fil sont publics. L’audience sélectionnée s’applique seulement aux stories.'}</p>
         <div className="km-share-audience">
           <label htmlFor="knowme-share-audience">{en ? 'Story audience' : 'Audience de la story'}</label>
           <select id="knowme-share-audience" value={audience}
