@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException
@@ -218,6 +219,37 @@ export class PostsService {
     }
 
     return {...comment,author:publicAuthor(comment.author)};
+  }
+
+  async editComment(userId: string, postId: string, commentId: string, content: string) {
+    const trimmed = content.trim();
+    if (!trimmed || trimmed.length > 500) {
+      throw new BadRequestException('Le commentaire doit contenir entre 1 et 500 caractères.');
+    }
+
+    // Enforce ownership and post association at write time, not just via UI.
+    // This prevents a user editing someone else's comment or a mismatched post.
+    const updated = await this.prisma.postComment.updateMany({
+      where: { id: commentId, postId, authorId: userId },
+      data: { content: trimmed }
+    });
+    if (!updated.count) {
+      const exists = await this.prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: { postId: true }
+      });
+      if (!exists || exists.postId !== postId) {
+        throw new NotFoundException('Commentaire introuvable.');
+      }
+      throw new ForbiddenException('Tu ne peux modifier que ton propre commentaire.');
+    }
+
+    const comment = await this.prisma.postComment.findUnique({
+      where: { id: commentId },
+      include: { author: { select: publicAuthorSelect } }
+    });
+    if (!comment) throw new NotFoundException('Commentaire introuvable.');
+    return { ...comment, author: publicAuthor(comment.author) };
   }
 
   async removeComment(userId: string, postId: string, commentId: string) {
