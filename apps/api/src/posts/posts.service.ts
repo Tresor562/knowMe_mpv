@@ -211,13 +211,15 @@ export class PostsService {
     ]);
 
     if (!post) throw new NotFoundException('Publication introuvable.');
+    let parentAuthorId: string | null = null;
     // Never attach a reply to a comment belonging to a different publication.
     if (dto.parentId) {
       const parent = await this.prisma.postComment.findFirst({
         where: { id: dto.parentId, postId },
-        select: { id: true }
+        select: { id: true, authorId: true }
       });
       if (!parent) throw new NotFoundException('Le commentaire auquel tu réponds est introuvable.');
+      parentAuthorId = parent.authorId;
     }
 
     const comment = await this.prisma.postComment.create({
@@ -231,8 +233,9 @@ export class PostsService {
       }
     });
 
+    const notices: Array<Promise<unknown>> = [];
     if (post.authorId !== userId) {
-      await this.notifications.create({
+      notices.push(this.notifications.create({
         userId: post.authorId,
         type: 'POST_COMMENTED',
         title: 'Nouveau commentaire',
@@ -244,8 +247,28 @@ export class PostsService {
           commentId: comment.id,
           actorId: userId
         }
-      });
+      }));
     }
+    // Notify the comment's author as well, without duplicating the post
+    // owner's notification or notifying the person replying to themselves.
+    if (parentAuthorId && parentAuthorId !== userId && parentAuthorId !== post.authorId) {
+      notices.push(this.notifications.create({
+        userId: parentAuthorId,
+        type: 'COMMENT_REPLIED',
+        title: 'Nouvelle réponse',
+        body: `${actor?.displayName ?? 'Quelqu’un'} a répondu à ton commentaire.`,
+        data: {
+          route: `/feed/${postId}?comment=${encodeURIComponent(comment.id)}`,
+          entityType: 'POST_COMMENT',
+          entityId: comment.id,
+          parentCommentId: dto.parentId,
+          actorId: userId
+        }
+      }));
+    }
+    // A notification outage must not convert a committed comment into a
+    // reported publication error, which would invite accidental duplicate posts.
+    await Promise.allSettled(notices);
 
     return {...comment,author:publicAuthor(comment.author)};
   }
