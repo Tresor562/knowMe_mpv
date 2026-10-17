@@ -120,6 +120,17 @@ export class ExpoOtaController {
     response.setHeader('Cache-Control','public, max-age=31536000, immutable');
     response.setHeader('X-Content-Type-Options','nosniff');
     response.setHeader('Content-Length',String(size));
-    return new StreamableFile(createReadStream(location),{type:'application/octet-stream',length:size});
+    const typePath = location + '.type';
+    const allowed = new Set([
+      'application/javascript', 'application/json', 'application/octet-stream',
+      'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml',
+      'font/ttf', 'font/otf', 'font/woff', 'font/woff2', 'audio/mpeg', 'audio/wav', 'video/mp4'
+    ]);
+    let type = 'application/octet-stream';
+    if (existsSync(typePath) && lstatSync(typePath).isFile() && statSync(typePath).size < 80) {
+      const recorded = readFileSync(typePath,'utf8');
+      if (allowed.has(recorded)) type = recorded;
+    }
+    return new StreamableFile(createReadStream(location),{type,length:size});
   }
 }
