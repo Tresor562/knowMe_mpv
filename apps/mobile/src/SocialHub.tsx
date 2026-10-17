@@ -15,6 +15,8 @@ import { useAppearance } from './AppearanceProvider';
 import { KnowMeMentionText } from './KnowMeMentionText';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 
 type UserSummary = {
   id: string;
@@ -22,6 +24,8 @@ type UserSummary = {
   displayName: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  staff?: {shield?:string}|null;
+  verification?: {isVerified:true;label:string}|null;
 };
 
 type Friend = { friendshipId: string; user: UserSummary };
@@ -494,7 +498,10 @@ function Identity({ user, onOpenProfile }: { user: UserSummary; onOpenProfile?: 
     <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${user.displayName}`} onPress={() => onOpenProfile?.(user.username)} style={styles.identity}>
       <Avatar uri={user.avatarUrl} name={user.displayName} size={48} />
       <View style={styles.identityText}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{user.displayName}</Text>
+        <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
+          <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{user.displayName}</Text>
+          {user.verification?.isVerified?<BlueVerifiedBadge size={18} label={user.verification.label}/>:user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+        </View>
         <Text style={[styles.muted, { color: colors.muted }]}>@{user.username}</Text>
         {user.bio ? (
           <Text style={[styles.bio, { color: colors.muted }]} numberOfLines={2}>{user.bio}</Text>
