@@ -137,9 +137,9 @@ function ReferenceChatWallpaper() {
   const iconNames= ['camera','messages','heart','spark','discover','profile','video-call'] as const;
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     {positions.map(([x,y,rotation],index)=><View key={index} style={{
-      position:'absolute',left:`${x}%`,top:`${y}%`,opacity:0.24,
+      position:'absolute',left:`${x}%` as `${number}%`,top:`${y}%` as `${number}%`,opacity:0.24,
       transform:[{rotate:`${rotation}deg`}]
-    }}><KnowMeIcon name={iconNames[index%iconNames.length]} size={31} color="#39444b" strokeWidth={1.3}/></View>)}
+    }}><KnowMeIcon name={iconNames[index%iconNames.length]!} size={31} color="#39444b" strokeWidth={1.3}/></View>)}
   </View>;
 }
 
