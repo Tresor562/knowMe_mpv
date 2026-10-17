@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { apiFetch } from '../lib/api';
 import { getRealtimeSocket } from '../lib/realtime';
 
@@ -13,16 +13,30 @@ const DEFAULT: RuntimeConfig = { revision: 0, document: {
     { key: 'staff_gold', label: 'Équipe KnowMe', color: '#E5AD31', symbol: 'check' }
   ], modules: []
 } };
-const Context = createContext<RuntimeConfig>(DEFAULT);
+
+// Shared external store avoids conflicting React Provider types across the monorepo.
+let current: RuntimeConfig = DEFAULT;
+const listeners = new Set<() => void>();
+function notify(next: RuntimeConfig) {
+  if (JSON.stringify(current) === JSON.stringify(next)) return;
+  current = next;
+  for (const listener of listeners) listener();
+}
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+export function useRuntimeExperience() {
+  return useSyncExternalStore(subscribe, () => current, () => DEFAULT);
+}
 export function RuntimeExperienceProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState(DEFAULT);
   const refresh = useCallback(async () => {
     try {
       const result = await apiFetch<RuntimeConfig>('/runtime-experience');
       if (Array.isArray(result?.document?.badges) && Array.isArray(result?.document?.modules)) {
-        setConfig(result);
+        notify(result);
       }
-    } catch { /* Preserve last known good configuration during outages. */ }
+    } catch { /* Preserve last known good config while offline. */ }
   }, []);
   useEffect(() => {
     void refresh();
@@ -39,9 +53,8 @@ export function RuntimeExperienceProvider({ children }: { children: React.ReactN
       socket.off('runtime-experience:changed', refresh);
     };
   }, [refresh]);
-  return <Context.Provider value={config}>{children}</Context.Provider>;
+  return <>{children}</>;
 }
-export function useRuntimeExperience() { return useContext(Context); }
 export function useRuntimeBadge(key: string) {
   const { document } = useRuntimeExperience();
   return document.badges.find(badge => badge.key === key);
