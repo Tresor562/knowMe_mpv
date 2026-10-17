@@ -90,6 +90,7 @@ export class PostsService {
           select: publicAuthorSelect
         },
         _count: { select: { likes: true, comments: true } },
+        media: {orderBy:{position:'asc'}},
         comments: {
           take: 50,
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
