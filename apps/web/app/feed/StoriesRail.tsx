@@ -114,8 +114,15 @@ export function StoriesRail() {
     try {
       try {
         const response = await apiFetch<StoryRailResponse>('/stories/rail');
-        setGroups(response.groups);
-        setNextOffset(response.nextOffset);
+        if (!Array.isArray(response?.groups)) {
+          // Older API proxies/mocks can respond with 200 {} during rollout.
+          const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+          setGroups(groupStoriesByAuthor(legacy.stories));
+          setNextOffset(null);
+        } else {
+          setGroups(response.groups);
+          setNextOffset(typeof response.nextOffset === 'number' ? response.nextOffset : null);
+        }
       } catch (cause) {
         // During gradual Web/API rollout, keep legacy clients functional.
         if ((cause as { status?: number })?.status !== 404) throw cause;
@@ -140,6 +147,10 @@ export function StoriesRail() {
     setLoadingMore(true);
     try {
       const response = await apiFetch<StoryRailResponse>(`/stories/rail?offset=${nextOffset}`);
+      if (!Array.isArray(response?.groups)) {
+        setNextOffset(null);
+        return;
+      }
       setGroups(current => {
         const existing = new Set(current.map(item => item.story.author?.id).filter(Boolean));
         return [...current, ...response.groups.filter(item =>
