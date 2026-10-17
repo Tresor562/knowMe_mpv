@@ -53,21 +53,54 @@ nouveau code natif, permissions Android, nouvelles bibliothèques, nouveaux comp
 non pris en charge par le moteur, changements structurels du schéma, nouvelles routes
 qui nécessitent du nouveau code côté client ou serveur.
 
-## OTA JavaScript Expo — deuxième phase, NE PAS activer prématurément
+## OTA JavaScript Expo — intégré dans le code, activation VPS encore conditionnelle
 
-La version actuelle utilise toujours l'installateur APK du VPS. Pour offrir en plus des
-mises à jour du bundle JS, ajouter `expo-updates` compatible **SDK 53**, un `runtimeVersion`
-qui ne change que quand la couche native change, et un serveur de publication Expo Updates v1
-sur le VPS. L'API doit vérifier `expo-platform`, `expo-runtime-version`, channel et
-signature; publier atomiquement seulement après vérification du manifeste, des empreintes
-SHA-256 et de la compatibilité; refuser toute mise à jour inter-runtime.
-Protéger les manifestes par signature et certificat embarqué; rollback et stockage
-immuable des assets. Installer une APK contenant le runtime OTA avant d'envoyer un bundle.
+- Dépendance native `expo-updates@0.28.18` (SDK 53) et lockfile pnpm actualisé.
+- Runtime natif `knowme-android-ota1`; canal Android `preview`; URL
+  `https://31-56-85-53.sslip.io/knowme-api/mobile-updates/ota`.
+- Bundle JS et ressources compatibles : contrôle de mise à jour au lancement et à la
+  remise au premier plan, téléchargement, proposition de redémarrage, repli sur
+  la version embarquée si le réseau échoue.
+- NestJS : serveur Expo Updates Protocol v1 (`mobile-updates/ota`) avec
+  contrôle de plateforme, runtime, canal, empreintes des ressources,
+  manifests signés RSA-SHA256 et publication locale.
+- Publication atomique des exports Expo sur le VPS à l'aide de
+  `scripts/publish-knowme-ota.mjs`. La publication est en mode simulation par défaut.
 
-Ne pas confondre OTA JavaScript, configuration dynamique et installation Android :
-OTA ne peut pas installer de nouveau code natif ni outrepasser les permissions Android.
-Ne jamais annoncer OTA « opérationnel » tant qu'une vraie APK, les flux réseau et
-la restauration en cas d'échec n'ont pas été validés.
+### Sécurité de production
+
+Le serveur est **désactivé par défaut** et exige une URL HTTPS, un fichier
+privé de signature RSA côté VPS et `KNOWME_OTA_ENABLED=true`.
+Un client configuré pour vérifier les signatures exige en plus le certificat
+public correspondant dans la couche Android, signé avant la compilation de l'APK.
+La version actuelle du client n'embarque **pas encore** ce certificat.
+Les clients non signés sont refusés par défaut ; `KNOWME_OTA_ALLOW_UNSIGNED_CLIENTS=true`
+permet explicitement une **phase de compatibilité moins sûre**, à ne pas utiliser
+comme protection de production. Ne jamais affirmer que le déploiement OTA est sécurisé
+ou actif sans une APK testée ayant une chaîne de confiance vérifiée.
+
+### Publication sur un VPS effectivement connecté
+
+1. Installer **une première APK** avec cette version native et vérifier la
+   compilation, la signature de l'APK et le stockage de l'application.
+2. Installer l'API mise à jour avec sauvegarde PostgreSQL et migrations validées.
+3. Préparer un certificat Expo public embarqué dans une APK et la clé privée RSA
+   correspondante **uniquement sur le VPS** (jamais dans GitHub, Vercel ou l'APK).
+4. Configurer `KNOWME_OTA_STORAGE_DIR`, `KNOWME_OTA_PUBLIC_URL`,
+   `KNOWME_OTA_SIGNING_KEY_PATH`, `KNOWME_OTA_ENABLED=true` et ne pas ouvrir
+   le canal non signé en production.
+5. Produire `dist` avec `expo export --platform android --output-dir dist` ;
+   enregistrer le JSON de `expo config --type public --json` sous
+   `dist/expoConfig.json`.
+6. Sur le VPS, depuis le dépôt officiel, effectuer d'abord la simulation :
+   `node scripts/publish-knowme-ota.mjs --dist=apps/mobile/dist --runtime=knowme-android-ota1 --channel=preview --url=https://31-56-85-53.sslip.io/knowme-api/mobile-updates/ota`
+   puis, après validation sur appareil et sauvegardes, rejouer avec `--publish`.
+7. Tester un changement JS compatible, l'installation du bundle, le redémarrage,
+   les requêtes de contrôle, le retour arrière, et les anciennes APK.
+
+Le serveur Expo OTA ne remplace **jamais** une nouvelle build pour
+les modules natifs, les permissions Android ou une autre version de runtime.
+Un commit GitHub ne déploie pas à lui seul le backend sur le VPS.
 
 ## Invariants permanents
 
