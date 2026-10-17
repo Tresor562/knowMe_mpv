@@ -75,6 +75,15 @@ async function main() {
   const apiCurrent = api?.commit === sha;
   const webCurrent = web?.commit === sha;
 
+  // Do not replace an already newer published VPS release with an older APK.
+  const currentFile = join(runtime, 'current-release.json');
+  if (existsSync(currentFile)) {
+    const previous = JSON.parse(readFileSync(currentFile, 'utf8'));
+    if (Number.isSafeInteger(previous.versionCode) && previous.versionCode > notice.versionCode) {
+      throw new Error('Refusing VPS release rollback');
+    }
+  }
+
   // Owner-requested release freeze: API updates may serve the Android update
   // channel, but Web MUST NOT be rolled out until explicitly enabled. Default
   // is fail-closed so fresh installations cannot bypass the freeze.
@@ -105,14 +114,6 @@ async function main() {
   if (apiCurrent && webCurrent && api.version === web.version) {
     console.log(JSON.stringify({ ok: true, deployed: false, sha, version: notice.version, reason: 'already synchronized' }));
     return;
-  }
-  // Do not replace an already newer published VPS release with an older APK.
-  const currentFile = join(runtime, 'current-release.json');
-  if (existsSync(currentFile)) {
-    const previous = JSON.parse(readFileSync(currentFile, 'utf8'));
-    if (Number.isSafeInteger(previous.versionCode) && previous.versionCode > notice.versionCode) {
-      throw new Error('Refusing VPS release rollback');
-    }
   }
   if (!apiCurrent) start('deploy-knowme-vps.mjs', sha);
   if (!webCurrent) start('deploy-knowme-web-vps.mjs', sha);
