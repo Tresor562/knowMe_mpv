@@ -20,12 +20,14 @@ import { NativeStoryVideo } from './NativeStoryVideo';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 
 type StoryAuthor = {
   id: string;
   username: string;
   displayName: string;
   avatarUrl?: string | null;
+  verification?: {isVerified:true;label:string}|null;
 };
 
 type Story = {
@@ -290,9 +292,12 @@ export function StoriesRail({
               accessibilityLabel={`Voir le profil de ${story.author?.displayName ?? 'KnowMe'}`}
               disabled={!story.author?.username}
               onPress={() => story.author?.username && openProfile?.(story.author.username)}>
-              <Text numberOfLines={1} style={[styles.label, { color: colors.muted }]}>
+              <View style={{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4}}>
+              <Text numberOfLines={1} style={[styles.label, { color: colors.muted, flexShrink:1 }]}>
                 {story.author?.displayName ?? 'Story'}
               </Text>
+              {story.author?.verification?.isVerified?<BlueVerifiedBadge size={16} label={story.author.verification.label}/>:null}
+              </View>
             </Pressable>
           </View>
         ))}
@@ -353,11 +358,14 @@ export function StoriesRail({
                 size={38}
               />
               <View>
+                <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
                 <Text style={[styles.viewerName, { color: colors.text }]}>
                   {selected?.viewer.own
                     ? currentUser.displayName
                     : selected?.author?.displayName ?? 'KnowMe'}
                 </Text>
+                {selected?.author?.verification?.isVerified?<BlueVerifiedBadge size={18} label={selected.author.verification.label}/>:null}
+                </View>
                 <Text style={[styles.viewerHandle, { color: colors.muted }]}>
                   @{selected?.viewer.own
                     ? currentUser.username
