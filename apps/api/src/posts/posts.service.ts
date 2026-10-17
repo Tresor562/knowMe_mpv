@@ -31,21 +31,27 @@ export class PostsService {
   ) {}
 
   async create(authorId: string, dto: CreatePostDto) {
-    const attachmentId = dto.mediaAssetId
-      ? await this.media.assertOwnedPostImage(authorId, dto.mediaAssetId)
-      : null;
-    const imageUrl = attachmentId
-      ? `/media/public/post/${attachmentId}`
-      : dto.imageUrl;
+    const selected=dto.mediaAssetIds??(dto.mediaAssetId?[dto.mediaAssetId]:[]);
+    const ids=[...new Set(selected)];
+    if(ids.length!==selected.length)throw new ForbiddenException('Un média ne peut être ajouté deux fois au même post.');
+    const validated=[];
+    for(const id of ids)validated.push(await this.media.assertOwnedPostMedia(authorId,id));
+    const media=validated.map((asset,index)=>({
+      assetId:asset.id,mimeType:asset.mimeType,position:index
+    }));
+    const imageUrl=media.length&&media[0]!.mimeType.startsWith('image/')
+      ? `/media/public/post/${media[0]!.assetId}`
+      :dto.imageUrl;
     const post = await this.prisma.post.create({
-      data: { authorId, content: dto.content, imageUrl },
-      include: {
-        author: {
-          select: publicAuthorSelect
-        }
-      }
+      data: {
+        authorId, content:dto.content,imageUrl,
+        media:media.length?{create:media}:undefined
+      },
+      include:{author:{select:publicAuthorSelect},media:{orderBy:{position:'asc'}}}
     });
-    return {...post,author:publicAuthor(post.author)};
+    return {...post,author:publicAuthor(post.author),
+      media:post.media.map(item=>({url:`/media/public/post/${item.assetId}`,
+        mimeType:item.mimeType,position:item.position}))};
   }
 
   async feed(cursor?: string) {
@@ -58,6 +64,7 @@ export class PostsService {
           select: publicAuthorSelect
         },
         _count: { select: { likes: true, comments: true } },
+        media: {orderBy: {position: 'asc'}},
         comments: {
           take: 3,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -70,6 +77,8 @@ export class PostsService {
       }
     });
     return posts.map(post=>({...post,author:publicAuthor(post.author),
+      media:post.media.map(item=>({url:`/media/public/post/${item.assetId}`,
+        mimeType:item.mimeType,position:item.position})),
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))}));
   }
 
@@ -95,6 +104,8 @@ export class PostsService {
 
     if (!post) throw new NotFoundException('Publication introuvable.');
     return {...post,author:publicAuthor(post.author),
+      media:post.media.map(item=>({url:`/media/public/post/${item.assetId}`,
+        mimeType:item.mimeType,position:item.position})),
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))};
   }
 
