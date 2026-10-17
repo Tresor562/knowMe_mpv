@@ -53,12 +53,23 @@ privée VPS ne doit être enregistrée dans GitHub pour distribuer KnowMe.
 KnowMe dans `/opt/nex/apps/public/knowme/source`. Ces prérequis
 s'installent une fois sur le VPS via un accès administrateur existant.
 
-Installer le minuteur local en tant qu'administrateur :
+Installer le minuteur local en tant qu'administrateur **après avoir déployé une
+copie officielle et validée du dépôt KnowMe** :
 
 ```bash
 sudo bash /opt/nex/apps/public/knowme/source/ops/install-knowme-android-pull-timer.sh
-sudo systemctl status knowme-android-updates.timer
+sudo systemctl is-active knowme-android-updates.timer
+sudo systemctl start knowme-android-updates.service
+sudo journalctl -u knowme-android-updates.service -n 25 --no-pager
 ```
+
+Le script installe lui-même les deux scripts de synchronisation dans
+`/opt/nex/ops/knowme-android-updates/ops` en lecture seule pour le compte
+de service. Il vérifie Node.js 22+, les outils Android et leur accessibilité
+depuis ce compte. **Aucune copie manuelle préalable dans /opt/nex/ops n'est
+nécessaire.** Il ne demande aucune clé GitHub ni accès SSH de GitHub au VPS.
+L'activation du timer ne dispense pas de redéployer l'API VPS avec le montage
+`/var/lib/knowme-android-updates` pour rendre le manifeste accessible.
 
 Le timer `knowme-android-updates.timer` consulte toutes les cinq minutes
 les préversions publiques de KnowMe sur GitHub. Il ne télécharge que
