@@ -1,6 +1,7 @@
 'use client';
 
 import { AccountBadges } from '../../../components/AccountBadges';
+import './story-viewer.css';
 import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
