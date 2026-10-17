@@ -128,10 +128,10 @@
 
 /* Expression keyboard: a full-width dock underneath the composer, never a floating dialog. */
 .panelCompact :global(.km-chat-composer) {
-  transform:translateY(calc(-1 * min(42dvh,340px)));
+  bottom:min(42dvh,340px);
 }
 .panelExpanded :global(.km-chat-composer) {
-  transform:translateY(calc(-1 * min(77dvh,700px)));
+  bottom:min(77dvh,700px);
 }
 .chat :global(.km-picker-reference-sheet) {
   position:fixed;z-index:90;top:auto;bottom:0;left:50%;transform:translateX(-50%);
