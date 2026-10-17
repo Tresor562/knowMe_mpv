@@ -108,8 +108,14 @@ export function StoriesRail({
     try {
       try {
         const response = await apiFetch<StoryRailResponse>('/stories/rail');
-        setGroups(response.groups);
-        setNextOffset(response.nextOffset);
+        if (!Array.isArray(response?.groups)) {
+          const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
+          setGroups(groupLegacyStories(legacy.stories));
+          setNextOffset(null);
+        } else {
+          setGroups(response.groups);
+          setNextOffset(typeof response.nextOffset === 'number' ? response.nextOffset : null);
+        }
       } catch (cause) {
         if ((cause as { status?: number })?.status !== 404) throw cause;
         const legacy = await apiFetch<StoryFeedResponse>('/stories/feed');
@@ -131,6 +137,10 @@ export function StoriesRail({
     loadingNext.current = true;
     try {
       const next = await apiFetch<StoryRailResponse>(`/stories/rail?offset=${nextOffset}`);
+      if (!Array.isArray(next?.groups)) {
+        setNextOffset(null);
+        return;
+      }
       setGroups(current => {
         const known = new Set(current.map(g => g.story.author?.id));
         return [...current, ...next.groups.filter(g => !known.has(g.story.author?.id))];
