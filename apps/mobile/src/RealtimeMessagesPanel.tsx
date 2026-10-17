@@ -733,6 +733,7 @@ export function RealtimeMessagesPanel({
           renderItem={({ item, index }) => {
             const mine = item.senderId === userId;
             const nexus = item.nexusAuthored === true;
+            const imageOnly=item.presentation?.kind==='IMAGE'||item.presentation?.kind==='GIF';
             const showDate=index===0||new Date(history[index-1]!.createdAt).toDateString()!==new Date(item.createdAt).toDateString();
             const day=new Date(item.createdAt);
             const label=day.toDateString()===new Date().toDateString()?'Aujourd’hui':
@@ -778,6 +779,7 @@ export function RealtimeMessagesPanel({
                   { borderRadius: 8 },
                   mine? [styles.bubbleMine,{backgroundColor:REFERENCE_CHAT.mine}]:
                     [styles.bubbleOther,{backgroundColor:REFERENCE_CHAT.other}],
+                  imageOnly?styles.referenceImageBubble:null,
                   linkedMessageId === item.id ? { borderWidth: 2, borderColor: REFERENCE_CHAT.blue } : null
                 ]}
               >
@@ -1369,6 +1371,8 @@ const styles = StyleSheet.create({
   referenceHeaderAction:{width:37,height:46,alignItems:'center',justifyContent:'center'},
   referenceMore:{width:27,height:46,alignItems:'center',justifyContent:'center'},
   referenceMessageItem:{width:'100%',gap:0},
+  referenceImageBubble:{backgroundColor:'transparent',paddingHorizontal:0,paddingVertical:0,
+    borderWidth:0,elevation:0},
   referenceDay:{alignSelf:'center',backgroundColor:'#1b2931',borderRadius:8,
     paddingHorizontal:12,paddingVertical:5,marginVertical:13},
   referenceDayText:{color:'#bec9ce',fontSize:12},
