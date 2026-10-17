@@ -8,6 +8,7 @@ import { AccessControlPanel } from './AccessControlPanel';
 import { BillingPanel } from './BillingPanel';
 import { EntitlementsPanel } from './EntitlementsPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
+import { RuntimeExperiencePanel } from './RuntimeExperiencePanel';
 import { RewardsPanel } from './RewardsPanel';
 import { StaffAccountsPanel } from './StaffAccountsPanel';
 import { VerificationPanel } from './VerificationPanel';
@@ -270,6 +271,7 @@ export default function AdminPage() {
       {can(P.rewards) && <RewardsPanel />}
       {can(P.billing) && <BillingPanel />}
       {can(P.flags) && <FeatureFlagsPanel />}
+      {can(P.flags) && <RuntimeExperiencePanel canGrant={can('cosmetics.manage')} />}
     </main>
   );
 }
