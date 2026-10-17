@@ -728,7 +728,7 @@ export function RealtimeMessagesPanel({
             onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
             style={styles.referenceHeaderTitle}>
             <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
-            {others.length===1&&others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={18} label={others[0]?.user.verification?.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+            {others.length===1?(others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={18} label={others[0]?.user.verification.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null):null}
           </Pressable>
           <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
             accessibilityLabel="Appel vocal"
@@ -1147,7 +1147,7 @@ export function RealtimeMessagesPanel({
                   ]} /> : null}
                 </View>
                 <View style={styles.flex}>
-                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1&&others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={17} label={others[0]?.user.verification?.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}</View>
+                  <View style={styles.verifiedName}><Text style={[styles.cardTitle,{color:colors.text},styles.flex]} numberOfLines={1}>{name}</Text>{others.length===1?(others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={17} label={others[0]?.user.verification.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null):null}</View>
                   <Text style={isNexus ? styles.online : online ? styles.online : styles.muted}>
                     {pinned ? 'Épinglée · ' : ''}{isNexus ? 'assistant privé' : online ? 'en ligne' : 'hors ligne'}
                   </Text>
