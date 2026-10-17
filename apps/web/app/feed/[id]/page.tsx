@@ -264,8 +264,8 @@ export default function PostDetailPage() {
       // An uncertain POST may have committed on the server. Do not silently
       // retry it or tell the user with certainty that their reply was lost.
       const error = cause as { code?: string; message?: string };
-      const uncertain = error.code === 'KNOWME_TIMEOUT' ||
-        error.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' ||
+        error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
       setMessage(uncertain
         ? 'Envoi non confirmé. Vérifie les commentaires avant de réessayer pour éviter un doublon.'
         : cause instanceof Error ? cause.message : 'Commentaire impossible.');
