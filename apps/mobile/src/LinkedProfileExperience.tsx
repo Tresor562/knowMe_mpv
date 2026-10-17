@@ -5,6 +5,7 @@ import { API_URL, apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 
 type PublicProfile = {
   header: {
@@ -270,10 +271,7 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                   <GoldVerifiedBadge size={23} label={profile.header.staff.label + ', ' + profile.header.staff.role} />
                 ) : null}
                 {profile.header.verification?.isVerified ? (
-                  <View style={[styles.verifiedBadge, {backgroundColor: colors.accent}]}
-                    accessible accessibilityRole="image" accessibilityLabel={profile.header.verification.label}>
-                    <Text style={styles.verifiedMark}>✓</Text>
-                  </View>
+                  <BlueVerifiedBadge size={23} label={profile.header.verification.label} />
                 ) : null}
                 {profile.header.premium?.isPremium ? (
                   <View style={styles.premiumBadge} accessible accessibilityRole="image"
