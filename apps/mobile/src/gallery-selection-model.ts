@@ -10,7 +10,8 @@ export function toggleGallerySelection<T extends GallerySelectable>(
   if (selected.some(entry => entry.id === item.id)) {
     return { items: selected.filter(entry => entry.id !== item.id), limitReached: false };
   }
-  const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.min(10, Math.floor(maxSelection))) : 1;
+  // Infinity means no arbitrary client-side selection cap; uploads still use a bounded queue.
+  const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.floor(maxSelection)) : Infinity;
   if (selected.length >= limit) {
     return { items: [...selected], limitReached: true };
   }
