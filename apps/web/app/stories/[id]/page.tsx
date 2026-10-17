@@ -31,7 +31,7 @@ type Story = {
     username: string;
     displayName: string;
     avatarUrl?: string | null;
-    verification?: {isVerified:true;label:string}|null;
+    verification?: import('../../../lib/use-session').VerificationBadge | null;
   } | null;
   metrics: { reactions: number; replies: number };
   viewer: { own: boolean; reaction?: { reaction: string } | null };
