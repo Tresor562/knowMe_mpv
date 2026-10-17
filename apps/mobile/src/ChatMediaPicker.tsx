@@ -28,9 +28,11 @@ function detectKind(mime: string, preferSticker: boolean): MediaKind {
   return 'DOCUMENT';
 }
 
-export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot,gifGalleryRequest=0}:{
+export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot,gifGalleryRequest=0,
+  expressionOpen=false,expressionExpanded=false,onToggleExpression}:{
   conversationId:string;onSent:(message:T)=>void;showVoice?:boolean;
   referenceChat?:boolean;inputSlot?:ReactNode;gifGalleryRequest?:number;
+  expressionOpen?:boolean;expressionExpanded?:boolean;onToggleExpression?:()=>void;
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
@@ -141,10 +143,15 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
           disabled={busy} onPress={()=>setMenuVisible(true)} style={styles.referenceTrigger}>
           {busy?<ActivityIndicator color="#aebac1" size="small"/>:<KnowMeIcon name="paperclip" size={23} color="#aebac1"/>}
         </Pressable>
+        {expressionOpen?<Pressable accessibilityRole="button"
+          accessibilityLabel={expressionExpanded?'Réduire le clavier multimédia':'Agrandir le clavier multimédia'}
+          onPress={onToggleExpression} style={styles.referenceTrigger}>
+          <KnowMeIcon name={expressionExpanded?'chevron-down':'chevron-up'} size={24} color="#aebac1"/>
+        </Pressable>:
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Open media gallery':'Ouvrir la galerie KnowMe'}
           disabled={busy} onPress={()=>setGalleryVisible(true)} style={styles.referenceTrigger}>
           <KnowMeIcon name="camera" size={23} color="#aebac1"/>
-        </Pressable>
+        </Pressable>}
       </View> : <Pressable accessibilityRole="button"
         accessibilityLabel={en ? 'Attach photos, videos or files' : 'Joindre photos, vidéos ou fichiers'}
         disabled={busy}
