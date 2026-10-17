@@ -5,6 +5,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { staffAccountSelect, toStaffBadge, type StaffProfileRecord } from '../staff/staff-profile';
+import {
+  StickerPresentation,
+  StickerTokenService
+} from './stickers/sticker-token.service';
+
 
 const publicSenderSelect = {
   id:true, username:true, displayName:true, avatarUrl:true,
@@ -16,10 +21,6 @@ function toPublicSender<T extends {email?:string|null;staffAccount?:StaffProfile
   return {...profile,staff:toStaffBadge(staffAccount??null,email)};
 }
 
-import {
-  StickerPresentation,
-  StickerTokenService
-} from './stickers/sticker-token.service';
 
 const NEXUS_AUTHOR = {
   id: 'nexus.ai',
@@ -57,8 +58,6 @@ export class MessagingService {
         }
       }
     });
-  }
-
     return {...conversation,members:conversation.members.map(member=>({...member,user:toPublicSender(member.user)}))};
   }
 
