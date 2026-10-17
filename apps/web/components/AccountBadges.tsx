@@ -6,7 +6,7 @@ import type { PremiumBadge, StaffBadge, VerificationBadge } from '../lib/use-ses
 // Rounded, twelve-lobed KnowMe seal — deliberately original artwork.
 const GOLD_SEAL_PATH = Array.from({ length: 145 }, (_, index) => {
   const theta = (Math.PI * 2 * index) / 144 - Math.PI / 2;
-  const radius = 9.45 + 0.58 * Math.cos(12 * (theta + Math.PI / 2));
+  const radius = 9.65 + 0.64 * Math.cos(12 * (theta + Math.PI / 2));
   const x = (12 + radius * Math.cos(theta)).toFixed(3);
   const y = (12 + radius * Math.sin(theta)).toFixed(3);
   return `${index === 0 ? 'M' : 'L'}${x},${y}`;
@@ -47,8 +47,8 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
       {verification && <span className="km-account-verification" title={verification.label}
         aria-label={verification.label}>
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d={GOLD_SEAL_PATH} fill="#258CEB" stroke="#1467BA" strokeWidth=".36" strokeLinejoin="round" />
-          <path d="m7.4 12 3.2 3.2 6-6" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d={GOLD_SEAL_PATH} fill="#1877F2" stroke="#1362C8" strokeWidth=".28" strokeLinejoin="round" />
+          <path d="m7.4 12 3.2 3.2 6-6" stroke="#fff" strokeWidth="2.55" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </span>}
       {premium && <span className="km-account-premium" title={premium.label} aria-label={premium.label}>
@@ -57,7 +57,7 @@ export function AccountBadges({ staff, verification, premium, compact = false }:
           <path d="m8 12 4 5 4-5-4-5-4 5Z" fill="var(--on-accent)" fillOpacity=".75"/>
         </svg>
       </span>}
-      {staff && <span className="km-account-staff" title={staff.label + ' · ' + staff.role}
+      {!verification?.isVerified && staff && <span className="km-account-staff" title={staff.label + ' · ' + staff.role}
         aria-label={staff.label + ', ' + staff.role}>
 <StaffVerifiedSeal size={size} gold={staff.shield === 'GOLD'} />
       </span>}
