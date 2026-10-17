@@ -153,7 +153,7 @@ const voiceStyles=StyleSheet.create({
   error:{fontSize:10}
 });
 
-export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false, avatarUrl }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean; avatarUrl?: string|null }) {
+export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false, avatarUrl, thumbnailSize }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean; avatarUrl?: string|null; thumbnailSize?:number }) {
   const [opening,setOpening]=useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
   const [stickerExpanded,setStickerExpanded]=useState(false);
@@ -249,14 +249,15 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
   const mediaLabel = kind==='GIF'?'GIF':compact?'Sticker':'Image';
   return <>
     <Pressable
-      style={styles.imageTrigger}
+      style={[styles.imageTrigger,thumbnailSize?{width:thumbnailSize,height:thumbnailSize}:null]}
       accessibilityRole="button"
       accessibilityLabel={compact?'Options du sticker':`Agrandir ${mediaLabel === 'Image' ? "l'image" : mediaLabel}`}
       accessibilityHint={compact?'Appuie pour voir les options, maintiens pour agrandir.':undefined}
       onPress={()=>{setStickerExpanded(!compact);setPreviewOpen(true);}}
       onLongPress={compact?()=>{setStickerExpanded(true);setPreviewOpen(true);}:undefined}
     >
-      <Image source={source} style={compact ? styles.sticker : styles.image}
+      <Image source={source} style={[compact ? styles.sticker : styles.image,
+        thumbnailSize?{width:thumbnailSize,height:thumbnailSize}:null]}
         resizeMode={compact?'contain':'cover'} accessibilityLabel={mediaLabel}
         onError={()=>{setPreviewOpen(false);setFailed(true);}} />
     </Pressable>
