@@ -26,11 +26,16 @@ test('selection limit never silently drops earlier photos', () => {
   assert.deepEqual(attempted.items, initial);
 });
 
-test('invalid limits fail safely and supported limit does not exceed ten', () => {
-  const attempted = toggleGallerySelection([photoA], photoB, Number.NaN);
-  assert.equal(attempted.limitReached, true);
-  const many = Array.from({length:10},(_,id)=>({id:String(id)}));
-  assert.equal(toggleGallerySelection(many,{id:'11'},100).limitReached,true);
+test('unlimited gallery batches are allowed for messages and posts', () => {
+  const many = Array.from({length:100},(_,id)=>({id:String(id)}));
+  const result=toggleGallerySelection(many,{id:'101'},Infinity);
+  assert.equal(result.limitReached,false);
+  assert.equal(result.items.length,101);
+});
+test('stories still have a strict ten-media limit',()=>{
+  const selected=Array.from({length:10},(_,id)=>({id:String(id)}));
+  assert.equal(toggleGallerySelection(selected,{id:'11'},10).limitReached,true);
+  assert.equal(toggleGallerySelection(selected,{id:'11'},10).items.length,10);
 });
 
 test('gallery pagination deduplicates repeated MediaStore rows', () => {
