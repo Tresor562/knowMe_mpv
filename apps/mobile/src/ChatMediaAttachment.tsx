@@ -229,8 +229,8 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
   if(kind==='AUDIO')return <InlineVoiceAttachment assetId={assetId} mimeType={mimeType} avatarUrl={avatarUrl}/>;
 
   if (kind==='VIDEO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
-    <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':kind==='AUDIO'?'🎵':'📄'}</Text>
-    <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':kind==='AUDIO'?'Fichier audio':'Document PDF')}</Text>
+    <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':'📄'}</Text>
+    <Text style={styles.fileTitle}>{fileName??(kind==='VIDEO'?'Vidéo MP4':'Document PDF')}</Text>
     <Pressable accessibilityRole="button" onPress={()=>void openFile()} disabled={opening}
       style={styles.fileAction}>
       <Text style={styles.retryText}>{opening?'Téléchargement…':failed?'Réessayer':'Ouvrir le fichier'}</Text>
