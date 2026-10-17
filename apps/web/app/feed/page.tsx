@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { PostShareSheet } from '../../components/post-share-sheet';
 import '../../components/post-share-sheet.css';
+import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-options-sheet';
+import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
@@ -57,6 +59,10 @@ export default function FeedPage() {
   const publishInFlight = useRef(false);
   const [shareNotice, setShareNotice] = useState('');
   const [sharingPost, setSharingPost] = useState<Post | null>(null);
+  const [optionsPost, setOptionsPost] = useState<Post | null>(null);
+  const [disinterestPost, setDisinterestPost] = useState<Post | null>(null);
+  const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(() => new Set());
+  const [recentlyHiddenPostId, setRecentlyHiddenPostId] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [composeOpen,setComposeOpen] = useState(false);
   const [draftContent,setDraftContent] = useState('');
@@ -397,7 +403,7 @@ export default function FeedPage() {
           </div>
         )}
 
-        {authorityFresh && posts.map(post => (
+        {authorityFresh && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
           <article className="km-feed-post" key={post.id}>
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
@@ -409,19 +415,16 @@ export default function FeedPage() {
                   <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
                 </span>
               </Link>
-              <details className="km-post-menu">
-                <summary aria-label={en?'Post options':'Options de la publication'} title={en?'Post options':'Options de la publication'}>⋯</summary>
-                <div className="km-post-menu-items">
-                  <Link href={`/feed/${encodeURIComponent(post.id)}`}>{en?'Open post':'Voir la publication'}</Link>
-                  <button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');void sharePost(post);}}>{en?'Share':'Partager'}</button>
-                  <button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');void copyPostLink(post);}}>{en?'Copy link':'Copier le lien'}</button>
-                  <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>{en?'View profile':'Voir le profil'}</Link>
-                  {post.author.id===user.id && (
-                    <button type="button" className="km-post-menu-danger"
-                      onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');setDeletePending(post.id);}}>{en?'Delete':'Supprimer'}</button>
-                  )}
-                </div>
-              </details>
+              <div className="km-post-menu">
+                <button type="button" className="km-post-hide-trigger"
+                  aria-label={en ? 'Post options' : 'Options de la publication'}
+                  onClick={() => setOptionsPost(post)}>⋯</button>
+                {post.author.id!==user.id && (
+                  <button type="button" className="km-post-hide-trigger"
+                    aria-label={en ? 'Dismiss this post' : 'Masquer la publication'}
+                    onClick={() => setDisinterestPost(post)}>×</button>
+                )}
+              </div>
             </header>
             {post.content && <div className="km-post-content">
               <p><KnowMeMentionText text={post.content}/></p>
@@ -449,6 +452,38 @@ export default function FeedPage() {
         ))}
       </section>
 
+      {recentlyHiddenPostId && (
+        <div className="km-post-dismissed-note" role="status">
+          <span>{en?'Publication hidden for this session.':'Publication masquée pour cette session.'}</span>
+          <button type="button" onClick={() => {
+            setHiddenPostIds(current => {
+              const next = new Set(current);
+              next.delete(recentlyHiddenPostId);
+              return next;
+            });
+            setRecentlyHiddenPostId(null);
+          }}>{en?'Undo':'Annuler'}</button>
+        </div>
+      )}
+      {optionsPost && (
+        <PostOptionsSheet post={optionsPost} own={optionsPost.author.id === user.id} en={en}
+          onClose={() => setOptionsPost(null)}
+          onShare={() => { const target=optionsPost; setOptionsPost(null); sharePost(target); }}
+          onCopy={() => { const target=optionsPost; setOptionsPost(null); void copyPostLink(target); }}
+          onDelete={() => { setDeletePending(optionsPost.id); setOptionsPost(null); }}
+          onDisinterest={() => { const target=optionsPost; setOptionsPost(null); setDisinterestPost(target); }}
+        />
+      )}
+      {disinterestPost && (
+        <PostDisinterestSheet en={en} onClose={() => setDisinterestPost(null)}
+          onChoose={() => {
+            const id=disinterestPost.id;
+            setHiddenPostIds(current => new Set([...current, id]));
+            setRecentlyHiddenPostId(id);
+            setDisinterestPost(null);
+          }}
+        />
+      )}
       {sharingPost && <PostShareSheet post={sharingPost} en={en}
         onClose={() => setSharingPost(null)}
         onPublished={() => {
