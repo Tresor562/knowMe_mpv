@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   Keyboard,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -659,6 +660,18 @@ export function RealtimeMessagesPanel({
     }
   }
 
+  function openCalls(media:'audio'|'video',peerId?:string){
+    if(!peerId){
+      Alert.alert('Appels KnowMe','Sélectionne une conversation individuelle pour appeler.');
+      return;
+    }
+    const url=`https://knowme-nextech.vercel.app/calls?peer=${encodeURIComponent(peerId)}&media=${media}`;
+    // KnowMe's current WebRTC call centre handles signalling and media permissions.
+    // Do not create a call server-side before the real caller has approved microphone/camera.
+    void Linking.openURL(url).catch(()=>Alert.alert('Appels indisponibles',
+      'Impossible d’ouvrir les appels KnowMe. Vérifie ta connexion.'));
+  }
+
   function closeConversation() {
     stopTyping();
     if (active) {
@@ -715,18 +728,14 @@ export function RealtimeMessagesPanel({
             {others.length===1&&others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
           </Pressable>
           <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
-            accessibilityLabel="Appel vidéo"
-            onPress={()=>Alert.alert('Appels KnowMe','La fonction d’appel vidéo n’est pas encore disponible dans cette version.')}>
-            <KnowMeIcon name="video-call" size={26} color={REFERENCE_CHAT.text}/>
-          </Pressable>
-          <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
             accessibilityLabel="Appel vocal"
-            onPress={()=>Alert.alert('Appels KnowMe','La fonction d’appel vocal n’est pas encore disponible dans cette version.')}>
+            onPress={()=>openCalls('audio',others.length===1?others[0]?.user.id:undefined)}>
             <KnowMeIcon name="phone-call" size={24} color={REFERENCE_CHAT.text}/>
           </Pressable>
           <Pressable style={styles.referenceMore} accessibilityRole="button" accessibilityLabel="Options de conversation"
             onPress={()=>Alert.alert('Conversation',name,[
               ...(others.length===1?[{text:'Voir le profil',onPress:()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}]:[]),
+              {text:'Appel vidéo',onPress:()=>openCalls('video',others.length===1?others[0]?.user.id:undefined)},
               {text:'Actualiser',onPress:()=>void openConversation(active)},
               {text:'Fermer',style:'cancel' as const}
             ])}>
