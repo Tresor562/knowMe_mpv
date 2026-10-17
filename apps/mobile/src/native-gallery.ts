@@ -20,6 +20,7 @@ export type KnowMeAlbum = { id: string; name: string; count: number; thumbnail: 
 type NativeGalleryBridge = {
   listMedia(filter: string, album: string, offset: number, limit: number): Promise<LocalDeviceMedia[]>;
   pickDocuments(multiple: boolean): Promise<SelectedKnowMeFile[]>;
+  createStickerWebp?(sourceUri:string):Promise<string>;
   listAlbums(): Promise<KnowMeAlbum[]>;
 };
 const gallery = NativeModules.KnowMeGallery as NativeGalleryBridge | undefined;
@@ -62,4 +63,11 @@ export async function readKnowMeAlbums() {
 export async function openKnowMeFiles(multiple = true) {
   if (!gallery) throw new Error('Le sélecteur Fichiers nécessite une APK KnowMe récente.');
   return gallery.pickDocuments(multiple);
+}
+
+/** Converts the selected Android image to a 512px WebP sticker locally. */
+export async function convertToKnowStickerWebp(uri:string):Promise<string>{
+  if(!gallery?.createStickerWebp)
+    throw new Error('Mets KnowMe à jour pour convertir les images en stickers.');
+  return gallery.createStickerWebp(uri);
 }
