@@ -51,17 +51,26 @@ export function StickerPicker<T>({
   onSent,
   onInsertEmoji,
   referenceChat=false,
+  draftHasText=false,
   inputSlot
 }: {
   conversationId: string;
   onSent: (message: T) => void;
   onInsertEmoji?: (emoji: string) => void;
   referenceChat?: boolean;
+  draftHasText?: boolean;
   inputSlot?: ReactNode;
 }) {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [open, setOpen] = useState(false);
+  const [typing,setTyping]=useState(false);
+  const [expanded,setExpanded]=useState(false);
+  const [selectedPack,setSelectedPack]=useState('');
+  const [emojiFilter,setEmojiFilter]=useState<'all'|'recent'|'favorites'>('all');
+  const [favorites,setFavorites]=useState<string[]>([]);
+  const [queryOpen,setQueryOpen]=useState(false);
+  const gestureY=useRef<number|null>(null);
   const [tab, setTab] = useState<'emoji' | 'stickers' | 'gifs' | 'files'>('emoji');
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -129,18 +138,35 @@ export function StickerPicker<T>({
   const matchingPacks = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     if (!catalog) return [];
-    return catalog.packs.map(pack => ({
+    return catalog.packs.filter(pack=>!selectedPack||pack.key===selectedPack).map(pack => ({
       pack,
       stickers: query
         ? pack.stickers.filter(sticker => [pack.name, sticker.label, sticker.accessibilityLabel]
           .some(value => value.toLocaleLowerCase().includes(query)))
         : pack.stickers
     })).filter(item => item.stickers.length > 0);
-  }, [catalog, search]);
+  }, [catalog, search,selectedPack]);
 
   function chooseEmoji(emoji: string) {
     onInsertEmoji?.(emoji);
     setRecent(current => [emoji, ...current.filter(value => value !== emoji)].slice(0, 24));
+  }
+
+  useEffect(()=>{
+    try {
+      const raw=localStorage.getItem('knowme-web-expressions-v1');
+      if(!raw)return;
+      const data=JSON.parse(raw) as {recent?:string[];favorites?:string[]};
+      if(Array.isArray(data.recent))setRecent(data.recent.slice(0,24));
+      if(Array.isArray(data.favorites))setFavorites(data.favorites.slice(0,36));
+    } catch {/* Noncritical browser storage unavailability. */}
+  },[]);
+  useEffect(()=>{
+    try{localStorage.setItem('knowme-web-expressions-v1',JSON.stringify({recent,favorites}));}
+    catch {/* Current chat still operates without persistent storage. */}
+  },[recent,favorites]);
+  function toggleFavorite(emoji:string){
+    setFavorites(current=>current.includes(emoji)?current.filter(x=>x!==emoji):[emoji,...current].slice(0,36));
   }
 
   async function send(packKey: string, sticker: Sticker) {
@@ -218,13 +244,26 @@ export function StickerPicker<T>({
     } finally {setSending(null);}
   }
 
-  return <div className={referenceChat?'km-picker-anchor km-reference-picker':'km-picker-anchor'} ref={wrap}>
+  return <div className={referenceChat?'km-picker-anchor km-reference-picker':'km-picker-anchor'} ref={wrap}
+    onFocusCapture={event=>{if((event.target as HTMLElement).matches('.km-chat-compose-input')){setTyping(true);setOpen(false);}}}
+    onBlurCapture={event=>{if((event.target as HTMLElement).matches('.km-chat-compose-input'))setTyping(false);}}>
     <button type="button" className="km-picker-trigger" aria-expanded={open}
-      aria-controls="knowme-sticker-picker" aria-label={en ? 'Emoji, stickers, GIF and photos' : 'Emojis, stickers, GIF et photos'}
-      onClick={() => {if (!open) setError(''); setOpen(value => !value);}}>
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="6"/><path d="M8 14c2.1 3 5.9 3 8 0"/><path d="M8.5 10h.01M15.5 10h.01" strokeWidth="3"/>
-      </svg>
+      aria-controls="knowme-sticker-picker"
+      aria-label={open?(en?'Return to typing':'Revenir au clavier'):(en?'Emoji GIF stickers':'Emojis GIF stickers')}
+      onClick={()=>{
+        if(open){setOpen(false);wrap.current?.querySelector<HTMLInputElement>('.km-chat-compose-input')?.focus();}
+        else {setError('');setTab(typing||draftHasText?'emoji':'stickers');setExpanded(false);setOpen(true);}
+      }}>
+      {referenceChat&&open?
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+          <rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M6 9h2m2 0h2m2 0h2m2 0h1M6 12h2m2 0h2m2 0h2m2 0h1M8 16h8"/>
+        </svg>:referenceChat&&(typing||draftHasText)?
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5"/><path d="M8.2 9h.1m7.4 0h.1M7.5 14.6q4.5 5 9 0"/>
+        </svg>:
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 14c2.1 3 5.9 3 8 0"/><path d="M8.5 10h.01M15.5 10h.01" strokeWidth="3"/><path d="M16 20q0-4 5-5"/>
+        </svg>}
     </button>
     {referenceChat&&<>
       {inputSlot}
@@ -249,15 +288,40 @@ export function StickerPicker<T>({
           if(kind)void uploadAndSend(file,kind);else setError(en?'Unsupported file type':'Type de fichier non pris en charge');
         }}/>
     </>}
-    {open && <section id="knowme-sticker-picker" className="km-picker-sheet" role="dialog"
+    {open && <section id="knowme-sticker-picker"
+      className={`km-picker-sheet ${referenceChat?'km-picker-reference-sheet':''} ${expanded?'km-picker-expanded':''}`}
+      role="dialog"
       aria-label={en ? 'Emoji, sticker and GIF selector' : 'Sélecteur d’emojis, stickers et GIF'}>
+      {referenceChat&&<>
+        <div className="km-picker-drag-handle" role="button" tabIndex={0}
+          aria-label={expanded?'Réduire le clavier multimédia':'Agrandir le clavier multimédia'}
+          onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();setExpanded(value=>!value);}}}
+          onPointerDown={event=>{gestureY.current=event.clientY;event.currentTarget.setPointerCapture(event.pointerId);}}
+          onPointerUp={event=>{
+            if(gestureY.current===null)return;
+            const delta=event.clientY-gestureY.current;
+            setExpanded(current=>delta < -24?true:delta>24?false:!current);
+            gestureY.current=null;
+          }}>
+          <span/>
+        </div>
+        <div className="km-reference-pack-strip" aria-label="Packs de stickers et raccourcis">
+          <button type="button" aria-label="Favoris" onClick={()=>{setTab('emoji');setEmojiFilter('favorites');}}>☆</button>
+          <button type="button" aria-label="Récents" onClick={()=>{setTab('emoji');setEmojiFilter('recent');}}>◷</button>
+          {catalog?.packs.slice(0,22).map(pack=><button key={pack.key} type="button"
+            aria-label={`Pack ${pack.name}`} aria-pressed={selectedPack===pack.key}
+            onClick={()=>{setSelectedPack(pack.key);setTab('stickers');setSearch('');}}>
+            {pack.stickers[0]?.glyph??'◈'}
+          </button>)}
+        </div>
+      </>}
       <header className="km-picker-head">
         <strong>{en ? 'Emoji, stickers & GIF' : 'Emojis, stickers et GIF'}</strong>
         <button type="button" className="km-picker-close" onClick={() => setOpen(false)} aria-label={en ? 'Close' : 'Fermer'}>×</button>
       </header>
       <div className="km-picker-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'emoji'} onClick={() => {setTab('emoji');setSearch('');}}>
-          {en ? 'Emoji' : 'Emojis'}
+          Emoji
         </button>
         <button type="button" role="tab" aria-selected={tab === 'stickers'} onClick={() => {setTab('stickers');setSearch('');setError('');}}>
           Stickers
@@ -291,7 +355,7 @@ export function StickerPicker<T>({
           if(!kind){setError(en?'Use MP4, MP3, OGG, WAV or PDF files.':'Choisis un MP4, MP3, OGG, WAV ou PDF.');return;}
           void uploadAndSend(file,kind);
         }}/>
-      {tab === 'stickers' && <div className="km-picker-search">
+      {(referenceChat||tab === 'stickers') && <div className="km-picker-search">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
           <circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/>
         </svg>
@@ -306,13 +370,19 @@ export function StickerPicker<T>({
       {error && <div role="alert" className="km-picker-error">{error} <button type="button" onClick={()=>setError('')}>{en?'Dismiss':'Fermer'}</button></div>}
       <div className="km-picker-scroll" role="tabpanel">
         {tab === 'emoji' && <>
-          {recent.length > 0 && <div className="km-picker-group">
+          {favorites.length>0&&emojiFilter==='favorites'&&<div className="km-picker-group">
+            <strong>Favoris</strong><div className="km-picker-emoji-grid">{favorites.map(emoji=>
+              <button key={emoji} type="button" onClick={()=>chooseEmoji(emoji)}
+                onContextMenu={event=>{event.preventDefault();toggleFavorite(emoji);}}><AnimatedEmojiGlyph glyph={emoji}/></button>)}</div>
+          </div>}
+          {recent.length > 0 && emojiFilter!=='favorites' && <div className="km-picker-group">
             <strong>{en ? 'Recently used' : 'Récents'}</strong>
             <div className="km-picker-emoji-grid">{recent.map(emoji =>
-              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
+              <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}
+                onContextMenu={event=>{event.preventDefault();toggleFavorite(emoji);}}><AnimatedEmojiGlyph glyph={emoji}/></button>
             )}</div>
           </div>}
-          {EMOJI_GROUPS.map(group => <div key={group.key} className="km-picker-group">
+          {emojiFilter==='all'&&EMOJI_GROUPS.map(group => <div key={group.key} className="km-picker-group">
             <strong>{en ? group.en : group.fr}</strong>
             <div className="km-picker-emoji-grid">{group.values.map(emoji =>
               <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
