@@ -1,13 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {KNOWME_ANIMATED_EMOJIS} from '@knowme/animation-contract';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Pressable,ScrollView,StyleSheet,Text,TextInput,
+import {ActivityIndicator,Image,Pressable,ScrollView,StyleSheet,Text,TextInput,
   View,useWindowDimensions} from 'react-native';
 import {apiFetch} from './api';
 import {AnimatedEmoji} from './AnimatedEmoji';
 import {ChatMediaAttachment} from './ChatMediaAttachment';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
+import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
+import {KnowStickerPackCreator} from './KnowStickerPackCreator';
+import {readKnowStickerPacks,deleteKnowStickerPack,sendKnowStickerImage,type KnowStickerPack} from './KnowStickerPackStore';
 import {UNICODE_EMOJI_CATALOG,UNICODE_EMOJI_GROUPS} from './unicode-emoji-catalog';
 
 export type ExpressionTab='emoji'|'gifs'|'stickers';
@@ -58,6 +61,9 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const [packKey,setPackKey]=useState('');
   const [savedGifs,setSavedGifs]=useState<MediaAsset[]>([]);
   const [savedStickers,setSavedStickers]=useState<MediaAsset[]>([]);
+  const [ownPacks,setOwnPacks]=useState<KnowStickerPack[]>([]);
+  const [packCreatorOpen,setPackCreatorOpen]=useState(false);
+  const [packRevision,setPackRevision]=useState(0);
   const [stickerAssetFavorites,setStickerAssetFavorites]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -136,6 +142,31 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     return()=>{live=false;};
   },[conversationId,tab,retryToken]);
 
+  useEffect(()=>{
+    if(tab!=='stickers')return;
+    let live=true;
+    void readKnowStickerPacks().then(next=>{if(live)setOwnPacks(next);});
+    return()=>{live=false;};
+  },[tab,packRevision]);
+  async function sendOwnSticker(item:KnowStickerPack['items'][number]){
+    if(busy)return;
+    setBusy(true);setFailure('');
+    try{
+      const result=await sendKnowStickerImage<T>(conversationId,item);
+      onSent(result);
+    }catch(cause){setFailure(cause instanceof Error?cause.message:'Envoi du sticker impossible.');}
+    finally{setBusy(false);}
+  }
+  function confirmDeletePack(pack:KnowStickerPack){
+    Alert.alert('Supprimer le pack ?',pack.name,[
+      {text:'Annuler',style:'cancel'},
+      {text:'Supprimer',style:'destructive',onPress:()=>{
+        void deleteKnowStickerPack(pack.id).then(()=>setPackRevision(n=>n+1))
+          .catch(()=>setFailure('Impossible de supprimer le pack.'));
+      }}
+    ]);
+  }
+
   const pack=packs.find(item=>item.key===packKey)??packs[0];
   const emojiResults=useMemo(()=>{
     const query=search.trim().toLocaleLowerCase();
@@ -203,7 +234,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const numberOfColumns=Math.max(4,Math.floor((screenWidth-18)/(tab==='emoji'?55:83)));
   const sectionHeading=category==='Favoris'?'Favoris':category==='Récents'?'Récemment utilisés':'Packs KnowMe';
 
-  return <View style={[styles.root,{height:expanded?maxHeight:minHeight,backgroundColor:panelBg}]}
+  return <><View style={[styles.root,{height:expanded?maxHeight:minHeight,backgroundColor:panelBg}]}
       accessibilityLabel="Clavier multimédia KnowMe">
     <View style={styles.grabArea} onStartShouldSetResponder={()=>true}
       onResponderGrant={e=>{dragStartY.current=e.nativeEvent.pageY;}}
@@ -308,6 +339,27 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
           </Pressable>:null}
         </View>
       </>:tab==='stickers'?<>
+        <Pressable accessibilityRole="button" accessibilityLabel="Créer un nouveau pack KnowSticker"
+          onPress={()=>setPackCreatorOpen(true)}
+          style={[styles.importGif,{borderColor:activeColor,marginTop:7}]}>
+          <Text style={{fontWeight:'800',color:activeColor}}>＋ Créer un pack KnowSticker</Text>
+        </Pressable>
+        {ownPacks.map(owned=><View key={owned.id} style={styles.section}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Gérer le pack ${owned.name}`}
+            onLongPress={()=>confirmDeletePack(owned)}>
+            <Text style={styles.sectionTitle}>{owned.name} · {owned.items.length} stickers</Text>
+          </Pressable>
+          <View style={styles.grid}>
+            {owned.items.map(item=><Pressable key={item.id}
+              disabled={busy} onPress={()=>void sendOwnSticker(item)}
+              onLongPress={()=>confirmDeletePack(owned)}
+              accessibilityRole="button" accessibilityLabel="Envoyer le sticker personnel"
+              style={[styles.stickerTile,{width:(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89))}]}>
+              <Image source={{uri:item.uri}} resizeMode="contain"
+                style={{width:76,height:76,maxWidth:'100%'}}/>
+            </Pressable>)}
+          </View>
+        </View>)}
         {savedStickers.length>0?<View style={styles.section}>
           <Text style={styles.sectionTitle}>Stickers récents et enregistrés</Text>
           <View style={styles.grid}>{savedStickers
@@ -375,7 +427,10 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         <KnowMeIcon name="keyboard" size={22} color={muted}/>
       </Pressable>
     </View>
-  </View>;
+  </View>
+  <KnowStickerPackCreator visible={packCreatorOpen} onClose={()=>setPackCreatorOpen(false)}
+    onCreated={()=>setPackRevision(value=>value+1)}/>
+  </>;
 }
 
 const styles=StyleSheet.create({
