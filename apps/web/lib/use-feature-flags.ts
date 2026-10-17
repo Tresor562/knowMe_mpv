@@ -42,6 +42,9 @@ export function useFeatureFlags(keys: string[]) {
 
   useEffect(() => {
     void reload();
+    // Keep existing feature-flag consumers working before the new VPS runtime
+    // is deployed. Avoid opening a WebSocket on public/test-only entrypoints.
+    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true') return;
     const socket = getRealtimeSocket();
     socket.on('feature-flags:changed', reload);
     const timer = window.setInterval(() => void reload(), 60000);
