@@ -25,7 +25,6 @@ export class CreateStoryDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(4000)
   caption?: string;
 
   @IsOptional()
@@ -161,7 +160,7 @@ export class CreateStoryDto {
 
 export class CreateStoryBatchDto {
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(10)
   stories!: CreateStoryDto[];
 }
 
