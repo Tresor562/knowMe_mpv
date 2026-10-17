@@ -88,10 +88,24 @@ async function main() {
   }
   if (!apiCurrent) start('deploy-knowme-vps.mjs', sha);
   if (!webCurrent) start('deploy-knowme-web-vps.mjs', sha);
-  const afterApi = await deployed(apiOrigin + '/platform-sync/version');
-  const afterWeb = await deployed(webOrigin + '/api/version');
-  if (afterApi?.commit !== sha || afterWeb?.commit !== sha ||
-      afterApi.version !== afterWeb.version) {
+  // nginx has just switched to a cold Web container. Allow DNS, socket
+  // readiness and reverse-proxy connections to settle before failing closed.
+  let afterApi = null;
+  let afterWeb = null;
+  let matched = false;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    [afterApi, afterWeb] = await Promise.all([
+      deployed(apiOrigin + '/platform-sync/version'),
+      deployed(webOrigin + '/api/version')
+    ]);
+    if (afterApi?.commit === sha && afterWeb?.commit === sha &&
+        afterApi.version === afterWeb.version) {
+      matched = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+  }
+  if (!matched) {
     throw new Error('Post-deployment Web/API SHA or version mismatch');
   }
   const state = { sha, productVersion: afterApi.version, apkVersion: notice.version,
