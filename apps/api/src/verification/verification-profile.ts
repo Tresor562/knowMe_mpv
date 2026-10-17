@@ -60,7 +60,7 @@ export function toVerificationBadge(
 
   return {
     isVerified: true as const,
-    label: 'Identité vérifiée',
+    label: approved.level === 'PLATFORM_CERTIFIED' ? 'Compte certifié KnowMe' : 'Identité vérifiée',
     level: approved.level,
     verifiedAt: approved.decidedAt,
     expiresAt: approved.expiresAt,
