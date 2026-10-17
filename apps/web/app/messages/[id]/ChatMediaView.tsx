@@ -12,12 +12,13 @@ type ChatMediaViewProps = {
   assetId: string;
   kind: MediaKind;
   fileName?: string;
+  avatarUrl?: string | null;
   /** Only enable within chat messages, never inside the picker's interactive media tiles. */
   enablePreview?: boolean;
 };
 
 /** Message audio with native browser media controls under a KnowMe waveform UI. */
-function InlineAudioPlayer({source,assetId,en}:{source:string;assetId:string;en:boolean}) {
+function InlineAudioPlayer({source,assetId,en,avatarUrl}:{source:string;assetId:string;en:boolean;avatarUrl?:string|null}) {
   const audio=useRef<HTMLAudioElement|null>(null);
   const [playing,setPlaying]=useState(false);
   const [duration,setDuration]=useState(0);
@@ -31,7 +32,7 @@ function InlineAudioPlayer({source,assetId,en}:{source:string;assetId:string;en:
   useEffect(()=>()=>{audio.current?.pause();},[]);
   const bars=Array.from({length:32},(_,index)=>6+((index*17+assetId.charCodeAt(index%Math.max(1,assetId.length)))%20));
   return <div className={styles.note} role="group" aria-label={en?'Voice message':'Message vocal'}>
-    <span className={styles.avatar} aria-hidden="true">♫</span>
+    <span className={styles.avatar} aria-hidden="true">{avatarUrl?<img src={avatarUrl} alt="" className={styles.avatarImage}/>:<span className={styles.avatarGlyph}>♫</span>}</span>
     <button type="button" className={styles.play} disabled={failure}
       aria-label={playing?(en?'Pause voice message':'Mettre le vocal en pause'):(en?'Play voice message':'Lire le message vocal')}
       onClick={()=>{const player=audio.current;if(!player)return;
@@ -56,7 +57,7 @@ function InlineAudioPlayer({source,assetId,en}:{source:string;assetId:string;en:
   </div>;
 }
 
-export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: ChatMediaViewProps) {
+export function ChatMediaView({assetId, kind, fileName, enablePreview = false, avatarUrl}: ChatMediaViewProps) {
   const {locale} = useI18n();
   const en = locale === 'en';
   const [source,setSource] = useState<string|null>(null);
@@ -136,7 +137,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false}: 
 
   if(source&&kind==='VIDEO')return <video className="km-chat-media km-chat-media-video"
     controls playsInline preload="metadata" src={source} aria-label={en?'Video attachment':'Vidéo jointe'}/>;
-  if(source&&kind==='AUDIO')return <InlineAudioPlayer source={source} assetId={assetId} en={en}/>;
+  if(source&&kind==='AUDIO')return <InlineAudioPlayer source={source} assetId={assetId} en={en} avatarUrl={avatarUrl}/>;
   if(source&&kind==='DOCUMENT')return <a className="km-chat-media-download"
     href={source} download={fileName ?? 'knowme-document.pdf'} aria-label={fileName??(en?'Download PDF':'Télécharger le PDF')}>
     <span aria-hidden="true">▤</span> {en?'Download PDF':'Télécharger le PDF'}
