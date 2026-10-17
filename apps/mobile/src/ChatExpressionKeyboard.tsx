@@ -41,6 +41,8 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const [packs,setPacks]=useState<Pack[]>([]);
   const [packKey,setPackKey]=useState('');
   const [savedGifs,setSavedGifs]=useState<MediaAsset[]>([]);
+  const [savedStickers,setSavedStickers]=useState<MediaAsset[]>([]);
+  const [stickerAssetFavorites,setStickerAssetFavorites]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
   const [failure,setFailure]=useState('');
@@ -55,16 +57,17 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     void AsyncStorage.getItem(STORAGE_KEY).then(raw=>{
       if(!live||!raw)return;
       try {
-        const saved=JSON.parse(raw) as {recent?:string[];favorites?:string[];gifFavorites?:string[]};
+        const saved=JSON.parse(raw) as {recent?:string[];favorites?:string[];gifFavorites?:string[];stickerAssetFavorites?:string[]};
         setRecent(Array.isArray(saved.recent)?saved.recent.slice(0,36):[]);
         setFavorites(Array.isArray(saved.favorites)?saved.favorites.slice(0,36):[]);
         setGifFavorites(Array.isArray(saved.gifFavorites)?saved.gifFavorites.slice(0,36):[]);
+        setStickerAssetFavorites(Array.isArray(saved.stickerAssetFavorites)?saved.stickerAssetFavorites.slice(0,36):[]);
       } catch { /* Discard incompatible old preferences. */ }
     }).catch(()=>undefined);
     return()=>{live=false;};
   },[]);
   function persist(nextRecent:string[],nextFavorites:string[]){
-    void AsyncStorage.setItem(STORAGE_KEY,JSON.stringify({recent:nextRecent,favorites:nextFavorites,gifFavorites})).catch(()=>undefined);
+    void AsyncStorage.setItem(STORAGE_KEY,JSON.stringify({recent:nextRecent,favorites:nextFavorites,gifFavorites,stickerAssetFavorites})).catch(()=>undefined);
   }
   function chooseEmoji(glyph:string){
     const next=[glyph,...recent.filter(item=>item!==glyph)].slice(0,36);
@@ -74,7 +77,14 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   function toggleGifFavorite(id:string){
     const next=gifFavorites.includes(id)?gifFavorites.filter(value=>value!==id):[id,...gifFavorites].slice(0,36);
     setGifFavorites(next);
-    void AsyncStorage.setItem(STORAGE_KEY,JSON.stringify({recent,favorites,gifFavorites:next})).catch(()=>undefined);
+    void AsyncStorage.setItem(STORAGE_KEY,JSON.stringify({recent,favorites,gifFavorites:next,stickerAssetFavorites})).catch(()=>undefined);
+  }
+  function toggleAssetFavorite(id:string){
+    const next=stickerAssetFavorites.includes(id)
+      ?stickerAssetFavorites.filter(value=>value!==id):[id,...stickerAssetFavorites].slice(0,36);
+    setStickerAssetFavorites(next);
+    void AsyncStorage.setItem(STORAGE_KEY,
+      JSON.stringify({recent,favorites,gifFavorites,stickerAssetFavorites:next})).catch(()=>undefined);
   }
   function toggleFavorite(glyph:string){
     const next=favorites.includes(glyph)?favorites.filter(item=>item!==glyph):[glyph,...favorites].slice(0,36);
@@ -95,13 +105,15 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   },[tab,packs.length,retryToken]);
 
   useEffect(()=>{
-    if(tab!=='gifs')return;
+    if(tab!=='gifs'&&tab!=='stickers')return;
     let live=true;
     setLoading(true);setFailure('');
     void apiFetch<MediaAsset[]>('/media/mine').then(items=>{
-      if(live)setSavedGifs((Array.isArray(items)?items:[]).filter(item=>
-        item.detectedMime==='image/gif'&&item.status==='AVAILABLE'&&
-        !item.deletedAt&&item.conversationId===conversationId).slice(0,100));
+      if(!live)return;
+      const available=(Array.isArray(items)?items:[]).filter(item=>
+        item.status==='AVAILABLE'&&!item.deletedAt&&item.conversationId===conversationId&&item.purpose==='MESSAGE');
+      setSavedGifs(available.filter(item=>item.detectedMime==='image/gif').slice(0,100));
+      setSavedStickers(available.filter(item=>['image/png','image/webp'].includes(item.detectedMime)).slice(0,100));
     }).catch(error=>{if(live)setFailure(error instanceof Error?error.message:'GIF momentanément indisponibles.');})
       .finally(()=>{if(live)setLoading(false);});
     return()=>{live=false;};
@@ -145,6 +157,17 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
       });
       onSent(message);
     }catch(error){setFailure(error instanceof Error?error.message:'GIF indisponible.');}
+    finally{setBusy(false);}
+  }
+  async function sendImageSticker(asset:MediaAsset){
+    if(busy)return;
+    setBusy(true);setFailure('');
+    try {
+      const message=await apiFetch<T>(`/conversations/${encodeURIComponent(conversationId)}/media-messages`,{
+        method:'POST',body:JSON.stringify({assetId:asset.id,kind:'STICKER_IMAGE'})
+      });
+      onSent(message);
+    } catch(error){setFailure(error instanceof Error?error.message:'Sticker indisponible.');}
     finally{setBusy(false);}
   }
   function changeTab(next:ExpressionTab){
@@ -240,6 +263,23 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
             </Pressable>)}</View>
         </View>
       </>:tab==='stickers'?<>
+        {savedStickers.length>0?<View style={styles.section}>
+          <Text style={styles.sectionTitle}>Stickers récents et enregistrés</Text>
+          <View style={styles.grid}>{savedStickers
+            .filter(item=>category!=='Favoris'||stickerAssetFavorites.includes(item.id))
+            .map(item=>{
+              const tileSize=(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89));
+              return <View key={item.id} style={[styles.stickerTile,{width:tileSize}]}>
+                <ChatMediaAttachment assetId={item.id} kind="STICKER_IMAGE" thumbnailSize={tileSize-8}/>
+                <Pressable style={StyleSheet.absoluteFill} disabled={busy}
+                  accessibilityRole="button" accessibilityLabel="Envoyer ce sticker"
+                  onPress={()=>void sendImageSticker(item)}
+                  onLongPress={()=>toggleAssetFavorite(item.id)}/>
+                {stickerAssetFavorites.includes(item.id)?<Text pointerEvents="none"
+                  style={{position:'absolute',right:1,top:1,color:'#f8d37b',fontSize:11}}>★</Text>:null}
+              </View>;
+            })}</View>
+        </View>:null}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{category||pack?.name||sectionHeading}</Text>
           <View style={styles.grid}>
@@ -260,7 +300,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
             (!search.trim()||item.id.includes(search.trim())||
               (item.originalName??'').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))).map(item=>
             <View key={item.id} style={styles.gifTile}>
-              <ChatMediaAttachment assetId={item.id} kind="GIF"/>
+              <ChatMediaAttachment assetId={item.id} kind="GIF" thumbnailSize={Math.min(150,(screenWidth-35)/2)}/>
               <Pressable disabled={busy} onPress={()=>void sendGif(item)} accessibilityRole="button"
                 accessibilityLabel="Envoyer ce GIF" style={[styles.gifSend,{backgroundColor:activeColor}]} onLongPress={()=>toggleGifFavorite(item.id)}>
                 <Text style={{color:colors.accentText,fontWeight:'700'}}>Envoyer {gifFavorites.includes(item.id)?'★':''}</Text>
