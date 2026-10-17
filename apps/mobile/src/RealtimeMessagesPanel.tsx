@@ -796,6 +796,7 @@ export function RealtimeMessagesPanel({
                   ? <View>
                     <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}
                       fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
+                      avatarUrl={item.sender?.avatarUrl}
                       autoOpen={linkedMediaId === item.presentation.assetId}/>
                   </View>
                   : item.presentation?.kind==='STICKER'
