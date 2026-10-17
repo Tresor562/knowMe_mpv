@@ -28,6 +28,7 @@ import { CreatorsModule } from './creators/creators.module';
 import { DailyChestModule } from './daily-chest/daily-chest.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { RuntimeExperienceModule } from './runtime-experience/runtime-experience.module';
 import { GamePlatformModule } from './games/game-platform.module';
 import { GiftExchangeModule } from './gift-exchange/gift-exchange.module';
 import { GuestPlayModule } from './guest-play/guest-play.module';
@@ -143,6 +144,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     PrivacyModule,
     ReportsModule,
     FeatureFlagsModule,
+    RuntimeExperienceModule,
     EntitlementsModule,
     StaffModule,
     NexusIntegrationModule,
