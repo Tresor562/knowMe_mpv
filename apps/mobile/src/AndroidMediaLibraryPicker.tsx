@@ -19,7 +19,7 @@ const PAGE_SIZE = 45;
 
 export function AndroidMediaLibraryPicker({
   visible, allowVideo = true, mediaFilter, lockFilter = false, multiple = false,
-  maxSelection = 10, purpose = 'message', onClose, onPicked, onPickedMany
+  maxSelection = Infinity, purpose = 'message', onClose, onPicked, onPickedMany
 }: {
   visible: boolean;
   allowVideo?: boolean;
@@ -36,9 +36,9 @@ export function AndroidMediaLibraryPicker({
   const { locale } = useI18n();
   const en = locale === 'en';
   const caption = ({
-    publication: en ? 'Choose a photo for your post' : 'Choisir une photo pour la publication',
+    publication: en ? 'Select photos and videos for your post' : 'Choisis des photos et des vidéos pour ta publication',
     story: en ? 'Choose media for your story' : 'Choisir un média pour la story',
-    message: en ? 'Attach photos and videos to your message' : 'Joindre des photos et vidéos au message',
+    message: en ? 'Select several photos and videos' : 'Sélectionne plusieurs photos et vidéos',
     profile: en ? 'Choose a profile photo' : 'Choisir une photo de profil',
     cover: en ? 'Choose a cover photo' : 'Choisir une photo de couverture'
   })[purpose];
@@ -147,7 +147,7 @@ export function AndroidMediaLibraryPicker({
     setSelection(current => {
       const next = toggleGallerySelection(current, entry, maxSelection);
       if (next.limitReached) {
-        const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.min(10, Math.floor(maxSelection))) : 1;
+        const limit = Number.isFinite(maxSelection) ? Math.max(1, Math.floor(maxSelection)) : Infinity;
         setError(en ? `Choose up to ${limit} items.` : `Sélection limitée à ${limit} éléments.`);
       } else {
         setError('');
