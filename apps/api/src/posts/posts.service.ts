@@ -8,6 +8,19 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { staffAccountSelect, toStaffBadge, type StaffProfileRecord } from '../staff/staff-profile';
+
+const publicAuthorSelect = {
+  id:true, username:true, displayName:true, avatarUrl:true,
+  email:true, staffAccount:{select:staffAccountSelect}
+} as const;
+
+/** Certified identity is resolved by the server; private email never reaches the feed. */
+function publicAuthor<T extends {email:string|null;staffAccount:StaffProfileRecord}>(author:T) {
+  const {email,staffAccount,...profile}=author;
+  return {...profile,staff:toStaffBadge(staffAccount,email)};
+}
+
 
 @Injectable()
 export class PostsService {
@@ -24,34 +37,25 @@ export class PostsService {
     const imageUrl = attachmentId
       ? `/media/public/post/${attachmentId}`
       : dto.imageUrl;
-    return this.prisma.post.create({
+    const post = await this.prisma.post.create({
       data: { authorId, content: dto.content, imageUrl },
       include: {
         author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
+          select: publicAuthorSelect
         }
       }
     });
+    return {...post,author:publicAuthor(post.author)};
   }
 
-  feed(cursor?: string) {
-    return this.prisma.post.findMany({
+  async feed(cursor?: string) {
+    const posts = await this.prisma.post.findMany({
       take: 20,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
+          select: publicAuthorSelect
         },
         _count: { select: { likes: true, comments: true } },
         comments: {
@@ -59,16 +63,14 @@ export class PostsService {
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           include: {
             author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true
-              }
+              select: publicAuthorSelect
             }
           }
         }
       }
     });
+    return posts.map(post=>({...post,author:publicAuthor(post.author),
+      comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))}));
   }
 
   async getById(postId: string) {
@@ -76,12 +78,7 @@ export class PostsService {
       where: { id: postId },
       include: {
         author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
+          select: publicAuthorSelect
         },
         _count: { select: { likes: true, comments: true } },
         comments: {
@@ -89,12 +86,7 @@ export class PostsService {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           include: {
             author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true
-              }
+              select: publicAuthorSelect
             }
           }
         }
@@ -102,7 +94,8 @@ export class PostsService {
     });
 
     if (!post) throw new NotFoundException('Publication introuvable.');
-    return post;
+    return {...post,author:publicAuthor(post.author),
+      comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))};
   }
 
   async comments(postId: string, cursor?: string) {
@@ -112,22 +105,18 @@ export class PostsService {
     });
     if (!exists) throw new NotFoundException('Publication introuvable.');
 
-    return this.prisma.postComment.findMany({
+    const comments = await this.prisma.postComment.findMany({
       where: { postId },
       take: 30,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
         author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true
-          }
+          select: publicAuthorSelect
         }
       }
     });
+    return comments.map(comment=>({...comment,author:publicAuthor(comment.author)}));
   }
 
   async toggleLike(userId: string, postId: string) {
@@ -185,11 +174,7 @@ export class PostsService {
       data: { postId, authorId: userId, content: dto.content },
       include: {
         author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true
-          }
+          select: publicAuthorSelect
         }
       }
     });
@@ -210,7 +195,7 @@ export class PostsService {
       });
     }
 
-    return comment;
+    return {...comment,author:publicAuthor(comment.author)};
   }
 
   async removeComment(userId: string, postId: string, commentId: string) {
