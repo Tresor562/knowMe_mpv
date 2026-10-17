@@ -385,7 +385,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
               onLongPress={()=>toggleFavorite(sticker.glyph)}
               accessibilityLabel={`Envoyer ${sticker.accessibilityLabel}`}
               style={[styles.stickerTile,{width:(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89))}]}>
-              <AnimatedEmoji glyph={sticker.glyph} size={63} autoPlay={false}/>
+              <Text style={{fontSize:34,textAlign:'center',lineHeight:55,color:'#e9edef'}}>{sticker.glyph}</Text>
             </Pressable>)}
           </View>
           {!pack&&!loading?<Text style={styles.hint}>Aucun pack de stickers disponible.</Text>:null}
