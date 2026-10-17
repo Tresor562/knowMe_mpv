@@ -45,6 +45,11 @@ export default function PostDetailPage() {
   const [hasMore, setHasMore] = useState(false);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
   const [contextCommentId, setContextCommentId] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [editFeedback, setEditFeedback] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const saveInFlight = useRef(false);
   const holdTimer = useRef<number | null>(null);
   const selectedComment = comments.find(entry => entry.id === contextCommentId) ?? null;
 
@@ -63,6 +68,39 @@ export default function PostDetailPage() {
   }, [contextCommentId]);
 
   useEffect(() => () => clearHold(), [clearHold]);
+
+  async function submitCommentEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingComment || editingComment.author.id !== user?.id || saveInFlight.current) return;
+    const content = editDraft.trim();
+    if (!content || content.length > 500) {
+      setEditFeedback('Le commentaire doit contenir entre 1 et 500 caractères.');
+      return;
+    }
+    saveInFlight.current = true;
+    setSavingEdit(true);
+    setEditFeedback('');
+    try {
+      const updated = await apiFetch<Comment>(
+        `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(editingComment.id)}`,
+        { method: 'PATCH', body: JSON.stringify({ content }) }
+      );
+      setComments(current => current.map(item =>
+        item.id === editingComment.id ? { ...item, content: updated.content } : item
+      ));
+      setEditingComment(null);
+      setShareNotice('Commentaire modifié.');
+    } catch (cause) {
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' || error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setEditFeedback(uncertain
+        ? 'Modification non confirmée. Vérifie le commentaire avant de réessayer.'
+        : cause instanceof Error ? cause.message : 'Modification impossible.');
+    } finally {
+      saveInFlight.current = false;
+      setSavingEdit(false);
+    }
+  }
 
   async function copyCommentText(item: Comment) {
     try {
@@ -314,6 +352,14 @@ export default function PostDetailPage() {
                 aria-label="Fermer les actions">×</button>
             </header>
             <p className="km-comment-actions-preview">{selectedComment.content}</p>
+            {selectedComment.author.id === user?.id && (
+              <button type="button" onClick={() => {
+                setEditDraft(selectedComment.content);
+                setEditFeedback('');
+                setEditingComment(selectedComment);
+                setContextCommentId(null);
+              }}>Modifier le commentaire</button>
+            )}
             <button type="button" autoFocus onClick={() => void copyCommentText(selectedComment)}>
               Copier le texte
             </button>
@@ -332,6 +378,37 @@ export default function PostDetailPage() {
                 }}>Supprimer le commentaire</button>
             )}
           </section>
+        </div>
+      )}
+
+      {editingComment && (
+        <div className="km-comment-actions-overlay" role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget && !savingEdit) setEditingComment(null);
+          }}>
+          <form className="km-comment-actions-sheet km-comment-edit-sheet"
+            role="dialog" aria-modal="true" aria-label="Modifier le commentaire"
+            onSubmit={event => void submitCommentEdit(event)}>
+            <div className="km-comment-actions-handle" aria-hidden="true"/>
+            <header>
+              <strong>Modifier le commentaire</strong>
+              <button type="button" onClick={() => setEditingComment(null)}
+                disabled={savingEdit} aria-label="Annuler la modification">×</button>
+            </header>
+            <label htmlFor="km-comment-edit-draft">Texte du commentaire</label>
+            <textarea id="km-comment-edit-draft" autoFocus value={editDraft}
+              onChange={event => setEditDraft(event.target.value)}
+              maxLength={500} rows={4} disabled={savingEdit} />
+            <small>{editDraft.length} / 500</small>
+            {editFeedback && <p role="alert">{editFeedback}</p>}
+            <div className="km-comment-edit-actions">
+              <button type="button" disabled={savingEdit}
+                onClick={() => setEditingComment(null)}>Annuler</button>
+              <button type="submit" disabled={savingEdit || !editDraft.trim()}>
+                {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
