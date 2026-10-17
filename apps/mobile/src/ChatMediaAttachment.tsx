@@ -257,7 +257,7 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
       onLongPress={compact?()=>{setStickerExpanded(true);setPreviewOpen(true);}:undefined}
     >
       <Image source={source} style={compact ? styles.sticker : styles.image}
-        resizeMode="cover" accessibilityLabel={mediaLabel}
+        resizeMode={compact?'contain':'cover'} accessibilityLabel={mediaLabel}
         onError={()=>{setPreviewOpen(false);setFailed(true);}} />
     </Pressable>
     <Modal visible={previewOpen} animationType="fade" transparent={false}
