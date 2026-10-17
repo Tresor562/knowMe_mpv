@@ -29,6 +29,13 @@ export default function NewMessagePage() {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // The global Create menu links directly to the existing, real group flow.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('type') === 'group') {
+      setMode('group');
+    }
+  }, []);
+
   useEffect(() => {
     if (!user || sessionLoading) return;
     let active = true;
