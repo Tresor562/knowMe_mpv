@@ -51,7 +51,9 @@ export type KnowMeIconName =
   | 'more-vertical'
   | 'camera'
   | 'paperclip'
-  | 'smile';
+  | 'smile'
+  | 'sticker'
+  | 'keyboard';
 
 export function BrandMark({ size = 38 }: { size?: number }) {
   // Single brand identity shared with the Web application and APK launcher.
@@ -112,6 +114,26 @@ export function KnowMeIcon({
   const s = size / 24;
   const sw = strokeWidth * s;
   const commonBorder = { borderColor: color, borderWidth: sw };
+
+  if(name==='keyboard')return <View style={{width:size,height:size,justifyContent:'center',alignItems:'center'}}>
+    <View style={{width:22*s,height:16*s,borderColor:color,borderWidth:sw,borderRadius:3*s,padding:3*s,
+      flexDirection:'row',flexWrap:'wrap',justifyContent:'space-around',alignContent:'space-around'}}>
+      {Array.from({length:8},(_,i)=><View key={i} style={{width:2.3*s,height:2*s,backgroundColor:color,borderRadius:1*s}}/>)}
+      <View style={{width:10*s,height:2*s,backgroundColor:color,borderRadius:1*s}}/>
+    </View>
+  </View>;
+  if(name==='sticker')return <View style={{width:size,height:size,justifyContent:'center',alignItems:'center'}}>
+    <View style={{width:19*s,height:19*s,borderColor:color,borderWidth:sw,borderRadius:5*s}}>
+      <View style={{position:'absolute',left:4*s,top:5*s,width:2*s,height:2*s,
+        borderRadius:1*s,backgroundColor:color}}/>
+      <View style={{position:'absolute',right:4*s,top:5*s,width:2*s,height:2*s,
+        borderRadius:1*s,backgroundColor:color}}/>
+      <View style={{position:'absolute',top:10*s,left:4*s,width:8*s,height:5*s,
+        borderBottomWidth:sw,borderColor:color,borderRadius:5*s}}/>
+      <View style={{position:'absolute',bottom:0,right:0,width:6*s,height:6*s,
+        borderTopWidth:sw,borderLeftWidth:sw,borderColor:color,borderTopLeftRadius:6*s}}/>
+    </View>
+  </View>;
 
   if (name === 'more-vertical') return <View style={{width:size,height:size,alignItems:'center',justifyContent:'space-evenly',paddingVertical:4*s}}>
     {[0,1,2].map(i=><View key={i} style={{width:3.6*s,height:3.6*s,borderRadius:2*s,backgroundColor:color}}/>)}
