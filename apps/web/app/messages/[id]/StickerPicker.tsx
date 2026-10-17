@@ -13,6 +13,7 @@ type SavedMedia = {
   visibility:string;
   conversationId?:string|null;
   detectedMime:string;
+  originalName?:string|null;
   status:string;
   deletedAt?:string|null;
 };
@@ -70,7 +71,7 @@ export function StickerPicker<T>({
   const [typing,setTyping]=useState(false);
   const [expanded,setExpanded]=useState(false);
   const [selectedPack,setSelectedPack]=useState('');
-  const [emojiFilter,setEmojiFilter]=useState<'all'|'recent'|'favorites'>('all');
+  const [emojiFilter,setEmojiFilter]=useState<'all'|'recent'|'favorites'|'people'|'nature'>('all');
   const [favorites,setFavorites]=useState<string[]>([]);
   const [queryOpen,setQueryOpen]=useState(false);
   const gestureY=useRef<number|null>(null);
@@ -133,7 +134,8 @@ export function StickerPicker<T>({
   },[open,tab,savedMedia,savedMediaError]);
 
   const reusableGif=(savedMedia??[]).filter(item=>item.conversationId===conversationId&&
-    item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&item.detectedMime==='image/gif').slice(0,6);
+    item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&item.detectedMime==='image/gif'&&
+    (!search.trim()||(item.originalName??'').toLowerCase().includes(search.trim().toLowerCase()))).slice(0,36);
   const reusableStickers=(savedMedia??[]).filter(item=>item.conversationId===conversationId&&
     item.purpose==='MESSAGE'&&item.status==='AVAILABLE'&&!item.deletedAt&&
     ['image/png','image/webp'].includes(item.detectedMime)).slice(0,6);
@@ -365,6 +367,18 @@ export function StickerPicker<T>({
         <input ref={searchField} type="search" value={search} onChange={event => setSearch(event.target.value)}
           placeholder={en ? 'Search stickers' : 'Rechercher des stickers'} aria-label={en ? 'Search stickers' : 'Rechercher des stickers'}/>
       </div>}
+      {referenceChat&&<div className="km-reference-filters" role="group" aria-label="Catégories">
+        <button type="button" aria-label="Tout afficher" aria-pressed={emojiFilter==='all'}
+          onClick={()=>{setEmojiFilter('all');setSelectedPack('');}}>◯</button>
+        <button type="button" aria-label="Favoris" aria-pressed={emojiFilter==='favorites'}
+          onClick={()=>{setTab('emoji');setEmojiFilter('favorites');}}>♡</button>
+        <button type="button" aria-label="Récents" aria-pressed={emojiFilter==='recent'}
+          onClick={()=>{setTab('emoji');setEmojiFilter('recent');}}>◷</button>
+        <button type="button" aria-label="Gestes et réactions" aria-pressed={emojiFilter==='people'}
+          onClick={()=>{setTab('emoji');setEmojiFilter('people');}}>👍</button>
+        <button type="button" aria-label="Nature et objets" aria-pressed={emojiFilter==='nature'}
+          onClick={()=>{setTab('emoji');setEmojiFilter('nature');}}>✨</button>
+      </div>}
       {savedMediaLoading&&(tab==='gifs'||tab==='stickers'||tab==='files')&&
         <p role="status" className="km-picker-status">{en?'Loading recent media…':'Chargement des médias récents…'}</p>}
       {savedMediaError&&(tab==='gifs'||tab==='stickers'||tab==='files')&&
@@ -385,7 +399,7 @@ export function StickerPicker<T>({
                 onContextMenu={event=>{event.preventDefault();toggleFavorite(emoji);}}><AnimatedEmojiGlyph glyph={emoji}/></button>
             )}</div>
           </div>}
-          {emojiFilter==='all'&&EMOJI_GROUPS.map(group => <div key={group.key} className="km-picker-group">
+          {emojiFilter!=='recent'&&emojiFilter!=='favorites'&&EMOJI_GROUPS.filter(group=>emojiFilter==='all'||group.key===emojiFilter).map(group => <div key={group.key} className="km-picker-group">
             <strong>{en ? group.en : group.fr}</strong>
             <div className="km-picker-emoji-grid">{group.values.map(emoji =>
               <button key={emoji} type="button" aria-label={emoji} onClick={() => chooseEmoji(emoji)}><AnimatedEmojiGlyph glyph={emoji}/></button>
