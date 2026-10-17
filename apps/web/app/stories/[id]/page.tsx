@@ -300,7 +300,7 @@ export default function StoryViewerPage() {
                   {story.author.avatarUrl ? <img src={story.author.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : story.author.displayName?.[0] ?? '?'}
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <strong style={{display:'inline-flex',alignItems:'center',gap:5}}>{story.author.displayName}<AccountBadges verification={story.author.verification} compact/></strong>
+                  <strong style={{display:'inline-flex',alignItems:'center',gap:5}}>{story.author.displayName}<AccountBadges username={story.author.username} verification={story.author.verification} compact/></strong>
                   <div style={{ fontSize: 12, opacity: .75 }}>@{story.author.username}</div>
                 </div>
               </Link>

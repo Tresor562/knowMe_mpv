@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
@@ -301,6 +302,7 @@ export default function FeedPage() {
 
   return (
     <main className="shell km-feed-page">
+      <RuntimeExperienceModules />
       <div className="km-header-nav-group">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
@@ -413,7 +415,7 @@ export default function FeedPage() {
                   <KnowMeAvatarImage src={post.author.avatarUrl} name={post.author.displayName} />
                 </span>
                 <span className="km-post-author-copy">
-                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges staff={post.author.staff} verification={post.author.verification} compact/></strong>
+                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges username={post.author.username} staff={post.author.staff} verification={post.author.verification} compact/></strong>
                   <small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString(en?'en-US':'fr-FR')}</small>
                 </span>
               </Link>

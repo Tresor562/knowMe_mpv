@@ -199,7 +199,7 @@ export default function PostDetailPage() {
         <header className="km-post-detail-author">
           <Link href={`/profile/${encodeURIComponent(post.author.username)}`}>
             <span className="km-post-avatar">{post.author.avatarUrl ? <img src={post.author.avatarUrl} alt="" /> : post.author.displayName.charAt(0).toUpperCase()}</span>
-            <span><strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges staff={post.author.staff} verification={post.author.verification} compact/></strong><small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString('fr-FR')}</small></span>
+            <span><strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{post.author.displayName}<AccountBadges username={post.author.username} staff={post.author.staff} verification={post.author.verification} compact/></strong><small>@{post.author.username} · {new Date(post.createdAt).toLocaleDateString('fr-FR')}</small></span>
           </Link>
           <details className="km-post-options">
             <summary aria-label="Options de la publication" title="Options de la publication">⋯</summary>
@@ -235,7 +235,7 @@ export default function PostDetailPage() {
               </div>
               <div className="km-post-comment-content">
                 <Link href={`/profile/${encodeURIComponent(item.author.username)}`}>
-                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{item.author.displayName}<AccountBadges staff={item.author.staff} verification={item.author.verification} compact/></strong><small>@{item.author.username}</small>
+                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{item.author.displayName}<AccountBadges username={item.author.username} staff={item.author.staff} verification={item.author.verification} compact/></strong><small>@{item.author.username}</small>
                 </Link>
                 <p><KnowMeMentionText text={item.content}/></p>
                 <div className="km-post-comment-actions">

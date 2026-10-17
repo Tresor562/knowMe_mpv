@@ -263,7 +263,7 @@ export default function ProfilePage() {
             <div className="km-profile-name-row">
               <div className="km-profile-identity">
                 <h1 title={user.displayName}>{user.displayName}</h1>
-                <AccountBadges staff={user.staff} verification={user.verification} premium={user.premium} compact />
+                <AccountBadges username={user.username} staff={user.staff} verification={user.verification} premium={user.premium} compact />
               </div>
               <details ref={profileMenuRef} className="km-profile-options">
                 <summary aria-label={tr('Options du profil','Profile options')} title={tr('Options du profil','Profile options')}>

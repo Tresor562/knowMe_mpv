@@ -6,6 +6,7 @@ import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
+import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 
 type PublicProfile = {
   header: {
@@ -273,6 +274,7 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                 {profile.header.verification?.isVerified ? (
                   <BlueVerifiedBadge size={23} label={profile.header.verification.label} />
                 ) : null}
+                <RemoteCosmeticBadges username={profile.header.username} size={23} />
                 {profile.header.premium?.isPremium ? (
                   <View style={styles.premiumBadge} accessible accessibilityRole="image"
                     accessibilityLabel={profile.header.premium.label}>

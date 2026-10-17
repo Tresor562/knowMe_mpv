@@ -53,6 +53,7 @@ model User {
   interests                UserInterest[]
   authSessions             AuthSession[]
   featureFlagOverrides     FeatureFlagOverride[]
+  cosmeticBadges           UserCosmeticBadge[]
   entitlementGrants        EntitlementGrant[]
   staffAccount             StaffAccount?
   accessRoleGrants         UserRoleGrant[]
@@ -829,4 +830,28 @@ model ChannelPost {
   author  User    @relation("ChannelPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([channelId, createdAt, id])
+}
+
+    
+// Changes to configuration are deployed as data. This JSON never grants permission.
+model RuntimeExperienceConfig {
+  id          String   @id
+  revision    Int      @default(0)
+  document    Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Decorative badges cannot impersonate official verification or staff roles.
+model UserCosmeticBadge {
+  id        String    @id @default(cuid())
+  userId    String
+  badgeKey  String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeKey])
+  @@index([badgeKey, expiresAt])
 }

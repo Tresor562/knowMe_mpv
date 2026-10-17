@@ -17,6 +17,7 @@ import { MessagesOrganizationExperience } from './MessagesOrganizationExperience
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
+import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 
 type UserSummary = {
   id: string;
@@ -501,6 +502,7 @@ function Identity({ user, onOpenProfile }: { user: UserSummary; onOpenProfile?: 
         <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{user.displayName}</Text>
           {user.verification?.isVerified?<BlueVerifiedBadge size={18} label={user.verification.label}/>:user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}
+          <RemoteCosmeticBadges username={user.username} size={18} />
         </View>
         <Text style={[styles.muted, { color: colors.muted }]}>@{user.username}</Text>
         {user.bio ? (

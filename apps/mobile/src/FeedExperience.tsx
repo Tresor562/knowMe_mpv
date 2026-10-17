@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   FlatList,
   Image, type ImageStyle,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -22,6 +23,8 @@ import { KnowMeMentionText } from './KnowMeMentionText';
 import { Avatar, BrandMark, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
+import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
+import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PublicPostVideo} from './PublicPostVideo';
@@ -366,7 +369,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           onPress={() => onOpenProfile?.(post.author.username)} style={styles.authorRow}>
           <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={42} />
           <View style={styles.flex}>
-            <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{post.author.displayName}</Text>{post.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}{post.author.verification?.isVerified?<BlueVerifiedBadge size={18} label={post.author.verification.label}/>:null}</View>
+            <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{post.author.displayName}</Text>{post.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null}{post.author.verification?.isVerified?<BlueVerifiedBadge size={18} label={post.author.verification.label}/>:null}<RemoteCosmeticBadges username={post.author.username} size={18}/></View>
             <Text style={[styles.smallMeta, { color: colors.muted }]}>@{post.author.username} · {formatPostDate(post.createdAt)}</Text>
           </View>
         </Pressable>
@@ -427,7 +430,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
             <View style={styles.flex}>
               <View style={styles.threadIdentity}>
                 <Pressable accessibilityRole="button" onPress={() => onOpenProfile?.(comment.author.username)}>
-                  <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>{comment.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}{comment.author.verification?.isVerified?<BlueVerifiedBadge size={17} label={comment.author.verification.label}/>:null}</View>
+                  <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>{comment.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}{comment.author.verification?.isVerified?<BlueVerifiedBadge size={17} label={comment.author.verification.label}/>:null}<RemoteCosmeticBadges username={comment.author.username} size={17}/></View>
                 </Pressable>
                 <Text style={[styles.smallMeta, { color: colors.muted }]}>{formatPostDate(comment.createdAt)}</Text>
               </View>
@@ -510,6 +513,7 @@ export function FeedExperience({
   topNavigation?: ReactNode;
 }) {
   const { colors } = useAppearance();
+  const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [composerOpen,setComposerOpen] = useState(false);
@@ -668,6 +672,15 @@ export function FeedExperience({
             </View>
             {topNavigation}
           </GlassSurface>
+          {runtimeModules.map(module => (
+            <Pressable key={module.key} accessibilityRole={module.href?'link':'text'}
+              disabled={!module.href} onPress={() => {
+                if (module.href) void Linking.openURL('https://knowme-nextech.vercel.app'+module.href);
+              }} style={{padding:12,marginTop:8,borderRadius:16,
+                backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border}}>
+              <Text style={{color:colors.text,fontWeight:'700'}}>{module.title}{module.href ? ' →' : ''}</Text>
+            </Pressable>
+          ))}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Créer une publication"
@@ -705,7 +718,7 @@ export function FeedExperience({
         >
           <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${item.author.displayName}`} onPress={() => onOpenProfile?.(item.author.username)} style={styles.authorRow}>
             <Avatar uri={item.author.avatarUrl} name={item.author.displayName} size={44} />
-            <View style={styles.flex}><View style={styles.verifiedName}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text>{item.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={19}/>:null}{item.author.verification?.isVerified?<BlueVerifiedBadge size={19} label={item.author.verification.label}/>:null}</View><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
+            <View style={styles.flex}><View style={styles.verifiedName}><Text style={[styles.title, { color: colors.text }]}>{item.author.displayName}</Text>{item.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={19}/>:null}{item.author.verification?.isVerified?<BlueVerifiedBadge size={19} label={item.author.verification.label}/>:null}<RemoteCosmeticBadges username={item.author.username} size={19}/></View><Text style={[styles.muted, { color: colors.muted }]}>@{item.author.username}</Text></View>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Options de la publication"
             onPress={()=>setMenuPost(item)} style={[styles.postMenu,{backgroundColor:colors.backgroundAccent}]}>

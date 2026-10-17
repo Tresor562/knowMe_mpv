@@ -94,7 +94,7 @@ export default function DiscoverPage() {
               {item.requester.avatarUrl ? <img src={item.requester.avatarUrl} alt=""/> : <span className="km-discover-person-letter">{item.requester.displayName.slice(0,1)}</span>}
               <div className="km-discover-person-info">
                 <strong>{item.requester.displayName}</strong>
-                <AccountBadges staff={item.requester.staff} verification={item.requester.verification} compact/>
+                <AccountBadges username={item.requester.username} staff={item.requester.staff} verification={item.requester.verification} compact/>
                 <small>@{item.requester.username}</small>
               </div>
               <div className="km-discover-person-actions">
@@ -109,7 +109,7 @@ export default function DiscoverPage() {
         {people.map(person => <Link className="km-discover-person" key={person.id} href={'/profile/' + encodeURIComponent(person.username)}>
           {person.avatarUrl ? <img src={person.avatarUrl} alt=""/> : <span className="km-discover-person-letter">{person.displayName.slice(0,1)}</span>}
           <div className="km-discover-person-info"><strong>{person.displayName}</strong>
-            <AccountBadges staff={person.staff} verification={person.verification} compact/>
+            <AccountBadges username={person.username} staff={person.staff} verification={person.verification} compact/>
             <small>@{person.username}</small></div>
           <span aria-hidden="true">›</span>
         </Link>)}

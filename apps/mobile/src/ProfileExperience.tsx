@@ -25,6 +25,7 @@ import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperien
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
+import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 import { MobilePlatformSyncStatus } from './MobilePlatformSyncStatus';
 import { checkKnowMeUpdateNow } from './updates/MobileUpdateNotice';
 import { MobileGameCenterExperience } from './MobileGameCenterExperience';
@@ -698,6 +699,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
               {user.verification?.isVerified ? (
                 <BlueVerifiedBadge size={23} label={user.verification.label} />
               ) : null}
+              <RemoteCosmeticBadges username={user.username} size={23} />
               {user.premium?.isPremium ? (
                 <View style={styles.premiumBadge} accessible accessibilityRole="image"
                   accessibilityLabel={user.premium.label}>

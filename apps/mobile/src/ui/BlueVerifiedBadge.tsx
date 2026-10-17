@@ -1,4 +1,5 @@
-import { Image } from 'react-native';
+import { Image, Text, View } from 'react-native';
+import { useRuntimeBadge } from '../RuntimeExperienceProvider';
 
 /** The blue scalloped KnowMe verified seal is identical in light/dark themes.
  * The rendering is embedded so Android never needs a remote asset request.
@@ -10,6 +11,15 @@ export function BlueVerifiedBadge({
   size = 21,
   label = 'Compte certifié KnowMe'
 }: { size?: number; label?: string }) {
+  const badge = useRuntimeBadge('verified_blue');
+  if (badge && (badge.color.toUpperCase() !== '#1877F2' || badge.symbol !== 'check')) {
+    return <View accessible accessibilityRole="image" accessibilityLabel={label} style={{
+      width:size,height:size,flexShrink:0,alignItems:'center',justifyContent:'center',
+      backgroundColor:badge.color,borderRadius:size*.44
+    }}><Text allowFontScaling={false} style={{color:'#fff',fontSize:size*.7,fontWeight:'900',includeFontPadding:false}}>
+      {badge.symbol === 'star' ? '★' : badge.symbol === 'spark' ? '✦' : '✓'}
+    </Text></View>;
+  }
   return (
     <Image
       source={{ uri:BLUE_SEAL_URI }}
