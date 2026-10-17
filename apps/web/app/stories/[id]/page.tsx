@@ -281,8 +281,8 @@ export default function StoryViewerPage() {
         style={{ background: story.type === 'TEXT'
           ? 'linear-gradient(145deg,#6d4aff,#177f87 55%,#10131c)' : '#10131c' }}
       >
-        {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={completeAndAdvance} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#050609' }} />}
+        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={completeAndAdvance} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#050609' }} />}
 
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2, background: story.type === 'TEXT' ? 'transparent' : 'linear-gradient(rgba(0,0,0,.22), transparent 35%, rgba(0,0,0,.45))' }}>
           <div style={{ display: 'flex', gap: 5, padding: '12px 12px 0' }}>
@@ -324,23 +324,13 @@ export default function StoryViewerPage() {
               </a>
             )}
 
-            {story.caption && (
-              <p style={{
-                position: story.type === 'TEXT' ? 'static' : 'absolute',
-                left: 24,
-                right: 24,
-                bottom: story.type === 'TEXT' ? undefined : 100,
-                margin: 0,
-                fontSize: story.type === 'TEXT' ? 30 : 18,
-                lineHeight: 1.35,
-                fontWeight: story.type === 'TEXT' ? 750 : 600,
-                textAlign: story.type === 'TEXT' ? 'center' : 'left',
-                whiteSpace: 'pre-wrap',
-                textShadow: '0 2px 18px rgba(0,0,0,.7)'
-              }}><KnowMeMentionText text={story.caption}/></p>
+            {story.type === 'TEXT' && story.caption && (
+              <p className="km-story-text-body">
+                <KnowMeMentionText text={story.caption}/>
+              </p>
             )}
 
-            {story.hashtags.length > 0 && (
+            {story.type === 'TEXT' && story.hashtags.length > 0 && (
               <div style={{ position: 'absolute', left: 24, bottom: 70, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {story.hashtags.map((tag) => <span key={tag} style={{ padding: '5px 9px', background: 'rgba(0,0,0,.3)', borderRadius: 999, fontSize: 12 }}>#{tag}</span>)}
               </div>
@@ -350,7 +340,17 @@ export default function StoryViewerPage() {
             <button aria-label={en?"Next story":"Story suivante"} onPointerDown={startHold} onPointerUp={releaseHold} onPointerCancel={releaseHold} onClick={()=>navigateStory("next")} style={{ position: 'absolute', inset: '0 0 80px 50%', opacity: 0, cursor: 'pointer' }} />
           </div>
 
-          <footer style={{ padding: 14, color: '#fff', background: 'linear-gradient(transparent, rgba(0,0,0,.65))' }}>
+          <footer className="km-story-viewer-footer" style={{ padding: 14, color: '#fff', background: 'rgba(2,3,7,.96)' }}>
+            {story.type !== 'TEXT' && story.caption && (
+              <div className="km-story-viewer-caption">
+                <KnowMeMentionText text={story.caption}/>
+              </div>
+            )}
+            {story.type !== 'TEXT' && story.hashtags.length > 0 && (
+              <div className="km-story-viewer-caption-tags">
+                {story.hashtags.map(tag => <span key={tag}>#{tag}</span>)}
+              </div>
+            )}
             {!story.viewer.own && story.allowReactions && (
               <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto' }}>
                 {REACTIONS.map((reaction) => (
