@@ -114,7 +114,6 @@ export function KnowMeNativeAnimatedIcon({
   const rotate = value.interpolate({
     inputRange: [0, 1],
     outputRange: isSpinner ? ['0deg', '360deg']
-      : name === 'create' && state === 'open' ? ['0deg', '45deg']
       : name === 'bell' && state === 'incoming' ? ['-13deg', '0deg']
       : name === 'settings' ? ['-17deg', '0deg'] : ['0deg', '0deg']
   });
