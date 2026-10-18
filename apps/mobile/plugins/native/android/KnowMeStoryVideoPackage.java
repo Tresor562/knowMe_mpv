@@ -69,6 +69,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       Map<String, Object> events=MapBuilder.newHashMap();
       events.put("topProgress",MapBuilder.of("registrationName","onProgress"));
       events.put("topPlaybackError",MapBuilder.of("registrationName","onPlaybackError"));
+      events.put("topPlaybackComplete",MapBuilder.of("registrationName","onPlaybackComplete"));
       return events;
     }
 
@@ -121,6 +122,14 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
         applySeek();
         if (!paused) player.start();
         emitProgress();
+      });
+      player.setOnCompletionListener(media -> {
+        if(getId()>0 && getContext() instanceof ThemedReactContext){
+          WritableMap event=Arguments.createMap();
+          event.putDouble("durationMs",Math.max(0,player.getDuration()));
+          ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
+            .receiveEvent(getId(),"topPlaybackComplete",event);
+        }
       });
       player.setOnErrorListener((media,what,extra)->{
         ready=false;
