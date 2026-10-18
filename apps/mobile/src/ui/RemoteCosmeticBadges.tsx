@@ -3,12 +3,19 @@ import { Text, View } from 'react-native';
 import { apiFetch } from '../api';
 import { getRealtimeSocket } from '../realtime';
 import type { RuntimeBadge } from '../RuntimeExperienceProvider';
+import {
+  badgeIdentityKey, badgesForAndroidProfile, type AndroidBadgeSnapshot
+} from '../profile-badge-identity';
 
 const cache = new Map<string, RuntimeBadge[]>();
 export function RemoteCosmeticBadges({ username, size=18 }: { username: string; size?: number }) {
-  const normalized = username.toLowerCase().replace(/^@/, '');
-  const [badges, setBadges] = useState<RuntimeBadge[]>(() => cache.get(normalized) ?? []);
+  const normalized = badgeIdentityKey(username);
+  // Keep each async response tied to the requested account; React may reuse
+  // this component for a different profile before the new request finishes.
+  const [snapshot, setSnapshot] = useState<AndroidBadgeSnapshot<RuntimeBadge> | null>(null);
+  const badges = badgesForAndroidProfile(normalized, snapshot, cache);
   useEffect(() => {
+    if (!normalized) return;
     let active = true;
     const refresh = async () => {
       try {
@@ -17,7 +24,7 @@ export function RemoteCosmeticBadges({ username, size=18 }: { username: string; 
         );
         if (active && Array.isArray(response.badges)) {
           cache.set(normalized, response.badges);
-          setBadges(response.badges);
+          setSnapshot({ username: normalized, badges: response.badges });
         }
       } catch { /* Graceful offline fallback. */ }
     };
