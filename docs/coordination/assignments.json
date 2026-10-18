@@ -73,20 +73,28 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/avatar-studio-recovery",
-      "task": "Validation et fusion des PR #711/#715 après CI verte; reprise de développements profils isolés",
+      "branch": "chat/profiles/avatar-studio-full-i18n",
+      "task": "PR #711/#715 fusionnées main avec CI & APK build verts ; PR #716 (créateur UNLISTED + refresh explicite) et PR #720 (Avatar Studio full FR/EN) restent ouvertes, tests ciblés 4+4 locaux OK, CI qualité/APK/coordination dernier HEAD en cours ; Web avatar bloqué PR #551/#556.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:01:55.042Z",
-      "lastPr": 715,
+      "updatedAt": "2026-10-18T14:14:45.506Z",
+      "lastPr": 720,
       "resumeFrom": {
-        "pr": 715,
-        "branch": "chat/profiles/avatar-studio-recovery",
-        "previousPr": 711,
-        "previousBranch": "chat/profiles/avatar-actions-ux-bilingual",
-        "mergedPr": 708,
-        "mergedCommit": "522fe10aa071c3cd11d0e7c764b7a5424517999e"
+        "pr": 720,
+        "branch": "chat/profiles/avatar-studio-full-i18n",
+        "otherPr": 716,
+        "otherBranch": "chat/profiles/creator-privacy-save-reliability",
+        "merged": [
+          {
+            "pr": 711,
+            "commit": "50bc8cdef9626f568e1971f07267cc5a572e71a9"
+          },
+          {
+            "pr": 715,
+            "commit": "c055116bcaae1bfa2b548644ba958bd1dd30587e"
+          }
+        ]
       }
     },
     "marketplace": {
@@ -337,6 +345,15 @@
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705,
       "branch": "chat/social/report-publication-web"
+    },
+    {
+      "at": "2026-10-18T14:14:45.506Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "branch": "chat/profiles/avatar-studio-full-i18n",
+      "pr": 720
     }
   ]
 }
