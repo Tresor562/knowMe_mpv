@@ -326,3 +326,97 @@ main.shell:has(nav[aria-label='Vues du centre de notifications']) > footer.card 
     padding-top: 9px;
   }
 }
+
+/* Conversation details: compact Telegram-like hierarchy without losing 44px
+   gesture/keyboard targets or KnowMe's own visual identity. */
+.km-chat-screen .km-chat-header {
+  height: 64px; min-height: 64px;
+  padding: 5px clamp(8px,2vw,14px); gap: 7px;
+}
+.km-chat-screen .km-chat-header :is(button.km-action, a.km-action) {
+  width: 44px; height: 44px; min-width: 44px;
+  display: grid; place-items: center;
+  background: transparent; border-radius: 13px;
+}
+.km-chat-screen .km-chat-header .km-chat-avatar {
+  width: 42px; height: 42px; min-width: 42px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details {
+  min-width: 0; overflow: hidden;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details h1 {
+  font-size: 14px; font-weight: 700; line-height: 1.32;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details p {
+  font-size: 11px; margin: 2px 0 0;
+}
+.km-chat-screen .km-chat-transcript {
+  padding: 14px clamp(8px,2.3vw,20px) 18px;
+  gap: 6px;
+}
+.km-chat-screen .km-message-bubble {
+  font-size: 13px; line-height: 1.48;
+  padding: 8px 11px 6px;
+  max-width: min(82%, 540px);
+}
+.km-chat-screen .km-chat-composer {
+  min-height: 62px; gap: 6px;
+  padding: 7px clamp(8px, 2vw, 14px)
+    calc(7px + env(safe-area-inset-bottom,0px));
+}
+.km-chat-screen .km-chat-composer .km-chat-compose-input {
+  height: 44px; min-height: 44px;
+  border-radius: 18px; padding: 9px 12px;
+  font-size: 14px;
+}
+.km-chat-screen .km-chat-composer .km-send-button {
+  flex: 0 0 48px; width: 48px; height: 48px;
+  min-width: 48px; min-height: 48px; border-radius: 50%;
+}
+.km-chat-screen .km-chat-menu-anchor .km-chat-context-menu {
+  border-radius: 14px; padding: 5px;
+}
+.km-chat-screen .km-chat-menu-anchor .km-chat-context-menu > * {
+  min-height: 44px; padding: 9px 11px; font-size: 12px;
+}
+.km-chat-screen .km-chat-inline-search {
+  min-height: 52px; padding: 5px 10px;
+}
+:root[data-effective-reduce-transparency='true'] .km-chat-screen .km-chat-header,
+:root[data-effective-reduce-transparency='true'] .km-chat-screen .km-chat-composer {
+  background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+@media (max-width: 460px) {
+  .km-chat-screen .km-chat-header { gap: 4px; padding-inline: 6px; }
+  .km-chat-screen .km-chat-header .km-chat-avatar { width: 38px; height: 38px; min-width: 38px; }
+  .km-chat-screen .km-chat-header .km-chat-header-details h1 { font-size: 13px; }
+  .km-chat-screen .km-message-bubble { max-width: 88%; }
+}
+
+/* Emoji, stickers, GIF: a composer-attached keyboard with scrolling categories,
+   measured tabs and predictable hit targets instead of oversized sheets. */
+.km-picker-reference-sheet { border-radius: 20px 20px 0 0; }
+.km-picker-reference-sheet .km-picker-tabs {
+  display: flex; gap: 3px; min-width: 0;
+}
+.km-picker-reference-sheet .km-picker-tabs [role='tab'] {
+  flex: 1 1 0; min-width: 0; min-height: 44px;
+  padding: 7px 6px; border-radius: 12px;
+  font-size: 12px;
+}
+.km-picker-reference-sheet .km-picker-search {
+  min-height: 44px; border-radius: 15px;
+}
+.km-picker-reference-sheet .km-picker-sticker-grid {
+  gap: 4px; padding: 6px 4px;
+}
+.km-picker-reference-sheet .km-picker-close,
+.km-picker-reference-sheet .km-picker-search button {
+  min-width: 44px; min-height: 44px;
+  border: 0; border-radius: 13px;
+}
+:root[data-effective-reduce-transparency='true'] .km-picker-reference-sheet {
+  background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
