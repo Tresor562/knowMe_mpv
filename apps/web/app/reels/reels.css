@@ -1,0 +1,35 @@
+.km-reels-page{height:100dvh;min-height:500px;background:#05070c;color:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.km-reels-header{position:absolute;top:0;left:0;right:0;z-index:40;min-height:64px;display:flex;align-items:center;gap:14px;padding:max(10px,env(safe-area-inset-top,0px)) 16px 10px;background:linear-gradient(180deg,rgba(0,0,0,.75),transparent)}
+.km-reels-header>a:first-child{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;font-size:32px;color:#fff;text-decoration:none;background:rgba(255,255,255,.1)}
+.km-reels-header>div{display:flex;flex-direction:column;gap:2px;line-height:1.1}
+.km-reels-header strong{font-size:14px;letter-spacing:.2px}
+.km-reels-header span{font-size:12px;color:#b7c6cc}
+.km-reels-create{margin-left:auto;color:#fff;text-decoration:none;border-radius:999px;border:1px solid rgba(255,255,255,.25);padding:10px 14px;font-size:13px;font-weight:700;background:rgba(255,255,255,.1)}
+.km-reels-viewport{flex:1;min-height:0;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;overscroll-behavior-y:contain}
+.km-reels-viewport::-webkit-scrollbar{display:none}
+.km-reel-frame{height:100%;min-height:100%;width:100%;max-width:550px;scroll-snap-align:center;scroll-snap-stop:always;position:relative;display:flex;justify-content:center;align-items:center;margin:0 auto;background:#0d121c}
+.km-reel-video{display:block;height:100%;width:100%;object-fit:contain;background:#05070c}
+.km-reel-placeholder{height:100%;width:100%;background:linear-gradient(160deg,#152d3a,#0c1017);display:grid;place-items:center}
+.km-reel-placeholder span{color:rgba(255,255,255,.3);font-size:68px}
+.km-reel-overlay{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:end;gap:8px;padding:60px 15px max(82px,calc(54px + env(safe-area-inset-bottom,0px)));background:linear-gradient(0deg,rgba(0,0,0,.72),transparent 95%);pointer-events:none}
+.km-reel-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.km-reel-info a{width:fit-content;color:#fff;text-decoration:none;font-size:14px;font-weight:750;pointer-events:auto}
+.km-reel-info a:last-child{font-size:12px;font-weight:550;text-decoration:underline;text-underline-offset:3px}
+.km-reel-info p{margin:0;max-height:80px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+.km-reel-actions{display:flex;flex-direction:column;align-items:center;gap:15px}
+.km-reel-actions>*{min-width:48px;min-height:48px;border:0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:rgba(0,0,0,.42);color:#fff;cursor:pointer;text-decoration:none;font-size:11px;pointer-events:auto}
+.km-reel-actions span{font-size:26px;line-height:1}
+.km-reel-actions>*:focus-visible,.km-reels-header a:focus-visible,.km-reels-steps button:focus-visible{outline:2px solid #8af3e8}
+.km-reel-actions>*:disabled{opacity:.6;cursor:wait}
+.km-reels-steps{position:absolute;z-index:45;right:14px;top:46%;display:flex;flex-direction:column;gap:10px}
+.km-reels-steps button{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.2);font-size:19px;cursor:pointer}
+.km-reels-steps button:disabled{opacity:.3;cursor:default}
+.km-reels-pagination{scroll-snap-align:center;min-height:30vh;display:flex;align-items:center;justify-content:center}
+.km-reels-pagination button,.km-reels-empty a{border:1px solid rgba(255,255,255,.2);border-radius:999px;background:#203242;color:#fff;padding:14px 22px;font-size:14px;text-decoration:none;cursor:pointer}
+.km-reels-empty{display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;min-height:100%;text-align:center;padding:30px;font-size:14px;color:#d4dee1}
+.km-reels-empty h2{font-size:20px;margin:0;color:#fff}
+.km-reels-empty p{margin:0}
+.km-reels-notice,.km-reels-error{position:absolute;z-index:70;left:50%;transform:translateX(-50%);top:75px;width:min(90%,420px);background:#182d38;padding:13px;border-radius:13px;font-size:13px;text-align:center}
+.km-reels-error{top:auto;bottom:25px;background:#521e20}
+@media(max-width:660px){.km-reels-steps{right:5px;top:40%}.km-reels-steps button{width:34px;height:34px}.km-reel-overlay{padding-left:12px;padding-right:10px;padding-bottom:95px}}
+@media(prefers-reduced-motion:reduce){.km-reels-viewport{scroll-behavior:auto}}
