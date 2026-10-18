@@ -1,7 +1,7 @@
 /** Stories track actual media progress rather than marking opened stories complete. */
 export function storyCompletionBps(positionMs:number,durationMs:number):number{
   if(!Number.isFinite(positionMs)||!Number.isFinite(durationMs)||durationMs<=0)return 0;
-  return Math.max(0,Math.min(10_000,Math.round(positionMs/durationMs*10_000)));
+  return Math.max(0,Math.min(10_000,Math.floor(positionMs/durationMs*10_000)));
 }
 
 /**
