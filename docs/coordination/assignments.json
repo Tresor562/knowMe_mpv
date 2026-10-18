@@ -146,17 +146,17 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/accessible-feedback-dialogs",
-      "task": "Reprise PR #724/#730 : vérifier CI + APK, corriger défauts et intégrer uniquement après contrôles verts.",
+      "task": "PR #724 HEAD 0beff177: thème/système Web+Android, clavier, garde anti-conflit verte; quality Web/API E2E en cours et build APK en attente. PR #730 HEAD 382e42c: focus modaux + tests Playwright + toasts en file dédupliquée/8s + safe-area, 2 tests de file locaux réussis; quality/coordination/APK du HEAD final en attente. Aucune fusion/déploiement confirmé.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:42:30.819Z",
+      "updatedAt": "2026-10-18T14:50:03.042Z",
       "lastPr": 730,
       "resumeFrom": {
         "pr": 730,
         "branch": "chat/design/accessible-feedback-dialogs",
-        "commit": "78d29f87e574492f072cbeba187cced9dad6d35b",
+        "commit": "382e42c479450fae4bbe8b1118173765489cd151",
         "alsoPr": 724,
         "alsoBranch": "chat/design/system-accessibility-fallbacks",
         "alsoHead": "0beff177a969526bc0e4d290ba768aeb4bc478b4"
@@ -659,6 +659,14 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 734
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T14:50:03.042Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 730,
+      "alsoPr": 724
     }
   ]
 }
