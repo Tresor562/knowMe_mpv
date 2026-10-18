@@ -52,6 +52,7 @@ import { RequestContextMiddleware } from './observability/request-context.middle
 import { PaymentsModule } from './payments/payments.module';
 import { PositiveChallengesModule } from './positive-challenges/positive-challenges.module';
 import { PostsModule } from './posts/posts.module';
+import { PostLikeStatusController } from './posts/post-like-status.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { ProfileExperienceModule } from './profile-experience/profile-experience.module';
@@ -150,7 +151,7 @@ import { createApiRateLimitPolicy } from './common/api-rate-limit-policy';
     NexusIntegrationModule,
     NexusSocialModule
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, PostLikeStatusController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }]
 })
 export class AppModule implements NestModule {
