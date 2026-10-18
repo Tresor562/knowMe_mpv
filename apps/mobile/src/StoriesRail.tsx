@@ -35,6 +35,7 @@ type Story = {
   type: string;
   caption?: string | null;
   assetId?: string | null;
+  thumbnailAssetId?: string | null;
   createdAt?: string;
   expiresAt?: string | null;
   author: StoryAuthor | null;
@@ -68,6 +69,57 @@ function groupLegacyStories(stories: Story[]): StoryGroup[] {
 type StoryCreateResult = {
   id: string;
 };
+
+/** Small authenticated poster for VIDEO stories only. Never fetch the full MP4
+ * when rendering the horizontal story rail. */
+function StoryRailBackdrop({story,visible,avatarUrl,name}:{
+  story?:Story|null;
+  visible:boolean;
+  avatarUrl?:string|null;
+  name:string;
+}){
+  const [poster,setPoster]=useState<string|null>(null);
+  useEffect(()=>{
+    let cancelled=false;
+    let downloaded:string|null=null;
+    setPoster(null);
+    if(!visible || story?.type!=='VIDEO' || !story.thumbnailAssetId || !FileSystem.cacheDirectory)
+      return;
+    const filename=FileSystem.cacheDirectory + 'knowme-rail-poster-' +
+      encodeURIComponent(story.id) + '.webp';
+    void (async()=>{
+      try{
+        const headers=await authenticatedMediaHeaders();
+        if(cancelled)return;
+        const result=await FileSystem.downloadAsync(
+          API_URL+'/stories/'+encodeURIComponent(story.id)+'/thumbnail',
+          filename,{headers}
+        );
+        downloaded=result.uri;
+        const mime=String(result.headers?.['content-type']??result.headers?.['Content-Type']??'')
+          .split(';')[0].trim().toLowerCase();
+        const info=await FileSystem.getInfoAsync(result.uri);
+        if(result.status!==200 || !['image/png','image/jpeg','image/webp'].includes(mime)
+          ||!info.exists ||info.isDirectory ||!info.size ||info.size>5*1024*1024)
+          throw new Error('Poster de story non disponible.');
+        if(cancelled){await FileSystem.deleteAsync(result.uri,{idempotent:true});return;}
+        setPoster(result.uri);
+      }catch{
+        if(downloaded)void FileSystem.deleteAsync(downloaded,{idempotent:true}).catch(()=>undefined);
+        // An unavailable or expired thumbnail falls back to the author avatar.
+      }
+    })();
+    return ()=>{
+      cancelled=true;
+      if(downloaded)void FileSystem.deleteAsync(downloaded,{idempotent:true}).catch(()=>undefined);
+    };
+  },[visible,story?.id,story?.type,story?.thumbnailAssetId]);
+  if(poster)return <Image source={{uri:poster}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
+  if(avatarUrl)return <Image source={{uri:avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
+  return <View style={[styles.storyCardBackdrop,{justifyContent:'center',alignItems:'center'}]}>
+    <Avatar name={name} size={70}/>
+  </View>;
+}
 
 export function StoriesRail({
   currentUser,
@@ -286,6 +338,12 @@ export function StoriesRail({
     }catch{/* Already published; refresh may be temporarily unavailable. */}
   }
 
+  const [railPosition,setRailPosition] = useState({offset:0,width:360});
+  const storyVisible=(index:number)=>{
+    const left=index*133;
+    return left<=railPosition.offset+railPosition.width+133 &&
+      left+124>=railPosition.offset-133;
+  };
   const myGroup = groups.find(group => group.story.viewer.own);
   return (
     <>
@@ -295,6 +353,7 @@ export function StoriesRail({
         contentContainerStyle={styles.rail}
         onScroll={({nativeEvent}) => {
           const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+          setRailPosition({offset:contentOffset.x,width:layoutMeasurement.width});
           if (contentOffset.x + layoutMeasurement.width >= contentSize.width - 170) void loadNext();
         }}
         scrollEventThrottle={180}
@@ -302,11 +361,8 @@ export function StoriesRail({
         <View style={[styles.storyCard,{backgroundColor:colors.surfaceRaised,borderColor:colors.border}]}>
           <PressScale onPress={() => myGroup ? void openStory(myGroup.story) : setCreateOpen(true)}
             style={styles.storyCardTap} accessibilityLabel={myGroup ? `Ta story (${myGroup.count})` : 'Créer une story'}>
-            {currentUser.avatarUrl
-              ? <Image source={{uri:currentUser.avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>
-              : <View style={[styles.storyCardBackdrop,{backgroundColor:colors.backgroundAccent,justifyContent:'center',alignItems:'center'}]}>
-                  <Avatar uri={currentUser.avatarUrl} name={currentUser.displayName} size={70}/>
-                </View>}
+            <StoryRailBackdrop story={myGroup?.story} visible={storyVisible(0)}
+              avatarUrl={currentUser.avatarUrl} name={currentUser.displayName}/>
             <View style={styles.storyCardShade}/>
             {myGroup && myGroup.count > 1 ? (
               <View style={[styles.storyCardCount,{backgroundColor:colors.accent}]}>
@@ -321,17 +377,14 @@ export function StoriesRail({
           </PressScale>
         </View>
 
-        {groups.filter(g => !g.story.viewer.own).map(({story,count}) => (
+        {groups.filter(g => !g.story.viewer.own).map(({story,count},index) => (
           <View key={story.author?.id ?? story.id}
             style={[styles.storyCard,{backgroundColor:colors.surfaceRaised,borderColor:colors.border}]}>
             <PressScale accessibilityRole="button"
               accessibilityLabel={`Voir les ${count} stories de ${story.author?.displayName ?? 'KnowMe'}`}
               onPress={() => void openStory(story)} style={styles.storyCardTap}>
-              {story.author?.avatarUrl
-                ? <Image source={{uri:story.author.avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>
-                : <View style={[styles.storyCardBackdrop,{backgroundColor:colors.backgroundAccent,justifyContent:'center',alignItems:'center'}]}>
-                    <Avatar name={story.author?.displayName ?? 'KnowMe'} size={70}/>
-                  </View>}
+              <StoryRailBackdrop story={story} visible={storyVisible(index+1)}
+                avatarUrl={story.author?.avatarUrl} name={story.author?.displayName ?? 'KnowMe'}/>
               <View style={styles.storyCardShade}/>
               {count>1 && (
                 <View style={[styles.storyCardCount,{backgroundColor:colors.accent}]}>
