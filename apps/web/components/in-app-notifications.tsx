@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch, getAccessToken } from '../lib/api';
@@ -44,6 +45,7 @@ export function InAppNotifications() {
   const sessionToken = getAccessToken();
   const lastToken = useRef<string | null>(null);
   const [unread, setUnread] = useState(0);
+  const [navAlertsLink, setNavAlertsLink] = useState<HTMLAnchorElement | null>(null);
   const [queue, setQueue] = useState<InAppNotification[]>([]);
   const [paused, setPaused] = useState(false);
   const seenIds = useRef(new Set<string>());
@@ -142,6 +144,20 @@ export function InAppNotifications() {
     if (insideCenter) setQueue([]);
   }, [insideCenter]);
 
+  // The navigation is mounted conditionally and can move into a page header.
+  // Put the small unread counter on its existing Alerts control whenever possible
+  // without editing shared navigation code owned by concurrent workstreams.
+  useEffect(() => {
+    const sync = () => {
+      const next = document.querySelector<HTMLAnchorElement>('nav.km-smart-nav a[href="/notifications"]');
+      setNavAlertsLink(previous => previous === next ? previous : next);
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pathname]);
+
   useEffect(() => {
     if (!active || paused) return;
     const timer = setTimeout(() => setQueue(list => list.slice(1)), active.critical ? 9500 : 7500);
@@ -163,7 +179,11 @@ export function InAppNotifications() {
   if (!getAccessToken() || insideCenter) return null;
   if (unread === 0 && !active) return null;
 
-  return <aside className="km-live-notification-dock" aria-label={en?'In-app notifications':'Notifications dans l’application'}>
+  return <>{unread > 0 && navAlertsLink && createPortal(
+    <span className="km-live-nav-badge" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>,
+    navAlertsLink
+  )}
+  <aside className="km-live-notification-dock" aria-label={en?'In-app notifications':'Notifications dans l’application'}>
     {active && <div className="km-live-notification-card"
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -182,10 +202,10 @@ export function InAppNotifications() {
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg>
       </button>
     </div>}
-    {unread > 0 && <Link href="/notifications" className="km-live-notification-counter"
+    {unread > 0 && !navAlertsLink && <Link href="/notifications" className="km-live-notification-counter"
       aria-label={en ? `${unread} unread notifications` : `${unread} notifications non lues`}>
       <ActivityIcon kind="activity"/>
       <span>{unread > 99 ? '99+' : unread}</span>
     </Link>}
-  </aside>;
+  </aside></>;
 }
