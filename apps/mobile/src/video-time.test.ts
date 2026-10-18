@@ -50,3 +50,36 @@ test('direct seek entry rejects invalid and unsafe times',()=>{
   assert.equal(parseVideoTimestamp('1:15',Number.NaN),null);
   assert.equal(parseVideoTimestamp('1:15',Number.POSITIVE_INFINITY),null);
 });
+
+import {nextVideoResumes,resumablePosition,safeVideoResumes} from './video-resume-model.ts';
+
+test('resume bookmarks support five-hour playback without prompting near completion',()=>{
+  assert.equal(resumablePosition(8_070_000,18_000_000),8_070_000);
+  assert.equal(resumablePosition(20_000,18_000_000),null);
+  assert.equal(resumablePosition(17_999_000,18_000_000),null);
+  assert.equal(resumablePosition(Number.NaN,18_000_000),null);
+  assert.equal(resumablePosition(3_000_000,Number.POSITIVE_INFINITY),null);
+});
+
+test('progress saves replace the same video entry and completion clears it',()=>{
+  const saved=nextVideoResumes([],'asset_1',4_500_000,18_000_000,100);
+  assert.equal(saved.length,1);
+  assert.equal(saved[0]?.positionMs,4_500_000);
+  const fresh=nextVideoResumes(saved,'asset_1',2_100_000,18_000_000,200);
+  assert.equal(fresh.length,1);
+  assert.equal(fresh[0]?.positionMs,2_100_000);
+  assert.deepEqual(nextVideoResumes(fresh,'asset_1',2_000,18_000_000,300),fresh);
+  assert.deepEqual(nextVideoResumes(fresh,'asset_1',17_999_000,18_000_000,400),[]);
+});
+
+test('resume storage ignores malformed or duplicate IDs and keeps a bounded history',()=>{
+  assert.equal(safeVideoResumes([{id:'../escape',positionMs:200_000,durationMs:600_000,updatedAt:2}]).length,0);
+  assert.equal(safeVideoResumes([{id:'clip',positionMs:Infinity,durationMs:600_000,updatedAt:2}]).length,0);
+  assert.equal(safeVideoResumes('invalid').length,0);
+  let entries=nextVideoResumes([],'clip0',100_000,600_000,0);
+  for(let i=1;i<100;i++)entries=nextVideoResumes(entries,'clip'+i,100_000,600_000,i);
+  assert.equal(entries.length,80);
+  assert.equal(entries[0]?.id,'clip99');
+  assert.equal(entries.some(item=>item.id==='clip0'),false);
+  assert.equal(nextVideoResumes(entries,'invalid/id',100_000,600_000,999).length,80);
+});
