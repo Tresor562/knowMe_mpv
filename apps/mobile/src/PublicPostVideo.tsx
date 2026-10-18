@@ -1,10 +1,13 @@
 import {useEffect,useRef,useState} from 'react';
-import {Pressable,StyleSheet,Text,View} from 'react-native';
+import {Alert,Pressable,StyleSheet,Text,View} from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {videoTime} from './video-time';
+import {publicPostVideoId} from './offline-public-video-model';
+import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
 export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>void}){
@@ -16,6 +19,11 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
   const [durationMs,setDurationMs]=useState(0);
   const [seekToMs,setSeekToMs]=useState<number|undefined>(undefined);
   const [trackWidth,setTrackWidth]=useState(1);
+  const [saved,setSaved]=useState<string|null>(null);
+  const [saving,setSaving]=useState(false);
+  const [savePercent,setSavePercent]=useState(0);
+  const [saveNotice,setSaveNotice]=useState('');
+  const activeDownload=useRef<FileSystem.DownloadResumable|null>(null);
   const alive=useRef(true);
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [pulse,setPulse]=useState(false);
@@ -24,17 +32,65 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
     alive.current=true;
     return()=>{
       alive.current=false;
+      if(activeDownload.current)void activeDownload.current.pauseAsync().catch(()=>undefined);
       if(singleTapTimer.current!==null)clearTimeout(singleTapTimer.current);
       if(pulseTimer.current!==null)clearTimeout(pulseTimer.current);
     };
   },[]);
-  function open(){
+  useEffect(()=>{
+    let cancelled=false;
+    setSaved(null);
+    void savedPublicVideo(url).then(uri=>{
+      if(!cancelled)setSaved(uri);
+    }).catch(()=>undefined);
+    return()=>{cancelled=true;};
+  },[url]);
+
+  async function manageOfflineCopy(){
+    if(saving)return;
+    if(saved){
+      Alert.alert('Supprimer la vidéo enregistrée',
+        'Elle sera retirée de cet appareil, sans supprimer la publication.',
+        [{text:'Annuler',style:'cancel'},{
+          text:'Supprimer',style:'destructive',
+          onPress:()=>{void (async()=>{
+            await deleteSavedPublicVideo(url);
+            if(!alive.current)return;
+            if(local===saved)setLocal(null);
+            setSaved(null);
+            setSaveNotice('Vidéo supprimée de cet appareil.');
+          })().catch(()=>{if(alive.current)setSaveNotice('Suppression impossible.');});}
+        }]);
+      return;
+    }
+    if(!publicPostVideoId(url)){
+      setSaveNotice('Seules les vidéos publiques KnowMe peuvent être enregistrées.');
+      return;
+    }
+    setSaving(true);setSavePercent(0);setSaveNotice('');
+    try{
+      const uri=await downloadPublicVideoOffline(url,fraction=>{
+        if(alive.current)setSavePercent(Math.round(fraction*100));
+      },task=>{activeDownload.current=task;});
+      if(alive.current){
+        setSaved(uri);
+        setSaveNotice('Vidéo enregistrée. Elle reste disponible hors connexion.');
+      }
+    }catch(error){
+      if(alive.current)setSaveNotice(error instanceof Error?error.message:
+        'Téléchargement interrompu.');
+    }finally{
+      activeDownload.current=null;
+      if(alive.current)setSaving(false);
+    }
+  }
+
+  async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
     // HTTP ranges from the public, scanner-verified KnowMe post endpoint.
     // The native package applies an independent host/path allowlist.
     const allowedBase='https://31-56-85-53.sslip.io/knowme-api';
-    if(!/^\/media\/public\/post\/[a-zA-Z0-9_-]{1,128}$/.test(url)
-      ||API_URL!==allowedBase){
+    if(!publicPostVideoId(url)||API_URL!==allowedBase){
       setError('Vidéo indisponible ou serveur vidéo non pris en charge.');
       return;
     }
@@ -43,7 +99,11 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
     setPositionMs(0);
     setDurationMs(0);
     setSeekToMs(undefined);
-    setLocal(API_URL+url);
+    const offline=await savedPublicVideo(url).catch(()=>null);
+    if(alive.current){
+      if(offline)setSaved(offline);
+      setLocal(offline??API_URL+url);
+    }
   }
   function tapVideo(){
     if (!onDoubleTap) {
@@ -129,12 +189,26 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
       </View>
     </View>:<Pressable
       accessibilityRole="button" accessibilityLabel="Lire la vidéo"
-      onPress={open} style={[styles.open,{backgroundColor:colors.surface}]}>
+      onPress={()=>void open()} style={[styles.open,{backgroundColor:colors.surface}]}>
       <KnowMeIcon name="play" size={45} color={colors.text}/>
       <Text style={{color:colors.muted,fontSize:12,textAlign:'center'}}>
         {error||'Lire la vidéo'}
       </Text>
     </Pressable>}
+    <View style={styles.offlineSaveBox}>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={saving?'Enregistrement de la vidéo en cours':saved?'Supprimer la vidéo enregistrée':'Enregistrer la vidéo hors ligne'}
+        disabled={saving} onPress={()=>void manageOfflineCopy()}
+        style={styles.offlineSaveButton}>
+        <KnowMeIcon name={saved?'check':'download'} size={19} color="#fff"/>
+        <Text style={styles.offlineSaveLabel}>
+          {saving?'Enregistrement '+savePercent+' %':saved?'Enregistrée':'Hors ligne'}
+        </Text>
+      </Pressable>
+      {Boolean(saveNotice)&&<Text accessibilityRole="text" style={styles.offlineNotice}>
+        {saveNotice}
+      </Text>}
+    </View>
   </View>;
 }
 const styles=StyleSheet.create({
@@ -158,5 +232,13 @@ const styles=StyleSheet.create({
     alignItems:'center',justifyContent:'center'},
   likeIndicator:{width:94,height:94,borderRadius:32,
     backgroundColor:'rgba(0,0,0,.25)',alignItems:'center',justifyContent:'center'},
+  offlineSaveBox:{position:'absolute',right:9,top:11,
+    alignItems:'flex-end',maxWidth:'70%',gap:5},
+  offlineSaveButton:{minHeight:44,flexDirection:'row',alignItems:'center',
+    justifyContent:'center',gap:7,paddingHorizontal:12,borderRadius:17,
+    backgroundColor:'rgba(0,0,0,.74)'},
+  offlineSaveLabel:{fontSize:12,fontWeight:'800',color:'#fff'},
+  offlineNotice:{fontSize:11,lineHeight:15,color:'#fff',padding:8,
+    borderRadius:9,backgroundColor:'rgba(0,0,0,.76)',overflow:'hidden'},
   open:{flex:1,alignItems:'center',justifyContent:'center',gap:9}
 });
