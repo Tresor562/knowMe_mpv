@@ -195,3 +195,10 @@
 :root[data-effective-reduced-motion='true'] .km-state-icon-typing circle {
   animation: none !important;
 }
+
+/* Prevent background-tab CPU/GPU motion. Resume only when visible again. */
+.km-state-icon[data-page-visible='false'] svg,
+.km-state-icon[data-page-visible='false'] .km-state-icon-live-dot {
+  animation: none !important;
+  transition: none !important;
+}
