@@ -71,8 +71,10 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         if(!Array.isArray(fallback))throw new Error('Fil vidéo indisponible.');
         data=fallback;
       }
-      cursorRef.current=data[data.length-1]?.id??cursorRef.current;
-      setHasMore(data.length===20);
+      const nextCursor=data[data.length-1]?.id??null;
+      // A broken/repeated cursor must not trap the Reels feed in an endless loop.
+      cursorRef.current=nextCursor??cursorRef.current;
+      setHasMore(data.length===20&&Boolean(nextCursor)&&(!append||nextCursor!==cursor));
       setPosts(previous=>{
         if(!append)return data;
         const known=new Set(previous.map(post=>post.id));
@@ -211,7 +213,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       pagingEnabled decelerationRate="fast" showsVerticalScrollIndicator={false}
       viewabilityConfig={viewability} onViewableItemsChanged={onViewableItemsChanged}
       onEndReached={()=>{
-        if(!endReached.current){endReached.current=true;void load(true);}
+        if(clips.length>0&&!endReached.current){endReached.current=true;void load(true);}
       }} onMomentumScrollBegin={()=>{endReached.current=false;}}
       onEndReachedThreshold={0.4}
       getItemLayout={(_data,index)=>({length:viewportHeight,offset:index*viewportHeight,index})}
