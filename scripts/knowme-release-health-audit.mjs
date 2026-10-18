@@ -14,7 +14,15 @@ const HEX = /^[a-f0-9]{64}$/i;
 const VERSION = /^\d+\.\d+\.\d+$/;
 const asObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
-export function evaluateReleaseHealth(snapshot, { webEnabled = false } = {}) {
+// Operator-configured GitHub policy; never proof of actual VPS runtime settings.
+export function parseWebPolicy(raw) {
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return null;
+}
+
+
+export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
   const issues = [];
   const issue = (severity, code, detail) => issues.push({ severity, code, detail });
   const { api, ready, web, android } = snapshot;
@@ -22,15 +30,20 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = false } = {}) {
     VERSION.test(api.version || '');
   const validWeb = asObject(web) && web.platform === 'web' && SHA.test(web.commit || '') &&
     VERSION.test(web.version || '');
+  if (webEnabled !== true && webEnabled !== false)
+    issue('warning', 'web-policy-unknown', 'Web rollout policy unconfirmed; GitHub config is not VPS attestation');
   if (!validApi) issue('critical', 'api-identity', 'Invalid or unavailable API version metadata');
   if (!asObject(ready) || ready.status !== 'ready' || ready.checks?.database !== 'up')
     issue('critical', 'api-not-ready', 'API readiness or database is unhealthy');
-  if (!validWeb) issue(webEnabled ? 'critical' : 'warning', 'web-identity',
+  if (!validWeb) issue(webEnabled === true ? 'critical' : 'warning', 'web-identity',
     'Web identity endpoint is unavailable or invalid');
   if (validApi && validWeb && (api.commit.toLowerCase() !== web.commit.toLowerCase() ||
       api.version !== web.version || api.experienceRevision !== web.experienceRevision))
-    issue(webEnabled ? 'critical' : 'warning', webEnabled ? 'web-api-drift' : 'web-freeze',
-      webEnabled ? 'Web/API release is out of sync' : 'Web rollout is paused; do not claim Web/API sync');
+    issue(webEnabled === true ? 'critical' : 'warning',
+      webEnabled === true ? 'web-api-drift' : webEnabled === false ? 'web-freeze' : 'web-policy-unknown-drift',
+      webEnabled === true ? 'Web/API release is out of sync'
+        : webEnabled === false ? 'Web/API drift while policy is marked paused (verify VPS config)'
+          : 'Web/API drift; the actual VPS rollout policy is unknown');
   if (!asObject(android) || !Object.hasOwn(android, 'release')) {
     issue('critical', 'android-feed', 'Android update endpoint missing or invalid');
   } else if (android.release === null) {
@@ -48,7 +61,10 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = false } = {}) {
   }
   const status = issues.some(x => x.severity === 'critical') ? 'critical' : issues.length ? 'degraded' : 'healthy';
   return {
-    status, webEnabled, issues,
+    status,
+    webPolicy: webEnabled === true ? 'enabled' : webEnabled === false ? 'paused-unverified' : 'unknown',
+    webPolicySource: 'operator-configured; not verified against VPS runtime',
+    issues,
     observed: {
       api: validApi ? { commit: api.commit, version: api.version } : null,
       web: validWeb ? { commit: web.commit, version: web.version } : null,
@@ -98,7 +114,7 @@ export async function getSafeJson(url, fetchImpl = fetch) {
   return JSON.parse(text);
 }
 
-export async function probeReleaseHealth({ fetchImpl = fetch, webEnabled = false } = {}) {
+export async function probeReleaseHealth({ fetchImpl = fetch, webEnabled = null } = {}) {
   const entries = await Promise.all(Object.entries(ENDPOINTS).map(async ([name, url]) => {
     try { return [name, { value: await getSafeJson(url, fetchImpl) }]; }
     catch (error) { return [name, { error: String(error?.message || error) }]; }
@@ -113,7 +129,7 @@ export async function probeReleaseHealth({ fetchImpl = fetch, webEnabled = false
 }
 
 async function main() {
-  const report = await probeReleaseHealth({ webEnabled: process.env.KNOWME_WEB_DEPLOY_ENABLED === 'true' });
+  const report = await probeReleaseHealth({ webEnabled: parseWebPolicy(process.env.KNOWME_WEB_DEPLOY_ENABLED) });
   const serialized = JSON.stringify(report, null, 2) + '\n';
   console.log(serialized);
   if (process.env.KNOWME_RELEASE_AUDIT_OUTPUT) {
@@ -122,7 +138,7 @@ async function main() {
   }
   if (process.env.GITHUB_STEP_SUMMARY) {
     const summary = ['# KnowMe release audit', '', '**Result:** ' + report.status,
-      '**Web rollout enabled:** ' + report.webEnabled, '',
+      '**Web rollout policy:** ' + report.webPolicy + ' (not VPS-attested)', '',
       ...report.issues.map(x => '- **' + x.severity + ' / ' + x.code + '** — ' + x.detail),
       '', report.disclaimer].join('\n') + '\n';
     writeFileSync(process.env.GITHUB_STEP_SUMMARY, summary, { flag: 'a' });

@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: knowme-release-health-audit
-  cancel-in-progress: false
+  group: knowme-release-health-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   audit:
@@ -31,7 +31,7 @@ jobs:
       - name: Probe API Web Android delivery (read-only)
         if: github.event_name != 'pull_request'
         env:
-          KNOWME_WEB_DEPLOY_ENABLED: ${{ vars.KNOWME_WEB_DEPLOY_ENABLED || 'false' }}
+          KNOWME_WEB_DEPLOY_ENABLED: ${{ vars.KNOWME_WEB_DEPLOY_ENABLED || 'unknown' }}
           KNOWME_RELEASE_AUDIT_OUTPUT: release-artifacts/knowme-release-health.json
         run: node scripts/knowme-release-health-audit.mjs
       - name: Retain audit report

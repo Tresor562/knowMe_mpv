@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ENDPOINTS, evaluateReleaseHealth, getSafeJson, probeReleaseHealth } from './knowme-release-health-audit.mjs';
+import { ENDPOINTS, evaluateReleaseHealth, getSafeJson, probeReleaseHealth, parseWebPolicy } from './knowme-release-health-audit.mjs';
 
 const sha = 'a'.repeat(40);
 const api = { platform: 'api', commit: sha, version: '1.1.8', experienceRevision: '2026-10-17.1' };
@@ -16,7 +16,7 @@ test('healthy API + Web + Android feed is not misreported as degraded', () => {
 });
 test('intentional Web freeze is explicitly visible, but fails when rollout is enabled', () => {
   const state = { ...ok(), web: { ...web, commit: 'c'.repeat(40) } };
-  const paused = evaluateReleaseHealth(state);
+  const paused = evaluateReleaseHealth(state, { webEnabled: false });
   assert.equal(paused.status, 'degraded');
   assert.ok(codes(paused).includes('web-freeze'));
   assert.equal(evaluateReleaseHealth(state, { webEnabled: true }).status, 'critical');
@@ -75,4 +75,18 @@ test('network timeout on readiness yields critical report but preserves other ev
   assert.equal(report.status, 'critical');
   assert.equal(report.endpoints.ready.error, 'timeout');
   assert.equal(report.endpoints.web.ok, true);
+});
+
+test('unknown Web rollout policy does not invent proof of a VPS freeze', () => {
+  assert.equal(parseWebPolicy(undefined), null);
+  assert.equal(parseWebPolicy('invalid'), null);
+  assert.equal(parseWebPolicy('true'), true);
+  assert.equal(parseWebPolicy('false'), false);
+  const matching = evaluateReleaseHealth(ok());
+  assert.equal(matching.status, 'degraded');
+  assert.equal(matching.webPolicy, 'unknown');
+  assert.ok(codes(matching).includes('web-policy-unknown'));
+  const drift = evaluateReleaseHealth({ ...ok(), web: { ...web, commit: 'd'.repeat(40) } });
+  assert.ok(codes(drift).includes('web-policy-unknown-drift'));
+  assert.ok(!codes(drift).includes('web-freeze'));
 });
