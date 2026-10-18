@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/web-voice-review",
-      "task": "PR #723 HEAD a483993 (Web audio explicit send), syntax/TS fixed, focus wrap Playwright assertion fixed; guard/CI/APK queued. PR #735 HEAD 66a472e rename KnowSticker, guard vert, CI queued, APK pending. 4/4 local targeted tests passed, pas de nouveau déploiement confirmé.",
+      "task": "Audit complet Telegram/WhatsApp : packs stickers et tailles, lecteur audio persistant et état de téléchargement, présence typing/recording, fiche/permissions groupes Web/Android/API; implémentations indépendantes.",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T15:10:06.296Z",
+      "updatedAt": "2026-10-18T15:34:09.641Z",
       "lastPr": 723,
       "resumeFrom": {
         "pr": 723,
@@ -848,6 +848,13 @@
       "issue": 697,
       "branch": "chat/marketplace/verified-transaction-history",
       "pr": 741
+    },
+    {
+      "action": "resume",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T15:34:09.641Z",
+      "issue": 693
     }
   ]
 }
