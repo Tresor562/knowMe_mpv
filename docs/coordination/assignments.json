@@ -72,16 +72,20 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/avatar-actions-ux-bilingual",
-      "task": "Avatar Android : feuille d’actions native FR/EN avec iconographie originale, confirmation inline et états d’erreur",
+      "branch": "chat/profiles/avatar-studio-recovery",
+      "task": "PR #711 menu photo Android FR/EN + #715 Avatar Studio retry/UX; 8 tests ciblés locaux passent, coordination verte, qualité CI/APK en cours; PR #708 fusionnée; Web bloqué #551/#556",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T13:28:25.173Z",
-      "lastPr": 708,
+      "updatedAt": "2026-10-18T13:42:10.275Z",
+      "lastPr": 715,
       "resumeFrom": {
-        "pr": 708,
-        "commit": "522fe10aa071c3cd11d0e7c764b7a5424517999e"
+        "pr": 715,
+        "branch": "chat/profiles/avatar-studio-recovery",
+        "previousPr": 711,
+        "previousBranch": "chat/profiles/avatar-actions-ux-bilingual",
+        "mergedPr": 708,
+        "mergedCommit": "522fe10aa071c3cd11d0e7c764b7a5424517999e"
       }
     },
     "marketplace": {
@@ -256,6 +260,15 @@
       "issue": 697,
       "branch": "chat/marketplace/android-catalog-filters",
       "pr": 714
+    },
+    {
+      "at": "2026-10-18T13:42:10.275Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "branch": "chat/profiles/avatar-studio-recovery",
+      "pr": 715
     }
   ]
 }
