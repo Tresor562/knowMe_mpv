@@ -31,6 +31,7 @@ import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
+import {CommentReportSheet} from './CommentReportSheet';
 
 type Author = {
   id: string;
@@ -207,6 +208,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [reportComment,setReportComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
   const commentsStart = useRef(0);
@@ -483,6 +485,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
               onPress={()=>{void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})});}}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>Partager</Text>
             </Pressable>
+            {comment.author.id!==userId ? <Pressable accessibilityRole="button"
+              accessibilityLabel={`Signaler le commentaire de ${comment.author.displayName}`}
+              onPress={()=>setReportComment(comment)}>
+              <Text style={[styles.threadToolText,{color:colors.muted}]}>Signaler</Text>
+            </Pressable>:null}
             {canDelete?<Pressable accessibilityRole="button" disabled={busyId===comment.id}
               onPress={()=>confirmDeleteComment(comment)}>
               <Text style={[styles.threadToolText,{color:colors.danger}]}>Supprimer</Text>
@@ -657,6 +664,10 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </View>
       </View>
     </Modal>
+    <CommentReportSheet comment={reportComment}
+      onClose={()=>setReportComment(null)}
+      onReported={()=>Alert.alert('Signalement transmis',
+        'Le commentaire a été transmis à la modération KnowMe.')}/>
     <PublicationActions
       post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
       onOpenProfile={onOpenProfile}
