@@ -68,7 +68,8 @@ test('only explicit icon SVGs get touch transforms; shared sheets use actual ope
   assert.match(networkStyle, /width: 44px; height: 44px/);
   const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
   assert.match(avatar, /state=\{open \? "open" : "closed"\}/);
-  assert.match(animatedCss, /data-icon-state='open'/);
+  assert.match(animated, /presentationGlyphName\(name, state\)/);
+  assert.doesNotMatch(animatedCss, /\.km-state-icon--create\[data-icon-state='open'\]/);
   assert.match(animatedCss, /km-icon-heart-release/);
 });
 
