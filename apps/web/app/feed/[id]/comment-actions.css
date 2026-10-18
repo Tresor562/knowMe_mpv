@@ -175,3 +175,39 @@
   color: var(--text);
   font-size: 23px;
 }
+
+/* Comment reactions — compact controls and accessible quick-picker. */
+.km-comment-react-button[aria-pressed="true"] { color: var(--mint); font-weight: 750; }
+.km-comment-reaction-count { font-variant-numeric: tabular-nums; }
+.km-comment-reaction-breakdown { display:flex;gap:7px;flex-wrap:wrap;padding:3px 0 7px; }
+.km-comment-reaction-breakdown span {font-size:11px;color:var(--muted);background:var(--surface-2);padding:3px 7px;border-radius:12px;}
+.km-comment-reaction-overlay {
+ position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;
+ background:rgba(0,0,0,.58);z-index:340;
+}
+.km-comment-reaction-picker {
+ display:grid;gap:13px;width:min(100%,500px);
+ padding:15px 15px calc(18px + env(safe-area-inset-bottom,0px));
+ background:var(--surface);color:var(--text);
+ border-radius:27px 27px 0 0;box-shadow:0 -12px 34px rgba(0,0,0,.23);
+}
+.km-comment-reaction-picker header {display:flex;justify-content:space-between;align-items:center;min-height:40px;}
+.km-comment-reaction-picker header strong {font-size:15px;}
+.km-comment-reaction-picker header button {
+ display:grid;place-items:center;border:0;width:40px;height:40px;
+ border-radius:20px;background:var(--surface-2);color:var(--text);font-size:24px;
+}
+.km-comment-reaction-options { display:flex;justify-content:space-between;gap:5px; }
+.km-comment-reaction-options button {
+ border:0;border-radius:50%;display:grid;place-items:center;flex:0 1 54px;
+ width:clamp(40px,13vw,54px);height:clamp(40px,13vw,54px);
+ background:var(--surface-2);font-size:25px;cursor:pointer;
+ transition:transform .15s ease;
+}
+.km-comment-reaction-options button:active {transform:scale(.91);}
+.km-comment-reaction-options button:focus-visible {outline:2px solid var(--mint);outline-offset:2px;}
+.km-comment-reaction-more {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.km-comment-reaction-more label {flex-basis:100%;font-size:12px;color:var(--muted);}
+.km-comment-reaction-more input {flex:1;min-width:0;border:1px solid var(--soft-border);border-radius:13px;padding:10px;background:var(--surface-2);color:var(--text);font:inherit;}
+.km-comment-reaction-more button {min-height:44px;border:0;border-radius:12px;padding:0 12px;background:var(--mint);color:var(--on-primary);font-weight:700;}
+@media(prefers-reduced-motion:reduce){.km-comment-reaction-options button {transition:none;}}
