@@ -22,7 +22,12 @@ async function setup(page: Page, allowed = true) {
   let left=false;
   await page.route('**/api/knowme/**', async route => {
     const {pathname,searchParams}=new URL(route.request().url());
+    if (pathname.endsWith('/media/private-file/content')) {
+      return route.fulfill({status:200,contentType:'application/pdf',body:'%PDF-1.4 fake test content'});
+    }
     let result: unknown = {};
+    if (pathname.endsWith('/media/private-file/download-grant'))
+      result={path:'/media/private-file/content?token=test-grant'};
     if (pathname.endsWith('/users/me')) result={id:'me',username:'moi',displayName:'Moi',email:'me@example.test'};
     if (pathname.endsWith('/i18n/preferences')) result={locale:'fr',direction:'ltr',source:'user',version:1,persisted:true};
     if (pathname.endsWith('/conversations')) result=allowed?[{id:'grp1',isGroup:true,title:'Groupe Révisions',members}]:[];
@@ -54,6 +59,10 @@ test('group media/files/links are real, paginated and deep-link to their message
   await page.getByRole('button',{name:'Charger les messages plus anciens'}).click();
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/grp1?message=file1');
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Télécharger'}).click();
+  const download=await downloadPromise;
+  expect(download.suggestedFilename()).toBe('document.pdf');
   await page.getByRole('tab',{name:'Médias'}).click();
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/grp1?message=img1');
