@@ -9,7 +9,8 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { apiFetch, type ApiError } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { clearMobileMediaCache, mobileMediaCacheStats } from './media-cache';
-import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GlassSurface } from './ui/KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './ui/KnowMeNativeAnimatedIcon';
 
 type ServerPreference = MediaDownloadPreference & {
   version: number;
@@ -73,7 +74,8 @@ export function MediaDownloadSettingsExperience() {
     <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-          <KnowMeIcon name="settings" size={20} color={colors.accent} />
+          <KnowMeNativeAnimatedIcon name="settings" size={20} color={colors.accent}
+            state={busy ? "loading" : message === "Préférences synchronisées." ? "success" : "idle"} />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: colors.text }]}>Téléchargements & stockage</Text>
