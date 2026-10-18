@@ -70,7 +70,7 @@ export function shouldShowInAppNotice(item: InAppNotification, prefs: InAppPrefe
   if (item.readAt) return false;
   if (item.critical) return true;
   if (!prefs) return false; // Unknown server preference is not consent to interrupt.
-  if (!prefs.masterEnabled || !prefs.realtimeEnabled || prefs.digestMode === 'CENTER_ONLY') return false;
+  if (!prefs.masterEnabled || !prefs.realtimeEnabled || prefs.digestMode !== 'INSTANT') return false;
   if (prefs.mutedTypes?.includes(item.type)) return false;
   if (prefs.categorySettings?.[item.category] === false) return false;
   return !quietTimeActive(prefs, date);
