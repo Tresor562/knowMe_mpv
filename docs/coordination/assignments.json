@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "sourceOfTruth": "coordination/workstream-assignments:docs/coordination/assignments.json",
+  "statusMeaning": {
+    "free": "not yet assigned to a conversation in this system (existing GitHub work may exist)",
+    "active": "claimed; another conversation may still be working",
+    "paused": "previous conversation paused; ready to resume",
+    "completed": "scope checked; free for a new unit of work"
+  },
+  "policy": {
+    "trigger": "bien",
+    "scope": "KnowMe",
+    "idleCandidateHours": 24,
+    "autoStealActive": false,
+    "revalidateGitHubBeforeStaleReclaim": true,
+    "priority": [
+      "messaging",
+      "social",
+      "reels",
+      "profiles",
+      "marketplace",
+      "infra",
+      "design"
+    ]
+  },
+  "revisionNote": "Update with the current file blob SHA, and on conflict reload and retry. Never push this file to main.",
+  "domains": {
+    "messaging": {
+      "issue": 693,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "social": {
+      "issue": 694,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "reels": {
+      "issue": 695,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "profiles": {
+      "issue": 696,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "marketplace": {
+      "issue": 697,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "infra": {
+      "issue": 698,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    },
+    "design": {
+      "issue": 699,
+      "status": "free",
+      "ownerRef": null,
+      "branch": null,
+      "task": null,
+      "claimedAt": null,
+      "updatedAt": null,
+      "lastPr": null,
+      "resumeFrom": null
+    }
+  },
+  "history": []
+}
