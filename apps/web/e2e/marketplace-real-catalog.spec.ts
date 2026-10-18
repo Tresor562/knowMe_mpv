@@ -35,7 +35,7 @@ test('KnowMe marketplace displays server-backed gifts and styles, and routes to 
   await page.goto('/marketplace');
   await expect(page.getByRole('heading', { name: 'Marketplace' })).toBeVisible();
   await page.getByRole('button', {name: /Voir les détails de Rose, 15 KnowCoins/}).click();
-  await expect(page.getByRole('dialog').getByRole('link', { name: 'Choisir un destinataire' })).toHaveAttribute('href', '/gifts');
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Choisir un destinataire' })).toHaveAttribute('href', '/gifts?offer=test-rose');
   await page.getByRole('button', {name: 'Fermer les détails'}).click();
   await page.getByRole('button', {name: /Voir les détails de Cadre argenté, 120 KnowCoins/}).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Continuer vers l’achat' })).toBeVisible();
