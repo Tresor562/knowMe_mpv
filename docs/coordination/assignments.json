@@ -111,12 +111,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "branch": "chat/marketplace/sticker-collection-tab",
-      "task": "PRs #712(Web marketplace), #714(Android cosmetic search; CI/coordination/APK green, not merged), #717(Web gifts blocked #583), #719(Android gifts blocked #583), #722(Web legacy cosmetic checkout), #726(Android sticker packs). Other CI in flight; no merge/deployment.",
+      "task": "Resume PR #714 exact-head green; integrate collision-free PRs, QA sticker tab #726 and checkout, reconcile overlapping gift PRs with #583",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T14:22:11.828Z",
+      "updatedAt": "2026-10-18T14:24:49.983Z",
       "lastPr": 726,
       "resumeFrom": {
         "pr": 726,
@@ -458,6 +458,13 @@
       "pr": 728,
       "alsoPr": 723,
       "mergedPr": 706
+    },
+    {
+      "at": "2026-10-18T14:24:49.983Z",
+      "action": "resume",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697
     }
   ]
 }
