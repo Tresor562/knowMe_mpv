@@ -218,12 +218,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
             </Text>
             {canSeek&&<View style={styles.seekRow}>
               <Pressable accessibilityRole="adjustable" accessibilityLabel={copy.seek}
+                disabled={!previewPlaying||playbackBusy}
+                accessibilityActions={[{name:'increment'},{name:'decrement'}]}
+                onAccessibilityAction={event=>{
+                  const delta=event.nativeEvent.actionName==='increment'?0.1:-0.1;
+                  const next=voiceProgress(positionMs,recorded.durationMs)+delta;
+                  void seekPreview(seekWidth.current*next);
+                }}
                 accessibilityValue={{min:0,max:100,now:Math.round(voiceProgress(positionMs,recorded.durationMs)*100)}}
                 onLayout={event=>{seekWidth.current=event.nativeEvent.layout.width;}}
                 onPress={event=>void seekPreview(event.nativeEvent.locationX)}
                 style={styles.seekTouch}>
                 <View style={[styles.seekTrack,{backgroundColor:colors.backgroundAccent}]}>
-                  <View style={[styles.seekFill,{width:`${voiceProgress(positionMs,recorded.durationMs)*100}%`,
+                  <View style={[styles.seekFill,{width:`${voiceProgress(positionMs,recorded.durationMs)*100}%` as `${number}%`,
                     backgroundColor:colors.accent}]}/>
                 </View>
               </Pressable>
