@@ -53,12 +53,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705: server-side own-post report blocked (403) + Jest/API E2E. HEAD ef8804f, exact CI/readiness/coordination/APK checks queued, no merge/deploy.",
+      "task": "Reactions, publication bottom action bar, sharing/save/comments and tests; new scoped PR from main; PR #705 remains separate",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T15:08:31.014Z",
+      "updatedAt": "2026-10-18T15:23:38.042Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
@@ -826,6 +826,12 @@
       "at": "2026-10-18T15:14:49.725Z",
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
+    },
+    {
+      "at": "2026-10-18T15:23:38.042Z",
+      "action": "resume",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9"
     }
   ]
 }
