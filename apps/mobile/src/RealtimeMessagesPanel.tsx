@@ -18,6 +18,8 @@ import type { Socket } from 'socket.io-client';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { ChatMediaAttachment } from './ChatMediaAttachment';
+import { ChatAudioMiniBar } from './ChatAudioMiniBar';
+import { ChatGroupInfoSheet } from './ChatGroupInfoSheet';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
@@ -61,6 +63,7 @@ type ConversationMessage = {
 type Conversation = {
   id: string;
   title?: string | null;
+  isGroup?:boolean;
   members: ConversationMember[];
   messages: ConversationMessage[];
   unreadCount: number;
@@ -105,6 +108,7 @@ function normalizeConversation(
   return {
     id: conversation.id,
     title: conversation.title,
+    isGroup: conversation.isGroup,
     members: conversation.members,
     messages: conversation.messages ?? [],
     unreadCount: conversation.unreadCount ?? 0,
@@ -200,6 +204,7 @@ export function RealtimeMessagesPanel({
   const [groupBusy,setGroupBusy]=useState(false);
 
   const [active, setActive] = useState<Conversation | null>(null);
+  const [groupInfoOpen,setGroupInfoOpen]=useState(false);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
   const [readStates, setReadStates] = useState<ConversationMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
@@ -683,6 +688,7 @@ export function RealtimeMessagesPanel({
         conversationId: active.id
       });
     }
+    setGroupInfoOpen(false);
     setActive(null);
     setPanelOpen(false);
     setComposerHeight(44);
@@ -707,6 +713,7 @@ export function RealtimeMessagesPanel({
     );
     const typingNames = Object.values(typingUsers);
     const activeAvatarUrl = !isNexusPrivate ? others[0]?.user.avatarUrl : null;
+    const isGroup=Boolean(active.isGroup||active.members.length>2);
 
     return (
       <View style={[styles.conversationRoot, { backgroundColor: REFERENCE_CHAT.background }]}>
@@ -716,19 +723,33 @@ export function RealtimeMessagesPanel({
             onPress={closeConversation} style={styles.referenceBack}>
             <KnowMeIcon name="back" size={27} color={REFERENCE_CHAT.text}/>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Voir le profil"
-            disabled={others.length!==1}
-            onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={isGroup?'Voir les informations du groupe':'Voir le profil'}
+            disabled={!isGroup&&others.length!==1}
+            onPress={()=>{
+              if(isGroup)setGroupInfoOpen(true);
+              else {const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}
+            }}
             style={styles.referenceAvatar}>
             {isNexusPrivate?<KnowMeIcon name="spark" size={24} color={REFERENCE_CHAT.blue}/>:
               activeAvatarUrl?<Image source={{uri:activeAvatarUrl}} style={styles.avatarImage}/>:
                 <Text style={{color:REFERENCE_CHAT.text,fontSize:20}}>{name.charAt(0).toUpperCase()}</Text>}
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${name}`}
-            disabled={others.length!==1}
-            onPress={()=>{const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}}
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={isGroup?`Informations de ${name}`:`Profil de ${name}`}
+            disabled={!isGroup&&others.length!==1}
+            onPress={()=>{
+              if(isGroup)setGroupInfoOpen(true);
+              else {const peer=others[0]?.user;if(peer)openProfile?.(peer.username);}
+            }}
             style={styles.referenceHeaderTitle}>
             <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
+            <Text numberOfLines={1} style={{color:typingNames.length?'#53bdeb':'#91a7b5',fontSize:11}}>
+              {typingNames.length?typingNames.length===1?`${typingNames[0]} écrit…`:
+                `${typingNames.length} personnes écrivent…`:
+                isGroup?`${active.members.length} membres`:
+                online?'En ligne':'Appuie pour les informations'}
+            </Text>
             {others.length===1?(others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={18} label={others[0]?.user.verification.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null):null}{others.length===1 && others[0]?.user.username ? <RemoteCosmeticBadges username={others[0].user.username} size={18}/> : null}
           </Pressable>
           <Pressable style={styles.referenceHeaderAction} accessibilityRole="button"
@@ -747,6 +768,11 @@ export function RealtimeMessagesPanel({
           </Pressable>
         </View>
 
+        <ChatAudioMiniBar ownerId={userId}/>
+        <ChatGroupInfoSheet conversationId={active.id} visible={groupInfoOpen}
+          viewerId={userId} onClose={()=>setGroupInfoOpen(false)}
+          onChanged={()=>{void load();}}
+          onLeft={()=>{setGroupInfoOpen(false);closeConversation();}}/>
         <FlatList
           ref={messageListRef}
           onScrollToIndexFailed={info => messageListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true })}
@@ -834,6 +860,8 @@ export function RealtimeMessagesPanel({
                     <ChatMediaAttachment assetId={item.presentation.assetId} kind={item.presentation.kind}
                       fileName={item.presentation.fileName} mimeType={item.presentation.mimeType}
                       avatarUrl={item.sender?.avatarUrl}
+                      ownerId={userId} origin={name}
+                      sender={item.sender?.displayName??'Message vocal'}
                       autoOpen={linkedMediaId === item.presentation.assetId}/>
                   </View>
                   : item.presentation?.kind==='STICKER'
