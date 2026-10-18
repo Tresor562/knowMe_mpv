@@ -31,7 +31,8 @@ export function LanguageSettingsExperience() {
     <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-          <KnowMeIcon name="discover" size={20} color={colors.accent} />
+          <KnowMeNativeAnimatedIcon name={busy ? 'refresh' : 'discover'}
+            state={busy ? 'syncing' : 'idle'} size={20} color={colors.accent} />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: colors.text }]}>{t('settings.languageTitle')}</Text>
