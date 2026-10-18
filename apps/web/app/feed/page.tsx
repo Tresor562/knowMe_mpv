@@ -162,6 +162,7 @@ export default function FeedPage() {
     };
   }, []);
   const [authorityFresh, setAuthorityFresh] = useState(false);
+  const [showingCache,setShowingCache] = useState(false);
   const loadGeneration = useRef(0);
 
   useEffect(()=>{
@@ -224,6 +225,7 @@ export default function FeedPage() {
   const invalidateFeedAuthority = useCallback(() => {
     loadGeneration.current += 1;
     setAuthorityFresh(false);
+    setShowingCache(false);
     setPosts([]);
     setHasMore(false);
     setLoadingMore(false);
@@ -233,6 +235,7 @@ export default function FeedPage() {
     const generation = ++loadGeneration.current;
     setLoading(true);
     setAuthorityFresh(false);
+    setShowingCache(false);
     // Keep previously loaded posts visible during transient network failures.
     setMessage('');
 
@@ -258,6 +261,7 @@ export default function FeedPage() {
           if(saved?.posts.length){
             setPosts(saved.posts as Post[]);
             setHasMore(false);
+            setShowingCache(true);
             const when=new Date(saved.updatedAt).toLocaleString(en?'en-US':'fr-FR');
             setMessage(en
               ? 'Offline snapshot from '+when+'. Posts are read-only; media not cached may need Internet.'
@@ -560,7 +564,7 @@ export default function FeedPage() {
           </div>
         )}
 
-        {authorityFresh && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
+        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
           <article className="km-feed-post" key={post.id}>
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
@@ -585,9 +589,9 @@ export default function FeedPage() {
             </header>
             {post.content && <div className="km-post-content">
               <p><KnowMeMentionText text={post.content}/></p>
-              <Link href={`/feed/${post.id}`} className="km-post-open-link">
+              {authorityFresh ? <Link href={`/feed/${post.id}`} className="km-post-open-link">
                 {en ? 'Open post' : 'Voir la publication'}
-              </Link>
+              </Link> : <span className="km-post-open-link">{en?'Saved offline':'Copie hors ligne'}</span>}
             </div>}
             <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
               caption={post.content} en={en}/>
@@ -596,9 +600,9 @@ export default function FeedPage() {
                 aria-label={en?'React to post':'Réagir à la publication'}>
                 <FeedIcon name="heart"/><span>{post._count.likes}</span>
               </button>
-              <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
+              {authorityFresh ? <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
                 <FeedIcon name="comment"/><span>{post._count.comments}</span>
-              </Link>
+              </Link> : <span aria-label={en?'Comments unavailable offline':'Commentaires indisponibles hors ligne'}><FeedIcon name="comment"/><span>{post._count.comments}</span></span>}
               <button type="button" onClick={() => void sharePost(post)}
                 aria-label={en?'Share post':'Partager la publication'}>
                 <FeedIcon name="share"/><span>{en?'Share':'Partager'}</span>
