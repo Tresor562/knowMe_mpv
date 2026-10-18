@@ -9,6 +9,7 @@ import { getRealtimeSocket } from '../../../lib/realtime';
 import { useSession, type StaffBadge, type VerificationBadge } from '../../../lib/use-session';
 import { AccountBadges } from '../../../components/AccountBadges';
 import { StickerPicker } from './StickerPicker';
+import { WebVoiceCapture } from './WebVoiceCapture';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiText, AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 import { useI18n } from '../../../components/i18n-provider';
@@ -118,8 +119,6 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
   const [searchTerm,setSearchTerm]=useState('');
   const [menuOpen,setMenuOpen]=useState(false);
   const [expressionLayout,setExpressionLayout]=useState<'closed'|'compact'|'expanded'>('closed');
-  const [voiceRequest,setVoiceRequest]=useState(0);
-  const [recordingVoice,setRecordingVoice]=useState(false);
   const [targetMessage,setTargetMessage]=useState('');
   const [shareNotice,setShareNotice]=useState('');
   const soughtCursors=useRef<Set<string>>(new Set());
@@ -532,7 +531,6 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
       <form className="km-chat-composer" onSubmit={send}>
         <StickerPicker<Message> conversationId={conversationId} onSent={acceptSent}
           referenceChat draftHasText={Boolean(draft.trim())} onPanelChange={setExpressionLayout}
-          voiceRequest={voiceRequest} onRecordingChange={setRecordingVoice}
           onInsertEmoji={emoji=>changeDraft(draft+emoji)}
           inputSlot={<input className="km-chat-compose-input" value={draft} onChange={event=>changeDraft(event.target.value)}
             onBlur={stopTyping} maxLength={2000} placeholder={isNexusPrivate?(en?'Message Nexus':'Message à Nexus'):'Message'}
@@ -544,15 +542,8 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 12h14m-6-6 6 6-6 6"/>
             </svg>}
-        </button>:<button type="button" className={`km-send-button km-reference-microphone ${recordingVoice?'km-reference-mic-recording':''}`}
-          aria-label={recordingVoice?(en?'Stop recording and send':'Arrêter et envoyer le vocal'):(en?'Record a voice message':'Enregistrer un message vocal')}
-          onClick={()=>setVoiceRequest(value=>value+1)}>
-          {recordingVoice?<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-            <rect x="6" y="6" width="12" height="12" rx="2"/>
-          </svg>:<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
-            <rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5.7 10a6.3 6.3 0 0 0 12.6 0M12 16.5V22m-4 0h8"/>
-          </svg>}
-        </button>}
+        </button>:<WebVoiceCapture<Message> key={conversationId} conversationId={conversationId}
+          onSent={acceptSent} disabled={sending||nexusPending}/>
       </form>
     </ScreenTag>
   );
