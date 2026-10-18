@@ -91,6 +91,60 @@
 .km-state-icon--check[data-icon-burst] > svg:first-child {
   animation-name: km-icon-download-settle;
 }
+/* Domain-specific micro-feedback. No loop is enabled for an idle icon. */
+.km-state-icon--copy[data-icon-burst] > svg:first-child,
+.km-state-icon--archive[data-icon-burst] > svg:first-child,
+.km-state-icon--folder[data-icon-burst] > svg:first-child,
+.km-state-icon--file[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-stack;
+}
+.km-state-icon--reply[data-icon-burst] > svg:first-child,
+.km-state-icon--pin[data-icon-burst] > svg:first-child,
+.km-state-icon--logout[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-slide-return;
+}
+.km-state-icon--gift[data-icon-burst] > svg:first-child,
+.km-state-icon--star[data-icon-burst] > svg:first-child,
+.km-state-icon--verified[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gift-pop;
+}
+.km-state-icon--shield[data-icon-burst] > svg:first-child,
+.km-state-icon--check-circle[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-focus;
+}
+.km-state-icon--volume[data-icon-burst] > svg:first-child,
+.km-state-icon--volume-off[data-icon-burst] > svg:first-child,
+.km-state-icon--headphones[data-icon-burst] > svg:first-child,
+.km-state-icon--music[data-icon-burst] > svg:first-child,
+.km-state-icon--stop[data-icon-burst] > svg:first-child,
+.km-state-icon--call-end[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+.km-state-icon--filter[data-icon-burst] > svg:first-child,
+.km-state-icon--sort[data-icon-burst] > svg:first-child,
+.km-state-icon--translate[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+@keyframes km-icon-stack {
+  0%{transform:translateY(-2px) scale(.94);opacity:.75}
+  65%{transform:translateY(1px) scale(1.04)}
+  100%{transform:translateY(0) scale(1);opacity:1}
+}
+@keyframes km-icon-slide-return {
+  0%{transform:translateX(-3px);opacity:.66}
+  65%{transform:translateX(1px);opacity:1}
+  100%{transform:translateX(0)}
+}
+@keyframes km-icon-gift-pop {
+  0%{transform:scale(.82)}
+  55%{transform:scale(1.13)}
+  100%{transform:scale(1)}
+}
+@keyframes km-icon-confirm-focus {
+  0%{transform:scale(.95);opacity:.7}
+  100%{transform:scale(1);opacity:1}
+}
+
 /* Continuous animation is legal ONLY for an active task state. */
 .km-state-icon--refresh[data-icon-state='loading'] > svg:first-child,
 .km-state-icon--settings[data-icon-state='loading'] > svg:first-child {
