@@ -78,7 +78,7 @@ export function GroupSharedContent({
         throw new Error('INVALID_MEDIA_GRANT');
       const data=await apiFetchBlob(grant.path);
       const original=message.presentation?.fileName||'fichier';
-      const filename=original.replace(/[\\/<>:"|?*\\x00-\\x1f]+/g,'_').slice(0,160)||'fichier';
+      const filename=original.replace(/[<>:"|?*\x00-\x1f]/g,'_').replaceAll('\\','_').replaceAll('/','_').slice(0,160)||'fichier';
       const url=URL.createObjectURL(data);
       const a=document.createElement('a');a.href=url;a.download=filename;
       document.body.appendChild(a);a.click();a.remove();
