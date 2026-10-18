@@ -149,7 +149,7 @@ export function applyAppearance(response: AppearanceResponse) {
   // OS accessibility settings are safety floors: account preferences must never
   // force motion or blur back on when the device asks for less.
   const effectiveReducedMotion =
-    !preference.animationsEnabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    preference.animationsEnabled === false || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const effectiveReduceTransparency =
     preference.reduceTransparency || window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
   const primaryTheme = resolveTheme(response, preference.effectiveThemeKey);
