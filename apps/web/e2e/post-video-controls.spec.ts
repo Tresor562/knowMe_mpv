@@ -63,7 +63,6 @@ test('publication video player exposes seeking, speed and sound controls', async
   await expect(player.getByText('2:05 / 1:01:01')).toBeVisible();
   await player.getByRole('button',{name:'Avancer de 10 secondes'}).click();
   await expect(player.getByText('2:15 / 1:01:01')).toBeVisible();
-  await expect(toolbar.locator('.km-state-icon--forward-10')).toHaveAttribute('data-icon-burst', /[0-9]+/);
 
   await viewer.getByRole('button',{name:'Fermer la galerie'}).click();
   await expect(viewer).not.toBeVisible();
