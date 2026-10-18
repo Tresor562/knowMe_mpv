@@ -716,6 +716,7 @@ export function FeedExperience({
   },[openComposerRequest,onComposerOpened]);
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [postPhotoSupported, setPostPhotoSupported] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<SelectedAndroidMedia[]>([]);
 
   useEffect(() => {
@@ -768,7 +769,6 @@ export function FeedExperience({
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   useEffect(() => { onDetailChange?.(Boolean(selectedPostId)); return () => onDetailChange?.(false); },[selectedPostId,onDetailChange]);
-  const [publishing, setPublishing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
