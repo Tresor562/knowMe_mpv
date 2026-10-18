@@ -202,6 +202,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const discussionScroll = useRef<ScrollView>(null);
+  const commentInputRef = useRef<TextInput>(null);
   const commentsStart = useRef(0);
   const soughtCommentCursors = useRef(new Set<string>());
 
@@ -308,7 +309,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
               <CommentReactionChip postId={postId} commentId={item.id}/>
               <Pressable accessibilityRole="button"
                 accessibilityLabel={`Répondre à ${item.author.displayName}`}
-                onPress={() => setReplyTarget(item)}>
+                onPress={() => {setReplyTarget(item);requestAnimationFrame(() => commentInputRef.current?.focus());}}>
                 <Text style={[styles.threadToolText,{color:colors.accent}]}>Répondre</Text>
               </Pressable>
               <Pressable accessibilityRole="button"
@@ -540,7 +541,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </Pressable>
       </View>}
     <View style={[styles.commentDock, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-      <TextInput
+      <TextInput ref={commentInputRef}
         accessibilityLabel="Écrire un commentaire"
         value={commentText}
         onChangeText={setCommentText}
