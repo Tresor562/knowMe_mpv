@@ -107,9 +107,15 @@ export function PostComposerExperience({
                 style={{width:media.length===1?'100%':index<2?'49%':'32%',
                   height:media.length===1?235:index<2?175:112,position:'relative',
                   borderRadius:4,overflow:'hidden',backgroundColor:colors.surface}}>
-                <Image source={{uri:item.uri}} style={{width:'100%',height:'100%'}} resizeMode="cover"/>
-                {item.mime.startsWith('video/')?<Text style={{position:'absolute',bottom:7,left:7,
-                  color:'#fff',backgroundColor:'#0008',padding:4,borderRadius:5}}>▶ Vidéo</Text>:null}
+                {item.mime.startsWith('video/')?
+                  <View style={[styles.videoAttachment,{backgroundColor:colors.backgroundAccent}]}>
+                    <KnowMeIcon name="video-call" size={36} color={colors.accent}/>
+                    <Text numberOfLines={2} style={[styles.videoAttachmentName,{color:colors.text}]}>
+                      {item.name}
+                    </Text>
+                    <Text style={{fontSize:11,color:colors.muted}}>Vidéo MP4</Text>
+                  </View>:
+                  <Image source={{uri:item.uri}} style={{width:'100%',height:'100%'}} resizeMode="cover"/>}
                 {index===4&&media.length>5?<View style={{position:'absolute',top:0,bottom:0,left:0,
                   right:0,backgroundColor:'#0009',justifyContent:'center',alignItems:'center'}}>
                   <Text style={{color:'#fff',fontSize:26,fontWeight:'800'}}>+{media.length-5}</Text>
@@ -212,6 +218,9 @@ const styles=StyleSheet.create({
   audience:{borderRadius:12,minHeight:28,justifyContent:'center',paddingHorizontal:11},
   bodyInput:{minHeight:190,fontSize:19,lineHeight:27,paddingTop:20,paddingBottom:16},
   previewBox:{position:'relative',borderWidth:StyleSheet.hairlineWidth,borderRadius:16,overflow:'hidden'},
+  videoAttachment:{flex:1,alignItems:'center',justifyContent:'center',
+    paddingHorizontal:12,paddingVertical:16,gap:8},
+  videoAttachmentName:{fontSize:12,fontWeight:'700',textAlign:'center',maxWidth:'100%'},
   tileRemove:{position:'absolute',top:5,right:5,height:38,width:38,borderRadius:19,
     alignItems:'center',justifyContent:'center'},
   attachmentList:{paddingVertical:9,paddingHorizontal:8,gap:7},
