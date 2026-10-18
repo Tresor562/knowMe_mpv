@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../../../components/i18n-provider';
 import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
+import { knowMeConfirm } from '../../../../components/knowme-feedback';
+import { GroupSharedContent } from '../GroupSharedContent';
 
 type Member = {
   userId: string;
@@ -33,6 +35,7 @@ function Avatar({ member, size = 'regular' }: { member: Member; size?: 'regular'
 
 export default function ConversationInfoPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user, loading: sessionLoading } = useSession({ required: true });
   const { locale } = useI18n();
   const en = locale === 'en';
@@ -42,7 +45,8 @@ export default function ConversationInfoPage() {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'details'>('members');
+  const [leaving,setLeaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links'>('members');
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -101,6 +105,25 @@ export default function ConversationInfoPage() {
     }
   }
 
+  async function leaveGroup() {
+    if (!isGroup || !user?.id || leaving) return;
+    if(viewerRole==='OWNER') {
+      setError(tr('Transfère la propriété avant de quitter le groupe.','Transfer ownership before leaving the group.'));
+      return;
+    }
+    const confirmed=await knowMeConfirm(tr('Quitter ce groupe ? Tu ne recevras plus ses messages.',
+      'Leave this group? You will no longer receive its messages.'));
+    if(!confirmed)return;
+    setLeaving(true);
+    setError('');
+    try {
+      await apiFetch(`/conversations/${encodeURIComponent(id)}/group/members/${encodeURIComponent(user.id)}`,{method:'DELETE'});
+      router.replace('/messages');
+    } catch(cause) {
+      setError(cause instanceof Error?cause.message:tr('Impossible de quitter le groupe.','Could not leave this group.'));
+    } finally {setLeaving(false);}
+  }
+
   return <main className="shell km-info-page">
     <header className="km-info-topbar">
       <Link href={`/messages/${encodeURIComponent(id)}`} className="km-info-back"
@@ -150,6 +173,30 @@ export default function ConversationInfoPage() {
           </svg>
           <span>{canManage?tr('Gérer','Manage'):tr('Options','Options')}</span>
         </Link>}
+        {isGroup && <details className="km-info-more" onKeyDown={event=>{
+          if(event.key==='Escape')event.currentTarget.open=false;
+        }}>
+          <summary aria-label={tr('Autres options du groupe','More group options')}
+            title={tr('Autres options','More options')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.65"/><circle cx="12" cy="12" r="1.65"/>
+              <circle cx="12" cy="19" r="1.65"/>
+            </svg>
+            <span>{tr('Plus','More')}</span>
+          </summary>
+          <div className="km-info-more-menu">
+            <Link href={`/messages/${encodeURIComponent(id)}/manage`}>
+              {tr('Membres et permissions','Members and permissions')}
+            </Link>
+            {viewerRole!=='OWNER' && <button type="button" disabled={leaving}
+              className="is-danger" onClick={()=>void leaveGroup()}>
+              {leaving?tr('Départ…','Leaving…'):tr('Quitter le groupe','Leave group')}
+            </button>}
+            {viewerRole==='OWNER' && <span className="km-info-more-hint">
+              {tr('Transfert de propriété requis avant le départ','Ownership transfer required before leaving')}
+            </span>}
+          </div>
+        </details>}
         {!isGroup && other && <Link href={`/profile/${encodeURIComponent(other.user.username)}`}>
           <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.7-4 3.2-6 7.5-6s6.8 2 7.5 6"/></svg>
@@ -163,7 +210,18 @@ export default function ConversationInfoPage() {
         </button>
         <button type="button" role="tab" aria-selected={activeTab==='details'}
           onClick={() => setActiveTab('details')}>{tr('Détails','Details')}</button>
+        {isGroup && ([
+          {kind:'media', fr:'Médias', en:'Media'},
+          {kind:'files', fr:'Fichiers', en:'Files'},
+          {kind:'links', fr:'Liens', en:'Links'}
+        ] as const).map(tab => <button key={tab.kind} type="button" role="tab"
+          aria-selected={activeTab===tab.kind} onClick={()=>setActiveTab(tab.kind)}>
+          {en?tab.en:tab.fr}
+        </button>)}
       </div>
+      {isGroup && (activeTab==='media'||activeTab==='files'||activeTab==='links') &&
+        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en}/>}
+
       {activeTab === 'members' && <section className="km-info-members" role="tabpanel">
         {isGroup && <div className="km-info-search">
           <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" fill="none"
