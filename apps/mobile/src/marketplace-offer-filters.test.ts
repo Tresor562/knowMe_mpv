@@ -31,5 +31,5 @@ test('client-side filtering does not mutate offers or grant ownership', () => {
   const before = JSON.stringify(offers);
   filterMarketplaceOffers(offers, 'CADRE', 'all', new Set(), new Set());
   assert.equal(JSON.stringify(offers), before);
-  assert.equal(offers[0].owned, false);
+  assert.equal(offers[0]?.owned, false);
 });
