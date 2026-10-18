@@ -47,18 +47,19 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Reprise Social #694 / PR #705: qualifier tests, corriger contrats, intégrer si CI exacte verte",
+      "task": "PR #705: private post report history + server-side status tabs, a11y styling, tests. HEAD 2a99043; exact CI/runtime queued; not merged or deployed.",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:32:01.497Z",
+      "updatedAt": "2026-10-18T14:39:41.558Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
         "branch": "chat/social/report-publication-web",
-        "commit": "681e2c65a0a0ff5d932246f71a724e9542d866a6",
-        "next": "Check exact HEAD workflow statuses (CI 39135964525, Runtime 39135964552, coordination 39135964570), repair any failure, then review and integrate with release approval."
+        "commit": "2a99043a4552be52147aba7b8d5a032518c94b2b",
+        "next": "Check exact-head CI 39136886102 / Runtime 39136886124 / latest coordination 39136963721; fix red tests, review and merge only if validated; production release requires approval",
+        "infraIssueComment": 6251187389
       }
     },
     "reels": {
@@ -587,6 +588,13 @@
       "issue": 697,
       "branch": "chat/marketplace/web-sticker-pack-directory",
       "pr": 733
+    },
+    {
+      "at": "2026-10-18T14:39:41.558Z",
+      "domain": "social",
+      "action": "pause",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
