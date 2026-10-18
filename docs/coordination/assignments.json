@@ -84,12 +84,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/creator-web-conflict-safe",
-      "task": "PR #720 fusionnée main (commit 9e15f9f) après quality/APK/coordination verts. PR #716 ouverte, quality+coordination verts, APK en cours ; PR #727 Web creator ouverte, 4 tests Node + 2 E2E ajoutés, quality/coordination en attente. Ne pas toucher menu avatar Web : PR #551/#556.",
+      "task": "Reprise #696 : diagnostiquer CI et intégrer PR #716/#727 puis corriger autres éléments profil sans conflits",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:29:44.604Z",
+      "updatedAt": "2026-10-18T14:34:23.863Z",
       "lastPr": 727,
       "resumeFrom": {
         "pr": 727,
@@ -523,6 +523,14 @@
       "domain": "infra",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "pr": 721
+    },
+    {
+      "at": "2026-10-18T14:34:23.863Z",
+      "action": "resume",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 727
     }
   ]
 }
