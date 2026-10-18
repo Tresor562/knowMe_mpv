@@ -41,7 +41,7 @@ test('private chat has shared media, links, files and search without group admin
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/dm-1?message=dm-text');
   await page.getByRole('tab',{name:'Recherche'}).click();
-  await page.getByRole('searchbox',{name:'Rechercher les messages du groupe'}).fill('guide');
+  await page.getByRole('searchbox',{name:'Rechercher les messages privés'}).fill('guide');
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/dm-1?message=dm-text');
   const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
