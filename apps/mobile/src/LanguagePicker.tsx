@@ -105,7 +105,7 @@ export function LanguagePicker({
                 {SUPPORTED_LOCALES.length} langues / scripts
               </Text>
             </View>
-            <KnowMeNativeIconButton name="close" size={20} label={t('common.chooseLanguage')}
+            <KnowMeNativeIconButton name="close" size={20} label={value === 'en' ? 'Close language selection' : 'Fermer le choix de langue'}
               onPress={() => setOpen(false)}
               style={[styles.close, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}
               color={colors.text} />
