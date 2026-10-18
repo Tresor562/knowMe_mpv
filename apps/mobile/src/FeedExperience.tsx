@@ -673,9 +673,16 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
       onClose={()=>setReportComment(null)}
       onReported={()=>Alert.alert('Signalement transmis',
         'Le commentaire a été transmis à la modération KnowMe.')}/>
+    <PostEditSheet post={editPost?{
+      id:editPost.id,content:editPost.content,
+      hasMedia:Boolean(editPost.media?.length||editPost.imageUrl)
+    }:null}
+      onClose={()=>setEditPost(null)}
+      onSaved={content=>setPost(old=>old?{...old,content}:old)}/>
     <PublicationActions
       post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
       onOpenProfile={onOpenProfile}
+      onEdit={target=>setEditPost(target)}
       onDelete={() => confirmDeletePost()}
     />
     </View>
@@ -1047,9 +1054,18 @@ export function FeedExperience({
         </Pressable>
       )}
     />
+    <PostEditSheet post={editFeedPost?{
+      id:editFeedPost.id,content:editFeedPost.content,
+      hasMedia:Boolean(editFeedPost.media?.length||editFeedPost.imageUrl)
+    }:null}
+      onClose={()=>setEditFeedPost(null)}
+      onSaved={content=>setPosts(current=>current.map(item=>
+        item.id===editFeedPost?.id?{...item,content}:item
+      ))}/>
     <PublicationActions
       post={menuPost} userId={userId} onClose={() => setMenuPost(null)}
-      onView={id => setSelectedPostId(id)} onDelete={confirmRemovePost} onOpenProfile={onOpenProfile}
+      onView={id => setSelectedPostId(id)} onEdit={target=>setEditFeedPost(target)}
+      onDelete={confirmRemovePost} onOpenProfile={onOpenProfile}
     />
     <PostComposerExperience
       visible={composerOpen&&!photoPickerOpen}
