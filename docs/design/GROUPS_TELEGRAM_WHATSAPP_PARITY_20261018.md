@@ -111,6 +111,36 @@ Symbols: **CORE** = code in main, not necessarily deployed; **PR** = unmerged br
 - WhatsApp group updates include member tags, events/reminders, and @all with admin restrictions
   in larger groups. KnowMe must preserve opt-out and avoid flooding muted users.
 
+## Verified official references — October 2026
+These are **platform-specific capabilities to implement**, not features already available in KnowMe.
+- **Telegram, August 25, 2026:** group/channel welcome packs visible only to newly
+  joined members (multiple formatted/media messages); interactive buttons directly
+  inside messages and ephemeral interactive responses; inline documents within text.
+  https://telegram.org/blog/welcome-messages-buttons-TG-13?setln=en
+- **Telegram, March 1, 2026:** custom member tags with admin-controlled permission
+  for self-editing; group admin tags visually distinguished; poll vote timestamps.
+  https://telegram.org/blog/member-tags-disable-sharing-and-more?setln=en
+- **Telegram topics:** independent per-topic history, media, notifications, pinned
+  messages and bot participation, permission control by group admins.
+  https://telegram.org/blog/topics-in-groups-collectible-usernames
+- **WhatsApp, January 7, 2026:** self-selected member tags, text-generated
+  stickers and configurable group event reminders.
+  https://about.fb.com/news/2026/01/whatsapp-group-chats-member-tags-text-stickers-event-reminders/
+- **WhatsApp, August 2026:** polls with deadline, anonymous voter identities and
+  question edits within 15 minutes; `@all` admin-only for groups larger than 32
+  members plus per-user `@all` mute; create subset groups from existing groups;
+  sharing recent history with newcomers.
+  https://about.fb.com/news/2026/08/were-upgrading-your-whatsapp-group-chats/
+- **WhatsApp group admission:** admin-approved join requests and controls over
+  invitations/public access.
+  https://about.fb.com/news/2023/03/new-groups-features-on-whatsapp/
+
+Additional acceptance criteria for the above: a welcome pack must never be
+broadcast as a regular group message to existing members; polls must enforce
+deadline and edit window server-side; `@all` must be rate-limited and must never
+override a user's explicit `@all` mute choice; new member group-history visibility
+must be permission-checked server-side and not disclosed before approval.
+
 ## Delivery order to avoid broken switches
 1. **Reliable existing core**: merge Messaging #754 after Prisma/CI; confirm group data and role guards;
    fix count bug in Web chat header; cross-client member changes, leave and media tabs.
