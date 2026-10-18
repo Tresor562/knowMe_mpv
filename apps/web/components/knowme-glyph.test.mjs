@@ -122,4 +122,8 @@ test('icon action controls are accessible and preserve long-press semantics', ()
   assert.ok(network.includes('<KnowMeIconButton name="close"'));
   assert.ok(sheet.includes('<KnowMeIconButton name="close"'));
   assert.ok(layout.includes("knowme-icon-button.css"));
+  assert.ok(css.includes("min-width: 44px;"));
+  assert.ok(css.includes(".km-avatar-plus::before"));
+  assert.ok(css.includes("inset: 5px;"));
+  assert.ok(css.includes(".km-avatar-plus:focus-visible"));
 });
