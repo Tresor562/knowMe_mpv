@@ -1,5 +1,10 @@
 /* These overrides are applied to both account settings and OS accessibility.
    Keep meaningful loading/error feedback; remove ornamental movement, not content. */
+:root[data-effective-reduce-transparency='true'] {
+  /* Also covers first visits without a cached theme when OS preferences change. */
+  --surface-glass: var(--surface) !important;
+  --nav-glass: var(--surface) !important;
+}
 :root[data-effective-reduced-motion='true'],
 :root[data-effective-reduced-motion='true'] * {
   scroll-behavior: auto !important;
