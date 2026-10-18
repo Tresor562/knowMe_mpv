@@ -176,7 +176,7 @@ export default function ConversationInfoPage() {
         {isGroup && <details className="km-info-more" onKeyDown={event=>{
           if(event.key==='Escape')event.currentTarget.open=false;
         }}>
-          <summary aria-label={tr('Autres options du groupe','More group options')}
+          <summary role="button" aria-label={tr('Autres options du groupe','More group options')}
             title={tr('Autres options','More options')}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
               <circle cx="12" cy="5" r="1.65"/><circle cx="12" cy="12" r="1.65"/>
