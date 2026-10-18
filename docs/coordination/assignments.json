@@ -139,20 +139,23 @@
     },
     "infra": {
       "issue": 698,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/verified-main-release-lineage",
-      "task": "CI exact-HEAD all green #721/#742; review clean, integrate sequentially with expected SHA, verify production checks after fusion",
+      "task": "PR #721 merged main at 74677a2 with 15 tests passing. PR #742 HEAD a339ee3: 9 tests + 4 required previous checks green, ready for review; new coordination job 117715906372 queued. Do not merge until that job success; then verify main, exact head, merge with SHA lease. VPS rollout unverified; main branch unprotected (#703).",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T15:35:36.481Z",
+      "updatedAt": "2026-10-18T15:39:26.044Z",
       "lastPr": 742,
       "resumeFrom": {
         "pr": 742,
         "branch": "chat/infra/verified-main-release-lineage",
         "commit": "a339ee3d9e4bf772c1477169d68baf2a2a443b78",
-        "alsoPr": 721,
-        "alsoBranch": "chat/infra/release-guard-readiness",
-        "alsoCommit": "e302c13a20ae47b379c0f85b544442a524fec982"
+        "merged": [
+          {
+            "pr": 721,
+            "commit": "74677a2b65a87852c441841d3a2d4a80a8b5577b"
+          }
+        ]
       }
     },
     "design": {
@@ -870,6 +873,15 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 738
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T15:39:26.044Z",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "pr": 742,
+      "branch": "chat/infra/verified-main-release-lineage",
+      "reason": "latest coordination check awaiting runner"
     }
   ]
 }
