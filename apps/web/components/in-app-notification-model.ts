@@ -41,7 +41,10 @@ export function notificationDestination(item: InAppNotification): string {
 
 export function notificationAlreadyVisible(item: InAppNotification, pathname: string): boolean {
   const route = notificationDestination(item).split(/[?#]/, 1)[0];
-  return route !== '/notifications' && route === pathname;
+  // List/landing pages aren't the activity itself: a new chat or creator post
+  // must still raise a heads-up while the user browses its category.
+  if (new Set(['/notifications', '/feed', '/messages', '/dashboard', '/discover', '/profile']).has(route)) return false;
+  return route === pathname;
 }
 
 export function notificationSymbol(type: string, category: string): 'message' | 'mention' | 'post' | 'security' | 'activity' {
