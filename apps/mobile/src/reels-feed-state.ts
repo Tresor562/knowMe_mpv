@@ -11,3 +11,9 @@ export function reelsFeedState({
   if(posts>0&&hasMore)return 'browse';
   return 'empty';
 }
+
+/** Keep the visible Reel when paging, but recover if refresh removes it. */
+export function chooseVisibleReel(ids:readonly string[],current:string|null):string|null{
+  if(current!==null&&ids.includes(current))return current;
+  return ids[0]??null;
+}
