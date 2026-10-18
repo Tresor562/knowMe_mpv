@@ -411,6 +411,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   function renderDiscussionComment(comment:Comment, depth:number):ReactNode {
     const canDelete=comment.author.id===userId || post?.authorId===userId;
     const children=repliesByParent[comment.id]??[];
+    const reaction=reactions[comment.id];
     const count=comment._count?.replies??0;
     const expanded=expandedReplies.includes(comment.id);
     return (
@@ -451,8 +452,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
                 suppressReactionTap.current=true;
                 setReactionPickerFor(comment.id);
               }} delayLongPress={380}>
-              <Text style={[styles.threadToolText,{color:reactions[comment.id]?.mine?colors.accent:colors.muted}]}>
-                {reactions[comment.id]?.mine??'♡'} Réagir{reactions[comment.id]?.total?' · '+reactions[comment.id].total:''}
+              <Text style={[styles.threadToolText,{color:reaction?.mine?colors.accent:colors.muted}]}>
+                {reaction?.mine??'♡'} Réagir{reaction?.total?' · '+reaction.total:''}
               </Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Choisir un emoji"
@@ -471,9 +472,9 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
               <Text style={[styles.threadToolText,{color:colors.danger}]}>Supprimer</Text>
             </Pressable>:null}
           </View>
-          {reactions[comment.id]?.emojis?.length ? (
+          {reaction?.emojis?.length ? (
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:6}}>
-              {reactions[comment.id].emojis.slice(0,5).map(r=><Text key={r.emoji}
+              {reaction.emojis.slice(0,5).map(r=><Text key={r.emoji}
                 style={[styles.smallMeta,{color:colors.muted}]}>{r.emoji} {r.count}</Text>)}
             </View>
           ):null}
