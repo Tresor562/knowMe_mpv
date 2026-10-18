@@ -5,7 +5,7 @@ import { apiFetch } from '../lib/api';
 import { KnowMeAnimatedIcon, type KnowMeIconState } from './knowme-animated-icon';
 
 function ShareGlyph({ name, state = 'idle' }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat'; state?: KnowMeIconState }) {
-  const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'link', chat: 'chats' } as const;
+  const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'copy', chat: 'chats' } as const;
   return <span className="km-share-action-icon" aria-hidden="true"><KnowMeAnimatedIcon name={icons[name]} size={22} state={state}/></span>;
 }
 
