@@ -42,13 +42,24 @@ export function KnowMeAnimatedIcon({
     const next = { name, state, eventToken };
     const changed = didIconEventChange(earlier, next);
     previous.current = next;
+    if (!visible) { setBurst(false); return; }
     if (!changed) return;
+    // Animation settings are a user choice, not a reason to schedule hidden
+    // timers for hundreds of idle icons on every server event.
+    const settings = document.documentElement.dataset;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+        settings.animations === 'false' ||
+        settings.animatedIcons === 'false' ||
+        settings.effectiveReducedMotion === 'true') {
+      setBurst(false);
+      return;
+    }
     // An actual event can restart an animation even when state doesn't change.
     setBurst(true);
     setMotionId(v => v + 1);
     const timeout = window.setTimeout(() => setBurst(false), 380);
     return () => window.clearTimeout(timeout);
-  }, [name, state, eventToken]);
+  }, [name, state, eventToken, visible]);
 
   const numericProgress = clampRealProgress(state, progress);
   const visibleName = presentationGlyphName(name, state) as KnowMeGlyphName;
