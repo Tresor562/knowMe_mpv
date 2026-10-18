@@ -188,6 +188,7 @@ export function RealtimeMessagesPanel({
   const socketRef = useRef<Socket | null>(null);
   const activeRef = useRef<Conversation | null>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingHeartbeat=useRef<ReturnType<typeof setInterval>|null>(null);
   const linkedConversationOpened = useRef<string | null>(null);
   const linkedMessageScrolled = useRef<string | null>(null);
   const soughtCursors = useRef(new Set<string>());
@@ -207,6 +208,19 @@ export function RealtimeMessagesPanel({
 
   const [active, setActive] = useState<Conversation | null>(null);
   const [groupInfoOpen,setGroupInfoOpen]=useState(false);
+  const onVoiceRecordingChange=useCallback((recording:boolean)=>{
+    if(recordingHeartbeat.current)clearInterval(recordingHeartbeat.current);
+    recordingHeartbeat.current=null;
+    const chat=activeRef.current;
+    if(!chat)return;
+    const data={conversationId:chat.id,kind:'recording_voice'};
+    const event=recording?'activity:start':'activity:stop';
+    socketRef.current?.emit(event,data);
+    if(recording)recordingHeartbeat.current=setInterval(()=>{
+      const current=activeRef.current;
+      if(current?.id===chat.id)socketRef.current?.emit('activity:start',data);
+    },4000);
+  },[]);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
   const [readStates, setReadStates] = useState<ConversationMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
@@ -410,6 +424,7 @@ export function RealtimeMessagesPanel({
     return () => {
       mounted = false;
       if (typingTimer.current) clearTimeout(typingTimer.current);
+      if(recordingHeartbeat.current)clearInterval(recordingHeartbeat.current);
       const opened = activeRef.current;
       if (opened && socket) {
         socket.emit('typing:stop', { conversationId: opened.id });
@@ -716,6 +731,7 @@ export function RealtimeMessagesPanel({
         conversationId: active.id
       });
     }
+    onVoiceRecordingChange(false);
     setGroupInfoOpen(false);
     setActive(null);
     setPanelOpen(false);
@@ -944,8 +960,7 @@ export function RealtimeMessagesPanel({
         <View style={styles.referenceComposer}>
           <View style={styles.referenceComposeRow}>
             <ChatMediaPicker<ConversationMessage> conversationId={active.id}
-              onRecordingChange={recording=>socketRef.current?.emit(recording?'activity:start':'activity:stop',
-                {conversationId:active.id,kind:'recording_voice'})}
+              onRecordingChange={onVoiceRecordingChange}
               referenceChat showVoice={!draft.trim()&&!panelOpen} gifGalleryRequest={gifGalleryRequest}
               expressionOpen={panelOpen} expressionExpanded={panelExpanded}
               onToggleExpression={()=>setPanelExpanded(value=>!value)}
