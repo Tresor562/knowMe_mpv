@@ -87,7 +87,7 @@ export class GroupManagementService {
       if(role===ConversationRole.MEMBER){
         const record=await tx.conversation.findUnique({where:{id:conversationId},
           select:{membersCanEditInfo:true}});
-        if(!record?.membersCanEditInfo)throw new ForbiddenException('GROUP_PERMISSION_EDIT_INFO');
+        if(!record?.membersCanEditInfo)throw new ForbiddenException('GROUP_PERMISSION_DENIED');
       }
       return tx.conversation.update({
         where: { id: conversationId },
@@ -127,7 +127,7 @@ export class GroupManagementService {
       if(role===ConversationRole.MEMBER){
         const record=await tx.conversation.findUnique({where:{id:conversationId},
           select:{membersCanAddMembers:true}});
-        if(!record?.membersCanAddMembers)throw new ForbiddenException('GROUP_PERMISSION_ADD_MEMBERS');
+        if(!record?.membersCanAddMembers)throw new ForbiddenException('GROUP_PERMISSION_DENIED');
       }
       const [existing, friendships] = await Promise.all([
         tx.conversationMember.findMany({
