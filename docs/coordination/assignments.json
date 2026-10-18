@@ -42,17 +42,18 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Corriger E2E PR #705 et achever les parcours signalement / historique social",
+      "task": "PR #705: reports Web + GET /reports/mine/posts paginated, Jest/Playwright/API E2E; exact HEAD 96f85e0509ba6aaccd3d10719f8d45aeaf414e09; latest CI queued, no merge/deploy",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:05:16.123Z",
+      "updatedAt": "2026-10-18T14:14:15.255Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
         "branch": "chat/social/report-publication-web",
-        "commit": "2fa17f094c6ed68aeedc7ebd7befbf4dac4b0633"
+        "commit": "96f85e0509ba6aaccd3d10719f8d45aeaf414e09",
+        "next": "Await exact SHA CI. Fix failed jobs, recheck main and coordination. Merge only with tests green and verified release approval."
       }
     },
     "reels": {
@@ -324,6 +325,14 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "issue": 699,
       "branch": "chat/design/global-navigation-a11y"
+    },
+    {
+      "at": "2026-10-18T14:14:15.255Z",
+      "action": "pause",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705,
+      "branch": "chat/social/report-publication-web"
     }
   ]
 }
