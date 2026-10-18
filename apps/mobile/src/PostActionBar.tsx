@@ -38,6 +38,7 @@ export function PostActionBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const wasLongPress = useRef(false);
+  const inFlight = useRef(false);
 
   function showReactions() {
     if (!online || busy) return;
@@ -53,7 +54,8 @@ export function PostActionBar({
     setError('');
   }
   async function action(callback: () => Promise<void>, isReaction = false) {
-    if (!online || busy) return;
+    if (!online || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -66,6 +68,7 @@ export function PostActionBar({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Action non confirmée. Réessaie.');
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -86,6 +89,7 @@ export function PostActionBar({
           accessibilityState={{selected:active,disabled:busy||!online}}
           disabled={busy||!online}
           delayLongPress={450}
+          onPressOut={()=>setTimeout(()=>{wasLongPress.current=false;},0)}
           onLongPress={()=>{wasLongPress.current=true;showReactions();}}
           onPress={()=>{
             if(wasLongPress.current){wasLongPress.current=false;return;}
@@ -186,7 +190,7 @@ const styles=StyleSheet.create({
     alignItems:'center',justifyContent:'center',gap:7,borderRadius:13},
   pickerTrigger:{minHeight:46,minWidth:35,justifyContent:'center',alignItems:'center'},
   save:{marginLeft:'auto'},
-  count:{fontSize:12,fontWeight:'650'},
+  count:{fontSize:12,fontWeight:'600'},
   label:{fontSize:12,fontWeight:'600'},
   emoji:{fontSize:24},
   pressed:{opacity:0.65},
