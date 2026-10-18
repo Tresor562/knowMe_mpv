@@ -53,19 +53,26 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
-      "branch": "chat/social/report-publication-web",
-      "task": "Reactions, publication bottom action bar, sharing/save/comments and tests; new scoped PR from main; PR #705 remains separate",
+      "branch": "chat/social/publication-action-bar-reactions",
+      "task": "PR #744 draft: independent Web+Android compact action bar, heart tap/long-press 5 emoji + keyboard, FR/EN and node:test model. NOT mounted: #583 file collision; multi-emoji persistence depends Infra. PR #705 remains separate.",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T15:23:38.042Z",
-      "lastPr": 705,
+      "updatedAt": "2026-10-18T15:43:04.174Z",
+      "lastPr": 744,
       "resumeFrom": {
-        "pr": 705,
-        "branch": "chat/social/report-publication-web",
-        "commit": "ef8804f0598d1ce766faff24f392c1c2b5200422",
-        "next": "Inspect exact SHA CI #39139033040, runtime #39139033054, coordination #39139033019, APK #39139033012; fix failures, review current main drift, and only merge with all required green checks. Production release must be approved.",
-        "infraRaceComment": 6251479099
+        "pr": 744,
+        "branch": "chat/social/publication-action-bar-reactions",
+        "commit": "fee0bc2b82633c74cabb5b618ab612a3328cedb4",
+        "otherPr": 705,
+        "otherHead": "ef8804f0598d1ce766faff24f392c1c2b5200422",
+        "issueChecklistComment": 6251731381,
+        "blockers": [
+          "#583 feed Web/Android overlap",
+          "#566/#563 Prisma/posts backend migration overlap",
+          "#698 persistent reaction backend"
+        ],
+        "next": "Inspect CI #39141667358, guard #39141667297, APK #39141667380 on exact HEAD. Fix test/build; coordinate #583 before mounting footer in feed; add persisted post emoji API via Infra-approved schema; add E2E Web+Android."
       }
     },
     "reels": {
@@ -892,6 +899,13 @@
       "issue": 697,
       "branch": "chat/marketplace/web-history-hub-link",
       "pr": 745
+    },
+    {
+      "at": "2026-10-18T15:43:04.174Z",
+      "action": "pause",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 744
     }
   ]
 }
