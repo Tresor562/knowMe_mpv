@@ -142,3 +142,33 @@
   outline: 2px solid #fff;
   outline-offset: 3px;
 }
+
+
+/* True-path brand logo: compact responsive feedback, never an idle spin.
+   The file is now a genuine 256px SVG (not a PNG in an SVG wrapper). */
+.km-brand-logo {
+  transform-origin: 50% 50%;
+  transition: transform 220ms cubic-bezier(.2,.84,.2,1), filter 220ms ease;
+}
+@media (hover:hover) {
+  .km-brand:hover .km-brand-logo {
+    transform: translateY(-1px) scale(1.045);
+    filter: drop-shadow(0 3px 6px rgba(89,36,192,.25));
+  }
+}
+.km-brand:active .km-brand-logo { transform: scale(.965); }
+.km-brand:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-brand-logo { transition: none !important; filter: none !important; transform: none !important; }
+}
+:root[data-animations='false'] .km-brand-logo,
+:root[data-animated-icons='false'] .km-brand-logo,
+:root[data-effective-reduced-motion='true'] .km-brand-logo {
+  transition: none !important;
+  filter: none !important;
+  transform: none !important;
+}
