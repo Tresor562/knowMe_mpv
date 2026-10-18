@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/shared-selection-actions",
-      "task": "PR #765 merged (main 0baf272) and Vercel prod READY; #766 HEAD cf347ea1a extends Web shared message selection (all visible up to 50, clear, native navigator.share fallback) with tests and compact UI. Latest CI success and coordination guard success, APK still in progress; not merged. Separate follow-up branch chat/design/shared-selection-bulk-save based on #766 adds authenticated POST /saved-messages sequential batch save, accurate partial failure feedback, cancellation stops next writes and Playwright success/403, no PR until #766 merged. React Native sharing/save controls not implemented by these Web-only changes. Messaging group permissions #754 and ?message routing #756 still blocked. No 100% parity.",
+      "task": "Redesign group info screen hierarchy and document missing end-to-end group avatar storage; do not conflict with Messaging #754 schema/API.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T20:26:22.959Z",
+      "updatedAt": "2026-10-18T22:30:00.001Z",
       "lastPr": 766,
       "resumeFrom": {
         "pr": 766,
@@ -1114,6 +1114,12 @@
       "pr": 766,
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "followupBranch": "chat/design/shared-selection-bulk-save"
+    },
+    {
+      "domain": "design",
+      "action": "resume",
+      "at": "2026-10-18T22:30:00.001Z",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
     }
   ]
 }
