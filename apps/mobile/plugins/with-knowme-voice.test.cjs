@@ -63,3 +63,14 @@ test('unmount cleanup revokes microphone while preserving only user-confirmed se
   assert.equal(shouldDiscardVoiceOnUnmount('recording'),true);
   assert.equal(shouldDiscardVoiceOnUnmount('sending'),false);
 });
+
+test('native chat audio pause and resume preserve the playhead and release only on stop',()=>{
+  const java=fs.readFileSync(path.join(__dirname,'native/android/KnowMeVoicePackage.java'),'utf8');
+  const pause=java.match(/void pausePlayback\(Promise promise\)\s*\{([\s\S]*?)\n    \}/)?.[1]??'';
+  const resume=java.match(/void resumePlayback\(Promise promise\)\s*\{([\s\S]*?)\n    \}/)?.[1]??'';
+  assert.match(pause,/player\.pause\(\)/);
+  assert.doesNotMatch(pause,/stopPlaybackQuietly|player\.stop\(\)|player\.release\(\)/);
+  assert.match(resume,/player\.start\(\)/);
+  assert.doesNotMatch(resume,/stopPlaybackQuietly|player\.seekTo\(0\)/);
+  assert.match(java,/void stopPlayback\(Promise promise\)/);
+});
