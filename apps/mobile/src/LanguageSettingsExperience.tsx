@@ -4,7 +4,8 @@ import type { SupportedLocale } from '@knowme/i18n-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
-import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GlassSurface } from './ui/KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './ui/KnowMeNativeAnimatedIcon';
 
 export function LanguageSettingsExperience() {
   const { colors, visual } = useAppearance();
