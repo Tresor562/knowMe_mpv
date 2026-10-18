@@ -1,0 +1,44 @@
+name: KnowMe public release health audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+  pull_request:
+    paths:
+      - '.github/workflows/knowme-release-health-audit.yml'
+      - 'scripts/knowme-release-health-audit.mjs'
+      - 'scripts/knowme-release-health-audit.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowme-release-health-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.23.2'
+      - name: Unit and safety tests
+        run: node --test scripts/knowme-release-health-audit.test.mjs
+      - name: Probe API Web Android delivery (read-only)
+        if: github.event_name != 'pull_request'
+        env:
+          KNOWME_WEB_DEPLOY_ENABLED: ${{ vars.KNOWME_WEB_DEPLOY_ENABLED || 'unknown' }}
+          KNOWME_RELEASE_AUDIT_OUTPUT: release-artifacts/knowme-release-health.json
+        run: node scripts/knowme-release-health-audit.mjs
+      - name: Retain audit report
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-public-release-health
+          path: release-artifacts/knowme-release-health.json
+          if-no-files-found: error
+          retention-days: 14
