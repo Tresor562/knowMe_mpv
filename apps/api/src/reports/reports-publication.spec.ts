@@ -132,6 +132,29 @@ describe('Authenticated publication reports', () => {
     }));
   });
 
+  it('filters all pages by moderation status, without leaking a cursor from another status', async () => {
+    const { service, prisma } = setup();
+    prisma.report.findFirst.mockResolvedValue({ id: 'resolved-report' });
+    await service.minePostReports('viewer', 'resolved-report', 'RESOLVED');
+    expect(prisma.report.findFirst).toHaveBeenCalledWith({
+      where: { id: 'resolved-report', reporterId: 'viewer',
+        targetType: 'POST', status: 'RESOLVED' },
+      select: { id: true }
+    });
+    expect(prisma.report.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { reporterId: 'viewer', targetType: 'POST', status: 'RESOLVED' },
+      cursor: { id: 'resolved-report' }, skip: 1
+    }));
+  });
+
+  it('rejects an unsupported moderation filter without touching report data', async () => {
+    const { service, prisma } = setup();
+    await expect(service.minePostReports('viewer', undefined, 'ADMIN'))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.report.findMany).not.toHaveBeenCalled();
+    expect(prisma.report.findFirst).not.toHaveBeenCalled();
+  });
+
   it('reads only the authenticated account history, newest first and bounded', async () => {
     const { service, prisma } = setup();
     await service.mine('viewer');
