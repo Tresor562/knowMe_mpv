@@ -103,7 +103,8 @@
       "completedOrImplemented": [
         "Avatar action popup viewport placement, keyboard navigation, image viewer focus",
         "Compact secret profile CTA with shield/send glyphs",
-        "Creator follow action displays confirmed follow state"
+        "Creator follow action displays confirmed follow state",
+        "Creator follow action shows server-confirmed follow/unfollow plus compact shield/send Secret CTA"
       ],
       "unresolved": [
         "Other profile screens and certification badges owned by Profiles #696"
@@ -120,7 +121,8 @@
       "status": "partial",
       "completedOrImplemented": [
         "Web media/download preference labels and networks use matching vector family",
-        "Android language picker 48dp accessible close and genuine sync indicator"
+        "Android language picker 48dp accessible close and genuine sync indicator",
+        "Android language picker 48dp icon close and true synchronization indicator; Web media downloads have network and media glyphs"
       ],
       "unresolved": [
         "Other app preferences and theme pack variants require QA"
@@ -191,7 +193,8 @@
       "status": "partial",
       "completedOrImplemented": [
         "Web feedback/toast icons now follow warning/info/success kind",
-        "Android in-app toast events and 48dp dismissal"
+        "Android in-app toast events and 48dp dismissal",
+        "Android toasts remain readable 8s for errors and 5s for other statuses; pause dismissal in background"
       ],
       "unresolved": [
         "Android full notification center overlaps its own Messaging/Design PR; see #743"
@@ -229,7 +232,8 @@
       "status": "partial",
       "completedOrImplemented": [
         "Web post video controls use actual playback/mute/fullscreen states",
-        "Viewport-intersection pause for animated icons"
+        "Viewport-intersection pause for animated icons",
+        "Rewind/forward SVG 10-second numbers are drawn with paths rather than embedded font text"
       ],
       "unresolved": [
         "Message audio bars, multi-hour Reels transport and Android video/voice controls belong to #693/#695"
@@ -267,7 +271,8 @@
       ],
       "status": "partial",
       "completedOrImplemented": [
-        "Web media download settings: photos, video, audio, files and network category icons"
+        "Web media download settings: photos, video, audio, files and network category icons",
+        "Web media download preferences show real wifi/cellular/roaming/category icons with compact 44px targets"
       ],
       "unresolved": [
         "Messages file gallery and transfer list; native SVG dependency not installed"
@@ -284,7 +289,8 @@
       "status": "partial",
       "completedOrImplemented": [
         "Avatar portal, keyboard menu, photo modal, shared share-sheet focus trap",
-        "Compact report/edit modal close vectors and accessible touch targets"
+        "Compact report/edit modal close vectors and accessible touch targets",
+        "Every vector has an event-bound animation fallback; active loading/syncing icons move without idle loops"
       ],
       "unresolved": [
         "Other context menus and native sheets not exhaustively migrated"
@@ -358,5 +364,11 @@
     "androidDeviceVisualQA": false,
     "prMergeBlockedByConcurrentPRs": true,
     "codeBranch": "chat/design/vector-icons-tactile-web-android"
+  },
+  "iconMotion": {
+    "eventBoundFallbackForEveryWebGlyph": true,
+    "continuousOnlyForRealActiveStates": true,
+    "offscreenPause": true,
+    "reduceMotionSupported": true
   }
 }
