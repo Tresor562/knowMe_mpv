@@ -198,6 +198,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [reactions,setReactions] = useState<Record<string,ReactionSummary>>({});
   const [reactionPickerFor,setReactionPickerFor] = useState<string|null>(null);
   const [reactionBusy,setReactionBusy] = useState(false);
+  const suppressReactionTap=useRef(false);
   const [customEmoji,setCustomEmoji] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -442,8 +443,14 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           <View style={styles.threadTools}>
             <Pressable accessibilityRole="button" disabled={reactionBusy}
               accessibilityLabel={`Réagir au commentaire de ${comment.author.displayName}`}
-              onPress={()=>void reactTo(comment.id,'❤️')}
-              onLongPress={()=>setReactionPickerFor(comment.id)} delayLongPress={380}>
+              onPress={()=>{
+                if(suppressReactionTap.current){suppressReactionTap.current=false;return;}
+                void reactTo(comment.id,'❤️');
+              }}
+              onLongPress={()=>{
+                suppressReactionTap.current=true;
+                setReactionPickerFor(comment.id);
+              }} delayLongPress={380}>
               <Text style={[styles.threadToolText,{color:reactions[comment.id]?.mine?colors.accent:colors.muted}]}>
                 {reactions[comment.id]?.mine??'♡'} Réagir{reactions[comment.id]?.total?' · '+reactions[comment.id].total:''}
               </Text>
