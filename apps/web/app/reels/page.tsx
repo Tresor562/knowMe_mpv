@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { useI18n } from '../../components/i18n-provider';
+import { ReelPlayback } from './reel-playback';
 import './reels.css';
 
 type Author = { id: string; username: string; displayName: string };
@@ -165,9 +166,8 @@ export default function ReelsPage() {
           const post=clip.post;
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
-            {active ? <video key={clip.id} src={mediaUrl(clip.media.url)}
-              className="km-reel-video" controls autoPlay muted playsInline
-              preload="metadata" aria-label={en?'KnowMe video':'Vidéo KnowMe'}/>
+            {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
+              en={en} onDoubleTap={() => { void like(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
             <div className="km-reel-overlay">
               <div className="km-reel-info">
