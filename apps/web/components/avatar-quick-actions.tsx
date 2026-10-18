@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
-import { KnowMeIconButton } from './knowme-icon-button';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -98,7 +97,7 @@ export function AvatarQuickActions({
     };
   }, [preview]);
 
-  function menuKeyboard(event: React.KeyboardEvent<HTMLDivElement>) {
+  function menuKeyboard(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
     const items = [...(menuRef.current?.querySelectorAll<HTMLElement>(
       '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
@@ -122,6 +121,9 @@ export function AvatarQuickActions({
         <KnowMeAnimatedIcon name="create" size={19} state={open ? "open" : "closed"} />
       </button>
       {open && createPortal(<div ref={menuRef} onKeyDown={menuKeyboard}
+        onBlur={event => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+        }}
         style={{ top: menuPosition.top, left: menuPosition.left }}
         className="km-avatar-menu" role="menu"
         aria-label={en ? 'Profile options' : 'Options du profil'}>
