@@ -67,7 +67,7 @@ jobs:
             const release = JSON.parse(readFileSync(
               process.env.RUNNER_TEMP + "/knowme-release/knowme-update.json", "utf8"
             ));
-            if (!/^\\d+\\.\\d+\\.\\d+$/.test(release.version) ||
+            if (!/^\d+\.\d+\.\d+$/.test(release.version) ||
                 !Number.isSafeInteger(release.versionCode) ||
                 !/^[a-f0-9]{64}$/i.test(release.sha256) ||
                 "v"+release.version+"-preview"!==process.env.RELEASE_TAG ||
@@ -84,6 +84,7 @@ jobs:
         if: steps.source.outputs.sha != ''
         env:
           SHA: ${{ steps.source.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -130,7 +131,7 @@ jobs:
           }
           throw Error('VPS API and Web have not reconciled to exact signed release SHA.');
           NODE
-          GH_TOKEN="${{ github.token }}" CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
           [[ "$CURRENT" == "$SHA" ]] || {
             echo '::error::Main advanced during verification; cannot certify older release as current.'
             exit 1
