@@ -2,6 +2,10 @@
 
 **Repo canonique :** `Tresor562/knowMe_mpv` — **intégration :** `main`.
 
+## Déclencheur de conversation « bien »
+
+Le message `bien` dans une nouvelle discussion lance l'attribution dynamique d'un domaine KnowMe, selon `docs/coordination/BIEN_PROTOCOL.md`. **Registre d'occupation unique** : `coordination/workstream-assignments:docs/coordination/assignments.json` (branche GitHub distincte de `main`). Première attribution libre selon la priorité, puis reprise d'un domaine en pause; mettre à jour avec condition sur le SHA du blob GitHub pour éviter les doubles affectations. Présenter à chaque tour les domaines pris, en pause et libres, et développer réellement les fonctionnalités / interfaces. Le statut de conversation n'est pas équivalent à l'état des PR existantes.
+
 ## Source de vérité (à ouvrir au début de chaque conversation)
 
 1. Lire `/AGENTS.md`, `docs/NEXUS_INTEGRATION_CHECKPOINT.md`, `docs/roadmap/CURRENT_DELIVERY_CHECKPOINT.md` et les spécifications maîtres applicables.
