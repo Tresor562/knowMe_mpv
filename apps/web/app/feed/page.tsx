@@ -18,12 +18,6 @@ import type {StaffBadge, VerificationBadge} from '../../lib/use-session';
 type PostUploadSession = { id: string; uploadToken: string };
 type PostUploadedAsset = { id: string; status: string; scannerVerdict?: string };
 
-function resolvePostImage(url: string): string {
-  return url.startsWith('/media/public/post/')
-    ? `/api/knowme${url}`
-    : url;
-}
-
 type Post = {
   id: string;
   content: string;
