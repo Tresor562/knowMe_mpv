@@ -9,7 +9,7 @@ describe('KnowMe post comment emoji reactions', () => {
         upsert:jest.fn().mockResolvedValue({}),
         deleteMany:jest.fn().mockResolvedValue({count:1}),
         groupBy:jest.fn().mockResolvedValue([{emoji:'❤️',_count:{_all:2}}]),
-        findUnique:jest.fn().mockResolvedValue({emoji:'❤️'})
+        findUnique:jest.fn().mockResolvedValueOnce(null).mockResolvedValue({emoji:'❤️'})
       }
     };
     const notifications={create:jest.fn().mockResolvedValue({})};
@@ -36,6 +36,15 @@ describe('KnowMe post comment emoji reactions', () => {
     expect(result).toEqual({commentId:'comment-a',total:2,
       emojis:[{emoji:'❤️',count:2}],mine:'❤️'});
   });
+  it('repeatedly choosing the same emoji is idempotent and never notifies again',async()=>{
+    const {service,prisma,notifications}=setup();
+    prisma.postCommentReaction.findUnique.mockReset().mockResolvedValue({emoji:'❤️'});
+    const result=await service.setCommentReaction('alice','post-a','comment-a','❤️');
+    expect(result.mine).toBe('❤️');
+    expect(prisma.postCommentReaction.upsert).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
   it('lets a user remove only their own reaction',async()=>{
     const {service,prisma}=setup();
     await service.removeCommentReaction('alice','post-a','comment-a');
