@@ -6,7 +6,7 @@ export function normalizeKnowStickerLabel(input:string,maxLength=80):string {
   return label;
 }
 export function knowStickerDisplayName(filename:string):string {
-  return filename.replace(/\.(webp|png|jpe?g)$/iu,'');
+  return filename.trim().replace(/\.(webp|png|jpe?g)$/iu,'');
 }
 export function knowStickerUploadName(name:string):string {
   const label=normalizeKnowStickerLabel(knowStickerDisplayName(name));
