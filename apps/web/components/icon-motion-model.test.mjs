@@ -9,6 +9,8 @@ test('audio glyph always reflects playback state, including after pause', () => 
   assert.equal(presentationGlyphName('pause', 'paused'), 'play');
   assert.equal(presentationGlyphName('pause', 'playing'), 'pause');
   assert.equal(presentationGlyphName('download', 'success'), 'check');
+  assert.equal(presentationGlyphName('copy', 'success'), 'check');
+  assert.equal(presentationGlyphName('copy', 'idle'), 'copy');
   assert.equal(presentationGlyphName('download', 'progress'), 'download');
   assert.equal(presentationGlyphName('create', 'open'), 'close');
   assert.equal(presentationGlyphName('create', 'closed'), 'create');
