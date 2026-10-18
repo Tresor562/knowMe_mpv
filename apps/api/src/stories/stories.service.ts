@@ -314,6 +314,12 @@ export class StoriesService {
     const story = await this.requireVisibleStory(storyId, userId);
     if (story.authorUserId === userId) return { recorded: false, ownerView: true };
     const now = new Date();
+    // Opening/replaying a Story records a view; playback completion and
+    // screenshot notifications only update the existing viewer record.
+    // Older clients may still submit 100% on first display: the create path
+    // retains one view for them, but follow-up events must not inflate counts.
+    const isOpening = (dto.completionBps ?? 0) === 0 && !dto.screenshot;
+    const completion = clampCompletionBps(dto.completionBps);
     const view = await this.prisma.storyView.upsert({
       where: { storyId_viewerUserId: { storyId, viewerUserId: userId } },
       create: {
@@ -321,13 +327,13 @@ export class StoriesService {
         viewerUserId: userId,
         viewedAt: now,
         lastViewedAt: now,
-        completionBps: clampCompletionBps(dto.completionBps),
+        completionBps: completion,
         screenshotAt: dto.screenshot ? now : null
       },
       update: {
-        lastViewedAt: now,
-        viewCount: { increment: 1 },
-        completionBps: clampCompletionBps(dto.completionBps),
+        ...(isOpening ? { lastViewedAt: now, viewCount: { increment: 1 } } : {}),
+        ...(!dto.screenshot && dto.completionBps !== undefined
+          ? { completionBps: completion } : {}),
         ...(dto.screenshot ? { screenshotAt: now } : {})
       }
     });
