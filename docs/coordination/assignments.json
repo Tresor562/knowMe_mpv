@@ -132,12 +132,16 @@
       "issue": 699,
       "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/global-navigation-a11y",
-      "task": "Navigation et système visuel global Web/Android : premier lot isolé, accessibilité et cohérence UI",
+      "branch": "chat/design/system-accessibility-fallbacks",
+      "task": "PR #724 : accessibilité des thèmes et navigation Web/Android (réduction du mouvement et de la transparence), CI/compilation/anti-conflit en validation",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:08:12.118Z",
-      "lastPr": null,
-      "resumeFrom": null
+      "updatedAt": "2026-10-18T14:17:39.933Z",
+      "lastPr": 724,
+      "resumeFrom": {
+        "pr": 724,
+        "branch": "chat/design/system-accessibility-fallbacks",
+        "commit": "9717320cf45ab1be0653aa5adc2a959fb7a55b35"
+      }
     }
   },
   "history": [
