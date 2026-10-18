@@ -116,6 +116,8 @@ describe('group management permission boundaries',()=>{
 
   it('allows adding accepted friends only when member was granted that permission',async()=>{
     const {tx,service}=setup(ConversationRole.MEMBER);
+    // The invited user must be friends with the acting member, not with the owner.
+    tx.friendship.findMany.mockResolvedValue([{requesterId:'member',addresseeId:'friend'}]);
     tx.conversation.findUnique.mockResolvedValue({id:'group1',isGroup:true,members:[{
       role:ConversationRole.MEMBER}],membersCanAddMembers:true});
     await expect(service.addMembers('member','group1',['friend']))
