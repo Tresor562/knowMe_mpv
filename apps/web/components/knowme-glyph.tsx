@@ -1,5 +1,3 @@
-import type { SVGProps } from 'react';
-
 /**
  * KnowMe vector family: original 24px glyphs with consistent 1.9px strokes.
  * Inspired by compact Telegram-like touch ergonomics, not copied assets.
@@ -14,13 +12,17 @@ export type KnowMeGlyphName =
   | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off'
   | 'story' | 'cover' | 'sparkles' | 'upload';
 
-type Props = Omit<SVGProps<SVGSVGElement>, 'name'> & {
+type Props = {
   name: KnowMeGlyphName;
   size?: number;
   active?: boolean;
+  className?: string;
 };
 
-export function KnowMeGlyph({ name, size = 22, active = false, ...props }: Props) {
+/* Deliberately do not extend SVGProps: this monorepo ships two incompatible
+   React declaration copies (Next 19 vs the native packages). Typed, explicit
+   glyph arguments avoid sending a foreign React ref into a Web svg element. */
+export function KnowMeGlyph({ name, size = 22, active = false, className }: Props) {
   const shared = {
     width: size,
     height: size,
@@ -80,5 +82,5 @@ export function KnowMeGlyph({ name, size = 22, active = false, ...props }: Props
     eye: <><path d="M2 12s3.8-6.3 10-6.3S22 12 22 12s-3.8 6.3-10 6.3S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></>,
     'eye-off': <><path d="m3.3 3.3 17.4 17.4M5.3 7.7C3.3 9.4 2 12 2 12s3.8 6.3 10 6.3c1.5 0 2.8-.35 4-.9M9.6 5.9c.75-.15 1.55-.2 2.4-.2 6.2 0 10 6.3 10 6.3s-.85 1.5-2.25 3"/></>
   };
-  return <svg {...shared} {...props}>{shapes[name]}</svg>;
+  return <svg {...shared} className={className}>{shapes[name]}</svg>;
 }
