@@ -107,3 +107,58 @@ test('private post report pagination appends the next page without duplicates', 
   await expect(page.getByRole('button',{name:'Afficher plus de signalements'})).toHaveCount(0);
   expect(cursors).toContain('r-1');
 });
+
+test('failed next page preserves already loaded reports and permits an explicit retry', async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('knowme_token', 'report-pagination-failure-token');
+    localStorage.setItem('knowme-locale', 'fr');
+  });
+  let failNextPage = true;
+  let nextPageCalls = 0;
+  await page.route('**/api/knowme/**', async route => {
+    const url = new URL(route.request().url());
+    let data: unknown = {};
+    if (url.pathname.endsWith('/users/me')) {
+      data = { id: 'viewer', username: 'viewer', displayName: 'Lecteur' };
+    } else if (url.pathname.endsWith('/reports/mine/posts')) {
+      if (url.searchParams.has('cursor')) {
+        nextPageCalls++;
+        if (failNextPage) {
+          await route.fulfill({
+            status: 503, contentType: 'application/json',
+            body: JSON.stringify({message: 'Service temporairement indisponible'})
+          });
+          return;
+        }
+        data = {reports: [{id:'r-2',targetType:'POST',targetId:'post-b',
+          reason:'Second signalement',status:'RESOLVED',createdAt:'2026-10-17T09:00:00Z'}],
+          nextCursor:null};
+      } else {
+        data = {reports:[{id:'r-1',targetType:'POST',targetId:'post-a',
+          reason:'Premier signalement',status:'OPEN',createdAt:'2026-10-18T09:00:00Z'}],
+          nextCursor:'r-1'};
+      }
+    } else if (url.pathname.endsWith('/i18n/preferences')) {
+      data = { locale:'fr', direction:'ltr' };
+    } else if (url.pathname.endsWith('/appearance')) {
+      data = { preference: {effectiveThemeKey:'system'}, themes:[] };
+    }
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
+  });
+
+  await page.goto('/feed/reports');
+  const next=page.getByRole('button',{name:'Afficher plus de signalements'});
+  await expect(next).toBeVisible();
+  await next.click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByText('Premier signalement')).toBeVisible();
+  await expect(page.locator('.km-post-report-history-list li')).toHaveCount(1);
+  const previousCalls=nextPageCalls;
+  failNextPage=false;
+  await next.click();
+  await expect(page.locator('.km-post-report-history-list li')).toHaveCount(2);
+  await expect(page.getByText('Premier signalement')).toBeVisible();
+  await expect(page.getByText('Second signalement')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(nextPageCalls).toBeGreaterThan(previousCalls);
+});
