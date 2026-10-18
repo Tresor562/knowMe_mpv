@@ -60,12 +60,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "branch": "chat/profiles/profile-edit-accessible",
+      "task": "Profils Web/Android : corriger l'édition des informations et actions de profil sans toucher aux domaines voisins",
+      "claimedAt": "2026-10-18T12:09:46.948Z",
+      "updatedAt": "2026-10-18T12:09:46.948Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -134,6 +134,14 @@
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
       "pr": 705
+    },
+    {
+      "at": "2026-10-18T12:09:46.948Z",
+      "action": "claim",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "branch": "chat/profiles/profile-edit-accessible"
     }
   ]
 }
