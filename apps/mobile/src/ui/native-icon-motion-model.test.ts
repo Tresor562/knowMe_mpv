@@ -38,6 +38,7 @@ test('real native touch target and persistent red fill are wired to state', () =
   const control = fs.readFileSync(path.join(dir, 'KnowMeNativeIconButton.tsx'), 'utf8');
   const motion = fs.readFileSync(path.join(dir, 'KnowMeNativeAnimatedIcon.tsx'), 'utf8');
   const ui = fs.readFileSync(path.join(dir, 'KnowMeUI.tsx'), 'utf8');
+  const lifecycle = fs.readFileSync(path.join(dir, 'knowme-app-foreground.ts'), 'utf8');
   assert.match(control, /width: 48, height: 48, minWidth: 48, minHeight: 48/);
   assert.match(control, /onLongPress=\{onLongPress\}/);
   assert.match(control, /accessibilityLabel=\{label\}/);
@@ -46,4 +47,8 @@ test('real native touch target and persistent red fill are wired to state', () =
   assert.match(motion, /if \(!enabled \|\| !nativeIconShouldLoop\(state\)\)/);
   assert.match(ui, /if \(name === 'heart' && filled\)/);
   assert.match(ui, /onLongPress=\{onLongPress\}/);
+  assert.match(lifecycle, /listeners.size === 1/);
+  assert.match(lifecycle, /AppState.addEventListener\('change'/);
+  assert.match(lifecycle, /eventSubscription\?\.remove\(\)/);
+  assert.match(motion, /const foreground = useKnowMeAppForeground\(\)/);
 });
