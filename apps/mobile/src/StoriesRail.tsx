@@ -150,6 +150,7 @@ export function StoriesRail({
   const [storyProgress,setStoryProgress]=useState(0);
   const activeStoryId=useRef<string|null>(null);
   const lastProgressMilestone=useRef(0);
+  const receiptQueue=useRef<Promise<void>>(Promise.resolve());
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
   const [storyType, setStoryType] = useState<'TEXT'|'PHOTO'|'VIDEO'>('TEXT');
@@ -265,14 +266,28 @@ export function StoriesRail({
     };
   },[selected?.id,selected?.assetId,selected?.type]);
 
+  function enqueueStoryReceipt(storyId:string,completionBps:number):Promise<void>{
+    // Opening must reach the API before a completion milestone. A queued
+    // request also avoids out-of-order updates when the network is slow.
+    const pending=receiptQueue.current.catch(()=>undefined).then(async()=>{
+      await apiFetch('/stories/'+encodeURIComponent(storyId)+'/view',{
+        method:'POST',body:JSON.stringify({completionBps})
+      });
+    });
+    receiptQueue.current=pending.catch(()=>undefined);
+    return receiptQueue.current;
+  }
+
+  useEffect(()=>{
+    if(!selected)activeStoryId.current=null;
+  },[selected]);
+
   function reportStoryProgress(story:Story,completionBps:number){
     if(story.viewer.own||activeStoryId.current!==story.id)return;
     const checkpoint=storyProgressCheckpoint(completionBps,lastProgressMilestone.current);
     if(checkpoint===null)return;
     lastProgressMilestone.current=checkpoint;
-    void apiFetch('/stories/'+encodeURIComponent(story.id)+'/view',{
-      method:'POST',body:JSON.stringify({completionBps:checkpoint})
-    }).catch(()=>undefined);
+    void enqueueStoryReceipt(story.id,checkpoint);
   }
 
   // Text and photo stories use an actual five-second display timeline. The
@@ -301,15 +316,9 @@ export function StoriesRail({
     setMediaError('');
     setSelected(story);
     if(story.viewer.own)return;
-    try {
-      // Opening is exactly one view, not a declaration of 100% completion.
-      await apiFetch('/stories/' + encodeURIComponent(story.id) + '/view', {
-        method: 'POST',
-        body: JSON.stringify({ completionBps: 0 })
-      });
-    } catch {
-      // Viewing remains available even if the receipt cannot be recorded.
-    }
+    // Opening is exactly one view, not a declaration of 100% completion.
+    // Follow-up progress milestones are serialized after this opening.
+    await enqueueStoryReceipt(story.id,0);
   }
 
   async function react(reaction: string) {
