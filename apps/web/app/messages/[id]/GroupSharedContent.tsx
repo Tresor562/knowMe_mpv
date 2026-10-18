@@ -20,8 +20,8 @@ const TITLES: Record<SharedContentKind, {fr: string; en: string}> = {
 };
 
 export function GroupSharedContent({
-  conversationId, kind, en
-}: {conversationId: string; kind: SharedContentKind; en: boolean}) {
+  conversationId, kind, en, isGroup = true
+}: {conversationId: string; kind: SharedContentKind; en: boolean; isGroup?: boolean}) {
   const [messages,setMessages] = useState<SharedMessage[]>([]);
   const [cursor,setCursor] = useState<string|null>(null);
   const [loading,setLoading] = useState(true);
@@ -95,7 +95,7 @@ export function GroupSharedContent({
       <span>{en?'Search loaded messages':'Rechercher dans les messages chargés'}</span>
       <input type="search" value={search} onChange={event=>setSearch(event.target.value)}
         placeholder={en?'Text, member or file…':'Texte, membre ou fichier…'}
-        aria-label={en?'Search group messages':'Rechercher les messages du groupe'}/>
+        aria-label={en?(isGroup?'Search group messages':'Search private messages'):(isGroup?'Rechercher les messages du groupe':'Rechercher les messages privés')}/>
     </label>}
     <div className="km-group-shared-heading">
       <strong>{en?labels.en:labels.fr}</strong>
