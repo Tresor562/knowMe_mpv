@@ -76,7 +76,8 @@ if (!meta.coordinated) {
   summary(`### KnowMe coordination — ${meta.domain}\n- Issue: #${meta.issueNumber}\n- Changed files: ${ownFiles.length}\n- Competing open PRs on \`${current.base.ref}\`: ${other.length}`);
   if (overlaps.length) {
     for (const item of overlaps) {
-      summary(`- **Collision avec PR #${item.number}** : ${item.paths.slice(0, 20).map((path) => \`${path.replaceAll('\\`', '')}\`).join(', ')}${item.paths.length > 20 ? '…' : ''}`);
+      const names = item.paths.slice(0, 20).map((path) => JSON.stringify(path)).join(', ');
+      summary(`- **Collision avec PR #${item.number}** : ${names}${item.paths.length > 20 ? '…' : ''}`);
     }
     throw new Error('Chevauchement de fichiers détecté : résoudre/ordonner les PR liées avant intégration.');
   }
