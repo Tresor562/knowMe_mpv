@@ -77,8 +77,8 @@ Symbols: **CORE** = code in main, not necessarily deployed; **PR** = unmerged br
 | Pinned messages, indexed multi-pin banner | NEW/PARTIAL | Permission-checked with deep links |
 | Group @mentions, `@all` respecting admin threshold | NEW | Anti-spam, mute override user choice, notifications |
 | Telegram-style topics/threads, topic search and moderation | NEW | Child history, permissions, unread, pin/close/reopen |
-| Search messages, full-text links, shared media/files | CORE/PARTIAL | Auth-only history, pagination, no false global search |
-| Shared Media / Files / Links in group information | PR THIS | Authenticated read-only paginated history + deep links |
+| Search messages, full-text links, shared media/files | CORE/PARTIAL / PR THIS | Auth-only progressive history search in group info (text/author/file, accent-insensitive), pagination; server-side full-text index is still NEW |
+| Shared Media / Files / Links in group information | PR THIS | Authenticated read-only paginated history, deep links and per-user download grants for documents; no multi-GB streaming claims |
 | Large file transfer with resume/offline/downloads | NEW/PARTIAL | Upload validation, resumable chunks, storage quotas |
 | Drafts, scheduling, reminders, disappearing messages | NEW/PARTIAL | Server-side scheduling, clock drift tests |
 | Group voice notes, voice-to-text, voice effects | NEW/PARTIAL | Permission, playback continuity, privacy and quality |
