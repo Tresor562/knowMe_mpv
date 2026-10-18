@@ -46,3 +46,9 @@ export function parseVideoTimestamp(value:string,durationMs:number):number|null{
   if(!Number.isSafeInteger(seconds))return null;
   return Math.min(Math.floor(durationMs),seconds*1000);
 }
+
+/** A finished player must rewind instead of toggling a stale pause state. */
+export function videoTapIntent(ended:boolean,paused:boolean):'replay'|'play'|'pause'{
+  if(ended)return 'replay';
+  return paused?'play':'pause';
+}
