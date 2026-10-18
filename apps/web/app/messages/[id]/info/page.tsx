@@ -249,7 +249,7 @@ export default function ConversationInfoPage() {
         </button>)}
       </div>
       {(activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
-        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en}/>} 
+        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en} isGroup={isGroup}/>} 
 
       {activeTab === 'members' && <section className="km-info-members" role="tabpanel">
         {isGroup && <div className="km-info-search">
