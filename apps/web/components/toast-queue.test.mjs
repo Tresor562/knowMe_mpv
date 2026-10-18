@@ -17,5 +17,5 @@ test('duplicate bursts are ignored and recent alerts fit in the capped queue', (
   const full = [notice(1, 'one'), notice(2, 'two'), notice(3, 'three'), notice(4, 'four')];
   const next = enqueueNotice(full, notice(5, 'five'));
   assert.equal(next.length, 4);
-  assert.deepEqual(next.map(item => item.id), [1, 2, 5]);
+  assert.deepEqual(next.map(item => item.id), [1, 2, 3, 5]);
 });
