@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import {getChatAudioState,subscribeChatAudio,toggleChatAudio,seekChatAudio} from './chat-audio-session';
 import { Image, Linking, Modal, Pressable, SafeAreaView, Share, StyleSheet, Text, View } from 'react-native';
 import { KnowMeIcon } from './ui/KnowMeUI';
 import { useAppearance } from './AppearanceProvider';
@@ -9,151 +10,72 @@ import { API_URL, apiFetch, getAccessToken } from './api';
 
 type Kind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 
-/** Private, authenticated inline player. Never exposes a temporary media grant in the UI. */
-function InlineVoiceAttachment({assetId, mimeType, avatarUrl}: {assetId:string;mimeType?:string;avatarUrl?:string|null}) {
-  const {colors}=useAppearance();
-  const [loading,setLoading]=useState(false);
-  const [playing,setPlaying]=useState(false);
-  const [duration,setDuration]=useState(0);
-  const [position,setPosition]=useState(0);
-  const [error,setError]=useState<string|null>(null);
-  const fileRef=useRef<string|null>(null);
-  const widthRef=useRef(1);
-  const busyRef=useRef(false);
-
-  useEffect(()=>{
-    if(!playing)return;
-    let live=true;
-    const interval=setInterval(()=>{
-      void (async ()=>{
-        try {
-          const status=await getKnowMeVoicePlaybackStatus();
-          if(!live||!status)return;
-          if(status.uri!==fileRef.current) {setPlaying(false);return;}
-          setDuration(status.durationMs);
-          setPosition(status.positionMs);
-          if(!status.playing)setPlaying(false);
-        } catch {if(live)setPlaying(false);}
-      })();
-    },250);
-    return()=>{live=false;clearInterval(interval);};
-  },[playing]);
-
-  useEffect(()=>()=>{
-    const uri=fileRef.current;
-    if(!uri)return;
-    void (async ()=>{
-      try {
-        const status=await getKnowMeVoicePlaybackStatus();
-        if(status?.uri===uri)await stopKnowMeVoicePlayback();
-      } catch {/* Old installed builds do not expose status. */}
-      await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>undefined);
-    })();
-  },[]);
-
-  async function togglePlayback() {
-    if(busyRef.current)return;
-    busyRef.current=true;
-    setError(null);
-    try {
-      if(playing) {
-        await stopKnowMeVoicePlayback();
-        setPlaying(false);
-        return;
-      }
-      let uri=fileRef.current;
-      if(!uri) {
-        setLoading(true);
-        const grant=await apiFetch<{path:string}>(`/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'});
-        const expected=`/media/${encodeURIComponent(assetId)}/content?token=`;
-        if(!grant.path.startsWith(expected))throw new Error('MEDIA_GRANT_PATH_INVALID');
-        const accessToken=await getAccessToken();
-        if(!accessToken||!FileSystem.cacheDirectory)throw new Error('SESSION_REQUIRED');
-        const suffix=mimeType==='audio/mpeg'?'.mp3':mimeType==='audio/wav'?'.wav':'.ogg';
-        const directory=`${FileSystem.cacheDirectory}knowme-voice/`;
-        await FileSystem.makeDirectoryAsync(directory,{intermediates:true});
-        const safeId=assetId.replace(/[^a-zA-Z0-9_-]/g,'');
-        const target=`${directory}attachment-${safeId}${suffix}`;
-        const downloaded=await FileSystem.downloadAsync(`${API_URL}${grant.path}`,target,{
-          headers:{Authorization:`Bearer ${accessToken}`}
-        });
-        if(downloaded.status!==200) {
-          await FileSystem.deleteAsync(target,{idempotent:true}).catch(()=>undefined);
-          throw new Error('AUDIO_DOWNLOAD_FAILED');
-        }
-        uri=downloaded.uri;
-        fileRef.current=uri;
-      }
-      await playKnowMeVoice(uri);
-      setPlaying(true);
-      const status=await getKnowMeVoicePlaybackStatus();
-      if(status){setDuration(status.durationMs);setPosition(status.positionMs);}
-    } catch {
-      setPlaying(false);
-      setError('Lecture impossible. Réessayer');
-    } finally {
-      busyRef.current=false;
-      setLoading(false);
-    }
-  }
-
-  async function seekAt(x:number) {
-    if(!fileRef.current||duration<=0)return;
-    try {
-      const next=Math.round(Math.max(0,Math.min(1,x/widthRef.current))*duration);
-      await seekKnowMeVoicePlayback(next);
-      setPosition(next);
-    } catch {setError('Avance rapide disponible après la mise à jour.');}
-  }
-  const time=(ms:number)=>{
-    const seconds=Math.max(0,Math.floor(ms/1000));
-    return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
-  };
-  const progress=duration>0?Math.max(0,Math.min(1,position/duration)):0;
-  return <View style={voiceStyles.root} accessibilityLabel="Message vocal KnowMe">
-    {avatarUrl?<Image source={{uri:avatarUrl}} style={voiceStyles.avatar}/>:(
-      <View style={[voiceStyles.avatar,voiceStyles.avatarFallback,{backgroundColor:colors.backgroundAccent}]}>
-        <KnowMeIcon name="microphone" color={colors.accent} size={19}/>
-      </View>
-    )}
-    <Pressable accessibilityRole="button" accessibilityLabel={playing?'Arrêter le vocal':'Écouter le vocal'}
-      disabled={loading} onPress={()=>void togglePlayback()} style={[voiceStyles.control,{backgroundColor:colors.backgroundAccent}]}>
-      <Text style={[voiceStyles.playIcon,{color:colors.text}]}>{loading?'…':playing?'Ⅱ':'▶'}</Text>
-    </Pressable>
-    <View style={voiceStyles.timeline}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Avancer dans le message vocal"
-        onLayout={event=>{widthRef.current=event.nativeEvent.layout.width;}}
-        onPress={event=>{void seekAt(event.nativeEvent.locationX);}}
-        style={voiceStyles.wave}>
-        {Array.from({length:32},(_,i)=>{
-          const amplitude=6+((i*17+assetId.charCodeAt(i%assetId.length||0))%20);
-          return <View key={i} style={[voiceStyles.bar,{
-            height:amplitude,
-            backgroundColor:i/32<=progress?'#d9e3e7':'#8da6af',
-            opacity:i/32<=progress?1:0.62
-          }]}/>;
-        })}
-      </Pressable>
-      <Text style={[voiceStyles.duration,{color:'#c5d2d7'}]}>{time(position)}{duration>0?` / ${time(duration)}`:''}</Text>
-      {error?<Text style={[voiceStyles.error,{color:colors.danger}]}>{error}</Text>:null}
-    </View>
-  </View>;
+/** Inline control observes the persistent player; unmounting a message never stops audio. */
+function InlineVoiceAttachment({assetId,mimeType,avatarUrl,ownerId='',origin='',sender=''}:{
+ assetId:string;mimeType?:string;avatarUrl?:string|null;
+ ownerId?:string;origin?:string;sender?:string;
+}){
+ const {colors}=useAppearance();
+ const [audio,setAudio]=useState(getChatAudioState);
+ const widthRef=useRef(1);
+ useEffect(()=>subscribeChatAudio(setAudio),[]);
+ const own=audio.assetId===assetId&&(audio.ownerId===ownerId||!ownerId);
+ const phase=own?audio.phase:'idle';
+ const progress=own&&audio.durationMs>0?Math.max(0,Math.min(1,audio.positionMs/audio.durationMs)):0;
+ const downloaded=own&&Boolean(audio.uri)&&phase!=='downloading';
+ const active=phase==='playing';
+ const time=(ms:number)=>{const n=Math.floor(Math.max(0,ms)/1000);return
+   `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`;};
+ return <View style={voiceStyles.root} accessibilityLabel="Message vocal KnowMe">
+   {avatarUrl?<Image source={{uri:avatarUrl}} style={voiceStyles.avatar}/>:(
+    <View style={[voiceStyles.avatar,voiceStyles.avatarFallback,{backgroundColor:colors.backgroundAccent}]}>
+      <KnowMeIcon name="microphone" color={colors.accent} size={19}/>
+    </View>)}
+   <Pressable accessibilityRole="button"
+     accessibilityLabel={phase==='downloading'?'Téléchargement du vocal':
+       active?'Mettre le vocal en pause':phase==='paused'?'Reprendre le vocal':
+       downloaded?'Écouter le vocal téléchargé':'Télécharger et lire le vocal'}
+     disabled={phase==='downloading'}
+     onPress={()=>void toggleChatAudio({assetId,ownerId,origin,sender,mimeType})}
+     style={[voiceStyles.control,{backgroundColor:colors.backgroundAccent}]}>
+     {phase==='downloading'?<Text style={{color:colors.accent,fontSize:11}}>
+        {audio.downloadFraction!==null?Math.round(audio.downloadFraction*100)+'%':'…'}</Text>:
+      <KnowMeIcon name={active?'pause':downloaded?'play':'download'} size={20} color={colors.accent}/>}
+   </Pressable>
+   <View style={voiceStyles.timeline}>
+     <Pressable accessibilityRole="button" accessibilityLabel="Avancer dans le message vocal"
+       disabled={!downloaded}
+       onLayout={event=>{widthRef.current=event.nativeEvent.layout.width;}}
+       onPress={event=>{if(own)void seekChatAudio(event.nativeEvent.locationX/Math.max(1,widthRef.current)*audio.durationMs);}}
+       style={voiceStyles.wave}>
+       {Array.from({length:30},(_,i)=>{
+         const amplitude=6+((i*17+assetId.charCodeAt(i%Math.max(1,assetId.length)))%19);
+         return <View key={i} style={[voiceStyles.bar,{height:amplitude,
+           backgroundColor:i/30<=progress?colors.accent:colors.muted,
+           opacity:i/30<=progress?1:0.48}]}/>;
+       })}
+     </Pressable>
+     <Text style={[voiceStyles.duration,{color:colors.muted}]}>
+       {phase==='downloading'?'Téléchargement…':
+        downloaded?`${time(audio.positionMs)} / ${time(audio.durationMs)}`:'Appuyer pour télécharger'}
+     </Text>
+     {own&&audio.error?<Text style={[voiceStyles.error,{color:colors.danger}]}>{audio.error}</Text>:null}
+   </View>
+ </View>;
 }
-
 const voiceStyles=StyleSheet.create({
-  root:{width:260,maxWidth:'100%',flexDirection:'row',alignItems:'center',gap:7,minHeight:65,paddingVertical:2},
-  avatar:{width:35,height:35,borderRadius:18},
-  avatarFallback:{alignItems:'center',justifyContent:'center'},
-  control:{width:37,height:37,borderRadius:19,alignItems:'center',justifyContent:'center'},
-  playIcon:{fontSize:18,fontWeight:'700'},
-  timeline:{flex:1,minWidth:0,justifyContent:'center',gap:4},
-  wave:{height:28,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:1},
-  bar:{width:2.5,borderRadius:4},
-  duration:{fontSize:11,fontWeight:'600'},
-  error:{fontSize:10}
+ root:{width:255,maxWidth:'100%',flexDirection:'row',alignItems:'center',gap:7,minHeight:60,paddingVertical:3},
+ avatar:{width:33,height:33,borderRadius:17},
+ avatarFallback:{alignItems:'center',justifyContent:'center'},
+ control:{minWidth:40,width:40,height:40,borderRadius:20,alignItems:'center',justifyContent:'center'},
+ timeline:{flex:1,minWidth:0,justifyContent:'center',gap:4},
+ wave:{height:28,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:1},
+ bar:{width:2.5,borderRadius:4},
+ duration:{fontSize:10,fontWeight:'600'},
+ error:{fontSize:10}
 });
 
-export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false, avatarUrl, thumbnailSize }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean; avatarUrl?: string|null; thumbnailSize?:number }) {
+export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpen = false, avatarUrl, thumbnailSize, ownerId, origin, sender }: { assetId: string; kind: Kind; fileName?: string; mimeType?: string; autoOpen?: boolean; avatarUrl?: string|null; thumbnailSize?:number; ownerId?:string; origin?:string; sender?:string }) {
   const [opening,setOpening]=useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
   const [stickerExpanded,setStickerExpanded]=useState(false);
@@ -226,7 +148,8 @@ export function ChatMediaAttachment({ assetId, kind, fileName, mimeType, autoOpe
     }finally{setOpening(false);}
   }
 
-  if(kind==='AUDIO')return <InlineVoiceAttachment assetId={assetId} mimeType={mimeType} avatarUrl={avatarUrl}/>;
+  if(kind==='AUDIO')return <InlineVoiceAttachment assetId={assetId} mimeType={mimeType}
+    avatarUrl={avatarUrl} ownerId={ownerId} origin={origin} sender={sender}/>;
 
   if (kind==='VIDEO'||kind==='DOCUMENT')return <View style={styles.fileCard}>
     <Text style={styles.fileIcon}>{kind==='VIDEO'?'🎬':'📄'}</Text>
@@ -321,7 +244,7 @@ const styles=StyleSheet.create({
   stickerOptionRoot:{flex:1,backgroundColor:'#05080f',paddingHorizontal:18},
   stickerOptionTop:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',minHeight:66},
   stickerOptionTitle:{fontSize:19,fontWeight:'800',color:'#fff'},
-  stickerOptionImage:{height:280,width:'100%',marginTop:14},
+  stickerOptionImage:{height:220,width:'100%',marginTop:10},
   stickerOptions:{gap:9,paddingTop:15},
   stickerOptionAction:{minHeight:50,borderRadius:17,justifyContent:'center',
     backgroundColor:'rgba(255,255,255,.1)',paddingHorizontal:17},
@@ -337,7 +260,7 @@ const styles=StyleSheet.create({
   viewerImage:{flex:1,width:'100%',alignSelf:'center'},
   viewerCaption:{color:'#aab2c7',fontSize:12,textAlign:'center',paddingVertical:12},
   image:{width:245,height:245,maxWidth:'100%',borderRadius:5},
-  sticker:{width:190,height:190,maxWidth:'100%'},
+  sticker:{width:126,height:126,maxWidth:'100%'},
   caption:{fontSize:12,opacity:.75},
   placeholder:{minHeight:100,minWidth:150,justifyContent:'center',gap:7},
   retry:{minHeight:44,alignSelf:'flex-start',paddingHorizontal:12,justifyContent:'center',borderRadius:12},
