@@ -56,6 +56,7 @@ test('switching report filters ignores an older delayed response', async ({page}
     localStorage.setItem('knowme-locale', 'fr');
   });
   let releaseOld: (() => void) | undefined;
+  let openedRequests = 0;
   const delayed = new Promise<void>(resolve => { releaseOld = resolve; });
   await page.route('**/api/knowme/**', async route => {
     const url = new URL(route.request().url());
@@ -64,7 +65,10 @@ test('switching report filters ignores an older delayed response', async ({page}
       body = {id:'viewer',username:'viewer',displayName:'Lecteur'};
     } else if (url.pathname.endsWith('/reports/mine/posts')) {
       const status=url.searchParams.get('status');
-      if(status==='OPEN') await delayed;
+      if(status==='OPEN') {
+        openedRequests += 1;
+        await delayed;
+      }
       body = {reports: status==='OPEN'
         ? [{id:'open-id',targetType:'POST',targetId:'post-open',
             reason:'Signalement encore ouvert',status:'OPEN',createdAt:'2026-10-18T12:00:00Z'}]
@@ -85,9 +89,14 @@ test('switching report filters ignores an older delayed response', async ({page}
     const filters=page.getByRole('group',{name:'Filtrer par statut'});
     await filters.getByRole('button',{name:'En cours'}).click();
     await expect(filters.getByRole('button',{name:'En cours'})).toHaveAttribute('aria-pressed','true');
+    await expect.poll(() => openedRequests).toBe(1);
     await filters.getByRole('button',{name:'Examinés'}).click();
     await expect(page.getByText('Signalement examiné')).toBeVisible();
+    const staleResponse = page.waitForResponse(response =>
+      response.url().includes('/reports/mine/posts?status=OPEN')
+    );
     releaseOld?.();
+    await staleResponse;
     await expect(page.getByText('Signalement encore ouvert')).toHaveCount(0);
     await expect(filters.getByRole('button',{name:'Examinés'})).toHaveAttribute('aria-pressed','true');
   } finally {
