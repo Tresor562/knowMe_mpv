@@ -208,11 +208,16 @@ export function KnowMeIcon({
         alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: 5.4 * s, height: 5.4 * s, borderWidth: sw, borderColor: color, borderRadius: 3 * s }}/>
       </View>
-      {Array.from({ length: 8 }, (_, index) => (
-        <View key={index} style={{ position: 'absolute', width: 4 * s, height: 3 * s, borderRadius: 1 * s,
-          backgroundColor: color, left: 10 * s, top: 10.5 * s,
-          transform: [{ rotate: `${index * 45}deg` }, { translateY: -9.2 * s }] }}/>
-      ))}
+      {Array.from({ length: 8 }, (_, index) => {
+        const angle = index * Math.PI / 4;
+        return <View key={index} style={{
+          position: 'absolute', width: 4 * s, height: 3 * s, borderRadius: 1 * s,
+          backgroundColor: color,
+          left: (12 + 9 * Math.cos(angle) - 2) * s,
+          top: (12 + 9 * Math.sin(angle) - 1.5) * s,
+          transform: [{ rotate: `${index * 45 + 90}deg` }]
+        }}/>;
+      })}
     </View>;
   }
 
