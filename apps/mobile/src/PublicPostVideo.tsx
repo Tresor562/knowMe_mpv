@@ -10,7 +10,7 @@ import {publicPostVideoId} from './offline-public-video-model';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
-export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>void}){
+export function PublicPostVideo({url,onDoubleTap,autoPlay=false}:{url:string;onDoubleTap?:()=>void;autoPlay?:boolean}){
   const {colors}=useAppearance();
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
@@ -105,6 +105,12 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
       setLocal(offline??API_URL+url);
     }
   }
+  // Autoplay only when the caller explicitly marks a single active Reel.
+  // Feed previews and the offline-library thumbnail remain tap-to-play.
+  useEffect(()=>{
+    if(autoPlay)void open();
+  },[autoPlay,url]);
+
   function tapVideo(){
     if (!onDoubleTap) {
       setPaused(value=>!value);
