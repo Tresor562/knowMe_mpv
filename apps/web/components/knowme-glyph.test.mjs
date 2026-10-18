@@ -234,3 +234,27 @@ test('post editor and member picker use accessible compact vector affordances', 
   assert.match(membersCss, /min-height: 56px/);
   assert.match(membersCss, /:focus-visible/);
 });
+
+
+test('creator actions, media categories and private profile CTA use compact stateful vectors', () => {
+  const creator = fs.readFileSync(path.join(dir, 'creator-follow-control.tsx'), 'utf8');
+  const creatorCss = fs.readFileSync(path.join(dir, 'creator-follow-control.css'), 'utf8');
+  const media = fs.readFileSync(path.join(dir, 'media-download-settings.tsx'), 'utf8');
+  const mediaCss = fs.readFileSync(path.join(dir, 'media-download-vector.css'), 'utf8');
+  const secret = fs.readFileSync(path.join(dir, 'secret-profile-entry.tsx'), 'utf8');
+  const secretCss = fs.readFileSync(path.join(dir, 'secret-profile-entry.css'), 'utf8');
+  assert.match(creator, /<KnowMeAnimatedIcon name="refresh" state=\{busy \|\| loading \? 'loading' : 'idle'\}/);
+  assert.match(creator, /action === 'unfollow' \? 'check' : 'user-plus'/);
+  assert.match(creator, /aria-pressed=\{action === 'unfollow'\}/);
+  assert.match(creator, /aria-busy=\{busy\}/);
+  assert.match(creatorCss, /min-height: 44px/);
+  assert.match(media, /const MEDIA_GLYPHS: Record<MediaKind, KnowMeGlyphName>/);
+  assert.match(media, /const NETWORK_GLYPHS:/);
+  assert.match(media, /<KnowMeAnimatedIcon name=\{busy \? 'refresh' : 'trash'\}/);
+  assert.match(media, /<KnowMeGlyph name=\{MEDIA_GLYPHS\[kind\]\}/);
+  assert.match(mediaCss, /min-height: 44px/);
+  assert.match(secret, /<KnowMeGlyph name="shield" size=\{23\}/);
+  assert.match(secret, /<KnowMeGlyph name="send" size=\{18\}/);
+  assert.doesNotMatch(secret, /🕵️|className="card"/);
+  assert.match(secretCss, /min-height: 44px/);
+});
