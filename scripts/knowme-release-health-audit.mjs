@@ -7,6 +7,7 @@ export const ENDPOINTS = Object.freeze({
   api: 'https://31-56-85-53.sslip.io/knowme-api/platform-sync/version',
   ready: 'https://31-56-85-53.sslip.io/knowme-api/health/ready',
   web: 'https://knowme.31-56-85-53.sslip.io/api/version',
+  vercel: 'https://knowme-nextech.vercel.app/api/version',
   android: 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android',
 });
 const SHA = /^[a-f0-9]{40}$/i;
@@ -25,7 +26,7 @@ export function parseWebPolicy(raw) {
 export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
   const issues = [];
   const issue = (severity, code, detail) => issues.push({ severity, code, detail });
-  const { api, ready, web, android } = snapshot;
+  const { api, ready, web, vercel, android } = snapshot;
   const validApi = asObject(api) && api.platform === 'api' && SHA.test(api.commit || '') &&
     VERSION.test(api.version || '');
   const validWeb = asObject(web) && web.platform === 'web' && SHA.test(web.commit || '') &&
@@ -36,7 +37,15 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
   if (!asObject(ready) || ready.status !== 'ready' || ready.checks?.database !== 'up')
     issue('critical', 'api-not-ready', 'API readiness or database is unhealthy');
   if (!validWeb) issue(webEnabled === true ? 'critical' : 'warning', 'web-identity',
-    'Web identity endpoint is unavailable or invalid');
+    'Self-hosted Web identity endpoint is unavailable or invalid');
+  const validVercel = asObject(vercel) && vercel.platform === 'web' &&
+    SHA.test(vercel.commit || '') && VERSION.test(vercel.version || '');
+  if (!validVercel) issue('warning', 'vercel-identity',
+    'Vercel site release metadata is unavailable or invalid');
+  if (validApi && validVercel && (api.commit.toLowerCase() !== vercel.commit.toLowerCase() ||
+      api.version !== vercel.version || api.experienceRevision !== vercel.experienceRevision))
+    issue('warning', 'vercel-api-drift',
+      'Vercel and the self-hosted API expose different release contracts; verify independent rollout');
   if (validApi && validWeb && (api.commit.toLowerCase() !== web.commit.toLowerCase() ||
       api.version !== web.version || api.experienceRevision !== web.experienceRevision))
     issue(webEnabled === true ? 'critical' : 'warning',
@@ -68,6 +77,7 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
     observed: {
       api: validApi ? { commit: api.commit, version: api.version } : null,
       web: validWeb ? { commit: web.commit, version: web.version } : null,
+      vercel: validVercel ? { commit: vercel.commit, version: vercel.version } : null,
       ready: ready?.status ?? null,
       android: asObject(android?.release) ? { version: android.release.version, versionCode: android.release.versionCode } : null,
     },

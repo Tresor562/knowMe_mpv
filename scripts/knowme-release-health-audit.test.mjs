@@ -8,7 +8,7 @@ const web = { ...api, platform: 'web' };
 const ready = { status: 'ready', checks: { database: 'up' } };
 const android = { release: { version: '1.1.8', versionCode: 10800, sha256: 'b'.repeat(64),
   url: 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-1.1.8-preview.apk' } };
-const ok = () => ({ api, web, ready, android });
+const ok = () => ({ api, web, vercel: { ...web }, ready, android });
 const codes = report => report.issues.map(x => x.code);
 
 test('healthy API + Web + Android feed is not misreported as degraded', () => {
@@ -65,7 +65,8 @@ test('streamed endpoint cannot allocate unbounded JSON when Content-Length is mi
 });
 
 test('network timeout on readiness yields critical report but preserves other evidence', async () => {
-  const data = { [ENDPOINTS.api]: api, [ENDPOINTS.web]: web, [ENDPOINTS.android]: android };
+  const data = { [ENDPOINTS.api]: api, [ENDPOINTS.web]: web,
+    [ENDPOINTS.vercel]: web, [ENDPOINTS.android]: android };
   const report = await probeReleaseHealth({ fetchImpl: async url => {
     if (url === ENDPOINTS.ready) throw new Error('timeout');
     return { status: 200,
@@ -89,4 +90,17 @@ test('unknown Web rollout policy does not invent proof of a VPS freeze', () => {
   const drift = evaluateReleaseHealth({ ...ok(), web: { ...web, commit: 'd'.repeat(40) } });
   assert.ok(codes(drift).includes('web-policy-unknown-drift'));
   assert.ok(!codes(drift).includes('web-freeze'));
+});
+
+test('Vercel and VPS are audited separately without treating a divergent Vercel build as a healthy release', () => {
+  const good = evaluateReleaseHealth(ok(), { webEnabled: true });
+  assert.equal(good.status, 'healthy');
+  assert.deepEqual(good.observed.vercel, { commit: sha, version: '1.1.8' });
+  const divergent = evaluateReleaseHealth({
+    ...ok(), vercel: { ...web, commit: 'c'.repeat(40) },
+  }, { webEnabled: true });
+  assert.equal(divergent.status, 'degraded');
+  assert.ok(codes(divergent).includes('vercel-api-drift'));
+  const unavailable = evaluateReleaseHealth({ ...ok(), vercel: null }, { webEnabled: true });
+  assert.ok(codes(unavailable).includes('vercel-identity'));
 });
