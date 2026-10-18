@@ -11,6 +11,35 @@ export class StoryMediaService {
     private readonly stories: StoriesService
   ) {}
 
+  async readThumbnail(userId: string, storyId: string) {
+    // Story visibility (including private audience grants and expiry) MUST
+    // be checked before accessing any thumbnail bytes or existence metadata.
+    const story = await this.stories.get(userId, storyId);
+    if (!story.thumbnailAssetId) {
+      throw new NotFoundException({ code: 'STORY_THUMBNAIL_NOT_FOUND', message: 'Story thumbnail not found.' });
+    }
+    const asset = await this.prisma.mediaAsset.findFirst({
+      where: {
+        id: story.thumbnailAssetId,
+        ownerId: story.authorUserId,
+        purpose: 'STORY',
+        deletedAt: null,
+        status: 'AVAILABLE',
+        detectedMime: { in: ['image/jpeg', 'image/png', 'image/webp'] },
+        size: { lte: 5 * 1024 * 1024 }
+      },
+      select: { storageKey: true, detectedMime: true, originalName: true }
+    });
+    if (!asset) {
+      throw new NotFoundException({ code: 'STORY_THUMBNAIL_NOT_FOUND', message: 'Story thumbnail not found.' });
+    }
+    return {
+      buffer: await this.storage.get(asset.storageKey),
+      mimeType: asset.detectedMime,
+      fileName: asset.originalName
+    };
+  }
+
   async read(userId: string, storyId: string) {
     const story = await this.stories.get(userId, storyId);
     if (!story.assetId) {
