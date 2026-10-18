@@ -20,7 +20,7 @@ export function safeVideoResumes(raw:unknown):VideoResume[]{
     const record=row as Partial<VideoResume>;
     if(typeof record.id!=='string'||!VALID_ID.test(record.id)||ids.has(record.id))continue;
     const position=resumablePosition(record.positionMs??NaN,record.durationMs??NaN);
-    if(position===null||!Number.isFinite(record.updatedAt)||!Number.isSafeInteger(record.updatedAt))continue;
+    if(position===null||typeof record.updatedAt!=='number'||!Number.isSafeInteger(record.updatedAt))continue;
     ids.add(record.id);
     cleaned.push({id:record.id,positionMs:position,durationMs:record.durationMs!,updatedAt:record.updatedAt!});
   }
