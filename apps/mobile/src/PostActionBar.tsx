@@ -35,8 +35,10 @@ function BookmarkIcon({ color, filled }: { color: string; filled: boolean }) {
 
 const validEmoji = (value: string) => {
   const cleaned = value.trim();
+  const withoutKeycaps = cleaned.replace(/[0-9#*]\uFE0F?\u20E3/gu, '');
   return Boolean(cleaned && cleaned.length <= 32 &&
-    /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{20e3}]/u.test(cleaned));
+    /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{20e3}]/u.test(cleaned) &&
+    !/[\p{Letter}\p{Number}\p{Punctuation}]/u.test(withoutKeycaps));
 };
 
 export function PostActionBar({
