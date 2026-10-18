@@ -1,0 +1,16 @@
+.km-comment-emoji { position:relative; display:inline-flex; align-items:center; vertical-align:middle; gap:3px; }
+.km-comment-emoji-main,.km-comment-emoji-expand { min-height:34px;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:650;padding:4px 6px;cursor:pointer;touch-action:manipulation; }
+.km-comment-emoji-main span:first-child {font-size:18px;line-height:1}
+.km-comment-emoji-main:active {transform:scale(.94)}
+.km-comment-emoji-main:is(:hover,:focus-visible),.km-comment-emoji-expand:is(:hover,:focus-visible){background:var(--surface-2);color:var(--text)}
+.km-comment-emoji-expand{padding:5px}
+.km-comment-emoji-popover{position:absolute;z-index:65;bottom:100%;left:0;display:flex;flex-direction:column;gap:5px;min-width:max-content;max-width:min(330px,calc(100vw - 28px));padding:8px;border-radius:19px;background:var(--surface);color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.21);border:1px solid var(--soft-border)}
+.km-comment-emoji-picker,.km-comment-emoji-more{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}
+.km-comment-emoji-picker button,.km-comment-emoji-more>button{width:42px;height:42px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center;font-size:24px;cursor:pointer;}
+.km-comment-emoji-picker button:is(:hover,:focus-visible),.km-comment-emoji-more>button:is(:hover,:focus-visible),.km-comment-emoji-popover button[aria-pressed="true"]{background:var(--surface-2);}
+.km-comment-emoji-more{max-width:280px}
+.km-comment-emoji-custom{display:flex;gap:6px;width:100%;padding:5px}
+.km-comment-emoji-custom input{flex:1;min-width:0;border:1px solid var(--soft-border);background:var(--surface-2);color:var(--text);border-radius:10px;padding:8px}
+.km-comment-emoji-custom button{border:0;border-radius:10px;background:var(--mint);color:var(--on-primary);font-weight:700;min-width:42px}
+.km-comment-emoji-error{white-space:normal;font-size:11px;max-width:280px;color:var(--danger)}
+@media(prefers-reduced-motion:reduce){.km-comment-emoji-main:active{transform:none}}
