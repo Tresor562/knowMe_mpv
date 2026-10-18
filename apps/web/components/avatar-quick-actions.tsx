@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactElement } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactElement } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
 
@@ -28,6 +28,7 @@ export function AvatarQuickActions({
   username, displayName, avatarUrl, locale, onSelectPhoto, onSelectCover, busy
 }: AvatarQuickActionsProps) {
   const [open, setOpen] = useState(false);
+  const menuId = useId();
   const [preview, setPreview] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -116,11 +117,12 @@ export function AvatarQuickActions({
   return (
     <div className="km-avatar-actions" ref={wrap}>
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
-        aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
+        aria-expanded={open} aria-controls={open ? menuId : undefined}
+        aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <KnowMeAnimatedIcon name="create" size={19} state={open ? "open" : "closed"} />
       </button>
-      {open && (createPortal(<div ref={menuRef} onKeyDown={menuKeyboard}
+      {open && (createPortal(<div id={menuId} ref={menuRef} onKeyDown={menuKeyboard}
         onBlur={event => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
         }}
@@ -144,7 +146,8 @@ export function AvatarQuickActions({
         </Link>
       </div>, document.body) as unknown as ReactElement)}
       {preview && avatarUrl && (createPortal(<div className="km-avatar-lightbox" role="dialog" aria-modal="true"
-        aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
+        aria-label={en ? 'Profile picture' : 'Photo de profil'}
+        onClick={event => { if (event.target === event.currentTarget) setPreview(false); }}>
         <button ref={previewClose} type="button" className="km-avatar-lightbox-close"
           onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>
           <KnowMeAnimatedIcon name="close" size={20}/></button>
