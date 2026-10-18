@@ -229,3 +229,36 @@
 .km-group-shared-filters button:focus-visible{
   outline:2px solid var(--mint);outline-offset:-2px}
 @media(max-width:390px){.km-group-shared-filters button{padding:7px 9px}}
+
+/* Native-sized author/date controls; detailed history stays compact. */
+.km-shared-refine-controls{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;
+  margin:6px 0 4px;align-items:end
+}
+.km-shared-refine-controls label{display:grid;gap:4px;min-width:0;
+  color:var(--muted);font-size:11px;font-weight:650}
+.km-shared-refine-controls label span{padding-inline:4px}
+.km-shared-refine-controls :is(input,select){
+  display:block;box-sizing:border-box;width:100%;min-width:0;min-height:44px;
+  border:1px solid var(--soft-border);border-radius:13px;padding:8px 10px;
+  color:var(--text);background:var(--surface);font:inherit;font-size:12px;
+  color-scheme:normal
+}
+.km-shared-refine-controls :is(input,select):focus-visible{
+  outline:2px solid var(--mint);outline-offset:1px
+}
+.km-shared-refine-controls .km-shared-reset{
+  min-height:44px;justify-self:start;align-self:end;padding:8px 13px;
+  border:0;border-radius:13px;background:var(--bg-accent);color:var(--mint);
+  font-size:12px;font-weight:700;cursor:pointer
+}
+.km-group-shared-scope{
+  color:var(--muted);font-size:11px;line-height:1.4;margin:5px 3px 7px
+}
+@media(min-width:690px){
+  .km-shared-refine-controls{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:360px){
+  .km-shared-refine-controls{gap:4px}
+  .km-shared-refine-controls :is(input,select){padding-inline:6px;font-size:11px}
+}
