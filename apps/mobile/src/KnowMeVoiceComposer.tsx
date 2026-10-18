@@ -2,8 +2,8 @@ import {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 import type {RecordedKnowMeVoice} from './native-voice';
 import {cancelKnowMeVoice,discardKnowMeVoice,getKnowMeVoicePlaybackStatus,playKnowMeVoice,
-  startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
-import {voiceClock,voiceUiState,type VoicePhase} from './voice-composer-model';
+  seekKnowMeVoicePlayback,startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
+import {voiceClock,voiceProgress,voiceSeekMs,voiceUiState,type VoicePhase} from './voice-composer-model';
 import {useI18n} from './I18nProvider';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {useAppearance} from './AppearanceProvider';
@@ -27,7 +27,7 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     preview:'Ready to send. Listen first or discard it; nothing sends automatically.',
     sending:'Sending securely…',starting:'Preparing microphone…',finish:'Finish recording',
     listen:'Listen',stop:'Stop playback',send:'Send voice message',discard:'Discard recording',
-    max:'Maximum recording length: 56 seconds.'
+    max:'Maximum recording length: 56 seconds.',seek:'Seek in the voice message',progress:'Playback position'
   }: {
     record:'Enregistrer un message vocal',heading:'Message vocal',cancel:'Supprimer ce vocal',
     unavailable:'Note vocale indisponible',missingMic:'Le microphone est temporairement indisponible.',
@@ -35,7 +35,7 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     preview:'Prêt à envoyer. Écoute ou supprime : aucun envoi automatique.',
     sending:'Envoi sécurisé…',starting:'Préparation du microphone…',finish:'Terminer l’enregistrement',
     listen:'Écouter',stop:'Arrêter la lecture',send:'Envoyer le vocal',discard:'Supprimer l’enregistrement',
-    max:'Durée maximale de l’enregistrement : 56 secondes.'
+    max:'Durée maximale de l’enregistrement : 56 secondes.',seek:'Avancer ou reculer dans le vocal',progress:'Position de lecture'
   };
   const [phase,setPhase]=useState<Phase>('idle');
   const [seconds,setSeconds]=useState(0);
@@ -43,6 +43,9 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   const [open,setOpen]=useState(false);
   const [previewPlaying,setPreviewPlaying]=useState(false);
   const [playbackBusy,setPlaybackBusy]=useState(false);
+  const [positionMs,setPositionMs]=useState(0);
+  const [canSeek,setCanSeek]=useState(false);
+  const seekWidth=useRef(0);
   const phaseRef=useRef<Phase>('idle');
   const capturedRef=useRef<RecordedKnowMeVoice|null>(null);
   const startedAt=useRef(0);
@@ -63,7 +66,14 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     // Older native APKs do not have playbackStatus; users can still stop manually.
     const interval=setInterval(()=>{
       void getKnowMeVoicePlaybackStatus().then(status=>{
-        if(status&&phaseRef.current==='preview'&&!status.playing)setPreviewPlaying(false);
+        if(!status||phaseRef.current!=='preview')return;
+        if(status.uri!==capturedRef.current?.uri){
+          setPreviewPlaying(false);
+          return;
+        }
+        setCanSeek(true);
+        setPositionMs(Math.max(0,status.positionMs));
+        if(!status.playing)setPreviewPlaying(false);
       }).catch(()=>setPreviewPlaying(false));
     },700);
     return ()=>clearInterval(interval);
@@ -104,18 +114,26 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     next('stopping');
     try {
       const file=await stopKnowMeVoice();
-      capturedRef.current=file;setRecorded(file);next('preview');
-    }catch(error){next('idle');setOpen(false);showError(error);}
+      capturedRef.current=file;setRecorded(file);setPositionMs(0);setCanSeek(false);next('preview');
+      // Check native capabilities without assuming that older APKs expose seeking.
+      void getKnowMeVoicePlaybackStatus().then(status=>{
+        if(status&&capturedRef.current?.uri===file.uri)setCanSeek(true);
+      }).catch(()=>undefined);
+    }catch(error){
+      await cancelKnowMeVoice().catch(()=>undefined);
+      next('idle');setOpen(false);showError(error);
+    }
   }
   async function cancel(){
     if(!voiceUiState(phaseRef.current,busy).canCancel)return;
     const wasRecording=phaseRef.current==='recording'||phaseRef.current==='starting';
     next('idle');setOpen(false);setSeconds(0);setRecorded(null);setPreviewPlaying(false);
-    try {
-      if(wasRecording)await cancelKnowMeVoice();
-      await stopKnowMeVoicePlayback();
-      if(capturedRef.current)await discardKnowMeVoice(capturedRef.current.uri);
-    }catch{ /* cleanup best effort; never leave an open microphone */ }
+    setPositionMs(0);setCanSeek(false);
+    const file=capturedRef.current;
+    // Cleanup steps must be independent: a playback failure may not skip discarding a file.
+    if(wasRecording)await cancelKnowMeVoice().catch(()=>undefined);
+    await stopKnowMeVoicePlayback().catch(()=>undefined);
+    if(file)await discardKnowMeVoice(file.uri).catch(()=>undefined);
     capturedRef.current=null;
   }
   async function send(){
@@ -127,15 +145,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
       const sent=await onSend(file);
       if(sent){
         await discardKnowMeVoice(file.uri).catch(()=>undefined);
-        capturedRef.current=null;setRecorded(null);setOpen(false);next('idle');
+        capturedRef.current=null;setRecorded(null);setPositionMs(0);setCanSeek(false);setOpen(false);next('idle');
       }else next('preview');
     }catch(error){next('preview');showError(error);}
   }
   useEffect(()=>{
     // A backgrounded app must not keep an unattended open microphone.
     const listener=AppState.addEventListener('change',status=>{
-      if(status!=='active'&&(phaseRef.current==='recording'||phaseRef.current==='starting')) {
-        void cancel();
+      if(status!=='active'){
+        if(phaseRef.current==='recording'||phaseRef.current==='starting')void cancel();
+        if(phaseRef.current==='preview'){
+          void stopKnowMeVoicePlayback().catch(()=>undefined);
+          setPreviewPlaying(false);
+        }
       }
     });
     return ()=>listener.remove();
@@ -146,9 +168,17 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     setPlaybackBusy(true);
     try {
       if(previewPlaying){await stopKnowMeVoicePlayback();setPreviewPlaying(false);}
-      else {await playKnowMeVoice(file.uri);setPreviewPlaying(true);}
+      else {setPositionMs(0);await playKnowMeVoice(file.uri);setPreviewPlaying(true);}
     }catch(error){setPreviewPlaying(false);showError(error);}
     finally{setPlaybackBusy(false);}
+  }
+  async function seekPreview(tapX:number){
+    if(!canSeek||phaseRef.current!=='preview'||!recorded)return;
+    const nextPosition=voiceSeekMs(tapX,seekWidth.current,recorded.durationMs);
+    try{
+      await seekKnowMeVoicePlayback(nextPosition);
+      setPositionMs(nextPosition);
+    }catch(error){showError(error);}
   }
   const time=voiceClock(phase==='preview'&&recorded?recorded.durationMs:seconds*1000);
   return <>
@@ -186,6 +216,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
             <Text style={{color:colors.muted,fontSize:12}}>
               {Math.ceil(recorded.durationMs/1000)} s · {Math.ceil((recorded.size??0)/1024)} Ko
             </Text>
+            {canSeek&&<View style={styles.seekRow}>
+              <Pressable accessibilityRole="adjustable" accessibilityLabel={copy.seek}
+                accessibilityValue={{min:0,max:100,now:Math.round(voiceProgress(positionMs,recorded.durationMs)*100)}}
+                onLayout={event=>{seekWidth.current=event.nativeEvent.layout.width;}}
+                onPress={event=>void seekPreview(event.nativeEvent.locationX)}
+                style={styles.seekTouch}>
+                <View style={[styles.seekTrack,{backgroundColor:colors.backgroundAccent}]}>
+                  <View style={[styles.seekFill,{width:`${voiceProgress(positionMs,recorded.durationMs)*100}%`,
+                    backgroundColor:colors.accent}]}/>
+                </View>
+              </Pressable>
+              <Text style={[styles.seekTime,{color:colors.muted}]}>{voiceClock(positionMs)} / {voiceClock(recorded.durationMs)}</Text>
+            </View>}
             <View style={styles.previewActions}>
               <PressScale accessibilityRole="button" accessibilityLabel={previewPlaying?copy.stop:copy.listen}
                 disabled={playbackBusy} onPress={()=>void togglePreview()}
@@ -231,6 +274,11 @@ const styles=StyleSheet.create({
   time:{fontSize:31,fontWeight:'800',textAlign:'center',fontVariant:['tabular-nums']},
   hint:{fontSize:13,lineHeight:20,textAlign:'center'},
   maxHint:{fontSize:11,textAlign:'center'},
+  seekRow:{gap:1},
+  seekTouch:{height:44,justifyContent:'center'},
+  seekTrack:{height:6,borderRadius:6,overflow:'hidden'},
+  seekFill:{height:6,borderRadius:6},
+  seekTime:{fontSize:11,textAlign:'right',fontVariant:['tabular-nums']},
   actions:{flexDirection:'row',gap:10},
   previewActions:{gap:13,marginTop:10},
   sendVoice:{height:58,width:'100%',borderRadius:18,flexDirection:'row',
