@@ -51,10 +51,9 @@ test('reacts with a heart, switches emoji and removes an existing reaction',asyn
   await expect(selector).toBeVisible();
   await selector.getByRole('button',{name:'Réagir avec 😂'}).click();
   await expect(main).toContainText('😂');
-  await main.click(); // quick heart replaces 😂
-  await expect(main).toContainText('❤️');
-  await main.click(); // same emoji toggles off
+  await main.click(); // the selected emoji is removed directly
   await expect(main).toHaveAttribute('aria-pressed','false');
+  await expect(main).toContainText('Réagir');
   // Holding/right-clicking the comment body reveals the full permission-aware
   // context sheet without a row of destructive buttons.
   await page.locator('.km-post-comment').first().click({button:'right'});
@@ -65,5 +64,5 @@ test('reacts with a heart, switches emoji and removes an existing reaction',asyn
   await expect(actions.getByRole('button',{name:'Modifier le commentaire'})).toHaveCount(0);
   await actions.getByRole('button',{name:'Fermer les actions'}).click();
 
-  expect(all).toEqual(['❤️','😂','❤️','removed']);
+  expect(all).toEqual(['❤️','😂','removed']);
 });

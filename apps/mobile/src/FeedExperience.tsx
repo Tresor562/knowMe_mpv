@@ -114,31 +114,33 @@ function ActionButton({ title, onPress, disabled = false, danger = false }: {
 }
 
 function MetricButton({
-  icon,
-  count,
-  label,
-  onPress
+  icon, count, label, onPress, selected = false, disabled = false
 }: {
   icon: 'heart' | 'messages';
   count: number;
   label: string;
   onPress?: () => void;
+  selected?: boolean;
+  disabled?: boolean;
 }) {
   const { colors } = useAppearance();
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${label} : ${count}`}
+      accessibilityLabel={`${selected ? 'Retirer mon J’aime' : label} : ${count}`}
+      accessibilityState={{selected,disabled:!onPress||disabled}}
       onPress={onPress}
-      disabled={!onPress}
+      disabled={!onPress||disabled}
       style={({ pressed }) => [
         styles.metricAction,
         { backgroundColor: colors.backgroundAccent },
         pressed && onPress ? styles.metricPressed : null
       ]}
     >
-      <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />
-      <Text style={[styles.metricCount, { color: colors.muted }]}>{count}</Text>
+      {selected && icon==='heart'
+        ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
+        : <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />}
+      <Text style={[styles.metricCount, { color: selected?'#e73d57':colors.muted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -195,6 +197,12 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
+  const [myLike, setMyLike] = useState<boolean|null>(null);
+  const postLikeInFlight = useRef(false);
+  const detailLikeRevision=useRef(0);
+  const detailActor=useRef(userId);
+  detailActor.current=userId;
+  const [postLikeBusy,setPostLikeBusy]=useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [replyTo,setReplyTo] = useState<Comment|null>(null);
@@ -215,6 +223,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [editPost,setEditPost] = useState<PostSummary|null>(null);
   const [reportComment,setReportComment] = useState<Comment|null>(null);
+  const [contextComment,setContextComment] = useState<Comment|null>(null);
+  const [copyComment,setCopyComment] = useState<Comment|null>(null);
   const [editComment,setEditComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
@@ -239,6 +249,16 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   }, [postId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(()=>{
+    let active=true;
+    const revision=detailLikeRevision.current;
+    setMyLike(null);
+    void apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(postId)}`)
+      .then(result=>{if(active&&revision===detailLikeRevision.current)setMyLike(result[postId]===true);})
+      .catch(()=>{/* Unknown state on older or unreachable server. */});
+    return()=>{active=false;};
+  },[postId,userId]);
 
   useEffect(() => {
     if (!targetCommentId || loading || loadingMore || comments.some(item => item.id === targetCommentId)) return;
@@ -326,18 +346,22 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   }
 
   async function toggleLike() {
-    if (!post) return;
+    if (!post || postLikeInFlight.current) return;
+    postLikeInFlight.current=true;
+    detailLikeRevision.current+=1;
+    setPostLikeBusy(true);
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${post.id}/like`, { method: 'POST' });
-      setPost((current) => current ? {
-        ...current,
-        _count: {
-          ...current._count,
-          likes: Math.max(0, current._count.likes + (result.liked ? 1 : -1))
-        }
-      } : current);
-    } catch (cause) {
-      Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
+      const actor=userId;
+      const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(post.id)}/like`,{method:'POST'});
+      if(detailActor.current!==actor)return;
+      setMyLike(result.liked);
+      setPost(current=>current?{...current,_count:{...current._count,
+        likes:Math.max(0,current._count.likes+(result.liked?1:-1))}}:current);
+    } catch(cause) {
+      Alert.alert('Réaction non confirmée',errorMessage(cause,'Réessaie.'));
+    } finally {
+      postLikeInFlight.current=false;
+      setPostLikeBusy(false);
     }
   }
 
@@ -482,47 +506,36 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
             </Pressable>
             <Text style={[styles.smallMeta,{color:colors.muted}]}>{formatPostDate(comment.createdAt)}</Text>
           </View>
-          <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={`Commentaire de ${comment.author.displayName}. Maintenir pour les options.`}
+            accessibilityActions={[{name:'activate',label:'Afficher les options du commentaire'}]}
+            onAccessibilityAction={event=>{
+              if(event.nativeEvent.actionName==='activate')setContextComment(comment);
+            }}
+            onLongPress={()=>setContextComment(comment)} delayLongPress={420}>
+            <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
+          </Pressable>
           <View style={styles.threadTools}>
             <Pressable accessibilityRole="button" disabled={reactionBusy}
-              accessibilityLabel={`Réagir au commentaire de ${comment.author.displayName}`}
+              accessibilityLabel={reaction?.mine
+                ? `Retirer ma réaction ${reaction.mine} au commentaire de ${comment.author.displayName}`
+                : `Réagir au commentaire de ${comment.author.displayName}`}
+              accessibilityState={{selected:Boolean(reaction?.mine),disabled:reactionBusy}}
               onPress={()=>{
                 if(suppressReactionTap.current){suppressReactionTap.current=false;return;}
-                void reactTo(comment.id,'❤️');
+                void reactTo(comment.id,reaction?.mine??'❤️');
               }}
               onLongPress={()=>{
                 suppressReactionTap.current=true;
                 setReactionPickerFor(comment.id);
               }} delayLongPress={380}>
               <Text style={[styles.threadToolText,{color:reaction?.mine?colors.accent:colors.muted}]}>
-                {reaction?.mine??'♡'} Réagir{reaction?.total?' · '+reaction.total:''}
+                {reaction?.mine||'Réagir'}{reaction?.total?' · '+reaction.total:''}
               </Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Choisir un emoji"
-              onPress={()=>setReactionPickerFor(comment.id)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>☺</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={()=>{setReplyTo(comment);requestAnimationFrame(()=>commentInputRef.current?.focus());}}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>Répondre</Text>
             </Pressable>
-            <Pressable accessibilityRole="button"
-              onPress={()=>{void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})});}}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Partager</Text>
-            </Pressable>
-            {comment.author.id!==userId ? <Pressable accessibilityRole="button"
-              accessibilityLabel={`Signaler le commentaire de ${comment.author.displayName}`}
-              onPress={()=>setReportComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Signaler</Text>
-            </Pressable>:null}
-            {comment.author.id===userId ? <Pressable accessibilityRole="button"
-              accessibilityLabel={`Modifier le commentaire de ${comment.author.displayName}`}
-              disabled={busyId===comment.id} onPress={()=>setEditComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Modifier</Text>
-            </Pressable>:null}
-            {canDelete?<Pressable accessibilityRole="button" disabled={busyId===comment.id}
-              onPress={()=>confirmDeleteComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.danger}]}>Supprimer</Text>
-            </Pressable>:null}
           </View>
           {reaction?.emojis?.length ? (
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:6}}>
@@ -601,10 +614,13 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         <PostMediaGallery media={post.media} fallbackUrl={post.imageUrl} caption={post.content}/>
         <View style={styles.discussionMetrics}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
-            style={styles.metricInline}>
-            <KnowMeIcon name="heart" size={19} color={colors.muted}/>
-            <Text style={[styles.metaText, { color: colors.muted }]}>{post._count.likes}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={myLike?'Retirer mon J’aime':'Réagir à la publication'}
+            accessibilityState={{selected:myLike===true,disabled:postLikeBusy}}
+            disabled={postLikeBusy} onPress={() => void toggleLike()} style={styles.metricInline}>
+            {myLike
+              ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
+              : <KnowMeIcon name="heart" size={19} color={colors.muted}/>}
+            <Text style={[styles.metaText,{color:myLike?'#e73d57':colors.muted}]}>{post._count.likes}</Text>
           </Pressable>
           <View style={styles.metricInline}>
             <KnowMeIcon name="messages" size={19} color={colors.muted}/>
@@ -653,6 +669,83 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <KnowMeIcon name="arrow" size={22} color={colors.accentText}/>
       </Pressable>
     </View>
+    <Modal visible={Boolean(contextComment)} transparent animationType="slide" statusBarTranslucent
+      onRequestClose={()=>setContextComment(null)}>
+      <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Fermer les actions du commentaire"
+          style={styles.sheetScrim} onPress={()=>setContextComment(null)}/>
+        <View style={[styles.sheetPanel,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetHandle,{backgroundColor:colors.muted}]}/>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>Options du commentaire</Text>
+          <Text numberOfLines={3} style={[styles.threadBody,{color:colors.muted,marginVertical:10}]}>
+            {contextComment?.content}
+          </Text>
+          {contextComment && (
+            <>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{setReplyTo(contextComment);setContextComment(null);
+                  requestAnimationFrame(()=>commentInputRef.current?.focus());}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Répondre</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{setCopyComment(contextComment);setContextComment(null);}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Copier le texte</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{const text=contextComment.content;setContextComment(null);void Share.share({message:text});}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{const id=contextComment.id;setContextComment(null);
+                  void Share.share({message:buildKnowMePublicLink({kind:'comment',id})});}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Partager le lien</Text>
+              </Pressable>
+              {contextComment.author.id===userId && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  disabled={busyId===contextComment.id}
+                  onPress={()=>{setEditComment(contextComment);setContextComment(null);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.text}]}>Modifier</Text>
+                </Pressable>
+              )}
+              {contextComment.author.id!==userId && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  onPress={()=>{setReportComment(contextComment);setContextComment(null);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.text}]}>Signaler</Text>
+                </Pressable>
+              )}
+              {(contextComment.author.id===userId || post?.authorId===userId) && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  disabled={busyId===contextComment.id}
+                  onPress={()=>{const target=contextComment;setContextComment(null);confirmDeleteComment(target);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.danger}]}>Supprimer</Text>
+                </Pressable>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+    <Modal visible={Boolean(copyComment)} transparent animationType="slide" statusBarTranslucent
+      onRequestClose={()=>setCopyComment(null)}>
+      <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
+        <Pressable style={styles.sheetScrim} onPress={()=>setCopyComment(null)}/>
+        <View style={[styles.sheetPanel,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetHandle,{backgroundColor:colors.muted}]}/>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>Copier le commentaire</Text>
+          <Text style={[styles.smallMeta,{color:colors.muted,marginBottom:10}]}>
+            Sélectionne le texte ci-dessous pour utiliser la commande Copier d’Android.
+          </Text>
+          <Text selectable style={[styles.threadBody,{color:colors.text,padding:12,
+            backgroundColor:colors.backgroundAccent,borderRadius:12}]}>
+            {copyComment?.content}
+          </Text>
+          <Pressable accessibilityRole="button" style={styles.contextActionRow}
+            onPress={()=>setCopyComment(null)}>
+            <Text style={[styles.contextActionLabel,{color:colors.accent}]}>Fermer</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
     <Modal visible={Boolean(reactionPickerFor)} transparent animationType="slide"
       onRequestClose={()=>setReactionPickerFor(null)} statusBarTranslucent>
       <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
@@ -752,6 +845,10 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
+  const [likePending,setLikePending] = useState<string[]>([]);
+  const likeLock = useRef(new Set<string>());
+  const likeRevision=useRef(0);
   const [feedFresh,setFeedFresh] = useState(false);
   const [cachedNotice,setCachedNotice] = useState('');
   const feedRequest=useRef(0);
@@ -934,16 +1031,39 @@ export function FeedExperience({
     }
   }
 
+  const visiblePostIds=posts.map(post=>post.id).join(',');
+  useEffect(()=>{
+    let active=true;
+    const revision=likeRevision.current;
+    setMyLikes({});
+    if(!feedFresh || !visiblePostIds) return()=>{active=false;};
+    const ids=visiblePostIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/50)},(_,index)=>{
+      const batch=ids.slice(index*50,index*50+50);
+      return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
+    })).then(pages=>{if(active&&revision===likeRevision.current)setMyLikes(Object.assign({},...pages));})
+      .catch(()=>{/* Never infer personal likes from a public count. */});
+    return()=>{active=false;};
+  },[visiblePostIds,userId,feedFresh]);
+
   async function like(postId: string) {
-    if(!feedFresh || offline)return;
+    if(!feedFresh || offline || likeLock.current.has(postId))return;
+    likeLock.current.add(postId);
+    setLikePending(prev=>[...prev,postId]);
+    const generation=feedRequest.current;
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' });
-      setPosts((current) => current.map((post) => post.id === postId ? {
-        ...post,
-        _count: { ...post._count, likes: Math.max(0, post._count.likes + (result.liked ? 1 : -1)) }
-      } : post));
-    } catch (cause) {
-      Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
+      const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(postId)}/like`,{method:'POST'});
+      if(generation!==feedRequest.current)return;
+      likeRevision.current+=1;
+      setMyLikes(current=>({...current,[postId]:result.liked}));
+      setPosts(current=>current.map(post=>post.id===postId?{
+        ...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}
+      }:post));
+    }catch(cause){
+      Alert.alert('Réaction non confirmée',errorMessage(cause,'Réessaie.'));
+    }finally{
+      likeLock.current.delete(postId);
+      setLikePending(current=>current.filter(id=>id!==postId));
     }
   }
 
@@ -1070,6 +1190,7 @@ export function FeedExperience({
           <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime"
+              selected={myLikes[item.id]===true} disabled={likePending.includes(item.id)}
               onPress={feedFresh&&!offline?()=>void like(item.id):undefined} />
             <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires"
@@ -1143,6 +1264,8 @@ const styles = StyleSheet.create({
   threadBody: { fontSize: 14.5, lineHeight: 21, marginTop: 4 },
   threadTools: { flexDirection: 'row', gap: 22, paddingTop: 7 },
   threadToolText: { fontSize: 12, fontWeight: '600', paddingVertical: 4 },
+  contextActionRow: { minHeight:48,justifyContent:'center',paddingHorizontal:10,borderRadius:12 },
+  contextActionLabel: {fontSize:14,fontWeight:'600'},
   emptyDiscussion: { alignItems: 'center', gap: 12, paddingVertical: 46 },
   emptyDiscussionText: { fontSize: 13, textAlign: 'center' },
   commentDock: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 },
