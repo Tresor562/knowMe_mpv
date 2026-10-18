@@ -55,7 +55,8 @@ export async function restoreOfflinePostDraft(accountId: string): Promise<Stored
     if (!file || typeof file.uri !== 'string' || typeof file.name !== 'string'
         || typeof file.mime !== 'string') continue;
     const allowedFolder = mediaFolder(accountId);
-    if (!file.uri.startsWith(allowedFolder)) {
+    const relative = file.uri.slice(allowedFolder.length);
+    if (!file.uri.startsWith(allowedFolder) || !relative || relative.includes('/') || relative === '..') {
       missing.push(file.name);
       continue;
     }
@@ -86,7 +87,8 @@ export async function saveOfflinePostDraft(accountId: string, content: string, s
   for (let index = 0; index < selected.length; index += 1) {
     const file = selected[index]!;
     // Deterministic names avoid copying gigabytes repeatedly after each keystroke.
-    const target = folder + index + '-' + digest(file.uri + ':' + file.name)
+    const cached = file.uri.startsWith(folder) && !file.uri.slice(folder.length).includes('/');
+    const target = cached ? file.uri : folder + index + '-' + digest(file.uri + ':' + file.name)
       + extension(file.mime);
     try {
       if (!file.uri.startsWith('file://') && !file.uri.startsWith('content://')) {
