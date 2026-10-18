@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { KnowMeGlyph } from './knowme-glyph';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -16,13 +17,8 @@ type AvatarQuickActionsProps = {
 type GlyphName = 'story' | 'view' | 'photo' | 'cover' | 'design';
 
 function ActionIcon({name}:{name:GlyphName}) {
-  const base = {viewBox:'0 0 24 24',width:21,height:21,fill:'none',stroke:'currentColor',
-    strokeWidth:1.8,strokeLinecap:'round' as const,strokeLinejoin:'round' as const,'aria-hidden':true as const};
-  if(name==='story') return <svg {...base}><circle cx="12" cy="12" r="9" strokeDasharray="4 2"/><path d="M12 8v8m-4-4h8"/></svg>;
-  if(name==='view') return <svg {...base}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
-  if(name==='photo') return <svg {...base}><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.3"/><path d="m4 17 5-5 3 3 3-3 5 5"/></svg>;
-  if(name==='cover') return <svg {...base}><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="m3 16 6-6 4 4 3-3 5 5"/></svg>;
-  return <svg {...base}><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3Z"/><path d="m19 17 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>;
+  const icon = { story: 'story', view: 'eye', photo: 'image', cover: 'cover', design: 'sparkles' } as const;
+  return <KnowMeGlyph name={icon[name]} size={21}/>;
 }
 
 /** Native-style anchored actions for the current account, not a fake context menu. */
@@ -79,7 +75,7 @@ export function AvatarQuickActions({
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
         aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
-        <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <KnowMeGlyph name="create" size={19} active={open}/>
       </button>
       {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
