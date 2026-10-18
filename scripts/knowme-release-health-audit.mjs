@@ -70,8 +70,31 @@ export async function getSafeJson(url, fetchImpl = fetch) {
     throw new Error('Expected JSON content-type');
   const length = response.headers?.get?.('content-length');
   if (length && (!/^\d+$/.test(length) || Number(length) > 65536)) throw new Error('JSON response oversized');
-  const text = await response.text();
-  if (Buffer.byteLength(text, 'utf8') > 65536) throw new Error('JSON response oversized');
+  let text;
+  if (typeof response.body?.getReader === 'function') {
+    // Bound memory while streaming; a malicious or broken origin may lie about Content-Length.
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > 65536) {
+          await reader.cancel();
+          throw new Error('JSON response oversized');
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    text = Buffer.concat(chunks).toString('utf8');
+  } else {
+    text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > 65536) throw new Error('JSON response oversized');
+  }
   return JSON.parse(text);
 }
 
