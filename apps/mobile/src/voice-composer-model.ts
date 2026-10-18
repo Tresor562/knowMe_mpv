@@ -29,3 +29,13 @@ export function voiceSeekMs(tapX:number,trackWidth:number,durationMs:number):num
      !Number.isFinite(durationMs)||durationMs<=0)return 0;
   return Math.round(Math.max(0,Math.min(1,tapX/trackWidth))*durationMs);
 }
+
+/** A pending native recorder may resume after leaving a screen; always revoke it. */
+export function shouldCancelNativeCaptureOnUnmount(phase:VoicePhase):boolean {
+  return phase==='starting'||phase==='recording'||phase==='stopping';
+}
+
+/** A confirmed send owns its file until the upload promise resolves. */
+export function shouldDiscardVoiceOnUnmount(phase:VoicePhase):boolean {
+  return phase!=='sending';
+}
