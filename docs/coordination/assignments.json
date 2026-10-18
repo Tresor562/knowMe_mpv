@@ -84,12 +84,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/creator-follow-authoritative",
-      "task": "PR #716 fusionnée main (c42c6bdd). PR #727 Web creator ouverte quality en attente, coordination verte, APK en cours. PR #734 JWT follow-status + composant isolé, suite collision #583: page Web rétablie, CI et garde sur HEAD final en attente. Ne pas annoncer follow visible avant intégration #583.",
+      "task": "Finir validation des PR #727 et #734 ; tester code profil ; fusion sûre selon CI et anti-conflit",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:44:11.428Z",
+      "updatedAt": "2026-10-18T14:48:58.528Z",
       "lastPr": 734,
       "resumeFrom": {
         "pr": 734,
@@ -651,6 +651,14 @@
       "pr": 721,
       "branch": "chat/infra/release-guard-readiness",
       "head": "e302c13a20ae47b379c0f85b544442a524fec982"
+    },
+    {
+      "at": "2026-10-18T14:48:58.528Z",
+      "action": "resume",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 734
     }
   ]
 }
