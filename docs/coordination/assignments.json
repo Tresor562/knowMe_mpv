@@ -129,17 +129,17 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
-      "branch": "chat/marketplace/web-history-hub-link",
-      "task": "Verify full checks PR #737 Android apps and #745 Web history navigation, integrate safely and verify distribution",
+      "branch": "chat/marketplace/android-verified-receipts",
+      "task": "Merged Marketplace PRs through #741; Vercel READY 04f5ebf contains #739/#741. #737 Android Apps refreshed to 873decfe, CI/APK running guard passed. #745 Web history shortcut refreshed to 6fefa0ca, checks ongoing. #752 new bilingual Android receipts component/model and 5 tests, standalone until #737 integrated, checks queued. #717/#719 gifts blocked by #583.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T15:46:27.143Z",
-      "lastPr": 745,
+      "updatedAt": "2026-10-18T16:01:27.264Z",
+      "lastPr": 752,
       "resumeFrom": {
-        "pr": 745,
-        "branch": "chat/marketplace/web-history-hub-link",
-        "commit": "1e9ab287905eddcdbc3c27e18695ccd2917bfb65",
+        "pr": 752,
+        "branch": "chat/marketplace/android-verified-receipts",
+        "commit": "91d390be354abbf220863a66654e648360cdf84f",
         "merged": [
           722,
           714,
@@ -151,11 +151,12 @@
           741
         ],
         "relatedPrs": [
+          737,
+          745,
           717,
-          719,
-          737
+          719
         ],
-        "next": "Check exact-HEAD CI/APK for #737 @2420fb0 and #745 @1e9ab28. If all successful, mark #745 ready and wait for post-ready guard, merge in dependency order, inspect Vercel actual production SHA and notify infra #698 for OTA."
+        "next": "Check exact HEAD #737 873decfe, #745 6fefa0ca, #752 91d390be all CI/APK/coordination; merge only on green non-conflicting head. After #737, add a separate PR wiring #752 to Marketplace native tabs. Verify OTA APK release with Infrastructure #698."
       }
     },
     "infra": {
@@ -955,6 +956,15 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 749
+    },
+    {
+      "at": "2026-10-18T16:01:27.264Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/android-verified-receipts",
+      "pr": 752
     }
   ]
 }
