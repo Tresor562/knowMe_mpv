@@ -140,7 +140,9 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
   function renderClip({item}: {item:Clip}){
     const post=item.post;
-    const shown=item.id===active;
+    // Unmount the active Reel while the local library is open. Otherwise
+    // both players can emit sound behind the modal.
+    const shown=item.id===active&&!offlineLibraryOpen;
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
