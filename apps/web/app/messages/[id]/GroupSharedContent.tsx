@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
 import {
-  appendSharedMessages, contentKind, linksInMessage,
+  appendSharedMessages, contentKind, linksInMessage, searchSharedMessages,
   type SharedContentKind, type SharedMessage
 } from './group-shared-content-model';
 import './group-shared-content.css';
@@ -15,7 +15,8 @@ type History = { items: SharedMessage[]; nextCursor?: string | null };
 const TITLES: Record<SharedContentKind, {fr: string; en: string}> = {
   media: {fr:'Médias partagés',en:'Shared media'},
   files: {fr:'Fichiers partagés',en:'Shared files'},
-  links: {fr:'Liens partagés',en:'Shared links'}
+  links: {fr:'Liens partagés',en:'Shared links'},
+  search: {fr:'Rechercher des messages',en:'Search messages'}
 };
 
 export function GroupSharedContent({
@@ -25,6 +26,7 @@ export function GroupSharedContent({
   const [cursor,setCursor] = useState<string|null>(null);
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
+  const [search,setSearch] = useState('');
   const [downloading,setDownloading] = useState<string|null>(null);
   const [downloadError,setDownloadError] = useState('');
   const [initialLoaded,setInitialLoaded] = useState(false);
@@ -59,7 +61,8 @@ export function GroupSharedContent({
     return ()=>{requestSequence.current++;};
   },[load]);
 
-  const filtered=useMemo(()=>messages.filter(message=>contentKind(message).includes(kind)),[messages,kind]);
+  const filtered=useMemo(()=>kind==='search'?searchSharedMessages(messages,search):
+    messages.filter(message=>contentKind(message).includes(kind)),[messages,kind,search]);
 
   async function downloadAttachment(message: SharedMessage) {
     const assetId=message.presentation?.assetId;
@@ -88,6 +91,12 @@ export function GroupSharedContent({
   const labels=TITLES[kind];
   return <section className="km-group-shared-content" role="tabpanel"
     aria-label={en?labels.en:labels.fr} aria-busy={loading}>
+    {kind==='search'&&<label className="km-group-shared-search">
+      <span>{en?'Search loaded messages':'Rechercher dans les messages chargés'}</span>
+      <input type="search" value={search} onChange={event=>setSearch(event.target.value)}
+        placeholder={en?'Text, member or file…':'Texte, membre ou fichier…'}
+        aria-label={en?'Search group messages':'Rechercher les messages du groupe'}/>
+    </label>}
     <div className="km-group-shared-heading">
       <strong>{en?labels.en:labels.fr}</strong>
       <span>{filtered.length}{cursor?' +':''}</span>
@@ -130,6 +139,10 @@ export function GroupSharedContent({
                   (en?'Download':'Télécharger')}
               </button>
             </div>}
+          {kind==='search'&&<p className="km-group-shared-snippet">
+            {item.presentation?.kind==='TEXT'?item.presentation.text??item.content:
+              item.presentation?.fileName??item.content}
+          </p>}
           {kind==='links'&&<div className="km-group-shared-links">
             {details.map(link=><a key={link.url} href={link.url} target="_blank"
               rel="noopener noreferrer" className="km-group-shared-link">
@@ -149,13 +162,16 @@ export function GroupSharedContent({
     {loading && <p className="km-group-shared-status" role="status">
       {en?'Loading shared content…':'Chargement des contenus partagés…'}
     </p>}
-    {!loading&&!error&&initialLoaded&&filtered.length===0&&
+    {!loading&&!error&&initialLoaded&&filtered.length===0&&(! (kind==='search'&&!search.trim()))&&
       <p className="km-group-shared-status">
         {cursor
           ? en?'No matches yet in the loaded messages. Load more to search earlier history.'
               :'Aucun résultat dans les messages chargés. Charge la suite pour consulter les anciens messages.'
           : en?'No shared content of this type.':'Aucun contenu partagé de ce type.'}
       </p>}
+    {kind==='search'&&!search.trim()&&<p className="km-group-shared-status">
+      {en?'Enter a term to search this group history.':'Saisis un terme pour rechercher dans les messages du groupe.'}
+    </p>}
     {!loading&&!error&&cursor&&<button type="button" className="km-group-shared-more"
       onClick={()=>void load(cursor)}>
       {en?'Load older messages':'Charger les messages plus anciens'}
