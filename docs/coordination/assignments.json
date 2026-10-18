@@ -106,12 +106,12 @@
     },
     "infra": {
       "issue": 698,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "branch": "chat/infra/release-guard-readiness",
+      "task": "Vérification et durcissement des chemins CI / préflight de déploiement Web et APK",
+      "claimedAt": "2026-10-18T14:05:40.631Z",
+      "updatedAt": "2026-10-18T14:05:40.631Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -308,6 +308,14 @@
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "at": "2026-10-18T14:05:16.123Z",
       "pr": 705
+    },
+    {
+      "action": "claim",
+      "at": "2026-10-18T14:05:40.631Z",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "issue": 698,
+      "branch": "chat/infra/release-guard-readiness"
     }
   ]
 }
