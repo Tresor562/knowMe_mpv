@@ -133,19 +133,21 @@ export default function MarketplacePage() {
   const selected = entries.find(entry => entry.id === selectedId) ?? null;
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selectedId) {
+      lastTrigger.current?.focus();
+      return;
+    }
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (!dialog.open) dialog.showModal();
     return () => { if (dialog.open) dialog.close(); };
-  }, [selected?.id]);
+  }, [selectedId]);
 
   const closeDetails = () => {
     if (busyOfferId) return;
     setSelectedId(null);
     setConfirming(false);
     setDialogError('');
-    lastTrigger.current?.focus();
   };
 
   const purchase = async () => {
