@@ -1,0 +1,231 @@
+/* Shared content in KnowMe group profiles — compact rows, no generic cards. */
+.km-group-shared-content{min-width:0;padding:6px 0 22px;color:var(--text)}
+.km-group-shared-heading{display:flex;align-items:center;justify-content:space-between;
+ gap:8px;padding:12px 4px;border-bottom:1px solid var(--soft-border);font-size:13px}
+.km-group-shared-heading span{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.km-group-shared-list{display:grid;gap:0}
+.km-group-shared-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,160px),1fr));gap:8px;margin-top:10px}
+.km-group-shared-item{padding:12px 4px;min-width:0;border-bottom:1px solid var(--soft-border);
+ background:transparent;overflow-wrap:anywhere}
+.km-group-shared-grid .km-group-shared-item{padding:5px;border:1px solid var(--soft-border);
+ border-radius:16px;background:var(--surface);overflow:hidden}
+.km-group-shared-preview{width:100%;max-width:100%;display:grid;place-items:center;min-height:44px;overflow:hidden}
+.km-group-shared-preview :is(img,video){display:block;width:100%;max-height:170px;
+ object-fit:contain;border-radius:12px}
+.km-group-shared-preview :is(audio,button){max-width:100%}
+.km-group-shared-meta{display:flex;align-items:center;gap:5px 10px;flex-wrap:wrap;
+ font-size:11px;color:var(--muted);margin-top:8px}
+.km-group-shared-meta span{font-weight:650;color:var(--text);max-width:100%;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-group-shared-meta time{font-variant-numeric:tabular-nums}
+.km-group-shared-origin{display:inline-flex;align-items:center;min-height:44px;
+ padding:6px 8px;margin-left:auto;border-radius:12px;text-decoration:none;
+ color:var(--mint);font-size:11px;font-weight:700}
+.km-group-shared-origin:hover,.km-group-shared-origin:focus-visible{background:var(--bg-accent)}
+.km-group-shared-links{display:grid;gap:5px}
+.km-group-shared-link{display:flex;align-items:center;min-height:44px;color:var(--mint);
+ text-decoration:none;font-size:13px;overflow-wrap:anywhere}
+.km-group-shared-link:hover{text-decoration:underline}
+.km-group-shared-more,.km-group-shared-error button{min-height:44px;border:0;
+ background:var(--bg-accent);color:var(--mint);padding:8px 15px;border-radius:13px;
+ font-size:12px;font-weight:700;cursor:pointer}
+.km-group-shared-more{display:block;margin:14px auto}
+.km-group-shared-status{color:var(--muted);font-size:13px;line-height:1.5;padding:16px 6px}
+.km-group-shared-error{padding:12px;color:var(--danger);font-size:12px}
+.km-group-shared-content :is(a,button):focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.km-info-page .km-info-tabs{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+.km-info-page .km-info-tabs button{flex:0 0 auto;padding:0 15px;min-height:44px;white-space:nowrap}
+.km-info-page .km-info-tabs::-webkit-scrollbar{display:none}
+@media(max-width:430px){.km-group-shared-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+ .km-group-shared-grid .km-group-shared-item{padding:4px}.km-info-page .km-info-tabs button{padding-inline:12px}}
+@media(prefers-reduced-motion:reduce){.km-group-shared-content *{scroll-behavior:auto}}
+
+/* The extra group actions are deliberately behind a small context menu. */
+.km-info-page .km-info-more{position:relative;flex:1 0 0;min-width:70px}
+.km-info-page .km-info-more > summary{
+  list-style:none;cursor:pointer;min-height:54px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:650;
+  color:var(--text);border-radius:14px;padding:7px 8px}
+.km-info-page .km-info-more > summary::-webkit-details-marker{display:none}
+.km-info-page .km-info-more > summary:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.km-info-page .km-info-more[open] > summary{background:var(--bg-accent)}
+.km-info-page .km-info-more-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:120;
+  display:grid;gap:2px;min-width:min(260px,calc(100vw - 24px));
+  padding:6px;border-radius:17px;border:1px solid var(--soft-border);
+  background:var(--surface);box-shadow:0 16px 40px rgba(0,0,0,.17)}
+.km-info-page .km-info-more-menu :is(a,button){
+  display:flex;align-items:center;min-height:44px;border:0;border-radius:11px;
+  background:transparent;cursor:pointer;text-align:left;color:var(--text);
+  text-decoration:none;font-size:13px;padding:9px 12px;line-height:1.35}
+.km-info-page .km-info-more-menu :is(a,button):hover{background:var(--surface-2)}
+.km-info-page .km-info-more-menu .is-danger{color:var(--danger,var(--orange))}
+.km-info-page .km-info-more-hint{font-size:11px;color:var(--muted);
+  padding:12px;line-height:1.45;max-width:260px}
+@media(max-width:400px){.km-info-page .km-info-more{min-width:65px}
+  .km-info-page .km-info-more > summary{padding-inline:5px}}
+
+.km-group-shared-document{display:flex;align-items:center;gap:10px;min-width:0;
+  color:var(--text);padding:3px 2px}
+.km-group-shared-document > svg{flex-shrink:0;color:var(--mint)}
+.km-group-shared-document > span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.km-group-shared-document > button{flex:0 0 auto;min-height:44px;
+  padding:8px 11px;background:var(--bg-accent);color:var(--mint);
+  border:0;border-radius:12px;cursor:pointer;font-size:12px;font-weight:700}
+.km-group-shared-document > button:disabled{opacity:.55;cursor:wait}
+@media(max-width:430px){.km-group-shared-document{flex-wrap:wrap}
+  .km-group-shared-document > button{margin-left:32px}}
+
+.km-group-shared-search{display:grid;gap:6px;padding:12px 4px;
+ font-size:12px;font-weight:650;color:var(--text)}
+.km-group-shared-search input{min-height:44px;width:100%;padding:8px 12px;
+ border:1px solid var(--soft-border);border-radius:15px;
+ background:var(--surface-2);color:var(--text);font:inherit;font-weight:400}
+.km-group-shared-search input:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.km-group-shared-snippet{font-size:13px;line-height:1.5;margin:2px 0 5px;
+ overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* Owner/admin roster filters: secondary segmented choices, not a toolbar of cards. */
+.km-info-page .km-info-member-filters{display:flex;align-items:center;gap:4px;
+ padding:3px 2px 8px;flex-wrap:wrap}
+.km-info-page .km-info-member-filters button{border:0;border-radius:13px;background:transparent;
+ color:var(--muted);min-height:44px;padding:8px 12px;font-size:12px;font-weight:650;cursor:pointer}
+.km-info-page .km-info-member-filters button[aria-pressed=true]{background:var(--bg-accent);
+ color:var(--mint)}
+.km-info-page .km-info-member-count{font-size:11px;color:var(--muted);
+ font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+.km-info-page .km-info-member-filters button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+@media(max-width:370px){.km-info-page .km-info-member-filters button{padding-inline:8px}}
+
+
+/* Member navigation preserves 44px touch targets with lightweight selectable pills.
+   Search and role filters compose instead of competing for screen width. */
+.km-info-page .km-info-member-filters{
+  display:flex;align-items:center;gap:4px;min-width:0;
+  overflow-x:auto;scrollbar-width:none;padding:4px 1px 8px
+}
+.km-info-page .km-info-member-filters::-webkit-scrollbar{display:none}
+.km-info-page .km-info-member-filters button{
+  min-height:44px;min-width:44px;flex:0 0 auto;
+  padding:7px 12px;border:0;border-radius:12px;background:transparent;
+  color:var(--muted);font-size:12px;font-weight:650;cursor:pointer
+}
+.km-info-page .km-info-member-filters button[aria-pressed='true']{
+  color:var(--mint);background:var(--bg-accent);font-weight:750
+}
+.km-info-page .km-info-member-filters button:hover{
+  background:var(--surface-2)
+}
+.km-info-page .km-info-member-filters button:focus-visible{
+  outline:2px solid var(--mint);outline-offset:2px
+}
+.km-info-page .km-info-member-filters .km-info-member-count{
+  font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+  white-space:nowrap;margin-left:auto;padding:5px 6px
+}
+@media(max-width:390px){.km-info-page .km-info-member-filters button{padding-inline:9px}}
+
+
+/* Group identity adopts the compact KnowMe/TG-inspired profile hierarchy.
+   An avatar and description should not become another giant dashboard card. */
+.km-info-page.km-info-group-profile{
+  width:min(100%,760px);margin-inline:auto;padding-bottom:116px
+}
+.km-info-group-profile .km-info-topbar{
+  display:flex;align-items:center;min-height:56px;border-color:var(--soft-border)
+}
+.km-info-group-profile .km-info-topbar :is(.km-info-back,.km-info-refresh){
+  display:grid;place-items:center;width:44px;height:44px;min-width:44px;
+  border-radius:14px;background:transparent;color:var(--text)
+}
+.km-info-group-profile .km-info-topbar h1{font-size:18px;font-weight:750}
+.km-info-group-profile .km-info-identity{
+  padding:13px 8px 16px;gap:1px;
+  background:transparent;box-shadow:none;border:0
+}
+.km-info-group-profile .km-info-group-avatar{
+  width:88px;height:88px;border:2px solid var(--surface);border-radius:50%;
+  box-shadow:none
+}
+.km-info-group-profile .km-info-identity h2{
+  margin-top:9px;font-size:clamp(19px,4vw,24px);letter-spacing:-.02em
+}
+.km-info-group-profile .km-info-identity > p{
+  color:var(--muted);font-size:12px;line-height:1.4
+}
+.km-info-group-profile .km-info-identity .km-info-description{
+  margin:8px auto 0;max-width:520px;color:var(--text);font-size:12px;
+  line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden
+}
+.km-info-group-profile .km-info-actions{
+  display:flex;flex-wrap:nowrap;justify-content:center;gap:6px;
+  overflow-x:auto;scrollbar-width:none;padding:6px 1px 12px
+}
+.km-info-group-profile .km-info-actions::-webkit-scrollbar{display:none}
+.km-info-group-profile .km-info-actions > :is(a,button){
+  flex:1 0 0;min-width:68px;max-width:136px;min-height:54px;
+  padding:7px 5px;border:0;border-radius:14px;background:transparent;
+  color:var(--mint);box-shadow:none;font-size:11px;gap:4px
+}
+.km-info-group-profile .km-info-actions > :is(a,button):hover,
+.km-info-group-profile .km-info-actions > :is(a,button):focus-visible{
+  background:var(--bg-accent)
+}
+.km-info-group-profile .km-info-actions svg{width:21px;height:21px}
+.km-info-group-profile .km-info-member-row{min-height:62px;padding:8px 4px;gap:10px}
+.km-info-group-profile .km-info-member-name strong{font-size:13px}
+.km-info-group-profile .km-info-member-name small{font-size:11px}
+@media(max-width:420px){
+ .km-info-group-profile .km-info-actions > :is(a,button){min-width:64px}
+ .km-info-group-profile .km-info-identity{padding-top:8px}
+ .km-info-group-profile .km-info-group-avatar{width:82px;height:82px}
+}
+
+/* Private chat profile uses the same compact density as group info, but never
+   exposes administrative group controls or fictitious invitations. */
+.km-info-page.km-info-private-profile{width:min(100%,760px);margin-inline:auto}
+.km-info-private-profile .km-info-identity{
+  padding:16px 8px 15px;background:transparent;border:0;box-shadow:none
+}
+.km-info-private-profile .km-info-identity .km-info-member-avatar{
+  width:88px;height:88px;border-radius:50%;box-shadow:none
+}
+.km-info-private-profile .km-info-identity h2{
+  font-size:clamp(19px,4vw,24px);line-height:1.25;margin-top:9px
+}
+.km-info-private-profile .km-info-identity > p{font-size:12px;line-height:1.45}
+.km-info-private-profile .km-info-actions{
+  display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;
+  gap:6px;padding:6px 4px 12px;overflow-x:auto;scrollbar-width:none
+}
+.km-info-private-profile .km-info-actions > :is(a,button){
+  flex:1;max-width:140px;min-width:72px;min-height:54px;
+  padding:7px 9px;gap:5px;font-size:11px;font-weight:660;
+  border-radius:14px;border:0;box-shadow:none;background:transparent
+}
+.km-info-private-profile .km-info-actions > :is(a,button):hover,
+.km-info-private-profile .km-info-actions > :is(a,button):focus-visible{
+  background:var(--bg-accent)
+}
+.km-info-private-profile .km-info-member-row{min-height:60px;padding:8px 5px}
+.km-info-private-profile .km-info-member-name strong{font-size:13px}
+.km-info-page .km-info-tabs [role='tab']:focus-visible{
+  outline:2px solid var(--mint);outline-offset:-2px;border-radius:10px
+}
+@media(max-width:380px){
+ .km-info-private-profile .km-info-actions > :is(a,button){min-width:68px;padding-inline:4px}
+ .km-info-private-profile .km-info-identity .km-info-member-avatar{width:80px;height:80px}
+}
+
+/* Secondary filters for shared items: scroll naturally on small Android widths. */
+.km-group-shared-filters{display:flex;align-items:center;gap:4px;min-height:48px;
+  margin:5px 0 2px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.km-group-shared-filters::-webkit-scrollbar{display:none}
+.km-group-shared-filters button{flex:0 0 auto;min-height:44px;min-width:44px;
+  border:0;border-radius:13px;background:transparent;color:var(--muted);
+  padding:7px 12px;font-size:12px;font-weight:650;cursor:pointer;scroll-snap-align:start}
+.km-group-shared-filters button[aria-pressed='true']{
+  background:var(--bg-accent);color:var(--mint)}
+.km-group-shared-filters button:focus-visible{
+  outline:2px solid var(--mint);outline-offset:-2px}
+@media(max-width:390px){.km-group-shared-filters button{padding:7px 9px}}
