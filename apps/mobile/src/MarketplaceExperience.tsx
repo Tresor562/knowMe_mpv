@@ -4,15 +4,17 @@ import { useAppearance } from './AppearanceProvider';
 import { PaymentsExperience } from './PaymentsExperience';
 import { CosmeticsMarketplaceExperience } from './CosmeticsMarketplaceExperience';
 import { MarketplaceStickerCollectionExperience } from './MarketplaceStickerCollectionExperience';
+import { MarketplaceOfficialAppsExperience } from './MarketplaceOfficialAppsExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
 import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
-type StoreSection = 'gifts' | 'styles' | 'stickers' | 'coins';
+type StoreSection = 'gifts' | 'styles' | 'stickers' | 'apps' | 'coins';
 
 /**
  * Native KnowMe marketplace entry.
  * It presents genuine existing server-backed gifting and wallet purchase flows.
- * No unverified APK catalog, app download button or mock products are exposed.
+ * Only verified official server announcements are shown in the apps tab;
+ * no unverified third-party APKs or simulated products are exposed.
  */
 export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
   const { colors } = useAppearance();
@@ -51,6 +53,7 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
           ['gifts', 'Cadeaux', 'spark'],
           ['styles', 'Styles', 'spark'],
           ['stickers', 'Stickers', 'sticker'],
+          ['apps', 'Applications', 'download'],
           ['coins', 'KnowCoins', 'coins']
         ] as const).map(([value, title, icon]) => {
           const active = section === value;
@@ -81,7 +84,9 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
             ? <CosmeticsMarketplaceExperience />
             : section === 'stickers'
               ? <MarketplaceStickerCollectionExperience />
-              : <PaymentsExperience />}
+              : section === 'apps'
+                ? <MarketplaceOfficialAppsExperience />
+                : <PaymentsExperience />}
       </ScrollView>
     </View>
   );
