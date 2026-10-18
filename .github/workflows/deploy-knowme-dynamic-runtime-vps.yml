@@ -1,16 +1,16 @@
-name: Deploy KnowMe API to VPS after verified merges
+name: Verify KnowMe VPS signed release without SSH secrets
+
+# Deployment is performed on the VPS by knowme-platform-sync.timer, which
+# ONLY accepts a published preview release with verified Android signature,
+# matching release metadata and successful exact-commit CI + APK checks.
+# The GitHub workflow never copies an unreviewed checkout or private SSH key.
 on:
-  push:
-    branches: [main]
-    # Deploy backend changes automatically; a workflow-only path meant
-    # merged API features never reached the VPS without manual dispatch.
-    paths:
-      - 'apps/api/**'
-      - 'packages/**'
-      - 'ops/**'
-      - 'scripts/check-platform-deployment*'
-      - '.github/workflows/deploy-knowme-dynamic-runtime-vps.yml'
+  workflow_run:
+    workflows: ['Publish compatible KnowMe Android preview update']
+    types: [completed]
   workflow_dispatch:
+  schedule:
+    - cron: '37 * * * *'
 
 permissions:
   contents: read
@@ -18,135 +18,138 @@ permissions:
   statuses: write
 
 concurrency:
-  group: knowme-dynamic-runtime-vps-deploy
+  group: knowme-vps-verified-release
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
+    if: >-
+      ${{ github.event_name != 'workflow_run' ||
+         (github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    env:
-      VPS_HOST: ${{ secrets.KNOWME_VPS_HOST }}
-      VPS_USER: ${{ secrets.KNOWME_VPS_SSH_USER }}
-      VPS_KEY: ${{ secrets.KNOWME_VPS_SSH_PRIVATE_KEY }}
-      VPS_HOST_KEY: ${{ secrets.KNOWME_VPS_HOST_KEY }}
-      GH_TOKEN: ${{ github.token }}
+    timeout-minutes: 55
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - name: Validate exact production target and available SSH credentials
+      - name: Resolve exact signed release of current main
+        id: source
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF" == 'refs/heads/main' ]]
-          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
-          [[ "$GITHUB_REPOSITORY" == 'Tresor562/knowMe_mpv' ]]
-          if [[ -z "$VPS_HOST" || -z "$VPS_USER" || -z "$VPS_KEY" || -z "$VPS_HOST_KEY" ]]; then
-            echo '::error::KnowMe VPS SSH credentials are not configured; no production change performed.'
-            exit 1
+          [[ "$GITHUB_REPOSITORY" == "Tresor562/knowMe_mpv" ]]
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          RELEASES="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=15")"
+          TAG="$(printf '%s' "$RELEASES" | jq -r --arg sha "$SHA" '
+            [.[] | select(.prerelease == true and .draft == false and .target_commitish == $sha)
+             | select(.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-preview$"))]
+            | sort_by(.published_at) | last | .tag_name // empty
+          ')"
+          if [[ -z "$TAG" ]]; then
+            echo '::notice::No immutable verified APK release for current main yet. VPS timer will reconcile it after CI and APK publication.'
+            exit 0
           fi
-      - name: Require successful API/Web CI and signed APK build for exact main SHA
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 120); do
-            [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" == "$GITHUB_SHA" ]] || {
-              echo '::error::Main has advanced; refusing to deploy superseded code.'
+          CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?per_page=100")"
+          for CHECK in quality android-apk; do
+            FOUND="$(printf '%s' "$CHECKS" | jq -r --arg name "$CHECK" '
+              [.check_runs[] | select(.name == $name and .conclusion == "success")] | length
+            ')"
+            if [[ "$FOUND" -lt 1 ]]; then
+              echo "::error::Missing validated $CHECK check for exact signed release commit."
               exit 1
-            }
-            CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100")"
-            QUALITY="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name=="quality" and .conclusion=="success")] | length')"
-            APK="$(printf '%s' "$CHECKS" | jq -r '[.check_runs[] | select(.name=="android-apk" and .conclusion=="success")] | length')"
-            if [[ "$QUALITY" -ge 1 && "$APK" -ge 1 ]]; then exit 0; fi
-            sleep 20
+            fi
           done
-          echo '::error::Required CI and Android build never both succeeded.'
-          exit 1
-      - name: Connect with a pinned SSH host key
-        shell: bash
-        run: |
-          set -euo pipefail
-          install -d -m 0700 "$RUNNER_TEMP/knowme-ssh"
-          printf '%s\n' "$VPS_KEY" > "$RUNNER_TEMP/knowme-ssh/id"
-          printf '%s\n' "$VPS_HOST_KEY" > "$RUNNER_TEMP/knowme-ssh/known_hosts"
-          chmod 0600 "$RUNNER_TEMP/knowme-ssh/id" "$RUNNER_TEMP/knowme-ssh/known_hosts"
-          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
-            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
-            'docker inspect -f "{{.State.Running}}" knowme-postgres | grep -Fx true'
-      - name: Make an encrypted database backup before migrating
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
-            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
-            'node /opt/nex/apps/public/knowme/source/ops/backup-knowme-postgres-telegram.mjs >/dev/null'
-          echo 'Encrypted PostgreSQL backup uploaded and verified before deployment.' >> "$GITHUB_STEP_SUMMARY"
-      - name: Deploy the CI-qualified server with its built-in rollback checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]]
-          ssh -i "$RUNNER_TEMP/knowme-ssh/id" -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/knowme-ssh/known_hosts" \
-            -o ConnectTimeout=12 "$VPS_USER@$VPS_HOST" \
-            "KNOWME_DEPLOY_SHA=$GITHUB_SHA node /opt/nex/ops/knowme-platform/ops/deploy-knowme-vps.mjs"
-      - name: Check public VPS identity, readiness and dynamic runtime API
-        shell: bash
-        run: |
-          set -euo pipefail
-          BASE='https://31-56-85-53.sslip.io/knowme-api'
-          node --input-type=module -e '
-            const base=process.env.BASE;
-            const sha=process.env.GITHUB_SHA;
-            const version=await fetch(base+"/platform-sync/version",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("version request failed");return r.json()});
-            if(version.commit!==sha)throw Error("API release does not match reviewed SHA");
-            const ready=await fetch(base+"/health/ready",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("health request failed");return r.json()});
-            if(ready.status!=="ready")throw Error("API readiness failed");
-            const cfg=await fetch(base+"/runtime-experience",{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error("runtime API request failed "+r.status);return r.json()});
-            if(!Number.isInteger(cfg.revision)||!Array.isArray(cfg.document?.badges))throw Error("invalid dynamic runtime contract");
-            process.stdout.write(JSON.stringify({status:"ok",commit:sha,revision:cfg.revision})+"\n");
-          ' 
-        env:
-          BASE: https://31-56-85-53.sslip.io/knowme-api
+          mkdir -p "$RUNNER_TEMP/knowme-release"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY"             --pattern knowme-update.json --dir "$RUNNER_TEMP/knowme-release"
+          SOURCE_SHA="$SHA" RELEASE_TAG="$TAG" node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const release = JSON.parse(readFileSync(
+              process.env.RUNNER_TEMP + "/knowme-release/knowme-update.json", "utf8"
+            ));
+            if (!/^\d+\.\d+\.\d+$/.test(release.version) ||
+                !Number.isSafeInteger(release.versionCode) ||
+                !/^[a-f0-9]{64}$/i.test(release.sha256) ||
+                "v"+release.version+"-preview"!==process.env.RELEASE_TAG ||
+                release.url!=="https://github.com/Tresor562/knowMe_mpv/releases/download/"+
+                  process.env.RELEASE_TAG+"/KnowMe-"+release.version+"-preview.apk") {
+              throw Error("Signed-release metadata mismatch.");
+            }
+          '
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Verified commit $SHA is eligible for self-hosted VPS reconciliation."
 
-      - name: Publish factual VPS deployment result on the source commit
-        if: always()
-        shell: bash
+      - name: Prove self-hosted VPS API Web and APK agree on signed release
+        if: steps.source.outputs.sha != ''
         env:
-          RESULT: ${{ job.status }}
-          GITHUB_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.source.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          ok = os.environ['RESULT'] == 'success'
-          payload = {
-              'state': 'success' if ok else 'failure',
-              'context': 'KnowMe dynamic runtime VPS deploy',
-              'description': ('API SHA, readiness and remote catalog verified' if ok
-                              else 'VPS rollout not completed; see workflow logs'),
-              'target_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY']
-                            + '/actions/runs/' + os.environ['GITHUB_RUN_ID']
+          # The VPS timer performs the actual rollout, protected by its
+          # own signed-release qualification, database backups and health checks.
+          node --input-type=module <<'NODE'
+          const sha=process.env.SHA;
+          const base='https://31-56-85-53.sslip.io/knowme-api';
+          const web='https://knowme.31-56-85-53.sslip.io/api/version';
+          const deadline=Date.now()+40*60*1000;
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function json(url) {
+            const response=await fetch(url,{
+              headers:{Accept:'application/json','Cache-Control':'no-store'},
+              signal:AbortSignal.timeout(12000)
+            });
+            if(!response.ok)throw new Error('HTTP '+response.status);
+            return response.json();
           }
-          req = urllib.request.Request(
-              'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY']
-              + '/statuses/' + os.environ['GITHUB_SHA'],
-              data=json.dumps(payload).encode('utf-8'),
-              headers={
-                  'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
-                  'Accept': 'application/vnd.github+json',
-                  'X-GitHub-Api-Version': '2022-11-28',
-                  'Content-Type': 'application/json'
-              },
-              method='POST'
-          )
-          with urllib.request.urlopen(req, timeout=15) as result:
-              if result.status != 201:
-                  raise SystemExit('Could not record VPS deployment status')
-          PY
+          let count=0;
+          while(Date.now()<deadline) {
+            count++;
+            try{
+              const [api,site,ready,updates]=await Promise.all([
+                json(base+'/platform-sync/version'),
+                json(web),
+                json(base+'/health/ready'),
+                json(base+'/mobile-updates/android')
+              ]);
+              if(api?.commit===sha && site?.commit===sha && ready?.status==='ready' &&
+                 Number.isSafeInteger(updates?.release?.versionCode) &&
+                 typeof updates.release.sha256==='string' &&
+                 /^[a-f0-9]{64}$/i.test(updates.release.sha256)) {
+                console.log(JSON.stringify({ok:true,commit:sha,api:'ready',
+                  selfHostedWeb:'matching',androidVersion:updates.release.version}));
+                process.exit(0);
+              }
+              console.log('VPS sync not complete (attempt '+count+')');
+            }catch(error) {
+              console.log('VPS verification not ready (attempt '+count+'): '+
+                (error instanceof Error?error.message:'unknown'));
+            }
+            await sleep(20000);
+          }
+          throw Error('VPS API and Web have not reconciled to exact signed release SHA.');
+          NODE
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          [[ "$CURRENT" == "$SHA" ]] || {
+            echo '::error::Main advanced during verification; cannot certify older release as current.'
+            exit 1
+          }
+
+      - name: Record verified VPS delivery on source commit
+        if: always() && steps.source.outputs.sha != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.source.outputs.sha }}
+          RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          STATE=failure
+          DESCRIPTION='VPS release not verified; inspect KnowMe self-hosted reconciler'
+          if [[ "$RESULT" == success ]]; then
+            STATE=success
+            DESCRIPTION='Verified signed release, VPS API/Web SHA and readiness'
+          fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA"             -f state="$STATE" -f context="KnowMe verified VPS signed release"             -f description="$DESCRIPTION"             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"             --silent
