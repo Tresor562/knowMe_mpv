@@ -46,13 +46,16 @@ export function KnowMeNativeAnimatedIcon({
     animation.current = null;
 
     const next = { name, state, eventToken };
-    const changed = nativeIconChanged(old.current, next);
+    let changed = nativeIconChanged(old.current, next);
     old.current = next;
     if (!initialized.current) {
       initialized.current = true;
-      // Continuous statuses already active on mount must animate immediately.
-      // Static initial selected states remain still (no fake interaction).
-      if (!enabled || !nativeIconShouldLoop(state)) {
+      // A confirmed incoming event may animate once on first mount, e.g. a
+      // toast. A selected state without an event never self-celebrates.
+      const firstEvent = eventToken !== null && eventToken !== undefined &&
+        (state === 'incoming' || state === 'success' || state === 'error');
+      changed = changed || firstEvent;
+      if (!enabled || (!nativeIconShouldLoop(state) && !firstEvent)) {
         value.setValue(1);
         return;
       }
