@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/audio-recorder-send-controls",
-      "task": "PR #706 HEAD 682eea3 : composer vocal Android FR/EN, send/discard, preview stop + progress/seek, permission microphone, background, cleanup; 3/3 tests locaux; guard vert; CI APK en cours. Web #596 coordonné.",
+      "task": "PR #706 : CI + APK vertes au HEAD 682eea3 ; revue, réintégration sûre, fonctionnalités voix et chat Android/Web",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T13:37:52.483Z",
+      "updatedAt": "2026-10-18T14:03:27.337Z",
       "lastPr": 706,
       "resumeFrom": {
         "pr": 706,
@@ -284,6 +284,15 @@
       "domain": "marketplace",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "issue": 697
+    },
+    {
+      "action": "resume",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:03:27.337Z",
+      "issue": 693,
+      "branch": "chat/messaging/audio-recorder-send-controls",
+      "pr": 706
     }
   ]
 }
