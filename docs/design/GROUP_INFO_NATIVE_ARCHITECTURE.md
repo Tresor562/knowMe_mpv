@@ -28,29 +28,45 @@ Telegram/WhatsApp, mais propre à l'identité visuelle KnowMe.
    trouvée dans `/conversations` de l'utilisateur connecté ; « partager » ne
    donne aucun accès au groupe aux non-membres.
 
-## Blocage fonctionnel — vraie photo du groupe
-**NON LIVRÉE PAR CETTE PR :** voir commentaire technique sur Messaging #693
-déposé le 18 octobre.
+## Photo de groupe — implémentation API + Web en validation dans cette PR
+Cette PR ajoute **le code** de la fonctionnalité de photo de groupe, distincte
+des avatars utilisateurs. Son fonctionnement de bout en bout n'est confirmé
+qu'après migration VPS, API disponible et QA Android/Web.
 
-La base `Conversation` n'a aucun `avatarAssetId` et l'API de gestion des
-groupes ne sait pas fixer, retirer, servir ou diffuser une image propre au groupe.
-Le changement de photo exige une vraie évolution concertée de Messaging + Infra :
+- Nouveau modèle Prisma multi-fichier `ConversationAvatar` avec migration dédiée
+  (photo courante par conversation). Il ne modifie pas le `Conversation` de
+  `schema.prisma` déjà concerné par PR #754. Référence de média propriétaire
+  enregistrée de façon durable, sans URL publique arbitraire.
+- `GroupAvatarController` et `GroupAvatarService` reliés à `MediaModule`
+  (sans modifier `messaging.module.ts` déjà détenu par PR historique #496).
+  Routes `GET .../avatar/capabilities`, `GET .../avatar` (JWT + membre),
+  `PATCH .../avatar` (admin/propriétaire et asset de l'acteur) et `DELETE`.
+- Upload sécurisé via `POST /media/uploads` (purpose AVATAR, PRIVATE) et
+  `POST /media/uploads/:id/complete` : format JPEG/PNG/WebP, 1 Ko à 5 Mo,
+  scannerVerdict CLEAN et status AVAILABLE. Vérifications revérifiées serveur
+  avant persistance, transaction sérialisable contre révocation simultanée.
+- Lecture des photos privées via API authentifiée, jamais via une URL
+  `/media/public/avatar` de profil utilisateur ; Web crée une URL blob locale
+  et la révoque au démontage. Le membre peut voir, seul OWNER/ADMIN peut
+  changer/retirer la photo. Aperçu accessible, Échap, confirmation KnowMe.
+- L'écran Web groupe est désormais **deux colonnes sur desktop**, une colonne
+  mobile : identité/photo et actions d'un côté, contenu organisé de l'autre.
+- Tests API (appartenance, permissions, scan/owner/size) et Playwright (admin
+  téléverse image analysée, membre voit la photo sans bouton modifier).
 
-- Upload d'un JPEG/PNG/WebP via le pipeline média AVATAR existant, validation de
-  taille et verdict scan CLEAN/AVAILABLE ; refus de tout asset appartenant à un
-  autre utilisateur ou provenant d'un autre groupe.
-- Persistance durable de la référence dans Conversation, migration Prisma
-  coordonnée avec PR #754 et anciennes PR du même schéma.
-- Route PATCH/DELETE gardée OWNER/ADMIN, lecture par membres vérifiée, miniature
-  dans la liste des chats, entêtes, informations Web et APK.
-- Événement temps réel group:updated, cache et purge lors de retrait/bannissement.
-- UI de changement : appui avatar (feuille actions : voir, choisir galerie,
-  remplacer, retirer), sélection Android, recadrage/aperçu local, chargement/
-  erreur/retour, cibles tactiles; remplacement visible sur les autres appareils.
-- Tests 403 sur non-admin ou non-membre, asset privé tiers, fichier infecté,
-  concurrence entre admins, mise à jour des listes et session révoquée.
-- Ne pas présenter `/media/public/avatar/:id` de l'utilisateur comme un avatar
-  de groupe, ni créer un bouton qui échoue systématiquement sans backend.
-
-**Différence de statut :** cette PR structure la fiche Web et sa navigation,
-mais ne délivre ni photo de groupe, ni refonte de l'écran natif Android.
+### Limites explicites à lever après fusion
+- **La migration doit être appliquée sur le VPS** et la version API correspondante
+  déployée ; Vercel READY à lui seul ne suffit pas. Ne pas prétendre que les
+  utilisateurs peuvent modifier une photo avant cette preuve.
+- L'écran natif Android et les avatars de la **liste de conversations et des
+  en-têtes** n'affichent pas encore ce nouvel asset. Ils exigent le raccordement
+  `GroupAvatarEditor` équivalent en React Native et un endpoint de résumé
+  d'avatar dans le contrat de liste, avec cache invalidé en temps réel.
+- Le modèle Prisma indépendant évite les conflits de schéma actifs mais ne
+  déclare pas encore de relations Prisma avec Conversation/MediaAsset. La
+  vérification d'appartenance et des assets est effectuée à chaque requête ;
+  une purge des références orphelines à la suppression définitive d'un groupe
+  reste à prévoir.
+- Une API existante sur ancien backend pourra retourner 404 : l'interface
+  affiche alors un avatar par défaut et **n'affiche pas un faux bouton de
+  changement** si le serveur ne déclare pas `canEdit`.
