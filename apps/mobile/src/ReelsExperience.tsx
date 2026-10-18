@@ -6,6 +6,7 @@ import {
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { PublicPostVideo } from './PublicPostVideo';
+import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { KnowMeIcon } from './ui/KnowMeUI';
 
 type Author={id:string;username:string;displayName:string};
@@ -27,6 +28,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [more,setMore]=useState(false);
   const [hasMore,setHasMore]=useState(true);
   const [failure,setFailure]=useState('');
+  const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
   const pending=useRef(false);
@@ -138,7 +140,9 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
   function renderClip({item}: {item:Clip}){
     const post=item.post;
-    const shown=item.id===active;
+    // Unmount the active Reel while the local library is open. Otherwise
+    // both players can emit sound behind the modal.
+    const shown=item.id===active&&!offlineLibraryOpen;
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
@@ -204,8 +208,13 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         <KnowMeIcon name="back" size={23} color="#fff"/>
       </Pressable>
       <Text style={styles.title}>KnowMe · Reels</Text>
-      <View style={{width:44}}/>
+      <Pressable accessibilityRole="button" accessibilityLabel="Mes vidéos enregistrées"
+        onPress={()=>setOfflineLibraryOpen(true)} style={styles.back}>
+        <KnowMeIcon name="download" size={22} color="#fff"/>
+      </Pressable>
     </View>
+    <OfflineVideosLibrary visible={offlineLibraryOpen}
+      onClose={()=>setOfflineLibraryOpen(false)}/>
     {Boolean(failure)&&<Pressable accessibilityRole="alert"
       onPress={()=>setFailure('')} style={styles.error}>
       <Text style={styles.errorText}>{failure}</Text>

@@ -62,3 +62,24 @@ export async function downloadPublicVideoOffline(url:string,progress:(fraction:n
     throw error;
   }
 }
+
+/** Enumerate only complete saved MP4s. Partial and unrelated files are ignored. */
+export type SavedPublicVideo={url:string;uri:string;bytes:number;modifiedAt:number};
+export async function listSavedPublicVideos():Promise<SavedPublicVideo[]>{
+  if(!FileSystem.documentDirectory)return [];
+  const root=FileSystem.documentDirectory+'knowme-offline-videos/';
+  const dir=await FileSystem.getInfoAsync(root);
+  if(!dir.exists||!dir.isDirectory)return [];
+  const names=await FileSystem.readDirectoryAsync(root);
+  const matches=names.filter(name=>/^[a-zA-Z0-9_-]{1,128}\.mp4$/.test(name));
+  const videos=await Promise.all(matches.map(async filename=>{
+    const uri=root+filename;
+    const info=await FileSystem.getInfoAsync(uri);
+    if(!info.exists||info.isDirectory||info.size<=1024)return null;
+    const id=filename.slice(0,-4);
+    return {url:'/media/public/post/'+id,uri,bytes:info.size,
+      modifiedAt:info.modificationTime??0};
+  }));
+  return videos.filter((value):value is SavedPublicVideo=>value!==null)
+    .sort((a,b)=>b.modifiedAt-a.modifiedAt);
+}
