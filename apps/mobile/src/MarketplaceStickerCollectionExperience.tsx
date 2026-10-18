@@ -118,7 +118,7 @@ export function MarketplaceStickerCollectionExperience() {
 
       <Pressable accessibilityRole="button" onPress={() => setCreatorOpen(true)}
         style={[styles.createButton, { backgroundColor: colors.accent }]}>
-        <KnowMeIcon name="plus" size={21} color={colors.accentText} />
+        <KnowMeIcon name="create" size={21} color={colors.accentText} />
         <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: 14 }}>
           Créer un pack KnowSticker
         </Text>
@@ -197,7 +197,7 @@ export function MarketplaceStickerCollectionExperience() {
               accessibilityLabel={'Supprimer le pack ' + pack.name}
               disabled={busyPackId !== null} onPress={() => confirmDelete(pack)}
               style={[styles.iconButton, { backgroundColor: colors.backgroundAccent }]}>
-              <KnowMeIcon name="trash" size={19} color={colors.danger} />
+              <KnowMeIcon name="close" size={19} color={colors.danger} />
             </Pressable>
           </View>
         ))}
