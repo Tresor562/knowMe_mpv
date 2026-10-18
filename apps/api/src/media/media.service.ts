@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUploadSessionDto, GrantMediaAccessDto } from './dto/media.dto';
 import { ExternalMediaScannerService } from './external-media-scanner.service';
 import { MediaStorageService } from './media-storage.service';
+import { parseSingleByteRange } from './video-byte-range';
 
 const SUPPORTED_MIME = new Set([
   'image/jpeg',
@@ -313,7 +314,7 @@ export class MediaService {
    * A scanned POST asset is a public attachment only while an actual post
    * from that same owner references it. Unattached private uploads are 404.
    */
-  async readPublicPostImage(assetId: string) {
+  private async requirePublicPostAsset(assetId: string) {
     const asset = await this.prisma.mediaAsset.findFirst({
       where: {
         id: assetId,
@@ -325,16 +326,48 @@ export class MediaService {
       select: { id: true, ownerId: true, storageKey: true, detectedMime: true }
     });
     if (!asset) throw new NotFoundException('Média indisponible.');
+    // A scanner-approved asset is not automatically public: it must be
+    // attached to a real post created by the same media owner.
     const attached = await this.prisma.post.findFirst({
       where: {
         authorId: asset.ownerId,
-        OR: [{imageUrl: `/media/public/post/${assetId}`},
-          {media:{some:{assetId}}}]
+        OR: [
+          { imageUrl: `/media/public/post/${assetId}` },
+          { media: { some: { assetId } } }
+        ]
       },
       select: { id: true }
     });
-    if (!attached) throw new NotFoundException('Image indisponible.');
+    if (!attached) throw new NotFoundException('Média indisponible.');
+    return asset;
+  }
+
+  async readPublicPostImage(assetId: string) {
+    const asset = await this.requirePublicPostAsset(assetId);
     return { buffer: await this.storage.get(asset.storageKey), mimeType: asset.detectedMime };
+  }
+
+  async readPublicPostRange(assetId: string, rangeHeader: string) {
+    const asset = await this.requirePublicPostAsset(assetId);
+    if (asset.detectedMime !== 'video/mp4') {
+      const buffer = await this.storage.get(asset.storageKey);
+      return { buffer, mimeType: asset.detectedMime, range: null,
+        unsatisfiable: false, total: buffer.length };
+    }
+
+    const total = await this.storage.size(asset.storageKey);
+    const requested = parseSingleByteRange(rangeHeader, total);
+    if (!requested) {
+      return { buffer: Buffer.alloc(0), mimeType: asset.detectedMime,
+        range: null, unsatisfiable: true, total };
+    }
+    // Every response stays bounded even when the caller requests the
+    // complete file. The browser can request subsequent chunks.
+    const start = requested.start;
+    const end = Math.min(requested.end, start + 4 * 1024 * 1024 - 1);
+    const buffer = await this.storage.getByteRange(asset.storageKey, start, end);
+    return { buffer, mimeType: asset.detectedMime,
+      range: { start, end, total }, unsatisfiable: false, total };
   }
 
   async assertOwnedPostMedia(ownerId:string,assetId:string) {
