@@ -227,7 +227,7 @@ export class MediaStorageService implements OnModuleInit {
   }
 
   private async s3RequestAttempt(
-    method: 'GET' | 'PUT' | 'DELETE',
+    method: 'GET' | 'PUT' | 'DELETE' | 'HEAD',
     key: string,
     body?: Buffer,
     contentType?: string,
