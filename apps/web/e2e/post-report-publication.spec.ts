@@ -91,7 +91,8 @@ test('publication report dialog traps keyboard focus and restores its menu trigg
   const dialog=page.getByRole('dialog',{name:'Signaler la publication'});
   const firstRadio=dialog.getByRole('radio',{name:'Spam ou publicité abusive'});
   await expect(firstRadio).toBeFocused();
-  // Shift+Tab from the initial focused radio wraps to the last link in the modal.
+  // Shift+Tab from the first focusable control wraps to the last link in the modal.
+  await dialog.getByRole('button',{name:'Fermer le signalement'}).focus();
   await page.keyboard.press('Shift+Tab');
   await expect(dialog.getByRole('link',{name:'Vérifier mes signalements précédents'})).toBeFocused();
   // A following Tab must wrap back to the first focusable control inside this sheet.
