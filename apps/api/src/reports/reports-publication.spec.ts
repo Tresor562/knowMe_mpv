@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 
 describe('Authenticated publication reports', () => {
@@ -75,6 +75,61 @@ describe('Authenticated publication reports', () => {
     prisma.report.findFirst.mockResolvedValue({ id: 'existing' });
     await expect(service.create('viewer', dto)).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.report.create).not.toHaveBeenCalled();
+  });
+
+
+  it('paginates publication-only reports with a stable id cursor', async () => {
+    const { service, prisma } = setup();
+    const entries = Array.from({ length: 21 }, (_, n) => ({
+      id: 'report-' + String(n).padStart(2, '0'), targetType: 'POST',
+      targetId: 'post-' + n, reason: 'Spam', status: 'OPEN', createdAt: new Date()
+    }));
+    prisma.report.findMany.mockResolvedValue(entries);
+    const result = await service.minePostReports('viewer');
+    expect(result.reports).toHaveLength(20);
+    expect(result.nextCursor).toBe('report-19');
+    expect(prisma.report.findMany).toHaveBeenCalledWith({
+      where: { reporterId: 'viewer', targetType: 'POST' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 21,
+      select: {
+        id: true, targetType: true, targetId: true, reason: true,
+        status: true, createdAt: true, resolvedAt: true
+      }
+    });
+  });
+
+  it('rejects a cursor belonging to another account or report type', async () => {
+    const { service, prisma } = setup();
+    await expect(service.minePostReports('viewer', 'not-my-report'))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.report.findFirst).toHaveBeenCalledWith({
+      where: { id: 'not-my-report', reporterId: 'viewer', targetType: 'POST' },
+      select: { id: true }
+    });
+    expect(prisma.report.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed cursors before database access', async () => {
+    const { service, prisma } = setup();
+    await expect(service.minePostReports('viewer', 'abc,foreign'))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.report.findFirst).not.toHaveBeenCalled();
+    expect(prisma.report.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns later pages only after authorizing the pagination anchor', async () => {
+    const { service, prisma } = setup();
+    prisma.report.findFirst.mockResolvedValue({id:'report-19'});
+    prisma.report.findMany.mockResolvedValue([{id:'report-20'}]);
+    const result = await service.minePostReports('viewer', 'report-19');
+    expect(result).toEqual({reports:[{id:'report-20'}],nextCursor:null});
+    expect(prisma.report.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { reporterId: 'viewer', targetType: 'POST' },
+      cursor: { id: 'report-19' },
+      skip: 1,
+      take: 21
+    }));
   });
 
   it('reads only the authenticated account history, newest first and bounded', async () => {
