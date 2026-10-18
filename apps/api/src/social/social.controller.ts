@@ -55,6 +55,11 @@ export class SocialController {
     return this.social.cancelRequest(req.user.userId, id);
   }
 
+  @Get('friend-requests/outgoing')
+  outgoing(@Req() req: { user: { userId: string } }) {
+    return this.social.outgoing(req.user.userId);
+  }
+
   @Get('friend-requests/incoming')
   incoming(@Req() req: { user: { userId: string } }) {
     return this.social.incoming(req.user.userId);
