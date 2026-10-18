@@ -5,7 +5,7 @@ import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
-import {videoTime} from './video-time';
+import {videoTime,seekTimeFromTrack,clampVideoSeek} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
@@ -21,6 +21,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const [durationMs,setDurationMs]=useState(0);
   const [seekToMs,setSeekToMs]=useState<number|undefined>(undefined);
   const [trackWidth,setTrackWidth]=useState(1);
+  const [scrubMs,setScrubMs]=useState<number|null>(null);
+  const scrubbing=useRef(false);
   const [saved,setSaved]=useState<string|null>(null);
   const [saving,setSaving]=useState(false);
   const [savePercent,setSavePercent]=useState(0);
@@ -137,13 +139,27 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
 
   function seek(milliseconds:number){
     if(durationMs<=0)return;
-    const bounded=Math.max(0,Math.min(durationMs,Math.floor(milliseconds)));
+    const bounded=clampVideoSeek(milliseconds,durationMs);
     setSeekToMs(bounded);
     setPositionMs(bounded);
   }
+  const displayMs=scrubMs??positionMs;
+  const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
+  function dragSeek(offsetX:number){
+    if(durationMs<=0)return;
+    scrubbing.current=true;
+    setScrubMs(seekTimeFromTrack(durationMs,offsetX,trackWidth));
+  }
+  function completeSeek(offsetX:number){
+    if(!scrubbing.current)return;
+    const target=seekTimeFromTrack(durationMs,offsetX,trackWidth);
+    scrubbing.current=false;
+    setScrubMs(null);
+    seek(target);
+  }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused} style={styles.video}
+      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
@@ -153,7 +169,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           const duration=event.nativeEvent.durationMs;
           const position=event.nativeEvent.positionMs;
           if(Number.isFinite(duration)&&duration>0)setDurationMs(duration);
-          if(Number.isFinite(position)&&position>=0)setPositionMs(position);
+          if(Number.isFinite(position)&&position>=0&&!scrubbing.current)setPositionMs(position);
         }}/>
       <Pressable style={styles.tapZone}
         accessibilityRole="button"
@@ -169,13 +185,13 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       </Pressable>
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
-          onPress={()=>seek(positionMs-10000)} style={styles.skipButton}>
+          onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>-10</Text>
         </Pressable>
         <View style={styles.seekMiddle}>
-          <Text style={styles.timeLabel}>{videoTime(positionMs)} / {videoTime(durationMs)}</Text>
-          <Pressable accessibilityRole="adjustable"
+          <Text style={styles.timeLabel}>{videoTime(displayMs)} / {videoTime(durationMs)}{scrubMs!==null?' · déplacer':''}</Text>
+          <View accessible accessibilityRole="adjustable"
             accessibilityLabel="Position dans la vidéo"
             accessibilityValue={{min:0,max:Math.max(1,Math.floor(durationMs/1000)),now:Math.min(Math.floor(positionMs/1000),Math.max(1,Math.floor(durationMs/1000)))}}
             accessibilityActions={[{name:'increment',label:'Avancer dix secondes'},{name:'decrement',label:'Reculer dix secondes'}]}
@@ -184,13 +200,20 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
               else if(event.nativeEvent.actionName==='decrement')seek(positionMs-10000);
             }}
             onLayout={event=>setTrackWidth(Math.max(1,event.nativeEvent.layout.width))}
-            onPress={event=>seek(durationMs*event.nativeEvent.locationX/trackWidth)}
+            onStartShouldSetResponder={()=>durationMs>0}
+            onMoveShouldSetResponder={()=>durationMs>0}
+            onResponderGrant={event=>dragSeek(event.nativeEvent.locationX)}
+            onResponderMove={event=>dragSeek(event.nativeEvent.locationX)}
+            onResponderRelease={event=>completeSeek(event.nativeEvent.locationX)}
+            onResponderTerminate={()=>{scrubbing.current=false;setScrubMs(null);}}
+            onResponderTerminationRequest={()=>false}
             style={styles.seekTrack}>
-            <View style={[styles.seekFill,{width:`${durationMs>0?Math.min(100,100*positionMs/durationMs):0}%` as `${number}%`}]}/>
-          </Pressable>
+            <View pointerEvents="none" style={[styles.seekFill,{width:`${displayPercent}%` as `${number}%`}]}/>
+            <View pointerEvents="none" style={[styles.seekThumb,{left:`${displayPercent}%` as `${number}%`}]}/>
+          </View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
-          onPress={()=>seek(positionMs+10000)} style={styles.skipButton}>
+          onPress={()=>seek(clampVideoSeek(positionMs,durationMs,10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>+10</Text>
         </Pressable>
@@ -236,6 +259,9 @@ const styles=StyleSheet.create({
   seekTrack:{height:18,borderRadius:9,backgroundColor:'rgba(255,255,255,.3)',
     justifyContent:'center',overflow:'hidden'},
   seekFill:{height:5,backgroundColor:'#83e9de',borderRadius:3},
+  seekThumb:{position:'absolute',width:12,height:12,borderRadius:6,
+    backgroundColor:'#fff',borderWidth:2,borderColor:'#83e9de',
+    top:3,marginLeft:-6},
   pausedIndicator:{width:68,height:68,borderRadius:25,backgroundColor:'rgba(0,0,0,.58)',
     alignItems:'center',justifyContent:'center'},
   likeIndicator:{width:94,height:94,borderRadius:32,
