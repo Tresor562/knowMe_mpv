@@ -39,6 +39,11 @@ export function notificationDestination(item: InAppNotification): string {
   return safeNotificationPath(item.data?.route ?? item.data?.link);
 }
 
+export function notificationAlreadyVisible(item: InAppNotification, pathname: string): boolean {
+  const route = notificationDestination(item).split(/[?#]/, 1)[0];
+  return route !== '/notifications' && route === pathname;
+}
+
 export function notificationSymbol(type: string, category: string): 'message' | 'mention' | 'post' | 'security' | 'activity' {
   const token = type.toUpperCase();
   if (token.includes('MESSAGE') || token.includes('CHAT') || category === 'MESSAGING') return 'message';
