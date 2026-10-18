@@ -82,4 +82,5 @@
   white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
 .km-reel-caption-body p{font-size:15px;line-height:1.6;margin:6px 0;user-select:text}
 .km-reel-caption-dialog small{color:#b0bec9;font-size:12px}
-\n/* Actions sit above the player timeline without hiding or intercepting its slider. */\n
+
+/* Actions sit above the player timeline without hiding or intercepting its slider. */
