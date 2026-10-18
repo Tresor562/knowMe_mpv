@@ -116,3 +116,10 @@
 :root[data-animations='false'] .km-state-icon svg {
   animation: none !important; transition: none !important; transform: none !important;
 }
+
+:root[data-animated-icons='false'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
+:root[data-effective-reduced-motion='true'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
