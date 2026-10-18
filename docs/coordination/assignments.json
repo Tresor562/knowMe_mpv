@@ -172,25 +172,27 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/live-notices-compact-surfaces",
-      "task": "Continuing #743: verified coordination green, CI queued, APK running; inspect and strengthen in-app UX and native actual-screen routing. PR #735 merged; PR #724 all checks passed pending safe integration.",
+      "task": "PR #743 HEAD 5405041c: in-app notification Web, counter in smart navigation with secondary floating fallback, authoritative full unread count, compact notifications center and chat/group controls; Android organizer compact + advanced center styled but not mounted. Latest CI/coordination/APK queued or pending. PR #724 merged ed058b1b after all checks, PR #730 merged 5999b0a. Android tab blocked by open #583; emoji keyboard changes handed to merged Messaging #735, group member count bug #693. No production verification.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T16:04:05.453Z",
+      "updatedAt": "2026-10-18T16:13:06.037Z",
       "lastPr": 743,
       "resumeFrom": {
         "pr": 743,
         "branch": "chat/design/live-notices-compact-surfaces",
-        "commit": "b4671c06b8db1373c1dcefae2f802fede6ddd397",
-        "alsoPr": 724,
-        "alsoBranch": "chat/design/system-accessibility-fallbacks",
-        "alsoHead": "e176cbf3b1367515e895f4c8e00d5d9b46fe6350",
-        "mergedPr": 730,
-        "mergedCommit": "5999b0acc4eac3fab5309bac7a32a1f072abbb71",
-        "dependencyPr": 735,
-        "conflictPr": 583,
-        "issueComment": 6251898845
+        "commit": "5405041c554887f4c9415d81b28212d35a31aa59",
+        "mergedPrs": [
+          724,
+          730
+        ],
+        "mergedHeads": [
+          "ed058b1b37c2b5df3a5412d02d56f399ac094f4c",
+          "5999b0acc4eac3fab5309bac7a32a1f072abbb71"
+        ],
+        "externalIssue": 693,
+        "externalPr": 583
       }
     }
   },
@@ -970,6 +972,14 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 743
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "at": "2026-10-18T16:13:06.037Z",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 743,
+      "mergedPr": 724
     }
   ]
 }
