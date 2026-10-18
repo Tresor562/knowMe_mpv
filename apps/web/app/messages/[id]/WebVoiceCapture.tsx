@@ -163,7 +163,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     await stopEngine();
     // Cancel or conversation-switch during asynchronous audio shutdown must
     // never resurrect a deleted recording.
-    if(!mountedRef.current||phaseRef.current!=='stopping'){chunks.current=[];return;}
+    if(!mountedRef.current||(phaseRef.current as Phase)!=='stopping'){chunks.current=[];return;}
     try{
       const wav=encodeKnowMeVoiceWav(chunks.current,sampleRate.current,MAX_SECONDS);
       chunks.current=[];
@@ -171,7 +171,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
       setReady(file);next('ready');
     }catch(cause){
       chunks.current=[];
-      if(!mountedRef.current||phaseRef.current!=='stopping')return;
+      if(!mountedRef.current||(phaseRef.current as Phase)!=='stopping')return;
       next('idle');setOpen(false);
       setError(cause instanceof Error?cause.message:'Note vocale invalide.');
     }
