@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('knowme_token', 'design-feedback-e2e'));
+  await page.addInitScript(() => {
+    localStorage.setItem('knowme_token', 'design-feedback-e2e');
+    localStorage.setItem('knowme-locale', 'fr');
+  });
   await page.route('**/api/knowme/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     let body: unknown = {};
