@@ -59,3 +59,17 @@
   min-height:42px;border:0;border-radius:12px;
   color:var(--mint);background:var(--surface);padding:8px 12px;cursor:pointer;
 }
+
+/* Reuse the soft KnowMe action sheet for editable post text. */
+.km-post-edit-sheet {gap:11px;}
+.km-post-edit-sheet label {font-size:13px;font-weight:700;}
+.km-post-edit-sheet textarea {width:100%;max-height:45dvh;resize:vertical;
+  padding:13px;border:1px solid var(--soft-border);
+  border-radius:15px;background:var(--surface-2);color:var(--text);
+  font:inherit;font-size:15px;line-height:1.5;}
+.km-post-edit-sheet small {text-align:right;color:var(--muted);font-size:12px;}
+.km-post-edit-actions {display:flex;gap:10px;}
+.km-post-edit-actions button {flex:1;min-height:46px;border:0;
+  border-radius:15px;background:var(--surface-2);color:var(--text);font-weight:700;cursor:pointer;}
+.km-post-edit-actions button[type=submit] {background:var(--mint);color:var(--surface);font-weight:800;}
+.km-post-edit-actions button:disabled {opacity:.45;cursor:not-allowed;}
