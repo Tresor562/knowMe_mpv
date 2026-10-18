@@ -50,12 +50,13 @@ export class ReportsService {
 
   /** Dedicated private, paginated social report history; keeps `mine()` backwards compatible. */
   async minePostReports(reporterId: string, cursor?: string, status?: string) {
-    if (status !== undefined && !['OPEN', 'RESOLVED', 'DISMISSED'].includes(status)) {
+    if (status !== undefined &&
+      (typeof status !== 'string' || !['OPEN', 'RESOLVED', 'DISMISSED'].includes(status))) {
       throw new BadRequestException('Statut de signalement invalide.');
     }
     const scope = { reporterId, targetType: 'POST', ...(status ? { status } : {}) };
     if (cursor !== undefined) {
-      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)) {
+      if (typeof cursor !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)) {
         throw new BadRequestException('Curseur de signalements invalide.');
       }
       // Never accept an anchor from another user's report or another report type.
