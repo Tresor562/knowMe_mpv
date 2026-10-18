@@ -53,12 +53,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/story-archive-pagination",
-      "task": "PR #709: archive Stories paginée Web, filtres et tests, contrôles en cours. PR #707: spectateurs Web, coordination bloquée par PR historique #583",
+      "task": "PR #709 archive Stories (coordination réussie; CI/Android en cours); PR #707 spectateurs (collision PR #583, réconciliation requise). Reprendre validation CI exacte et fusion une fois gouvernance au vert.",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T12:20:39.317Z",
+      "updatedAt": "2026-10-18T12:21:24.795Z",
       "lastPr": 709,
       "resumeFrom": null
     },
