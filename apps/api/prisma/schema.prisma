@@ -175,6 +175,7 @@ model Conversation {
   title       String?
   description String?
   isGroup     Boolean  @default(false)
+  groupPermissions Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
