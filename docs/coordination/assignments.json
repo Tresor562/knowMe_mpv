@@ -178,30 +178,48 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/shared-history-date-author-filters",
-      "task": "Resume design messaging UX: verify PR #764 and implement next isolated native-quality chat information improvement after safe merging.",
+      "branch": "chat/design/shared-content-multiselect-links",
+      "task": "PR #764 merged at 33679656 after CI+APK+coordination success; Vercel knowme-android production READY on exact SHA. PR #765 HEAD 8259be6e adds up to 50 selected visible authorized items and copy message permalinks in private/group shared content, pure model tests and E2E. Guard successful, CI/APK pending as of checkpoint. Blocking contact exposed in social API but message enforcement absent; asked Messaging #693 to fix; not a secure user-facing blocking feature. All Telegram/WhatsApp parity still not complete.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T19:41:24.726Z",
-      "lastPr": 764,
+      "updatedAt": "2026-10-18T19:52:33.000Z",
+      "lastPr": 765,
       "resumeFrom": {
-        "pr": 764,
-        "branch": "chat/design/shared-history-date-author-filters",
-        "commit": "b94fcf5e055244d9389d560b00f9ac6a2dba60b7",
-        "merged": [
+        "pr": 765,
+        "branch": "chat/design/shared-content-multiselect-links",
+        "commit": "8259be6e3bc81c45a8523d5b1c2313bad3a10616",
+        "mergedPr": 764,
+        "mergedCommit": "33679656a588d4444f8401a9a12318ecd8aaef75",
+        "dependencyPrs": [
+          756,
+          754
+        ],
+        "issueComment": 6254392858,
+        "securityIssue": 693,
+        "requiredChecks": [
+          "CI",
+          "KnowMe coordination guard",
+          "KnowMe APK Build Once"
+        ],
+        "at": "2026-10-18T19:52:33.000Z",
+        "checks": [
           {
-            "pr": 743,
-            "mergeCommit": "9aac41567909635ac8aadaa1983d9f3cfdf0f131"
+            "name": "CI",
+            "status": "in_progress",
+            "conclusion": null
           },
           {
-            "pr": 762,
-            "mergeCommit": "2b0c0ac0a5554df3e9a3ff3864d5dd955ec4aa85"
+            "name": "KnowMe APK Build Once",
+            "status": "in_progress",
+            "conclusion": null
+          },
+          {
+            "name": "KnowMe coordination guard",
+            "status": "completed",
+            "conclusion": "success"
           }
-        ],
-        "dependencyPr": 756,
-        "legacyPr": 754,
-        "need": "Finish PR #764 CI+APK then verify clean mergeability; integrated author/date filters in private/group; maintain strict domain ownership."
+        ]
       }
     }
   },
@@ -1081,6 +1099,14 @@
       "action": "resume",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "at": "2026-10-18T19:41:24.726Z"
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "at": "2026-10-18T19:52:33.000Z",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 765,
+      "mergedPr": 764
     }
   ]
 }
