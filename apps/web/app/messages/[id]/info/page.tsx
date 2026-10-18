@@ -46,7 +46,7 @@ export default function ConversationInfoPage() {
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [leaving,setLeaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('members');
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -213,13 +213,14 @@ export default function ConversationInfoPage() {
         {isGroup && ([
           {kind:'media', fr:'Médias', en:'Media'},
           {kind:'files', fr:'Fichiers', en:'Files'},
-          {kind:'links', fr:'Liens', en:'Links'}
+          {kind:'links', fr:'Liens', en:'Links'},
+          {kind:'search', fr:'Recherche', en:'Search'}
         ] as const).map(tab => <button key={tab.kind} type="button" role="tab"
           aria-selected={activeTab===tab.kind} onClick={()=>setActiveTab(tab.kind)}>
           {en?tab.en:tab.fr}
         </button>)}
       </div>
-      {isGroup && (activeTab==='media'||activeTab==='files'||activeTab==='links') &&
+      {isGroup && (activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
         <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en}/>}
 
       {activeTab === 'members' && <section className="km-info-members" role="tabpanel">
