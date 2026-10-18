@@ -144,7 +144,7 @@ export default function VerificationPage() {
   }
 
   async function withdraw(request: VerificationRequest) {
-    if (busy) return;
+    if (busy || loadError) return;
     const typed = await knowMePrompt(tr(
       'Pourquoi retirer cette demande ? (3 à 500 caractères)',
       'Why withdraw this request? (3–500 characters)'
@@ -312,7 +312,7 @@ export default function VerificationPage() {
                 ))}
               </details>
               {['SUBMITTED', 'UNDER_REVIEW'].includes(request.status) && (
-                <button className="btn" type="button" disabled={busy} onClick={() => void withdraw(request)}>
+                <button className="btn" type="button" disabled={busy || loadError} onClick={() => void withdraw(request)}>
                   Retirer la demande
                 </button>
               )}
