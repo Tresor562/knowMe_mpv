@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReportDto } from './dto/create-report.dto';
 
@@ -7,7 +7,7 @@ export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(reporterId: string, dto: CreateReportDto) {
-    await this.ensureTargetExists(dto.targetType, dto.targetId);
+    await this.ensureTargetExists(dto.targetType, dto.targetId, reporterId);
 
     const duplicate = await this.prisma.report.findFirst({
       where: {
@@ -89,13 +89,21 @@ export class ReportsService {
     };
   }
 
-  private async ensureTargetExists(targetType: string, targetId: string) {
+  private async ensureTargetExists(targetType: string, targetId: string, reporterId: string) {
     const exists = await (async () => {
       switch (targetType) {
         case 'USER':
           return this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
-        case 'POST':
-          return this.prisma.post.findUnique({ where: { id: targetId }, select: { id: true } });
+        case 'POST': {
+          const post = await this.prisma.post.findUnique({
+            where: { id: targetId },
+            select: { id: true, authorId: true }
+          });
+          if (post?.authorId === reporterId) {
+            throw new ForbiddenException('Impossible de signaler votre propre publication.');
+          }
+          return post;
+        }
         case 'COMMENT':
           return this.prisma.postComment.findUnique({ where: { id: targetId }, select: { id: true } });
         case 'MESSAGE':
