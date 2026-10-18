@@ -92,20 +92,23 @@
       "issue": 696,
       "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/creator-follow-authoritative",
-      "task": "Finir validation des PR #727 et #734 ; tester code profil ; fusion sûre selon CI et anti-conflit",
+      "branch": "chat/profiles/badges-user-isolation",
+      "task": "PR #727 Web Creator Settings CI in progress; PR #734 API follow-status/component isolé, CI/readiness en cours et collision #583 évitée; PR #738 anti-fuite de badges cosmétiques entre usernames, 4 tests locaux verts, GitHub CI en file.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:48:58.528Z",
-      "lastPr": 734,
+      "updatedAt": "2026-10-18T14:54:47.876Z",
+      "lastPr": 738,
       "resumeFrom": {
-        "pr": 734,
-        "branch": "chat/profiles/creator-follow-authoritative",
-        "head": "1c3f77499286678b6750f500ceb36c2921229132",
-        "otherPr": 727,
-        "otherBranch": "chat/profiles/creator-web-conflict-safe",
-        "otherHead": "a9759bf49ade3a70f216714af4175c61b590b0fd",
-        "mergedPr": 716,
-        "mergedCommit": "c42c6bdd35b6a04eeb78461f5e65ee724fdb3025"
+        "pr": 738,
+        "branch": "chat/profiles/badges-user-isolation",
+        "otherPrs": [
+          727,
+          734
+        ],
+        "otherBranches": [
+          "chat/profiles/creator-web-conflict-safe",
+          "chat/profiles/creator-follow-authoritative"
+        ],
+        "mergedPr": 716
       }
     },
     "marketplace": {
