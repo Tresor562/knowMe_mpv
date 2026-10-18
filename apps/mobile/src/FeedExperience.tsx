@@ -2,7 +2,7 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
-  Image, type ImageStyle,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import { API_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
@@ -62,10 +62,6 @@ type Comment = {
 
 type ReactionSummary = {total:number;mine:string|null;emojis:Array<{emoji:string;count:number}>};
 const COMMENT_EMOJI_CHOICES = ['❤️','😂','😮','😢','😡'];
-
-function resolvePostImage(url: string) {
-  return url.startsWith('/media/public/post/') ? `${API_URL}${url}` : url;
-}
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
