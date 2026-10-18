@@ -6,7 +6,7 @@ import { knowMeConfirm, knowMePrompt } from '../../components/knowme-feedback';
 import {
   canSubmitVerificationRequest, verificationWithdrawalReason
 } from '../../lib/verification-request-model';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
@@ -69,6 +69,7 @@ export default function VerificationPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const loadedAccountId = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -87,8 +88,13 @@ export default function VerificationPage() {
   }, []);
 
   useEffect(() => {
-    if (!sessionLoading && user) void load();
-  }, [load, sessionLoading, user]);
+    if (sessionLoading || !user || loadedAccountId.current === user.id) return;
+    // A routine useSession.refresh() briefly clears/restores the same user.
+    // Only load when the active account really changes, avoiding duplicate
+    // GETs that could erase acknowledged POST success messages.
+    loadedAccountId.current = user.id;
+    void load();
+  }, [load, sessionLoading, user?.id]);
 
   /**
    * The POST already succeeded. A later GET/session refresh failure must
