@@ -103,3 +103,21 @@ Les 12 alertes contextuelles restantes correspondent à des éléments SVG dans 
 - Tests ajoutés aux suites ciblées Web et Android ; **le SHA exact du présent lot doit passer CI et le garde de coordination avant toute fusion**. Le contrôle de chevauchement échouait encore à l'ouverture de ce lot ; la réussite des tests de code seule ne le remplace pas.
 
 **État** : aucun déploiement Web ni nouvelle APK signée ne peut être affirmé sur la base de cette branche de développement.
+
+
+## Contrôles transverses migrés dans ce lot
+
+**Web (catalogue désormais de 79 tracés originaux SVG)** :
+- Lecteur vidéo des publications : `play/pause`, recul/avance de 10 s, `volume/volume-off` et entrée/sortie du plein écran n'utilisent plus les caractères Unicode et emojis. Les icônes reflètent `playing`, `muted`, `fullscreen` effectivement reçus du lecteur ; un seek valide déclenche seulement l'animation de sa direction. Six cibles tactiles de 44 px minimum, y compris sur écran étroit, avec tests DOM Playwright ciblés.
+- Fenêtres de notification globales : pictogramme `shield` du dialogue, `warning` pour erreur, `check-circle` pour réussite, `info` pour information et bouton `close` accessible, à la place de l'astérisque décoratif et de la croix texte.
+- Signalements et édition : fermeture via `KnowMeIconButton`, animation d'envoi uniquement durant le POST réel, état `refresh` lors d'un PATCH en cours, `check` hors chargement.
+- Recherche/sélection de membres : puces réductibles avec SVG `close`, options alignées en lignes de hauteur 56 px plutôt qu'en grosses cartes ; `user-plus`, `check`, `lock`, `search/loading` indiquent les actions réelles sans déduire des permissions.
+- Moteur d'animations : un seul `IntersectionObserver` par document surveille les pictogrammes *actifs*, désactive le mouvement hors du viewport et libère l'observateur à la dernière désinscription. Les états affichés restent corrects et la visibilité d'onglet reste prise en compte.
+- Audit source : `scripts/audit-knowme-svg.mjs` relève également `legacyUnicodeControlCandidates` pour guider la suppression progressive des commandes symboliques. C'est un inventaire de candidats, non la preuve que chaque occurrence est une icône.
+- E2E : tests Playwright étendus aux dimensions et glyphes des contrôles vidéo et à la navigation clavier de la fenêtre de partage. Ne pas associer artificiellement une assertion à la fenêtre d'animation de 380 ms : les actions vérifient le résultat réel.
+
+**Android** :
+- `KnowMeFeedbackProvider` utilise `KnowMeNativeAnimatedIcon` pour les messages `incoming/success/error` alimentés par un identifiant d'événement (y compris répétitions), et `KnowMeNativeIconButton` pour la fermeture sur une surface de 48 dp. L'animation d'un premier événement confirmé est possible à la création, sans animer une sélection statique.
+- Cette amélioration ne prétend pas transformer `View` en SVG ; installer le renderer `react-native-svg` compatible Expo 53 / React Native 0.79, régénérer le lockfile et reconstruire l'APK natif demeure une dépendance bloquante d'Infra #698.
+
+**Périmètre restant** : les composants métier de Messagerie #693, Social #694, Réels/Stories #695, Profils #696, Marketplace #697 conservent encore des éléments à migrer, dont les SVG historiques et les icônes Android `View`. Le garde de coordination de PR #760 reste bloqué par des branches historiques non résolues. Cette PR **n'est pas livrée sur le Web ou l'APK**.
