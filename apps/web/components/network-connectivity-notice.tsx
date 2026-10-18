@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 type ConnectivityState = 'online' | 'offline' | 'restored';
 
@@ -83,11 +84,10 @@ export function NetworkConnectivityNotice() {
           ? (en ? 'Some features require Internet. Previously available offline content may remain accessible.' : 'Certaines fonctions nécessitent Internet. Les contenus déjà disponibles hors ligne peuvent rester accessibles.')
           : (en ? 'KnowMe can reconnect to its services.' : 'KnowMe peut se reconnecter à ses services.')}</span>
       </span>
-      <button type="button" className="km-network-notice-dismiss"
+      <KnowMeIconButton name="close" size={20}
+        className="km-network-notice-dismiss"
         onClick={() => setVisible(false)}
-        aria-label={en ? 'Dismiss connection notice' : 'Masquer le message de connexion'}>
-        <KnowMeAnimatedIcon name="close" size={20} />
-      </button>
+        label={en ? 'Dismiss connection notice' : 'Masquer le message de connexion'}/>
     </aside>
   );
 }
