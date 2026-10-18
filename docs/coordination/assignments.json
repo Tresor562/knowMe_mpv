@@ -158,20 +158,20 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/accessible-feedback-dialogs",
-      "task": "PR #724 quality+coordination verts, APK en attente; PR #730 CI/coordination en file, APK en cours; reprendre vérifications et durcir composants Design.",
+      "branch": "chat/design/system-accessibility-fallbacks",
+      "task": "PR #724 HEAD e176cbf : anti-clignotement thèmes combinés, live OS clair/sombre (anonymous + SYSTEM custom), transparent joined dock; nouveaux tests E2E; CI/coordination/APK du HEAD non conclusifs. PR #730 HEAD 382e42c : fenêtres accessibles + notifications en file, APK+guard verts, CI en file. Aucune fusion ni déploiement attestés.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:56:03.175Z",
-      "lastPr": 730,
+      "updatedAt": "2026-10-18T15:03:29.502Z",
+      "lastPr": 724,
       "resumeFrom": {
-        "pr": 730,
-        "branch": "chat/design/accessible-feedback-dialogs",
-        "commit": "382e42c479450fae4bbe8b1118173765489cd151",
-        "alsoPr": 724,
-        "alsoBranch": "chat/design/system-accessibility-fallbacks",
-        "alsoHead": "0beff177a969526bc0e4d290ba768aeb4bc478b4"
+        "pr": 724,
+        "branch": "chat/design/system-accessibility-fallbacks",
+        "commit": "e176cbf3b1367515e895f4c8e00d5d9b46fe6350",
+        "alsoPr": 730,
+        "alsoBranch": "chat/design/accessible-feedback-dialogs",
+        "alsoHead": "382e42c479450fae4bbe8b1118173765489cd151"
       }
     }
   },
@@ -764,6 +764,14 @@
       "domain": "marketplace",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "issue": 697
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "at": "2026-10-18T15:03:29.502Z",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 724,
+      "alsoPr": 730
     }
   ]
 }
