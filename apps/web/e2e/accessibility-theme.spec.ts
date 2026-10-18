@@ -107,3 +107,25 @@ test('anonymous SYSTEM palette follows light/dark changes without reloading', as
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(background).toBe('#f6f7fc');
 });
+
+test('custom-key SYSTEM theme reacts to device color scheme without a reload', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => {
+    localStorage.setItem('knowme-appearance', JSON.stringify({
+      preference: {
+        selectedThemeKey: 'adaptive-custom', effectiveThemeKey: 'adaptive-custom',
+        effectiveSecondaryThemeKey: null, effectiveThemeBlendMode: 'OFF',
+        effectIntensity: 'BALANCED', contrast: 'STANDARD',
+        effectiveIconPackKey: 'soft-glass', animationsEnabled: true,
+        reduceTransparency: false
+      },
+      themes: [{ key: 'adaptive-custom', mode: 'SYSTEM', effects: [] }]
+    }));
+  });
+  await page.goto('/login');
+  const background = () => page.evaluate(() =>
+    document.documentElement.style.getPropertyValue('--bg'));
+  await expect.poll(background).toBe('#f6f7fc');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(background).toBe('#090e1c');
+});
