@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { getRealtimeSocket } from './realtime';
 import { KnowMeMentionText } from './KnowMeMentionText';
 import { MessagesOrganizationExperience } from './MessagesOrganizationExperience';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
@@ -41,6 +42,14 @@ type Notification = {
   createdAt: string;
 };
 type Section = 'friends' | 'messages' | 'notifications';
+
+function notificationGlyph(type: string): 'messages' | 'heart' | 'profile' | 'check' | 'bell' {
+  if (type === 'MESSAGE' || type.includes('CHAT')) return 'messages';
+  if (type.includes('POST') || type.includes('COMMENT') || type.includes('MENTION') || type.includes('CREATOR')) return 'heart';
+  if (type.includes('FRIEND') || type.includes('FOLLOW')) return 'profile';
+  if (type.includes('SECURITY')) return 'check';
+  return 'bell';
+}
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -449,6 +458,26 @@ function NotificationsPanel({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const refresh = () => { if (active) void load(); };
+    void getRealtimeSocket().then(socket => {
+      if (!active || !socket) return;
+      socket.on('notification:created', refresh);
+      socket.on('notification:read', refresh);
+      socket.on('notification:read-all', refresh);
+      unsubscribe = () => {
+        socket.off('notification:created', refresh);
+        socket.off('notification:read', refresh);
+        socket.off('notification:read-all', refresh);
+      };
+    }).catch(() => {
+      // Pull-to-refresh remains available when realtime is offline.
+    });
+    return () => { active = false; unsubscribe?.(); };
+  }, [load]);
+
   async function markRead(id: string) {
     try {
       await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
@@ -497,31 +526,41 @@ function NotificationsPanel({
       contentContainerStyle={styles.content}
       ListHeaderComponent={
         unread > 0
-          ? <ActionButton
-              title={`Tout lire (${unread})`}
-              onPress={() => void markAllRead()}
-            />
+          ? <View style={styles.notificationTools}>
+              <Text style={[styles.notificationCount, {color: colors.muted}]}>{unread} non lue(s)</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Tout marquer comme lu"
+                onPress={() => void markAllRead()}
+                style={[styles.notificationMarkAll, {backgroundColor: colors.backgroundAccent}]}>
+                <KnowMeIcon name="check" size={18} color={colors.accent}/>
+                <Text style={[styles.notificationMarkAllText, {color: colors.accent}]}>Tout lire</Text>
+              </Pressable>
+            </View>
           : null
       }
       ListEmptyComponent={<Empty text="Aucune notification." />}
       renderItem={({ item }) => (
         <Pressable
-          onPress={() => !item.readAt && void markRead(item.id)}
-          style={[
-            styles.card,
-            {
-              backgroundColor: item.readAt ? colors.surface : colors.surfaceRaised,
-              borderColor: item.readAt ? colors.border : colors.accent
-            }
-          ]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {item.title}
-          </Text>
-          <KnowMeMentionText text={item.body} style={[styles.muted, { color: colors.muted }]}/>
-          <Text style={[styles.date, { color: colors.muted }]}>
-            {new Date(item.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-          </Text>
+          accessibilityRole="button"
+          accessibilityLabel={item.readAt ? item.title + ' · lue' : item.title + ' · marquer comme lue'}
+          accessibilityState={{disabled: Boolean(item.readAt)}}
+          disabled={Boolean(item.readAt)}
+          onPress={() => void markRead(item.id)}
+          style={[styles.notificationRow, {
+            backgroundColor: item.readAt ? 'transparent' : colors.backgroundAccent,
+            borderBottomColor: colors.border
+          }]}>
+          <View style={[styles.notificationGlyph, {backgroundColor: colors.surface}]}>
+            <KnowMeIcon name={notificationGlyph(item.type)} size={21}
+              color={item.readAt ? colors.muted : colors.accent}/>
+          </View>
+          <View style={styles.notificationCopy}>
+            <Text style={[styles.notificationTitle, {color: colors.text}]} numberOfLines={2}>{item.title}</Text>
+            <KnowMeMentionText text={item.body} style={[styles.notificationPreview, {color: colors.muted}]}/>
+            <Text style={[styles.notificationDate, {color: colors.muted}]}>
+              {new Date(item.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+            </Text>
+          </View>
+          {!item.readAt && <View style={[styles.notificationUnread, {backgroundColor: colors.accent}]}/>}
         </Pressable>
       )}
     />
@@ -643,6 +682,22 @@ const styles = StyleSheet.create({
   segmentText: { fontWeight: '700', fontSize: 9.5 },
   segmentTextActive: {},
   content: { padding: 14, paddingBottom: 28, gap: 9 },
+  notificationTools: { minHeight: 44, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: 8, paddingHorizontal: 5 },
+  notificationCount: { fontSize: 12, fontWeight: '600' },
+  notificationMarkAll: { minHeight: 44, flexDirection: 'row', alignItems: 'center',
+    gap: 6, borderRadius: 13, paddingHorizontal: 13 },
+  notificationMarkAllText: { fontSize: 12, fontWeight: '700' },
+  notificationRow: { minHeight: 74, flexDirection: 'row', alignItems: 'flex-start',
+    gap: 10, borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 13, paddingHorizontal: 10, paddingVertical: 12 },
+  notificationGlyph: { width: 38, height: 38, borderRadius: 13,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  notificationCopy: { flex: 1, minWidth: 0, gap: 3 },
+  notificationTitle: { fontSize: 13.5, fontWeight: '700', lineHeight: 18 },
+  notificationPreview: { fontSize: 12, lineHeight: 17 },
+  notificationDate: { fontSize: 10.5, marginTop: 2 },
+  notificationUnread: { width: 7, height: 7, borderRadius: 4, marginTop: 8, flexShrink: 0 },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 19,
