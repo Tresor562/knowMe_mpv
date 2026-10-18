@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {KNOWME_ANIMATED_EMOJIS} from '@knowme/animation-contract';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Pressable,ScrollView,StyleSheet,Text,TextInput,
+import {ActivityIndicator,Image,Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,
   View,useWindowDimensions} from 'react-native';
 import {apiFetch} from './api';
 import {AnimatedEmoji} from './AnimatedEmoji';
@@ -10,7 +10,9 @@ import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {KnowStickerPackCreator} from './KnowStickerPackCreator';
-import {readKnowStickerPacks,deleteKnowStickerPack,sendKnowStickerImage,type KnowStickerPack} from './KnowStickerPackStore';
+import {readKnowStickerPacks,deleteKnowStickerPack,renameKnowStickerPack,renameKnowStickerItem,
+  sendKnowStickerImage,type KnowStickerPack} from './KnowStickerPackStore';
+import {knowStickerDisplayName} from './knowsticker-naming-model';
 import {UNICODE_EMOJI_CATALOG,UNICODE_EMOJI_GROUPS} from './unicode-emoji-catalog';
 
 export type ExpressionTab='emoji'|'gifs'|'stickers';
@@ -64,6 +66,12 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const [ownPacks,setOwnPacks]=useState<KnowStickerPack[]>([]);
   const [packCreatorOpen,setPackCreatorOpen]=useState(false);
   const [packRevision,setPackRevision]=useState(0);
+  const [renameTarget,setRenameTarget]=useState<{
+    kind:'pack'|'sticker';packId:string;stickerId?:string;
+  }|null>(null);
+  const [renameValue,setRenameValue]=useState('');
+  const [renameBusy,setRenameBusy]=useState(false);
+  const [renameError,setRenameError]=useState('');
   const [stickerAssetFavorites,setStickerAssetFavorites]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(false);
@@ -156,6 +164,28 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
       onSent(result);
     }catch(cause){setFailure(cause instanceof Error?cause.message:'Envoi du sticker impossible.');}
     finally{setBusy(false);}
+  }
+  function openRename(kind:'pack'|'sticker',pack:KnowStickerPack,item?:KnowStickerPack['items'][number]){
+    if(busy||renameBusy)return;
+    setRenameTarget({kind,packId:pack.id,stickerId:item?.id});
+    setRenameValue(kind==='pack'?pack.name:knowStickerDisplayName(item?.name??''));
+    setRenameError('');
+  }
+  async function saveRename(){
+    const target=renameTarget;
+    if(!target||renameBusy)return;
+    setRenameBusy(true);setRenameError('');
+    try {
+      if(target.kind==='pack'){
+        await renameKnowStickerPack(target.packId,renameValue);
+      }else if(target.stickerId){
+        await renameKnowStickerItem(target.packId,target.stickerId,renameValue);
+      }
+      setRenameTarget(null);
+      setPackRevision(value=>value+1);
+    }catch(cause){
+      setRenameError(cause instanceof Error?cause.message:'Modification impossible.');
+    }finally{setRenameBusy(false);}
   }
   function confirmDeletePack(pack:KnowStickerPack){
     Alert.alert('Supprimer le pack ?',pack.name,[
@@ -345,18 +375,31 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
           <Text style={{fontWeight:'800',color:activeColor}}>＋ Créer un pack KnowSticker</Text>
         </Pressable>
         {ownPacks.map(owned=><View key={owned.id} style={styles.section}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Gérer le pack ${owned.name}`}
-            onLongPress={()=>confirmDeletePack(owned)}>
-            <Text style={styles.sectionTitle}>{owned.name} · {owned.items.length} stickers</Text>
-          </Pressable>
+          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+            <Text style={[styles.sectionTitle,{flex:1}]} numberOfLines={1}>
+              {owned.name} · {owned.items.length} stickers
+            </Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Renommer le pack ${owned.name}`}
+              onPress={()=>openRename('pack',owned)} style={styles.renameAction}>
+              <KnowMeIcon name="edit" size={19} color={activeColor}/>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Supprimer le pack ${owned.name}`}
+              onPress={()=>confirmDeletePack(owned)} style={styles.renameAction}>
+              <KnowMeIcon name="trash" size={19} color={muted}/>
+            </Pressable>
+          </View>
           <View style={styles.grid}>
             {owned.items.map(item=><Pressable key={item.id}
               disabled={busy} onPress={()=>void sendOwnSticker(item)}
-              onLongPress={()=>confirmDeletePack(owned)}
-              accessibilityRole="button" accessibilityLabel="Envoyer le sticker personnel"
-              style={[styles.stickerTile,{width:(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89))}]}>
+              onLongPress={()=>openRename('sticker',owned,item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Envoyer ${knowStickerDisplayName(item.name)} ; appui long pour renommer`}
+              style={[styles.stickerTile,{width:(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89)),height:96}]}>
               <Image source={{uri:item.uri}} resizeMode="contain"
-                style={{width:76,height:76,maxWidth:'100%'}}/>
+                style={{width:65,height:65,maxWidth:'100%'}}/>
+              <Text style={{color:muted,fontSize:10,maxWidth:'95%'}} numberOfLines={1}>
+                {knowStickerDisplayName(item.name)}
+              </Text>
             </Pressable>)}
           </View>
         </View>)}
@@ -430,6 +473,34 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   </View>
   <KnowStickerPackCreator visible={packCreatorOpen} onClose={()=>setPackCreatorOpen(false)}
     onCreated={()=>setPackRevision(value=>value+1)}/>
+  <Modal visible={Boolean(renameTarget)} transparent animationType="fade"
+    onRequestClose={()=>{if(!renameBusy)setRenameTarget(null);}}>
+    <View style={styles.renameOverlay}>
+      <View style={styles.renameSheet}>
+        <Text style={[styles.renameTitle,{color:textColor}]}>
+          {renameTarget?.kind==='pack'?'Renommer le pack':'Renommer le sticker'}
+        </Text>
+        <TextInput value={renameValue} onChangeText={setRenameValue}
+          autoFocus maxLength={80} selectTextOnFocus
+          accessibilityLabel="Nouveau nom"
+          placeholder="Nouveau nom" placeholderTextColor={muted}
+          style={[styles.renameInput,{color:textColor,borderColor:muted}]}/>
+        {renameError?<Text accessibilityRole="alert" style={{color:'#ff9a9a',fontSize:12}}>{renameError}</Text>:null}
+        <View style={styles.renameButtons}>
+          <Pressable accessibilityRole="button" disabled={renameBusy}
+            onPress={()=>setRenameTarget(null)} style={styles.renameActionButton}>
+            <Text style={{color:muted,fontWeight:'700'}}>Annuler</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" disabled={renameBusy||!renameValue.trim()}
+            onPress={()=>void saveRename()} style={[styles.renameActionButton,{backgroundColor:activeColor}]}>
+            <Text style={{color:colors.accentText,fontWeight:'800'}}>
+              {renameBusy?'Enregistrement…':'Enregistrer'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  </Modal>
   </>;
 }
 
@@ -473,5 +544,13 @@ const styles=StyleSheet.create({
   tabButton:{minWidth:91,minHeight:41,paddingHorizontal:12,alignItems:'center',justifyContent:'center',borderRadius:22},
   tabText:{fontSize:16,fontWeight:'700'},
   closeKeyboard:{position:'absolute',right:12,top:10,width:42,height:42,borderRadius:22,
-    alignItems:'center',justifyContent:'center'}
+    alignItems:'center',justifyContent:'center'},
+  renameAction:{minHeight:44,minWidth:44,alignItems:'center',justifyContent:'center'},
+  renameOverlay:{flex:1,backgroundColor:'rgba(0,0,0,.65)',justifyContent:'center',padding:18},
+  renameSheet:{backgroundColor:'#242839',padding:20,borderRadius:23,gap:14},
+  renameTitle:{fontSize:18,fontWeight:'800'},
+  renameInput:{borderWidth:1,borderRadius:13,minHeight:50,paddingHorizontal:13,fontSize:16},
+  renameButtons:{flexDirection:'row',gap:10},
+  renameActionButton:{minHeight:48,flex:1,alignItems:'center',justifyContent:'center',
+    paddingHorizontal:10,borderRadius:14,backgroundColor:'#363b50'}
 });
