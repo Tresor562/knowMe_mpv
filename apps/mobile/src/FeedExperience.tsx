@@ -670,6 +670,7 @@ export function FeedExperience({
   mode = 'discover',
   currentUser,
   onOpenDiscover,
+  onOpenReels,
   onOpenProfile,
   storyComposerRequest = false,
   initialStoryId,
@@ -686,6 +687,7 @@ export function FeedExperience({
   mode?: 'home' | 'discover';
   currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   onOpenDiscover?: () => void;
+  onOpenReels?: () => void;
   onOpenProfile?: (username: string) => void;
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
@@ -878,6 +880,19 @@ export function FeedExperience({
             </View>
             <KnowMeIcon name="create" size={23} color={colors.accent}/>
           </Pressable>
+          {mode === 'home' && onOpenReels ? (
+            <Pressable accessibilityRole="button"
+              accessibilityLabel="Voir les Reels et vidéos"
+              onPress={onOpenReels}
+              style={{alignSelf:'flex-start',marginHorizontal:14,marginVertical:8,
+                flexDirection:'row',alignItems:'center',gap:9,minHeight:45,
+                paddingHorizontal:16,borderRadius:16,
+                backgroundColor:colors.backgroundAccent,
+                borderWidth:1,borderColor:colors.border}}>
+              <KnowMeIcon name="video-call" size={21} color={colors.accent}/>
+              <Text style={{color:colors.text,fontWeight:'700',fontSize:13}}>Reels · Vidéos</Text>
+            </Pressable>
+          ) : null}
           {mode === 'home' && currentUser ? (
             <StoriesRail
               currentUser={currentUser}
