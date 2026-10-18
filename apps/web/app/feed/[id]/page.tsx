@@ -15,6 +15,8 @@ type Comment = {
   id: string;
   content: string;
   createdAt: string;
+  parentId?: string | null;
+  _count?: { replies: number };
   author: { id: string; displayName: string; username: string; avatarUrl?: string | null; staff?: StaffBadge | null; verification?: VerificationBadge | null };
 };
 
@@ -36,6 +38,11 @@ export default function PostDetailPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [repliesByParent, setRepliesByParent] = useState<Record<string, Comment[]>>({});
+  const [replyMoreByParent, setReplyMoreByParent] = useState<Record<string, boolean>>({});
+  const [expandedReplies, setExpandedReplies] = useState<string[]>([]);
+  const [loadingReplies, setLoadingReplies] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<Comment | null>(null);
   const [message, setMessage] = useState('');
   const [shareNotice, setShareNotice] = useState('');
   const [targetComment, setTargetComment] = useState('');
@@ -51,7 +58,11 @@ export default function PostDetailPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const saveInFlight = useRef(false);
   const holdTimer = useRef<number | null>(null);
-  const selectedComment = comments.find(entry => entry.id === contextCommentId) ?? null;
+  const allLoadedComments = [
+    ...comments,
+    ...Object.values(repliesByParent).flat()
+  ];
+  const selectedComment = allLoadedComments.find(entry => entry.id === contextCommentId) ?? null;
 
   const clearHold = useCallback(() => {
     if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
@@ -88,6 +99,10 @@ export default function PostDetailPage() {
       setComments(current => current.map(item =>
         item.id === editingComment.id ? { ...item, content: updated.content } : item
       ));
+      setRepliesByParent(current => Object.fromEntries(Object.entries(current).map(([id, entries]) =>
+        [id, entries.map(item => item.id === editingComment.id
+          ? { ...item, content: updated.content } : item)]
+      )));
       setEditingComment(null);
       setShareNotice('Commentaire modifié.');
     } catch (cause) {
@@ -117,7 +132,7 @@ export default function PostDetailPage() {
       setMessage('');
       const [postData, firstComments] = await Promise.all([
         apiFetch<Post>(`/posts/${postId}`),
-        apiFetch<Comment[]>(`/posts/${postId}/comments`)
+        apiFetch<Comment[]>(`/posts/${postId}/comments?roots=true`)
       ]);
       setPost(postData);
       setComments(firstComments);
@@ -178,7 +193,7 @@ export default function PostDetailPage() {
 
     setLoadingMore(true);
     try {
-      const next = await apiFetch<Comment[]>(`/posts/${postId}/comments?cursor=${encodeURIComponent(cursor)}`);
+      const next = await apiFetch<Comment[]>(`/posts/${postId}/comments?roots=true&cursor=${encodeURIComponent(cursor)}`);
       setComments((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...next.filter((item) => !known.has(item.id))];
@@ -191,22 +206,93 @@ export default function PostDetailPage() {
     }
   }
 
+  async function showReplies(item: Comment, append = false) {
+    if (loadingReplies) return;
+    if (!append && expandedReplies.includes(item.id)) {
+      setExpandedReplies(current => current.filter(id => id !== item.id));
+      return;
+    }
+    setLoadingReplies(item.id);
+    try {
+      const current = repliesByParent[item.id] ?? [];
+      const cursor = append ? current.at(-1)?.id : undefined;
+      const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+      const response = await apiFetch<Comment[]>(
+        `/posts/${postId}/comments/${encodeURIComponent(item.id)}/replies${query}`
+      );
+      setRepliesByParent(previous => {
+        const existing = append ? previous[item.id] ?? [] : [];
+        const seen = new Set(existing.map(reply => reply.id));
+        return { ...previous, [item.id]: [
+          ...existing,
+          ...response.filter(reply => !seen.has(reply.id))
+        ]};
+      });
+      setReplyMoreByParent(prev => ({ ...prev, [item.id]: response.length === COMMENT_PAGE_SIZE }));
+      setExpandedReplies(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Impossible de charger les réponses.');
+    } finally {
+      setLoadingReplies(null);
+    }
+  }
+
+  function beginReply(item: Comment) {
+    setReplyTarget(item);
+    setContextCommentId(null);
+    window.requestAnimationFrame(() => {
+      document.getElementById('km-post-comment-draft')?.focus();
+    });
+  }
+
   async function comment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const content = String(new FormData(form).get('content') ?? '').trim();
-    if (!content) return;
+    if (!content || sending) return;
 
+    const replyingTo = replyTarget;
     setSending(true);
     try {
       await apiFetch(`/posts/${postId}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content })
+        body: JSON.stringify({
+          content, ...(replyingTo ? { parentId: replyingTo.id } : {})
+        })
       });
-      form.reset();
-      await load();
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Commentaire impossible.');
+      // An uncertain POST may have committed on the server. Do not silently
+      // retry it or tell the user with certainty that their reply was lost.
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' ||
+        error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setMessage(uncertain
+        ? 'Envoi non confirmé. Vérifie les commentaires avant de réessayer pour éviter un doublon.'
+        : cause instanceof Error ? cause.message : 'Commentaire impossible.');
+      setSending(false);
+      return;
+    }
+
+    // The POST is successful. A failed subsequent GET is a refresh problem,
+    // not a failed publication; preserve this distinction in user feedback.
+    form.reset();
+    setReplyTarget(null);
+    setShareNotice(replyingTo ? 'Réponse publiée.' : 'Commentaire publié.');
+    try {
+      await load();
+      if (replyingTo) {
+        const replies = await apiFetch<Comment[]>(
+          `/posts/${postId}/comments/${encodeURIComponent(replyingTo.id)}/replies`
+        );
+        setRepliesByParent(prev => ({ ...prev, [replyingTo.id]: replies }));
+        setReplyMoreByParent(prev => ({
+          ...prev, [replyingTo.id]: replies.length === COMMENT_PAGE_SIZE
+        }));
+        setExpandedReplies(prev => prev.includes(replyingTo.id)
+          ? prev : [...prev, replyingTo.id]);
+      }
+    } catch {
+      setMessage('Commentaire publié, mais actualisation impossible. Réessaie de charger les réponses.');
     } finally {
       setSending(false);
     }
@@ -236,16 +322,98 @@ export default function PostDetailPage() {
     setBusyCommentId(commentId);
     try {
       await apiFetch(`/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
-      setComments((current) => current.filter((item) => item.id !== commentId));
-      setPost((current) => current
-        ? { ...current, _count: { ...current._count, comments: Math.max(0, current._count.comments - 1) } }
-        : current
-      );
+      setComments(current => current.filter(item => item.id !== commentId));
+      setRepliesByParent(current => Object.fromEntries(
+        Object.entries(current)
+          .filter(([id]) => id !== commentId)
+          .map(([id, entries]) => [id, entries.filter(item => item.id !== commentId)])
+      ));
+      await load();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Suppression du commentaire impossible.');
     } finally {
       setBusyCommentId(null);
     }
+  }
+
+  function renderComment(item: Comment, depth: number): React.ReactNode {
+    const canDelete = item.author.id === user?.id || post?.authorId === user?.id;
+    const children = repliesByParent[item.id] ?? [];
+    const isExpanded = expandedReplies.includes(item.id);
+    const count = item._count?.replies ?? 0;
+    return (
+      <div className="km-comment-thread" key={item.id}>
+        <article className={`km-post-comment ${depth > 0 ? 'km-post-comment--reply' : ''}`}
+          id={`knowme-comment-${item.id}`}
+          onContextMenu={event => {
+            event.preventDefault();
+            clearHold();
+            setContextCommentId(item.id);
+          }}
+          onPointerDown={event => {
+            if (event.pointerType !== 'mouse') {
+              clearHold();
+              holdTimer.current = window.setTimeout(() => setContextCommentId(item.id), 440);
+            }
+          }}
+          onPointerUp={clearHold}
+          onPointerCancel={clearHold}
+          onPointerLeave={clearHold}
+          style={{
+            marginLeft: depth > 0 ? Math.min(depth, 3) * 18 : 0,
+            outline: targetComment === item.id ? '2px solid var(--mint)' : undefined
+          }}>
+          <div className="km-post-comment-avatar">
+            {item.author.avatarUrl
+              ? <img src={item.author.avatarUrl} alt=""/>
+              : item.author.displayName.charAt(0)}
+          </div>
+          <div className="km-post-comment-content">
+            <Link href={`/profile/${encodeURIComponent(item.author.username)}`}>
+              <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>
+                {item.author.displayName}
+                <AccountBadges username={item.author.username} staff={item.author.staff}
+                  verification={item.author.verification} compact/>
+              </strong>
+              <small>@{item.author.username}</small>
+            </Link>
+            <p><KnowMeMentionText text={item.content}/></p>
+            <div className="km-post-comment-actions">
+              <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
+              <button type="button" onClick={() => beginReply(item)}>Répondre</button>
+              <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
+              <button type="button" onClick={() => setContextCommentId(item.id)}
+                aria-label={`Actions pour le commentaire de ${item.author.displayName}`}>⋯</button>
+              {canDelete && <button type="button" disabled={busyCommentId === item.id}
+                onClick={() => void removeComment(item.id)}>
+                {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
+              </button>}
+            </div>
+            {(count > 0 || children.length > 0) && (
+              <button className="km-comment-thread-toggle" type="button"
+                disabled={loadingReplies === item.id}
+                onClick={() => void showReplies(item)}>
+                {loadingReplies === item.id ? 'Chargement…'
+                  : isExpanded ? 'Masquer les réponses'
+                  : `Afficher les réponses (${count || children.length})`}
+              </button>
+            )}
+          </div>
+        </article>
+        {isExpanded && children.length > 0 && (
+          <div className="km-comment-thread-children">
+            {children.map(child => renderComment(child, depth + 1))}
+            {replyMoreByParent[item.id] && (
+              <button className="km-comment-thread-toggle" type="button"
+                disabled={loadingReplies === item.id}
+                onClick={() => void showReplies(item, true)}>
+                Voir les réponses suivantes
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (sessionLoading || !post) {
@@ -293,47 +461,8 @@ export default function PostDetailPage() {
       </div>
 
       <section id="km-post-comments" className="km-post-comments" aria-label="Commentaires">
-        {comments.map((item) => {
-          const canDelete = item.author.id === user?.id || post.authorId === user?.id;
-          return (
-            <article className="km-post-comment" key={item.id} id={`knowme-comment-${item.id}`}
-              onContextMenu={event => {
-                event.preventDefault();
-                clearHold();
-                setContextCommentId(item.id);
-              }}
-              onPointerDown={event => {
-                if (event.pointerType !== 'mouse') {
-                  clearHold();
-                  holdTimer.current = window.setTimeout(() => setContextCommentId(item.id), 440);
-                }
-              }}
-              onPointerUp={clearHold}
-              onPointerCancel={clearHold}
-              onPointerLeave={clearHold}
-              style={{ outline: targetComment === item.id ? '2px solid var(--mint)' : undefined }}>
-              <div className="km-post-comment-avatar">
-                {item.author.avatarUrl ? <img src={item.author.avatarUrl} alt="" /> : item.author.displayName.charAt(0)}
-              </div>
-              <div className="km-post-comment-content">
-                <Link href={`/profile/${encodeURIComponent(item.author.username)}`}>
-                  <strong style={{display:'inline-flex',gap:5,alignItems:'center'}}>{item.author.displayName}<AccountBadges username={item.author.username} staff={item.author.staff} verification={item.author.verification} compact/></strong><small>@{item.author.username}</small>
-                </Link>
-                <p><KnowMeMentionText text={item.content}/></p>
-                <div className="km-post-comment-actions">
-                  <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
-                  <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
-                  <button type="button" onClick={() => setContextCommentId(item.id)}
-                    aria-label={`Actions pour le commentaire de ${item.author.displayName}`}>⋯</button>
-                  {canDelete && <button type="button" disabled={busyCommentId === item.id}
-                    onClick={() => void removeComment(item.id)}>
-                    {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
-                  </button>}
-                </div>
-              </div>
-            </article>
-          );
-        })}
+        {comments.map(item => renderComment(item, 0))}
+
 
         {!comments.length && <div className="km-post-comments-empty"><span aria-hidden="true">☏</span><p>Sois le premier à commenter.</p></div>}
       </section>
@@ -352,6 +481,9 @@ export default function PostDetailPage() {
                 aria-label="Fermer les actions">×</button>
             </header>
             <p className="km-comment-actions-preview">{selectedComment.content}</p>
+            <button type="button" onClick={() => beginReply(selectedComment)}>
+              Répondre
+            </button>
             {selectedComment.author.id === user?.id && (
               <button type="button" onClick={() => {
                 setEditDraft(selectedComment.content);
@@ -419,9 +551,16 @@ export default function PostDetailPage() {
           </button>
         </div>
       )}
+      {replyTarget && (
+        <div className="km-comment-reply-indicator">
+          <span>Réponse à <strong>{replyTarget.author.displayName}</strong></span>
+          <button type="button" onClick={() => setReplyTarget(null)}
+            aria-label="Annuler la réponse">×</button>
+        </div>
+      )}
       <form className="km-post-comment-form" onSubmit={comment}>
         <label className="km-sr-only" htmlFor="km-post-comment-draft">Ton commentaire</label>
-        <textarea id="km-post-comment-draft" name="content" rows={1} placeholder="Écris un commentaire…" maxLength={500} required aria-label="Commentaire" />
+        <textarea id="km-post-comment-draft" name="content" rows={1} placeholder={replyTarget ? `Répondre à ${replyTarget.author.displayName}…` : 'Écris un commentaire…'} maxLength={500} required aria-label="Commentaire" />
         <button type="submit" disabled={sending} aria-label="Envoyer le commentaire">{sending ? 'Envoi…' : 'Envoyer'}</button>
       </form>
     </main>

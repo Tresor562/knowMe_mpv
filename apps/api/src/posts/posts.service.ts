@@ -121,7 +121,7 @@ export class PostsService {
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))};
   }
 
-  async comments(postId: string, cursor?: string) {
+  async comments(postId: string, cursor?: string, rootsOnly = false) {
     const exists = await this.prisma.post.findUnique({
       where: { id: postId },
       select: { id: true }
@@ -129,17 +129,36 @@ export class PostsService {
     if (!exists) throw new NotFoundException('Publication introuvable.');
 
     const comments = await this.prisma.postComment.findMany({
-      where: { postId },
+      where: { postId, ...(rootsOnly ? { parentId: null } : {}) },
       take: 30,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: {
-        author: {
-          select: publicAuthorSelect
-        }
+        author: { select: publicAuthorSelect },
+        _count: { select: { replies: true } }
       }
     });
-    return comments.map(comment=>({...comment,author:publicAuthor(comment.author)}));
+    return comments.map(comment => ({ ...comment, author: publicAuthor(comment.author) }));
+  }
+
+  async commentReplies(postId: string, commentId: string, cursor?: string) {
+    const parent = await this.prisma.postComment.findFirst({
+      where: { id: commentId, postId },
+      select: { id: true }
+    });
+    if (!parent) throw new NotFoundException('Commentaire introuvable.');
+
+    const replies = await this.prisma.postComment.findMany({
+      where: { postId, parentId: commentId },
+      take: 30,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      include: {
+        author: { select: publicAuthorSelect },
+        _count: { select: { replies: true } }
+      }
+    });
+    return replies.map(reply => ({ ...reply, author: publicAuthor(reply.author) }));
   }
 
   async toggleLike(userId: string, postId: string) {
@@ -192,18 +211,31 @@ export class PostsService {
     ]);
 
     if (!post) throw new NotFoundException('Publication introuvable.');
+    let parentAuthorId: string | null = null;
+    // Never attach a reply to a comment belonging to a different publication.
+    if (dto.parentId) {
+      const parent = await this.prisma.postComment.findFirst({
+        where: { id: dto.parentId, postId },
+        select: { id: true, authorId: true }
+      });
+      if (!parent) throw new NotFoundException('Le commentaire auquel tu réponds est introuvable.');
+      parentAuthorId = parent.authorId;
+    }
 
     const comment = await this.prisma.postComment.create({
-      data: { postId, authorId: userId, content: dto.content },
+      data: {
+        postId, authorId: userId, content: dto.content.trim(),
+        ...(dto.parentId ? { parentId: dto.parentId } : {})
+      },
       include: {
-        author: {
-          select: publicAuthorSelect
-        }
+        author: { select: publicAuthorSelect },
+        _count: { select: { replies: true } }
       }
     });
 
+    const notices: Array<Promise<unknown>> = [];
     if (post.authorId !== userId) {
-      await this.notifications.create({
+      notices.push(this.notifications.create({
         userId: post.authorId,
         type: 'POST_COMMENTED',
         title: 'Nouveau commentaire',
@@ -215,8 +247,28 @@ export class PostsService {
           commentId: comment.id,
           actorId: userId
         }
-      });
+      }));
     }
+    // Notify the comment's author as well, without duplicating the post
+    // owner's notification or notifying the person replying to themselves.
+    if (parentAuthorId && parentAuthorId !== userId && parentAuthorId !== post.authorId) {
+      notices.push(this.notifications.create({
+        userId: parentAuthorId,
+        type: 'COMMENT_REPLIED',
+        title: 'Nouvelle réponse',
+        body: `${actor?.displayName ?? 'Quelqu’un'} a répondu à ton commentaire.`,
+        data: {
+          route: `/feed/${postId}?comment=${encodeURIComponent(comment.id)}`,
+          entityType: 'POST_COMMENT',
+          entityId: comment.id,
+          parentCommentId: dto.parentId,
+          actorId: userId
+        }
+      }));
+    }
+    // A notification outage must not convert a committed comment into a
+    // reported publication error, which would invite accidental duplicate posts.
+    await Promise.allSettled(notices);
 
     return {...comment,author:publicAuthor(comment.author)};
   }
