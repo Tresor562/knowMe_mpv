@@ -32,6 +32,7 @@ import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
 import {CommentReportSheet} from './CommentReportSheet';
+import {CommentEditSheet} from './CommentEditSheet';
 
 type Author = {
   id: string;
@@ -209,6 +210,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [reportComment,setReportComment] = useState<Comment|null>(null);
+  const [editComment,setEditComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
   const commentsStart = useRef(0);
@@ -374,6 +376,23 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     setSending(false);
   }
 
+  async function updateComment(commentId:string,content:string){
+    const updated=await apiFetch<Comment>(
+      '/posts/'+encodeURIComponent(postId)+'/comments/'+encodeURIComponent(commentId),{
+        method:'PATCH',body:JSON.stringify({content})
+      }
+    );
+    const newText=updated.content;
+    // Update root and every currently expanded nested reply immediately.
+    setComments(current=>current.map(item=>
+      item.id===commentId?{...item,content:newText}:item
+    ));
+    setRepliesByParent(current=>Object.fromEntries(Object.entries(current)
+      .map(([parent,items])=>[parent,items.map(item=>
+        item.id===commentId?{...item,content:newText}:item
+      )])));
+  }
+
   function confirmDeleteComment(comment: Comment) {
     Alert.alert(
       'Supprimer le commentaire ?',
@@ -489,6 +508,11 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
               accessibilityLabel={`Signaler le commentaire de ${comment.author.displayName}`}
               onPress={()=>setReportComment(comment)}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>Signaler</Text>
+            </Pressable>:null}
+            {comment.author.id===userId ? <Pressable accessibilityRole="button"
+              accessibilityLabel={`Modifier le commentaire de ${comment.author.displayName}`}
+              disabled={busyId===comment.id} onPress={()=>setEditComment(comment)}>
+              <Text style={[styles.threadToolText,{color:colors.muted}]}>Modifier</Text>
             </Pressable>:null}
             {canDelete?<Pressable accessibilityRole="button" disabled={busyId===comment.id}
               onPress={()=>confirmDeleteComment(comment)}>
@@ -664,6 +688,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </View>
       </View>
     </Modal>
+    <CommentEditSheet comment={editComment} save={updateComment}
+      onClose={()=>setEditComment(null)}/>
     <CommentReportSheet comment={reportComment}
       onClose={()=>setReportComment(null)}
       onReported={()=>Alert.alert('Signalement transmis',
