@@ -178,23 +178,21 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-shared-content",
-      "task": "Group PR #762 validation and group member filters, menu usability, test coverage; maintain separation with Messaging #754 and other design PRs.",
+      "task": "PR #762 HEAD 33cc4fd3 — polished group identity with description and member-only share notice, member role tabs sorted owner-first, menu outside/Escape close/focus restore + e2e, actual authenticated shared media/files/links/search and document download filename fix; October Telegram/WhatsApp 2026 parity references updated. Latest HEAD guard passed, CI executing, APK pending; not merged nor deployed. Backend group permissions PR #754 blocked by exact file collision and existing group-management E2E failure; comment 6253314037; Messaging #693 owns. Previous design PR #743 open.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T18:02:34.729Z",
+      "updatedAt": "2026-10-18T18:09:28.228Z",
       "lastPr": 762,
       "resumeFrom": {
         "pr": 762,
         "branch": "chat/design/group-info-shared-content",
-        "commit": "af17e6689bee2a5616b54e4e4575ec8ef867396c",
+        "commit": "33cc4fd30a056f38415b0db1378f38ba8fb43303",
         "otherPr": 743,
-        "otherBranch": "chat/design/live-notices-compact-surfaces",
-        "otherHead": "1003774fc0a0292092d073001f6a3e6631d97ec7",
         "dependencyPr": 754,
-        "messagingIssue": 693,
-        "designRelatedPr": 760
+        "ownerDomain": "design",
+        "needed": "watch CI+APK on current HEAD and fix if failure; only merge on green checks + clean conflicts"
       }
     }
   },
@@ -1028,6 +1026,13 @@
       "at": "2026-10-18T18:02:34.729Z",
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 762
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T18:09:28.228Z",
       "pr": 762
     }
   ]
