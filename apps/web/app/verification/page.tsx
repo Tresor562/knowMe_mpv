@@ -45,14 +45,14 @@ type VerificationRequest = {
   decisions: Decision[];
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  SUBMITTED: 'Soumise',
-  UNDER_REVIEW: 'En cours d’examen',
-  APPROVED: 'Approuvée',
-  REJECTED: 'Refusée',
-  REVOKED: 'Révoquée',
-  EXPIRED: 'Expirée',
-  WITHDRAWN: 'Retirée'
+const STATUS_LABELS: Record<string, readonly [string, string]> = {
+  SUBMITTED: ['Soumise', 'Submitted'],
+  UNDER_REVIEW: ['En cours d’examen', 'Under review'],
+  APPROVED: ['Approuvée', 'Approved'],
+  REJECTED: ['Refusée', 'Rejected'],
+  REVOKED: ['Révoquée', 'Revoked'],
+  EXPIRED: ['Expirée', 'Expired'],
+  WITHDRAWN: ['Retirée', 'Withdrawn']
 };
 
 function errorMessage(cause: unknown, fallback: string) {
@@ -64,6 +64,7 @@ export default function VerificationPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const tr = (fr: string, english: string) => en ? english : fr;
+  const dateLocale = en ? 'en-US' : 'fr-FR';
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -108,7 +109,8 @@ export default function VerificationPage() {
     const form = new FormData(formElement);
     const digest = String(form.get('digest') ?? '').trim().toLowerCase();
     if (!/^[a-f0-9]{64}$/.test(digest)) {
-      setMessage('L’empreinte doit contenir exactement 64 caractères hexadécimaux.');
+      setMessage(tr('L’empreinte doit contenir exactement 64 caractères hexadécimaux.',
+        'The fingerprint must have exactly 64 hexadecimal characters.'));
       return;
     }
 
@@ -179,7 +181,7 @@ export default function VerificationPage() {
   }
 
   if (sessionLoading || loading || !user) {
-    return <main className="shell"><p>Chargement de la vérification…</p></main>;
+    return <main className="shell"><p>{tr('Chargement de la vérification…', 'Loading verification…')}</p></main>;
   }
 
   const canSubmit = !loadError && canSubmitVerificationRequest(requests);
@@ -188,14 +190,14 @@ export default function VerificationPage() {
     <main className="shell" style={{ maxWidth: 980, margin: '0 auto' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <small style={{ color: '#65b7ff' }}>IDENTITÉ KNOWME</small>
-          <h1>Vérification autoritaire</h1>
+          <small style={{ color: '#65b7ff' }}>{tr('IDENTITÉ KNOWME', 'KNOWME IDENTITY')}</small>
+          <h1>{tr('Vérification de l’identité', 'Identity verification')}</h1>
           <p style={{ color: 'var(--muted)', maxWidth: 720 }}>
-            Le badge Vérifié vient exclusivement d’une décision active du serveur. Il est
-            indépendant de Premium et du badge officiel Équipe KnowMe.
+            {tr('Le badge Vérifié dépend exclusivement d’une décision active du serveur. Il est indépendant de Premium et du badge officiel Équipe KnowMe.',
+              'The Verified badge requires an active server decision. It is separate from Premium and the official KnowMe Team badge.')}
           </p>
         </div>
-        <Link href="/profile" className="btn">Retour au profil</Link>
+        <Link href="/profile" className="btn">{tr('Retour au profil', 'Back to profile')}</Link>
       </header>
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
@@ -213,92 +215,91 @@ export default function VerificationPage() {
 
       <section className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', marginBottom: 24 }}>
         <article className="card" style={{ padding: 20 }}>
-          <small>IDENTITÉ VÉRIFIÉE</small>
+          <small>{tr('IDENTITÉ VÉRIFIÉE', 'VERIFIED IDENTITY')}</small>
           <h2 style={{ color: user.verification ? '#65b7ff' : 'var(--muted)' }}>
-            {user.verification ? 'Active' : 'Inactive'}
+            {user.verification ? tr('Active', 'Active') : tr('Inactive', 'Inactive')}
           </h2>
-          {user.verification?.expiresAt && <p>Valide jusqu’au {new Date(user.verification.expiresAt).toLocaleDateString('fr-FR')}.</p>}
+          {user.verification?.expiresAt && <p>{tr('Valide jusqu’au', 'Valid until')} {new Date(user.verification.expiresAt).toLocaleDateString(dateLocale)}.</p>}
         </article>
         <article className="card" style={{ padding: 20 }}>
           <small>PREMIUM</small>
           <h2 style={{ color: user.premium ? '#f4c95d' : 'var(--muted)' }}>
-            {user.premium ? 'Actif' : 'Inactif'}
+            {user.premium ? tr('Actif', 'Active') : tr('Inactif', 'Inactive')}
           </h2>
-          <p>Premium ne confère jamais le badge Vérifié.</p>
+          <p>{tr('Premium ne confère jamais le badge Vérifié.', 'Premium never grants the Verified badge.')}</p>
         </article>
         <article className="card" style={{ padding: 20 }}>
-          <small>ÉQUIPE KNOWME</small>
+          <small>{tr('ÉQUIPE KNOWME', 'KNOWME TEAM')}</small>
           <h2 style={{ color: user.staff ? '#f4c95d' : 'var(--muted)' }}>
-            {user.staff ? 'Compte officiel' : 'Compte utilisateur'}
+            {user.staff ? tr('Compte officiel', 'Official account') : tr('Compte utilisateur', 'User account')}
           </h2>
-          <p>Le registre du personnel est entièrement séparé.</p>
+          <p>{tr('Les comptes de l’équipe sont gérés séparément.', 'Team accounts are managed separately.')}</p>
         </article>
       </section>
 
       {canSubmit && (
         <form className="card grid" onSubmit={submit} style={{ padding: 24, marginBottom: 28 }}>
           <div>
-            <small style={{ color: 'var(--mint)' }}>NOUVELLE DEMANDE</small>
-            <h2>Référencer une preuve</h2>
+            <small style={{ color: 'var(--mint)' }}>{tr('NOUVELLE DEMANDE', 'NEW REQUEST')}</small>
+            <h2>{tr('Référencer une preuve', 'Provide proof reference')}</h2>
             <p style={{ color: 'var(--muted)' }}>
-              KnowMe ne reçoit ici ni photo ni numéro de document. Le flux conserve seulement
-              une référence opaque et l’empreinte SHA-256 du contenu détenu par le prestataire
-              autorisé.
+              {tr('KnowMe ne reçoit ici ni photo ni numéro de document. Seules une référence opaque et l’empreinte SHA-256 sont transmises.',
+                'KnowMe does not receive document photos or ID numbers here. Only an opaque reference and its SHA-256 fingerprint are submitted.')}
             </p>
           </div>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Nom à vérifier</strong>
+            <strong>{tr('Nom à vérifier', 'Name to verify')}</strong>
             <input className="input" name="displayNameClaim" defaultValue={user.displayName} minLength={2} maxLength={100} required />
           </label>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Pays ISO</strong>
+            <strong>{tr('Pays ISO', 'ISO country')}</strong>
             <input className="input" name="countryCode" placeholder="BJ" pattern="[A-Za-z]{2}" maxLength={2} />
           </label>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Type de preuve</strong>
+            <strong>{tr('Type de preuve', 'Evidence type')}</strong>
             <select className="input" name="type" defaultValue="PROVIDER_ASSERTION">
-              <option value="PROVIDER_ASSERTION">Assertion du prestataire</option>
-              <option value="IDENTITY_DOCUMENT">Document d’identité référencé</option>
-              <option value="SELFIE_CHECK">Contrôle de présence référencé</option>
-              <option value="ADDRESS_CHECK">Adresse référencée</option>
+              <option value="PROVIDER_ASSERTION">{tr('Attestation du prestataire', 'Provider attestation')}</option>
+              <option value="IDENTITY_DOCUMENT">{tr('Document d’identité référencé', 'Identity document reference')}</option>
+              <option value="SELFIE_CHECK">{tr('Contrôle de présence référencé', 'Presence check reference')}</option>
+              <option value="ADDRESS_CHECK">{tr('Adresse référencée', 'Address reference')}</option>
             </select>
           </label>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Prestataire</strong>
+            <strong>{tr('Prestataire', 'Provider')}</strong>
             <input className="input" name="provider" placeholder="KYC_PROVIDER" pattern="[A-Za-z0-9_]{2,32}" required />
           </label>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Référence opaque</strong>
+            <strong>{tr('Référence opaque', 'Opaque reference')}</strong>
             <input className="input" name="opaqueReference" placeholder="ref_xxxxxxxxx" minLength={8} maxLength={200} required />
           </label>
           <label style={{ display: 'grid', gap: 8 }}>
-            <strong>Empreinte SHA-256</strong>
+            <strong>{tr('Empreinte SHA-256', 'SHA-256 fingerprint')}</strong>
             <input className="input" name="digest" placeholder="64 caractères hexadécimaux" minLength={64} maxLength={64} required />
           </label>
           <button className="btn btn-primary" disabled={busy}>
-            {busy ? 'Soumission…' : 'Soumettre pour examen'}
+            {busy ? tr('Soumission…', 'Submitting…') : tr('Soumettre pour examen', 'Submit for review')}
           </button>
         </form>
       )}
 
       <section>
-        <h2>Historique immuable</h2>
+        <h2>{tr('Historique des demandes', 'Request history')}</h2>
         <div className="grid">
           {requests.map((request) => (
             <article className="card" key={request.id} style={{ padding: 22 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <strong>Demande #{request.submissionNumber}</strong>
+                <strong>{tr('Demande', 'Request')} #{request.submissionNumber}</strong>
                 <span style={{ color: request.status === 'APPROVED' ? '#65b7ff' : 'var(--orange)' }}>
-                  {STATUS_LABELS[request.status] ?? request.status}
+                  {STATUS_LABELS[request.status]?.[en ? 1 : 0] ?? request.status}
                 </span>
               </div>
               <p style={{ color: 'var(--muted)' }}>
-                Soumise le {new Date(request.submittedAt).toLocaleString('fr-FR')} · {request.evidenceCount} référence(s)
+                {tr('Soumise le', 'Submitted on')} {new Date(request.submittedAt).toLocaleString(dateLocale)} · {request.evidenceCount} {tr(request.evidenceCount === 1 ? 'référence' : 'références', request.evidenceCount === 1 ? 'reference' : 'references')}
               </p>
-              {request.expiresAt && <p>Échéance : {new Date(request.expiresAt).toLocaleString('fr-FR')}</p>}
-              {request.decisionReason && <p><strong>Motif :</strong> {request.decisionReason}</p>}
+              {request.expiresAt && <p>{tr('Échéance', 'Expires')}: {new Date(request.expiresAt).toLocaleString(dateLocale)}</p>}
+              {request.decisionReason && <p><strong>{tr('Motif', 'Reason')}:</strong> {request.decisionReason}</p>}
               <details>
-                <summary>Références et décisions</summary>
+                <summary>{tr('Références et décisions', 'Evidence and decisions')}</summary>
                 {request.evidence.map((item) => (
                   <p key={item.id} style={{ overflowWrap: 'anywhere' }}>
                     {item.type} · {item.provider} · {item.opaqueReference}<br />
@@ -307,18 +308,18 @@ export default function VerificationPage() {
                 ))}
                 {request.decisions.map((decision) => (
                   <p key={decision.id}>
-                    {new Date(decision.createdAt).toLocaleString('fr-FR')} · {decision.action} · {decision.reason}
+                    {new Date(decision.createdAt).toLocaleString(dateLocale)} · {decision.action} · {decision.reason}
                   </p>
                 ))}
               </details>
               {['SUBMITTED', 'UNDER_REVIEW'].includes(request.status) && (
                 <button className="btn" type="button" disabled={busy || loadError} onClick={() => void withdraw(request)}>
-                  Retirer la demande
+                  {tr('Retirer la demande', 'Withdraw request')}
                 </button>
               )}
             </article>
           ))}
-          {!requests.length && <article className="card" style={{ padding: 22, color: 'var(--muted)' }}>Aucune demande enregistrée.</article>}
+          {!requests.length && <article className="card" style={{ padding: 22, color: 'var(--muted)' }}>{tr('Aucune demande enregistrée.', 'No requests yet.')}</article>}
         </div>
       </section>
     </main>
