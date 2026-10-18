@@ -28,7 +28,7 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
     // HTTP ranges from the public, scanner-verified KnowMe post endpoint.
     // The native package applies an independent host/path allowlist.
     const allowedBase='https://31-56-85-53.sslip.io/knowme-api';
-    if(!/^\\/media\\/public\\/post\\/[a-zA-Z0-9_-]{1,128}$/.test(url)
+    if(!/^\/media\/public\/post\/[a-zA-Z0-9_-]{1,128}$/.test(url)
       ||API_URL!==allowedBase){
       setError('Vidéo indisponible ou serveur vidéo non pris en charge.');
       return;
