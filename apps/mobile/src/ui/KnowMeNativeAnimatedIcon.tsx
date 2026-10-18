@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, AppState, Easing } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing } from 'react-native';
 import { useAppearance } from '../AppearanceProvider';
+import { useKnowMeAppForeground } from './knowme-app-foreground';
 import {
   nativeIconChanged, nativeIconShouldLoop, nativeVisibleGlyph,
   nativeIconProgress, type NativeIconOperationState
@@ -30,16 +31,11 @@ export function KnowMeNativeAnimatedIcon({
 }: NativeAnimatedIconProps) {
   const { appearance, colors } = useAppearance();
   const reducedMotion = useKnowMeSystemReducedMotion();
-  const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  const foreground = useKnowMeAppForeground();
   const value = useRef(new Animated.Value(1)).current;
   const old = useRef({ name, state, eventToken });
   const initialized = useRef(false);
   const animation = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    const listener = AppState.addEventListener('change', status => setForeground(status === 'active'));
-    return () => listener.remove();
-  }, []);
 
   const enabled = foreground && !reducedMotion &&
     appearance?.preference.animationsEnabled !== false &&
