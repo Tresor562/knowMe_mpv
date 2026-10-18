@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
+import { readCachedPublicFeed, saveCachedPublicFeed } from './offline-public-feed';
 import NetInfo from '@react-native-community/netinfo';
 import { restoreOfflinePostDraft, saveOfflinePostDraft, clearOfflinePostDraft } from './offline-post-drafts';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
@@ -703,6 +704,9 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [feedFresh,setFeedFresh] = useState(false);
+  const [cachedNotice,setCachedNotice] = useState('');
+  const feedRequest=useRef(0);
   const [content, setContent] = useState('');
   const [composerOpen,setComposerOpen] = useState(false);
   const [draftOwner,setDraftOwner] = useState('');
@@ -774,18 +778,41 @@ export function FeedExperience({
   const [hasMore, setHasMore] = useState(false);
 
   const load = useCallback(async () => {
+    const generation=++feedRequest.current;
+    setFeedFresh(false);
     try {
       const page = await apiFetch<PostSummary[]>('/posts/feed');
+      if(generation!==feedRequest.current)return;
       setPosts(page);
       setHasMore(page.length === 20);
+      setFeedFresh(true);
+      setCachedNotice('');
+      void saveCachedPublicFeed(userId,page).catch(()=>undefined);
     } catch (cause) {
-      Alert.alert('Fil indisponible', errorMessage(cause, 'Réessaie.'));
+      if(generation!==feedRequest.current)return;
+      try{
+        const snapshot=await readCachedPublicFeed(userId);
+        if(generation!==feedRequest.current)return;
+        if(snapshot?.posts.length){
+          setPosts(snapshot.posts as PostSummary[]);
+          setHasMore(false);
+          setCachedNotice('Fil hors ligne enregistré le '+
+            new Date(snapshot.updatedAt).toLocaleString('fr-FR')+
+            '. Publications en lecture seule. Certains médias nécessitent Internet.');
+          return;
+        }
+      }catch{/* Fall through to genuine error. */}
+      if(generation===feedRequest.current)
+        Alert.alert('Fil indisponible', errorMessage(cause, 'Réessaie.'));
     } finally {
-      setRefreshing(false);
+      if(generation===feedRequest.current)setRefreshing(false);
     }
-  }, []);
+  }, [userId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return ()=>{feedRequest.current+=1;};
+  }, [load]);
 
   useEffect(() => {
     let active = true;
@@ -798,7 +825,7 @@ export function FeedExperience({
 
   async function loadMore() {
     const cursor = posts[posts.length - 1]?.id;
-    if (!cursor || loadingMore || !hasMore) return;
+    if (!cursor || loadingMore || !hasMore || !feedFresh) return;
     setLoadingMore(true);
     try {
       const page = await apiFetch<PostSummary[]>(`/posts/feed?cursor=${encodeURIComponent(cursor)}`);
@@ -859,6 +886,7 @@ export function FeedExperience({
   }
 
   async function like(postId: string) {
+    if(!feedFresh || offline)return;
     try {
       const result = await apiFetch<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' });
       setPosts((current) => current.map((post) => post.id === postId ? {
@@ -927,6 +955,12 @@ export function FeedExperience({
               <Text style={{color:colors.text,fontWeight:'700'}}>{module.title}{module.href ? ' →' : ''}</Text>
             </Pressable>
           ))}
+          {cachedNotice ? <View accessibilityRole="text" style={{
+            borderRadius:13,backgroundColor:colors.backgroundAccent,
+            borderWidth:1,borderColor:colors.border,padding:12,marginHorizontal:7
+          }}>
+            <Text style={{fontSize:12,lineHeight:18,color:colors.text}}>{cachedNotice}</Text>
+          </View> : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Créer une publication"
@@ -968,7 +1002,7 @@ export function FeedExperience({
       ListFooterComponent={hasMore ? <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus de publications'} disabled={loadingMore} onPress={() => void loadMore()} /> : null}
       renderItem={({ item }) => (
         <Pressable
-          onPress={() => setSelectedPostId(item.id)}
+          onPress={() => {if(feedFresh && !offline)setSelectedPostId(item.id);}}
           style={[
             styles.card,
             styles.postCard,
@@ -986,9 +1020,11 @@ export function FeedExperience({
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
           <View style={styles.actionsRow}>
-            <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
+            <MetricButton icon="heart" count={item._count.likes} label="J’aime"
+              onPress={feedFresh&&!offline?()=>void like(item.id):undefined} />
             <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
-            <MetricButton icon="messages" count={item._count.comments} label="Commentaires" onPress={() => setSelectedPostId(item.id)} />
+            <MetricButton icon="messages" count={item._count.comments} label="Commentaires"
+              onPress={feedFresh&&!offline?()=>setSelectedPostId(item.id):undefined} />
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
