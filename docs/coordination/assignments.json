@@ -73,12 +73,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/avatar-studio-full-i18n",
-      "task": "PR #711/#715 fusionnées main avec CI & APK build verts ; PR #716 (créateur UNLISTED + refresh explicite) et PR #720 (Avatar Studio full FR/EN) restent ouvertes, tests ciblés 4+4 locaux OK, CI qualité/APK/coordination dernier HEAD en cours ; Web avatar bloqué PR #551/#556.",
+      "task": "Reprise PR #716 et #720 : validation du dernier HEAD, corrections si nécessaire, fusion après vérifications ; poursuivre profils",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:14:45.506Z",
+      "updatedAt": "2026-10-18T14:16:33.619Z",
       "lastPr": 720,
       "resumeFrom": {
         "pr": 720,
@@ -370,6 +370,14 @@
       "branch": "chat/infra/release-guard-readiness",
       "pr": 721,
       "head": "1d1f31f141a2dee3f1b7946f1d5c035506edeeeb"
+    },
+    {
+      "at": "2026-10-18T14:16:33.619Z",
+      "action": "resume",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 720
     }
   ]
 }
