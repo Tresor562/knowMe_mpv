@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,type KeyboardEvent} from 'react';
 import {apiFetch} from '../../../lib/api';
 import {useI18n} from '../../../components/i18n-provider';
 import {encodeKnowMeVoiceWav} from './web-voice-codec';
@@ -96,7 +96,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     return ()=>clearInterval(interval);
   },[phase]);
 
-  function handleDialogKeys(event:React.KeyboardEvent<HTMLElement>){
+  function handleDialogKeys(event:KeyboardEvent<HTMLElement>){
     if(event.key==='Escape'&&phaseRef.current!=='uploading'){
       event.preventDefault();
       void cancel();
