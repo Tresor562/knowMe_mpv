@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
 import {
-  appendSharedMessages, contentKind, linksInMessage, searchSharedMessages,
+  appendSharedMessages, filterSharedContent, linksInMessage, searchSharedMessages,
+  type SharedMediaFilter,
   type SharedContentKind, type SharedMessage
 } from './group-shared-content-model';
 import './group-shared-content.css';
@@ -27,6 +28,7 @@ export function GroupSharedContent({
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [search,setSearch] = useState('');
+  const [subtype,setSubtype] = useState<SharedMediaFilter>('ALL');
   const [downloading,setDownloading] = useState<string|null>(null);
   const [downloadError,setDownloadError] = useState('');
   const [initialLoaded,setInitialLoaded] = useState(false);
@@ -61,8 +63,21 @@ export function GroupSharedContent({
     return ()=>{requestSequence.current++;};
   },[load]);
 
+  const filterOptions: Array<{value:SharedMediaFilter; fr:string; en:string}> =
+    kind==='media' ? [
+      {value:'ALL',fr:'Tout',en:'All'},
+      {value:'IMAGE',fr:'Photos',en:'Photos'},
+      {value:'VIDEO',fr:'Vidéos',en:'Videos'},
+      {value:'GIF',fr:'GIF',en:'GIF'},
+      {value:'STICKER_IMAGE',fr:'Stickers',en:'Stickers'}
+    ]:kind==='files'?[
+      {value:'ALL',fr:'Tout',en:'All'},
+      {value:'DOCUMENT',fr:'Documents',en:'Documents'},
+      {value:'AUDIO',fr:'Audios',en:'Audios'}
+    ]:[];
+  const effectiveSubtype=filterOptions.some(option=>option.value===subtype)?subtype:'ALL';
   const filtered=useMemo(()=>kind==='search'?searchSharedMessages(messages,search):
-    messages.filter(message=>contentKind(message).includes(kind)),[messages,kind,search]);
+    filterSharedContent(messages,kind,effectiveSubtype),[messages,kind,search,effectiveSubtype]);
 
   async function downloadAttachment(message: SharedMessage) {
     const assetId=message.presentation?.assetId;
@@ -97,6 +112,14 @@ export function GroupSharedContent({
         placeholder={en?'Text, member or file…':'Texte, membre ou fichier…'}
         aria-label={en?(isGroup?'Search group messages':'Search private messages'):(isGroup?'Rechercher les messages du groupe':'Rechercher les messages privés')}/>
     </label>}
+    {filterOptions.length>0&&<div className="km-group-shared-filters"
+      role="group" aria-label={en?'Filter shared content':'Filtrer les contenus partagés'}>
+      {filterOptions.map(option=><button type="button" key={option.value}
+        aria-pressed={effectiveSubtype===option.value}
+        onClick={()=>setSubtype(option.value)}>
+        {en?option.en:option.fr}
+      </button>)}
+    </div>}
     <div className="km-group-shared-heading">
       <strong>{en?labels.en:labels.fr}</strong>
       <span>{filtered.length}{cursor?' +':''}</span>
