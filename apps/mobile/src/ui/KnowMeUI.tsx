@@ -670,6 +670,7 @@ export function useKnowMeSystemReducedMotion() {
 export function PressScale({
   children,
   onPress,
+  onLongPress,
   disabled = false,
   style,
   accessibilityRole,
@@ -678,6 +679,7 @@ export function PressScale({
 }: {
   children: ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityRole?: PressableProps['accessibilityRole'];
@@ -710,6 +712,7 @@ export function PressScale({
       accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
+      onLongPress={onLongPress}
       hitSlop={4}
       onPressIn={() => to(0.93)}
       onPressOut={() => to(1)}
