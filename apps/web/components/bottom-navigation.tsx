@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
-import { KnowMeGlyph } from './knowme-glyph';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
 
 type IconName = 'home' | 'discover' | 'create' | 'notifications' | 'chats' | 'profile';
 type NavPosition = 'top' | 'bottom';
@@ -14,7 +14,7 @@ export const KNOWME_NAV_POSITION_KEY = 'knowme-navigation-position';
 const ROOT_ROUTES = new Set(['/dashboard', '/feed', '/discover', '/notifications', '/messages', '/profile']);
 
 function NavIcon({ name, active = false }: { name: IconName; active?: boolean }) {
-  return <KnowMeGlyph name={name} active={active} size={22}/>;
+  return <KnowMeAnimatedIcon name={name} state={active ? 'selected' : 'idle'} size={22}/>;
 }
 
 function isTypingTarget(element: EventTarget | null): boolean {
