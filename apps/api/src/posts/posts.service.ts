@@ -305,13 +305,18 @@ export class PostsService {
 
   async setCommentReaction(userId: string, postId: string, commentId: string, emoji: string) {
     const comment = await this.requireCommentForReaction(postId, commentId);
+    const previous = await this.prisma.postCommentReaction.findUnique({
+      where: { commentId_userId: { commentId, userId } },
+      select: { emoji: true }
+    });
+    if (previous?.emoji === emoji) return this.commentReactionSummary(userId, postId, commentId);
     await this.prisma.postCommentReaction.upsert({
       where: { commentId_userId: { commentId, userId } },
       create: { commentId, userId, emoji },
       update: { emoji }
     });
     // Keep notifications nonblocking: the DB operation succeeded already.
-    if (comment.authorId !== userId) {
+    if (!previous && comment.authorId !== userId) {
       await Promise.allSettled([this.notifications.create({
         userId: comment.authorId,
         type: 'COMMENT_REACTED',
