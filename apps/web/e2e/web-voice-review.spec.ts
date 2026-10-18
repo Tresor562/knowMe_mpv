@@ -135,3 +135,36 @@ test('voice sheet traps focus and Escape cleans a private recording',async({page
   await expect(page.locator('body')).not.toHaveCSS('overflow','hidden');
   expect(uploads).toBe(0);
 });
+
+test('failed voice upload preserves local preview and supports retry',async({page})=>{
+  await conversation(page);
+  let attempts=0;
+  await page.route('**/api/knowme/media/uploads',route=>{
+    attempts++;
+    if(attempts===1)return route.fulfill({status:503,contentType:'application/json',
+      body:JSON.stringify({message:'Upload temporarily unavailable'})});
+    return route.fulfill({status:201,contentType:'application/json',
+      body:JSON.stringify({id:'voice-retry-upload',uploadToken:'retry-token'})});
+  });
+  await page.route('**/api/knowme/media/uploads/voice-retry-upload/complete',route=>
+    route.fulfill({status:200,contentType:'application/json',
+      body:JSON.stringify({id:'voice-retry-asset',status:'AVAILABLE'})}));
+  await page.route('**/api/knowme/conversations/chat-1/media-messages',route=>
+    route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+      id:'retry-message',conversationId:'chat-1',senderId:'me',sender:self,content:'',
+      createdAt:'2026-10-18T15:00:00.000Z',
+      presentation:{kind:'AUDIO',assetId:'voice-retry-asset',mimeType:'audio/wav'}
+    })}));
+  await page.getByRole('button',{name:'Enregistrer une note vocale'}).click();
+  const dialog=page.getByRole('dialog',{name:'Note vocale'});
+  await page.waitForTimeout(250);
+  await dialog.getByRole('button',{name:'Terminer'}).click();
+  await expect(dialog.locator('audio')).toBeVisible();
+  await dialog.getByRole('button',{name:'Envoyer le vocal'}).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await expect(dialog.locator('audio')).toBeVisible();
+  expect(attempts).toBe(1);
+  await dialog.getByRole('button',{name:'Envoyer le vocal'}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(attempts).toBe(2);
+});
