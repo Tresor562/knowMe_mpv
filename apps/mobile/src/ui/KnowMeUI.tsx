@@ -644,6 +644,13 @@ function subscribeReducedMotion(listener: () => void) {
 const getReducedMotionSnapshot = () => reducedMotionSnapshot;
 const getServerReducedMotionSnapshot = () => false;
 
+/** Shared subscription, reused by all interactive native icons. */
+export function useKnowMeSystemReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion, getReducedMotionSnapshot, getServerReducedMotionSnapshot
+  );
+}
+
 export function PressScale({
   children,
   onPress,
@@ -663,9 +670,7 @@ export function PressScale({
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
-  const systemReducedMotion = useSyncExternalStore(
-    subscribeReducedMotion, getReducedMotionSnapshot, getServerReducedMotionSnapshot
-  );
+  const systemReducedMotion = useKnowMeSystemReducedMotion();
   const motion = appearance?.preference.animationsEnabled !== false && !systemReducedMotion;
   useEffect(() => {
     if (!motion) { value.stopAnimation(); value.setValue(1); }
