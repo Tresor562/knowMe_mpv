@@ -90,12 +90,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/badges-user-isolation",
-      "task": "PR #727 fusionnée main commit 2e978d03 (quality, coordination, APK verts). PR #734 API follow-status + composant isolé, quality/readiness/coordination verts, APK encore en attente; intégration UI dépend PR #583. PR #738 isolations badges Web + Android, 4+4 tests ciblés exécutés en local, nouveau HEAD 37a32ffd, CI quality/coordination/APK en file. Éviter tout chevauchement.",
+      "task": "Intégrer #734 et #738 (checks tous verts) ; développer prochain lot Profils, isolé des autres PR",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T15:04:41.616Z",
+      "updatedAt": "2026-10-18T15:37:55.125Z",
       "lastPr": 738,
       "resumeFrom": {
         "pr": 738,
@@ -862,6 +862,14 @@
       "domain": "infra",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "pr": 742
+    },
+    {
+      "at": "2026-10-18T15:37:55.125Z",
+      "action": "resume",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 738
     }
   ]
 }
