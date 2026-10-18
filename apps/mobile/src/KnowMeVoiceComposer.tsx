@@ -99,8 +99,9 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     try{
       await startKnowMeVoice();
       // The permission request is asynchronous: a close can change the phase.
-      if ((phaseRef.current as Phase)!=='starting') {
-        await cancelKnowMeVoice();
+      if ((phaseRef.current as Phase)!=='starting'||AppState.currentState==='background') {
+        await cancelKnowMeVoice().catch(()=>undefined);
+        next('idle');setOpen(false);
         return;
       }
       startedAt.current=Date.now();
@@ -153,7 +154,10 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     // A backgrounded app must not keep an unattended open microphone.
     const listener=AppState.addEventListener('change',status=>{
       if(status!=='active'){
-        if(phaseRef.current==='recording'||phaseRef.current==='starting')void cancel();
+        // The Android microphone permission prompt can briefly make the app inactive.
+        // Do not cancel the pending permission dialog; abort only on real background.
+        if(phaseRef.current==='recording'||
+          (phaseRef.current==='starting'&&status==='background'))void cancel();
         if(phaseRef.current==='preview'){
           void stopKnowMeVoicePlayback().catch(()=>undefined);
           setPreviewPlaying(false);
