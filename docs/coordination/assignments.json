@@ -53,12 +53,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705: expired cursor refresh + report conflict 409 handling, Playwright tests; head 0d29afd, latest CI/readiness queued, no merge or deployment.",
+      "task": "PR #705: check latest exact-head GitHub CI, investigate stalled workflow queue, review and focused tests",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T15:00:00.287Z",
+      "updatedAt": "2026-10-18T15:04:54.727Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
@@ -775,6 +775,13 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 738
+    },
+    {
+      "at": "2026-10-18T15:04:54.727Z",
+      "action": "resume",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
