@@ -116,3 +116,22 @@ test('cancel during audio shutdown never restores a deleted voice draft',async({
   await expect(dialog).toHaveCount(0);
   expect(uploadCalls).toBe(0);
 });
+
+test('voice sheet traps focus and Escape cleans a private recording',async({page})=>{
+  await conversation(page);
+  let uploads=0;
+  await page.route('**/api/knowme/media/uploads**',route=>{uploads++;return route.abort();});
+  const record=page.getByRole('button',{name:'Enregistrer une note vocale'});
+  await record.click();
+  const dialog=page.getByRole('dialog',{name:'Note vocale'});
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('body')).toHaveCSS('overflow','hidden');
+  await expect(dialog.getByRole('button',{name:'Supprimer l’enregistrement'})).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button',{name:'Supprimer',exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(record).toBeFocused();
+  await expect(page.locator('body')).not.toHaveCSS('overflow','hidden');
+  expect(uploads).toBe(0);
+});
