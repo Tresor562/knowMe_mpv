@@ -105,3 +105,22 @@ test('publication report dialog traps keyboard focus and restores its menu trigg
   await expect(page.getByRole('button',{name:'Signaler la publication'})).toBeFocused();
 });
 
+
+test('existing report conflict shows a private history path without pretending a new report succeeded', async ({page}) => {
+  const { reports } = await setup(page, 409);
+  const foreign = page.locator('article.km-feed-post').filter({hasText:'Publication de mon amie'});
+  await foreign.getByRole('button',{name:'Options de la publication'}).click();
+  await page.getByRole('button',{name:'Signaler la publication'}).click();
+  const dialog=page.getByRole('dialog',{name:'Signaler la publication'});
+  await dialog.getByText('Spam ou publicité abusive').click();
+  await dialog.getByRole('button',{name:'Envoyer le signalement'}).click();
+  await expect(dialog.getByRole('status')).toContainText('déjà signalé');
+  await expect(dialog.getByText('transmise à la modération')).toHaveCount(0);
+  await expect(dialog.getByRole('link',{name:'Consulter mes signalements'}))
+    .toHaveAttribute('href','/feed/reports');
+  expect(reports).toHaveLength(1);
+  await expect(dialog.getByRole('button',{name:'Envoyer le signalement'})).toHaveCount(0);
+  await dialog.getByRole('button',{name:'Terminer'}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('dialog',{name:'Options de cette publication'})).toHaveCount(0);
+});
