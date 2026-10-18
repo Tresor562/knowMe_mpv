@@ -435,22 +435,20 @@ export function MessagesOrganizationExperience({
   return (
     <View style={rootStyle}>
       {!conversationActive ? <View style={styles.entrypoint}>
-        <GlassSurface strength="soft" borderRadius={20}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={openOrganization}
-            style={({ pressed }) => [
-              styles.organizationButton,
-              pressed && styles.pressed
-            ]}
-          >
-            <View style={[styles.organizationIcon, { backgroundColor: colors.backgroundAccent }]}>
-              <KnowMeIcon name="settings" size={17} color={colors.accent} />
-            </View>
-            <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organiser mes messages</Text>
-            <KnowMeIcon name="arrow" size={16} color={colors.muted} />
-          </Pressable>
-        </GlassSurface>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Organiser les conversations"
+          onPress={openOrganization}
+          style={({ pressed }) => [
+            styles.organizationButton,
+            { backgroundColor: colors.surface },
+            pressed && styles.pressed
+          ]}
+        >
+          <KnowMeIcon name="settings" size={18} color={colors.accent} />
+          <Text style={[styles.organizationButtonText, { color: colors.text }]}>Organiser</Text>
+          <KnowMeIcon name="arrow" size={15} color={colors.muted} />
+        </Pressable>
       </View> : null}
       <View style={styles.messages}>
         <RealtimeMessagesPanel
@@ -470,18 +468,18 @@ export function MessagesOrganizationExperience({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   messages: { flex: 1 },
-  entrypoint: { paddingHorizontal: 14, paddingTop: 8 },
+  entrypoint: { paddingHorizontal: 14, paddingTop: 5, paddingBottom: 2, alignItems: 'flex-end' },
   organizationButton: {
-    minHeight: 46,
-    borderRadius: 20,
+    minHeight: 44,
+    borderRadius: 14,
     paddingVertical: 7,
-    paddingHorizontal: 9,
+    paddingHorizontal: 13,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9
   },
   organizationIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  organizationButtonText: { flex: 1, fontSize: 12.5, fontWeight: '700' },
+  organizationButtonText: { fontSize: 12, fontWeight: '700' },
   content: { padding: 14, paddingBottom: 30, gap: 10 },
   toolbar: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9 },
   toolbarPadded: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingTop: 8 },
