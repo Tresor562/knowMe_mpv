@@ -10,6 +10,7 @@ import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { saveOfflineFeed, loadOfflineFeed } from '../../lib/offline-feed';
 import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
@@ -241,14 +242,36 @@ export default function FeedPage() {
       setPosts(firstPage);
       setHasMore(firstPage.length === FEED_PAGE_SIZE);
       setAuthorityFresh(true);
+      if(user?.id)void saveOfflineFeed(user.id,firstPage).catch(()=>{
+        // Browsers with storage disabled still get the current online feed.
+      });
     } catch (cause) {
       if (generation !== loadGeneration.current) return;
       setAuthorityFresh(false);
-      setMessage(cause instanceof Error ? cause.message : 'Fil indisponible.');
+      // The cache contains only public feed text/metadata previously loaded
+      // by this account. It never implies that network actions will succeed.
+      let restored=false;
+      if(user?.id){
+        try{
+          const saved=await loadOfflineFeed(user.id);
+          if(generation!==loadGeneration.current)return;
+          if(saved?.posts.length){
+            setPosts(saved.posts as Post[]);
+            setHasMore(false);
+            const when=new Date(saved.updatedAt).toLocaleString(en?'en-US':'fr-FR');
+            setMessage(en
+              ? 'Offline snapshot from '+when+'. Posts are read-only; media not cached may need Internet.'
+              : 'Fil hors ligne du '+when+'. Publications en lecture seule ; certains médias nécessitent Internet.');
+            restored=true;
+          }
+        }catch{/* Local storage unavailable: show the genuine network error. */}
+      }
+      if(generation!==loadGeneration.current)return;
+      if(!restored)setMessage(cause instanceof Error ? cause.message : 'Fil indisponible.');
     } finally {
       if (generation === loadGeneration.current) setLoading(false);
     }
-  }, []);
+  }, [user?.id,en]);
 
   useEffect(() => {
     invalidateFeedAuthority();
