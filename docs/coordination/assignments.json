@@ -172,12 +172,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/live-notices-compact-surfaces",
-      "task": "PR #743 HEAD b4671c : notifications Web in-app + badge + préférences, contrôle UI boutons/listes/groupes, organigramme Android compact; centre natif avancé stylisé mais non monté. Collisions #583 SocialHub et #735 clavier retirées; CI/coordination/APK derniers HEAD en attente. PR #730 fusionnée 5999b0a; PR #724 green CI/coordination/APK mais encore ouverte. Notifications créateurs suivis/mentions côté API à coordonner avec #694/#698/#693.",
+      "task": "Continuing #743: verified coordination green, CI queued, APK running; inspect and strengthen in-app UX and native actual-screen routing. PR #735 merged; PR #724 all checks passed pending safe integration.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T15:50:00.234Z",
+      "updatedAt": "2026-10-18T16:04:05.453Z",
       "lastPr": 743,
       "resumeFrom": {
         "pr": 743,
@@ -963,6 +963,13 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 749
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T16:04:05.453Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 743
     }
   ]
 }
