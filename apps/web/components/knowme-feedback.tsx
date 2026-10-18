@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { wrappedDialogFocus } from './dialog-focus';
+import { enqueueNotice } from './toast-queue';
 type Dialog = { kind: 'confirm' | 'prompt'; message: string; initial?: string; resolve: (answer: boolean | string | null) => void };
 type Toast = { text: string; tone: 'info' | 'success' | 'error' };
 type QueuedToast = Toast & { id: number };
@@ -37,8 +38,7 @@ export function KnowMeDialogHost() {
     dispatch = handler;
     showToast = (next) => setToastQueue((previous) => {
       // A burst of identical errors should not bury the user in alerts.
-      if (previous.some((item) => item.text === next.text && item.tone === next.tone)) return previous;
-      return [...previous, { ...next, id: ++nextToastId }].slice(0, 4);
+      return enqueueNotice(previous, { ...next, id: ++nextToastId }, 4);
     });
     return () => {
       if (dispatch === handler) dispatch = null;
