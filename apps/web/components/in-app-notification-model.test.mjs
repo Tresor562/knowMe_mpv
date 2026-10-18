@@ -10,6 +10,8 @@ test('links only navigate to internal KnowMe routes', () => {
     assert.equal(safeNotificationPath(value),'/notifications');
   }
   assert.equal(notificationDestination({...item,data:{route:'/feed/123'}}),'/feed/123');
+  assert.equal(notificationAlreadyVisible({...item,data:{route:'/messages/7?new=1'}},'/messages/7'),true);
+  assert.equal(notificationAlreadyVisible({...item,data:{route:'/messages/7'}},'/messages'),false);
 });
 test('notification topics support messages, creator posts, mentions and security without emojis', () => {
   assert.equal(notificationSymbol('MESSAGE','MESSAGING'),'message');
