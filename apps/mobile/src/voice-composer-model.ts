@@ -16,3 +16,16 @@ export function voiceClock(durationMs:number):string {
   const seconds=Number.isFinite(durationMs)?Math.max(0,Math.floor(durationMs/1000)):0;
   return `${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
 }
+
+/** Calculate a stable progress ratio even with malformed native data. */
+export function voiceProgress(positionMs:number,durationMs:number):number {
+  if(!Number.isFinite(positionMs)||!Number.isFinite(durationMs)||durationMs<=0)return 0;
+  return Math.max(0,Math.min(1,positionMs/durationMs));
+}
+
+/** Convert a tap position on the native seek track to a bounded media offset. */
+export function voiceSeekMs(tapX:number,trackWidth:number,durationMs:number):number {
+  if(!Number.isFinite(tapX)||!Number.isFinite(trackWidth)||trackWidth<=0||
+     !Number.isFinite(durationMs)||durationMs<=0)return 0;
+  return Math.round(Math.max(0,Math.min(1,tapX/trackWidth))*durationMs);
+}
