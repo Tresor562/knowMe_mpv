@@ -51,6 +51,18 @@ export function contentKind(message: SharedMessage): SharedContentKind[] {
   return list;
 }
 
+/** Filtering is limited to authorized, already fetched history; it is never global
+ * search and cannot reveal an asset not present in the conversation API result. */
+export type SharedMediaFilter='ALL'|'IMAGE'|'VIDEO'|'GIF'|'STICKER_IMAGE'|'DOCUMENT'|'AUDIO';
+
+export function filterSharedContent(items: SharedMessage[], kind: 'media'|'files'|'links',
+  subtype: SharedMediaFilter = 'ALL'): SharedMessage[] {
+  return items.filter(message =>
+    contentKind(message).includes(kind) &&
+    (subtype === 'ALL' || message.presentation?.kind === subtype)
+  );
+}
+
 /** Read-only progressive search. It never claims to search pages not yet loaded. */
 export function searchSharedMessages(items: SharedMessage[], query: string): SharedMessage[] {
   const fold=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase();
