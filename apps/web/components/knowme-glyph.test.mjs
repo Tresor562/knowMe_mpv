@@ -59,6 +59,13 @@ test('only explicit icon SVGs get touch transforms; shared sheets use actual ope
   assert.match(sheet, /busyOperation === "story"/);
   assert.match(sheet, /busyOperation === "message"/);
   assert.match(sheet, /copied \? "success" : "idle"/);
+  const shareStyle = fs.readFileSync(path.join(dir, 'post-share-sheet.css'), 'utf8');
+  assert.match(shareStyle, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(shareStyle, /button svg \{[^}]*width:47px/);
+  assert.match(shareStyle, /km-share-action-icon/);
+  assert.match(sheet, /className="km-share-action-icon"/);
+  const networkStyle = fs.readFileSync(path.join(dir, 'network-connectivity-notice.css'), 'utf8');
+  assert.match(networkStyle, /width: 44px; height: 44px/);
   const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
   assert.match(avatar, /state=\{open \? "open" : "closed"\}/);
   assert.match(animatedCss, /data-icon-state='open'/);
