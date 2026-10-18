@@ -3,7 +3,8 @@ import {ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View} f
 import type {RecordedKnowMeVoice} from './native-voice';
 import {cancelKnowMeVoice,discardKnowMeVoice,getKnowMeVoicePlaybackStatus,playKnowMeVoice,
   seekKnowMeVoicePlayback,startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
-import {voiceClock,voiceProgress,voiceSeekMs,voiceUiState,type VoicePhase} from './voice-composer-model';
+import {shouldCancelNativeCaptureOnUnmount,shouldDiscardVoiceOnUnmount,
+  voiceClock,voiceProgress,voiceSeekMs,voiceUiState,type VoicePhase} from './voice-composer-model';
 import {useI18n} from './I18nProvider';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {useAppearance} from './AppearanceProvider';
@@ -47,6 +48,7 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   const [canSeek,setCanSeek]=useState(false);
   const seekWidth=useRef(0);
   const phaseRef=useRef<Phase>('idle');
+  const mountedRef=useRef(true);
   const capturedRef=useRef<RecordedKnowMeVoice|null>(null);
   const startedAt=useRef(0);
   function next(value:Phase){phaseRef.current=value;setPhase(value);}
@@ -79,16 +81,25 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     return ()=>clearInterval(interval);
   },[phase,previewPlaying]);
 
-  useEffect(()=>()=>{
-    if(phaseRef.current==='recording'||phaseRef.current==='starting'||phaseRef.current==='stopping'){
-      void cancelKnowMeVoice().catch(()=>undefined);
-    }
-    const file=capturedRef.current;
-    if(file)void discardKnowMeVoice(file.uri).catch(()=>undefined);
-    void stopKnowMeVoicePlayback().catch(()=>undefined);
+  useEffect(()=>{
+    mountedRef.current=true;
+    return ()=>{
+      mountedRef.current=false;
+      const previous=phaseRef.current;
+      phaseRef.current='idle';
+      if(shouldCancelNativeCaptureOnUnmount(previous)){
+        void cancelKnowMeVoice().catch(()=>undefined);
+      }
+      // A confirmed upload must retain its file until onSend completes.
+      // Other local previews are discarded on navigation/unmount.
+      const file=capturedRef.current;
+      if(file&&shouldDiscardVoiceOnUnmount(previous))void discardKnowMeVoice(file.uri).catch(()=>undefined);
+      void stopKnowMeVoicePlayback().catch(()=>undefined);
+    };
   },[]);
 
   function showError(error:unknown){
+    if(!mountedRef.current)return;
     Alert.alert(copy.unavailable,
       error instanceof Error?error.message:copy.missingMic);
   }
@@ -99,14 +110,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     try{
       await startKnowMeVoice();
       // The permission request is asynchronous: a close can change the phase.
-      if ((phaseRef.current as Phase)!=='starting'||AppState.currentState==='background') {
+      if (!mountedRef.current||(phaseRef.current as Phase)!=='starting'||
+          AppState.currentState==='background') {
         await cancelKnowMeVoice().catch(()=>undefined);
-        next('idle');setOpen(false);
+        if(mountedRef.current){next('idle');setOpen(false);}
         return;
       }
       startedAt.current=Date.now();
       next('recording');
     }catch(e){
+      if(!mountedRef.current){
+        await cancelKnowMeVoice().catch(()=>undefined);
+        return;
+      }
       next('idle');setOpen(false);showError(e);
     }
   }
@@ -115,14 +131,18 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     next('stopping');
     try {
       const file=await stopKnowMeVoice();
+      if(!mountedRef.current||phaseRef.current!=='stopping'){
+        await discardKnowMeVoice(file.uri).catch(()=>undefined);
+        return;
+      }
       capturedRef.current=file;setRecorded(file);setPositionMs(0);setCanSeek(false);next('preview');
       // Check native capabilities without assuming that older APKs expose seeking.
       void getKnowMeVoicePlaybackStatus().then(status=>{
-        if(status&&capturedRef.current?.uri===file.uri)setCanSeek(true);
+        if(mountedRef.current&&status&&capturedRef.current?.uri===file.uri)setCanSeek(true);
       }).catch(()=>undefined);
     }catch(error){
       await cancelKnowMeVoice().catch(()=>undefined);
-      next('idle');setOpen(false);showError(error);
+      if(mountedRef.current){next('idle');setOpen(false);showError(error);}
     }
   }
   async function cancel(){
@@ -144,11 +164,19 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     try{
       await stopKnowMeVoicePlayback();
       const sent=await onSend(file);
-      if(sent){
+      if(sent||!mountedRef.current){
         await discardKnowMeVoice(file.uri).catch(()=>undefined);
-        capturedRef.current=null;setRecorded(null);setPositionMs(0);setCanSeek(false);setOpen(false);next('idle');
+        capturedRef.current=null;
+        if(mountedRef.current){
+          setRecorded(null);setPositionMs(0);setCanSeek(false);setOpen(false);next('idle');
+        }
       }else next('preview');
-    }catch(error){next('preview');showError(error);}
+    }catch(error){
+      if(!mountedRef.current){
+        await discardKnowMeVoice(file.uri).catch(()=>undefined);
+        capturedRef.current=null;
+      }else {next('preview');showError(error);}
+    }
   }
   useEffect(()=>{
     // A backgrounded app must not keep an unattended open microphone.
@@ -172,16 +200,23 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     setPlaybackBusy(true);
     try {
       if(previewPlaying){await stopKnowMeVoicePlayback();setPreviewPlaying(false);}
-      else {setPositionMs(0);await playKnowMeVoice(file.uri);setPreviewPlaying(true);}
+      else {
+        setPositionMs(0);await playKnowMeVoice(file.uri);
+        if(!mountedRef.current||phaseRef.current!=='preview'){
+          await stopKnowMeVoicePlayback().catch(()=>undefined);
+          return;
+        }
+        setPreviewPlaying(true);
+      }
     }catch(error){setPreviewPlaying(false);showError(error);}
-    finally{setPlaybackBusy(false);}
+    finally{if(mountedRef.current)setPlaybackBusy(false);}
   }
   async function seekPreview(tapX:number){
     if(!canSeek||phaseRef.current!=='preview'||!recorded)return;
     const nextPosition=voiceSeekMs(tapX,seekWidth.current,recorded.durationMs);
     try{
       await seekKnowMeVoicePlayback(nextPosition);
-      setPositionMs(nextPosition);
+      if(mountedRef.current&&phaseRef.current==='preview')setPositionMs(nextPosition);
     }catch(error){showError(error);}
   }
   const time=voiceClock(phase==='preview'&&recorded?recorded.durationMs:seconds*1000);
