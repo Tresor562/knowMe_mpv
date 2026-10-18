@@ -38,12 +38,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "branch": "chat/messaging/sticker-voice-composer",
+      "task": "Audit et développement UX messagerie (vocaux, stickers, composer)",
+      "claimedAt": "2026-10-18T12:00:50.499Z",
+      "updatedAt": "2026-10-18T12:00:50.499Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -111,6 +111,13 @@
       "at": "2026-10-18T12:00:47.563Z",
       "issue": 693,
       "branch": "chat/messaging/audio-recorder-send-controls"
+    },
+    {
+      "at": "2026-10-18T12:00:50.499Z",
+      "action": "claim",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "issue": 694
     }
   ]
 }
