@@ -216,3 +216,16 @@
  .km-info-private-profile .km-info-actions > :is(a,button){min-width:68px;padding-inline:4px}
  .km-info-private-profile .km-info-identity .km-info-member-avatar{width:80px;height:80px}
 }
+
+/* Secondary filters for shared items: scroll naturally on small Android widths. */
+.km-group-shared-filters{display:flex;align-items:center;gap:4px;min-height:48px;
+  margin:5px 0 2px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.km-group-shared-filters::-webkit-scrollbar{display:none}
+.km-group-shared-filters button{flex:0 0 auto;min-height:44px;min-width:44px;
+  border:0;border-radius:13px;background:transparent;color:var(--muted);
+  padding:7px 12px;font-size:12px;font-weight:650;cursor:pointer;scroll-snap-align:start}
+.km-group-shared-filters button[aria-pressed='true']{
+  background:var(--bg-accent);color:var(--mint)}
+.km-group-shared-filters button:focus-visible{
+  outline:2px solid var(--mint);outline-offset:-2px}
+@media(max-width:390px){.km-group-shared-filters button{padding:7px 9px}}
