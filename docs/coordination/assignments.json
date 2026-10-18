@@ -178,23 +178,23 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/live-notices-compact-surfaces",
-      "task": "Design #699: group profile UI with real media/files/links tabs and complete Telegram/WhatsApp parity acceptance matrix; messaging backend #754 independently owned.",
+      "branch": "chat/design/group-info-shared-content",
+      "task": "Group design #699 PR #762 HEAD af17e668: Web group info real media/files/links tabs + progressive search across authorized history, private file download grants, return to message, safe group leave menu; model unit/E2E new, previous CI failures in own E2E corrected; exact HEAD guard green, CI queued, APK pending. Backend permissions PR #754 (messaging) CI/guard failing; unimplemented parity matrix docs/design/GROUPS_TELEGRAM_WHATSAPP_PARITY_20261018.md. Older design PR #743 HEAD 1003774f CI failing, not merged. No Web or Android delivery verified.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T17:14:44.246Z",
-      "lastPr": 743,
+      "updatedAt": "2026-10-18T17:30:55.352Z",
+      "lastPr": 762,
       "resumeFrom": {
-        "pr": 743,
-        "branch": "chat/design/live-notices-compact-surfaces",
-        "commit": "1003774fc0a0292092d073001f6a3e6631d97ec7",
-        "mergedPrs": [
-          724,
-          730
-        ],
-        "externalPr": 583,
-        "externalIssue": 693
+        "pr": 762,
+        "branch": "chat/design/group-info-shared-content",
+        "commit": "af17e6689bee2a5616b54e4e4575ec8ef867396c",
+        "otherPr": 743,
+        "otherBranch": "chat/design/live-notices-compact-surfaces",
+        "otherHead": "1003774fc0a0292092d073001f6a3e6631d97ec7",
+        "dependencyPr": 754,
+        "messagingIssue": 693,
+        "designRelatedPr": 760
       }
     }
   },
@@ -1014,6 +1014,14 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "at": "2026-10-18T17:14:44.246Z"
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T17:30:55.352Z",
+      "pr": 762,
+      "otherPr": 743
     }
   ]
 }
