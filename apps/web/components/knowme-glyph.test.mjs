@@ -132,13 +132,12 @@ test('icon action controls are accessible and preserve long-press semantics', ()
 test('profile avatar menu is viewport-anchored, keyboard-accessible, and returns focus', () => {
   const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
   const style = fs.readFileSync(path.join(dir, '..', 'app', 'iconography.css'), 'utf8');
-  assert.match(avatar, /createPortal\(<div ref=\{menuRef\}/);
-  assert.match(avatar, /document\.body\)\}/);
+  assert.match(avatar, /createPortal\(<div id=\{menuId\} ref=\{menuRef\}/);
+  assert.match(avatar, /document\.body\) as unknown as ReactElement\)\}/);
   assert.match(avatar, /menuRef\.current\?\.offsetHeight \?\? 290/);
-  assert.match(avatar, /event\.key === 'ArrowDown'/);
-  assert.match(avatar, /event\.key === 'ArrowUp'/);
-  assert.match(avatar, /event\.key === 'Home'/);
-  assert.match(avatar, /event\.key === 'End'/);
+  assert.match(avatar, /nextAvatarMenuIndex\(/);
+  assert.match(avatar, /AvatarMenuNavigationKey/);
+  assert.match(avatar, /'ArrowDown', 'ArrowUp', 'Home', 'End'/);
   assert.match(avatar, /querySelector<HTMLElement>\('\[role="menuitem"\]:not\(\[disabled\]\)'\)/);
   assert.match(avatar, /onBlur=\{event =>/);
   assert.match(avatar, /previewClose\.current\?\.focus\(\)/);
