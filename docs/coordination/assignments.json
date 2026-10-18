@@ -47,12 +47,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705: private post report history + server-side status tabs, a11y styling, tests. HEAD 2a99043; exact CI/runtime queued; not merged or deployed.",
+      "task": "Qualification PR #705 + prévention régressions API/Social, coordination avant intégration",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:39:41.558Z",
+      "updatedAt": "2026-10-18T14:42:26.285Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
@@ -603,6 +603,13 @@
       "at": "2026-10-18T14:42:18.466Z",
       "pr": 721,
       "branch": "chat/infra/release-guard-readiness"
+    },
+    {
+      "at": "2026-10-18T14:42:26.285Z",
+      "domain": "social",
+      "action": "resume",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
