@@ -7,6 +7,7 @@ import './comment-report-sheet.css';
 
 export type PostOption = {
   id: string;
+  content: string;
   author: { id: string; username: string; displayName: string };
 };
 
