@@ -82,9 +82,12 @@ export function CommentEmojiReactions({ postId, commentId }: {
   const emoji = summary?.mine || '♡';
   const count = summary?.total ?? 0;
   return (
-    <span className="km-comment-emoji" onKeyDown={event => {
-      if (event.key === 'Escape') {setExpanded(false);setMore(false);}
-    }}>
+    <span className="km-comment-emoji"
+      onPointerDown={event => event.stopPropagation()}
+      onContextMenu={event => {event.preventDefault();event.stopPropagation();setExpanded(true);}}
+      onKeyDown={event => {
+        if (event.key === 'Escape') {setExpanded(false);setMore(false);}
+      }}>
       <button type="button" disabled={pending}
         className="km-comment-emoji-main"
         aria-label={summary?.mine ? 'Modifier la réaction au commentaire' : 'Réagir au commentaire'}
