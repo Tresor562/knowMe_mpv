@@ -158,6 +158,22 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     await this.emitTyping(client, body?.conversationId, false);
   }
 
+  @SubscribeMessage('activity:start')
+  async activityStart(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() body: {conversationId:string;kind:'recording_voice'|'recording_video'|'uploading_media'}
+  ) {
+    await this.emitActivity(client,body?.conversationId,body?.kind,true);
+  }
+
+  @SubscribeMessage('activity:stop')
+  async activityStop(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() body: {conversationId:string;kind:'recording_voice'|'recording_video'|'uploading_media'}
+  ) {
+    await this.emitActivity(client,body?.conversationId,body?.kind,false);
+  }
+
   @SubscribeMessage('call:offer')
   async forwardOffer(
     @ConnectedSocket() client: AuthSocket,
@@ -352,6 +368,26 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   emitNotificationsReadAll(userId: string, readAt: Date) {
     this.server.to(`user:${userId}`).emit('notification:read-all', { readAt });
+  }
+
+  private async emitActivity(client:AuthSocket,conversationId:string|undefined,
+    kind:string|undefined,active:boolean) {
+    if(!conversationId||!client.data.userId||
+       !['recording_voice','recording_video','uploading_media'].includes(kind??''))return;
+    if(!client.rooms.has(`conversation:${conversationId}`))return;
+    const membership=await this.prisma.conversationMember.findUnique({
+      where:{conversationId_userId:{conversationId,userId:client.data.userId}},
+      select:{id:true}
+    });
+    if(!membership)return;
+    const members=await this.prisma.conversationMember.findMany({
+      where:{conversationId,userId:{not:client.data.userId}},select:{userId:true}
+    });
+    // Short TTL prevents a ghost "recording..." indicator on dropped connections.
+    client.to(members.map(member=>`user:${member.userId}`)).emit('activity:update',{
+      conversationId,userId:client.data.userId,username:client.data.username,
+      kind,active,expiresAt:Date.now()+6500
+    });
   }
 
   private async emitTyping(
