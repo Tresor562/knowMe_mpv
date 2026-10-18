@@ -27,20 +27,20 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
-      "branch": "chat/messaging/native-voice-unmount-fence",
-      "task": "Reprendre CI Web #723 et Android #728; corriger échecs, valider avant fusion",
+      "branch": "chat/messaging/web-voice-review",
+      "task": "PR #706 déjà fusionnée; #723 Web HEAD 975646f6 (confirmation, focus/ESC, retry upload, audio cleanup, 5 tests Playwright) CI/guard/APK queued; #728 Android HEAD 85f67aa CI/guard vertes APK in progress; aucune livraison ni test matériel attestés",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:25:11.873Z",
-      "lastPr": 728,
+      "updatedAt": "2026-10-18T14:35:15.462Z",
+      "lastPr": 723,
       "resumeFrom": {
-        "pr": 728,
-        "branch": "chat/messaging/native-voice-unmount-fence",
-        "commit": "85f67aa6f1573dc284765a9db6c2760c2a725c30",
-        "alsoPr": 723,
-        "alsoBranch": "chat/messaging/web-voice-review",
-        "alsoCommit": "0c3ed08c0e28d48e368471220ca2062ab00e8290",
+        "pr": 723,
+        "branch": "chat/messaging/web-voice-review",
+        "commit": "975646f6266a4b5b808b8afe9f28f48a0f0a4fc5",
+        "alsoPr": 728,
+        "alsoBranch": "chat/messaging/native-voice-unmount-fence",
+        "alsoCommit": "85f67aa6f1573dc284765a9db6c2760c2a725c30",
         "mergedPr": 706,
         "mergedCommit": "592a103a380811d1845440d110568ec6b71156c2"
       }
@@ -539,6 +539,15 @@
       "issue": 695,
       "branch": "chat/reels/android-feed-retry-state",
       "pr": 732
+    },
+    {
+      "action": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:35:15.462Z",
+      "pr": 723,
+      "alsoPr": 728,
+      "mergedPr": 706
     }
   ]
 }
