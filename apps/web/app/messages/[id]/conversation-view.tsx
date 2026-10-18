@@ -446,7 +446,10 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
           <h1 style={{display:'flex',alignItems:'center',gap:5}}>{chatTitle}{peer&&!isGroup?<AccountBadges username={peer.username} staff={peer.staff} verification={peer.verification} compact/>:null}</h1>
           <p>
             {isNexusPrivate ? (en?'KnowMe assistant':'Assistant KnowMe')
-              : isGroup ? `${readStates.length} ${en?'members':'membres'}`
+              : typingNames.length?typingNames.length===1?
+                `${typingNames[0]} ${en?'is typing…':'écrit…'}`:
+                `${typingNames.length} ${en?'people typing…':'personnes écrivent…'}`
+              : isGroup ? `${chatSummary?.members.length??readStates.length} ${en?'members':'membres'}`
               : socketStatus==='connected'
                 ? peers.some(member=>onlineUserIds.has(member.userId))?(en?'Online':'En ligne'):(en?'Connected':'Connecté')
                 : socketStatus==='connecting'?(en?'Connecting…':'Connexion…'):(en?'Waiting for network':'En attente du réseau')}
