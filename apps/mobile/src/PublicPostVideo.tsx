@@ -20,6 +20,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const en=locale==='en';
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
+  const [ended,setEnded]=useState(false);
   const [error,setError]=useState('');
   const [positionMs,setPositionMs]=useState(0);
   const [durationMs,setDurationMs]=useState(0);
@@ -111,6 +112,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     }
     setError('');
     setPaused(false);
+    setEnded(false);
     setPositionMs(0);
     setDurationMs(0);
     setSeekToMs(undefined);
@@ -132,9 +134,18 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     if(autoPlay)void open();
   },[autoPlay,url]);
 
+  function replayFromBeginning(){
+    if(durationMs<=0)return;
+    seek(0);
+    setPaused(false);
+  }
+  function togglePlayback(){
+    if(ended)replayFromBeginning();
+    else setPaused(value=>!value);
+  }
   function tapVideo(){
     if (!onDoubleTap) {
-      setPaused(value=>!value);
+      togglePlayback();
       return;
     }
     if (singleTapTimer.current!==null) {
@@ -150,7 +161,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     // A double tap must react once without toggling pause twice.
     singleTapTimer.current=setTimeout(()=>{
       singleTapTimer.current=null;
-      setPaused(value=>!value);
+      togglePlayback();
     },260);
   }
 
@@ -159,6 +170,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     const bounded=clampVideoSeek(milliseconds,durationMs);
     setSeekToMs(bounded);
     setPositionMs(bounded);
+    setEnded(false);
     setResumeMs(null);
     playback.current.positionMs=bounded;
     if(playback.current.durationMs>0)void savePublicVideoResume(url,bounded,playback.current.durationMs).catch(()=>undefined);
@@ -191,6 +203,16 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
         }}
+        onPlaybackComplete={event=>{
+          const completedDuration=event.nativeEvent.durationMs||durationMs;
+          setSeekToMs(undefined);
+          setPositionMs(completedDuration);
+          setEnded(true);
+          setPaused(true);
+          setResumeMs(null);
+          if(completedDuration>0)
+            void savePublicVideoResume(url,completedDuration,completedDuration).catch(()=>undefined);
+        }}
         seekToMs={seekToMs}
         onProgress={event=>{
           const duration=event.nativeEvent.durationMs;
@@ -219,10 +241,16 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {pulse?<View style={styles.likeIndicator} pointerEvents="none">
           <KnowMeIcon name="heart" size={65} color="#ff5776"/>
         </View>:null}
-        {paused&&!pulse?<View style={styles.pausedIndicator}>
+        {paused&&!pulse&&!ended?<View style={styles.pausedIndicator}>
           <KnowMeIcon name="play" size={32} color="#fff"/>
         </View>:null}
       </Pressable>
+      {ended&&<Pressable accessibilityRole="button"
+        accessibilityLabel={en?'Watch the video again':'Revoir la vidéo depuis le début'}
+        onPress={replayFromBeginning} style={styles.replayButton}>
+        <KnowMeIcon name="refresh" size={21} color="#072e2a"/>
+        <Text style={styles.replayText}>{en?'Watch again':'Revoir'}</Text>
+      </Pressable>}
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
@@ -383,6 +411,10 @@ const styles=StyleSheet.create({
     top:3,marginLeft:-6},
   pausedIndicator:{width:68,height:68,borderRadius:25,backgroundColor:'rgba(0,0,0,.58)',
     alignItems:'center',justifyContent:'center'},
+  replayButton:{position:'absolute',top:'46%',alignSelf:'center',flexDirection:'row',
+    alignItems:'center',justifyContent:'center',gap:8,minHeight:48,
+    paddingHorizontal:18,borderRadius:16,backgroundColor:'#83e9de'},
+  replayText:{fontSize:14,fontWeight:'800',color:'#072e2a'},
   likeIndicator:{width:94,height:94,borderRadius:32,
     backgroundColor:'rgba(0,0,0,.25)',alignItems:'center',justifyContent:'center'},
   offlineSaveBox:{position:'absolute',right:9,top:11,
