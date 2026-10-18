@@ -262,3 +262,38 @@
   .km-shared-refine-controls{gap:4px}
   .km-shared-refine-controls :is(input,select){padding-inline:6px;font-size:11px}
 }
+
+/* Compact multi-selection, used only on authenticated, loaded shared messages. */
+.km-shared-select-bar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+  min-height:46px;padding:3px 1px;margin-bottom:5px
+}
+.km-shared-select-bar button{
+  min-height:44px;padding:8px 12px;border:0;border-radius:13px;
+  background:transparent;color:var(--mint);font-size:12px;
+  font-weight:700;cursor:pointer
+}
+.km-shared-select-bar button[aria-pressed='true']{
+  background:var(--bg-accent)
+}
+.km-shared-select-bar button:disabled{opacity:.45;cursor:not-allowed}
+.km-shared-select-bar > span{
+  color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px
+}
+.km-shared-copy-status{
+  min-height:20px;font-size:12px;color:var(--muted);padding:4px 8px;
+  margin:0 0 5px
+}
+.km-group-shared-checkbox{display:flex;justify-content:flex-start;
+  align-items:center;min-height:44px;padding:2px 4px;cursor:pointer}
+.km-group-shared-checkbox input{
+  width:21px;height:21px;margin:0 2px;accent-color:var(--mint);
+  cursor:pointer
+}
+.km-group-shared-checkbox input:focus-visible{
+  outline:2px solid var(--mint);outline-offset:3px
+}
+@media(max-width:400px){
+  .km-shared-select-bar{gap:3px}
+  .km-shared-select-bar button{font-size:11px;padding-inline:9px}
+}
