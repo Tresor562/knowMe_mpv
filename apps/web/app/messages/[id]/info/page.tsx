@@ -44,6 +44,7 @@ export default function ConversationInfoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [memberFilter,setMemberFilter] = useState<'ALL'|'ADMINS'|'MEMBERS'>('ALL');
   const [copied, setCopied] = useState(false);
   const [leaving,setLeaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('members');
@@ -73,11 +74,16 @@ export default function ConversationInfoPage() {
   const visibleMembers = useMemo(() => {
     if (!conversation) return [];
     const term = query.trim().toLocaleLowerCase();
+    const priority = (role: Member['role']) => role==='OWNER' ? 0 : role==='ADMIN' ? 1 : 2;
     return conversation.members.filter(member => {
       const name = `${member.user.displayName} ${member.user.username}`.toLocaleLowerCase();
-      return name.includes(term);
-    }).sort((a,b) => a.user.displayName.localeCompare(b.user.displayName, locale));
-  }, [conversation, query, locale]);
+      const roleAllowed = memberFilter==='ALL'||
+        (memberFilter==='ADMINS' && (member.role==='OWNER'||member.role==='ADMIN'))||
+        (memberFilter==='MEMBERS' && member.role==='MEMBER');
+      return roleAllowed && name.includes(term);
+    }).sort((a,b) => priority(a.role)-priority(b.role) ||
+      a.user.displayName.localeCompare(b.user.displayName, locale));
+  }, [conversation, query, locale, memberFilter]);
 
   const isGroup = conversation?.isGroup ?? false;
   const members = conversation?.members ?? [];
@@ -230,6 +236,21 @@ export default function ConversationInfoPage() {
           <input type="search" value={query} onChange={event => setQuery(event.target.value)}
             placeholder={tr('Rechercher un membre', 'Search members')}
             aria-label={tr('Rechercher un membre','Search members')} />
+        </div>}
+        {isGroup && <div className="km-info-member-filters"
+          role="group" aria-label={tr('Filtrer les membres','Filter group members')}>
+          {([
+            {key:'ALL',fr:'Tous',en:'All'},
+            {key:'ADMINS',fr:'Admins',en:'Admins'},
+            {key:'MEMBERS',fr:'Membres',en:'Members'}
+          ] as const).map(item=><button type="button" key={item.key}
+            aria-pressed={memberFilter===item.key}
+            onClick={()=>setMemberFilter(item.key)}>
+            {en?item.en:item.fr}
+          </button>)}
+          <span role="status" className="km-info-member-count">
+            {visibleMembers.length} / {members.length}
+          </span>
         </div>}
         {visibleMembers.length === 0
           ? <p className="km-info-status">{tr('Aucun membre correspondant.', 'No matching members.')}</p>
