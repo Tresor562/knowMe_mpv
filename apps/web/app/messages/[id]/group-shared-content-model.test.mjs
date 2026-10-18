@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages,filterSharedContent,searchSharedMessages} from './group-shared-content-model.ts';
+import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages,filterSharedContent,searchSharedMessages,filterSharedHistory,sharedAuthorOptions,sharedLocalDate} from './group-shared-content-model.ts';
 
 const item = (id, kind, content='') => ({
   id, conversationId:'group-1', content, createdAt:'2026-10-18T16:00:00Z',
@@ -51,4 +51,46 @@ test('private and group shared tabs filter actual media kinds without mixing fil
   assert.deepEqual(filterSharedContent(all,'files').map(x=>x.id),['doc','audio']);
   assert.deepEqual(filterSharedContent(all,'files','DOCUMENT').map(x=>x.id),['doc']);
   assert.deepEqual(filterSharedContent(all,'files','AUDIO').map(x=>x.id),['audio']);
+});
+
+test('author selection is identity-specific and options have readable names',()=>{
+  const rows=[
+    {...item('a','IMAGE'),sender:{id:'u-1',displayName:'Alice',username:'alice'}},
+    {...item('b','IMAGE'),sender:{id:'u-2',displayName:'Alice',username:'alice2'}},
+    {...item('c','IMAGE'),sender:{id:'u-1',displayName:'Alice',username:'alice'}}
+  ];
+  assert.deepEqual(sharedAuthorOptions(rows).map(x=>x.key),['id:u-1','id:u-2']);
+  assert.deepEqual(filterSharedHistory(rows,{kind:'media',author:'id:u-2'}).map(x=>x.id),['b']);
+  assert.equal(rows.length,3);
+});
+
+test('inclusive dates and order use the viewer local calendar, not string substrings',()=>{
+  const rows=[
+    {...item('old','DOCUMENT'),createdAt:'2026-09-30T12:00:00Z'},
+    {...item('middle','DOCUMENT'),createdAt:'2026-10-05T12:00:00Z'},
+    {...item('new','DOCUMENT'),createdAt:'2026-10-18T12:00:00Z'}
+  ];
+  assert.deepEqual(filterSharedHistory(rows,{kind:'files',fromDate:'2026-10-05',toDate:'2026-10-18'})
+    .map(x=>x.id),['new','middle']);
+  assert.deepEqual(filterSharedHistory(rows,{kind:'files',fromDate:'2026-10-05',sort:'oldest'})
+    .map(x=>x.id),['middle','new']);
+  assert.deepEqual(filterSharedHistory(rows,{kind:'files',toDate:'2026-09-30'})
+    .map(x=>x.id),['old']);
+  assert.equal(sharedLocalDate('garbled timestamp'),'');
+  assert.equal(filterSharedHistory(rows,{kind:'files',fromDate:'2026-02-30'}).length,3);
+});
+
+test('date and author filters compose with full text queries on loaded messages only',()=>{
+  const messages=[
+    {...item('1','TEXT','Résumé du cours'),createdAt:'2026-10-12T12:00:00Z',
+      sender:{username:'zoe',displayName:'Zoé'}},
+    {...item('2','TEXT','Résumé d’histoire'),createdAt:'2026-10-14T12:00:00Z',
+      sender:{username:'ali',displayName:'Ali'}},
+    {...item('3','TEXT','Notes de maths'),createdAt:'2026-10-15T12:00:00Z',
+      sender:{username:'zoe',displayName:'Zoé'}}
+  ];
+  assert.deepEqual(filterSharedHistory(messages,{
+    kind:'search',query:'resume',author:'username:zoe',fromDate:'2026-10-12',toDate:'2026-10-15'
+  }).map(x=>x.id),['1']);
+  assert.deepEqual(filterSharedHistory(messages,{kind:'search',query:'absent'}),[]);
 });
