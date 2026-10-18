@@ -65,7 +65,29 @@ const appearanceBootstrap = `
     var selected = preference && preference.selectedThemeKey ? preference.selectedThemeKey : 'system';
     var effective = preference && preference.effectiveThemeKey ? preference.effectiveThemeKey : selected;
     var theme = themes.find(function (entry) { return entry.key === effective; });
-    var palette = !theme || theme.mode === 'SYSTEM' ? (prefersLight ? light : dark) : theme.palette;
+    var blendMode = preference && preference.effectiveThemeBlendMode || 'OFF';
+    var secondaryTheme = themes.find(function (entry) {
+      return preference && entry.key === preference.effectiveSecondaryThemeKey;
+    });
+    function themePalette(entry) {
+      return !entry || entry.mode === 'SYSTEM' ? (prefersLight ? light : dark) : entry.palette;
+    }
+    var basePalette = themePalette(theme);
+    var secondaryPalette = secondaryTheme ? themePalette(secondaryTheme) : null;
+    var palette = basePalette;
+    if (secondaryPalette && blendMode === 'ACCENT') {
+      palette = Object.assign({}, basePalette, {
+        accent: secondaryPalette.accent, secondary: secondaryPalette.secondary,
+        onAccent: secondaryPalette.onAccent
+      });
+    } else if (secondaryPalette && blendMode === 'BALANCED') {
+      palette = Object.assign({}, basePalette, {
+        backgroundAccent: secondaryPalette.backgroundAccent,
+        surfaceRaised: secondaryPalette.surfaceRaised,
+        accent: secondaryPalette.accent, secondary: secondaryPalette.secondary,
+        border: secondaryPalette.border, onAccent: secondaryPalette.onAccent
+      });
+    }
     var root = document.documentElement;
     root.dataset.theme = effective;
     root.dataset.selectedTheme = selected;
@@ -76,7 +98,12 @@ const appearanceBootstrap = `
     root.dataset.iconPack = preference && preference.effectiveIconPackKey || (theme && theme.iconPackKey) || 'soft-glass';
     root.dataset.appIcon = preference && preference.effectiveAppIconKey || '';
     root.dataset.chatBubbles = theme && theme.chatBubbleStyle || 'soft-glass';
-    root.dataset.effects = theme && Array.isArray(theme.effects) ? theme.effects.join(' ') : '';
+    var effects = (theme && Array.isArray(theme.effects) ? theme.effects : []).slice();
+    if (secondaryTheme && (blendMode === 'EFFECTS' || blendMode === 'BALANCED') &&
+        Array.isArray(secondaryTheme.effects)) {
+      effects = effects.concat(secondaryTheme.effects);
+    }
+    root.dataset.effects = effects.join(' ');
     root.dataset.effectIntensity = preference && preference.effectIntensity
       ? String(preference.effectIntensity).toLowerCase()
       : 'balanced';
