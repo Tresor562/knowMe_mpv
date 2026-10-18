@@ -219,9 +219,18 @@ export class StoriesController {
   @Get(':id/viewers')
   viewers(
     @Req() req: { user: { userId: string } },
-    @Param('id') id: string
+    @Param('id') id: string,
+    @Query('cursor') cursor?: string
   ) {
-    return this.stories.viewers(req.user.userId, id);
+    // Cursor accepts only repository-generated opaque IDs, never SQL fragments
+    // or user-controllable sorting expressions.
+    if (cursor !== undefined && !/^[a-zA-Z0-9_-]{1,80}$/.test(cursor)) {
+      throw new BadRequestException({
+        code: 'STORY_VIEWER_CURSOR_INVALID',
+        message: 'Invalid Story viewer page cursor.'
+      });
+    }
+    return this.stories.viewers(req.user.userId, id, cursor);
   }
 
   @UseGuards(JwtAuthGuard)
