@@ -59,6 +59,12 @@ test('group media/files/links are real, paginated and deep-link to their message
   await page.getByRole('button',{name:'Charger les messages plus anciens'}).click();
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/grp1?message=file1');
+  const fileFilters=page.getByRole('group',{name:'Filtrer les contenus partagés'});
+  await fileFilters.getByRole('button',{name:'Documents'}).click();
+  await expect(page.getByRole('button',{name:'Télécharger'})).toBeVisible();
+  await fileFilters.getByRole('button',{name:'Audios'}).click();
+  await expect(page.getByRole('button',{name:'Télécharger'})).toHaveCount(0);
+  await fileFilters.getByRole('button',{name:'Documents'}).click();
   const downloadPromise=page.waitForEvent('download');
   await page.getByRole('button',{name:'Télécharger'}).click();
   const download=await downloadPromise;
