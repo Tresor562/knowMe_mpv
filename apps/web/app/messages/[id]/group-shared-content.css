@@ -83,3 +83,15 @@
 .km-group-shared-search input:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 .km-group-shared-snippet{font-size:13px;line-height:1.5;margin:2px 0 5px;
  overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* Owner/admin roster filters: secondary segmented choices, not a toolbar of cards. */
+.km-info-page .km-info-member-filters{display:flex;align-items:center;gap:4px;
+ padding:3px 2px 8px;flex-wrap:wrap}
+.km-info-page .km-info-member-filters button{border:0;border-radius:13px;background:transparent;
+ color:var(--muted);min-height:44px;padding:8px 12px;font-size:12px;font-weight:650;cursor:pointer}
+.km-info-page .km-info-member-filters button[aria-pressed=true]{background:var(--bg-accent);
+ color:var(--mint)}
+.km-info-page .km-info-member-count{font-size:11px;color:var(--muted);
+ font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+.km-info-page .km-info-member-filters button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+@media(max-width:370px){.km-info-page .km-info-member-filters button{padding-inline:8px}}
