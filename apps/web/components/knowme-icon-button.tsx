@@ -79,11 +79,15 @@ export function KnowMeIconButton({
   }
 
   const busy = ['loading', 'sending', 'syncing', 'progress'].includes(state);
+  const confirmedProgress = state === 'progress' && typeof progress === 'number' &&
+    Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : null;
+  const accessibleLabel = confirmedProgress === null
+    ? label : `${label} · ${Math.round(confirmedProgress * 100)} %`;
   return (
     <button type="button"
       className={['km-icon-action', className].filter(Boolean).join(' ')}
-      aria-label={label}
-      title={label}
+      aria-label={accessibleLabel}
+      title={onLongPress ? undefined : label}
       aria-pressed={toggle ? state === 'selected' : undefined}
       aria-busy={busy || undefined}
       disabled={disabled}
