@@ -27,17 +27,22 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
-      "branch": "chat/messaging/audio-recorder-send-controls",
-      "task": "PR #706 : CI + APK vertes au HEAD 682eea3 ; revue, réintégration sûre, fonctionnalités voix et chat Android/Web",
+      "branch": "chat/messaging/native-voice-unmount-fence",
+      "task": "PR #706 fusionnée SHA 592a103a (CI/APK/guard vertes). PR #723 Web préécoute envoi explicite HEAD 0c3ed08, PR #728 Android anti-enregistrement tardif HEAD 85f67aa ; CI/guard APK respectives en attente, pas de release device",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:03:27.337Z",
-      "lastPr": 706,
+      "updatedAt": "2026-10-18T14:23:52.668Z",
+      "lastPr": 728,
       "resumeFrom": {
-        "pr": 706,
-        "branch": "chat/messaging/audio-recorder-send-controls",
-        "commit": "682eea3fec56146d473cbd750775a1afb9ea31bc"
+        "pr": 728,
+        "branch": "chat/messaging/native-voice-unmount-fence",
+        "commit": "85f67aa6f1573dc284765a9db6c2760c2a725c30",
+        "alsoPr": 723,
+        "alsoBranch": "chat/messaging/web-voice-review",
+        "alsoCommit": "0c3ed08c0e28d48e368471220ca2062ab00e8290",
+        "mergedPr": 706,
+        "mergedCommit": "592a103a380811d1845440d110568ec6b71156c2"
       }
     },
     "social": {
@@ -443,6 +448,16 @@
       "at": "2026-10-18T14:22:59.663Z",
       "issue": 695,
       "pr": 725
+    },
+    {
+      "action": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:23:52.668Z",
+      "branch": "chat/messaging/native-voice-unmount-fence",
+      "pr": 728,
+      "alsoPr": 723,
+      "mergedPr": 706
     }
   ]
 }
