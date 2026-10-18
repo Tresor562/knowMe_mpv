@@ -21,3 +21,22 @@ export function messageSelectionLinks(
   }
   return out;
 }
+
+
+/** Selection is bounded, de-duplicated and cannot include messages from other
+ * conversations even if a malformed API response mixes histories. */
+export function selectVisibleMessageIds(
+  conversationId: string,
+  visible: readonly SharedMessage[],
+  limit = 50
+): string[] {
+  if (!conversationId) return [];
+  const ids: string[] = [], seen = new Set<string>();
+  for (const item of visible) {
+    if (!item || item.conversationId !== conversationId || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    ids.push(item.id);
+    if (ids.length >= Math.min(50, Math.max(1, limit))) break;
+  }
+  return ids;
+}
