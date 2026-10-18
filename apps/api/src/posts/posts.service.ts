@@ -271,6 +271,45 @@ export class PostsService {
     return result[commentId];
   }
 
+  /** Idempotent like for double-taps: never unlikes an already-liked post. */
+  async ensureLike(userId: string, postId: string) {
+    const [post, actor] = await Promise.all([
+      this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } })
+    ]);
+    if (!post) throw new NotFoundException('Publication introuvable.');
+
+    let created = false;
+    try {
+      await this.prisma.postLike.create({ data: { postId, userId } });
+      created = true;
+    } catch (error) {
+      // Concurrent presses and previously-liked posts share the same unique
+      // constraint. They are successful no-ops, not an unlike or an error.
+      if (!(error && typeof error === 'object' && 'code' in error &&
+        error.code === 'P2002')) throw error;
+    }
+
+    const count = await this.prisma.postLike.count({ where: { postId } });
+    if (created && post.authorId !== userId) {
+      // A notification failure must not turn a committed like into a
+      // user-visible error that invites repeated taps.
+      await Promise.allSettled([this.notifications.create({
+        userId: post.authorId,
+        type: 'POST_LIKED',
+        title: 'Nouvelle réaction',
+        body: `${actor?.displayName ?? 'Quelqu’un'} aime ta publication.`,
+        data: {
+          route: `/feed/${postId}`,
+          entityType: 'POST',
+          entityId: postId,
+          actorId: userId
+        }
+      })]);
+    }
+    return { liked: true, count };
+  }
+
   async toggleLike(userId: string, postId: string) {
     const [post, actor] = await Promise.all([
       this.prisma.post.findUnique({ where: { id: postId } }),
