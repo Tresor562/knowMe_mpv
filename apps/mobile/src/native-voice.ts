@@ -8,6 +8,8 @@ type VoiceBridge = {
   cancel():Promise<boolean>;
   play(uri:string):Promise<boolean>;
   stopPlayback():Promise<boolean>;
+  pausePlayback?():Promise<boolean>;
+  resumePlayback?():Promise<boolean>;
   playbackStatus?():Promise<{playing:boolean;durationMs:number;positionMs:number;uri:string|null}>;
   seekPlayback?(positionMs:number):Promise<boolean>;
   discardFile(uri:string):Promise<boolean>;
@@ -39,6 +41,17 @@ export async function cancelKnowMeVoice():Promise<void> {
 }
 export async function playKnowMeVoice(uri:string):Promise<void> {
   await bridge().play(uri);
+}
+/** Optional for installed older APKs; never silently reinterpret stop as pause. */
+export async function pauseKnowMeVoicePlayback():Promise<void> {
+  const native=bridge();
+  if(!native.pausePlayback)throw new Error('La pause vocale nécessite la nouvelle APK KnowMe.');
+  await native.pausePlayback();
+}
+export async function resumeKnowMeVoicePlayback():Promise<void> {
+  const native=bridge();
+  if(!native.resumePlayback)throw new Error('La reprise vocale nécessite la nouvelle APK KnowMe.');
+  await native.resumePlayback();
 }
 export async function stopKnowMeVoicePlayback():Promise<void> {
   await bridge().stopPlayback();
