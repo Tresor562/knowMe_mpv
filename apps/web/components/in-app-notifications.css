@@ -188,3 +188,74 @@ body:has([aria-modal='true']) .km-live-notification-dock { display: none; }
   .km-group-manage .km-group-role-row { flex-wrap: nowrap; gap: 6px; }
   .km-group-manage .km-group-row-actions > button { padding-inline: 9px; }
 }
+
+/* Actual Web notification-center layout: same functionality, much less chrome.
+   This is scoped to the center's existing semantic navigation and avoids
+   editing its page file, which is concurrently changed by an older PR. */
+main.shell:has(nav[aria-label='Vues du centre de notifications']) {
+  max-width: 760px !important; gap: 12px !important; padding-inline: clamp(10px, 3vw, 20px);
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > .km-header-nav-group > header.card {
+  padding: 14px 12px 10px !important; border: 0 !important;
+  box-shadow: none !important; background: transparent !important;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header h1 {
+  margin: 3px 0 !important; font-size: clamp(20px, 4vw, 25px) !important;
+  line-height: 1.18;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header p {
+  font-size: 12px; line-height: 1.4; margin: 4px 0 0;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav {
+  gap: 3px !important; margin-top: 8px !important; overflow-x: auto;
+  flex-wrap: nowrap !important; scrollbar-width: none;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav::-webkit-scrollbar {display:none;}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav button {
+  flex: 0 0 auto; white-space: nowrap; padding-inline: 12px !important;
+  min-height: 42px; border-radius: 12px;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card {
+  grid-template-columns: 38px minmax(0,1fr) !important;
+  gap: 10px !important; padding: 10px 4px 12px !important;
+  border: none !important; border-bottom: 1px solid var(--soft-border) !important;
+  border-radius: 0 !important; box-shadow: none !important;
+  background: transparent !important;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:first-child {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--bg-accent);
+  font-size: 0 !important; color: var(--mint);
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:first-child::before {
+  content: ''; width: 21px; height: 21px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:nth-child(2) {
+  min-width: 0;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card strong {
+  font-size: 13px; line-height: 1.35;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card p {
+  margin: 5px 0 6px !important; font-size: 12px; line-height: 1.45;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card button.btn {
+  min-height: 40px; padding: 7px 10px !important; border-radius: 11px;
+  font-size: 11px; background: transparent; color: var(--text);
+  border: 1px solid transparent; box-shadow: none;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card button.btn-primary {
+  color: var(--mint); background: color-mix(in srgb, var(--mint) 10%, var(--surface));
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card :is(button, a):focus-visible {
+  outline: 2px solid var(--mint); outline-offset: 2px;
+}
+/* Implementation details are not user-facing notification content. */
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > footer.card {
+  display: none;
+}
+@media(max-width:440px) {
+  main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card { padding-inline: 0 !important; }
+}
