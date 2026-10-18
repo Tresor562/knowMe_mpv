@@ -42,14 +42,18 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Reprise de la PR #705: qualification CI, correction, suite Social",
+      "task": "PR #705 Web: report publication + private report history + Playwright/Jest tests. Latest HEAD 2fa17f094c6ed68aeedc7ebd7befbf4dac4b0633; final CI queued, no merge/deployment. Detail page blocked by #583",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T13:26:49.445Z",
+      "updatedAt": "2026-10-18T13:36:49.720Z",
       "lastPr": 705,
-      "resumeFrom": null
+      "resumeFrom": {
+        "pr": 705,
+        "branch": "chat/social/report-publication-web",
+        "commit": "2fa17f094c6ed68aeedc7ebd7befbf4dac4b0633"
+      }
     },
     "reels": {
       "issue": 695,
@@ -208,6 +212,14 @@
       "action": "resume",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "at": "2026-10-18T13:36:49.720Z",
+      "action": "pause",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705,
+      "branch": "chat/social/report-publication-web"
     }
   ]
 }
