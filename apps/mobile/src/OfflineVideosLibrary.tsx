@@ -1,18 +1,21 @@
 import {useCallback,useEffect,useState} from 'react';
 import {ActivityIndicator,Alert,FlatList,Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import {useAppearance} from './AppearanceProvider';
+import {useI18n} from './I18nProvider';
+import {offlineVideoLabels,offlineVideoSize} from './offline-video-labels';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {PublicPostVideo} from './PublicPostVideo';
 import {deleteSavedPublicVideo,listSavedPublicVideos,type SavedPublicVideo} from './offline-public-video';
-
-const mb=(size:number)=>(size/(1024*1024)).toFixed(1)+' Mo';
 
 /** Local-only collection; remains accessible when the remote feed is offline. */
 export function OfflineVideosLibrary({visible,onClose}:{
   visible:boolean;onClose:()=>void
 }){
   const {colors}=useAppearance();
+  const {locale}=useI18n();
+  const t=offlineVideoLabels(locale);
   const [items,setItems]=useState<SavedPublicVideo[]>([]);
+  const storedBytes=items.reduce((sum,item)=>sum+item.bytes,0);
   const [chosen,setChosen]=useState<SavedPublicVideo|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -20,21 +23,21 @@ export function OfflineVideosLibrary({visible,onClose}:{
   const refresh=useCallback(async()=>{
     setLoading(true);setError('');
     try{setItems(await listSavedPublicVideos());}
-    catch{setError('Impossible de lire les vidéos enregistrées.');}
+    catch{setError(t.readError);}
     finally{setLoading(false);}
-  },[]);
+  },[t.readError]);
   useEffect(()=>{
     if(visible){void refresh();}
     else setChosen(null);
   },[visible,refreshId,refresh]);
   function remove(item:SavedPublicVideo){
-    Alert.alert('Retirer cette vidéo ?', 'La publication reste sur KnowMe. Seule la copie locale sera supprimée.',[
-      {text:'Annuler',style:'cancel'},
-      {text:'Supprimer',style:'destructive',onPress:()=>{void (async()=>{
+    Alert.alert(t.removeTitle,t.removeDescription,[
+      {text:t.cancel,style:'cancel'},
+      {text:t.delete,style:'destructive',onPress:()=>{void (async()=>{
         await deleteSavedPublicVideo(item.url);
         if(chosen?.url===item.url)setChosen(null);
         setRefreshId(n=>n+1);
-      })().catch(()=>setError('Suppression impossible.'));}}
+      })().catch(()=>setError(t.deleteError));}}
     ]);
   }
   return <Modal visible={visible} animationType="slide" onRequestClose={()=>{
@@ -43,19 +46,19 @@ export function OfflineVideosLibrary({visible,onClose}:{
   }}>
     <View style={[styles.root,{backgroundColor:colors.background}]}>
       <View style={[styles.header,{borderBottomColor:colors.border}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={chosen?'Retour aux vidéos téléchargées':'Fermer les téléchargements'}
+        <Pressable accessibilityRole="button" accessibilityLabel={chosen?t.back:t.close}
           onPress={()=>chosen?setChosen(null):onClose()} style={styles.tap}>
           <KnowMeIcon name="back" size={23} color={colors.text}/>
         </Pressable>
         <View style={{flex:1}}>
           <Text style={[styles.title,{color:colors.text}]} numberOfLines={1}>
-            {chosen?'Vidéo hors ligne':'Vidéos enregistrées'}
+            {chosen?t.viewerTitle:t.listTitle}
           </Text>
           <Text style={{color:colors.muted,fontSize:12}}>
-            {chosen?'Lecture depuis cet appareil':items.length+' vidéo(s) disponibles hors connexion'}
+            {chosen?t.viewerSubtitle:t.available(items.length)+' · '+t.storage+' '+offlineVideoSize(storedBytes,locale)}
           </Text>
         </View>
-        {!chosen&&<Pressable accessibilityRole="button" accessibilityLabel="Actualiser les vidéos enregistrées"
+        {!chosen&&<Pressable accessibilityRole="button" accessibilityLabel={t.refresh}
           onPress={()=>setRefreshId(n=>n+1)} style={styles.tap}>
           <KnowMeIcon name="refresh" size={21} color={colors.text}/>
         </Pressable>}
@@ -64,11 +67,11 @@ export function OfflineVideosLibrary({visible,onClose}:{
         <View style={styles.viewer}>
           <PublicPostVideo key={chosen.url} url={chosen.url}/>
           <View style={styles.viewerBottom}>
-            <Text style={styles.viewerInfo}>Vidéo enregistrée · {mb(chosen.bytes)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Supprimer cette vidéo téléchargée"
+            <Text style={styles.viewerInfo}>{t.offlineSaved} · {offlineVideoSize(chosen.bytes,locale)}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t.removeCurrent}
               onPress={()=>remove(chosen)} style={styles.removeLarge}>
               <KnowMeIcon name="close" color="#fff" size={19}/>
-              <Text style={{color:'#fff',fontWeight:'800'}}>Supprimer la copie</Text>
+              <Text style={{color:'#fff',fontWeight:'800'}}>{t.removeCopy}</Text>
             </Pressable>
           </View>
         </View>
@@ -76,31 +79,31 @@ export function OfflineVideosLibrary({visible,onClose}:{
         refreshing={loading} onRefresh={()=>setRefreshId(n=>n+1)}
         contentContainerStyle={styles.list}
         ListHeaderComponent={<Text style={{color:colors.muted,fontSize:13,lineHeight:19}}>
-          Tes vidéos sont stockées dans l’espace privé de l’application. Elles ne nécessitent ni compte connecté ni réseau pour être lues.
+          {t.privacy}
         </Text>}
         renderItem={({item,index})=><View style={[styles.entry,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <Pressable accessibilityRole="button"
-            accessibilityLabel={'Lire la vidéo hors ligne '+(index+1)}
+            accessibilityLabel={t.play(index+1)}
             onPress={()=>setChosen(item)} style={styles.entryMain}>
             <View style={[styles.play,{backgroundColor:colors.backgroundAccent}]}>
               <KnowMeIcon name="play" size={24} color={colors.accent}/>
             </View>
             <View style={{flex:1,gap:5}}>
-              <Text style={{fontWeight:'800',color:colors.text}}>Vidéo {index+1}</Text>
-              <Text style={{color:colors.muted,fontSize:12}}>{mb(item.bytes)} · Sur cet appareil</Text>
+              <Text style={{fontWeight:'800',color:colors.text}}>{t.video(index+1)}</Text>
+              <Text style={{color:colors.muted,fontSize:12}}>{offlineVideoSize(item.bytes,locale)} · {t.device}</Text>
             </View>
           </Pressable>
           <Pressable accessibilityRole="button"
-            accessibilityLabel={'Supprimer la vidéo hors ligne '+(index+1)}
+            accessibilityLabel={t.remove(index+1)}
             onPress={()=>remove(item)} style={styles.tap}>
             <KnowMeIcon name="close" size={19} color={colors.muted}/>
           </Pressable>
         </View>}
         ListEmptyComponent={!loading?<View style={{alignItems:'center',gap:12,paddingVertical:56}}>
           <KnowMeIcon name="download" size={42} color={colors.muted}/>
-          <Text style={{color:colors.text,fontWeight:'800'}}>Aucune vidéo enregistrée</Text>
+          <Text style={{color:colors.text,fontWeight:'800'}}>{t.emptyTitle}</Text>
           <Text style={{color:colors.muted,textAlign:'center',fontSize:13}}>
-            Ouvre un Reel et touche « Hors ligne » pour l’enregistrer.
+            {t.emptyMessage}
           </Text>
         </View>:<ActivityIndicator color={colors.accent}/>}
       />}
