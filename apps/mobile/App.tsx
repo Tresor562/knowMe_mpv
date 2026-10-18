@@ -34,6 +34,7 @@ import { AppearanceProvider, useAppearance } from './src/AppearanceProvider';
 import { KnowMeFeedbackProvider } from './src/ui/KnowMeFeedback';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
+import { ReelsExperience } from './src/ReelsExperience';
 import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
@@ -63,6 +64,7 @@ import { VerificationExperience } from './src/VerificationExperience';
 
 type Screen =
   | 'home'
+  | 'reels'
   | 'discover'
   | 'notifications'
   | 'marketplace'
@@ -1438,12 +1440,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         }
       ]}
     >
-      <StatusBar style={socialImmersive ? 'light' : colors.statusBar} backgroundColor={socialImmersive ? '#0b141a' : undefined}/>
+      <StatusBar style={socialImmersive || screen === 'reels' ? 'light' : colors.statusBar} backgroundColor={screen === 'reels' ? '#05070d' : socialImmersive ? '#0b141a' : undefined}/>
       <View
         style={[
           styles.body,
-          { backgroundColor: socialImmersive ? '#0b141a' : colors.background },
-          screen !== 'challenges' && screen !== 'verification'
+          { backgroundColor: screen === 'reels' ? '#05070d' : socialImmersive ? '#0b141a' : colors.background },
+          screen !== 'challenges' && screen !== 'verification' && screen !== 'reels'
             ? (dockPreferences.position === 'top' ? styles.bodyWithTopDock : dockVisible ? styles.bodyWithDock : null)
             : null
         ]}
@@ -1468,6 +1470,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
               avatarUrl: user.avatarUrl
             }}
             onOpenDiscover={() => setScreen('discover')}
+            onOpenReels={() => setScreen('reels')}
             onOpenProfile={openUserProfile}
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
@@ -1491,6 +1494,19 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onOpenProfile={openUserProfile}
             onContentScroll={onFeedScroll}
             topNavigation={topNavigation}
+          />
+        ) : null}
+
+        {screen === 'reels' ? (
+          <ReelsExperience
+            onBack={() => setScreen('home')}
+            onOpenPost={(id) => {
+              setLinkedPostId(id);
+              setLinkedCommentId(null);
+              setLinkRevision(revision => revision + 1);
+              setScreen('home');
+            }}
+            onOpenProfile={openUserProfile}
           />
         ) : null}
 
