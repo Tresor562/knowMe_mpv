@@ -184,6 +184,29 @@ export class SocialService {
     return friendship;
   }
 
+  async outgoing(userId: string) {
+    const now = new Date();
+    const friendships = await this.prisma.friendship.findMany({
+      where: { requesterId: userId, status: 'PENDING' },
+      include: {
+        addressee: {
+          select: {
+            id: true, username: true, displayName: true,
+            avatarUrl: true, bio: true, email: true,
+            staffAccount: { select: staffAccountSelect },
+            verificationRequests: verificationRequestSelect,
+            entitlementGrants: premiumEntitlementSelect(now)
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+    return friendships.map(({ addressee, ...friendship }) => ({
+      ...friendship, addressee: withAccountBadges(addressee, now)
+    }));
+  }
+
   async incoming(userId: string) {
     const now = new Date();
     const friendships = await this.prisma.friendship.findMany({

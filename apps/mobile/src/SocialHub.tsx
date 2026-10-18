@@ -31,6 +31,7 @@ type UserSummary = {
 
 type Friend = { friendshipId: string; user: UserSummary };
 type FriendRequest = { id: string; requester: UserSummary };
+type SentFriendRequest = {id:string;addressee:UserSummary};
 type Notification = {
   id: string;
   type: string;
@@ -165,18 +166,24 @@ function FriendsPanel({
   const { colors } = useAppearance();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [sentRequests,setSentRequests] = useState<SentFriendRequest[]>([]);
   const [results, setResults] = useState<UserSummary[]>([]);
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [friendData, requestData] = await Promise.all([
+      const [friendData,requestData,sentData] = await Promise.all([
         apiFetch<Friend[]>('/social/friends'),
-        apiFetch<FriendRequest[]>('/social/friend-requests/incoming')
+        apiFetch<FriendRequest[]>('/social/friend-requests/incoming'),
+        apiFetch<SentFriendRequest[]>('/social/friend-requests/outgoing').catch(cause=>{
+          if((cause as {status?:number})?.status===404)return [];
+          throw cause;
+        })
       ]);
       setFriends(friendData);
       setRequests(requestData);
+      setSentRequests(sentData);
     } catch (cause) {
       Alert.alert('Chargement impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
@@ -206,12 +213,24 @@ function FriendsPanel({
         method: 'POST',
         body: JSON.stringify({ addresseeId })
       });
+      await load();
       Alert.alert('Demande envoyée', 'La personne recevra une notification.');
     } catch (cause) {
       Alert.alert('Envoi impossible', errorMessage(cause, 'Réessaie.'));
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function cancelSentRequest(id:string){
+    if(busyId)return;
+    setBusyId(id);
+    try{
+      await apiFetch('/social/friend-requests/'+encodeURIComponent(id),{method:'DELETE'});
+      await load();
+    }catch(cause){
+      Alert.alert('Annulation impossible',errorMessage(cause,'Réessaie.'));
+    }finally{setBusyId(null);}
   }
 
   async function respond(requestId: string, action: 'accept' | 'decline') {
@@ -355,6 +374,18 @@ function FriendsPanel({
         </View>
       ))}
 
+      {sentRequests.length>0&&<>
+        <Text style={[styles.sectionTitle,{color:colors.text}]}>
+          Demandes envoyées ({sentRequests.length})
+        </Text>
+        {sentRequests.map(request=><View key={request.id}
+          style={[styles.card,{backgroundColor:colors.surfaceGlass,borderColor:colors.border}]}>
+          <Identity user={request.addressee} onOpenProfile={onOpenProfile}/>
+          <SecondaryButton title="Annuler la demande"
+            disabled={Boolean(busyId)}
+            onPress={()=>void cancelSentRequest(request.id)}/>
+        </View>)}
+      </>}
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes amis ({friends.length})</Text>
       {friends.map(({ friendshipId, user }) => (
         <View key={friendshipId} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
@@ -375,8 +406,12 @@ function FriendsPanel({
         <View key={user.id} style={[styles.card, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
           <Identity user={user} onOpenProfile={onOpenProfile} />
           <ActionButton
-            title={busyId === user.id ? 'Envoi…' : 'Ajouter'}
-            disabled={busyId === user.id}
+            title={busyId===user.id?'Envoi…':
+              sentRequests.some(request=>request.addressee.id===user.id)?'En attente':
+              friends.some(friend=>friend.user.id===user.id)?'Déjà amis':'Ajouter'}
+            disabled={Boolean(busyId)||
+              sentRequests.some(request=>request.addressee.id===user.id)||
+              friends.some(friend=>friend.user.id===user.id)}
             onPress={() => void addFriend(user.id)}
           />
         </View>
