@@ -86,6 +86,8 @@ type TypingEvent = {
   username?: string;
   typing: boolean;
 };
+type ActivityEvent = {conversationId:string;userId:string;username?:string;
+  kind:'recording_voice'|'recording_video'|'uploading_media';active:boolean;expiresAt:number};
 type PresenceEvent = { userId: string; online: boolean };
 type PresenceSnapshot = { onlineUserIds: string[] };
 
@@ -209,6 +211,7 @@ export function RealtimeMessagesPanel({
   const [readStates, setReadStates] = useState<ConversationMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
+  const [activityUsers,setActivityUsers]=useState<Record<string,{name:string;kind:ActivityEvent['kind'];expiresAt:number}>>({});
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [panelOpen,setPanelOpen]=useState(false);
@@ -356,6 +359,17 @@ export function RealtimeMessagesPanel({
         return next;
       });
     };
+    const onActivity=(event:ActivityEvent)=>{
+      if(event.userId===userId||activeRef.current?.id!==event.conversationId)return;
+      setActivityUsers(current=>{
+        const next={...current};
+        if(event.active&&event.expiresAt>Date.now())next[event.userId]={
+          name:event.username||'Quelqu’un',kind:event.kind,expiresAt:event.expiresAt
+        };
+        else delete next[event.userId];
+        return next;
+      });
+    };
     const onPresence = (event: PresenceEvent) => {
       setOnlineUserIds((current) => {
         const next = new Set(current);
@@ -386,6 +400,7 @@ export function RealtimeMessagesPanel({
       connectedSocket.on('message:created', onMessage);
       connectedSocket.on('conversation:read', onRead);
       connectedSocket.on('typing:update', onTyping);
+      connectedSocket.on('activity:update',onActivity);
       connectedSocket.on('presence:update', onPresence);
       connectedSocket.on('presence:snapshot', onPresenceSnapshot);
       connectedSocket.on('conversation:error', onConversationError);
@@ -406,6 +421,7 @@ export function RealtimeMessagesPanel({
       socket?.off('message:created', onMessage);
       socket?.off('conversation:read', onRead);
       socket?.off('typing:update', onTyping);
+      socket?.off('activity:update',onActivity);
       socket?.off('presence:update', onPresence);
       socket?.off('presence:snapshot', onPresenceSnapshot);
       socket?.off('conversation:error', onConversationError);
@@ -427,6 +443,17 @@ export function RealtimeMessagesPanel({
     }
   }, [conversations, live, userId]);
 
+  useEffect(()=>{
+    if(!active)return;
+    const timer=setInterval(()=>{
+      setActivityUsers(current=>{
+        const next=Object.fromEntries(Object.entries(current).filter(([,status])=>status.expiresAt>Date.now()));
+        return Object.keys(next).length===Object.keys(current).length?current:next;
+      });
+    },1200);
+    return()=>clearInterval(timer);
+  },[active?.id]);
+
   async function openConversation(conversation: Conversation) {
     try {
       const data = await apiFetch<MessageHistory>(
@@ -436,6 +463,7 @@ export function RealtimeMessagesPanel({
       setReadStates(data.readStates);
       setNextCursor(data.nextCursor ?? null);
       setTypingUsers({});
+      setActivityUsers({});
       setActive({ ...conversation, unreadCount: 0 });
       socketRef.current?.emit('conversation:join', {
         conversationId: conversation.id
@@ -695,6 +723,7 @@ export function RealtimeMessagesPanel({
     setHistory([]);
     setReadStates([]);
     setTypingUsers({});
+    setActivityUsers({});
     setNextCursor(null);
     setNexusPending(false);
     void load();
@@ -712,6 +741,8 @@ export function RealtimeMessagesPanel({
       onlineUserIds.has(member.user.id)
     );
     const typingNames = Object.values(typingUsers);
+    const recording=Object.values(activityUsers).find(item=>item.kind==='recording_voice');
+    const recordingLabel=recording?`${recording.name} enregistre un vocal…`:null;
     const activeAvatarUrl = !isNexusPrivate ? others[0]?.user.avatarUrl : null;
     const isGroup=Boolean(active.isGroup||active.members.length>2);
 
@@ -745,10 +776,10 @@ export function RealtimeMessagesPanel({
             style={styles.referenceHeaderTitle}>
             <Text style={styles.referenceName} numberOfLines={1}>{name}</Text>
             <Text numberOfLines={1} style={{color:typingNames.length?'#53bdeb':'#91a7b5',fontSize:11}}>
-              {typingNames.length?typingNames.length===1?`${typingNames[0]} écrit…`:
+              {recordingLabel|| (typingNames.length?typingNames.length===1?`${typingNames[0]} écrit…`:
                 `${typingNames.length} personnes écrivent…`:
                 isGroup?`${active.members.length} membres`:
-                online?'En ligne':'Appuie pour les informations'}
+                online?'En ligne':'Appuie pour les informations')}
             </Text>
             {others.length===1?(others[0]?.user.verification?.isVerified?<BlueVerifiedBadge size={18} label={others[0]?.user.verification.label}/>:others[0]?.user.staff?.shield==='GOLD'?<GoldVerifiedBadge size={18}/>:null):null}{others.length===1 && others[0]?.user.username ? <RemoteCosmeticBadges username={others[0].user.username} size={18}/> : null}
           </Pressable>
@@ -913,6 +944,8 @@ export function RealtimeMessagesPanel({
         <View style={styles.referenceComposer}>
           <View style={styles.referenceComposeRow}>
             <ChatMediaPicker<ConversationMessage> conversationId={active.id}
+              onRecordingChange={recording=>socketRef.current?.emit(recording?'activity:start':'activity:stop',
+                {conversationId:active.id,kind:'recording_voice'})}
               referenceChat showVoice={!draft.trim()&&!panelOpen} gifGalleryRequest={gifGalleryRequest}
               expressionOpen={panelOpen} expressionExpanded={panelExpanded}
               onToggleExpression={()=>setPanelExpanded(value=>!value)}
