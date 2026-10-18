@@ -20,6 +20,15 @@
   transition: color 140ms ease, fill 140ms ease, transform 140ms ease;
 }
 .km-state-icon--heart[data-icon-state='selected'] { color: #ef3340; }
+/* Unlike a static plus, an open menu exposes an X without a second glyph. */
+.km-state-icon--create[data-icon-state='open'] > svg:first-child {
+  transform: rotate(45deg);
+}
+.km-state-icon--heart[data-icon-state='idle'][data-icon-burst] > svg:first-child,
+.km-state-icon--heart[data-icon-state='unselected'][data-icon-burst] > svg:first-child {
+  animation: km-icon-heart-release 220ms ease-out both;
+}
+
 .km-state-icon--bookmark[data-icon-state='selected'] { color: var(--mint); }
 .km-state-icon[data-icon-state='error'] { color: var(--danger); }
 .km-state-icon[data-icon-state='success'] { color: var(--mint); }
@@ -99,6 +108,7 @@
 .km-state-icon--notifications[data-icon-state='incoming'] > svg:first-child {
   animation: km-icon-bell-ring 350ms ease-in-out 2;
 }
+@keyframes km-icon-heart-release { 0%{transform:scale(1.13)} 60%{transform:scale(.88)} 100%{transform:scale(1)} }
 @keyframes km-icon-heart-pop { 0%{transform:scale(.85)} 55%{transform:scale(1.22)} 100%{transform:scale(1)} }
 @keyframes km-icon-flight { 0%{transform:translate(0,0) scale(.93);opacity:.76} 55%{transform:translate(2px,-2px) scale(1.07)} 100%{transform:translate(0,0) scale(1);opacity:1} }
 @keyframes km-icon-dialog-pop { 0%{transform:scale(.92)} 62%{transform:scale(1.09)} 100%{transform:scale(1)} }
