@@ -67,9 +67,13 @@ export function KnowMeIconButton({
   }
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     if (longPressed.current) {
-      event.preventDefault();
       longPressed.current = false;
-      return;
+      // A long touch may synthesize a click; a later keyboard activation
+      // (detail=0) is independent and must not be swallowed.
+      if (event.detail !== 0) {
+        event.preventDefault();
+        return;
+      }
     }
     if (!disabled) onClick();
   }
