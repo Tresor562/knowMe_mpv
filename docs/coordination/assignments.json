@@ -144,17 +144,20 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/system-accessibility-fallbacks",
-      "task": "PR #724 Web/Android accessibilité visuelle — 2 tests unitaires locaux réussis ; CI, APK et anti-conflit GitHub en attente",
+      "branch": "chat/design/accessible-feedback-dialogs",
+      "task": "PR #724 accessibilité thèmes Web+Android (collision PR #520 retirée; CI/coordination du HEAD 80d787dc en attente); PR #730 boîtes de dialogue et notifications accessibles (coordination verte; CI en cours); aucune fusion/déploiement prouvés",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:19:18.750Z",
-      "lastPr": 724,
+      "updatedAt": "2026-10-18T14:29:36.215Z",
+      "lastPr": 730,
       "resumeFrom": {
-        "pr": 724,
-        "branch": "chat/design/system-accessibility-fallbacks",
-        "commit": "6994bb0635e4f811ad05c21aa72be0a63afb51e4"
+        "pr": 730,
+        "branch": "chat/design/accessible-feedback-dialogs",
+        "commit": "478bb75c71fb0784962948b1a18e942750e45385",
+        "alsoPr": 724,
+        "alsoBranch": "chat/design/system-accessibility-fallbacks",
+        "alsoHead": "80d787dc24b1e1cb255111071155c47c24eee890"
       }
     }
   },
@@ -485,6 +488,16 @@
       "branch": "chat/infra/release-guard-readiness",
       "pr": 721,
       "head": "cb8d528fcec626661c34f1eca9b15c957d2f90fe"
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T14:29:36.215Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "issue": 699,
+      "branch": "chat/design/accessible-feedback-dialogs",
+      "pr": 730,
+      "alsoPr": 724
     }
   ]
 }
