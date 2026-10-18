@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/shared-content-multiselect-links",
-      "task": "PR #764 merged at 33679656 after CI+APK+coordination success; Vercel knowme-android production READY on exact SHA. PR #765 HEAD 8259be6e adds up to 50 selected visible authorized items and copy message permalinks in private/group shared content, pure model tests and E2E. Guard successful, CI/APK pending as of checkpoint. Blocking contact exposed in social API but message enforcement absent; asked Messaging #693 to fix; not a secure user-facing blocking feature. All Telegram/WhatsApp parity still not complete.",
+      "task": "PR #765 merged 0baf272; implement complete selection toolbar for shared private/group media: select visible, clear, native share + copy fallback, permission-safe controls, tests.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T19:52:33.000Z",
+      "updatedAt": "2026-10-18T20:02:14.455Z",
       "lastPr": 765,
       "resumeFrom": {
         "pr": 765,
@@ -1107,6 +1107,13 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 765,
       "mergedPr": 764
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T20:02:14.455Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "mergedPr": 765
     }
   ]
 }
