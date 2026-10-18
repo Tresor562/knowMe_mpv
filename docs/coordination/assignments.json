@@ -77,12 +77,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/android-video-replay-complete",
-      "task": "Fusion #732/#740 (CI+coord+APK vertes); PR #746 refresh Android CI cours, coord+APK vertes; PR #751 replay natif Android CI/APK queued; PR #748 galerie tri/stockage guard FAILED collision #736, ne pas merger",
+      "task": "CI #746/#751, réconcilier #748 après PR #736, corriger Story playback progress",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T15:54:22.976Z",
+      "updatedAt": "2026-10-18T15:57:02.928Z",
       "lastPr": 751,
       "resumeFrom": {
         "pr": 751,
