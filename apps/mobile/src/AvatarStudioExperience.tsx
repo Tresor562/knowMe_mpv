@@ -90,7 +90,7 @@ export function AvatarStudioExperience() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [en]);
 
   useEffect(() => {
     void load();
@@ -315,7 +315,6 @@ const styles = StyleSheet.create({
   legacyAvatar: { width: '100%', height: '100%' },
   fallback: { alignItems: 'center', gap: 6 },
   fallbackInitials: { fontSize: 64, fontWeight: '800' },
-  fallbackToken: { fontSize: 10 },
   layer: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
   profileName: { fontWeight: '800', fontSize: 16 },
   handle: { fontSize: 11.5, fontWeight: '700' },
