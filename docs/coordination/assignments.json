@@ -55,11 +55,11 @@
       "issue": 695,
       "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/story-viewers-dashboard",
-      "task": "PR #707: écran spectateurs Stories Web avec filtres, tri, recherche, profils, badges et Playwright; CI en cours",
+      "branch": "chat/reels/story-archive-pagination",
+      "task": "PR #709: archive Stories paginée Web, filtres et tests, contrôles en cours. PR #707: spectateurs Web, coordination bloquée par PR historique #583",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T12:14:55.138Z",
-      "lastPr": 707,
+      "updatedAt": "2026-10-18T12:20:39.317Z",
+      "lastPr": 709,
       "resumeFrom": null
     },
     "profiles": {
