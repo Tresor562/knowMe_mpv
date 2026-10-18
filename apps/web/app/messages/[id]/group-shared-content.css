@@ -63,3 +63,14 @@
   padding:12px;line-height:1.45;max-width:260px}
 @media(max-width:400px){.km-info-page .km-info-more{min-width:65px}
   .km-info-page .km-info-more > summary{padding-inline:5px}}
+
+.km-group-shared-document{display:flex;align-items:center;gap:10px;min-width:0;
+  color:var(--text);padding:3px 2px}
+.km-group-shared-document > svg{flex-shrink:0;color:var(--mint)}
+.km-group-shared-document > span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.km-group-shared-document > button{flex:0 0 auto;min-height:44px;
+  padding:8px 11px;background:var(--bg-accent);color:var(--mint);
+  border:0;border-radius:12px;cursor:pointer;font-size:12px;font-weight:700}
+.km-group-shared-document > button:disabled{opacity:.55;cursor:wait}
+@media(max-width:430px){.km-group-shared-document{flex-wrap:wrap}
+  .km-group-shared-document > button{margin-left:32px}}
