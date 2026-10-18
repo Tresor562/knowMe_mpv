@@ -6,7 +6,7 @@ import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
-import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp} from './video-time';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
 import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
@@ -140,8 +140,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setPaused(false);
   }
   function togglePlayback(){
-    if(ended)replayFromBeginning();
-    else setPaused(value=>!value);
+    if(videoTapIntent(ended,paused)==='replay'){
+      replayFromBeginning();
+      return;
+    }
+    setPaused(value=>videoTapIntent(false,value)==='pause');
   }
   function tapVideo(){
     if (!onDoubleTap) {
