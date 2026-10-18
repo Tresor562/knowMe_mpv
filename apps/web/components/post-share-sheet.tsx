@@ -242,7 +242,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
             <ShareGlyph name="apps"/>{en ? 'Other apps' : 'Autres applis'}
           </button>
           <button type="button" disabled={busy} onClick={() => void copyLink()}>
-            <ShareGlyph name="link" state={copied ? "success" : "idle"}/>{en ? 'Copy link' : 'Copier le lien'}
+            <ShareGlyph name="link" state={copied ? "success" : "idle"}/>{copied ? (en ? 'Link copied' : 'Lien copié') : (en ? 'Copy link' : 'Copier le lien')}
           </button>
         </div>
         {showConversations && (
