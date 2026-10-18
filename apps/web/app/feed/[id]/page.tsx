@@ -393,6 +393,7 @@ export default function PostDetailPage() {
   function renderComment(item: Comment, depth: number): React.ReactNode {
     const canDelete = item.author.id === user?.id || post?.authorId === user?.id;
     const children = repliesByParent[item.id] ?? [];
+    const currentReaction = reactionSummaries[item.id];
     const isExpanded = expandedReplies.includes(item.id);
     const count = item._count?.replies ?? 0;
     return (
@@ -437,7 +438,7 @@ export default function PostDetailPage() {
               <button type="button" className="km-comment-react-button"
                 disabled={reactionBusy===item.id}
                 aria-label={`Réagir au commentaire de ${item.author.displayName}`}
-                aria-pressed={Boolean(reactionSummaries[item.id]?.mine)}
+                aria-pressed={Boolean(currentReaction?.mine)}
                 onPointerDown={event=>{
                   event.stopPropagation();
                   suppressReactionClick.current=false;
@@ -457,8 +458,8 @@ export default function PostDetailPage() {
                   if(suppressReactionClick.current){suppressReactionClick.current=false;return;}
                   void reactToComment(item.id,'❤️');
                 }}>
-                {reactionSummaries[item.id]?.mine ?? '♡'} Réagir
-                {Boolean(reactionSummaries[item.id]?.total) && <span className="km-comment-reaction-count"> {reactionSummaries[item.id].total}</span>}
+                {currentReaction?.mine ?? '♡'} Réagir
+                {Boolean(currentReaction?.total) && <span className="km-comment-reaction-count"> {currentReaction.total}</span>}
               </button>
               <button type="button" aria-label={`Choisir une réaction pour le commentaire de ${item.author.displayName}`}
                 onClick={()=>openReactionPicker(item.id)}>☺</button>
@@ -471,9 +472,9 @@ export default function PostDetailPage() {
                 {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
               </button>}
             </div>
-            {reactionSummaries[item.id] && reactionSummaries[item.id].emojis.length>0 && (
+            {currentReaction && currentReaction.emojis.length>0 && (
               <div className="km-comment-reaction-breakdown">
-                {reactionSummaries[item.id].emojis.slice(0,5).map(r=>(
+                {currentReaction.emojis.slice(0,5).map(r=>(
                   <span key={r.emoji}>{r.emoji} {r.count}</span>
                 ))}
               </div>
