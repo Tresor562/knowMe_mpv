@@ -423,15 +423,16 @@ export class StoriesService {
     return removed;
   }
 
-  async viewers(userId: string, storyId: string) {
+  async viewers(userId: string, storyId: string, cursor?: string) {
     // The identity list stays bounded for payload/privacy safety, but totals
     // must represent the entire Story audience, not just its latest 500 views.
     await this.requireOwnedStory(storyId, userId);
-    const [views, totals, reactions, replies, screenshots] = await Promise.all([
+    const [viewRows, totals, reactions, replies, screenshots] = await Promise.all([
       this.prisma.storyView.findMany({
         where: { storyId },
         orderBy: [{ lastViewedAt: 'desc' }, { id: 'desc' }],
-        take: 500
+        take: 501,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
       }),
       this.prisma.storyView.aggregate({
         where: { storyId },
@@ -444,6 +445,8 @@ export class StoriesService {
         where: { storyId, screenshotAt: { not: null } }
       })
     ]);
+    const views = viewRows.slice(0, 500);
+    const nextCursor = viewRows.length > 500 ? views.at(-1)?.id ?? null : null;
     const users = views.length
       ? await this.prisma.user.findMany({
         where: { id: { in: views.map((view) => view.viewerUserId) } },
@@ -461,7 +464,8 @@ export class StoriesService {
         ? Math.round((totals._sum.completionBps ?? 0) / uniqueViewers)
         : 0,
       screenshots,
-      viewersTruncated: uniqueViewers > views.length,
+      viewersTruncated: uniqueViewers > 500,
+      nextCursor,
       viewers: views.map((view) => {
         const u = userMap.get(view.viewerUserId);
         return {
