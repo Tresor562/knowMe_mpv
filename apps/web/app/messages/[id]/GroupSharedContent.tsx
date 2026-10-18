@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
 import {
-  appendSharedMessages, filterSharedContent, linksInMessage, searchSharedMessages,
-  type SharedMediaFilter,
+  appendSharedMessages, filterSharedHistory, sharedAuthorOptions, linksInMessage,
+  type SharedMediaFilter, type SharedHistorySort,
   type SharedContentKind, type SharedMessage
 } from './group-shared-content-model';
 import './group-shared-content.css';
@@ -29,6 +29,10 @@ export function GroupSharedContent({
   const [error,setError] = useState('');
   const [search,setSearch] = useState('');
   const [subtype,setSubtype] = useState<SharedMediaFilter>('ALL');
+  const [author,setAuthor] = useState('');
+  const [fromDate,setFromDate] = useState('');
+  const [toDate,setToDate] = useState('');
+  const [sort,setSort] = useState<SharedHistorySort>('newest');
   const [downloading,setDownloading] = useState<string|null>(null);
   const [downloadError,setDownloadError] = useState('');
   const [initialLoaded,setInitialLoaded] = useState(false);
@@ -76,8 +80,11 @@ export function GroupSharedContent({
       {value:'AUDIO',fr:'Audios',en:'Audios'}
     ]:[];
   const effectiveSubtype=filterOptions.some(option=>option.value===subtype)?subtype:'ALL';
-  const filtered=useMemo(()=>kind==='search'?searchSharedMessages(messages,search):
-    filterSharedContent(messages,kind,effectiveSubtype),[messages,kind,search,effectiveSubtype]);
+  const authors=useMemo(()=>sharedAuthorOptions(messages),[messages]);
+  const filtered=useMemo(()=>filterSharedHistory(messages,{
+    kind, query: search, subtype: effectiveSubtype, author, fromDate, toDate, sort
+  }),[messages,kind,search,effectiveSubtype,author,fromDate,toDate,sort]);
+  const activeExtraFilters=Boolean(author || fromDate || toDate || sort!=='newest');
 
   async function downloadAttachment(message: SharedMessage) {
     const assetId=message.presentation?.assetId;
@@ -120,6 +127,48 @@ export function GroupSharedContent({
         {en?option.en:option.fr}
       </button>)}
     </div>}
+    <div className="km-shared-refine-controls"
+      role="group" aria-label={en?'Sort and filter loaded history':'Trier et filtrer l’historique chargé'}>
+      <label>
+        <span>{en?'From':'Du'}</span>
+        <input type="date" value={fromDate} max={toDate||undefined}
+          onChange={event=>setFromDate(event.target.value)}
+          aria-label={en?'From date':'Date de début'}/>
+      </label>
+      <label>
+        <span>{en?'To':'Au'}</span>
+        <input type="date" value={toDate} min={fromDate||undefined}
+          onChange={event=>setToDate(event.target.value)}
+          aria-label={en?'To date':'Date de fin'}/>
+      </label>
+      <label>
+        <span>{en?'Author':'Auteur'}</span>
+        <select value={authors.some(option=>option.key===author)?author:''}
+          onChange={event=>setAuthor(event.target.value)}
+          aria-label={en?'Message author':'Auteur des messages'}>
+          <option value="">{en?'Everyone':'Tout le monde'}</option>
+          {authors.map(person=><option key={person.key} value={person.key}>
+            {person.label}
+          </option>)}
+        </select>
+      </label>
+      <label>
+        <span>{en?'Order':'Ordre'}</span>
+        <select value={sort} onChange={event=>setSort(event.target.value as SharedHistorySort)}
+          aria-label={en?'Message order':'Ordre des messages'}>
+          <option value="newest">{en?'Newest first':'Plus récents'}</option>
+          <option value="oldest">{en?'Oldest first':'Plus anciens'}</option>
+        </select>
+      </label>
+      {activeExtraFilters&&<button type="button" className="km-shared-reset"
+        onClick={()=>{setAuthor('');setFromDate('');setToDate('');setSort('newest');}}>
+        {en?'Reset':'Réinitialiser'}
+      </button>}
+    </div>
+    <p className="km-group-shared-scope">
+      {en ? 'Filters apply to loaded messages only. Load earlier history to search further back.' :
+        'Les filtres portent sur les messages chargés. Charge les anciens messages pour élargir la recherche.'}
+    </p>
     <div className="km-group-shared-heading">
       <strong>{en?labels.en:labels.fr}</strong>
       <span>{filtered.length}{cursor?' +':''}</span>
