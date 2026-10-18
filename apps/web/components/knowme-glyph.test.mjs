@@ -186,3 +186,18 @@ test('post video toolbar uses truthful state-driven SVGs and 44px controls', () 
   assert.match(css, /min-width: 44px/);
   assert.match(css, /min-height: 44px/);
 });
+
+
+test('shared notifications and reporting use real accessible iconography', () => {
+  const alerts = fs.readFileSync(path.join(dir, 'knowme-feedback.tsx'), 'utf8');
+  const report = fs.readFileSync(path.join(dir, 'comment-report-sheet.tsx'), 'utf8');
+  const style = fs.readFileSync(path.join(dir, 'comment-report-sheet.css'), 'utf8');
+  assert.match(alerts, /<KnowMeGlyph name="shield"/);
+  assert.match(alerts, /toast\.tone === 'error'/);
+  assert.match(alerts, /'warning' : toast\.tone === 'success' \? 'check-circle' : 'info'/);
+  assert.match(alerts, /<KnowMeIconButton name="close"/);
+  assert.match(report, /<KnowMeIconButton name="close"/);
+  assert.match(report, /<KnowMeAnimatedIcon name="send" state=\{busy \? 'sending' : 'idle'\}/);
+  assert.doesNotMatch(report, /Fermer le signalement">×/);
+  assert.match(style, /min-width: 44px/);
+});
