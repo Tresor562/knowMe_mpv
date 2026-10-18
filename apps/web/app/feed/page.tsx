@@ -6,6 +6,7 @@ import { PostShareSheet } from '../../components/post-share-sheet';
 import { PostMediaCollage, type PostMediaItem } from '../../components/post-media-collage';
 import '../../components/post-share-sheet.css';
 import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-options-sheet';
+import { PostEditSheet } from '../../components/post-edit-sheet';
 import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -59,6 +60,7 @@ export default function FeedPage() {
   const [shareNotice, setShareNotice] = useState('');
   const [sharingPost, setSharingPost] = useState<Post | null>(null);
   const [optionsPost, setOptionsPost] = useState<Post | null>(null);
+  const [editPost,setEditPost] = useState<Post|null>(null);
   const [disinterestPost, setDisinterestPost] = useState<Post | null>(null);
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(() => new Set());
   const [recentlyHiddenPostId, setRecentlyHiddenPostId] = useState<string | null>(null);
@@ -630,9 +632,22 @@ export default function FeedPage() {
           onClose={() => setOptionsPost(null)}
           onShare={() => { const target=optionsPost; setOptionsPost(null); sharePost(target); }}
           onCopy={() => { const target=optionsPost; setOptionsPost(null); void copyPostLink(target); }}
+          onEdit={() => { if(authorityFresh){setEditPost(optionsPost);setOptionsPost(null);} }}
           onDelete={() => { setDeletePending(optionsPost.id); setOptionsPost(null); }}
           onDisinterest={() => { const target=optionsPost; setOptionsPost(null); setDisinterestPost(target); }}
         />
+      )}
+      {editPost && authorityFresh && (
+        <PostEditSheet post={{
+          id:editPost.id,content:editPost.content,
+          hasMedia:Boolean(editPost.media?.length||editPost.imageUrl)
+        }} en={en}
+          onClose={()=>setEditPost(null)}
+          onSaved={content=>{
+            setPosts(previous=>previous.map(item=>
+              item.id===editPost.id?{...item,content}:item
+            ));
+          }}/>
       )}
       {disinterestPost && (
         <PostDisinterestSheet en={en} onClose={() => setDisinterestPost(null)}
