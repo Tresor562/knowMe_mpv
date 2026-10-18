@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "canonicalRepository": "Tresor562/knowMe_mpv",
+  "integrationBranch": "main",
+  "featureBranchPattern": "chat/<workstream>/<short-kebab-task>",
+  "sourceOfTruth": {
+    "tasks": "GitHub Issues",
+    "changes": "Open Pull Requests",
+    "status": "Merged commit, CI, release and device evidence"
+  },
+  "workstreams": [
+    {
+      "id": "messaging",
+      "issue": 693,
+      "scope": "Messages, chats, groups, calls, audio, stickers",
+      "owners": [
+        "apps/web messaging",
+        "apps/mobile messaging",
+        "API messaging"
+      ]
+    },
+    {
+      "id": "social",
+      "issue": 694,
+      "scope": "Feed, posts, comments, reactions, mentions and shares",
+      "owners": [
+        "Web and Android social surfaces",
+        "social APIs"
+      ]
+    },
+    {
+      "id": "reels",
+      "issue": 695,
+      "scope": "Stories, Reels, playback and offline libraries",
+      "owners": [
+        "Web/Android stories and reels",
+        "feature-specific media APIs"
+      ]
+    },
+    {
+      "id": "profiles",
+      "issue": 696,
+      "scope": "Profiles, friends, verification badges, account settings",
+      "owners": [
+        "profile and account UI",
+        "identity APIs"
+      ]
+    },
+    {
+      "id": "marketplace",
+      "issue": 697,
+      "scope": "Gifts, marketplace, item store and related authorizations",
+      "owners": [
+        "storefront",
+        "items and payment authorization"
+      ]
+    },
+    {
+      "id": "infra",
+      "issue": 698,
+      "scope": "Infrastructure, shared API contracts, migrations, deployment and release",
+      "owners": [
+        ".github/workflows",
+        "ops",
+        "global API infrastructure",
+        "platform versioning"
+      ]
+    },
+    {
+      "id": "design",
+      "issue": 699,
+      "scope": "Global navigation, shared design tokens, UX and accessibility",
+      "owners": [
+        "shared UI components",
+        "app-level navigation",
+        "theme and global motion"
+      ]
+    }
+  ],
+  "releasePolicy": {
+    "autoDeployFromFeatureBranches": false,
+    "manualApprovalRequiredForProduction": true,
+    "requiredEvidence": [
+      "tests exact PR head",
+      "CI green",
+      "merge into main",
+      "Web and Android validation where affected"
+    ]
+  }
+}

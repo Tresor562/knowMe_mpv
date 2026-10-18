@@ -2,6 +2,8 @@
 
 Mandatory reading order for any future coding agent:
 
+0. `/docs/coordination/PARALLEL_WORK.md` and `/docs/coordination/workstreams.json`; choose the domain issue, inspect live competing PRs, and use an isolated `chat/<workstream>/<slug>` branch for new work.
+
 1. `/AGENTS.md`
 2. `/docs/NEXUS_INTEGRATION_CHECKPOINT.md`
 3. live GitHub state: `main`, PR #101, PR #102, later open PRs, active branches, CI

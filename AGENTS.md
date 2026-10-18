@@ -4,6 +4,11 @@ These repository-level instructions apply to any coding assistant, agent, or fut
 
 ## Read first
 
+### Coordination obligatoire entre conversations
+
+Avant toute intervention dans ce dépôt, lire `docs/coordination/PARALLEL_WORK.md` et `docs/coordination/workstreams.json`, identifier le domaine, l'issue et toutes les PR actuellement ouvertes. Toute nouvelle unité de travail démarre sur `chat/<workstream>/<slug>`, avec une PR liée à une issue de même domaine et le contrôle de chevauchement de fichiers. Ce protocole ajoute des garde-fous et ne remplace aucune règle de sécurité, design, qualité, CI ou livraison ci-dessous. **Ne jamais supposer voir en temps réel le travail non enregistré d'une autre conversation.**
+
+
 Before modifying KnowMe:
 
 ### Required, versioned KnowMe design contracts
