@@ -86,10 +86,7 @@ export function NetworkConnectivityNotice() {
       <button type="button" className="km-network-notice-dismiss"
         onClick={() => setVisible(false)}
         aria-label={en ? 'Dismiss connection notice' : 'Masquer le message de connexion'}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M6 6 18 18M18 6 6 18"/>
-        </svg>
+        <KnowMeAnimatedIcon name="close" size={20} />
       </button>
     </aside>
   );
