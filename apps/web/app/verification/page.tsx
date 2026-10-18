@@ -67,14 +67,19 @@ export default function VerificationPage() {
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setRequests(await apiFetch<VerificationRequest[]>('/verification/me'));
+      setLoadError(false);
       setMessage('');
+      return true;
     } catch (cause) {
+      setLoadError(true);
       setMessage(errorMessage(cause, 'Chargement des demandes impossible.'));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -84,10 +89,23 @@ export default function VerificationPage() {
     if (!sessionLoading && user) void load();
   }, [load, sessionLoading, user]);
 
+  /**
+   * The POST already succeeded. A later GET/session refresh failure must
+   * not turn the acknowledged mutation into a false failure or encourage replay.
+   */
+  async function syncAfterVerifiedMutation(success: string, partial: string) {
+    const [list, session] = await Promise.allSettled([load(), refresh()]);
+    const synced = list.status === 'fulfilled' && list.value === true &&
+      session.status === 'fulfilled';
+    setMessage(synced ? success : partial);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
-    const form = new FormData(event.currentTarget);
+    if (busy || loadError) return;
+    // React event.currentTarget is not retained across awaited requests.
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const digest = String(form.get('digest') ?? '').trim().toLowerCase();
     if (!/^[a-f0-9]{64}$/.test(digest)) {
       setMessage('L’empreinte doit contenir exactement 64 caractères hexadécimaux.');
@@ -111,9 +129,13 @@ export default function VerificationPage() {
           ]
         })
       });
-      event.currentTarget.reset();
-      setMessage('Demande soumise. Aucune image de document n’a été stockée par KnowMe.');
-      await Promise.all([load(), refresh()]);
+      formElement.reset();
+      await syncAfterVerifiedMutation(
+        tr('Demande soumise. Aucune image de document n’a été stockée par KnowMe.',
+          'Request submitted. KnowMe did not store any identity document image.'),
+        tr('Demande soumise. Actualisation temporairement indisponible.',
+          'Request submitted. Refresh is temporarily unavailable.')
+      );
     } catch (cause) {
       setMessage(errorMessage(cause, 'Soumission impossible.'));
     } finally {
@@ -144,8 +166,11 @@ export default function VerificationPage() {
         method: 'POST',
         body: JSON.stringify({ reason })
       });
-      await Promise.all([load(), refresh()]);
-      setMessage(tr('Demande retirée.', 'Request withdrawn.'));
+      await syncAfterVerifiedMutation(
+        tr('Demande retirée.', 'Request withdrawn.'),
+        tr('Demande retirée. Actualisation temporairement indisponible.',
+          'Request withdrawn. Refresh is temporarily unavailable.')
+      );
     } catch (cause) {
       setMessage(errorMessage(cause, tr('Retrait impossible.', 'Could not withdraw request.')));
     } finally {
@@ -157,7 +182,7 @@ export default function VerificationPage() {
     return <main className="shell"><p>Chargement de la vérification…</p></main>;
   }
 
-  const canSubmit = canSubmitVerificationRequest(requests);
+  const canSubmit = !loadError && canSubmitVerificationRequest(requests);
 
   return (
     <main className="shell" style={{ maxWidth: 980, margin: '0 auto' }}>
@@ -174,6 +199,17 @@ export default function VerificationPage() {
       </header>
 
       {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
+      {loadError ? (
+        <section className="card" style={{ padding: 16, marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <p style={{ flex: 1, margin: 0 }}>
+            {tr('Impossible de vérifier les demandes actuelles. Aucun nouvel envoi ne sera proposé.',
+              'Current requests could not be verified. New submissions are disabled.')}
+          </p>
+          <button type="button" className="btn" disabled={busy}
+            onClick={() => void load()}>{tr('Réessayer', 'Retry')}</button>
+        </section>
+      ) : null}
 
       <section className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', marginBottom: 24 }}>
         <article className="card" style={{ padding: 20 }}>
