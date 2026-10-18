@@ -108,6 +108,12 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Put(':id/like')
+  ensureLike(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.posts.ensureLike(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/like')
   like(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.posts.toggleLike(req.user.userId, id);
