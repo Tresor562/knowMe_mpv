@@ -281,7 +281,12 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           </Pressable>
           <Pressable accessibilityRole="button" style={styles.resumeClose}
             accessibilityLabel={en?'Continue from the start':'Continuer depuis le début'}
-            onPress={()=>setResumeMs(null)}>
+            onPress={()=>{
+              setResumeMs(null);
+              // Starting over is an explicit choice: don't re-prompt with the
+              // former bookmark the next time the user opens this video.
+              void savePublicVideoResume(url,durationMs,durationMs).catch(()=>undefined);
+            }}>
             <KnowMeIcon name="close" size={18} color="#fff"/>
           </Pressable>
         </View>}
