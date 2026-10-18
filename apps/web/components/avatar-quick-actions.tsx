@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactElement } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { nextAvatarMenuIndex, type AvatarMenuNavigationKey } from './avatar-menu-keyboard-model';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -106,10 +107,9 @@ export function AvatarQuickActions({
     if (!items.length) return;
     event.preventDefault();
     const current = items.indexOf(document.activeElement as HTMLElement);
-    const index = event.key === 'Home' ? 0
-      : event.key === 'End' ? items.length - 1
-      : event.key === 'ArrowDown' ? (current + 1 + items.length) % items.length
-      : (current - 1 + items.length) % items.length;
+    const index = nextAvatarMenuIndex(
+      event.key as AvatarMenuNavigationKey, current, items.length
+    );
     items[index]?.focus();
   }
 
