@@ -10,7 +10,8 @@ export type KnowMeGlyphName =
   | 'download' | 'check' | 'check-double' | 'heart' | 'comment' | 'share'
   | 'bookmark' | 'smile' | 'sticker' | 'keyboard' | 'settings' | 'phone'
   | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off'
-  | 'story' | 'cover' | 'sparkles' | 'upload' | 'wifi' | 'wifi-off';
+  | 'story' | 'cover' | 'sparkles' | 'upload' | 'wifi' | 'wifi-off'
+  | 'copy' | 'reply' | 'pin' | 'archive' | 'folder' | 'file' | 'group' | 'user-plus' | 'shield' | 'verified' | 'gift' | 'clock' | 'calendar' | 'volume' | 'volume-off' | 'headphones' | 'music' | 'stop' | 'call-end' | 'more-horizontal' | 'info' | 'warning' | 'help' | 'logout' | 'star' | 'filter' | 'sort' | 'map-pin' | 'translate' | 'check-circle';
 
 type Props = {
   name: KnowMeGlyphName;
@@ -38,6 +39,36 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
   };
 
   const shapes = {
+    'copy': <><rect x="8" y="8" width="12.3" height="12.3" rx="2.1"/><path d="M16.3 8V5.7a2 2 0 0 0-2-2H5.7a2 2 0 0 0-2 2v8.6a2 2 0 0 0 2 2H8"/></>,
+    'reply': <><path d="M9.1 7 3.5 12l5.6 5M3.7 12H13a7.9 7.9 0 0 1 7.9 7.9V21"/></>,
+    'pin': <><path d="m8.7 3.5 11.8 11.8-3.3 1-3.2-2.1-4.9 4.9-4.1-4.1 4.9-4.9-2.1-3.2 1-3.4ZM12 17.2 6.5 22"/></>,
+    'archive': <><rect x="3.5" y="4.5" width="17" height="4.5" rx="1"/><path d="M5.2 9v10.8a1 1 0 0 0 1 1h11.6a1 1 0 0 0 1-1V9M9.1 13.3h5.8"/></>,
+    'folder': <><path d="M3 7.2A2.2 2.2 0 0 1 5.2 5h5.2l2.3 2.4h6.1A2.2 2.2 0 0 1 21 9.6v9.1a2.2 2.2 0 0 1-2.2 2.2H5.2A2.2 2.2 0 0 1 3 18.7V7.2Z"/></>,
+    'file': <><path d="M7.1 2.8h7.1L20 8.6v11.3A1.9 1.9 0 0 1 18.1 21.8H7.1A1.9 1.9 0 0 1 5.2 19.9V4.7a1.9 1.9 0 0 1 1.9-1.9Z"/><path d="M14.2 2.9v5.7H20M9 13.2h7M9 16.6h5.1"/></>,
+    'group': <><circle cx="9" cy="8.2" r="3.1"/><path d="M2.7 20a6.3 6.3 0 0 1 12.6 0M16 5.5a3 3 0 0 1 0 5.8M17.5 14a5.7 5.7 0 0 1 3.8 5.7"/></>,
+    'user-plus': <><circle cx="9.1" cy="8" r="3.4"/><path d="M2.7 20.4a6.4 6.4 0 0 1 12.8 0M18 10.3v8M14 14.3h8"/></>,
+    'shield': <><path d="m12 2.4 8.1 3.4v6.4c0 5-3.3 8.1-8.1 9.4-4.8-1.3-8.1-4.4-8.1-9.4V5.8L12 2.4Z"/><path d="m8.5 12.2 2.3 2.4 4.8-5"/></>,
+    'verified': <><path d="m12 2.4 2.7 1.45 3.1.05.8 3 2.45 1.9-.95 3 .95 3-2.45 1.9-.8 3-3.1.05L12 21.2l-2.7-1.45-3.1-.05-.8-3-2.45-1.9.95-3-.95-3 2.45-1.9.8-3 3.1-.05L12 2.4Z" fill={active?'currentColor':'none'}/><path d="m8.1 12 2.45 2.45 5.25-5.2" stroke={active?'var(--bg)':'currentColor'}/></>,
+    'gift': <><rect x="3.5" y="10" width="17" height="11" rx="1.6"/><path d="M2.5 7.1h19v3H2.5zM12 7.1V21M11.6 7.1c-4.9 0-7-1.3-6.5-3.2.6-2.2 3.8-1.9 6.5 3.2Zm.8 0c4.9 0 7-1.3 6.5-3.2-.6-2.2-3.8-1.9-6.5 3.2Z"/></>,
+    'clock': <><circle cx="12" cy="12" r="9"/><path d="M12 6.6v5.6l3.8 2.35"/></>,
+    'calendar': <><rect x="3.5" y="5.4" width="17" height="15.5" rx="2.5"/><path d="M7.8 3v4.4M16.2 3v4.4M3.6 10h16.8M8 14.1h2.1M13.7 14.1h2.1M8 17.4h2.1"/></>,
+    'volume': <><path d="M4 9h4.5L14 4.3v15.4L8.5 15H4V9ZM17 9.3a4.1 4.1 0 0 1 0 5.4M19.7 6.3a8.1 8.1 0 0 1 0 11.4"/></>,
+    'volume-off': <><path d="M4 9h4.5L14 4.3v15.4L8.5 15H4V9ZM17.1 9.4l4 5M21.1 9.4l-4 5"/></>,
+    'headphones': <><path d="M3.6 13.5v-2a8.4 8.4 0 0 1 16.8 0v2"/><rect x="3.5" y="12.7" width="4.2" height="7.5" rx="2"/><rect x="16.3" y="12.7" width="4.2" height="7.5" rx="2"/></>,
+    'music': <><path d="M9 18.7V5l11-2.1v12.7M9 8.6l11-2.1"/><ellipse cx="6.1" cy="19.1" rx="3" ry="2.2"/><ellipse cx="17.1" cy="16.2" rx="3" ry="2.2"/></>,
+    'stop': <><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" stroke="none"/></>,
+    'call-end': <><path d="M2.9 14.3C7.6 10 16.4 10 21.1 14.3l-2.5 4a1.5 1.5 0 0 1-1.9.5l-2.1-1.1a1.6 1.6 0 0 1-.8-1.7l.45-1.75a15 15 0 0 0-4.5 0l.45 1.75a1.6 1.6 0 0 1-.8 1.7l-2.1 1.1a1.5 1.5 0 0 1-1.9-.5l-2.5-4Z"/></>,
+    'more-horizontal': <><circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/></>,
+    'info': <><circle cx="12" cy="12" r="9"/><path d="M12 10.4v6.2M12 7.2h.01" strokeWidth="2.3"/></>,
+    'warning': <><path d="m10.2 3.3-8 14A2.25 2.25 0 0 0 4.2 20.7h15.6a2.25 2.25 0 0 0 2-3.4l-8-14a2.15 2.15 0 0 0-3.6 0Z"/><path d="M12 8.7v5.2M12 17.5h.01" strokeWidth="2.4"/></>,
+    'help': <><circle cx="12" cy="12" r="9"/><path d="M9.3 9.1a3 3 0 0 1 5.6 1.4c0 2.2-2.8 2.5-2.8 4.6M12 18.1h.01" strokeWidth="2.3"/></>,
+    'logout': <><path d="M10 4.2H5.5a2 2 0 0 0-2 2v11.6a2 2 0 0 0 2 2H10M13 7.1 18 12l-5 4.9M8.4 12H18"/></>,
+    'star': <><path d="m12 2.7 2.9 6.1 6.7 1-4.85 4.75 1.15 6.7L12 18.05l-5.9 3.2 1.15-6.7L2.4 9.8l6.7-1L12 2.7Z" fill={active?'currentColor':'none'}/></>,
+    'filter': <><path d="M3.6 5.2h16.8l-6.3 7.2v6.4l-4.2 2v-8.4L3.6 5.2Z"/></>,
+    'sort': <><path d="M6 4v16M2.9 7.4 6 4l3.1 3.4M18 20V4M14.9 16.6 18 20l3.1-3.4"/></>,
+    'map-pin': <><path d="M19.7 10.5c0 5-7.7 11.2-7.7 11.2S4.3 15.5 4.3 10.5a7.7 7.7 0 1 1 15.4 0Z"/><circle cx="12" cy="10.4" r="2.6"/></>,
+    'translate': <><path d="M2.5 6h13M9 3.5v2.5M4.9 9.2c1.8 3 5.3 6.1 9 7.1M12.8 8.1c-1.25 4-4.65 8.1-8.6 9.65M14.4 20.4l3.3-8.9 3.3 8.9M15.5 17.5h4.5"/></>,
+    'check-circle': <><circle cx="12" cy="12" r="9"/><path d="m7.5 12.2 3 3.2 6-6.3"/></>,
     wifi: <><path d="M2.6 8.8a14.7 14.7 0 0 1 18.8 0M5.9 12.35a9.5 9.5 0 0 1 12.2 0M9.3 15.8a4.25 4.25 0 0 1 5.4 0"/><circle cx="12" cy="19.3" r="1.15" fill="currentColor" stroke="none"/></>,
     'wifi-off': <><path d="M2.8 8.8a14.5 14.5 0 0 1 4.5-2.7M10.2 5.1a14.65 14.65 0 0 1 11 3.7M6.1 12.3a9.5 9.5 0 0 1 4.1-1.75M13.5 10.8a9.4 9.4 0 0 1 4.5 1.5M9.7 15.7a4.3 4.3 0 0 1 3-.65M12 19.3h.01M3.2 3.2l17.6 17.6"/></>,
     story: <><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 7.8v8.4M7.8 12h8.4"/></>,
