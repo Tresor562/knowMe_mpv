@@ -15,7 +15,14 @@ test('each declared SVG glyph has a drawable shape', () => {
   const declared = glyph.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
   const shapes = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
   const names = [...declared.matchAll(/'([\w-]+)'/g)].map(m => m[1]);
-  assert.ok(names.length >= 40);
+  assert.ok(names.length >= 75);
+  for (const essential of [
+    'copy','reply','pin','archive','folder','file','group','user-plus',
+    'shield','verified','gift','clock','calendar','volume','volume-off',
+    'headphones','music','stop','call-end','more-horizontal','info',
+    'warning','help','logout','star','filter','sort','map-pin',
+    'translate','check-circle'
+  ]) assert.ok(names.includes(essential), essential);
   assert.equal(new Set(names).size, names.length);
   for (const name of names) {
     const rx = new RegExp(`(?:^|[,\\n]\\s*)(?:'${name}'|${name}):\\s*<`);
@@ -41,6 +48,9 @@ test('motion derives from data, differentiates icon roles and stops safely', () 
   assert.match(animatedCss, /km-icon-bell-ring/);
   assert.match(animatedCss, /km-icon-flight/);
   assert.match(animatedCss, /km-icon-heart-pop/);
+  assert.match(animatedCss, /km-icon-stack/);
+  assert.match(animatedCss, /km-icon-gift-pop/);
+  assert.match(animatedCss, /km-icon-confirm-focus/);
   assert.match(animatedCss, /#ef3340/);
   assert.match(animatedCss, /prefers-reduced-motion: reduce/);
   const visibility = fs.readFileSync(path.join(dir, 'knowme-document-visibility.ts'), 'utf8');
