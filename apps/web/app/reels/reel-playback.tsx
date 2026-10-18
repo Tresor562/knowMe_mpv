@@ -30,13 +30,34 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   const [error,setError] = useState('');
   const [heart,setHeart] = useState(false);
   const heartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeAfterVisibility=useRef(false);
 
   useEffect(() => {
     const video=videoRef.current;
     if (!video) return;
     video.muted = true;
+    let restoredRate=1;
+    try {
+      const candidate=Number(sessionStorage.getItem('knowme-reel-playback-speed'));
+      if([1,1.25,1.5,2].includes(candidate))restoredRate=candidate;
+    }catch{/* Storage disabled: use default playback speed. */}
+    video.playbackRate=restoredRate;
+    setSpeed(restoredRate);
     video.play().catch(() => setPlaying(false));
+    const visibility=()=>{
+      if(document.hidden){
+        resumeAfterVisibility.current=!video.paused;
+        video.pause();
+      }else if(resumeAfterVisibility.current){
+        resumeAfterVisibility.current=false;
+        video.play().catch(()=>setPlaying(false));
+      }
+    };
+    document.addEventListener('visibilitychange',visibility);
+    if(document.hidden)visibility();
     return () => {
+      document.removeEventListener('visibilitychange',visibility);
+      resumeAfterVisibility.current=false;
       video.pause();
       if (clickTimer.current) clearTimeout(clickTimer.current);
       if (heartTimer.current) clearTimeout(heartTimer.current);
@@ -93,7 +114,34 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
     const next=rates[(rates.indexOf(speed)+1)%rates.length]!;
     if(videoRef.current)videoRef.current.playbackRate=next;
     setSpeed(next);
+    try{sessionStorage.setItem('knowme-reel-playback-speed',String(next));}
+    catch{/* Storage disabled: the player remains functional. */}
   }
+
+  // Attach listeners to the currently mounted clip only. The key handlers
+  // never intercept typing, buttons, links or seek-range keyboard controls.
+  useEffect(()=>{
+    const keyDown=(event:KeyboardEvent)=>{
+      if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat)return;
+      const target=event.target;
+      if(target instanceof Element && target.closest(
+        'input, textarea, select, a, [contenteditable="true"], [role="slider"], button:not(.km-reel-tap-zone)'
+      ))return;
+      const active=document.activeElement;
+      if(active instanceof Element&&!active.closest('.km-reels-page')&&active!==document.body)return;
+      if(event.code==='Space'||event.key.toLowerCase()==='k'){
+        event.preventDefault();void toggle();
+      }else if(event.key==='ArrowLeft'){
+        event.preventDefault();skip(-10);
+      }else if(event.key==='ArrowRight'){
+        event.preventDefault();skip(10);
+      }else if(event.key.toLowerCase()==='m'){
+        event.preventDefault();switchMute();
+      }
+    };
+    document.addEventListener('keydown',keyDown);
+    return ()=>document.removeEventListener('keydown',keyDown);
+  });
 
   return (
     <div className="km-reel-playback">
