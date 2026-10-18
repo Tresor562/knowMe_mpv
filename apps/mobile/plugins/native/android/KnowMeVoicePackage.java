@@ -171,6 +171,34 @@ public final class KnowMeVoicePackage implements ReactPackage {
       }
     }
 
+    /** Pause without destroying the MediaPlayer or moving the playhead. */
+    @ReactMethod public synchronized void pausePlayback(Promise promise) {
+      try {
+        if (player == null) {
+          promise.reject("VOICE_NOT_PLAYING", "Aucun audio à mettre en pause.");
+          return;
+        }
+        if (player.isPlaying()) player.pause();
+        promise.resolve(true);
+      } catch (Exception error) {
+        promise.reject("VOICE_PAUSE_FAILED", "Mise en pause impossible.", error);
+      }
+    }
+
+    /** Resume the same source and position instead of playing from zero. */
+    @ReactMethod public synchronized void resumePlayback(Promise promise) {
+      try {
+        if (player == null) {
+          promise.reject("VOICE_NOT_PAUSED", "Aucun audio à reprendre.");
+          return;
+        }
+        if (!player.isPlaying()) player.start();
+        promise.resolve(true);
+      } catch (Exception error) {
+        promise.reject("VOICE_RESUME_FAILED", "Reprise audio impossible.", error);
+      }
+    }
+
     @ReactMethod public synchronized void stopPlayback(Promise promise) {
       stopPlaybackQuietly();
       promise.resolve(true);
