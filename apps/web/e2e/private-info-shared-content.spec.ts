@@ -34,6 +34,13 @@ test('private chat has shared media, links, files and search without group admin
   await expect(page.getByRole('tab',{name:'Fichiers'})).toBeVisible();
   await expect(page.getByRole('tab',{name:'Liens'})).toBeVisible();
   await expect(page.getByRole('tab',{name:'Recherche'})).toBeVisible();
+  await page.getByRole('tab',{name:'Médias'}).click();
+  const filters=page.getByRole('group',{name:'Filtrer les contenus partagés'});
+  await filters.getByRole('button',{name:'Photos'}).click();
+  await expect(page.getByRole('link',{name:'Voir le message'}))
+    .toHaveAttribute('href','/messages/dm-1?message=dm-photo');
+  await filters.getByRole('button',{name:'Vidéos'}).click();
+  await expect(page.getByRole('link',{name:'Voir le message'})).toHaveCount(0);
   await expect(page.locator('.km-info-more')).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Profil'})).toHaveAttribute('href','/profile/ami');
   await page.getByRole('tab',{name:'Liens'}).click();
