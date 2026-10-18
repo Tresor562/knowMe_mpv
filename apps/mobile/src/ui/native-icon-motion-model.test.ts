@@ -70,6 +70,9 @@ test('Android toast icons animate only confirmed arrivals and dismiss via 48dp a
   assert.match(feedback, /<KnowMeNativeAnimatedIcon/);
   assert.match(feedback, /eventToken=\{toastEvent\}/);
   assert.match(feedback, /setToastEvent\(n => n \+ 1\)/);
+  assert.match(feedback, /useKnowMeAppForeground\(\)/);
+  assert.match(feedback, /if \(!toast \|\| !foreground\) return;/);
+  assert.match(feedback, /toast\.tone === 'error' \? 8000 : 5000/);
   assert.match(feedback, /<KnowMeNativeIconButton name="close"/);
   assert.match(feedback, /label="Fermer le message"/);
   assert.match(motion, /const firstEvent = eventToken !== null/);
