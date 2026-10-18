@@ -41,8 +41,10 @@ function Icon({ name, active = false }: { name: IconName; active?: boolean }) {
 function validCustomReaction(value: string) {
   const candidate = value.trim();
   // Supports compound emoji, flags and ZWJ sequences from the system emoji keyboard.
+  const withoutKeycaps = candidate.replace(/[0-9#*]\uFE0F?\u20E3/gu, '');
   return candidate.length > 0 && candidate.length <= 32 &&
-    /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{20e3}]/u.test(candidate);
+    /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{20e3}]/u.test(candidate) &&
+    !/[\p{Letter}\p{Number}\p{Punctuation}]/u.test(withoutKeycaps);
 }
 
 /**
