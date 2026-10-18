@@ -20,6 +20,18 @@ export type NativePostActionBarProps = {
 };
 
 const EMOJI_REACTIONS = ['❤️', '😂', '😮', '😢', '😡'];
+function BookmarkIcon({ color, filled }: { color: string; filled: boolean }) {
+  // Pure React Native geometry: rounded bookmark with a distinct notched base.
+  return <View style={{width:21,height:23,alignItems:'center',justifyContent:'flex-start'}}>
+    <View style={{width:17,height:17,borderTopWidth:1.8,borderLeftWidth:1.8,
+      borderRightWidth:1.8,borderColor:color,borderTopLeftRadius:3,
+      borderTopRightRadius:3,backgroundColor:filled?color:'transparent'}}/>
+    <View style={{position:'absolute',top:12,width:12,height:12,borderLeftWidth:1.8,
+      borderTopWidth:1.8,borderColor:color,transform:[{rotate:'45deg'}],
+      backgroundColor:filled?color:'transparent'}}/>
+  </View>;
+}
+
 const validEmoji = (value: string) => {
   const cleaned = value.trim();
   return Boolean(cleaned && cleaned.length <= 32 &&
@@ -122,7 +134,7 @@ export function PostActionBar({
         accessibilityState={{selected:saved,disabled:busy||!online}}
         disabled={busy||!online} onPress={()=>void action(onSave)}
         style={({pressed})=>[styles.action,styles.save,pressed&&styles.pressed]}>
-        <KnowMeIcon name="download" size={20} color={saved?colors.accent:colors.muted}/>
+        <BookmarkIcon color={saved?colors.accent:colors.muted} filled={saved}/>
       </Pressable>}
     </View>
     {error&&!open&&<Text accessibilityRole="alert" style={[styles.error,{color:colors.danger}]}>{error}</Text>}
