@@ -3,6 +3,7 @@ import './telegram-messenger.css';
 import './social-first-navigation.css';
 import './iconography.css';
 import './knowme-icon-motion.css';
+import '../components/knowme-icon-button.css';
 import './accessibility-overrides.css';
 import '../components/knowme-feedback.css';
 import '../components/network-connectivity-notice.css';
