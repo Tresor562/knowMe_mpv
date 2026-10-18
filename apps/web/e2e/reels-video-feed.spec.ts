@@ -39,10 +39,11 @@ test('Reels shows only active video and keeps actions tied to the original post'
   await expect.poll(()=>likes).toBe(1);
   await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toContainText('2');
 
-  // Double-tapping the playing surface uses the same actual post reaction API.
+  // A double tap on an already-liked Reel must not toggle the like off.
+  // The separate double-tap test verifies PUT creates an initial like.
   await viewport.locator('.km-reel-tap-zone').dblclick();
-  await expect.poll(()=>likes).toBe(2);
-  await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toContainText('1');
+  await expect.poll(()=>likes).toBe(1);
+  await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toContainText('2');
 
   // The elapsed/duration format does not wrap to minutes for long videos.
   await viewport.locator('video').evaluate(video => {
