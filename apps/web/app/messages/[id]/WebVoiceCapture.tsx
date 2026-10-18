@@ -53,10 +53,12 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     engine.current=null;
     if(!item)return;
     item.processor.onaudioprocess=null;
-    item.processor.disconnect();
-    item.input.disconnect();
-    item.silent.disconnect();
-    item.stream.getTracks().forEach(track=>track.stop());
+    // Every native/browser resource is released independently, even if one
+    // disconnect throws during device unplug or page backgrounding.
+    try{item.processor.disconnect();}catch{/* already detached */}
+    try{item.input.disconnect();}catch{/* already detached */}
+    try{item.silent.disconnect();}catch{/* already detached */}
+    item.stream.getTracks().forEach(track=>{try{track.stop();}catch{/* device gone */}});
     await item.context.close().catch(()=>undefined);
   }
 
@@ -150,6 +152,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
       if(stream&&!engine.current)stream.getTracks().forEach(track=>track.stop());
       if(context&&!engine.current)await context.close().catch(()=>undefined);
       await stopEngine();
+      if(!mountedRef.current)return;
       next('idle');setOpen(false);
       setError(cause instanceof Error?cause.message:(en?'Cannot access microphone.':'Accès au micro impossible.'));
     }
@@ -167,7 +170,9 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
       const file=new File([wav.buffer as ArrayBuffer],`knowme-vocal-${Date.now()}.wav`,{type:'audio/wav'});
       setReady(file);next('ready');
     }catch(cause){
-      chunks.current=[];next('idle');setOpen(false);
+      chunks.current=[];
+      if(!mountedRef.current||phaseRef.current!=='stopping')return;
+      next('idle');setOpen(false);
       setError(cause instanceof Error?cause.message:'Note vocale invalide.');
     }
   }
@@ -198,9 +203,12 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
       const message=await apiFetch<T>(`/conversations/${encodeURIComponent(conversationId)}/media-messages`,{
         method:'POST',body:JSON.stringify({assetId:asset.id,kind:'AUDIO'})
       });
-      onSent(message);
-      setReady(null);setOpen(false);next('idle');triggerRef.current?.focus();
+      if(mountedRef.current){
+        onSent(message);
+        setReady(null);setOpen(false);next('idle');triggerRef.current?.focus();
+      }
     }catch(cause){
+      if(!mountedRef.current)return;
       setError(cause instanceof Error?cause.message:(en?'Voice upload failed.':'Envoi vocal impossible.'));
       next('ready');
     }
