@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/audio-recorder-send-controls",
-      "task": "PR #706 : correctif vocaux Android isolé, anti-conflit vert ; CI et validation appareil en attente ; intégrer prototype Web après coordination #530/#567",
+      "task": "Reprise #706 après CI et coordination : fiabiliser cycle d'enregistrement, préécoute et intégration des contrôles vocaux",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T12:13:08.205Z",
+      "updatedAt": "2026-10-18T13:26:20.732Z",
       "lastPr": 706,
       "resumeFrom": {
         "pr": 706,
@@ -190,6 +190,14 @@
       "issue": 695,
       "branch": "chat/reels/story-archive-pagination",
       "pr": 709
+    },
+    {
+      "event": "resume",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T13:26:20.732Z",
+      "branch": "chat/messaging/audio-recorder-send-controls",
+      "pr": 706
     }
   ]
 }
