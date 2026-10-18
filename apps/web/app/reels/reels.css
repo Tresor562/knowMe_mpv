@@ -33,3 +33,22 @@
 .km-reels-error{top:auto;bottom:25px;background:#521e20}
 @media(max-width:660px){.km-reels-steps{right:5px;top:40%}.km-reels-steps button{width:34px;height:34px}.km-reel-overlay{padding-left:12px;padding-right:10px;padding-bottom:95px}}
 @media(prefers-reduced-motion:reduce){.km-reels-viewport{scroll-behavior:auto}}
+
+/* Only the focused Reel mounts the video player. Controls remain readable
+   while scrolling through the full-screen snap feed. */
+.km-reel-playback{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#030407;display:flex;align-items:center;justify-content:center}
+.km-reel-playback>.km-reel-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.km-reel-tap-zone{position:absolute;inset:0;border:0;background:transparent;color:#fff;cursor:pointer;display:grid;place-items:center;touch-action:pan-y}
+.km-reel-tap-zone:focus-visible{outline:3px solid #a5efe9;outline-offset:-3px}
+.km-reel-pause-symbol{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:rgba(0,0,0,.3);filter:drop-shadow(0 3px 10px #0007);pointer-events:none}
+.km-reel-heart{display:grid;place-items:center;filter:drop-shadow(0 3px 18px #000a);animation:km-reel-pop .55s ease-out both;pointer-events:none}
+@keyframes km-reel-pop{0%{transform:scale(.65);opacity:0}30%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:0}}
+.km-reel-player-controls{position:absolute;left:0;right:0;bottom:0;z-index:5;padding:6px 12px max(10px,env(safe-area-inset-bottom,0px));background:linear-gradient(0deg,#000d,#0007 68%,transparent);display:flex;flex-direction:column;gap:4px;pointer-events:none}
+.km-reel-player-progress,.km-reel-player-buttons{pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.km-reel-player-progress input{height:23px;flex:1;min-width:0;accent-color:#8ff1e7;cursor:pointer;touch-action:pan-y}
+.km-reel-player-progress input:disabled{cursor:default;opacity:.5}
+.km-reel-player-progress span{font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums;color:#fff}
+.km-reel-player-buttons button{display:grid;place-items:center;height:35px;min-width:40px;border:0;border-radius:12px;background:#ffffff21;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.km-reel-player-buttons button:is(:hover,:focus-visible){background:#ffffff40;outline:2px solid #a5efe9}
+.km-reel-player-error{display:block;padding:6px 10px;border-radius:10px;background:#501d24;font-size:12px;text-align:center;pointer-events:auto}
+@media(prefers-reduced-motion:reduce){.km-reel-heart{animation:none;opacity:1}}
