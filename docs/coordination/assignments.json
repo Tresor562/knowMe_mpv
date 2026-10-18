@@ -38,13 +38,13 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Signalement réel des publications depuis le menu Web, UI responsive FR/EN et E2E",
+      "task": "Web publication reporting — PR #705 draft, coordination green, CI quality/Playwright pending; Android feed blocked by historical #583 overlap",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T12:03:25.599Z",
-      "lastPr": null,
+      "updatedAt": "2026-10-18T12:09:18.992Z",
+      "lastPr": 705,
       "resumeFrom": null
     },
     "reels": {
@@ -126,6 +126,14 @@
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "issue": 695,
       "branch": "chat/reels/long-video-player-controls"
+    },
+    {
+      "at": "2026-10-18T12:09:18.992Z",
+      "action": "pause",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "branch": "chat/social/report-publication-web",
+      "pr": 705
     }
   ]
 }
