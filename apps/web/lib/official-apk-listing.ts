@@ -34,8 +34,11 @@ export function parseOfficialApkRelease(raw: unknown): OfficialApkRelease | null
     version + '-preview/' + apkName;
   const officialGithub = parsedUrl.hostname === 'github.com' &&
     parsedUrl.pathname === githubPath;
-  const officialVps = /^\/([a-z\d-]+\/)*mobile-updates\/android\/apk\/KnowMe-\d+\.\d+\.\d+-preview\.apk$/.test(parsedUrl.pathname) &&
-    parsedUrl.pathname.endsWith('/' + apkName);
+  // A matching filename on a third-party host does not make an APK official.
+  // This must match the origin configured by KnowMe's VPS update publisher.
+  const officialVps = parsedUrl.hostname === '31-56-85-53.sslip.io' &&
+    parsedUrl.port === '' &&
+    parsedUrl.pathname === '/knowme-api/mobile-updates/android/apk/' + apkName;
 
   if (!officialGithub && !officialVps) return null;
 
