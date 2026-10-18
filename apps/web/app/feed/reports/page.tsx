@@ -108,7 +108,12 @@ export default function MyPostReportsPage() {
   return (
     <main className="shell km-post-report-history">
       <header className="km-post-report-history-head">
-        <Link href="/feed" aria-label={en ? 'Back to feed' : 'Retour au fil'}>‹</Link>
+        <Link href="/feed" aria-label={en ? 'Back to feed' : 'Retour au fil'}>
+          <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m14.5 5-7 7 7 7" />
+          </svg>
+        </Link>
         <div>
           <h1>{heading}</h1>
           <p>{en ? 'Private to your account' : 'Visible uniquement par ton compte'}</p>
@@ -172,7 +177,9 @@ export default function MyPostReportsPage() {
           {records.map(record => (
             <li key={record.id}>
               <div className="km-post-report-history-meta">
-                <strong>{reportStatus(record.status, en)}</strong>
+                <strong className="km-post-report-history-status" data-status={record.status}>
+                  {reportStatus(record.status, en)}
+                </strong>
                 <time dateTime={record.createdAt}>
                   {new Date(record.createdAt).toLocaleString(en ? 'en-US' : 'fr-FR')}
                 </time>
