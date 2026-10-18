@@ -8,7 +8,7 @@ import {
   useState
 } from 'react';
 import { AccessibilityInfo, useColorScheme } from 'react-native';
-import { accessibleVisualStyle } from './appearance-accessibility';
+import { accessibleGlassPalette, accessibleVisualStyle } from './appearance-accessibility';
 import {
   AppearanceResponse,
   AppearanceUpdateInput,
@@ -61,7 +61,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const colors = useMemo(
-    () => resolveMobilePalette(appearance, systemColorScheme),
+    () => accessibleGlassPalette(
+      resolveMobilePalette(appearance, systemColorScheme),
+      appearance?.preference.reduceTransparency === true
+    ),
     [appearance, systemColorScheme]
   );
   const visual = useMemo(
