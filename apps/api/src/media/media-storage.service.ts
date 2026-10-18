@@ -1,10 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { createHash, createHmac } from 'crypto';
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, open, readFile, rm, stat, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
 import { TelegramMediaStorage } from './telegram-media-storage';
 
 export type MediaStorageDriver = 'local' | 's3' | 'telegram';
+const MAX_STORAGE_RANGE_BYTES = 4 * 1024 * 1024;
 
 type S3Config = {
   endpoint: URL;
@@ -54,6 +55,71 @@ export class MediaStorageService implements OnModuleInit {
     if (this.driver === 'telegram') return this.telegram!.get(key);
     const response = await this.s3Request('GET', key);
     return Buffer.from(await response.arrayBuffer());
+  }
+
+  /**
+   * Returns object size without fetching bytes for local/S3 drivers.
+   * Telegram's legacy object adapter currently requires one full read.
+   */
+  async getSize(key: string): Promise<number> {
+    this.assertSafeKey(key);
+    if (this.driver === 'local') return (await stat(this.localPath(key))).size;
+    if (this.driver === 'telegram') return (await this.telegram!.get(key)).length;
+    const response = await this.s3Request('HEAD', key);
+    const rawSize = response.headers.get('content-length');
+    if (!rawSize || !/^(0|[1-9]\d*)$/.test(rawSize)) {
+      throw new Error('Private object storage returned an invalid object length.');
+    }
+    const size = Number(rawSize);
+    if (!Number.isSafeInteger(size) || size < 0) {
+      throw new Error('Private object storage returned an invalid object length.');
+    }
+    return size;
+  }
+
+  /**
+   * Strict, bounded byte-range reads. S3 signs the Range header so no
+   * untrusted caller can bypass storage auth, local files use positioned I/O.
+   * Telegram is a legacy fallback and still materializes the whole object.
+   */
+  async getRange(key: string, start: number, end: number): Promise<Buffer> {
+    this.assertSafeKey(key);
+    const length = end - start + 1;
+    if (
+      !Number.isSafeInteger(start) || !Number.isSafeInteger(end) ||
+      start < 0 || end < start || length > MAX_STORAGE_RANGE_BYTES
+    ) {
+      throw new Error('Invalid private media storage byte range.');
+    }
+    if (this.driver === 'local') {
+      const descriptor = await open(this.localPath(key), 'r');
+      try {
+        const buffer = Buffer.alloc(length);
+        let read = 0;
+        while (read < length) {
+          const result = await descriptor.read(buffer, read, length - read, start + read);
+          if (result.bytesRead <= 0) break;
+          read += result.bytesRead;
+        }
+        if (read !== length) throw new Error('Incomplete local media range.');
+        return buffer;
+      } finally {
+        await descriptor.close();
+      }
+    }
+    if (this.driver === 'telegram') {
+      const body = await this.telegram!.get(key);
+      if (end >= body.length) throw new Error('Invalid Telegram media range.');
+      return body.subarray(start, end + 1);
+    }
+    const response = await this.s3Request('GET', key, undefined, undefined, false,
+      `bytes=${start}-${end}`);
+    if (response.status !== 206) {
+      throw new Error('Private object storage did not honor the requested byte range.');
+    }
+    const body = Buffer.from(await response.arrayBuffer());
+    if (body.length !== length) throw new Error('Incomplete S3 media range.');
+    return body;
   }
 
   async delete(key: string) {
@@ -130,18 +196,19 @@ export class MediaStorageService implements OnModuleInit {
   }
 
   private async s3Request(
-    method: 'GET' | 'PUT' | 'DELETE',
+    method: 'GET' | 'PUT' | 'DELETE' | 'HEAD',
     key: string,
     body?: Buffer,
     contentType?: string,
-    allowNotFound = false
+    allowNotFound = false,
+    range?: string
   ) {
     if (!this.s3) throw new Error('S3 media storage is not configured.');
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= this.s3.maxAttempts; attempt += 1) {
       try {
-        const response = await this.s3RequestAttempt(method, key, body, contentType);
+        const response = await this.s3RequestAttempt(method, key, body, contentType, range);
         if (allowNotFound && response.status === 404) return response;
         if (response.ok) return response;
 
@@ -160,10 +227,11 @@ export class MediaStorageService implements OnModuleInit {
   }
 
   private async s3RequestAttempt(
-    method: 'GET' | 'PUT' | 'DELETE',
+    method: 'GET' | 'PUT' | 'DELETE' | 'HEAD',
     key: string,
     body?: Buffer,
-    contentType?: string
+    contentType?: string,
+    range?: string
   ) {
     if (!this.s3) throw new Error('S3 media storage is not configured.');
     const url = this.objectUrl(this.s3, key);
@@ -177,6 +245,7 @@ export class MediaStorageService implements OnModuleInit {
       'x-amz-date': amzDate
     };
     if (contentType) headers['content-type'] = contentType;
+    if (range) headers.range = range;
     if (this.s3.sessionToken) headers['x-amz-security-token'] = this.s3.sessionToken;
 
     const signedHeaderNames = Object.keys(headers).sort();
