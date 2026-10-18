@@ -124,17 +124,17 @@
     },
     "infra": {
       "issue": 698,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/release-guard-readiness",
-      "task": "Reprise PR #721: résoudre mergeability, exact SHA validation + durcir contrôle de versions des releases",
+      "task": "PR #721 : audit API/ready/Web VPS/Vercel/Android durci, 15 tests au dernier HEAD 1411f35 encore en attente de runners GitHub; 12/12 sur ancien HEAD cb8d528. Vérifier checks exact-head, fusion sûre sans bypass, puis preuve de livraison.",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T14:32:46.566Z",
+      "updatedAt": "2026-10-18T14:39:16.565Z",
       "lastPr": 721,
       "resumeFrom": {
         "pr": 721,
         "branch": "chat/infra/release-guard-readiness",
-        "commit": "cb8d528fcec626661c34f1eca9b15c957d2f90fe"
+        "commit": "1411f351381daf0d2c74360d8e23d5b2009c1139"
       }
     },
     "design": {
@@ -565,6 +565,15 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 730,
       "alsoPr": 724
+    },
+    {
+      "action": "pause",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "at": "2026-10-18T14:39:16.565Z",
+      "branch": "chat/infra/release-guard-readiness",
+      "pr": 721,
+      "head": "1411f351381daf0d2c74360d8e23d5b2009c1139"
     }
   ]
 }
