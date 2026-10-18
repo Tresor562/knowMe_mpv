@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { apiFetch } from '../lib/api';
+import { knowMeConfirm, knowMeToast } from './knowme-feedback';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -13,7 +15,7 @@ type AvatarQuickActionsProps = {
   busy?: boolean;
 };
 
-type GlyphName = 'story' | 'view' | 'photo' | 'cover' | 'design';
+type GlyphName = 'story' | 'view' | 'photo' | 'cover' | 'design' | 'remove';
 
 function ActionIcon({name}:{name:GlyphName}) {
   const base = {viewBox:'0 0 24 24',width:21,height:21,fill:'none',stroke:'currentColor',
@@ -22,6 +24,7 @@ function ActionIcon({name}:{name:GlyphName}) {
   if(name==='view') return <svg {...base}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
   if(name==='photo') return <svg {...base}><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="1.3"/><path d="m4 17 5-5 3 3 3-3 5 5"/></svg>;
   if(name==='cover') return <svg {...base}><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="m3 16 6-6 4 4 3-3 5 5"/></svg>;
+  if(name==='remove') return <svg {...base}><path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6m4-6v6"/></svg>;
   return <svg {...base}><path d="M12 3l1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3Z"/><path d="m19 17 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>;
 }
 
@@ -31,6 +34,7 @@ export function AvatarQuickActions({
 }: AvatarQuickActionsProps) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,12 +77,37 @@ export function AvatarQuickActions({
     return () => window.removeEventListener('keydown', escape);
   }, [preview]);
 
+  async function removePhoto() {
+    if (!avatarUrl || busy || removing) return;
+    const confirmed = await knowMeConfirm(en
+      ? 'Remove your current profile picture? Your profile will use the default avatar.'
+      : 'Retirer ta photo de profil actuelle ? Ton profil utilisera l’avatar par défaut.');
+    if (!confirmed) return;
+
+    setRemoving(true);
+    try {
+      // Server-authoritative removal: do not hide the photo before PATCH succeeds.
+      await apiFetch('/account/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatarUrl: null })
+      });
+      setPreview(false);
+      // The parent profile owns a separate useSession snapshot.
+      window.location.reload();
+    } catch (cause) {
+      knowMeToast(cause instanceof Error ? cause.message
+        : en ? 'Could not remove the picture.' : 'Impossible de retirer la photo.', 'error');
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   const act = (operation: () => void) => { setOpen(false); operation(); };
   return (
     <div className="km-avatar-actions" ref={wrap}>
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
         aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
-        onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
+        onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy || removing}>
         <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
       {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
@@ -97,6 +126,11 @@ export function AvatarQuickActions({
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
+        {avatarUrl && <button type="button" role="menuitem"
+          disabled={busy || removing} style={{ color: 'var(--danger, #d64f62)' }}
+          onClick={() => { setOpen(false); void removePhoto(); }}>
+          <ActionIcon name="remove" />{en ? 'Remove profile picture' : 'Retirer la photo'}
+        </button>}
       </div>}
       {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
