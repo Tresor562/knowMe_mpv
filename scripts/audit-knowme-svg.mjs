@@ -28,7 +28,8 @@ const warnings = [];
 const sum = {
   inspectedFiles: 0, svgFiles: 0, androidVectorFiles: 0, inlineSVG: 0,
   jsxSvgReferences: 0, dynamicSVG: 0, iconLibraryReferences: 0,
-  nativeComposedIconReferences: 0, rasterAssetFiles: 0, cssSvgReferences: 0
+  nativeComposedIconReferences: 0, rasterAssetFiles: 0, cssSvgReferences: 0,
+  legacyUnicodeControlCandidates: 0
 };
 function lineOf(source, index) { return source.slice(0, index).split('\n').length; }
 function add(row, kind, source, regex) {
@@ -68,6 +69,13 @@ function inspect(file) {
     add(row, 'svg-import', source, /(?:from\s*['"][^'"]+\.svg['"]|require\s*\(\s*['"][^'"]+\.svg['"]\))/g);
     add(row, 'icon-library', source, /(?:from\s*['"](?:lucide-react|react-icons[^'"]*|@expo\/vector-icons|@fortawesome\/[^'"]+|react-native-vector-icons[^'"]*|react-native-svg)['"]|<(?:FontAwesome|MaterialIcons|Ionicons|Feather)\b)/g);
     add(row, 'native-icon-composed', source, /\b(?:KnowMeIcon|NavIcon|ActionIcon|ShareGlyph|PressScale)\b/g);
+    // Review only: may include template strings or legitimate text; do not
+    // treat every Unicode character as an invalid control or as an emoji icon.
+    // This surfaces typography-based controls still requiring the icon family.
+    if (extension === '.tsx' || extension === '.jsx') {
+      add(row, 'legacy-unicode-control-review', source,
+        /(?:>\s*[×✕▶Ⅱ⛶✦]\s*<|[🔇🔊]|↶10|10↷)/g);
+    }
     if (extension === '.css') add(row, 'css-svg-reference', source, /url\([^)]*(?:\.svg|svg\+xml)[^)]*\)/gi);
   }
   if (sourceTypes.has(extension) && extension !== '.css') {
@@ -89,6 +97,8 @@ function inspect(file) {
   sum.iconLibraryReferences += row.findings.filter(f => f.kind === 'icon-library' || f.kind === 'svg-import').length;
   sum.nativeComposedIconReferences += row.findings.filter(f => f.kind === 'native-icon-composed').length;
   sum.cssSvgReferences += row.findings.filter(f => f.kind === 'css-svg-reference').length;
+  sum.legacyUnicodeControlCandidates += row.findings
+    .filter(f => f.kind === 'legacy-unicode-control-review').length;
   if (row.findings.length) fileRows.push(row);
 }
 function visit(dir) {
