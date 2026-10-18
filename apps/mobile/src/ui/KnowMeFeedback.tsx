@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View, type AlertButton, type AlertOptions } from 'react-native';
 import { useAppearance } from '../AppearanceProvider';
 import { GlassSurface, KnowMeIcon, PressScale } from './KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './KnowMeNativeAnimatedIcon';
+import { KnowMeNativeIconButton } from './KnowMeNativeIconButton';
 
 type Dialog = { kind: 'dialog'; title: string; message?: string; buttons?: AlertButton[]; options?: AlertOptions };
 type Toast = { kind: 'toast'; message: string; tone: 'info' | 'success' | 'error' };
@@ -27,11 +29,12 @@ export function KnowMeFeedbackProvider({ children }: { children: ReactNode }) {
   const { colors } = useAppearance();
   const [dialogs, setDialogs] = useState<Dialog[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [toastEvent, setToastEvent] = useState(0);
   const current = dialogs[0] ?? null;
   useEffect(() => {
     const accept = (item: Request) => {
       if (item.kind === 'dialog') setDialogs(previous => [...previous, item]);
-      else setToast(item);
+      else { setToast(item); setToastEvent(n => n + 1); }
     };
     receiver = accept;
     const earlier = queued;
@@ -59,12 +62,14 @@ export function KnowMeFeedbackProvider({ children }: { children: ReactNode }) {
       {toast ? (
         <View pointerEvents="box-none" style={styles.toastLayer}>
           <GlassSurface strength="medium" borderRadius={22} style={styles.toast}>
-            <KnowMeIcon name={toast.tone === 'error' ? 'close' : 'check'} size={19}
+            <KnowMeNativeAnimatedIcon
+              name={toast.tone === 'error' ? 'close' : toast.tone === 'success' ? 'check' : 'spark'}
+              state={toast.tone === 'error' ? 'error' : toast.tone === 'success' ? 'success' : 'incoming'}
+              eventToken={toastEvent} size={20}
               color={toast.tone === 'error' ? colors.danger : colors.accent} />
             <Text accessibilityRole="alert" style={[styles.toastText, { color: colors.text }]}>{toast.message}</Text>
-            <Pressable accessibilityLabel="Fermer le message" onPress={() => setToast(null)}>
-              <KnowMeIcon name="close" size={18} color={colors.muted} />
-            </Pressable>
+            <KnowMeNativeIconButton name="close" size={18} color={colors.muted}
+              label="Fermer le message" onPress={() => setToast(null)} />
           </GlassSurface>
         </View>
       ) : null}
