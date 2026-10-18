@@ -72,6 +72,12 @@ test('group media/files/links are real, paginated and deep-link to their message
   await page.getByRole('tab',{name:'Médias'}).click();
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/grp1?message=img1');
+  await page.getByRole('button',{name:'Sélectionner',exact:true}).click();
+  await page.getByRole('checkbox',{name:/Sélectionner le message de Alice/}).check();
+  await expect(page.getByRole('button',{name:'Copier les liens vers les messages'})).toBeEnabled();
+  await page.getByRole('tab',{name:'Fichiers'}).click();
+  await expect(page.getByRole('checkbox',{name:/Sélectionner le message de Alice/})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Sélectionner',exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'Recherche'}).click();
   await page.getByRole('searchbox',{name:'Rechercher les messages du groupe'}).fill('ressource');
   await expect(page.getByRole('link',{name:'Voir le message'}))
