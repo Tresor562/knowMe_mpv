@@ -44,6 +44,35 @@ test('private chat has shared media, links, files and search without group admin
   await page.getByRole('searchbox',{name:'Rechercher les messages privés'}).fill('guide');
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/dm-1?message=dm-text');
+  // WAI-ARIA tablist: arrow/home/end navigate without hunting for tiny tabs.
+  await page.getByRole('tab',{name:'Recherche'}).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab',{name:'Liens'})).toHaveAttribute('aria-selected','true');
+  await page.keyboard.press('Home');
+  await expect(page.getByRole('tab',{name:'Participants'})).toHaveAttribute('aria-selected','true');
+  await page.keyboard.press('End');
+  await expect(page.getByRole('tab',{name:'Recherche'})).toHaveAttribute('aria-selected','true');
   const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   expect(noOverflow).toBeTruthy();
+});
+
+test('a private conversation absent from the signed-in chat list never exposes its content',async({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('knowme_token','private-no-access-test');
+    localStorage.setItem('knowme-locale','fr');
+  });
+  let fetched=false;
+  await page.route('**/api/knowme/**',async route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/conversations/dm-secret/messages')) fetched=true;
+    const response=path.endsWith('/users/me')
+      ? {id:'viewer',username:'viewer',displayName:'Viewer',email:'v@example.test'}
+      : path.endsWith('/conversations')?[]:{};
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(response)});
+  });
+  await page.goto('/messages/dm-secret/info');
+  await expect(page.locator('.km-info-page .km-auth-error[role="alert"]')).toContainText('introuvable');
+  await expect(page.getByRole('tab',{name:'Médias'})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:/Voir le message/})).toHaveCount(0);
+  expect(fetched).toBe(false);
 });
