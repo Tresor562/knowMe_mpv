@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur';
-import { ReactNode, type ReactElement, useEffect, useMemo, useRef } from 'react';
+import { ReactNode, type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   Easing,
   Image,
@@ -184,13 +185,36 @@ export function KnowMeIcon({
     <View style={{position:'absolute',right:1*s,top:6*s,width:7*s,height:12*s,borderWidth:sw,borderColor:color,
       borderTopLeftRadius:5*s,borderBottomLeftRadius:5*s,transform:[{rotate:'25deg'}]}}/>
   </View>;
-  if(name==='phone-call')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'-35deg'}]}}>
-    <View style={{width:11*s,height:19*s,borderWidth:sw,borderColor:color,borderTopLeftRadius:9*s,borderBottomRightRadius:9*s,borderTopRightRadius:2*s,borderBottomLeftRadius:2*s}}/>
-  </View>;
+  if (name === 'phone-call') return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', left: 7 * s, top: 4 * s, width: 12 * s, height: 16 * s,
+        borderLeftWidth: 3.4 * s, borderBottomWidth: 3.4 * s, borderColor: color,
+        borderBottomLeftRadius: 11 * s, transform: [{ rotate: '-42deg' }] }}/>
+      <View style={{ position: 'absolute', left: 3.5 * s, top: 3 * s, width: 6.2 * s, height: 8 * s,
+        backgroundColor: color, borderRadius: 3 * s, transform: [{ rotate: '-32deg' }] }}/>
+      <View style={{ position: 'absolute', right: 2.5 * s, bottom: 3.3 * s, width: 6.2 * s, height: 8 * s,
+        backgroundColor: color, borderRadius: 3 * s, transform: [{ rotate: '-32deg' }] }}/>
+    </View>
+  );
   if(name==='paperclip')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'42deg'}]}}>
     <View style={{height:21*s,width:13*s,borderColor:color,borderWidth:sw,borderRadius:7*s,borderBottomColor:'transparent'}}/>
     <View style={{position:'absolute',height:14*s,width:5*s,borderColor:color,borderWidth:sw,borderRadius:4*s,top:5*s}}/>
   </View>;
+
+  // A real settings glyph instead of the former generic square-with-dot fallback.
+  if (name === 'settings') {
+    return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 15.5 * s, height: 15.5 * s, borderRadius: 8 * s, borderWidth: sw, borderColor: color,
+        alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 5.4 * s, height: 5.4 * s, borderWidth: sw, borderColor: color, borderRadius: 3 * s }}/>
+      </View>
+      {Array.from({ length: 8 }, (_, index) => (
+        <View key={index} style={{ position: 'absolute', width: 4 * s, height: 3 * s, borderRadius: 1 * s,
+          backgroundColor: color, left: 10 * s, top: 10.5 * s,
+          transform: [{ rotate: `${index * 45}deg` }, { translateY: -9.2 * s }] }}/>
+      ))}
+    </View>;
+  }
 
   if (name === 'home') {
     return (
@@ -604,15 +628,28 @@ export function PressScale({
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
-  const motion = appearance?.preference.animationsEnabled !== false;
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(reduced => { if (mounted) setSystemReducedMotion(reduced); })
+      .catch(() => { /* Use the KnowMe preference on older devices. */ });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setSystemReducedMotion);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
+  const motion = appearance?.preference.animationsEnabled !== false && !systemReducedMotion;
+  useEffect(() => {
+    if (!motion) { value.stopAnimation(); value.setValue(1); }
+  }, [motion, value]);
 
   function to(next: number) {
-    if (!motion) return;
-    Animated.spring(value, {
+    if (!motion || disabled) return;
+    value.stopAnimation();
+    Animated.timing(value, {
       toValue: next,
-      useNativeDriver: true,
-      speed: 28,
-      bounciness: 2
+      duration: next === 1 ? 150 : 95,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
     }).start();
   }
 
@@ -623,7 +660,8 @@ export function PressScale({
       accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => to(0.97)}
+      hitSlop={4}
+      onPressIn={() => to(0.93)}
       onPressOut={() => to(1)}
     >
       <Animated.View
