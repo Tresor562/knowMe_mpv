@@ -106,3 +106,40 @@
   outline: 2px solid var(--mint);
   outline-offset: 3px;
 }
+
+.km-post-report-history-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 4px 1px 10px;
+  scrollbar-width: thin;
+}
+.km-post-report-history-filters button {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--soft-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 670;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.km-post-report-history-filters button[aria-pressed='true'] {
+  color: var(--on-primary);
+  background: var(--mint);
+  border-color: var(--mint);
+}
+.km-post-report-history-filters button:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-post-report-history-filters {
+    scroll-behavior: auto;
+  }
+}
