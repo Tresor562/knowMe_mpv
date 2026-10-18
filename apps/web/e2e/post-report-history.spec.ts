@@ -47,11 +47,12 @@ test('my publication reports shows a retry on API failure, never false empty sta
     localStorage.setItem('knowme_token','report-history-error-token');
     localStorage.setItem('knowme-locale','fr');
   });
-  let fails = true;
+  // Keep the backend unavailable until the user explicitly retries.
+  // The API client may transparently retry a GET once or more.
+  let unavailable = true;
   await page.route('**/api/knowme/**',async route=>{
     const path = new URL(route.request().url()).pathname;
-    if(path.endsWith('/reports/mine') && fails){
-      fails = false;
+    if(path.endsWith('/reports/mine') && unavailable){
       await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Historique indisponible'})});
       return;
     }
@@ -65,6 +66,9 @@ test('my publication reports shows a retry on API failure, never false empty sta
   await page.goto('/feed/reports');
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByText('Aucun signalement de publication dans ton historique récent')).toHaveCount(0);
-  await page.getByRole('button',{name:'Réessayer'}).click();
+  const retry = page.getByRole('button', {name:'Réessayer'});
+  await expect(retry).toBeVisible();
+  unavailable = false;
+  await retry.click();
   await expect(page.getByRole('heading',{name:'Aucun signalement de publication dans ton historique récent'})).toBeVisible();
 });
