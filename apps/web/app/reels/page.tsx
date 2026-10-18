@@ -119,6 +119,25 @@ export default function ReelsPage() {
       ?.scrollIntoView({block:'center',behavior:'smooth'});
   }
 
+  async function ensureLike(post:Post){
+    if(pendingLike || liked[post.id] === true)return;
+    setPendingLike(post.id);
+    try {
+      const result=await apiFetch<{liked:boolean;count:number}>(
+        '/posts/'+encodeURIComponent(post.id)+'/like',{method:'PUT'}
+      );
+      setLiked(current=>({...current,[post.id]:result.liked}));
+      // Use the server total, since the post might have been liked earlier
+      // on another device; guessing +1 would overcount.
+      setCounts(current=>({...current,[post.id]:result.count}));
+    } catch(cause) {
+      setFeedback(cause instanceof Error?cause.message:
+        (en?'Reaction unavailable.':'Réaction impossible.'));
+    } finally {
+      setPendingLike(null);
+    }
+  }
+
   async function like(post:Post){
     if(pendingLike)return;
     setPendingLike(post.id);
@@ -180,7 +199,7 @@ export default function ReelsPage() {
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
             {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
-              en={en} onDoubleTap={() => { void like(post); }} />
+              en={en} onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
             <div className="km-reel-overlay">
               <div className="km-reel-info">
