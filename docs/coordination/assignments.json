@@ -157,12 +157,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/system-accessibility-fallbacks",
-      "task": "PR #724 HEAD e176cbf : anti-clignotement thèmes combinés, live OS clair/sombre (anonymous + SYSTEM custom), transparent joined dock; nouveaux tests E2E; CI/coordination/APK du HEAD non conclusifs. PR #730 HEAD 382e42c : fenêtres accessibles + notifications en file, APK+guard verts, CI en file. Aucune fusion ni déploiement attestés.",
+      "task": "Refonte design demandée: notifications visibles pendant navigation, architecture conversations/emoji/stickers, commandes compactes; respecter domaines fonctionnels #693/#694/#698",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T15:03:29.502Z",
+      "updatedAt": "2026-10-18T15:14:49.725Z",
       "lastPr": 724,
       "resumeFrom": {
         "pr": 724,
@@ -820,6 +820,12 @@
       "issue": 697,
       "branch": "chat/marketplace/verified-transaction-history",
       "pr": 741
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T15:14:49.725Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
     }
   ]
 }
