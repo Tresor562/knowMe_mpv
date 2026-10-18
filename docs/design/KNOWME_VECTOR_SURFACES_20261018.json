@@ -19,7 +19,14 @@
         "apps/web/components/bottom-navigation.tsx",
         "apps/mobile/App.tsx"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web: bottom-navigation uses KnowMeAnimatedIcon with selected state",
+        "Shared 44px icon action and route icon feedback"
+      ],
+      "unresolved": [
+        "Native dock variants and all screen-specific navigation controls not exhaustively inspected"
+      ]
     },
     {
       "id": "feed",
@@ -29,7 +36,14 @@
         "apps/web/app/feed",
         "apps/mobile/src/FeedExperience.tsx"
       ],
-      "status": "blocked"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared post video toolbar: 79-glyph catalog, play/pause, seek, volume, fullscreen",
+        "Shared post share and edit sheet vectors"
+      ],
+      "unresolved": [
+        "Feed reactions/comments and mobile feed visuals coordinated with Social #694"
+      ]
     },
     {
       "id": "post-comments",
@@ -39,7 +53,13 @@
         "apps/web/app/feed",
         "apps/mobile/src"
       ],
-      "status": "uninspected"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared comment report sheet uses close/send vector statuses"
+      ],
+      "unresolved": [
+        "Comment reactions, share and reply interface owned by #694"
+      ]
     },
     {
       "id": "reactions",
@@ -79,7 +99,15 @@
         "apps/web/app/profile",
         "apps/web/components/avatar-quick-actions.tsx"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Avatar action popup viewport placement, keyboard navigation, image viewer focus",
+        "Compact secret profile CTA with shield/send glyphs",
+        "Creator follow action displays confirmed follow state"
+      ],
+      "unresolved": [
+        "Other profile screens and certification badges owned by Profiles #696"
+      ]
     },
     {
       "id": "preferences",
@@ -89,7 +117,14 @@
         "apps/web/app/settings",
         "apps/mobile/src/ui/KnowMeUI.tsx"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web media/download preference labels and networks use matching vector family",
+        "Android language picker 48dp accessible close and genuine sync indicator"
+      ],
+      "unresolved": [
+        "Other app preferences and theme pack variants require QA"
+      ]
     },
     {
       "id": "stories",
@@ -109,7 +144,13 @@
         "apps/web/app/reels",
         "apps/mobile/src"
       ],
-      "status": "uninspected"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Original rewind-10, forward-10, fullscreen vector symbols available for Reels owners"
+      ],
+      "unresolved": [
+        "Actual Reels and Stories UI owned by #695 still requires integration"
+      ]
     },
     {
       "id": "marketplace",
@@ -130,7 +171,13 @@
         "apps/web/app/search",
         "apps/mobile/src"
       ],
-      "status": "uninspected"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared member picker: loading search vector, compact results, add/selected/unavailable glyphs"
+      ],
+      "unresolved": [
+        "Global search results, discovery rankings and Android search pages uninspected"
+      ]
     },
     {
       "id": "notifications",
@@ -141,7 +188,14 @@
         "apps/web/components/in-app-notifications.tsx",
         "apps/mobile/src/NotificationCenterExperience.tsx"
       ],
-      "status": "blocked"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web feedback/toast icons now follow warning/info/success kind",
+        "Android in-app toast events and 48dp dismissal"
+      ],
+      "unresolved": [
+        "Android full notification center overlaps its own Messaging/Design PR; see #743"
+      ]
     },
     {
       "id": "stickers-emoji-gif",
@@ -172,7 +226,14 @@
         "apps/web/app/reels",
         "apps/mobile/src"
       ],
-      "status": "blocked"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web post video controls use actual playback/mute/fullscreen states",
+        "Viewport-intersection pause for animated icons"
+      ],
+      "unresolved": [
+        "Message audio bars, multi-hour Reels transport and Android video/voice controls belong to #693/#695"
+      ]
     },
     {
       "id": "calls",
@@ -204,7 +265,13 @@
         "apps/web/app/marketplace",
         "apps/mobile/src"
       ],
-      "status": "uninspected"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web media download settings: photos, video, audio, files and network category icons"
+      ],
+      "unresolved": [
+        "Messages file gallery and transfer list; native SVG dependency not installed"
+      ]
     },
     {
       "id": "menus-modals",
@@ -214,7 +281,14 @@
         "apps/web/components",
         "apps/mobile/src/ui"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Avatar portal, keyboard menu, photo modal, shared share-sheet focus trap",
+        "Compact report/edit modal close vectors and accessible touch targets"
+      ],
+      "unresolved": [
+        "Other context menus and native sheets not exhaustively migrated"
+      ]
     },
     {
       "id": "errors-offline",
@@ -224,7 +298,14 @@
         "apps/web/components/network-connectivity-notice.tsx",
         "apps/mobile/src"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web connectivity notice wifi-off/wifi icon states",
+        "Web/Android toast severity vectors and event-driven feedback"
+      ],
+      "unresolved": [
+        "Additional on-device offline/retry surfaces remain"
+      ]
     },
     {
       "id": "admin",
@@ -255,7 +336,27 @@
         "apps/web/public/chat-pattern.svg",
         "apps/mobile/assets"
       ],
-      "status": "partial"
+      "status": "partial",
+      "completedOrImplemented": [
+        "Decorative SVG motif labeled as non-interactive"
+      ],
+      "unresolved": [
+        "Logo illustrations and native sources need device-by-device visual review"
+      ]
     }
-  ]
+  ],
+  "vectorSourceCounts": {
+    "webGlyphNames": 79,
+    "androidGenuineSvgGlyphsConfirmed": 0,
+    "androidReactNativeSvgDependencyInstalled": false,
+    "inventoryIncludesSource": "scripts/audit-knowme-svg.mjs",
+    "inventoryWarning": "Count is not equivalent to full runtime/device visual coverage"
+  },
+  "releaseGate": {
+    "webDeploymentVerified": false,
+    "androidSignedReleaseVerified": false,
+    "androidDeviceVisualQA": false,
+    "prMergeBlockedByConcurrentPRs": true,
+    "codeBranch": "chat/design/vector-icons-tactile-web-android"
+  }
 }
