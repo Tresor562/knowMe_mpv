@@ -158,7 +158,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           </Pressable>
           {Boolean(post.content)&&<>
             <Text style={styles.caption} numberOfLines={4}>{post.content}</Text>
-            {(post.content.length>160||post.content.includes('\n'))&&
+            {Boolean(post.content)&&
               <Pressable accessibilityRole="button"
                 accessibilityLabel={'Lire toute la description de '+post.author.displayName}
                 onPress={()=>setCaptionClip(post)} style={styles.readMore}>
