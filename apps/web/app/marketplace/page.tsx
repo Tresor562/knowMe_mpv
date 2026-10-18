@@ -278,6 +278,18 @@ export default function MarketplacePage() {
           <span>{en ? 'Apps and APKs' : 'Applications et APK'}</span>
           <span aria-hidden="true">›</span>
         </Link>
+        <Link href="/marketplace/history">
+          <span aria-hidden="true" className={styles.shortcutIcon}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 5h16M5 9h14v12H5z" />
+              <path d="M8 13h8M8 17h5" />
+              <path d="M8 3h8" />
+            </svg>
+          </span>
+          <span>{en ? 'My transactions' : 'Mes transactions'}</span>
+          <span aria-hidden="true">›</span>
+        </Link>
       </nav>
 
       {feedback && <p className={styles.successNotice} role="status">{feedback}</p>}
