@@ -4,13 +4,14 @@ import {apiFetch} from './api';
 import type {SelectedAndroidMedia} from './AndroidMediaLibraryPicker';
 import {convertToKnowStickerWebp} from './native-gallery';
 import {normalizeKnowStickerLabel,knowStickerUploadName} from './knowsticker-naming-model';
+import {parseKnowStickerEmojiTags} from './knowsticker-emoji-tags';
 
 const REGISTRY='knowme.knowsticker.local.packs.v1';
 const FORMAT='KNOWSTICKER_V1';
 const MAX_STICKER_SIZE=8*1024*1024;
-export type KnowStickerItem={id:string;uri:string;name:string;mime:string};
+export type KnowStickerItem={id:string;uri:string;name:string;mime:string;emojis?:string[]};
 export type KnowStickerPack={id:string;name:string;createdAt:string;format:typeof FORMAT;
-  items:KnowStickerItem[]};
+  archived?:boolean;items:KnowStickerItem[]};
 
 function dir(){if(!FileSystem.documentDirectory)throw new Error('Stockage privé indisponible.');
   return FileSystem.documentDirectory+'knowsticker/';}
@@ -19,7 +20,10 @@ export async function readKnowStickerPacks():Promise<KnowStickerPack[]>{
   try{
     const raw=await AsyncStorage.getItem(REGISTRY);
     const data=JSON.parse(raw||'[]') as KnowStickerPack[];
-    return Array.isArray(data)?data.filter(p=>p.format===FORMAT&&Array.isArray(p.items)):[];
+    return Array.isArray(data)?data.filter(p=>p.format===FORMAT&&Array.isArray(p.items))
+      .map(p=>({...p,archived:!!p.archived,items:p.items.map(item=>({
+        ...item,emojis:Array.isArray(item.emojis)?item.emojis.filter((v):v is string=>typeof v==='string'):[]
+      }))})):[];
   }catch{return [];}
 }
 async function writePacks(packs:KnowStickerPack[]){await AsyncStorage.setItem(REGISTRY,JSON.stringify(packs));}
@@ -72,10 +76,10 @@ async function saveRenamedPack(previous:KnowStickerPack,updated:KnowStickerPack,
   const path=dir()+previous.id+'/manifest.knowsticker';
   const oldManifest=await FileSystem.readAsStringAsync(path);
   const nextManifest=JSON.stringify({
-    format:FORMAT,version:1,id:updated.id,name:updated.name,
+    format:FORMAT,version:1,id:updated.id,name:updated.name,archived:!!updated.archived,
     files:updated.items.map((item,index)=>({
       filename:item.uri.slice((dir()+updated.id+'/').length),
-      name:item.name,mime:item.mime,index
+      name:item.name,mime:item.mime,index,emojis:item.emojis??[]
     }))
   });
   await FileSystem.writeAsStringAsync(path,nextManifest);
@@ -108,6 +112,34 @@ export async function renameKnowStickerItem(packId:string,itemId:string,input:st
   return saveRenamedPack(old,{
     ...old,items:old.items.map(value=>value.id===itemId?{...value,name}:value)
   },packs);
+}
+
+/** Archives hide a pack from the composer but never delete its WebP assets. */
+export async function setKnowStickerPackArchived(id:string,archived:boolean){
+  const packs=await readKnowStickerPacks();
+  const pack=packs.find(p=>p.id===id);
+  if(!pack)throw new Error('Pack introuvable.');
+  return saveRenamedPack(pack,{...pack,archived},packs);
+}
+/** Persist the pack order without mutating its contents or URLs. */
+export async function moveKnowStickerPack(id:string,direction:-1|1){
+  const packs=await readKnowStickerPacks();
+  const current=packs.findIndex(p=>p.id===id);
+  if(current<0)throw new Error('Pack introuvable.');
+  const next=current+direction;
+  if(next<0||next>=packs.length)return packs;
+  [packs[current],packs[next]]=[packs[next]!,packs[current]!];
+  await writePacks(packs);
+  return packs;
+}
+export async function setKnowStickerItemEmojis(packId:string,itemId:string,input:string){
+  const emojis=parseKnowStickerEmojiTags(input);
+  const packs=await readKnowStickerPacks();
+  const pack=packs.find(p=>p.id===packId);
+  if(!pack)throw new Error('Pack introuvable.');
+  if(!pack.items.some(item=>item.id===itemId))throw new Error('Sticker introuvable.');
+  return saveRenamedPack(pack,{...pack,items:pack.items.map(item=>
+    item.id===itemId?{...item,emojis}:item)},packs);
 }
 
 export async function deleteKnowStickerPack(id:string){
