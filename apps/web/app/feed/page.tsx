@@ -54,6 +54,7 @@ export default function FeedPage() {
   const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
   const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
   const likesInFlight = useRef(new Set<string>());
+  const likesRevision = useRef(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -397,6 +398,7 @@ export default function FeedPage() {
   const visiblePostIds = posts.map(post => post.id).join(',');
   useEffect(() => {
     let active = true;
+    const revision=likesRevision.current;
     setMyLikes({});
     if (!user?.id || !authorityFresh || !visiblePostIds) return () => {active = false;};
     const ids = visiblePostIds.split(',');
@@ -404,7 +406,7 @@ export default function FeedPage() {
       const batch = ids.slice(index*50,index*50+50);
       return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
     })).then(pages => {
-      if (active) setMyLikes(Object.assign({},...pages));
+      if (active && revision===likesRevision.current) setMyLikes(Object.assign({},...pages));
     }).catch(() => {
       // Unknown is not "unliked": never cache an invented personal reaction.
     });
@@ -420,6 +422,7 @@ export default function FeedPage() {
     try {
       const result = await apiFetch<{ liked: boolean }>(`/posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
       if (generation!==loadGeneration.current || accountId!==user?.id) return;
+      likesRevision.current+=1;
       setMyLikes(current=>({...current,[postId]:result.liked}));
       setPosts(current=>current.map(post=>post.id===postId
         ? {...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}}
