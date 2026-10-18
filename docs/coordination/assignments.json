@@ -117,12 +117,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "branch": "chat/design/global-navigation-a11y",
+      "task": "Navigation et système visuel global Web/Android : premier lot isolé, accessibilité et cohérence UI",
+      "claimedAt": "2026-10-18T14:08:12.118Z",
+      "updatedAt": "2026-10-18T14:08:12.118Z",
       "lastPr": null,
       "resumeFrom": null
     }
@@ -316,6 +316,14 @@
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "issue": 698,
       "branch": "chat/infra/release-guard-readiness"
+    },
+    {
+      "action": "claim",
+      "at": "2026-10-18T14:08:12.118Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "issue": 699,
+      "branch": "chat/design/global-navigation-a11y"
     }
   ]
 }
