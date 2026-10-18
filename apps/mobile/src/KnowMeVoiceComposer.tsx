@@ -13,10 +13,11 @@ import {KnowMeIcon, PressScale} from './ui/KnowMeUI';
 type Phase=VoicePhase;
 const MAX_SECONDS=56; // stop before the native 60-second media-recorder safety limit
 
-export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
+export function KnowMeVoiceComposer({busy,onSend,referenceChat=false,onRecordingChange}:{
   busy:boolean;
   onSend:(file:RecordedKnowMeVoice)=>Promise<boolean>;
   referenceChat?:boolean;
+  onRecordingChange?:(active:boolean)=>void;
 }) {
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -53,6 +54,10 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   const startedAt=useRef(0);
   function next(value:Phase){phaseRef.current=value;setPhase(value);}
   const actions=voiceUiState(phase,busy);
+  useEffect(()=>{
+    onRecordingChange?.(phase==='recording');
+    return()=>{if(phase==='recording')onRecordingChange?.(false);};
+  },[phase,onRecordingChange]);
   useEffect(()=>{
     if(phase!=='recording')return;
     const interval=setInterval(()=>{
