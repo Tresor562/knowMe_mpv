@@ -17,3 +17,9 @@ export class SetGroupMemberRoleDto {
   @IsIn(['ADMIN', 'MEMBER'])
   role!: 'ADMIN' | 'MEMBER';
 }
+
+/** Admin-only ability to restrict group conversations to administrators. */
+export class UpdateGroupPermissionsDto {
+  @IsIn(['ALL','ADMINS'])
+  sendMessages!: 'ALL'|'ADMINS';
+}
