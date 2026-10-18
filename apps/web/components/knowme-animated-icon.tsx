@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
+import {
+  clampRealProgress, didIconEventChange, mayAnimateIndefinitely,
+  presentationGlyphName, type IconOperationState
+} from './icon-motion-model';
 
 /**
  * Motion tracks authoritative product state. No control is toggled by this
@@ -12,12 +16,7 @@ import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
  * - progress is genuine 0..1 progress; never simulate a completed transfer
  * - idle icons remain stationary
  */
-export type KnowMeIconState =
-  | 'idle' | 'selected' | 'unselected' | 'open' | 'closed'
-  | 'loading' | 'progress' | 'success' | 'error'
-  | 'sending' | 'recording' | 'playing' | 'paused'
-  | 'incoming' | 'offline';
-
+export type KnowMeIconState = IconOperationState;
 type Props = {
   name: KnowMeGlyphName;
   state?: KnowMeIconState;
@@ -38,10 +37,9 @@ export function KnowMeAnimatedIcon({
 
   useEffect(() => {
     const earlier = previous.current;
-    const changed = earlier.state !== state
-      || earlier.name !== name
-      || (eventToken != null && earlier.eventToken !== eventToken);
-    previous.current = { name, state, eventToken };
+    const next = { name, state, eventToken };
+    const changed = didIconEventChange(earlier, next);
+    previous.current = next;
     if (!changed) return;
     // An actual event can restart an animation even when state doesn't change.
     setBurst(true);
@@ -50,28 +48,26 @@ export function KnowMeAnimatedIcon({
     return () => window.clearTimeout(timeout);
   }, [name, state, eventToken]);
 
-  const numericProgress = typeof progress === 'number' && Number.isFinite(progress)
-    ? Math.max(0, Math.min(1, progress))
-    : null;
+  const numericProgress = clampRealProgress(state, progress);
+  const visibleName = presentationGlyphName(name, state) as KnowMeGlyphName;
   const selected = state === 'selected';
-  const spin = state === 'loading';
-  const ring = state === 'progress' && numericProgress !== null;
+  const ring = numericProgress !== null;
   // Disable conflicting optimistic fill when the server did not confirm state.
   const showSelected = selected;
-  const classes = ['km-state-icon', `km-state-icon--${name}`, className]
+  const classes = ['km-state-icon', `km-state-icon--${visibleName}`, className]
     .filter(Boolean).join(' ');
 
   return (
     <span
       className={classes}
-      data-knowme-motion={name}
+      data-knowme-motion={visibleName}
       data-icon-state={state}
       data-icon-burst={burst ? String(motionId) : undefined}
-      data-auto-motion={spin || state === 'recording' || state === 'playing' ? 'true' : 'false'}
+      data-auto-motion={mayAnimateIndefinitely(state) ? 'true' : 'false'}
       aria-hidden="true"
       style={{ width: size, height: size }}
     >
-      <KnowMeGlyph name={name} size={size} active={showSelected || state === 'success'} />
+      <KnowMeGlyph key={motionId} name={visibleName} size={size} active={showSelected || state === 'success'} />
       {ring && (
         <svg viewBox="0 0 24 24" width={size} height={size}
           className="km-state-icon-progress" aria-hidden="true" focusable="false">
