@@ -110,12 +110,15 @@ export function KnowMeIcon({
   name,
   size = 22,
   color = '#AEB6C4',
-  strokeWidth = 1.8
+  strokeWidth = 1.8,
+  filled = false
 }: {
   name: KnowMeIconName;
   size?: number;
   color?: string;
   strokeWidth?: number;
+  /** For persistent confirmed states: currently supported by heart. */
+  filled?: boolean;
 }) {
   const s = size / 24;
   const sw = strokeWidth * s;
@@ -329,6 +332,19 @@ export function KnowMeIcon({
           top={22*s} color={color}/>
       </View>
     );
+  }
+
+  // A confirmed like must display a genuinely filled red heart, not a red outline.
+  // Native rounded primitives are used until the compatible SVG renderer lands.
+  if (name === 'heart' && filled) {
+    return <View style={{ width: size, height: size }} pointerEvents="none">
+      <View style={{ position: 'absolute', left: 7 * s, top: 9.2 * s, width: 10.8 * s,
+        height: 10.8 * s, transform: [{ rotate: '45deg' }], backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 3.3 * s, top: 4.9 * s,
+        width: 11 * s, height: 11 * s, borderRadius: 5.5 * s, backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 10.4 * s, top: 4.9 * s,
+        width: 11 * s, height: 11 * s, borderRadius: 5.5 * s, backgroundColor: color }} />
+    </View>;
   }
 
   if (name === 'heart') {
