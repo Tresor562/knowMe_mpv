@@ -63,23 +63,22 @@
     },
     "reels": {
       "issue": 695,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/android-go-to-timestamp",
-      "task": "Réparer build TS #725, vérifier CI #718 puis poursuivre Story/Reels",
+      "branch": "chat/reels/android-feed-retry-state",
+      "task": "PR #718 fusionnée, Vercel READY; PR #725 CI+coord vertes, build APK en cours; PR #729 Runtime+coord verts, CI+APK en cours; PR #732 feed Retry Android checks en attente. PR #707 fermée remplacée par #718.",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T14:22:59.663Z",
-      "lastPr": 725,
+      "updatedAt": "2026-10-18T14:34:57.275Z",
+      "lastPr": 732,
       "resumeFrom": {
-        "pr": 725,
-        "branch": "chat/reels/android-go-to-timestamp",
-        "commit": "8733429c7505dbb769c6974949c5c2d926d46013",
-        "alsoPr": 718,
-        "alsoHead": "3c616a93ae6ff1e8d2030ce7a6218fdb196c1cc7",
-        "mergedPrs": [
-          710,
-          713
-        ]
+        "pr": 732,
+        "branch": "chat/reels/android-feed-retry-state",
+        "commit": "58c036dec3d143cae98e31ae742e2a4c14828d94",
+        "alsoPrs": [
+          725,
+          729
+        ],
+        "mergedPr": 718
       }
     },
     "profiles": {
@@ -531,6 +530,15 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 727
+    },
+    {
+      "at": "2026-10-18T14:34:57.275Z",
+      "action": "pause",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "branch": "chat/reels/android-feed-retry-state",
+      "pr": 732
     }
   ]
 }
