@@ -68,6 +68,25 @@ export class PostsService {
         mimeType:item.mimeType,position:item.position}))};
   }
 
+  async editPost(authorId:string, postId:string, content:string) {
+    const original=await this.prisma.post.findUnique({
+      where:{id:postId},
+      select:{id:true,authorId:true,imageUrl:true,
+        media:{select:{assetId:true},take:1}}
+    });
+    if(!original)throw new NotFoundException('Publication introuvable.');
+    if(original.authorId!==authorId)
+      throw new ForbiddenException('Tu ne peux modifier que tes propres publications.');
+    if(!content.trim() && !original.media.length && !original.imageUrl)
+      throw new BadRequestException('Ajoute du texte ou au moins un média à la publication.');
+    const changed=await this.prisma.post.updateMany({
+      where:{id:postId,authorId},data:{content}
+    });
+    if(!changed.count)throw new NotFoundException('Publication introuvable.');
+    // Keep existing attachments and publish visibility unchanged.
+    return this.getById(postId);
+  }
+
   async feed(cursor?: string) {
     const posts = await this.prisma.post.findMany({
       take: 20,
