@@ -10,7 +10,7 @@ export type KnowMeGlyphName =
   | 'download' | 'check' | 'check-double' | 'heart' | 'comment' | 'share'
   | 'bookmark' | 'smile' | 'sticker' | 'keyboard' | 'settings' | 'phone'
   | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off'
-  | 'story' | 'cover' | 'sparkles' | 'upload';
+  | 'story' | 'cover' | 'sparkles' | 'upload' | 'wifi' | 'wifi-off';
 
 type Props = {
   name: KnowMeGlyphName;
@@ -38,6 +38,8 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
   };
 
   const shapes = {
+    wifi: <><path d="M2.6 8.8a14.7 14.7 0 0 1 18.8 0M5.9 12.35a9.5 9.5 0 0 1 12.2 0M9.3 15.8a4.25 4.25 0 0 1 5.4 0"/><circle cx="12" cy="19.3" r="1.15" fill="currentColor" stroke="none"/></>,
+    'wifi-off': <><path d="M2.8 8.8a14.5 14.5 0 0 1 4.5-2.7M10.2 5.1a14.65 14.65 0 0 1 11 3.7M6.1 12.3a9.5 9.5 0 0 1 4.1-1.75M13.5 10.8a9.4 9.4 0 0 1 4.5 1.5M9.7 15.7a4.3 4.3 0 0 1 3-.65M12 19.3h.01M3.2 3.2l17.6 17.6"/></>,
     story: <><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 7.8v8.4M7.8 12h8.4"/></>,
     cover: <><rect x="2.5" y="5.3" width="19" height="13.4" rx="2.5"/><path d="m3.3 16 5.6-5.1 3.9 3.6 3-2.65 5 4.65"/></>,
     sparkles: <><path d="m12 2.4 2.1 6.3 6.3 2.1-6.3 2.1L12 19.2l-2.1-6.3-6.3-2.1 6.3-2.1L12 2.4ZM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8L19 17Z"/></>,
