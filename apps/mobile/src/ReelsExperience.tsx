@@ -110,6 +110,24 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     }finally{pending.current=false;}
   }
 
+  async function ensureLike(post:VideoPost){
+    if(pending.current || likes[post.id]?.liked === true)return;
+    pending.current=true;
+    try{
+      // Idempotent: unlike the heart button, repeated double taps can never
+      // remove an existing reaction, including likes made on another device.
+      const response=await apiFetch<{liked:boolean;count:number}>(
+        '/posts/'+encodeURIComponent(post.id)+'/like',{method:'PUT'}
+      );
+      setLikes(current=>({...current,[post.id]:{
+        liked:response.liked,
+        count:Math.max(0,response.count)
+      }}));
+    }catch(cause){
+      setFailure(cause instanceof Error?cause.message:'Réaction indisponible.');
+    }finally{pending.current=false;}
+  }
+
   async function sharePost(postId:string){
     try{
       await Share.share({message:buildKnowMePublicLink({kind:'post',id:postId})});
@@ -123,7 +141,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const shown=item.id===active;
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
-      {shown ? <PublicPostVideo key={item.id} url={item.media.url}/>
+      {shown ? <PublicPostVideo key={item.id} url={item.media.url}
+        onDoubleTap={()=>{void ensureLike(post);}}/>
         : <View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
         </View>}
