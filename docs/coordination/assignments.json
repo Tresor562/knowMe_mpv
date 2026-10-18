@@ -86,14 +86,19 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
-      "branch": "chat/marketplace/storefront-discovery",
-      "task": "Développer Marketplace Web/Android : catalogue, cadeaux, stickers, APK et vrais parcours sûrs ; première PR isolée après audit",
+      "branch": "chat/marketplace/android-catalog-filters",
+      "task": "PR #712 Web (fiches, achat confirmé, anti-double débit), PR #714 Android (recherche/filtres et tests). PR draft, CI/coordination finales à vérifier; non fusionnées/non déployées.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T13:23:00.000Z",
-      "lastPr": null,
-      "resumeFrom": null
+      "updatedAt": "2026-10-18T13:39:12.062Z",
+      "lastPr": 714,
+      "resumeFrom": {
+        "pr": 714,
+        "branch": "chat/marketplace/android-catalog-filters",
+        "commit": "634c0b060e487b13fd0c74678ee3b7e15799da8f",
+        "alsoPr": 712
+      }
     },
     "infra": {
       "issue": 698,
@@ -242,6 +247,15 @@
       "branch": "chat/messaging/audio-recorder-send-controls",
       "pr": 706,
       "head": "682eea3fec56146d473cbd750775a1afb9ea31bc"
+    },
+    {
+      "at": "2026-10-18T13:39:12.062Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/android-catalog-filters",
+      "pr": 714
     }
   ]
 }
