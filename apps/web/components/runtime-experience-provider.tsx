@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { apiFetch, getAccessToken } from '../lib/api';
 import { getRealtimeSocket } from '../lib/realtime';
+import { InAppNotifications } from './in-app-notifications';
 
 export type RuntimeBadge = { key: string; label: string; color: string; symbol: 'check' | 'star' | 'spark' };
 export type RuntimeModule = { key: string; title: string; kind: 'notice' | 'link' | 'tile'; href?: string };
@@ -57,7 +58,7 @@ export function RuntimeExperienceProvider({ children }: { children: React.ReactN
       socket.off('runtime-experience:changed', refresh);
     };
   }, [refresh]);
-  return <>{children}</>;
+  return <><InAppNotifications />{children}</>;
 }
 export function useRuntimeBadge(key: string) {
   const { document } = useRuntimeExperience();
