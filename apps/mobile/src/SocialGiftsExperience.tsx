@@ -26,6 +26,7 @@ import {
   sendMobileSocialGift
 } from './social-gifts';
 import { useAppearance } from './AppearanceProvider';
+import { GiftSendAttemptRegistry } from './gift-send-attempts';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -58,7 +59,7 @@ export function SocialGiftsExperience() {
   const [busyGiftKey, setBusyGiftKey] = useState<string | null>(null);
   const sendLock = useRef(false);
   // A lost response is not proof that KnowCoins were not debited.
-  const pendingSendIds = useRef(new Map<string, string>());
+  const pendingSendIds = useRef(new GiftSendAttemptRegistry(mobileSocialGiftIdempotencyKey));
   const [busyInboxId, setBusyInboxId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
@@ -127,16 +128,14 @@ export function SocialGiftsExperience() {
     sendLock.current = true;
     setBusyGiftKey(gift.key);
     setStatus('');
-    const intent = JSON.stringify([toId, gift.key, body]);
-    const idempotencyKey = pendingSendIds.current.get(intent) ??
-      mobileSocialGiftIdempotencyKey(toId, gift.key);
-    pendingSendIds.current.set(intent, idempotencyKey);
+    const intent = { recipientId: toId, giftKey: gift.key, message: body };
+    const idempotencyKey = pendingSendIds.current.keyFor(intent);
     try {
       const result = await sendMobileSocialGift(
         { recipientId: toId, giftKey: gift.key, message: body || undefined },
         idempotencyKey
       );
-      pendingSendIds.current.delete(intent);
+      pendingSendIds.current.acknowledge(intent);
       setBalance(result.senderBalance);
       setGiftMessage('');
       setStatus(
