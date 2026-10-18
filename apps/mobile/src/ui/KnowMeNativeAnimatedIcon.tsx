@@ -54,8 +54,12 @@ export function KnowMeNativeAnimatedIcon({
     old.current = next;
     if (!initialized.current) {
       initialized.current = true;
-      value.setValue(1);
-      return;
+      // Continuous statuses already active on mount must animate immediately.
+      // Static initial selected states remain still (no fake interaction).
+      if (!enabled || !nativeIconShouldLoop(state)) {
+        value.setValue(1);
+        return;
+      }
     }
     if (!enabled) { value.setValue(1); return; }
     if (nativeIconShouldLoop(state)) {
@@ -129,7 +133,8 @@ export function KnowMeNativeAnimatedIcon({
         width: size, height: size, alignItems: 'center', justifyContent: 'center',
         transform: enabled ? [{ scale }, { translateX }, { translateY }, { rotate }] : undefined
       }}>
-      <KnowMeIcon name={effectiveName} size={size} color={effectiveColor} strokeWidth={strokeWidth}/>
+      <KnowMeIcon name={effectiveName} size={size} color={effectiveColor}
+        strokeWidth={strokeWidth} filled={selectedHeart}/>
       {realProgress !== null && (
         <Animated.View style={{
           position: 'absolute', bottom: -3, left: 2, right: 2, height: 2,
