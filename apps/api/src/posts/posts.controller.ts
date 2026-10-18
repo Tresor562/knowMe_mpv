@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { EditCommentDto } from './dto/edit-comment.dto';
+import { EditPostDto } from './dto/edit-post.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { SetCommentReactionDto } from './dto/set-comment-reaction.dto';
 import { PostsService } from './posts.service';
@@ -38,6 +39,20 @@ export class PostsController {
       content: dto.content
     });
     return this.posts.create(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async editPost(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() dto: EditPostDto
+  ) {
+    await this.moderation.assertAllowed({
+      actorId:req.user.userId,action:'POST_CREATE',content:dto.content,
+      targetId:id
+    });
+    return this.posts.editPost(req.user.userId,id,dto.content);
   }
 
   @Get('feed')
