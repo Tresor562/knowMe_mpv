@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
-import { messageSelectionLinks } from './shared-content-selection';
+import { messageSelectionLinks, selectVisibleMessageIds } from './shared-content-selection';
 import {
   appendSharedMessages, filterSharedHistory, sharedAuthorOptions, linksInMessage,
   type SharedMediaFilter, type SharedHistorySort,
@@ -100,6 +100,16 @@ export function GroupSharedContent({
     setSelectionFeedback('');
   },[kind,conversationId]);
 
+  // A change of author/date/media tab must never leave invisible messages
+  // selected for a subsequent share or copy operation.
+  useEffect(()=>{
+    const visibleIds=new Set(filtered.map(message=>message.id));
+    setSelectedIds(previous=>{
+      const kept=previous.filter(id=>visibleIds.has(id));
+      return kept.length===previous.length?previous:kept;
+    });
+  },[filtered]);
+
   function toggleMessage(id:string) {
     setSelectionFeedback('');
     setSelectedIds(previous=>{
@@ -119,6 +129,25 @@ export function GroupSharedContent({
     }catch{
       setSelectionFeedback(en?'Clipboard unavailable. Nothing was copied.':
         'Presse-papiers indisponible. Aucun lien copié.');
+    }
+  }
+
+  async function shareSelectedLinks() {
+    const urls=messageSelectionLinks(conversationId,selectedIds,filtered,window.location.origin);
+    if(!urls.length)return;
+    if(typeof navigator.share!=='function') {
+      await copySelectedLinks();
+      return;
+    }
+    try {
+      await navigator.share(urls.length===1
+        ? {title:en?'KnowMe message':'Message KnowMe',url:urls[0]}
+        : {title:en?'KnowMe messages':'Messages KnowMe',text:urls.join('\n')});
+      setSelectionFeedback(en?'Shared successfully.':'Partage effectué.');
+    }catch(cause){
+      if((cause as {name?:string})?.name==='AbortError')return;
+      setSelectionFeedback(en?'Unable to share these message links.':
+        'Impossible de partager ces liens vers les messages.');
     }
   }
 
@@ -221,12 +250,33 @@ export function GroupSharedContent({
       </button>
       {selecting&&<>
         <span aria-live="polite">{selectedVisible.length} / 50</span>
+        <button type="button"
+          disabled={!filtered.length}
+          onClick={()=>{
+            const selected=selectVisibleMessageIds(conversationId,filtered);
+            const allSelected=selected.length===selectedVisible.length &&
+              selected.every(id=>selectedIds.includes(id));
+            setSelectedIds(allSelected?[]:selected);
+            setSelectionFeedback('');
+          }}>
+          {selectedVisible.length===Math.min(50,filtered.length)&&selectedVisible.length>0
+            ?(en?'Deselect all':'Tout désélectionner')
+            :(en?'Select visible':'Tout sélectionner')}
+        </button>
         <button type="button" disabled={!selectedVisible.length}
           onClick={()=>void copySelectedLinks()}>
-          {en?'Copy message links':'Copier les liens vers les messages'}
+          {en?'Copy links':'Copier les liens'}
+        </button>
+        <button type="button" disabled={!selectedVisible.length}
+          onClick={()=>void shareSelectedLinks()}>
+          {en?'Share':'Partager'}
         </button>
       </>}
     </div>
+    {selecting&&<p className="km-group-shared-scope">
+      {en?'Only loaded messages are selected. Recipients must belong to the conversation to open a link.':
+        'Seuls les messages chargés sont sélectionnés. Les destinataires doivent appartenir à la discussion pour ouvrir un lien.'}
+    </p>}
     {selectionFeedback&&<p className="km-shared-copy-status" role="status">{selectionFeedback}</p>}
     {downloadError&&<p className="km-group-shared-error" role="alert">{downloadError}</p>}
     {error&&<div className="km-group-shared-error" role="alert">
