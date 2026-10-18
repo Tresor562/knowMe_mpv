@@ -91,3 +91,15 @@ L'audit exécuté sur l'ancien HEAD validé `affe185b5a351b6b8e19cc2395c70596dba
 Les 12 alertes contextuelles restantes correspondent à des éléments SVG dans Marketplace (5), StickerPicker (2), lecteur Réels (4) et collage média (1), sous des ancêtres avec `aria-hidden` ou des boutons déjà nommés dans les extraits vérifiés. Leur migration doit se faire dans les PR fonctionnelles concernées, sans casser les commandes existantes. Les demandes de migration coordonnées ont été publiées sur les issues #693, #695 et #697.
 
 **Limites persistantes** : ces 75 glyphes ne constituent pas 75 parcours Web/Android fonctionnellement vérifiés, et la famille `KnowMeIcon` Android reste majoritairement composée de Views plutôt que d'un moteur de chemins SVG natifs. Pas de certification visuelle sur un téléphone ni de déploiement depuis la PR #760 avant le contrôle de chevauchement GitHub et l'intégration ordonnée.
+
+
+## Lot supplémentaire — contrôle tactile accessible Web/Android
+
+- Nouveau composant `apps/web/components/knowme-icon-button.tsx` et feuille `knowme-icon-button.css` : dessin compact (20–24 px) dans une **zone interactive d'au moins 44 × 44 px**, nom vocal explicite, vrai bouton HTML, `aria-pressed` uniquement pour les actions à bascule, `aria-busy` pendant les opérations, et état désactivé. Le callback facultatif `onLongPress` est déclenché après maintien, annulé si l'utilisateur glisse de plus de 10 px ; un appui long ne doit pas émettre aussi l'action courte. Le menu contextuel fournit un chemin alternatif clavier/souris. Les labels de progression vocalisent uniquement un pourcentage numérique réel et borné.
+- Les boutons « fermer » de la feuille de partage et du bandeau réseau utilisent le composant partagé sans toucher à leur logique de fermeture.
+- Le bouton « + » de l'avatar a désormais une surface de **44 px** avec cercle de **34 px conservé**, un focus clavier visible et le mode mouvement réduit.
+- `KnowMeAnimatedIcon` supprime les micro-animations déclenchées si l'onglet n'est pas visible ou si les réglages navigateur/KnowMe désactivent les animations ; les glyphes de partage reflètent maintenant également les états `sending` et `loading` des requêtes réelles.
+- Android : les icônes-actions affichent une valeur accessible de progression `min:0, max:100, now` uniquement pendant `progress`, avec valeur bornée, et peuvent annoncer un indice d'appui long localisé fourni par l'appelant via `PressScale`. Le travail reste du ressort du domaine design ; le moteur de rendu SVG Android n'est toujours pas installé.
+- Tests ajoutés aux suites ciblées Web et Android ; **le SHA exact du présent lot doit passer CI et le garde de coordination avant toute fusion**. Le contrôle de chevauchement échouait encore à l'ouverture de ce lot ; la réussite des tests de code seule ne le remplace pas.
+
+**État** : aucun déploiement Web ni nouvelle APK signée ne peut être affirmé sur la base de cette branche de développement.
