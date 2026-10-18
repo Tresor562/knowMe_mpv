@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
 import {
@@ -26,9 +26,10 @@ export function GroupSharedContent({
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [initialLoaded,setInitialLoaded] = useState(false);
-  const [generation,setGeneration] = useState(0);
+  const requestSequence=useRef(0);
 
   const load = useCallback(async (next?: string | null) => {
+    const request=++requestSequence.current;
     setLoading(true); setError('');
     try {
       const query = new URLSearchParams({limit:'30'});
@@ -36,6 +37,7 @@ export function GroupSharedContent({
       const response = await apiFetch<History>(
         `/conversations/${encodeURIComponent(conversationId)}/messages?${query.toString()}`
       );
+      if(request!==requestSequence.current)return;
       const received = Array.isArray(response.items) ? response.items : [];
       setMessages(previous => next ? appendSharedMessages(previous,received) : received);
       // A server cursor means there is more history, even when this page has
@@ -43,20 +45,17 @@ export function GroupSharedContent({
       setCursor(typeof response.nextCursor==='string' ? response.nextCursor : null);
       setInitialLoaded(true);
     } catch(cause) {
+      if(request!==requestSequence.current)return;
       setError(cause instanceof Error ? cause.message :
         en?'Unable to load shared content.':'Impossible de charger les contenus.');
-    } finally { setLoading(false); }
+    } finally {if(request===requestSequence.current)setLoading(false);}
   },[conversationId,en]);
 
   useEffect(()=>{
-    setMessages([]);setCursor(null);setInitialLoaded(false);setGeneration(n=>n+1);
-  },[conversationId]);
-
-  useEffect(()=>{
-    let alive=true;
-    void load().then(()=>{ if(!alive) return; });
-    return ()=>{alive=false;};
-  },[load,generation]);
+    setMessages([]);setCursor(null);setInitialLoaded(false);
+    void load();
+    return ()=>{requestSequence.current++;};
+  },[load]);
 
   const filtered=useMemo(()=>messages.filter(message=>contentKind(message).includes(kind)),[messages,kind]);
   const labels=TITLES[kind];
