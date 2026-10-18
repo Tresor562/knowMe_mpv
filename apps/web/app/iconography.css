@@ -53,3 +53,11 @@
 :root[data-animations='false'] :where(button, a, summary, [role='button']):active svg {
   transform: none !important;
 }
+
+:root[data-animated-icons='false'] :where(button, a, summary, [role='button']) svg {
+  animation: none !important;
+  transition: none !important;
+}
+:root[data-animated-icons='false'] :where(button, a, summary, [role='button']):active svg {
+  transform: none !important;
+}
