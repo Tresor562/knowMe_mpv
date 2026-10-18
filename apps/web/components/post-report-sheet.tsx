@@ -27,6 +27,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [alreadyReported, setAlreadyReported] = useState(false);
   const inflight = useRef(false);
   const initialFocus = useRef<HTMLElement | null>(null);
   const firstChoice = useRef<HTMLInputElement>(null);
@@ -37,7 +38,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   const submittedRef = useRef(submitted);
   onBackRef.current = onBack;
   onCompleteRef.current = onComplete;
-  submittedRef.current = submitted;
+  submittedRef.current = submitted || alreadyReported;
 
   useEffect(() => {
     initialFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -80,12 +81,12 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   }, []);
 
   useEffect(() => {
-    if (submitted) completeButton.current?.focus();
-  }, [submitted]);
+    if (submitted || alreadyReported) completeButton.current?.focus();
+  }, [submitted, alreadyReported]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!reason || submitted || inflight.current) return;
+    if (!reason || submitted || alreadyReported || inflight.current) return;
     inflight.current = true;
     setBusy(true);
     setError('');
@@ -105,6 +106,10 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
       setSubmitted(true);
     } catch (cause) {
       const failure = cause as { code?: string; message?: string };
+      if ((failure as { status?: number })?.status === 409) {
+        setAlreadyReported(true);
+        return;
+      }
       const uncertain = failure?.code === 'KNOWME_TIMEOUT' ||
         failure?.code === 'KNOWME_NETWORK_UNAVAILABLE';
       setError(uncertain
@@ -123,7 +128,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
     <div className="km-comment-report-overlay" role="presentation"
       onMouseDown={event => {
         if (event.target === event.currentTarget && !inflight.current) {
-          if (submitted) onComplete();
+          if (submitted || alreadyReported) onComplete();
           else onBack();
         }
       }}>
@@ -135,14 +140,16 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
           <h2>{en ? 'Report publication' : 'Signaler la publication'}</h2>
           <button type="button" disabled={busy}
             aria-label={en ? 'Close report' : 'Fermer le signalement'}
-            onClick={submitted ? onComplete : onBack}>×</button>
+            onClick={submitted || alreadyReported ? onComplete : onBack}>×</button>
         </header>
-        {submitted ? (
+        {submitted || alreadyReported ? (
           <>
             <p role="status">
-              {en
-                ? 'The publication has been sent to KnowMe moderation.'
-                : 'La publication a été transmise à la modération KnowMe.'}
+              {alreadyReported
+                ? (en ? 'You have already reported this publication. You can check its status in your report history.'
+                    : 'Tu as déjà signalé cette publication. Tu peux consulter son état dans ton historique.')
+                : (en ? 'The publication has been sent to KnowMe moderation.'
+                    : 'La publication a été transmise à la modération KnowMe.')}
             </p>
             <Link className="km-post-report-history-link" href="/feed/reports">
               {en ? 'View my reports' : 'Consulter mes signalements'}
