@@ -103,6 +103,21 @@ export class StoriesController {
     return this.stories.rail(req.user.userId, offset ? Number(offset) : 0);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('users/:username/visible')
+  visibleByAuthor(
+    @Req() req: { user: { userId: string } },
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string
+  ){
+    if(cursor!==undefined&&!/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)){
+      throw new BadRequestException({
+        code:'STORY_SEQUENCE_CURSOR_INVALID',message:'Invalid Story cursor.'
+      });
+    }
+    return this.stories.visibleByAuthor(req.user.userId,username,cursor);
+  }
+
   @Get('users/:username')
   profile(@Param('username') username: string) {
     return this.stories.forPublicProfile(username);
