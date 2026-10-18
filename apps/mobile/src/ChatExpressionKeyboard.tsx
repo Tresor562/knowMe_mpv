@@ -404,35 +404,55 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
           style={[styles.importGif,{borderColor:activeColor,marginTop:7}]}>
           <Text style={{fontWeight:'800',color:activeColor}}>＋ Créer un pack KnowSticker</Text>
         </Pressable>
-        {ownPacks.map(owned=><View key={owned.id} style={styles.section}>
+        {ownPacks.filter(owned=>!owned.archived).filter(owned=>
+          !search.trim()||(owned.name+' '+owned.items.map(item=>
+            item.name+' '+(item.emojis??[]).join(' ')).join(' ')).toLocaleLowerCase()
+            .includes(search.trim().toLocaleLowerCase())
+        ).map(owned=><View key={owned.id} style={styles.section}>
           <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
             <Text style={[styles.sectionTitle,{flex:1}]} numberOfLines={1}>
               {owned.name} · {owned.items.length} stickers
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Renommer le pack ${owned.name}`}
-              onPress={()=>openRename('pack',owned)} style={styles.renameAction}>
-              <Text style={{color:activeColor,fontSize:11,fontWeight:'700'}}>Renommer</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Supprimer le pack ${owned.name}`}
-              onPress={()=>confirmDeletePack(owned)} style={styles.renameAction}>
-              <Text style={{color:muted,fontSize:11,fontWeight:'700'}}>Supprimer</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Options du pack ${owned.name}`}
+              onPress={()=>packOptions(owned)} style={styles.renameAction}>
+              <KnowMeIcon name="more-vertical" size={19} color={activeColor}/>
             </Pressable>
           </View>
           <View style={styles.grid}>
             {owned.items.map(item=><Pressable key={item.id}
               disabled={busy} onPress={()=>void sendOwnSticker(item)}
-              onLongPress={()=>openRename('sticker',owned,item)}
+              onLongPress={()=>stickerOptions(owned,item)}
               accessibilityRole="button"
-              accessibilityLabel={`Envoyer ${knowStickerDisplayName(item.name)} ; appui long pour renommer`}
+              accessibilityLabel={`Envoyer ${knowStickerDisplayName(item.name)} ; appui long pour options`}
               style={[styles.stickerTile,{width:(screenWidth-28)/Math.max(3,Math.floor((screenWidth-28)/89)),height:96}]}>
               <Image source={{uri:item.uri}} resizeMode="contain"
                 style={{width:65,height:65,maxWidth:'100%'}}/>
               <Text style={{color:muted,fontSize:10,maxWidth:'95%'}} numberOfLines={1}>
                 {knowStickerDisplayName(item.name)}
               </Text>
+              {(item.emojis??[]).length?<Text style={{fontSize:10,color:activeColor}} numberOfLines={1}>
+                {item.emojis?.join(' ')}
+              </Text>:null}
             </Pressable>)}
           </View>
         </View>)}
+        {ownPacks.some(pack=>pack.archived)?<View style={styles.section}>
+          <Pressable accessibilityRole="button" style={styles.renameAction}
+            onPress={()=>setShowArchived(v=>!v)}
+            accessibilityLabel={showArchived?'Masquer les packs archivés':'Afficher les packs archivés'}>
+            <Text style={{color:activeColor,fontWeight:'700'}}>
+              {showArchived?'Masquer':'Afficher'} les packs archivés · {ownPacks.filter(p=>p.archived).length}
+            </Text>
+          </Pressable>
+          {showArchived&&ownPacks.filter(p=>p.archived).map(pack=>
+            <View key={pack.id} style={{flexDirection:'row',alignItems:'center',gap:10,minHeight:45}}>
+              <Text style={{color:muted,flex:1}} numberOfLines={1}>{pack.name}</Text>
+              <Pressable accessibilityRole="button" style={styles.renameAction}
+                onPress={()=>void organizePack(pack.id,'restore')}>
+                <Text style={{color:activeColor,fontWeight:'700'}}>Restaurer</Text>
+              </Pressable>
+            </View>)}
+        </View>:null}
         {savedStickers.length>0?<View style={styles.section}>
           <Text style={styles.sectionTitle}>Stickers récents et enregistrés</Text>
           <View style={styles.grid}>{savedStickers
@@ -508,12 +528,12 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     <View style={styles.renameOverlay}>
       <View style={styles.renameSheet}>
         <Text style={[styles.renameTitle,{color:textColor}]}>
-          {renameTarget?.kind==='pack'?'Renommer le pack':'Renommer le sticker'}
+          {renameTarget?.kind==='emoji'?'Emojis associés au sticker':renameTarget?.kind==='pack'?'Renommer le pack':'Renommer le sticker'}
         </Text>
         <TextInput value={renameValue} onChangeText={setRenameValue}
           autoFocus maxLength={80} selectTextOnFocus
-          accessibilityLabel="Nouveau nom"
-          placeholder="Nouveau nom" placeholderTextColor={muted}
+          accessibilityLabel={renameTarget?.kind==='emoji'?'Emojis associés':'Nouveau nom'}
+          placeholder={renameTarget?.kind==='emoji'?'🙂 ⭐ 🔥':'Nouveau nom'} placeholderTextColor={muted}
           style={[styles.renameInput,{color:textColor,borderColor:muted}]}/>
         {renameError?<Text accessibilityRole="alert" style={{color:'#ff9a9a',fontSize:12}}>{renameError}</Text>:null}
         <View style={styles.renameButtons}>
@@ -521,7 +541,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
             onPress={()=>setRenameTarget(null)} style={styles.renameActionButton}>
             <Text style={{color:muted,fontWeight:'700'}}>Annuler</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={renameBusy||!renameValue.trim()}
+          <Pressable accessibilityRole="button" disabled={renameBusy||(renameTarget?.kind!=='emoji'&&!renameValue.trim())}
             onPress={()=>void saveRename()} style={[styles.renameActionButton,{backgroundColor:activeColor}]}>
             <Text style={{color:colors.accentText,fontWeight:'800'}}>
               {renameBusy?'Enregistrement…':'Enregistrer'}
