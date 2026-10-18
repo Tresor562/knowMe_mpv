@@ -20,6 +20,7 @@ export function PostComposerExperience({
   canAttachPhoto,
   onChoosePhoto,
   onRemovePhoto,
+  onRemoveMedia,
   onPublish,
   publishing,
   offline,
@@ -34,6 +35,7 @@ export function PostComposerExperience({
   canAttachPhoto: boolean;
   onChoosePhoto: () => void;
   onRemovePhoto: () => void;
+  onRemoveMedia: (index: number) => void;
   onPublish: () => void;
   publishing: boolean;
   offline?: boolean;
@@ -112,8 +114,29 @@ export function PostComposerExperience({
                   right:0,backgroundColor:'#0009',justifyContent:'center',alignItems:'center'}}>
                   <Text style={{color:'#fff',fontSize:26,fontWeight:'800'}}>+{media.length-5}</Text>
                 </View>:null}
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={`Retirer le média ${index+1} : ${item.name}`}
+                  disabled={publishing} onPress={()=>onRemoveMedia(index)}
+                  style={[styles.tileRemove,{backgroundColor:'rgba(0,0,0,.65)'}]}>
+                  <KnowMeIcon name="close" color="#fff" size={18}/>
+                </Pressable>
               </View>)}
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.attachmentList}
+              accessibilityLabel="Médias joints à la publication">
+              {media.map((item,index)=><View key={item.uri+':'+index}
+                style={[styles.attachmentChip,{backgroundColor:colors.backgroundAccent}]}>
+                <Text numberOfLines={1} style={{color:colors.text,maxWidth:180,fontSize:12}}>
+                  {index+1}. {item.name}
+                </Text>
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={`Retirer ${item.name}`} disabled={publishing}
+                  onPress={()=>onRemoveMedia(index)} style={styles.attachmentRemove}>
+                  <KnowMeIcon name="close" size={18} color={colors.muted}/>
+                </Pressable>
+              </View>)}
+            </ScrollView>
             <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:8}}>
               <Text style={{color:colors.muted,fontSize:12}}>{media.length} média(s) sélectionné(s)</Text>
               <Pressable accessibilityRole="button" disabled={publishing} onPress={onRemovePhoto}
@@ -189,6 +212,12 @@ const styles=StyleSheet.create({
   audience:{borderRadius:12,minHeight:28,justifyContent:'center',paddingHorizontal:11},
   bodyInput:{minHeight:190,fontSize:19,lineHeight:27,paddingTop:20,paddingBottom:16},
   previewBox:{position:'relative',borderWidth:StyleSheet.hairlineWidth,borderRadius:16,overflow:'hidden'},
+  tileRemove:{position:'absolute',top:5,right:5,height:38,width:38,borderRadius:19,
+    alignItems:'center',justifyContent:'center'},
+  attachmentList:{paddingVertical:9,paddingHorizontal:8,gap:7},
+  attachmentChip:{flexDirection:'row',alignItems:'center',minHeight:44,gap:5,
+    borderRadius:14,paddingLeft:10,paddingRight:2},
+  attachmentRemove:{width:42,height:44,alignItems:'center',justifyContent:'center'},
   preview:{height:240,width:'100%'},
   previewRemove:{position:'absolute',right:12,top:10,height:38,width:38,borderRadius:19,
     alignItems:'center',justifyContent:'center'},
