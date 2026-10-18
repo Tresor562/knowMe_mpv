@@ -64,6 +64,9 @@ export default function ConversationInfoPage() {
         ? 'This conversation cannot be found in your chats.'
         : 'Cette conversation est introuvable dans tes discussions.');
       setConversation(found);
+      // The overview exists only for groups. Private chats retain their real
+      // participants panel instead of landing on an empty overview.
+      setActiveTab(current => current==='overview' && !found.isGroup ? 'members' : current);
     } catch (cause) {
       setConversation(null);
       setError(cause instanceof Error ? cause.message
