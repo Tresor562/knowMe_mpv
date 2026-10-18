@@ -273,6 +273,63 @@ export class PostsService {
     return {...comment,author:publicAuthor(comment.author)};
   }
 
+  private async requireCommentForReaction(postId: string, commentId: string) {
+    const comment = await this.prisma.postComment.findFirst({
+      where: { id: commentId, postId },
+      select: { id: true, authorId: true }
+    });
+    if (!comment) throw new NotFoundException('Commentaire introuvable.');
+    return comment;
+  }
+
+  async commentReactionSummary(userId: string, postId: string, commentId: string) {
+    await this.requireCommentForReaction(postId, commentId);
+    const [counts, mine] = await Promise.all([
+      this.prisma.postCommentReaction.groupBy({
+        by: ['emoji'],
+        where: { commentId },
+        _count: { _all: true }
+      }),
+      this.prisma.postCommentReaction.findUnique({
+        where: { commentId_userId: { commentId, userId } },
+        select: { emoji: true }
+      })
+    ]);
+    return {
+      commentId,
+      total: counts.reduce((sum, item) => sum + item._count._all, 0),
+      emojis: counts.map(item => ({ emoji: item.emoji, count: item._count._all })),
+      mine: mine?.emoji ?? null
+    };
+  }
+
+  async setCommentReaction(userId: string, postId: string, commentId: string, emoji: string) {
+    const comment = await this.requireCommentForReaction(postId, commentId);
+    await this.prisma.postCommentReaction.upsert({
+      where: { commentId_userId: { commentId, userId } },
+      create: { commentId, userId, emoji },
+      update: { emoji }
+    });
+    // Keep notifications nonblocking: the DB operation succeeded already.
+    if (comment.authorId !== userId) {
+      await Promise.allSettled([this.notifications.create({
+        userId: comment.authorId,
+        type: 'COMMENT_REACTED',
+        title: 'Réaction à ton commentaire',
+        body: `Quelqu’un a réagi ${emoji} à ton commentaire.`,
+        data: { route: `/feed/${postId}?comment=${encodeURIComponent(commentId)}`,
+          entityType: 'POST_COMMENT', entityId: commentId, actorId: userId }
+      })]);
+    }
+    return this.commentReactionSummary(userId, postId, commentId);
+  }
+
+  async removeCommentReaction(userId: string, postId: string, commentId: string) {
+    await this.requireCommentForReaction(postId, commentId);
+    await this.prisma.postCommentReaction.deleteMany({ where: { commentId, userId } });
+    return this.commentReactionSummary(userId, postId, commentId);
+  }
+
   async editComment(userId: string, postId: string, commentId: string, content: string) {
     const trimmed = content.trim();
     if (!trimmed || trimmed.length > 500) {
