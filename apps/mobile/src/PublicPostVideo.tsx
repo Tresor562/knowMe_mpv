@@ -1,11 +1,12 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Pressable,StyleSheet,Text,View} from 'react-native';
+import {Alert,KeyboardAvoidingView,Modal,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
+import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
-import {videoTime,seekTimeFromTrack,clampVideoSeek} from './video-time';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
@@ -14,6 +15,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean
 }){
   const {colors}=useAppearance();
+  const {locale}=useI18n();
+  const en=locale==='en';
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
   const [error,setError]=useState('');
@@ -22,6 +25,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const [seekToMs,setSeekToMs]=useState<number|undefined>(undefined);
   const [trackWidth,setTrackWidth]=useState(1);
   const [scrubMs,setScrubMs]=useState<number|null>(null);
+  const [timeDialogOpen,setTimeDialogOpen]=useState(false);
+  const [timeInput,setTimeInput]=useState('');
+  const [timeError,setTimeError]=useState(false);
   const scrubbing=useRef(false);
   const [saved,setSaved]=useState<string|null>(null);
   const [saving,setSaving]=useState(false);
@@ -143,6 +149,13 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setSeekToMs(bounded);
     setPositionMs(bounded);
   }
+  function confirmTimestamp(){
+    const target=parseVideoTimestamp(timeInput,durationMs);
+    if(target===null){setTimeError(true);return;}
+    seek(target);
+    setTimeDialogOpen(false);
+    setTimeError(false);
+  }
   const displayMs=scrubMs??positionMs;
   const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
   function dragSeek(offsetX:number){
@@ -159,7 +172,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null} style={styles.video}
+      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
@@ -190,7 +203,18 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           <Text style={styles.skipText}>-10</Text>
         </Pressable>
         <View style={styles.seekMiddle}>
-          <Text style={styles.timeLabel}>{videoTime(displayMs)} / {videoTime(durationMs)}{scrubMs!==null?' · déplacer':''}</Text>
+          <View style={styles.timeRow}>
+            <Text style={styles.timeLabel}>{videoTime(displayMs)} / {videoTime(durationMs)}{scrubMs!==null?' · déplacer':''}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={en?'Go to a precise time':'Aller à un minutage précis'}
+              disabled={durationMs<=0}
+              onPress={()=>{
+                setTimeInput(videoTime(positionMs));
+                setTimeError(false);
+                setTimeDialogOpen(true);
+              }} style={styles.timeJump}>
+              <Text style={styles.timeJumpLabel}>{en?'Go to…':'Aller à…'}</Text>
+            </Pressable>
+          </View>
           <View accessible accessibilityRole="adjustable"
             accessibilityLabel="Position dans la vidéo"
             accessibilityValue={{min:0,max:Math.max(1,Math.floor(durationMs/1000)),now:Math.min(Math.floor(positionMs/1000),Math.max(1,Math.floor(durationMs/1000)))}}
@@ -240,6 +264,42 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {saveNotice}
       </Text>}
     </View>
+    <Modal visible={timeDialogOpen} transparent animationType="fade"
+      onRequestClose={()=>setTimeDialogOpen(false)} statusBarTranslucent>
+      <KeyboardAvoidingView behavior="padding" style={styles.timeModalFull}>
+        <Pressable style={StyleSheet.absoluteFillObject}
+          accessibilityRole="button" accessibilityLabel={en?'Close time entry':'Fermer la saisie du temps'}
+          onPress={()=>setTimeDialogOpen(false)}/>
+        <View style={styles.timeModalCard}>
+          <Text style={styles.timeModalTitle}>{en?'Go to time':'Aller à un instant'}</Text>
+          <Text style={styles.timeModalHint}>
+            {en?'Enter seconds, mm:ss or h:mm:ss':'Entre les secondes, mm:ss ou h:mm:ss'}
+            {' · '}{videoTime(durationMs)}
+          </Text>
+          <TextInput value={timeInput} onChangeText={value=>{
+              setTimeInput(value);if(timeError)setTimeError(false);
+            }}
+            autoFocus autoCapitalize="none" autoCorrect={false} maxLength={20}
+            returnKeyType="go" onSubmitEditing={confirmTimestamp}
+            accessibilityLabel={en?'Target playback time':'Temps de lecture cible'}
+            placeholder="2:14:30" placeholderTextColor="#92a5ac"
+            selectionColor="#83e9de" style={styles.timeModalInput}/>
+          {timeError&&<Text accessibilityRole="alert" style={styles.timeModalError}>
+            {en?'Invalid time. Example: 2:14:30':'Temps invalide. Exemple : 2:14:30'}
+          </Text>}
+          <View style={styles.timeModalActions}>
+            <Pressable accessibilityRole="button" onPress={()=>setTimeDialogOpen(false)}
+              style={[styles.timeModalButton,styles.timeCancel]}>
+              <Text style={styles.timeCancelText}>{en?'Cancel':'Annuler'}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={confirmTimestamp}
+              style={[styles.timeModalButton,styles.timeConfirm]}>
+              <Text style={styles.timeConfirmText}>{en?'Go':'Aller'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   </View>;
 }
 const styles=StyleSheet.create({
@@ -255,6 +315,10 @@ const styles=StyleSheet.create({
   skipButton:{width:42,minHeight:44,alignItems:'center',justifyContent:'center'},
   skipText:{color:'#fff',fontSize:10,fontWeight:'800'},
   seekMiddle:{flex:1,gap:7},
+  timeRow:{flexDirection:'row',flexWrap:'wrap',gap:4,alignItems:'center'},
+  timeJump:{minHeight:44,minWidth:60,justifyContent:'center',alignItems:'center',borderRadius:10,
+    paddingHorizontal:4},
+  timeJumpLabel:{fontSize:10,fontWeight:'800',color:'#b4fff4'},
   timeLabel:{color:'#fff',fontSize:11,fontWeight:'700',fontVariant:['tabular-nums']},
   seekTrack:{height:18,borderRadius:9,backgroundColor:'rgba(255,255,255,.3)',
     justifyContent:'center',overflow:'hidden'},
@@ -274,5 +338,20 @@ const styles=StyleSheet.create({
   offlineSaveLabel:{fontSize:12,fontWeight:'800',color:'#fff'},
   offlineNotice:{fontSize:11,lineHeight:15,color:'#fff',padding:8,
     borderRadius:9,backgroundColor:'rgba(0,0,0,.76)',overflow:'hidden'},
+  timeModalFull:{flex:1,alignItems:'center',justifyContent:'center',
+    paddingHorizontal:18,backgroundColor:'rgba(0,0,0,.72)'},
+  timeModalCard:{width:'100%',maxWidth:380,borderRadius:25,padding:20,gap:12,
+    backgroundColor:'#192329',borderWidth:1,borderColor:'#3e5960'},
+  timeModalTitle:{fontSize:20,fontWeight:'800',color:'#fff'},
+  timeModalHint:{fontSize:12,lineHeight:18,color:'#b5ced2'},
+  timeModalInput:{minHeight:52,borderRadius:14,paddingHorizontal:15,borderWidth:1,
+    borderColor:'#4b676a',color:'#fff',backgroundColor:'#0d171d',
+    fontVariant:['tabular-nums'],fontSize:22,fontWeight:'700'},
+  timeModalError:{fontSize:12,color:'#ffb9be'},
+  timeModalActions:{flexDirection:'row',gap:10},
+  timeModalButton:{flex:1,minHeight:48,borderRadius:14,alignItems:'center',justifyContent:'center'},
+  timeCancel:{backgroundColor:'#324148'},timeConfirm:{backgroundColor:'#83e9de'},
+  timeCancelText:{fontSize:14,fontWeight:'700',color:'#fff'},
+  timeConfirmText:{fontSize:14,fontWeight:'800',color:'#082f2b'},
   open:{flex:1,alignItems:'center',justifyContent:'center',gap:9}
 });

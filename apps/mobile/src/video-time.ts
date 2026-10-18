@@ -26,3 +26,23 @@ export function clampVideoSeek(positionMs:number,durationMs:number,deltaMs=0):nu
   const delta=Number.isFinite(deltaMs)?deltaMs:0;
   return Math.floor(Math.min(durationMs,Math.max(0,position+delta)));
 }
+
+/** Parse h:mm:ss, mm:ss or bare seconds; invalid clocks cannot seek. */
+export function parseVideoTimestamp(value:string,durationMs:number):number|null{
+  if(!Number.isFinite(durationMs)||durationMs<=0)return null;
+  const tokens=value.trim().split(':');
+  if(tokens.length<1||tokens.length>3||tokens.some(token=>!/^\d{1,6}$/.test(token)))return null;
+  const numbers=tokens.map(Number);
+  // Length/format were checked above; explicit fallbacks also satisfy
+  // TypeScript's noUncheckedIndexedAccess and prevent NaN propagation.
+  const first=numbers[0]??0;
+  const second=numbers[1]??0;
+  const third=numbers[2]??0;
+  if(tokens.length>1&&(tokens.length===2?second:third)>59)return null;
+  if(tokens.length===3&&second>59)return null;
+  const seconds=tokens.length===3
+    ?first*3600+second*60+third
+    :tokens.length===2?first*60+second:first;
+  if(!Number.isSafeInteger(seconds))return null;
+  return Math.min(Math.floor(durationMs),seconds*1000);
+}
