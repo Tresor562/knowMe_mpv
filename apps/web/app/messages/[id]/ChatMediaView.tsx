@@ -91,8 +91,8 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false, a
         const grant = await apiFetch<{path:string}>(`/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'});
         // Keep private grants in authenticated fetches, never in image src attributes.
         const data = await apiFetchBlob(grant.path);
+        // Voice downloads are handled by the persistent player, not here.
         const supported = kind==='VIDEO' ? data.type==='video/mp4' :
-          kind==='AUDIO' ? ['audio/mpeg','audio/ogg','audio/wav'].includes(data.type) :
           kind==='DOCUMENT' ? data.type==='application/pdf' : data.type.startsWith('image/');
         if (!supported) throw new Error('INVALID_MEDIA_MIME');
         if (!live) return;
