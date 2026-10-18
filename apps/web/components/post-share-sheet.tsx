@@ -51,6 +51,9 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [selectedConversationId, setSelectedConversationId] = useState('');
   const [recipientQuery, setRecipientQuery] = useState('');
   const previousFocus = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   const url = typeof window === 'undefined' ? '' :
     `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
 
@@ -58,16 +61,39 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const initialFocus = window.requestAnimationFrame(() => {
+      dialogRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
+    });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        // Do not let a dismissed sheet pretend a pending network write stopped.
+        if (!submitting.current) { event.preventDefault(); closeRef.current(); }
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusables = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? [])].filter(node => node.getClientRects().length > 0);
+      if (!focusables.length) { event.preventDefault(); return; }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
+        event.preventDefault();
+        first?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => {
+      window.cancelAnimationFrame(initialFocus);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
       previousFocus.current?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   async function copyLink() {
     setCopied(false);
@@ -198,7 +224,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   return (
     <div className="km-share-overlay" role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <section className="km-share-sheet" role="dialog" aria-modal="true"
+      <section ref={dialogRef} className="km-share-sheet" role="dialog" aria-modal="true"
         aria-label={en ? 'Share publication' : 'Partager la publication'}>
         <div className="km-share-handle" aria-hidden="true"/>
         <header className="km-share-header">
