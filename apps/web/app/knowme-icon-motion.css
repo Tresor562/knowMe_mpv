@@ -177,3 +177,11 @@
 :root[data-effective-reduced-motion='true'] .km-state-icon-live-dot {
   animation: none !important;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon-typing circle { animation: none !important; }
+}
+:root[data-animated-icons='false'] .km-state-icon-typing circle,
+:root[data-effective-reduced-motion='true'] .km-state-icon-typing circle {
+  animation: none !important;
+}
