@@ -33,3 +33,20 @@ test('native recorder uses private cache and real Ogg Opus',()=>{
   assert.match(code,/allowedFile\(uri\)/);
   assert.doesNotMatch(code,/MANAGE_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE/);
 });
+
+test('voice composer requires explicit send and bounds playback seeking',async()=>{
+  // The mobile test script runs Node with --experimental-strip-types.
+  const {voiceUiState,voiceClock,voiceProgress,voiceSeekMs}=await import('../src/voice-composer-model.ts');
+  assert.equal(voiceUiState('recording',false).canSend,false);
+  assert.equal(voiceUiState('preview',false).canSend,true);
+  assert.equal(voiceUiState('preview',true).canSend,false);
+  assert.equal(voiceUiState('sending',false).canCancel,false);
+  assert.equal(voiceUiState('starting',false).canCancel,true);
+  assert.equal(voiceClock(61000),'01:01');
+  assert.equal(voiceProgress(-100,30000),0);
+  assert.equal(voiceProgress(35000,30000),1);
+  assert.equal(voiceSeekMs(-15,200,30000),0);
+  assert.equal(voiceSeekMs(250,200,30000),30000);
+  assert.equal(voiceSeekMs(100,200,30000),15000);
+  assert.equal(voiceSeekMs(Number.NaN,200,30000),0);
+});
