@@ -178,36 +178,27 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/shared-content-multiselect-links",
-      "task": "PR #765 merged 0baf272; implement complete selection toolbar for shared private/group media: select visible, clear, native share + copy fallback, permission-safe controls, tests.",
+      "branch": "chat/design/shared-selection-actions",
+      "task": "PR #765 merged (main 0baf272) and Vercel prod READY; #766 HEAD cf347ea1a extends Web shared message selection (all visible up to 50, clear, native navigator.share fallback) with tests and compact UI. Latest CI success and coordination guard success, APK still in progress; not merged. Separate follow-up branch chat/design/shared-selection-bulk-save based on #766 adds authenticated POST /saved-messages sequential batch save, accurate partial failure feedback, cancellation stops next writes and Playwright success/403, no PR until #766 merged. React Native sharing/save controls not implemented by these Web-only changes. Messaging group permissions #754 and ?message routing #756 still blocked. No 100% parity.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T20:02:14.455Z",
-      "lastPr": 765,
+      "updatedAt": "2026-10-18T20:26:22.959Z",
+      "lastPr": 766,
       "resumeFrom": {
-        "pr": 765,
-        "branch": "chat/design/shared-content-multiselect-links",
-        "commit": "8259be6e3bc81c45a8523d5b1c2313bad3a10616",
-        "mergedPr": 764,
-        "mergedCommit": "33679656a588d4444f8401a9a12318ecd8aaef75",
-        "dependencyPrs": [
-          756,
-          754
-        ],
-        "issueComment": 6254392858,
-        "securityIssue": 693,
-        "requiredChecks": [
-          "CI",
-          "KnowMe coordination guard",
-          "KnowMe APK Build Once"
-        ],
-        "at": "2026-10-18T19:52:33.000Z",
+        "pr": 766,
+        "branch": "chat/design/shared-selection-actions",
+        "commit": "cf347ea1ae371974bd02606f75654c93eb406406",
+        "followupBranch": "chat/design/shared-selection-bulk-save",
+        "followupFeature": "save selected messages via existing server API",
+        "mergedPr": 765,
+        "mergedCommit": "0baf2727bd23934d188c7c163f83638dc1ef8d5e",
+        "issueComment": 6254739093,
         "checks": [
           {
-            "name": "CI",
-            "status": "in_progress",
-            "conclusion": null
+            "name": "KnowMe coordination guard",
+            "status": "completed",
+            "conclusion": "success"
           },
           {
             "name": "KnowMe APK Build Once",
@@ -215,11 +206,12 @@
             "conclusion": null
           },
           {
-            "name": "KnowMe coordination guard",
+            "name": "CI",
             "status": "completed",
             "conclusion": "success"
           }
-        ]
+        ],
+        "toDo": "Verify APK Build Once exact SHA success and merge PR #766 if clean; open followup bulk-save PR based on main after #766 merge; fix tests if needed"
       }
     }
   },
@@ -1114,6 +1106,14 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "mergedPr": 765
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "at": "2026-10-18T20:26:22.959Z",
+      "pr": 766,
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "followupBranch": "chat/design/shared-selection-bulk-save"
     }
   ]
 }
