@@ -1,0 +1,80 @@
+import { expect, test } from '@playwright/test';
+
+const prefs = {
+  masterEnabled: true, realtimeEnabled: true, digestMode: 'INSTANT',
+  quietHoursEnabled: false, mutedTypes: [], categorySettings: { SOCIAL: true, MESSAGING: true }
+};
+const old = {
+  id: 'old-message', type: 'MESSAGE', category: 'MESSAGING',
+  title: 'Message précédent', body: 'Déjà dans le centre',
+  createdAt: '2026-10-18T12:00:00Z', readAt: null,
+  data: { route: '/messages' }
+};
+const fresh = {
+  id: 'new-mention', type: 'COMMENT_MENTION', category: 'SOCIAL',
+  title: 'Mention dans un commentaire', body: 'On vous a mentionné dans une publication',
+  createdAt: '2026-10-18T14:00:00Z', readAt: null,
+  data: { route: '/feed/123' }
+};
+
+test('notifications arrive inside the app without replaying old activity', async ({ page }) => {
+  let includeNew = false;
+  await page.addInitScript(() => {
+    localStorage.setItem('knowme_token', 'notification-e2e');
+    localStorage.setItem('knowme-locale', 'fr');
+  });
+  await page.route('**/api/knowme/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown = {};
+    if (path.endsWith('/users/me')) body = {
+      id: 'design-test', username: 'design', displayName: 'Design', email: 'design@example.test'
+    };
+    if (path.endsWith('/security')) body = {
+      twoFactorEnabled: false, recoveryCodesRemaining: 0, sessions: [],
+      trustedDevices: [], events: []
+    };
+    if (path.endsWith('/notifications/center')) body = {
+      items: includeNew ? [fresh, old] : [old],
+      totals: { unread: includeNew ? 2 : 1 }, preferences: prefs
+    };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+
+  await page.goto('/security');
+  await expect(page.getByRole('heading', { name: 'Centre de sécurité' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /1 notifications non lues/ })).toBeVisible();
+  await expect(page.getByText('Mention dans un commentaire')).toHaveCount(0);
+  includeNew = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByRole('button', { name: /Ouvrir la notification : Mention dans un commentaire/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /2 notifications non lues/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Fermer cette notification' }).click();
+  await expect(page.getByRole('button', { name: /Ouvrir la notification : Mention/ })).toHaveCount(0);
+});
+
+test('quiet-hours preferences suppress non-critical popups while preserving unread badge', async ({ page }) => {
+  let includeNew = false;
+  await page.addInitScript(() => localStorage.setItem('knowme_token', 'notification-e2e'));
+  await page.route('**/api/knowme/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown = {};
+    if (path.endsWith('/users/me')) body = {
+      id: 'design-test', username: 'design', displayName: 'Design', email: 'design@example.test'
+    };
+    if (path.endsWith('/security')) body = {
+      twoFactorEnabled: false, recoveryCodesRemaining: 0, sessions: [], trustedDevices: [], events: []
+    };
+    if (path.endsWith('/notifications/center')) body = {
+      items: includeNew ? [fresh, old] : [old],
+      totals: { unread: includeNew ? 2 : 1 },
+      preferences: { ...prefs, quietHoursEnabled: true, quietStartMinute: 0, quietEndMinute: 1439, timezone: 'UTC' }
+    };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+  await page.goto('/security');
+  await expect(page.getByRole('link', { name: /1 notifications/ })).toBeVisible();
+  includeNew = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByRole('link', { name: /2 notifications/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Mention dans un commentaire/ })).toHaveCount(0);
+});
