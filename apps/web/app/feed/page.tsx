@@ -63,7 +63,8 @@ export default function FeedPage() {
   const [composeOpen,setComposeOpen] = useState(false);
   const [draftContent,setDraftContent] = useState('');
   const [deletePending,setDeletePending] = useState<string|null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<File[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<Array<{ file: File; url: string | null }>>([]);
   const [photoCapability, setPhotoCapability] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -118,11 +119,34 @@ export default function FeedPage() {
   }, [sessionLoading, user?.id]);
 
   useEffect(() => {
-    if (!selectedImage) { setImagePreview(null); return; }
-    const url = URL.createObjectURL(selectedImage);
-    setImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedImage]);
+    const previews = selectedMedia.map(file => ({
+      file, url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }));
+    setMediaPreviews(previews);
+    return () => {
+      for (const preview of previews) if (preview.url) URL.revokeObjectURL(preview.url);
+    };
+  }, [selectedMedia]);
+
+  function selectMedia(files: FileList | null) {
+    if (!files?.length) return;
+    const next = [...files];
+    const allowed = new Set(['image/jpeg','image/png','image/webp','image/gif','video/mp4']);
+    if (next.some(file => !allowed.has(file.type) || file.size < 1024 || file.size > 25 * 1024 * 1024)) {
+      setPublishMessage(en
+        ? 'Choose JPG, PNG, WebP, GIF or MP4 files between 1 KB and 25 MB each.'
+        : 'Choisis des fichiers JPG, PNG, WebP, GIF ou MP4 de 1 Ko à 25 Mo chacun.');
+      return;
+    }
+    if (selectedMedia.length + next.length > 500) {
+      setPublishMessage(en
+        ? 'This server accepts a maximum of 500 files per publication.'
+        : 'Ce serveur accepte au maximum 500 médias par publication.');
+      return;
+    }
+    setPublishMessage('');
+    setSelectedMedia(current => [...current, ...next]);
+  }
 
   const invalidateFeedAuthority = useCallback(() => {
     loadGeneration.current += 1;
@@ -196,19 +220,21 @@ export default function FeedPage() {
     setPublishing(true);
     setPublishMessage('');
     try {
-      let mediaAssetId: string | undefined;
-      if (selectedImage) {
+      const mediaAssetIds: string[] = [];
+      for (let index = 0; index < selectedMedia.length; index += 1) {
+        const file = selectedMedia[index]!;
+        setPublishMessage(en
+          ? `Uploading media ${index + 1} of ${selectedMedia.length}…`
+          : `Envoi du média ${index + 1} sur ${selectedMedia.length}…`);
         const session = await apiFetch<PostUploadSession>('/media/uploads', {
           method: 'POST',
           body: JSON.stringify({
-            purpose: 'POST',
-            visibility: 'PRIVATE',
-            maxBytes: selectedImage.size,
-            allowedMime: [selectedImage.type]
+            purpose: 'POST', visibility: 'PRIVATE', maxBytes: file.size,
+            allowedMime: [file.type]
           })
         });
         const upload = new FormData();
-        upload.append('file', selectedImage, selectedImage.name);
+        upload.append('file', file, file.name);
         const asset = await apiFetch<PostUploadedAsset>(
           `/media/uploads/${encodeURIComponent(session.id)}/complete`, {
             method: 'POST',
@@ -218,17 +244,18 @@ export default function FeedPage() {
         );
         if (asset.status !== 'AVAILABLE') {
           throw new Error(en
-            ? 'The image could not pass the security check.'
-            : 'La photo n’a pas passé le contrôle de sécurité.');
+            ? 'A media file failed the security check. Your draft is kept.'
+            : 'Un média a échoué au contrôle de sécurité. Le brouillon est conservé.');
         }
-        mediaAssetId = asset.id;
+        mediaAssetIds.push(asset.id);
       }
+      setPublishMessage(en ? 'Publishing…' : 'Publication en cours…');
       await apiFetch('/posts', {
         method: 'POST',
-        body: JSON.stringify({ content, ...(mediaAssetId ? { mediaAssetId } : {}) })
+        body: JSON.stringify({content, ...(mediaAssetIds.length ? {mediaAssetIds} : {})})
       });
       form.reset();
-      setSelectedImage(null);
+      setSelectedMedia([]);
       setDraftContent('');
       setPublishMessage('');
       setComposeOpen(false);
@@ -335,32 +362,46 @@ export default function FeedPage() {
             <span className="km-feed-editor-audience">{en?'Public':'Public'}</span>
           </div>
         </div>
-        <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
-          className="km-visually-hidden-file" aria-label={en ? 'Choose a post photo' : 'Choisir une photo pour la publication'}
+        <input ref={photoInputRef} type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"
+          multiple disabled={publishing} className="km-visually-hidden-file"
+          aria-label={en ? 'Select several photos and videos' : 'Sélectionner plusieurs photos et vidéos'}
           onChange={event => {
-            const photo = event.target.files?.[0];
-            event.target.value = '';
-            if (!photo) return;
-            if (!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)
-              || photo.size < 1024 || photo.size > 5*1024*1024) {
-              setMessage(en ? 'Choose a JPEG, PNG, WebP or GIF image of 1 KB to 5 MB.'
-                : 'Choisis une image JPEG, PNG, WebP ou GIF de 1 Ko à 5 Mo.');
-              return;
-            }
-            setMessage('');
-            setSelectedImage(photo);
-          }} />
+            selectMedia(event.currentTarget.files);
+            event.currentTarget.value = '';
+          }}/>
         <div className="km-feed-compose-row">
           <textarea name="content" ref={composerInputRef} value={draftContent} onChange={event=>setDraftContent(event.target.value)}
             placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
-            rows={7} maxLength={2000} required disabled={publishing}/>
+            rows={7} required disabled={publishing}/>
         </div>
-        <small className="km-feed-editor-counter">{draftContent.length}/2000</small>
-        {imagePreview && <div className="km-feed-image-preview">
-          <img src={imagePreview} alt={en ? 'Selected photo' : 'Photo sélectionnée'} />
-          <button type="button" aria-label={en ? 'Remove photo' : 'Retirer la photo'}
-            onClick={() => setSelectedImage(null)}>×</button>
-        </div>}
+        <small className="km-feed-editor-counter">{draftContent.length} {en ? "characters" : "caractères"}</small>
+        {mediaPreviews.length > 0 && (
+          <div className="km-feed-selected-media"
+            aria-label={en ? 'Selected media' : 'Médias sélectionnés'}>
+            <div className="km-feed-selected-media-heading">
+              <strong>{en ? 'Attachments' : 'Pièces jointes'} ({mediaPreviews.length})</strong>
+              <button type="button" disabled={publishing} onClick={() => setSelectedMedia([])}>
+                {en ? 'Remove all' : 'Tout retirer'}
+              </button>
+            </div>
+            <div className="km-feed-selected-media-grid">
+              {mediaPreviews.map(({file,url},index) => (
+                <div className="km-feed-selected-media-item" key={index}>
+                  {url
+                    ? <img src={url} alt={file.name}/>
+                    : <span className="km-feed-selected-media-video">
+                        <span aria-hidden="true">▶</span><span>MP4</span>
+                      </span>}
+                  <span className="km-feed-selected-media-filename" title={file.name}>{file.name}</span>
+                  <button type="button" disabled={publishing}
+                    aria-label={en ? `Remove ${file.name}` : `Retirer ${file.name}`}
+                    onClick={() => setSelectedMedia(current => current.filter((_,i) => i !== index))}>×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="km-feed-compose-actions">
           <div className="km-feed-compose-tools">
             {photoCapability && <button type="button" disabled={publishing} onClick={() => photoInputRef.current?.click()}>
@@ -369,7 +410,7 @@ export default function FeedPage() {
                 <rect x="3" y="4" width="18" height="16" rx="3"/>
                 <circle cx="8" cy="9" r="1.4"/><path d="m4 17 5-5 3.5 3.5 3-3L21 18"/>
               </svg>
-              {en ? 'Photo' : 'Photo'}
+              {en ? 'Photos / videos' : 'Photos / vidéos'}
             </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
