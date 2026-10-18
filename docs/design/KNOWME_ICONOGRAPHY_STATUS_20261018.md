@@ -78,3 +78,16 @@ Côté Web : `knowme-document-visibility.ts` centralise un unique listener `visi
 **Coordination vérifiée :** la PR Design #743 couvre déjà `apps/mobile/src/NotificationCenterExperience.tsx` ; les pictogrammes emoji restants y ont été signalés sans écrire dans ce fichier depuis la PR #760. Les autres surfaces (Social #694, Messaging #693, Reels #695, Marketplace #697) restent à réviser lors des intégrations respectives.
 
 **Ne pas prétendre que 100 % des SVG Android/Web sont audités ou conformes.** L'étape suivante impose l'analyse des alertes de l'inventaire enrichi, des captures comparatives et la réconciliation des PR historiques qui bloquent le garde de coordination. Les commits sur la branche ne constituent pas un APK livré.
+
+
+## Lot suivant : iconographie de 75 glyphes et vérification statique plus précise
+
+Le catalogue Web `knowme-glyph.tsx` comporte maintenant **75 noms uniques**, chacun avec des tracés SVG originaux dans le `viewBox 0 0 24 24`. Les 30 ajouts couvrent notamment copier, répondre, épingler, archiver, fichier/dossier, groupe et invitation, bouclier et certification, cadeau, horloge/calendrier, volume/coupure du son, casque, musique, arrêt et raccrochage, options, informations, alerte, aide, déconnexion, favoris, filtres, tri, localisation, traduction et réussite.
+
+Les signatures d'animation supplémentaires distinguent confirmation, copie/fichiers, cadeau/favori et réponses/navigation ; **une animation ne confirme jamais un état serveur qui n'a pas été fourni par l'écran propriétaire**. Le partage a désormais un pictogramme de copie au repos et une coche uniquement si `navigator.clipboard.writeText` a effectivement réussi. Les boutons « créer » de menu ouvert affichent un vrai glyph `close`, et non un plus simplement pivoté ; leur lisibilité est donc conservée en mode animations réduites.
+
+L'audit exécuté sur l'ancien HEAD validé `affe185b5a351b6b8e19cc2395c70596dbabb0e4` (run CI `39153314502`) a examiné **644 fichiers**, compté **97 SVG JSX**, **2 SVG autonomes**, **411 références à des pictogrammes natifs composés** et **0 Android VectorDrawable XML**. L'analyse brute donnait 16 avertissements, dont **4 faux positifs causés par les expressions régulières du scanner lui-même**. Ce cas a été exclu de l'inventaire et les alertes restantes sont explicitement de niveau `review` lorsque leur contexte d'accessibilité est inconnu ; `--strict` échoue seulement sur les SVG autonomes malformés ou nécessitant une revue de sécurité. Le test Web appelle dorénavant ce contrôle strict.
+
+Les 12 alertes contextuelles restantes correspondent à des éléments SVG dans Marketplace (5), StickerPicker (2), lecteur Réels (4) et collage média (1), sous des ancêtres avec `aria-hidden` ou des boutons déjà nommés dans les extraits vérifiés. Leur migration doit se faire dans les PR fonctionnelles concernées, sans casser les commandes existantes. Les demandes de migration coordonnées ont été publiées sur les issues #693, #695 et #697.
+
+**Limites persistantes** : ces 75 glyphes ne constituent pas 75 parcours Web/Android fonctionnellement vérifiés, et la famille `KnowMeIcon` Android reste majoritairement composée de Views plutôt que d'un moteur de chemins SVG natifs. Pas de certification visuelle sur un téléphone ni de déploiement depuis la PR #760 avant le contrôle de chevauchement GitHub et l'intégration ordonnée.
