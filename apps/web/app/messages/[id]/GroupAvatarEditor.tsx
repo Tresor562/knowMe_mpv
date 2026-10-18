@@ -24,6 +24,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
   const [preview,setPreview]=useState(false);
   const picker=useRef<HTMLInputElement>(null);
   const trigger=useRef<HTMLButtonElement>(null);
+  const closeRef=useRef<HTMLButtonElement>(null);
 
   useEffect(()=>{
     let alive=true;
@@ -106,10 +107,15 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
 
   useEffect(()=>{
     if(!preview)return;
+    closeRef.current?.focus();
     const onKey=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){
         setPreview(false);
         trigger.current?.focus();
+      }
+      if(event.key==='Tab'){
+        event.preventDefault();
+        closeRef.current?.focus();
       }
     };
     window.addEventListener('keydown',onKey);
@@ -157,7 +163,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
         setPreview(false);trigger.current?.focus();
       }}>
       <div className="km-group-avatar-preview-inner" onClick={event=>event.stopPropagation()}>
-        <button type="button" onClick={()=>{
+        <button ref={closeRef} type="button" onClick={()=>{
           setPreview(false);trigger.current?.focus();
         }} aria-label={tr('Fermer','Close')}>×</button>
         <img src={photo} alt={title}/>
