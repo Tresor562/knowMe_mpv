@@ -32,6 +32,7 @@ import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
 import {CommentReportSheet} from './CommentReportSheet';
+import {PostEditSheet} from './PostEditSheet';
 import {CommentEditSheet} from './CommentEditSheet';
 
 type Author = {
@@ -143,11 +144,12 @@ function MetricButton({
 }
 
 /** Native KnowMe action sheet: the same actions are available on Android and iOS. */
-function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenProfile }: {
+function PublicationActions({ post, userId, onClose, onView, onEdit, onDelete, onOpenProfile }: {
   post: PostSummary | null;
   userId: string;
   onClose: () => void;
   onView?: (id: string) => void;
+  onEdit?: (post: PostSummary) => void;
   onDelete: (id: string) => void;
   onOpenProfile?: (username: string) => void;
 }) {
@@ -173,6 +175,8 @@ function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenPro
           {onView ? action('Voir la publication', () => onView(post.id)) : null}
           {action('Partager la publication', () => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); })}
           {onOpenProfile ? action('Voir le profil', () => onOpenProfile(post.author.username)) : null}
+          {post.authorId === userId && onEdit ?
+            action('Modifier la publication', () => onEdit(post)) : null}
           {post.authorId === userId ? action('Supprimer la publication', () => onDelete(post.id), true) : null}
           {action('Annuler', onClose)}
         </View>
@@ -209,6 +213,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [editPost,setEditPost] = useState<PostSummary|null>(null);
   const [reportComment,setReportComment] = useState<Comment|null>(null);
   const [editComment,setEditComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
@@ -694,9 +699,15 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
       onClose={()=>setReportComment(null)}
       onReported={()=>Alert.alert('Signalement transmis',
         'Le commentaire a été transmis à la modération KnowMe.')}/>
+    <PostEditSheet post={editPost?{
+      id:editPost.id,content:editPost.content,
+      hasMedia:Boolean(editPost.media?.length||editPost.imageUrl)
+    }:null} onClose={()=>setEditPost(null)}
+      onSaved={content=>setPost(old=>old?{...old,content}:old)}/>
     <PublicationActions
       post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
       onOpenProfile={onOpenProfile}
+      onEdit={target=>setEditPost(target)}
       onDelete={() => confirmDeletePost()}
     />
     </View>
@@ -808,6 +819,7 @@ export function FeedExperience({
   }, [userId, draftOwner, content, selectedPhotos, publishing]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
+  const [editFeedPost,setEditFeedPost] = useState<PostSummary|null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   useEffect(() => { onDetailChange?.(Boolean(selectedPostId)); return () => onDetailChange?.(false); },[selectedPostId,onDetailChange]);
   const [refreshing, setRefreshing] = useState(false);
@@ -1067,9 +1079,17 @@ export function FeedExperience({
         </Pressable>
       )}
     />
+    <PostEditSheet post={editFeedPost?{
+      id:editFeedPost.id,content:editFeedPost.content,
+      hasMedia:Boolean(editFeedPost.media?.length||editFeedPost.imageUrl)
+    }:null} onClose={()=>setEditFeedPost(null)}
+      onSaved={content=>setPosts(current=>current.map(item=>
+        item.id===editFeedPost?.id?{...item,content}:item
+      ))}/>
     <PublicationActions
       post={menuPost} userId={userId} onClose={() => setMenuPost(null)}
-      onView={id => setSelectedPostId(id)} onDelete={confirmRemovePost} onOpenProfile={onOpenProfile}
+      onView={id => setSelectedPostId(id)} onEdit={target=>setEditFeedPost(target)}
+      onDelete={confirmRemovePost} onOpenProfile={onOpenProfile}
     />
     <PostComposerExperience
       visible={composerOpen&&!photoPickerOpen}
