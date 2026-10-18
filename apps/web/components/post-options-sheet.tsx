@@ -8,9 +8,9 @@ export type PostOption = {
   author: { id: string; username: string; displayName: string };
 };
 
-export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onDelete,onDisinterest}:{
+export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDelete,onDisinterest}:{
   post:PostOption; own:boolean; en:boolean;onClose:()=>void;
-  onShare:()=>void;onCopy:()=>void;onDelete:()=>void;onDisinterest:()=>void;
+  onShare:()=>void;onCopy:()=>void;onEdit:()=>void;onDelete:()=>void;onDisinterest:()=>void;
 }) {
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')onClose();};
@@ -40,6 +40,9 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onDelete,on
       <Link href={`/profile/${encodeURIComponent(post.author.username)}`} onClick={onClose}>
         <span aria-hidden="true">◯</span>{en?'View profile':'Voir le profil'}
       </Link>
+      {own && <button type="button" onClick={onEdit}>
+        <span aria-hidden="true">✎</span>{en?'Edit publication':'Modifier la publication'}
+      </button>}
       {own ? (
         <button type="button" className="km-post-options-danger" onClick={onDelete}>
           <span aria-hidden="true">×</span>{en?'Delete publication':'Supprimer la publication'}
