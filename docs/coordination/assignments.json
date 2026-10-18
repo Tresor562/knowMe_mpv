@@ -27,22 +27,28 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/web-voice-review",
-      "task": "Reprise PR #723/728; valider CI exactes puis intégrer fixes et tests non-régression audio sans collision",
+      "task": "PR #728 fusionnée SHA 4569e944 ; PR #723 Web HEAD c54d29e CI/guard/APK attendues après corrections JSX/TS ; PR #735 KnowSticker HEAD 66a472e CI/guard/APK attendues. Pas de déploiement vérifié.",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:38:52.999Z",
+      "updatedAt": "2026-10-18T14:52:19.382Z",
       "lastPr": 723,
       "resumeFrom": {
         "pr": 723,
         "branch": "chat/messaging/web-voice-review",
-        "commit": "975646f6266a4b5b808b8afe9f28f48a0f0a4fc5",
-        "alsoPr": 728,
-        "alsoBranch": "chat/messaging/native-voice-unmount-fence",
-        "alsoCommit": "85f67aa6f1573dc284765a9db6c2760c2a725c30",
-        "mergedPr": 706,
-        "mergedCommit": "592a103a380811d1845440d110568ec6b71156c2"
+        "commit": "c54d29e44411a0fc6a45a423b1bb90f977529f94",
+        "alsoPr": 735,
+        "alsoBranch": "chat/messaging/knowsticker-rename",
+        "alsoCommit": "66a472eeb3e0b08193fde550936fcb8f3e31b956",
+        "mergedPrs": [
+          706,
+          728
+        ],
+        "mergedCommits": [
+          "592a103a380811d1845440d110568ec6b71156c2",
+          "4569e944196ba1d5c1503c3733d030ccf8099a6b"
+        ]
       }
     },
     "social": {
@@ -674,6 +680,15 @@
       "action": "pause",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "action": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:52:19.382Z",
+      "pr": 723,
+      "alsoPr": 735,
+      "mergedPr": 728
     }
   ]
 }
