@@ -1,7 +1,11 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { wrappedDialogFocus } from './dialog-focus';
+import { enqueueNotice } from './toast-queue';
 type Dialog = { kind: 'confirm' | 'prompt'; message: string; initial?: string; resolve: (answer: boolean | string | null) => void };
 type Toast = { text: string; tone: 'info' | 'success' | 'error' };
+type QueuedToast = Toast & { id: number };
+let nextToastId = 0;
 let dispatch: ((dialog: Dialog) => void) | null = null;
 let showToast: ((toast: Toast) => void) | null = null;
 
@@ -22,7 +26,9 @@ export function knowMeToast(text: string, tone: Toast['tone'] = 'info') { showTo
 export function KnowMeDialogHost() {
   const [queue, setQueue] = useState<Dialog[]>([]);
   const [value, setValue] = useState('');
-  const [toast, setToast] = useState<Toast | null>(null);
+  const [toastQueue, setToastQueue] = useState<QueuedToast[]>([]);
+  const [toastPaused, setToastPaused] = useState(false);
+  const toast = toastQueue[0] ?? null;
   const box = useRef<HTMLDivElement>(null);
   const currentQueue = useRef<Dialog[]>([]);
   const active = queue[0];
@@ -30,7 +36,10 @@ export function KnowMeDialogHost() {
   useEffect(() => {
     const handler = (item: Dialog) => setQueue(previous => [...previous, item]);
     dispatch = handler;
-    showToast = setToast;
+    showToast = (next) => setToastQueue((previous) => {
+      // A burst of identical errors should not bury the user in alerts.
+      return enqueueNotice(previous, { ...next, id: ++nextToastId }, 4);
+    });
     return () => {
       if (dispatch === handler) dispatch = null;
       showToast = null;
@@ -43,7 +52,11 @@ export function KnowMeDialogHost() {
     const previous = document.activeElement as HTMLElement | null;
     const scroll = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    box.current?.querySelector<HTMLElement>('input,button')?.focus();
+    const controls = () => Array.from(
+      box.current?.querySelectorAll<HTMLElement>('input,textarea,button,[href],[tabindex]:not([tabindex="-1"])') ?? []
+    ).filter((element) => !element.hasAttribute('disabled') && element.getClientRects().length > 0);
+    const focusFirst = () => controls()[0]?.focus();
+    focusFirst();
     const keydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -51,26 +64,36 @@ export function KnowMeDialogHost() {
         setQueue(items => items.slice(1));
       }
       if (event.key === 'Tab') {
-        const controls = [...(box.current?.querySelectorAll<HTMLElement>('input,button') ?? [])];
-        if (controls.length && event.shiftKey && document.activeElement === controls[0]) {
-          event.preventDefault(); controls[controls.length - 1].focus();
-        } else if (controls.length && !event.shiftKey && document.activeElement === controls[controls.length - 1]) {
-          event.preventDefault(); controls[0].focus();
+        const candidates = controls();
+        const current = candidates.indexOf(document.activeElement as HTMLElement);
+        const next = wrappedDialogFocus(candidates.length, current, event.shiftKey);
+        if (next !== null) {
+          event.preventDefault();
+          candidates[next]?.focus();
         }
       }
     };
+    const keepFocusInside = (event: FocusEvent) => {
+      if (box.current && event.target instanceof Node && !box.current.contains(event.target)) {
+        focusFirst();
+      }
+    };
     window.addEventListener('keydown', keydown);
+    document.addEventListener('focusin', keepFocusInside);
     return () => {
       window.removeEventListener('keydown', keydown);
+      document.removeEventListener('focusin', keepFocusInside);
       document.body.style.overflow = scroll;
       previous?.focus();
     };
   }, [active]);
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3500);
+    if (!toast || toastPaused) return;
+    // Errors need longer reading time than an ordinary success confirmation.
+    const timer = setTimeout(() => setToastQueue((items) => items.slice(1)),
+      toast.tone === 'error' ? 8000 : 5000);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast?.id, toast?.tone, toastPaused]);
   const finish = (accepted: boolean) => {
     if (!active) return;
     active.resolve(active.kind === 'confirm' ? accepted : accepted ? value.trim() : null);
@@ -92,7 +115,7 @@ export function KnowMeDialogHost() {
         {active.kind === 'prompt' ? <form onSubmit={e => { e.preventDefault(); finish(true); }}>
           <label htmlFor="km-feedback-input">{en ? 'Value' : 'Valeur'}</label>
           <input id="km-feedback-input" className="km-feedback-input" autoComplete="off"
-            value={value} maxLength={160} onChange={e => setValue(e.target.value)} />
+            value={value} onChange={e => setValue(e.target.value)} />
           <div className="km-feedback-actions">
             <button type="button" onClick={() => finish(false)}>{en ? 'Cancel' : 'Annuler'}</button>
             <button type="submit" className="km-feedback-primary" disabled={!value.trim()}>
@@ -105,9 +128,15 @@ export function KnowMeDialogHost() {
         </div>}
       </div>
     </div> : null}
-    {toast ? <div className={'km-feedback-toast km-feedback-' + toast.tone} role="status">
+    {toast ? <div className={'km-feedback-toast km-feedback-' + toast.tone}
+      onMouseEnter={() => setToastPaused(true)} onMouseLeave={() => setToastPaused(false)}
+      onFocusCapture={() => setToastPaused(true)} onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastPaused(false);
+      }}
+      role={toast.tone === 'error' ? 'alert' : 'status'} aria-live={toast.tone === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
       <span aria-hidden="true">✦</span><span>{toast.text}</span>
-      <button aria-label="Fermer" onClick={() => setToast(null)}>×</button>
+      <button type="button" aria-label={en ? "Close notification" : "Fermer la notification"}
+        onClick={() => { setToastQueue((items) => items.slice(1)); setToastPaused(false); }}>×</button>
     </div> : null}
   </>;
 }
