@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { PostVideoPlayer } from './post-video-player';
 import './post-media-collage.css';
 
 export type PostMediaItem = {
@@ -42,7 +43,9 @@ export function PostMediaCollage({ media, fallbackUrl, caption = '', en = false 
     document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setActiveIndex(null);
+      if (event.key === 'Escape') {setActiveIndex(null);return;}
+      // Left and right keys seek in the video, and navigate between photos.
+      if (document.activeElement?.closest('.km-post-video-player')) return;
       if (event.key === 'ArrowRight') setActiveIndex(index => index === null ? null : (index + 1) % total);
       if (event.key === 'ArrowLeft') setActiveIndex(index => index === null ? null : (index - 1 + total) % total);
     };
@@ -107,8 +110,7 @@ export function PostMediaCollage({ media, fallbackUrl, caption = '', en = false 
                 aria-label={en ? 'Previous media' : 'Média précédent'}
                 onClick={() => setActiveIndex((activeIndex - 1 + total) % total)}>‹</button>}
               {current.mimeType.startsWith('video/')
-                ? <video key={current.url} src={current.url} controls playsInline
-                    preload="metadata" aria-label={en ? 'Video from this post' : 'Vidéo de la publication'}/>
+                ? <PostVideoPlayer key={current.url} src={current.url} en={en}/>
                 : <img key={current.url} src={current.url}
                     alt={en ? `Photo ${activeIndex + 1}` : `Photo ${activeIndex + 1}`}/>}
               {total > 1 && <button type="button" className="km-post-media-viewer-next"
