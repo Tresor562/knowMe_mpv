@@ -18,6 +18,7 @@ export function nativeVisibleGlyph(name: string, state: NativeIconOperationState
   if ((name === 'play' || name === 'pause') && state === 'playing') return 'pause';
   if ((name === 'play' || name === 'pause') && state === 'paused') return 'play';
   if (name === 'download' && state === 'success') return 'check';
+  if (name === 'create' && state === 'open') return 'close';
   return name;
 }
 
