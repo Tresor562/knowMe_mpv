@@ -273,19 +273,24 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         <Pressable style={styles.searchPlaceholder} onPress={()=>setSearchOpen(true)}>
           <Text style={{color:muted,fontSize:15}}>Rechercher</Text>
         </Pressable>}
-      {!searchOpen&&(tab==='emoji'?EMOJI_CATEGORIES:[
-        {label:'❤️',name:'Favoris'},
-        {label:'👍',name:'Récents'},
-        {label:'🎉',name:'Tous'}
-      ]).map(item=><Pressable key={item.name}
-        accessibilityLabel={item.name} accessibilityState={{selected:category===item.name}}
-        style={styles.filter} onPress={()=>{setCategory(current=>current===item.name?null:item.name);}}>
-        <Text style={{fontSize:21,opacity:category===item.name?1:0.65}}>{item.label}</Text>
-      </Pressable>)}
+
       {searchOpen?<Pressable onPress={()=>{setSearch('');setSearchOpen(false);}} 
         style={styles.searchClose} accessibilityRole="button" accessibilityLabel="Fermer la recherche">
         <KnowMeIcon name="close" size={20} color={muted}/></Pressable>:null}
     </View>
+    {!searchOpen&&<ScrollView horizontal showsHorizontalScrollIndicator={false}
+      style={styles.filterStrip} contentContainerStyle={styles.filterStripContent}>
+      {(tab==='emoji'?EMOJI_CATEGORIES:[
+        {label:'❤️',name:'Favoris'}, {label:'👍',name:'Récents'}, {label:'🎉',name:'Tous'}
+      ]).map(item=><Pressable key={item.name}
+        accessibilityRole="button" accessibilityLabel={item.name}
+        accessibilityState={{selected:category===item.name}}
+        style={[styles.filter,{backgroundColor:colors.backgroundAccent},
+          category===item.name&&{backgroundColor:colors.surfaceRaised}]}
+        onPress={()=>setCategory(current=>current===item.name?null:item.name)}>
+        <Text style={{fontSize:20}}>{item.label}</Text>
+      </Pressable>)}
+    </ScrollView>}
     {failure?<Pressable onPress={()=>{setFailure('');setPacks([]);setRetryToken(value=>value+1);}} style={styles.status}>
       <Text style={{color:'#ffaaa9',fontSize:12}}>{failure} · Réessayer</Text>
     </Pressable>:null}
@@ -457,7 +462,9 @@ const styles=StyleSheet.create({
   searchClose:{width:44,height:44,alignItems:'center',justifyContent:'center'},
   searchPlaceholder:{flex:1,justifyContent:'center',height:43},
   searchInput:{flex:1,minWidth:45,backgroundColor:'transparent',fontSize:15,paddingVertical:0},
-  filter:{minWidth:44,height:44,alignItems:'center',justifyContent:'center'},
+  filter:{minWidth:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:13},
+  filterStrip:{maxHeight:49,flexGrow:0,marginHorizontal:11,marginBottom:3},
+  filterStripContent:{alignItems:'center',gap:4,paddingHorizontal:2},
   status:{paddingHorizontal:15,minHeight:28,justifyContent:'center'},
   contentScroll:{flex:1,minHeight:0},
   content:{paddingHorizontal:11,paddingBottom:14},
