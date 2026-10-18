@@ -15,6 +15,8 @@ export type NativePostActionBarProps = {
   saved?: boolean;
   online?: boolean;
   onHeart: () => Promise<void>;
+  /** Required to remove a selected non-heart emoji; never assume PUT toggles. */
+  onRemoveReaction?: () => Promise<void>;
   onReact: (emoji: string) => Promise<void>;
   onComments: () => void;
   onShare: () => void;
@@ -36,7 +38,7 @@ function BookmarkIcon({color, filled}: {color: string; filled: boolean}) {
 export function PostActionBar({
   postId, en = false, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true, onHeart,
-  onReact, onComments, onShare, onSave
+  onReact, onRemoveReaction, onComments, onShare, onSave
 }: NativePostActionBarProps) {
   const { colors } = useAppearance();
   const [open, setOpen] = useState(false);
@@ -81,6 +83,8 @@ export function PostActionBar({
     }
   }
   const active = selectedReaction !== null;
+  const heartSelected = selectedReaction === '❤️';
+  const canToggle = !active || heartSelected || Boolean(onRemoveReaction);
   return <View style={styles.root} testID={`post-action-bar-${postId}`}>
     {reactionCounts.length > 0 && <View style={styles.reactionSummary} accessible
       accessibilityLabel="Réactions à la publication">
@@ -94,21 +98,28 @@ export function PostActionBar({
       <View style={styles.likeGroup}>
         <Pressable accessibilityRole="button"
           accessibilityLabel={active
-            ? (en?'Change my reaction':'Modifier ma réaction')
-            : (en?'Like publication':'J’aime la publication')}
-          accessibilityState={{selected:active,disabled:busy||!online}}
-          disabled={busy||!online}
+            ? (en?'Remove my reaction':'Retirer ma réaction')
+            : (en?'React to publication':'Réagir à la publication')}
+          accessibilityState={{selected:active,disabled:busy||!online||!canToggle}}
+          disabled={busy||!online||!canToggle}
           delayLongPress={450}
           onPressOut={()=>setTimeout(()=>{wasLongPress.current=false;},0)}
           onLongPress={()=>{wasLongPress.current=true;showReactions();}}
           onPress={()=>{
             if(wasLongPress.current){wasLongPress.current=false;return;}
-            void action(onHeart);
+            if (selectedReaction && !heartSelected) {
+              if (onRemoveReaction) void action(onRemoveReaction);
+            } else {
+              void action(onHeart);
+            }
           }} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-          {selectedReaction&&selectedReaction!=='❤️'
+          {selectedReaction&&!heartSelected
             ?<Text style={styles.emoji}>{selectedReaction}</Text>
-            :<KnowMeIcon name="heart" size={21} color={active?colors.accent:colors.muted}/>}
-          <Text style={[styles.count,{color:active?colors.accent:colors.muted}]}>{likeCount}</Text>
+            :heartSelected
+              ?<Text style={styles.activeHeart} accessibilityLabel="">♥</Text>
+              :<KnowMeIcon name="heart" size={21} color={colors.muted}/>}
+          {!active && <Text style={[styles.label,{color:colors.muted}]}>{en?'React':'Réagir'}</Text>}
+          <Text style={[styles.count,{color:heartSelected?'#e73d57':active?colors.accent:colors.muted}]}>{likeCount}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?"Choose reaction":"Choisir une réaction"}
           accessibilityState={{disabled:busy||!online}}
@@ -205,6 +216,7 @@ const styles=StyleSheet.create({
   count:{fontSize:12,fontWeight:'600'},
   label:{fontSize:12,fontWeight:'600'},
   emoji:{fontSize:24},
+  activeHeart:{fontSize:27,lineHeight:30,color:'#e73d57',fontWeight:'700',textAlign:'center'},
   pressed:{opacity:0.65},
   error:{fontSize:12,padding:8},
   overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.56)'},
