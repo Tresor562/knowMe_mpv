@@ -7,7 +7,7 @@
     "lint": "next lint",
     "start": "next start",
     "test:e2e": "playwright test",
-    "test": "node --test components/knowme-glyph.test.mjs && node ../../scripts/audit-knowme-svg.mjs"
+    "test": "node --experimental-strip-types --test components/knowme-glyph.test.mjs components/icon-motion-model.test.mjs && node ../../scripts/audit-knowme-svg.mjs"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
