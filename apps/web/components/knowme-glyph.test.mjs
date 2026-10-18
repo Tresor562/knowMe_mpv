@@ -91,3 +91,28 @@ test('motion respects browser, KnowMe, and native system accessibility', () => {
   assert.match(native, /name === 'settings'/);
   assert.match(native, /onPressIn=\{\(\) => to\(0\.93\)\}/);
 });
+
+
+test('icon action controls are accessible and preserve long-press semantics', () => {
+  const action = fs.readFileSync(path.join(dir, 'knowme-icon-button.tsx'), 'utf8');
+  const style = fs.readFileSync(path.join(dir, 'knowme-icon-button.css'), 'utf8');
+  const network = fs.readFileSync(path.join(dir, 'network-connectivity-notice.tsx'), 'utf8');
+  const sheet = fs.readFileSync(path.join(dir, 'post-share-sheet.tsx'), 'utf8');
+  const layout = fs.readFileSync(path.join(dir, '..', 'app', 'layout.tsx'), 'utf8');
+  assert.ok(action.includes('aria-label={label}'));
+  assert.ok(action.includes("type=\"button\""));
+  assert.ok(action.includes('aria-pressed={toggle ? state ==='));
+  assert.ok(action.includes('aria-busy={busy || undefined}'));
+  assert.ok(action.includes('onPointerDown={startLongPress}'));
+  assert.ok(action.includes('onPointerMove={movePointer}'));
+  assert.ok(action.includes('onPointerCancel={endPointer}'));
+  assert.ok(action.includes('onContextMenu={event =>'));
+  assert.ok(action.includes('event.detail !== 0'));
+  assert.ok(action.includes('onLongPress();'));
+  assert.ok(style.includes('min-width: 44px;'));
+  assert.ok(style.includes('min-height: 44px;'));
+  assert.ok(style.includes(':focus-visible'));
+  assert.ok(network.includes('<KnowMeIconButton name="close"'));
+  assert.ok(sheet.includes('<KnowMeIconButton name="close"'));
+  assert.ok(layout.includes("knowme-icon-button.css"));
+});
