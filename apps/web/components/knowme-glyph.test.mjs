@@ -271,3 +271,11 @@ test('all vector glyphs have real-event motion fallback, idle never loops', () =
   assert.match(model, /data-auto-motion=\{visible && mayAnimateIndefinitely\(state\)/);
   assert.match(model, /settings\.animatedIcons === 'false'/);
 });
+
+
+test('rewind and forward 10 are font-independent SVG numerals', () => {
+  const glyph = fs.readFileSync(path.join(dir, 'knowme-glyph.tsx'), 'utf8');
+  assert.doesNotMatch(glyph, /<text\b|fontSize="7\.8"/);
+  assert.match(glyph, /<ellipse cx="14\.25" cy="13" rx="1\.45" ry="2\.85"/);
+  assert.match(glyph, /<path d="m9\.7 11 1\.1-1v6"/);
+});
