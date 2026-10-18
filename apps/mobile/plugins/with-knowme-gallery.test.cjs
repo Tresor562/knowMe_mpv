@@ -55,3 +55,15 @@ test('gallery uses provider-compatible sorting and bounded Cursor pagination', (
   assert.match(java, /while \(emitted < count && cursor\.moveToNext\(\)\)/);
   assert.doesNotMatch(java, /DESC LIMIT|DESC OFFSET/);
 });
+
+test('KnowSticker labels remain safe and editable without changing WebP paths', async () => {
+  const {normalizeKnowStickerLabel,knowStickerUploadName,knowStickerDisplayName}
+    =await import('../src/knowsticker-naming-model.ts');
+  assert.equal(normalizeKnowStickerLabel(' Mes   mangas '),'Mes mangas');
+  assert.equal(knowStickerDisplayName('Dessin.webp'),'Dessin');
+  assert.equal(knowStickerUploadName(' Etoile.png '),'Etoile.webp');
+  assert.equal(knowStickerUploadName('Bravô ✨'),'Bravô ✨.webp');
+  for(const bad of ['', '../secrets', 'x\\\\y', ' '.repeat(20), 'a'.repeat(81)]) {
+    assert.throws(()=>normalizeKnowStickerLabel(bad));
+  }
+});
