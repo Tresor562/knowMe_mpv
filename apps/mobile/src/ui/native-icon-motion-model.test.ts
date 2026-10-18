@@ -75,3 +75,18 @@ test('Android toast icons animate only confirmed arrivals and dismiss via 48dp a
   assert.match(motion, /const firstEvent = eventToken !== null/);
   assert.match(motion, /state === 'incoming' \|\| state === 'success' \|\| state === 'error'/);
 });
+
+
+test('Android language selector has accessible vector close and true syncing status', () => {
+  const dir = import.meta.dirname;
+  const language = fs.readFileSync(path.join(dir, '..', 'LanguagePicker.tsx'), 'utf8');
+  const settings = fs.readFileSync(path.join(dir, '..', 'LanguageSettingsExperience.tsx'), 'utf8');
+  assert.match(language, /<KnowMeNativeIconButton name="close" size=\{20\}/);
+  assert.match(language, /label=\{value === 'en' \? 'Close language selection' : 'Fermer le choix de langue'\}/);
+  assert.match(language, /minHeight: 48,/);
+  assert.match(language, /width: 48,\s*height: 48,/);
+  assert.match(language, /<KnowMeNativeAnimatedIcon name="check"/);
+  assert.doesNotMatch(language, /closeText:|>×</);
+  assert.match(settings, /<KnowMeNativeAnimatedIcon name=\{busy \? 'refresh' : 'discover'\}/);
+  assert.match(settings, /state=\{busy \? 'syncing' : 'idle'\}/);
+});
