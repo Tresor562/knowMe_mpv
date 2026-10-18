@@ -53,7 +53,7 @@ test('real native touch target and persistent red fill are wired to state', () =
 
   assert.match(control, /selected: state === 'selected'/);
   assert.match(motion, /filled=\{selectedHeart\}/);
-  assert.match(motion, /if \(!enabled \|\| !nativeIconShouldLoop\(state\)\)/);
+  assert.match(motion, /if \(!enabled \|\| \(!nativeIconShouldLoop\(state\) && !firstEvent\)\)/);
   assert.match(ui, /if \(name === 'heart' && filled\)/);
   assert.match(ui, /onLongPress=\{onLongPress\}/);
   assert.match(lifecycle, /listeners.size === 1/);
