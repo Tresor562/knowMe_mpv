@@ -136,7 +136,7 @@ export function KnowMeDialogHost() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastPaused(false);
       }}
       role={toast.tone === 'error' ? 'alert' : 'status'} aria-live={toast.tone === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
-      <span aria-hidden="true"><KnowMeGlyph name={toast.tone === 'error'
+      <span key={toast.id} className="km-feedback-tone-glyph" aria-hidden="true"><KnowMeGlyph name={toast.tone === 'error'
         ? 'warning' : toast.tone === 'success' ? 'check-circle' : 'info'} size={21}/></span>
       <span>{toast.text}</span>
       <KnowMeIconButton name="close" size={20} label={en ? "Close notification" : "Fermer la notification"}
