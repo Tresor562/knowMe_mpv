@@ -22,6 +22,8 @@ export function PostComposerExperience({
   onRemovePhoto,
   onPublish,
   publishing,
+  offline,
+  draftNotice,
   onClose
 }: {
   visible: boolean;
@@ -34,11 +36,13 @@ export function PostComposerExperience({
   onRemovePhoto: () => void;
   onPublish: () => void;
   publishing: boolean;
+  offline?: boolean;
+  draftNotice?: string;
   onClose: () => void;
 }) {
   const { colors } = useAppearance();
   const inputRef = useRef<TextInput>(null);
-  const canPublish = (content.trim().length > 0 || media.length > 0) && !publishing;
+  const canPublish = (content.trim().length > 0 || media.length > 0) && !publishing && !offline;
 
   function insertMention() {
     onChangeContent(content + (content && !content.endsWith(' ') ? ' ' : '') + '@');
@@ -120,6 +124,13 @@ export function PostComposerExperience({
             </View>
           </View> : null}
           <Text style={[styles.counter,{color:colors.muted}]}>{content.length} caractères</Text>
+          {offline ? <Text accessibilityRole="alert" style={[styles.draftStatus,{color:colors.text,backgroundColor:colors.backgroundAccent}]}>
+            Hors ligne : prépare ta publication. L'envoi nécessite une connexion.
+          </Text> : null}
+          {Boolean(draftNotice) ? <Text accessibilityRole="text"
+            style={[styles.draftStatus,{color:colors.muted,backgroundColor:colors.backgroundAccent}]}>
+            {draftNotice}
+          </Text> : null}
 
           <View style={[styles.actions,{borderTopColor:colors.border}]}>
             <Text style={[styles.actionsTitle,{color:colors.text}]}>Ajouter à ta publication</Text>
@@ -181,7 +192,8 @@ const styles=StyleSheet.create({
   preview:{height:240,width:'100%'},
   previewRemove:{position:'absolute',right:12,top:10,height:38,width:38,borderRadius:19,
     alignItems:'center',justifyContent:'center'},
-  counter:{textAlign:'right',fontSize:11,marginTop:7,marginBottom:18},
+  counter:{textAlign:'right',fontSize:11,marginTop:7,marginBottom:12},
+  draftStatus:{fontSize:12,lineHeight:18,borderRadius:12,marginBottom:8,padding:10},
   actions:{borderTopWidth:StyleSheet.hairlineWidth,paddingTop:15},
   actionsTitle:{fontSize:14,fontWeight:'800',marginBottom:4},
   actionRow:{flexDirection:'row',alignItems:'center',minHeight:58,gap:12,
