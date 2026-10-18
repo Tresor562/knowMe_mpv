@@ -150,7 +150,7 @@ export default function ConversationInfoPage() {
     } finally {setLeaving(false);}
   }
 
-  return <main className={`shell km-info-page${isGroup?' km-info-group-profile':''}`}>
+  return <main className={`shell km-info-page ${isGroup?'km-info-group-profile':'km-info-private-profile'}`}>
     <header className="km-info-topbar">
       <Link href={`/messages/${encodeURIComponent(id)}`} className="km-info-back"
         aria-label={tr('Retour à la discussion', 'Back to chat')}>
@@ -231,7 +231,18 @@ export default function ConversationInfoPage() {
           <span>{tr('Profil', 'Profile')}</span>
         </Link>}
       </nav>
-      <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}>
+      <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}
+        onKeyDown={event=>{
+          if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+          const tabs=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+          const index=tabs.indexOf(document.activeElement as HTMLButtonElement);
+          if(index<0)return;
+          event.preventDefault();
+          const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:
+            (index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+          tabs[next].click();
+          tabs[next].focus();
+        }}>
         <button type="button" role="tab" aria-selected={activeTab==='members'}
           onClick={() => setActiveTab('members')}>
           {isGroup ? tr('Membres','Members') : tr('Participants', 'Participants')}
