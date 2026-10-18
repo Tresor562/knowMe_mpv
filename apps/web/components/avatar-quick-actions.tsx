@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -31,6 +33,7 @@ export function AvatarQuickActions({
   const wrap = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const previewClose = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const en = locale === 'en';
   const placeMenu = () => {
@@ -38,8 +41,11 @@ export function AvatarQuickActions({
     if (!rect) return;
     const width = Math.min(270, window.innerWidth - 24);
     const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    const menuHeight = 290;
-    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12));
+    const menuHeight = menuRef.current?.offsetHeight ?? 290;
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const top = spaceBelow >= menuHeight || rect.top < menuHeight + 16
+      ? Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12))
+      : Math.max(12, rect.top - menuHeight - 8);
     setMenuPosition({ top, left });
   };
   useEffect(() => {
@@ -51,11 +57,16 @@ export function AvatarQuickActions({
       if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); }
     };
     placeMenu();
+    // WAI-ARIA menu: keyboard opening moves focus inside, never traps Tab.
+    const id = window.requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
+    });
     window.addEventListener('pointerdown', closeOutside);
     window.addEventListener('keydown', closeEscape);
     window.addEventListener('resize', placeMenu);
     window.addEventListener('scroll', placeMenu, true);
     return () => {
+      window.cancelAnimationFrame(id);
       window.removeEventListener('pointerdown', closeOutside);
       window.removeEventListener('keydown', closeEscape);
       window.removeEventListener('resize', placeMenu);
@@ -65,10 +76,42 @@ export function AvatarQuickActions({
 
   useEffect(() => {
     if (!preview) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setPreview(false); };
-    window.addEventListener('keydown', escape);
-    return () => window.removeEventListener('keydown', escape);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    previewClose.current?.focus();
+    const onDialogKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setPreview(false);
+      }
+      // The close button is the only focusable control inside the viewer.
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        previewClose.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onDialogKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onDialogKey);
+      trigger.current?.focus();
+    };
   }, [preview]);
+
+  function menuKeyboard(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const items = [...(menuRef.current?.querySelectorAll<HTMLElement>(
+      '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
+    ) ?? [])];
+    if (!items.length) return;
+    event.preventDefault();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const index = event.key === 'Home' ? 0
+      : event.key === 'End' ? items.length - 1
+      : event.key === 'ArrowDown' ? (current + 1 + items.length) % items.length
+      : (current - 1 + items.length) % items.length;
+    items[index]?.focus();
+  }
 
   const act = (operation: () => void) => { setOpen(false); operation(); };
   return (
@@ -78,7 +121,10 @@ export function AvatarQuickActions({
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <KnowMeAnimatedIcon name="create" size={19} state={open ? "open" : "closed"} />
       </button>
-      {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
+      {open && createPortal(<div ref={menuRef} onKeyDown={menuKeyboard}
+        style={{ top: menuPosition.top, left: menuPosition.left }}
+        className="km-avatar-menu" role="menu"
+        aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
           <ActionIcon name="story" />{en ? 'Add a story' : 'Ajouter une story'}
         </Link>
@@ -94,13 +140,15 @@ export function AvatarQuickActions({
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
-      </div>}
-      {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
+      </div>, document.body)}
+      {preview && avatarUrl && createPortal(<div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
-        <button type="button" className="km-avatar-lightbox-close" onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}><KnowMeGlyph name="close" size={20}/></button>
+        <button ref={previewClose} type="button" className="km-avatar-lightbox-close"
+          onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>
+          <KnowMeAnimatedIcon name="close" size={20}/></button>
         <img src={avatarUrl} alt={displayName} onClick={event => event.stopPropagation()} />
         <p>@{username}</p>
-      </div>}
+      </div>, document.body)}
     </div>
   );
 }
