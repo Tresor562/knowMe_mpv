@@ -156,3 +156,21 @@ test('group actions menu closes on Escape and outside touch without obscuring th
   await expect(menu).not.toHaveAttribute('open','');
   await expect(page.getByRole('heading',{name:'Groupe Révisions'})).toBeVisible();
 });
+
+test('group desktop uses identity sidebar and separate information pane',async({page})=>{
+  await setup(page);
+  await page.setViewportSize({width:1280,height:850});
+  await page.goto('/messages/grp1/info');
+  await expect(page.getByRole('tab',{name:'Aperçu'})).toHaveAttribute('aria-selected','true');
+  const columns=await page.evaluate(()=>{
+    const sidebar=document.querySelector('.km-group-architecture .km-group-sidebar')?.getBoundingClientRect();
+    const pane=document.querySelector('.km-group-architecture .km-group-main-pane')?.getBoundingClientRect();
+    return sidebar&&pane ? {sidebarRight:sidebar.right,paneLeft:pane.left,paneWidth:pane.width}:null;
+  });
+  expect(columns).not.toBeNull();
+  expect(columns!.paneLeft).toBeGreaterThan(columns!.sidebarRight);
+  expect(columns!.paneWidth).toBeGreaterThan(350);
+  await page.getByRole('button',{name:'Voir tous'}).click();
+  await expect(page.getByRole('tab',{name:'Membres',exact:true})).toHaveAttribute('aria-selected','true');
+});
+
