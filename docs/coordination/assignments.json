@@ -177,20 +177,25 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/system-accessibility-fallbacks",
-      "task": "Refonte design demandée: notifications visibles pendant navigation, architecture conversations/emoji/stickers, commandes compactes; respecter domaines fonctionnels #693/#694/#698",
+      "branch": "chat/design/live-notices-compact-surfaces",
+      "task": "PR #743 HEAD b4671c : notifications Web in-app + badge + préférences, contrôle UI boutons/listes/groupes, organigramme Android compact; centre natif avancé stylisé mais non monté. Collisions #583 SocialHub et #735 clavier retirées; CI/coordination/APK derniers HEAD en attente. PR #730 fusionnée 5999b0a; PR #724 green CI/coordination/APK mais encore ouverte. Notifications créateurs suivis/mentions côté API à coordonner avec #694/#698/#693.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T15:14:49.725Z",
-      "lastPr": 724,
+      "updatedAt": "2026-10-18T15:50:00.234Z",
+      "lastPr": 743,
       "resumeFrom": {
-        "pr": 724,
-        "branch": "chat/design/system-accessibility-fallbacks",
-        "commit": "e176cbf3b1367515e895f4c8e00d5d9b46fe6350",
-        "alsoPr": 730,
-        "alsoBranch": "chat/design/accessible-feedback-dialogs",
-        "alsoHead": "382e42c479450fae4bbe8b1118173765489cd151"
+        "pr": 743,
+        "branch": "chat/design/live-notices-compact-surfaces",
+        "commit": "b4671c06b8db1373c1dcefae2f802fede6ddd397",
+        "alsoPr": 724,
+        "alsoBranch": "chat/design/system-accessibility-fallbacks",
+        "alsoHead": "e176cbf3b1367515e895f4c8e00d5d9b46fe6350",
+        "mergedPr": 730,
+        "mergedCommit": "5999b0acc4eac3fab5309bac7a32a1f072abbb71",
+        "dependencyPr": 735,
+        "conflictPr": 583,
+        "issueComment": 6251898845
       }
     }
   },
@@ -930,6 +935,14 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 749
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T15:50:00.234Z",
+      "pr": 743,
+      "mergedPr": 730
     }
   ]
 }
