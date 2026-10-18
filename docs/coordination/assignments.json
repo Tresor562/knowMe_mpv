@@ -27,27 +27,30 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
-      "branch": "chat/messaging/web-voice-review",
-      "task": "Audit complet Telegram/WhatsApp : packs stickers et tailles, lecteur audio persistant et état de téléchargement, présence typing/recording, fiche/permissions groupes Web/Android/API; implémentations indépendantes.",
+      "branch": "chat/messaging/web-sticky-audio",
+      "task": "#750 prototype closed due old PR conflicts. #756 Web sticky voice + stickers 128px + typing/header count HEAD de168a3 CI/guard/APK queued; #758 KnowSticker organize emoji tags archive/reorder HEAD 5f080c2 guard green CI/APK pending; #754 group member permissions API+Web HEAD 8181565 tests fixed but Prisma/service conflicts with old PRs. None deployed, Android group/audio UI pending collision #598/#520 et al.",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T15:34:09.641Z",
-      "lastPr": 723,
+      "updatedAt": "2026-10-18T16:20:57.316Z",
+      "lastPr": 756,
       "resumeFrom": {
-        "pr": 723,
-        "branch": "chat/messaging/web-voice-review",
-        "commit": "a4839938b6db0648ac002cabb208a0e0d2dc698f",
-        "alsoPr": 735,
-        "alsoBranch": "chat/messaging/knowsticker-rename",
-        "alsoCommit": "66a472eeb3e0b08193fde550936fcb8f3e31b956",
+        "pr": 756,
+        "branch": "chat/messaging/web-sticky-audio",
+        "commit": "de168a3ab6242eb677a43dbe311b5ff54dd6ed48",
+        "alsoPr": 758,
+        "alsoBranch": "chat/messaging/knowsticker-organize",
+        "alsoCommit": "5f080c29b18aaefabd002240bc5477f984e3174e",
+        "groupPr": 754,
+        "groupBranch": "chat/messaging/group-permissions-core",
+        "groupCommit": "818156583163bead98ce1c4df5f357f961c8e3f3",
+        "prototypePr": 750,
+        "prototypeBranch": "chat/messaging/full-spectrum-foundations",
         "mergedPrs": [
           706,
-          728
-        ],
-        "mergedCommits": [
-          "592a103a380811d1845440d110568ec6b71156c2",
-          "4569e944196ba1d5c1503c3733d030ccf8099a6b"
+          728,
+          723,
+          735
         ]
       }
     },
@@ -992,6 +995,16 @@
       "issue": 695,
       "pr": 757,
       "branch": "chat/reels/android-offline-library-consolidated"
+    },
+    {
+      "action": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T16:20:57.316Z",
+      "pr": 756,
+      "alsoPr": 758,
+      "groupPr": 754,
+      "prototypePr": 750
     }
   ]
 }
