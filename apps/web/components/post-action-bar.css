@@ -16,7 +16,7 @@
 .km-post-action-count { font-variant-numeric:tabular-nums; }
 .km-post-selected-emoji { font-size:20px; line-height:1; }
 .km-post-reaction-trigger { display:flex; align-items:center; flex:0 0 auto; }
-.km-post-reaction-more { padding:7px 1px; min-width:40px; border-radius:9px; }
+.km-post-reaction-more { padding:7px 1px; min-width:44px; border-radius:9px; }
 .km-post-reaction-more svg { width:16px; height:16px; }
 .km-post-save { margin-left:auto; }
 .km-post-action:disabled,.km-post-reaction-more:disabled {
@@ -60,7 +60,7 @@
 @media(max-width:360px) {
   .km-post-action-bar { gap:1px; }
   .km-post-action { padding-inline:8px; }
-  .km-post-reaction-more { min-width:35px; }
+  .km-post-reaction-more { min-width:44px; }
   .km-post-action-label { display:none; }
   .km-post-reaction-sheet { padding-inline:9px; }
   .km-post-reaction-choices { gap:1px; }
