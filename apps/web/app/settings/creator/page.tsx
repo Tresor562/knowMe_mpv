@@ -10,7 +10,7 @@ import {
   type CreatorForm, type CreatorStatus, type CreatorVisibility
 } from '../../../lib/creator-profile-editor';
 
-type CreatorProfile = CreatorForm & {
+type CreatorProfile = Omit<CreatorForm, 'bio' | 'status'> & {
   bio?: string | null;
   followerCount: number;
   version: number;
