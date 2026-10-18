@@ -57,14 +57,18 @@
     },
     "reels": {
       "issue": 695,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/story-archive-pagination",
-      "task": "Suite dans la même conversation : qualifier, intégrer PR #709 CI verte, résoudre le blocage #707 et développer les Stories/Reels",
+      "branch": "chat/reels/android-video-scrub-gesture",
+      "task": "PR #709 fusionnée, Vercel production READY au SHA 51ee95b0; PR #710 métriques complètes API (CI+APK en cours), PR #713 scrub Android (CI en attente), PR #707 UI spectateurs bloquée par chevauchement PR #583.",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T13:25:28.032Z",
-      "lastPr": 709,
-      "resumeFrom": null
+      "updatedAt": "2026-10-18T13:37:11.608Z",
+      "lastPr": 713,
+      "resumeFrom": {
+        "pr": 713,
+        "branch": "chat/reels/android-video-scrub-gesture",
+        "commit": "2b1335446b835a90dd1f2b688913c5a527ff9f4c"
+      }
     },
     "profiles": {
       "issue": 696,
@@ -220,6 +224,15 @@
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705,
       "branch": "chat/social/report-publication-web"
+    },
+    {
+      "event": "pause",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "at": "2026-10-18T13:37:11.608Z",
+      "issue": 695,
+      "branch": "chat/reels/android-video-scrub-gesture",
+      "pr": 713
     }
   ]
 }
