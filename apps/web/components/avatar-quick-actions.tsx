@@ -45,7 +45,7 @@ export function AvatarQuickActions({
     if (!rect) return;
     const width = Math.min(270, window.innerWidth - 24);
     const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    const menuHeight = 290;
+    const menuHeight = avatarUrl ? 344 : 290;
     const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 12));
     setMenuPosition({ top, left });
   };
