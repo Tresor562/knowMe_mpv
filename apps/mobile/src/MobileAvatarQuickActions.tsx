@@ -64,7 +64,7 @@ export function MobileAvatarQuickActions({
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
-  const copy = avatarActionText(locale);
+  const copy = avatarActionText(locale === 'en' ? 'en' : 'fr');
   const [menu, setMenu] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [removeError, setRemoveError] = useState('');
