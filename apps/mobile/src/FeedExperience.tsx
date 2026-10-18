@@ -114,31 +114,33 @@ function ActionButton({ title, onPress, disabled = false, danger = false }: {
 }
 
 function MetricButton({
-  icon,
-  count,
-  label,
-  onPress
+  icon, count, label, onPress, selected = false, disabled = false
 }: {
   icon: 'heart' | 'messages';
   count: number;
   label: string;
   onPress?: () => void;
+  selected?: boolean;
+  disabled?: boolean;
 }) {
   const { colors } = useAppearance();
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${label} : ${count}`}
+      accessibilityLabel={`${selected ? 'Retirer mon J’aime' : label} : ${count}`}
+      accessibilityState={{selected,disabled:!onPress||disabled}}
       onPress={onPress}
-      disabled={!onPress}
+      disabled={!onPress||disabled}
       style={({ pressed }) => [
         styles.metricAction,
         { backgroundColor: colors.backgroundAccent },
         pressed && onPress ? styles.metricPressed : null
       ]}
     >
-      <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />
-      <Text style={[styles.metricCount, { color: colors.muted }]}>{count}</Text>
+      {selected && icon==='heart'
+        ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
+        : <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />}
+      <Text style={[styles.metricCount, { color: selected?'#e73d57':colors.muted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -195,6 +197,9 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
 }) {
   const { colors } = useAppearance();
   const [post, setPost] = useState<PostDetail | null>(null);
+  const [myLike, setMyLike] = useState<boolean|null>(null);
+  const postLikeInFlight = useRef(false);
+  const [postLikeBusy,setPostLikeBusy]=useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [replyTo,setReplyTo] = useState<Comment|null>(null);
@@ -239,6 +244,15 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   }, [postId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(()=>{
+    let active=true;
+    setMyLike(null);
+    void apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(postId)}`)
+      .then(result=>{if(active)setMyLike(result[postId]===true);})
+      .catch(()=>{/* Unknown state on older or unreachable server. */});
+    return()=>{active=false;};
+  },[postId,userId]);
 
   useEffect(() => {
     if (!targetCommentId || loading || loadingMore || comments.some(item => item.id === targetCommentId)) return;
@@ -326,18 +340,19 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   }
 
   async function toggleLike() {
-    if (!post) return;
+    if (!post || postLikeInFlight.current) return;
+    postLikeInFlight.current=true;
+    setPostLikeBusy(true);
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${post.id}/like`, { method: 'POST' });
-      setPost((current) => current ? {
-        ...current,
-        _count: {
-          ...current._count,
-          likes: Math.max(0, current._count.likes + (result.liked ? 1 : -1))
-        }
-      } : current);
-    } catch (cause) {
-      Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
+      const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(post.id)}/like`,{method:'POST'});
+      setMyLike(result.liked);
+      setPost(current=>current?{...current,_count:{...current._count,
+        likes:Math.max(0,current._count.likes+(result.liked?1:-1))}}:current);
+    } catch(cause) {
+      Alert.alert('Réaction non confirmée',errorMessage(cause,'Réessaie.'));
+    } finally {
+      postLikeInFlight.current=false;
+      setPostLikeBusy(false);
     }
   }
 
@@ -601,10 +616,13 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         <PostMediaGallery media={post.media} fallbackUrl={post.imageUrl} caption={post.content}/>
         <View style={styles.discussionMetrics}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
-            style={styles.metricInline}>
-            <KnowMeIcon name="heart" size={19} color={colors.muted}/>
-            <Text style={[styles.metaText, { color: colors.muted }]}>{post._count.likes}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={myLike?'Retirer mon J’aime':'Réagir à la publication'}
+            accessibilityState={{selected:myLike===true,disabled:postLikeBusy}}
+            disabled={postLikeBusy} onPress={() => void toggleLike()} style={styles.metricInline}>
+            {myLike
+              ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
+              : <KnowMeIcon name="heart" size={19} color={colors.muted}/>}
+            <Text style={[styles.metaText,{color:myLike?'#e73d57':colors.muted}]}>{post._count.likes}</Text>
           </Pressable>
           <View style={styles.metricInline}>
             <KnowMeIcon name="messages" size={19} color={colors.muted}/>
