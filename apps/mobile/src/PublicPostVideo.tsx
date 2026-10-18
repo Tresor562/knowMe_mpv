@@ -1,20 +1,16 @@
-import * as FileSystem from 'expo-file-system';
 import {useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Pressable,StyleSheet,Text,View} from 'react-native';
+import {Pressable,StyleSheet,Text,View} from 'react-native';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
 
-/** On-demand playback. The native video component only accepts private cache files. */
+/** On-demand, HTTPS range-streamed public video. No full-file download. */
 export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>void}){
   const {colors}=useAppearance();
   const [local,setLocal]=useState<string|null>(null);
-  const [loading,setLoading]=useState(false);
   const [paused,setPaused]=useState(false);
   const [error,setError]=useState('');
-  const ref=useRef<string|null>(null);
-  const pending=useRef(false);
   const alive=useRef(true);
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [pulse,setPulse]=useState(false);
@@ -25,25 +21,21 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
       alive.current=false;
       if(singleTapTimer.current!==null)clearTimeout(singleTapTimer.current);
       if(pulseTimer.current!==null)clearTimeout(pulseTimer.current);
-      if(ref.current)void FileSystem.deleteAsync(ref.current,{idempotent:true}).catch(()=>undefined);
     };
   },[]);
-  async function open(){
-    if(pending.current||local)return;
-    pending.current=true;setLoading(true);setError('');
-    try{
-      if(!/^\/media\/public\/post\/[a-zA-Z0-9_-]+$/.test(url)||!FileSystem.cacheDirectory)
-        throw new Error('Vidéo indisponible.');
-      const target=`${FileSystem.cacheDirectory}knowme-post-video-${url.split('/').pop()}.mp4`;
-      const result=await FileSystem.downloadAsync(`${API_URL}${url}`,target);
-      if(result.status!==200)throw new Error('Impossible de charger cette vidéo.');
-      const info=await FileSystem.getInfoAsync(result.uri);
-      if(!info.exists||!info.size||info.size<1024)
-        throw new Error('Fichier vidéo invalide.');
-      ref.current=result.uri;
-      if(alive.current){setPaused(false);setLocal(result.uri);}
-    }catch(cause){if(alive.current)setError(cause instanceof Error?cause.message:'Vidéo inaccessible.');}
-    finally{pending.current=false;if(alive.current)setLoading(false);}
+  function open(){
+    // Do not copy an entire MP4 into cache. Android VideoView reads bounded
+    // HTTP ranges from the public, scanner-verified KnowMe post endpoint.
+    // The native package applies an independent host/path allowlist.
+    const allowedBase='https://31-56-85-53.sslip.io/knowme-api';
+    if(!/^\\/media\\/public\\/post\\/[a-zA-Z0-9_-]{1,128}$/.test(url)
+      ||API_URL!==allowedBase){
+      setError('Vidéo indisponible ou serveur vidéo non pris en charge.');
+      return;
+    }
+    setError('');
+    setPaused(false);
+    setLocal(API_URL+url);
   }
   function tapVideo(){
     if (!onDoubleTap) {
@@ -84,11 +76,10 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
       </Pressable>
     </View>:<Pressable
       accessibilityRole="button" accessibilityLabel="Lire la vidéo"
-      onPress={()=>void open()} style={[styles.open,{backgroundColor:colors.surface}]}>
-      {loading?<ActivityIndicator color={colors.accent}/>:
-        <KnowMeIcon name="play" size={45} color={colors.text}/>}
+      onPress={open} style={[styles.open,{backgroundColor:colors.surface}]}>
+      <KnowMeIcon name="play" size={45} color={colors.text}/>
       <Text style={{color:colors.muted,fontSize:12,textAlign:'center'}}>
-        {loading?'Chargement de la vidéo…':error||'Lire la vidéo'}
+        {error||'Lire la vidéo'}
       </Text>
     </Pressable>}
   </View>;
