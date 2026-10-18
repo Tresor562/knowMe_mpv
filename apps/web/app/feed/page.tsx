@@ -645,7 +645,7 @@ export default function FeedPage() {
           onClose={()=>setEditPost(null)}
           onSaved={content=>{
             setPosts(previous=>previous.map(item=>
-              item.id===editPost.id?{...item,content}:item
+              item.id===editPost?.id?{...item,content}:item
             ));
           }}/>
       )}
