@@ -89,26 +89,21 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/badges-user-isolation",
-      "task": "Valider CI et fusionner sans collision PR profils #727 #734 #738; poursuivre tests et stabilité",
+      "task": "PR #727 fusionnée main commit 2e978d03 (quality, coordination, APK verts). PR #734 API follow-status + composant isolé, quality/readiness/coordination verts, APK encore en attente; intégration UI dépend PR #583. PR #738 isolations badges Web + Android, 4+4 tests ciblés exécutés en local, nouveau HEAD 37a32ffd, CI quality/coordination/APK en file. Éviter tout chevauchement.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:58:02.552Z",
+      "updatedAt": "2026-10-18T15:04:41.616Z",
       "lastPr": 738,
       "resumeFrom": {
         "pr": 738,
         "branch": "chat/profiles/badges-user-isolation",
-        "head": "23b6da409de8bc147e0b13ae53ddf3b57e0d2907",
-        "otherPrs": [
-          727,
-          734
-        ],
-        "otherHeads": [
-          "a9759bf49ade3a70f216714af4175c61b590b0fd",
-          "1c3f77499286678b6750f500ceb36c2921229132"
-        ],
-        "waitingFor": "CI quality #727/#734/#738; readiness #734; APK #738"
+        "head": "37a32ffd24cb946bd727c0c38c528e04cecd06dc",
+        "otherPr": 734,
+        "otherHead": "1c3f77499286678b6750f500ceb36c2921229132",
+        "mergedPr": 727,
+        "mergedCommit": "2e978d03a0cd3f7b2d928a3434764bc5312cde58"
       }
     },
     "marketplace": {
@@ -772,6 +767,14 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 724,
       "alsoPr": 730
+    },
+    {
+      "at": "2026-10-18T15:04:41.616Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 738
     }
   ]
 }
