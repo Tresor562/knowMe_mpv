@@ -150,6 +150,7 @@ export function GroupSharedContent({
     // A bounded sequential mutation avoids generating a flood of API writes.
     // The server independently checks membership and upserts each saved message.
     for(const messageId of ids){
+      if(selectionRun.current!==run)break;
       try {
         await apiFetch('/saved-messages',{
           method:'POST',body:JSON.stringify({messageId})
@@ -270,6 +271,8 @@ export function GroupSharedContent({
       aria-label={en?'Select shared messages':'Sélectionner des messages partagés'}>
       <button type="button" aria-pressed={selecting}
         onClick={()=>{
+          selectionRun.current++;
+          setSavingSelected(false);
           setSelecting(previous=>!previous);
           setSelectedIds([]);
           setSelectionFeedback('');
@@ -278,12 +281,12 @@ export function GroupSharedContent({
       </button>
       {selecting&&<>
         <span aria-live="polite">{selectedVisible.length} / 50</span>
-        <button type="button" disabled={!filtered.length}
+        <button type="button" disabled={!filtered.length||savingSelected}
           onClick={selectAllVisible}>
           {en?'Select visible':'Tout sélectionner'}
         </button>
-        <button type="button" disabled={!selectedIds.length}
-          onClick={()=>{setSelectedIds([]);setSelectionFeedback('');}}>
+        <button type="button" disabled={!selectedIds.length||savingSelected}
+          onClick={()=>{setSelectedIds([]);setSelectionFeedback('');}}> 
           {en?'Clear':'Effacer la sélection'}
         </button>
         <button type="button" disabled={!selectedVisible.length||savingSelected}
