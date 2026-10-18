@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
-import { AddGroupMembersDto, SetGroupMemberRoleDto, UpdateGroupDto } from './group-management.dto';
+import { AddGroupMembersDto, SetGroupMemberRoleDto, UpdateGroupDto, UpdateGroupPermissionsDto } from './group-management.dto';
 import { GroupManagementService } from './group-management.service';
 
 @UseGuards(JwtAuthGuard)
@@ -25,6 +25,12 @@ export class GroupManagementController {
       content: `${dto.title ?? ''} ${dto.description ?? ''}`, targetId: id
     });
     return this.groups.update(req.user.userId, id, dto);
+  }
+
+  @Patch('permissions')
+  setPermissions(@Req() req:{user:{userId:string}},
+    @Param('id') id:string,@Body() dto:UpdateGroupPermissionsDto){
+    return this.groups.updatePermissions(req.user.userId,id,dto);
   }
 
   @Post('members')
