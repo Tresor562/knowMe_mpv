@@ -55,3 +55,32 @@
 @media (prefers-reduced-motion: reduce) {
   .km-feedback-backdrop, .km-feedback-dialog { animation: none; }
 }
+
+
+/* New notification events animate once; the visible icon never pretends
+   a repeated server success or stays in a pointless idle loop. */
+.km-feedback-toast > .km-feedback-tone-glyph > svg[data-knowme-icon] {
+  animation: km-feedback-glyph-arrive 320ms cubic-bezier(.2,.8,.2,1) both;
+}
+.km-feedback-toast.km-feedback-error > .km-feedback-tone-glyph > svg[data-knowme-icon] {
+  animation-name: km-feedback-glyph-warning;
+}
+@keyframes km-feedback-glyph-arrive {
+  0% { opacity: .65; transform: scale(.76); }
+  60% { opacity: 1; transform: scale(1.11); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes km-feedback-glyph-warning {
+  0%,100% { transform: translateX(0); opacity: 1; }
+  20% { transform: translateX(-2px); }
+  48% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-feedback-tone-glyph > svg { animation: none !important; }
+}
+:root[data-animations='false'] .km-feedback-tone-glyph > svg,
+:root[data-animated-icons='false'] .km-feedback-tone-glyph > svg,
+:root[data-effective-reduced-motion='true'] .km-feedback-tone-glyph > svg {
+  animation: none !important;
+}
