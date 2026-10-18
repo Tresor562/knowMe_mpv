@@ -4,14 +4,20 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { getRealtimeSocket } from '../lib/realtime';
 import type { RuntimeBadge } from './runtime-experience-provider';
+import {
+  badgeUsernameKey, badgesForProfile, type ProfileBadgeSnapshot
+} from '../lib/profile-badge-identity';
 
 // Decorative only. Official certification and staff status are never inferred from this list.
 const cache = new Map<string, RuntimeBadge[]>();
 export function RemoteCosmeticBadges({ username, size = 18 }: { username: string; size?: number }) {
-  const normalized = username.toLowerCase().replace(/^@/, '');
-  const [badges, setBadges] = useState<RuntimeBadge[]>(() => cache.get(normalized) ?? []);
+  const normalized = badgeUsernameKey(username);
+  // A mounted badge component can be reused for another person. Keep the
+  // fetched result keyed, so old account badges are never rendered on the new profile.
+  const [snapshot, setSnapshot] = useState<ProfileBadgeSnapshot<RuntimeBadge> | null>(null);
+  const badges = badgesForProfile(normalized, snapshot, cache);
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true') return;
+    if (process.env.NEXT_PUBLIC_DYNAMIC_RUNTIME_ENABLED !== 'true' || !normalized) return;
     let active = true;
     const refresh = async () => {
       try {
@@ -20,7 +26,7 @@ export function RemoteCosmeticBadges({ username, size = 18 }: { username: string
         );
         if (active && Array.isArray(response.badges)) {
           cache.set(normalized, response.badges);
-          setBadges(response.badges);
+          setSnapshot({ username: normalized, badges: response.badges });
         }
       } catch { /* Retain current badges while offline. */ }
     };

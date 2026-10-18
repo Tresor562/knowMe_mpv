@@ -58,6 +58,16 @@ export class CreatorsController {
     return this.creators.unpinPost(req.user.userId, postId);
   }
 
+  /** Authenticated viewer state; the public creator endpoint remains guest-readable. */
+  @UseGuards(JwtAuthGuard)
+  @Get(':slug/follow-status')
+  followStatus(
+    @Req() req: { user: { userId: string } },
+    @Param('slug') slug: string
+  ) {
+    return this.creators.followStatus(req.user.userId, slug);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Put(':slug/follow')
   follow(
