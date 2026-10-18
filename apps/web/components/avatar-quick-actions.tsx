@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactElement } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
 
@@ -120,7 +120,7 @@ export function AvatarQuickActions({
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
         <KnowMeAnimatedIcon name="create" size={19} state={open ? "open" : "closed"} />
       </button>
-      {open && createPortal(<div ref={menuRef} onKeyDown={menuKeyboard}
+      {open && (createPortal(<div ref={menuRef} onKeyDown={menuKeyboard}
         onBlur={event => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
         }}
@@ -142,15 +142,15 @@ export function AvatarQuickActions({
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
-      </div>, document.body)}
-      {preview && avatarUrl && createPortal(<div className="km-avatar-lightbox" role="dialog" aria-modal="true"
+      </div>, document.body) as unknown as ReactElement)}
+      {preview && avatarUrl && (createPortal(<div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
         <button ref={previewClose} type="button" className="km-avatar-lightbox-close"
           onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>
           <KnowMeAnimatedIcon name="close" size={20}/></button>
         <img src={avatarUrl} alt={displayName} onClick={event => event.stopPropagation()} />
         <p>@{username}</p>
-      </div>, document.body)}
+      </div>, document.body) as unknown as ReactElement)}
     </div>
   );
 }
