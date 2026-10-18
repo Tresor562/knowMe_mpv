@@ -61,6 +61,7 @@ export function PostActionBar({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlight = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const suppressTap = useRef(false);
   const pickerButton = useRef<HTMLButtonElement>(null);
@@ -112,7 +113,8 @@ export function PostActionBar({
   }, [pickerOpen, busy]);
 
   async function execute(action: () => Promise<void>, reaction = false) {
-    if (busy || !online) return;
+    if (inFlight.current || !online) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -125,7 +127,7 @@ export function PostActionBar({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message :
         en ? 'Action not confirmed. Please retry.' : 'Action non confirmée. Réessaie.');
-    } finally { setBusy(false); }
+    } finally { inFlight.current = false; setBusy(false); }
   }
   function onHeartPointerDown(event: PointerEvent<HTMLButtonElement>) {
     if (!online || busy || event.button !== 0) return;
