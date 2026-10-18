@@ -29,9 +29,10 @@ export class ReportsController {
   @Get('mine/posts')
   minePosts(
     @Req() req: { user: { userId: string } },
-    @Query('cursor') cursor?: string
+    @Query('cursor') cursor?: string,
+    @Query('status') status?: string
   ) {
-    return this.reports.minePostReports(req.user.userId, cursor);
+    return this.reports.minePostReports(req.user.userId, cursor, status);
   }
 
   @Get('mine')
