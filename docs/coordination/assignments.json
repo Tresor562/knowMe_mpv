@@ -47,19 +47,19 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Qualification PR #705 + prévention régressions API/Social, coordination avant intégration",
+      "task": "PR #705 READY: report history account isolation + stale responses race tests; head a5b001c4; CI/readiness/coordination queued, no merge/deploy.",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:42:26.285Z",
+      "updatedAt": "2026-10-18T14:50:23.883Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
         "branch": "chat/social/report-publication-web",
-        "commit": "2a99043a4552be52147aba7b8d5a032518c94b2b",
-        "next": "Check exact-head CI 39136886102 / Runtime 39136886124 / latest coordination 39136963721; fix red tests, review and merge only if validated; production release requires approval",
-        "infraIssueComment": 6251187389
+        "commit": "a5b001c4f042f7831bf6d06e939fd78c6599893c",
+        "next": "Inspect exact SHA CI #39137723127, readiness #39137723148, coordination #39137723136, APK #39137723262. Resolve failures, check diverged main/reviews, and merge only after green checks; manual production approval applies",
+        "infraQueueCommentId": 6251274240
       }
     },
     "reels": {
@@ -667,6 +667,13 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 730,
       "alsoPr": 724
+    },
+    {
+      "at": "2026-10-18T14:50:23.883Z",
+      "domain": "social",
+      "action": "pause",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
