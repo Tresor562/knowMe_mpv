@@ -40,6 +40,20 @@ describe('Private paginated publication report history (e2e)', () => {
     const aliceAuth = { Authorization: `Bearer ${first.body.accessToken}` };
     const bobAuth = { Authorization: `Bearer ${second.body.accessToken}` };
 
+    // UI-only ownership checks are insufficient: direct API calls must reject self-reporting.
+    const ownPost = await prisma.post.create({
+      data: { authorId: aliceId, content: 'Post belonging to Alice' },
+      select: { id: true }
+    });
+    await request(app.getHttpServer()).post('/reports')
+      .set(aliceAuth).send({
+        targetType: 'POST', targetId: ownPost.id,
+        reason: 'Test direct forbidden self-report'
+      }).expect(403);
+    expect(await prisma.report.count({
+      where: { reporterId: aliceId, targetType: 'POST', targetId: ownPost.id }
+    })).toBe(0);
+
     await prisma.report.createMany({
       data: [
         ...Array.from({ length: 22 }, (_, index) => ({
