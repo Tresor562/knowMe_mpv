@@ -51,10 +51,10 @@
       "issue": 695,
       "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/long-video-player-controls",
-      "task": "Lecteur Réels longs et stories: commandes, progression accessible, pause/reprise, Web/Android sans conflits",
+      "branch": "chat/reels/story-viewers-dashboard",
+      "task": "Refonte fonctionnelle de l'écran spectateurs Stories Web : statistiques, filtre, tri, profils et tests E2E; PR sans chevauchement",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T12:04:24.678Z",
+      "updatedAt": "2026-10-18T12:08:53.728Z",
       "lastPr": null,
       "resumeFrom": null
     },
