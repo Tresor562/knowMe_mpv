@@ -44,6 +44,8 @@ test('private chat has shared media, links, files and search without group admin
   await expect(page.locator('.km-info-more')).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Profil'})).toHaveAttribute('href','/profile/ami');
   await page.getByRole('tab',{name:'Liens'}).click();
+  await page.getByRole('combobox',{name:'Auteur des messages'}).selectOption('name:ami');
+  await page.getByRole('textbox',{name:'Date de début'}).count();
   await expect(page.getByRole('link',{name:'https://example.com/guide'})).toHaveAttribute('rel','noopener noreferrer');
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/dm-1?message=dm-text');
