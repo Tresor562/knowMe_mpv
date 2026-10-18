@@ -146,6 +146,12 @@ function blendedPalette(
 export function applyAppearance(response: AppearanceResponse) {
   const root = document.documentElement;
   const preference = response.preference;
+  // OS accessibility settings are safety floors: account preferences must never
+  // force motion or blur back on when the device asks for less.
+  const effectiveReducedMotion =
+    !preference.animationsEnabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const effectiveReduceTransparency =
+    preference.reduceTransparency || window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
   const primaryTheme = resolveTheme(response, preference.effectiveThemeKey);
   const secondaryTheme = resolveTheme(response, preference.effectiveSecondaryThemeKey);
   const primary = resolvePalette(primaryTheme);
@@ -158,6 +164,8 @@ export function applyAppearance(response: AppearanceResponse) {
       : [])
   ];
 
+  root.dataset.effectiveReducedMotion = String(effectiveReducedMotion);
+  root.dataset.effectiveReduceTransparency = String(effectiveReduceTransparency);
   root.dataset.theme = preference.effectiveThemeKey;
   root.dataset.selectedTheme = preference.selectedThemeKey;
   root.dataset.secondaryTheme = preference.effectiveSecondaryThemeKey ?? '';
@@ -182,8 +190,8 @@ export function applyAppearance(response: AppearanceResponse) {
     '--bg-accent': palette.backgroundAccent,
     '--surface': palette.surface,
     '--surface-2': palette.surfaceRaised,
-    '--surface-glass': preference.reduceTransparency ? palette.surface : palette.surfaceGlass,
-    '--nav-glass': preference.reduceTransparency ? palette.surface : palette.surfaceGlass,
+    '--surface-glass': effectiveReduceTransparency ? palette.surface : palette.surfaceGlass,
+    '--nav-glass': effectiveReduceTransparency ? palette.surface : palette.surfaceGlass,
     '--input-bg': palette.surface,
     '--text': palette.text,
     '--muted': preference.contrast === 'HIGH' ? palette.text : palette.muted,
