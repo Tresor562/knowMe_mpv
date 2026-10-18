@@ -97,7 +97,7 @@ function StoryRailBackdrop({story,visible,avatarUrl,name}:{
         );
         downloaded=result.uri;
         const mime=String(result.headers?.['content-type']??result.headers?.['Content-Type']??'')
-          .split(';')[0].trim().toLowerCase();
+          .split(';')[0]?.trim().toLowerCase() ?? '';
         const info=await FileSystem.getInfoAsync(result.uri);
         if(result.status!==200 || !['image/png','image/jpeg','image/webp'].includes(mime)
           ||!info.exists ||info.isDirectory ||!info.size ||info.size>5*1024*1024)
