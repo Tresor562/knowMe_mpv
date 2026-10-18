@@ -22,25 +22,29 @@ test('KnowMe marketplace displays server-backed gifts and styles, and routes to 
       ];
     } else if (url.endsWith('/cosmetics/shop')) {
       body = { offers: [{
-        id: 'offer-frame-1', key: 'frame-1', version: 1, priceKnowCoins: 120,
+        id: 'offer-frame-1', itemId: 'item-frame-1', key: 'frame-1', version: 1, priceKnowCoins: 120, affordable: true,
         owned: false, item: {
           name: 'Cadre argenté', description: 'Cadre de profil élégant',
           previewUrl: null, slot: 'AVATAR_FRAME', rarity: 'COMMON'
         }
-      }] };
+      }], wallet: { balance: 300 } };
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
 
   await page.goto('/marketplace');
   await expect(page.getByRole('heading', { name: 'Marketplace' })).toBeVisible();
-  await expect(page.getByRole('link', {name: /Rose, 15 KnowCoins/})).toHaveAttribute('href','/gifts');
-  await expect(page.getByRole('link', {name: /Cadre argenté, 120 KnowCoins/})).toHaveAttribute('href','/cosmetics/shop');
+  await page.getByRole('button', {name: /Voir les détails de Rose, 15 KnowCoins/}).click();
+  await expect(page.getByRole('dialog').getByRole('link', { name: 'Choisir un destinataire' })).toHaveAttribute('href', '/gifts');
+  await page.getByRole('button', {name: 'Fermer les détails'}).click();
+  await page.getByRole('button', {name: /Voir les détails de Cadre argenté, 120 KnowCoins/}).click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Continuer vers l’achat' })).toBeVisible();
+  await page.getByRole('button', {name: 'Fermer les détails'}).click();
   await page.getByRole('button', {name: 'Cadeaux'}).click();
-  await expect(page.getByRole('link', {name: /Rose, 15 KnowCoins/})).toBeVisible();
-  await expect(page.getByRole('link', {name: /Cadre argenté, 120 KnowCoins/})).toHaveCount(0);
+  await expect(page.getByRole('button', {name: /Voir les détails de Rose, 15 KnowCoins/})).toBeVisible();
+  await expect(page.getByRole('button', {name: /Voir les détails de Cadre argenté, 120 KnowCoins/})).toHaveCount(0);
   await page.getByRole('button', {name: 'Tout'}).click();
   await page.getByRole('searchbox', {name: 'Rechercher dans la marketplace'}).fill('argenté');
-  await expect(page.getByRole('link', {name: /Cadre argenté, 120 KnowCoins/})).toBeVisible();
-  await expect(page.getByRole('link', {name: /Rose, 15 KnowCoins/})).toHaveCount(0);
+  await expect(page.getByRole('button', {name: /Voir les détails de Cadre argenté, 120 KnowCoins/})).toBeVisible();
+  await expect(page.getByRole('button', {name: /Voir les détails de Rose, 15 KnowCoins/})).toHaveCount(0);
 });
