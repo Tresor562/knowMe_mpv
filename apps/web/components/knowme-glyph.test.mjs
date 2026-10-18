@@ -15,12 +15,13 @@ test('each declared SVG glyph has a drawable shape', () => {
   const declared = glyph.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
   const shapes = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
   const names = [...declared.matchAll(/'([\w-]+)'/g)].map(m => m[1]);
-  assert.ok(names.length >= 75);
+  assert.ok(names.length >= 79);
   for (const essential of [
     'copy','reply','pin','archive','folder','file','group','user-plus',
     'shield','verified','gift','clock','calendar','volume','volume-off',
     'headphones','music','stop','call-end','more-horizontal','info',
     'warning','help','logout','star','filter','sort','map-pin',
+    'rewind-10','forward-10','fullscreen','fullscreen-exit',
     'translate','check-circle'
   ]) assert.ok(names.includes(essential), essential);
   assert.equal(new Set(names).size, names.length);
@@ -167,4 +168,21 @@ test('share modal retains focus and cannot dismiss while a write is pending', ()
   assert.match(share, /dialogRef\.current\?\.contains\(active\)/);
   assert.match(share, /previousFocus\.current\?\.focus\(\)/);
   assert.match(share, /<section ref=\{dialogRef\} className="km-share-sheet" role="dialog" aria-modal="true"/);
+});
+
+
+test('post video toolbar uses truthful state-driven SVGs and 44px controls', () => {
+  const video = fs.readFileSync(path.join(dir, 'post-video-player.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(dir, 'post-video-player.css'), 'utf8');
+  for (const glyph of ['rewind-10','forward-10','fullscreen','fullscreen-exit','volume','volume-off']) {
+    assert.ok(glyph.includes('-') ? video.includes(glyph) : video.includes("'" + glyph + "'"), glyph);
+  }
+  assert.match(video, /<KnowMeAnimatedIcon name="play" state=\{playing \? 'playing' : 'paused'\}/);
+  assert.match(video, /aria-pressed=\{playing\}/);
+  assert.match(video, /aria-pressed=\{muted\}/);
+  assert.match(video, /aria-pressed=\{fullscreen\}/);
+  assert.match(video, /if \(event\.detail === 0\)/);
+  assert.doesNotMatch(video, /🔇|🔊|↶10|10↷|⛶|Ⅱ|▶/);
+  assert.match(css, /min-width: 44px/);
+  assert.match(css, /min-height: 44px/);
 });
