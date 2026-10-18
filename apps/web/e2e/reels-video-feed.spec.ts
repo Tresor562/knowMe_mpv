@@ -38,6 +38,20 @@ test('Reels shows only active video and keeps actions tied to the original post'
   await page.getByRole('button',{name:'Réagir à la publication'}).first().click();
   await expect.poll(()=>likes).toBe(1);
   await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toContainText('2');
+
+  // Double-tapping the playing surface uses the same actual post reaction API.
+  await viewport.locator('.km-reel-tap-zone').dblclick();
+  await expect.poll(()=>likes).toBe(2);
+  await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toContainText('1');
+
+  // The elapsed/duration format does not wrap to minutes for long videos.
+  await viewport.locator('video').evaluate(video => {
+    Object.defineProperty(video,'duration',{configurable:true,value:7202});
+    Object.defineProperty(video,'currentTime',{configurable:true,writable:true,value:3661});
+    video.dispatchEvent(new Event('durationchange'));
+    video.dispatchEvent(new Event('timeupdate'));
+  });
+  await expect(viewport.getByText('1:01:01 / 2:00:02')).toBeVisible();
   await page.getByRole('button',{name:'Vidéo suivante'}).click();
   await expect(viewport.locator('video')).toHaveCount(1);
   await expect(viewport.locator('video')).toHaveAttribute('src',/\/second$/);
