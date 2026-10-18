@@ -584,6 +584,11 @@ export function StoriesRail({
                 setStoryProgress(bps);
                 reportStoryProgress(selected,bps);
               }}
+              onPlaybackComplete={()=>{
+                if(activeStoryId.current!==selected.id)return;
+                setStoryProgress(10_000);
+                reportStoryProgress(selected,10_000);
+              }}
               onPlaybackError={event=>{
                 setSelectedVideoUri(null);
                 setMediaError(event.nativeEvent.message||'Vidéo indisponible.');
