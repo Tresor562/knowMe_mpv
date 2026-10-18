@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/web-voice-review",
-      "task": "PR #706 déjà fusionnée; #723 Web HEAD 975646f6 (confirmation, focus/ESC, retry upload, audio cleanup, 5 tests Playwright) CI/guard/APK queued; #728 Android HEAD 85f67aa CI/guard vertes APK in progress; aucune livraison ni test matériel attestés",
+      "task": "Reprise PR #723/728; valider CI exactes puis intégrer fixes et tests non-régression audio sans collision",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:35:15.462Z",
+      "updatedAt": "2026-10-18T14:38:52.999Z",
       "lastPr": 723,
       "resumeFrom": {
         "pr": 723,
@@ -548,6 +548,15 @@
       "pr": 723,
       "alsoPr": 728,
       "mergedPr": 706
+    },
+    {
+      "action": "resume",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:38:52.999Z",
+      "issue": 693,
+      "pr": 723,
+      "alsoPr": 728
     }
   ]
 }
