@@ -39,6 +39,39 @@ export function MobileAvatarQuickActions({
     }finally{setBusy(false);}
   }
 
+  async function removeAvatar() {
+    if (busy || !avatarUrl) return;
+    setBusy(true);
+    try {
+      // Keep the current photo on failed requests.
+      await apiFetch('/account/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatarUrl: null })
+      });
+      setPreview(false);
+      await onUpdated();
+      Alert.alert('Photo retirée', 'Ton profil utilise maintenant l’avatar par défaut.');
+    } catch (cause) {
+      Alert.alert('Suppression impossible',
+        cause instanceof Error ? cause.message : 'Réessaie plus tard.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function confirmRemove() {
+    if (!avatarUrl || busy) return;
+    setMenu(false);
+    Alert.alert(
+      'Retirer la photo de profil ?',
+      'Ton avatar par défaut sera affiché. Cette action ne supprime pas les anciennes publications.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Retirer', style: 'destructive', onPress: () => { void removeAvatar(); } }
+      ]
+    );
+  }
+
   return <>
     <Pressable accessibilityRole="button" accessibilityLabel="Actions de la photo de profil"
       accessibilityHint="Ajouter une story, voir ou changer ta photo"
@@ -63,6 +96,11 @@ export function MobileAvatarQuickActions({
           <Pressable accessibilityRole="button" style={styles.action} onPress={()=>{setMenu(false);setChooseFile(true);}}>
             <Text style={[styles.actionText,{color:colors.text}]}>▧  Changer la photo</Text>
           </Pressable>
+          {avatarUrl ? <Pressable accessibilityRole="button"
+            accessibilityLabel="Retirer la photo de profil"
+            disabled={busy} style={styles.action} onPress={confirmRemove}>
+            <Text style={[styles.actionText,{color:colors.danger}]}>Retirer la photo de profil</Text>
+          </Pressable> : null}
           <Pressable accessibilityRole="button" style={styles.dismiss} onPress={()=>setMenu(false)}>
             <Text style={{color:colors.accent,fontWeight:'700'}}>Fermer</Text>
           </Pressable>
