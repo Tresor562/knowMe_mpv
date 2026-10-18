@@ -77,7 +77,7 @@ test('group media/files/links are real, paginated and deep-link to their message
 test('leaving a group requires confirmation and uses authenticated endpoint',async({page})=>{
   const state=await setup(page);
   await page.goto('/messages/grp1/info');
-  await page.getByRole('button',{name:'Autres options du groupe'}).click();
+  await page.locator('.km-info-more > summary[aria-label="Autres options du groupe"]').click();
   await page.getByRole('button',{name:'Quitter le groupe'}).click();
   const dialog=page.getByRole('dialog',{name:'Confirmation'});
   await expect(dialog).toBeVisible();
