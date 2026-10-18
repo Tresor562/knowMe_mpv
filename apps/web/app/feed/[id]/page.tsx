@@ -45,6 +45,9 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [myLike, setMyLike] = useState<boolean | null>(null);
   const likeInFlight = useRef(false);
+  const likeRevision=useRef(0);
+  const currentAccount=useRef<string|null>(null);
+  currentAccount.current=user?.id??null;
   const [likeBusy, setLikeBusy] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [repliesByParent, setRepliesByParent] = useState<Record<string, Comment[]>>({});
@@ -362,10 +365,11 @@ export default function PostDetailPage() {
 
   useEffect(() => {
     let active = true;
+    const revision=likeRevision.current;
     setMyLike(null);
     if (!user?.id || !postId) return () => {active = false;};
     void apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(postId)}`)
-      .then(result => {if(active) setMyLike(result[postId] === true);})
+      .then(result => {if(active && revision===likeRevision.current) setMyLike(result[postId] === true);})
       .catch(()=>{/* Keep selection unknown when the status could not be loaded. */});
     return () => {active = false;};
   },[postId,user?.id]);
@@ -373,11 +377,12 @@ export default function PostDetailPage() {
   async function like() {
     if(likeInFlight.current || !user?.id) return;
     likeInFlight.current = true;
+    likeRevision.current+=1;
     setLikeBusy(true);
     const actor = user.id;
     try {
       const result = await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(postId)}/like`,{method:'POST'});
-      if(actor!==user?.id) return;
+      if(actor!==currentAccount.current) return;
       setMyLike(result.liked);
       setPost(current=>current ? {...current,
         _count:{...current._count,likes:Math.max(0,current._count.likes+(result.liked?1:-1))}
