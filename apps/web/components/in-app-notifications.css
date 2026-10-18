@@ -65,6 +65,21 @@
   .km-live-notification-dock { top: max(64px, calc(env(safe-area-inset-top, 0px) + 56px)); width: min(330px, calc(100vw - 24px)); }
 }
 
+/* The unread count belongs next to the existing Alerts icon on main screens.
+   A small floating shortcut remains only on secondary screens with no main dock. */
+nav.km-smart-nav a[href='/notifications'] { position: relative; }
+.km-live-nav-badge {
+  position: absolute; top: 2px; right: 4px;
+  display: grid; place-items: center; min-width: 17px; min-height: 17px;
+  padding: 0 4px; border-radius: 999px;
+  background: var(--mint); color: var(--on-primary, #fff);
+  box-shadow: 0 0 0 2px var(--surface); pointer-events: none;
+  font-size: 10px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1100px) {
+  nav.km-smart-nav[data-layout='desktop'] .km-live-nav-badge { top: 1px; right: 5px; }
+}
+
 /* Compact visual language: 44px is a touch target, not a reason to render
    enormous filled buttons. Apply to shared shell buttons without changing
    specialized floating/primary composer controls. */
