@@ -133,14 +133,14 @@
       "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/system-accessibility-fallbacks",
-      "task": "PR #724 : accessibilité des thèmes et navigation Web/Android (réduction du mouvement et de la transparence), CI/compilation/anti-conflit en validation",
+      "task": "PR #724 Web/Android accessibilité visuelle — 2 tests unitaires locaux réussis ; CI, APK et anti-conflit GitHub en attente",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:17:39.933Z",
+      "updatedAt": "2026-10-18T14:19:18.750Z",
       "lastPr": 724,
       "resumeFrom": {
         "pr": 724,
         "branch": "chat/design/system-accessibility-fallbacks",
-        "commit": "9717320cf45ab1be0653aa5adc2a959fb7a55b35"
+        "commit": "6994bb0635e4f811ad05c21aa72be0a63afb51e4"
       }
     }
   },
