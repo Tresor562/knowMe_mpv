@@ -76,6 +76,10 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
       <NativeStoryVideo sourceUri={local} paused={paused} style={styles.video}
+        onPlaybackError={event=>{
+          setLocal(null);
+          setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
+        }}
         seekToMs={seekToMs}
         onProgress={event=>{
           const duration=event.nativeEvent.durationMs;
