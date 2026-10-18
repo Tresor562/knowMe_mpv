@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { wrappedDialogFocus } from './dialog-focus';
 type Dialog = { kind: 'confirm' | 'prompt'; message: string; initial?: string; resolve: (answer: boolean | string | null) => void };
 type Toast = { text: string; tone: 'info' | 'success' | 'error' };
+type QueuedToast = Toast & { id: number };
+let nextToastId = 0;
 let dispatch: ((dialog: Dialog) => void) | null = null;
 let showToast: ((toast: Toast) => void) | null = null;
 
@@ -23,7 +25,9 @@ export function knowMeToast(text: string, tone: Toast['tone'] = 'info') { showTo
 export function KnowMeDialogHost() {
   const [queue, setQueue] = useState<Dialog[]>([]);
   const [value, setValue] = useState('');
-  const [toast, setToast] = useState<Toast | null>(null);
+  const [toastQueue, setToastQueue] = useState<QueuedToast[]>([]);
+  const [toastPaused, setToastPaused] = useState(false);
+  const toast = toastQueue[0] ?? null;
   const box = useRef<HTMLDivElement>(null);
   const currentQueue = useRef<Dialog[]>([]);
   const active = queue[0];
@@ -31,7 +35,11 @@ export function KnowMeDialogHost() {
   useEffect(() => {
     const handler = (item: Dialog) => setQueue(previous => [...previous, item]);
     dispatch = handler;
-    showToast = setToast;
+    showToast = (next) => setToastQueue((previous) => {
+      // A burst of identical errors should not bury the user in alerts.
+      if (previous.some((item) => item.text === next.text && item.tone === next.tone)) return previous;
+      return [...previous, { ...next, id: ++nextToastId }].slice(0, 4);
+    });
     return () => {
       if (dispatch === handler) dispatch = null;
       showToast = null;
@@ -80,10 +88,12 @@ export function KnowMeDialogHost() {
     };
   }, [active]);
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3500);
+    if (!toast || toastPaused) return;
+    // Errors need longer reading time than an ordinary success confirmation.
+    const timer = setTimeout(() => setToastQueue((items) => items.slice(1)),
+      toast.tone === 'error' ? 8000 : 5000);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast?.id, toast?.tone, toastPaused]);
   const finish = (accepted: boolean) => {
     if (!active) return;
     active.resolve(active.kind === 'confirm' ? accepted : accepted ? value.trim() : null);
@@ -119,9 +129,14 @@ export function KnowMeDialogHost() {
       </div>
     </div> : null}
     {toast ? <div className={'km-feedback-toast km-feedback-' + toast.tone}
+      onMouseEnter={() => setToastPaused(true)} onMouseLeave={() => setToastPaused(false)}
+      onFocusCapture={() => setToastPaused(true)} onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastPaused(false);
+      }}
       role={toast.tone === 'error' ? 'alert' : 'status'} aria-live={toast.tone === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
       <span aria-hidden="true">✦</span><span>{toast.text}</span>
-      <button type="button" aria-label={en ? "Close notification" : "Fermer la notification"} onClick={() => setToast(null)}>×</button>
+      <button type="button" aria-label={en ? "Close notification" : "Fermer la notification"}
+        onClick={() => { setToastQueue((items) => items.slice(1)); setToastPaused(false); }}>×</button>
     </div> : null}
   </>;
 }
