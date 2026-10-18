@@ -147,6 +147,16 @@ describe('Authenticated publication reports', () => {
     }));
   });
 
+  it('rejects repeated status and cursor query parameters safely', async () => {
+    const { service, prisma } = setup();
+    await expect(service.minePostReports('viewer', undefined, ['OPEN', 'RESOLVED'] as any))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.minePostReports('viewer', ['a', 'b'] as any, 'OPEN'))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.report.findMany).not.toHaveBeenCalled();
+    expect(prisma.report.findFirst).not.toHaveBeenCalled();
+  });
+
   it('rejects an unsupported moderation filter without touching report data', async () => {
     const { service, prisma } = setup();
     await expect(service.minePostReports('viewer', undefined, 'ADMIN'))
