@@ -7,7 +7,8 @@ import {
 import { ConversationRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
-import { UpdateGroupDto } from './group-management.dto';
+import { UpdateGroupDto,UpdateGroupPermissionsDto } from './group-management.dto';
+import {readGroupPermissions} from './group-permissions';
 
 const memberUserSelect = {
   id: true,
@@ -64,8 +65,21 @@ export class GroupManagementService {
     return {
       id: chat.id, title: chat.title, description: chat.description,
       createdAt: chat.createdAt, viewerRole: role, isGroup: true,
+      permissions:readGroupPermissions(chat.groupPermissions),
       members: chat.members, memberCount: chat.members.length
     };
+  }
+
+  async updatePermissions(userId:string,conversationId:string,dto:UpdateGroupPermissionsDto){
+    return this.prisma.$transaction(async tx=>{
+      await this.actor(tx,userId,conversationId,[ConversationRole.OWNER,ConversationRole.ADMIN]);
+      const saved=await tx.conversation.update({
+        where:{id:conversationId},
+        data:{groupPermissions:{sendMessages:dto.sendMessages}},
+        select:{id:true,groupPermissions:true}
+      });
+      return {id:saved.id,permissions:readGroupPermissions(saved.groupPermissions)};
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
   }
 
   async update(userId: string, conversationId: string, dto: UpdateGroupDto) {
