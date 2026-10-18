@@ -66,7 +66,7 @@ export function PostMediaGallery({
               }]}>
               {isVideo
                 ? <View style={styles.videoTile}>
-                    <KnowMeIcon name="play" size={30} color="#fff"/>
+                    <Text style={{color:"#fff",fontSize:32}}>▶</Text>
                     <Text style={styles.videoLabel}>Vidéo</Text>
                   </View>
                 : <Image source={{uri:getMediaSource(item.url)}} resizeMode={count===1?'contain':'cover'}
