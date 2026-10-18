@@ -111,6 +111,7 @@ export function CommentEmojiReactions({ postId, commentId }: {
           <circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c2 2.5 5 2.5 7 0M9 9h.01M15 9h.01"/>
         </svg>
       </button>
+      {!expanded && error && <span role="alert" className="km-comment-emoji-error-inline">{error}</span>}
       {expanded && (
         <span className="km-comment-emoji-popover" role="group" aria-label="Choisir une réaction">
           <span className="km-comment-emoji-picker">
