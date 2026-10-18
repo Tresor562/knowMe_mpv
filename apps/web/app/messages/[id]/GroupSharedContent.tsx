@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
-import { messageSelectionLinks } from './shared-content-selection';
+import { messageSelectionLinks, selectVisibleMessageIds } from './shared-content-selection';
 import {
   appendSharedMessages, filterSharedHistory, sharedAuthorOptions, linksInMessage,
   type SharedMediaFilter, type SharedHistorySort,
@@ -107,6 +107,33 @@ export function GroupSharedContent({
       if(previous.length>=50)return previous;
       return [...previous,id];
     });
+  }
+
+  function selectAllVisible() {
+    const selected=selectVisibleMessageIds(conversationId,filtered);
+    setSelectedIds(selected);
+    setSelectionFeedback(filtered.length>50
+      ? (en?'First 50 visible messages selected.':'Les 50 premiers messages visibles sont sélectionnés.')
+      : '');
+  }
+
+  async function shareSelectedLinks() {
+    const urls=messageSelectionLinks(conversationId,selectedIds,filtered,window.location.origin);
+    if(!urls.length)return;
+    if(typeof navigator.share!=='function'){
+      await copySelectedLinks();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: en?'KnowMe message links':'Liens de messages KnowMe',
+        text: urls.join('\n')
+      });
+      setSelectionFeedback(en?'Links shared.':'Liens partagés.');
+    }catch(cause){
+      if((cause as {name?:string})?.name==='AbortError')return;
+      await copySelectedLinks();
+    }
   }
 
   async function copySelectedLinks() {
@@ -221,12 +248,28 @@ export function GroupSharedContent({
       </button>
       {selecting&&<>
         <span aria-live="polite">{selectedVisible.length} / 50</span>
+        <button type="button" disabled={!filtered.length}
+          onClick={selectAllVisible}>
+          {en?'Select visible':'Tout sélectionner'}
+        </button>
+        <button type="button" disabled={!selectedIds.length}
+          onClick={()=>{setSelectedIds([]);setSelectionFeedback('');}}>
+          {en?'Clear':'Effacer la sélection'}
+        </button>
+        <button type="button" disabled={!selectedVisible.length}
+          onClick={()=>void shareSelectedLinks()}>
+          {en?'Share links':'Partager les liens'}
+        </button>
         <button type="button" disabled={!selectedVisible.length}
           onClick={()=>void copySelectedLinks()}>
           {en?'Copy message links':'Copier les liens vers les messages'}
         </button>
       </>}
     </div>
+    {selecting&&<p className="km-shared-selection-scope">
+      {en?'Recipients must already have access to this conversation to open these links.':
+        'Les destinataires doivent déjà avoir accès à cette discussion pour ouvrir ces liens.'}
+    </p>}
     {selectionFeedback&&<p className="km-shared-copy-status" role="status">{selectionFeedback}</p>}
     {downloadError&&<p className="km-group-shared-error" role="alert">{downloadError}</p>}
     {error&&<div className="km-group-shared-error" role="alert">
