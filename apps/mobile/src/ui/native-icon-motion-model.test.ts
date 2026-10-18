@@ -61,3 +61,17 @@ test('real native touch target and persistent red fill are wired to state', () =
   assert.match(lifecycle, /eventSubscription\?\.remove\(\)/);
   assert.match(motion, /const foreground = useKnowMeAppForeground\(\)/);
 });
+
+
+test('Android toast icons animate only confirmed arrivals and dismiss via 48dp accessible button', () => {
+  const dir = import.meta.dirname;
+  const feedback = fs.readFileSync(path.join(dir, 'KnowMeFeedback.tsx'), 'utf8');
+  const motion = fs.readFileSync(path.join(dir, 'KnowMeNativeAnimatedIcon.tsx'), 'utf8');
+  assert.match(feedback, /<KnowMeNativeAnimatedIcon/);
+  assert.match(feedback, /eventToken=\{toastEvent\}/);
+  assert.match(feedback, /setToastEvent\(n => n \+ 1\)/);
+  assert.match(feedback, /<KnowMeNativeIconButton name="close"/);
+  assert.match(feedback, /label="Fermer le message"/);
+  assert.match(motion, /const firstEvent = eventToken !== null/);
+  assert.match(motion, /state === 'incoming' \|\| state === 'success' \|\| state === 'error'/);
+});
