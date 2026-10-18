@@ -41,3 +41,10 @@ test('a malformed timestamp sorts after real timestamps without crashing', () =>
   );
   assert.deepEqual(rows.map(x => x.id), ['gift:two', 'cosmetic:one']);
 });
+
+test('English receipt labels use the requested language without changing server amounts', () => {
+  const rows = marketplaceReceiptRows(cosmetics, gifts, 'all', '', 'en');
+  assert.equal(rows[0]?.detail, 'Gift for Amie');
+  assert.equal(rows[1]?.detail, 'Cosmetic purchase');
+  assert.deepEqual(rows.map(x => x.priceKnowCoins), [25, 120]);
+});
