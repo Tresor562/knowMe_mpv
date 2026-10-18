@@ -70,12 +70,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/android-resume-video-position",
-      "task": "PR #740 reprise vidéo Android attend CI/APK; PR #732 retry Réels CI/coord vertes, APK en attente; PR #725/#729 fusionnées",
+      "task": "Finalisation PR #732 et #740 (CI + coordination + APK toutes réussies), fusion et vérification livraison",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T15:02:10.850Z",
+      "updatedAt": "2026-10-18T15:36:34.354Z",
       "lastPr": 740,
       "resumeFrom": {
         "pr": 740,
