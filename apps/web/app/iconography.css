@@ -62,3 +62,44 @@
 :root[data-animated-icons='false'] :where(button, a, summary, [role='button']):active :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transform: none !important;
 }
+
+/* Expand the profile-avatar action hit target without inflating its 34px face.
+   The original 34px button was difficult to press on Android browsers. */
+.km-avatar-plus {
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.km-avatar-plus::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 3px 10px rgba(0,0,0,.14);
+  pointer-events: none;
+  z-index: 0;
+}
+.km-avatar-plus > .km-state-icon {
+  position: relative;
+  z-index: 1;
+  color: var(--on-primary);
+}
+.km-avatar-plus:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-avatar-plus:active { transform: none !important; }
+}
+:root[data-animations='false'] .km-avatar-plus:active {
+  transform: none !important;
+}
