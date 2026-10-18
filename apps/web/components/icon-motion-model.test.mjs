@@ -31,7 +31,7 @@ test('an icon burst follows status/event changes only, not rerender', () => {
 });
 
 test('indefinite motion limited to real, ongoing operation', () => {
-  for (const state of ['loading','recording','playing']) {
+  for (const state of ['loading','recording','playing','typing','syncing','call-active','live']) {
     assert.equal(mayAnimateIndefinitely(state), true);
   }
   for (const state of ['idle','selected','paused','success','error','offline','closed']) {
