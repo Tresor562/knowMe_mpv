@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-shared-content",
-      "task": "PR #762 HEAD 43429fbe: 308-feature private+group parity matrix; real Web private/group shared media/files/links/progressive search, subfilters Photos/Videos/GIF/Stickers/Documents/Audio; private info compact and keyboard tabs; group management UI; E2E privacy controls; previous JSX CI build failure corrected. Latest head coordination green, CI running, APK pending, not merged or deployed. PR #743 HEAD 08edb0f8: in-app notification sensitive/immersive flow CI fix, coordination green, CI+APK in progress. Messaging PR #754 remains blocked by CI + anti-collision, needs own domain. No verified E2EE/calls/WhatsApp-Telegram full parity.",
+      "task": "PR #743/#762 merged after all green; implementing private/group shared gallery author/date range and sort filters in isolated design branch, with tests.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T18:47:10.282Z",
+      "updatedAt": "2026-10-18T19:22:07.162Z",
       "lastPr": 762,
       "resumeFrom": {
         "pr": 762,
@@ -1051,6 +1051,12 @@
       "at": "2026-10-18T18:47:10.282Z",
       "pr": 762,
       "alsoPr": 743
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T19:22:07.162Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
     }
   ]
 }
