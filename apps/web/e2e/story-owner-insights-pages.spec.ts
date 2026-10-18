@@ -38,7 +38,7 @@ test('Story owner can search, filter, sort and open real viewer profiles', async
   });
 
   await page.goto('/stories/s-1/insights');
-  await expect(page.getByRole('heading',{name:'Spectateurs',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Spectateurs',exact:true,level:1})).toBeVisible();
   await expect(page.getByText('9',{exact:true})).toBeVisible();
   await expect(page.locator('.km-story-insights-person')).toHaveCount(3);
   await expect(page.getByRole('link',{name:/Léa/})).toHaveAttribute('href','/profile/lea');
@@ -116,7 +116,7 @@ test('Owner loads more Story viewers without duplicates and retains global metri
   await expect(page.locator('.km-story-insights-person')).toHaveCount(2);
   await page.getByRole('button',{name:'Afficher plus de spectateurs'}).click();
   await expect(page.locator('.km-story-insights-person')).toHaveCount(3);
-  await expect(page.getByRole('link',{name:/Chloé/})).toHaveAttribute('href','/profile/Chloé');
+  await expect(page.getByRole('link',{name:/Chloé/})).toHaveAttribute('href','/profile/Chlo%C3%A9');
   await expect(page.getByText('6',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Afficher plus de spectateurs'})).toHaveCount(0);
   expect(pages).toBe(2);
@@ -149,5 +149,5 @@ test('The Story archive exposes a working owner-insights entry point',async({pag
   await expect(insights).toHaveAttribute('href','/stories/s-1/insights');
   await insights.click();
   await expect(page).toHaveURL(/\/stories\/s-1\/insights$/);
-  await expect(page.getByRole('heading',{name:'Spectateurs',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Spectateurs',exact:true,level:1})).toBeVisible();
 });
