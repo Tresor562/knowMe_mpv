@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/shared-history-date-author-filters",
-      "task": "Merged PRs #743 (9aac415) and #762 (2b0c0ac) on verified green CI/guard/APK; verified Vercel knowme-android production READY for both exact merge SHAs and knowme-nextech domain bound. PR #764 b94fcf5e open: private+group shared-history filter by verified sender identity, inclusive local date range, sort direction, media subtype, tests. Guard green; latest CI in_progress; APK pending. Messaging #756 owns ?message target navigation and is green but open, comment posted. No signed Android distribution confirmed; 308 requirement catalogue not fully built.",
+      "task": "Resume design messaging UX: verify PR #764 and implement next isolated native-quality chat information improvement after safe merging.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T19:32:12.699Z",
+      "updatedAt": "2026-10-18T19:41:24.726Z",
       "lastPr": 764,
       "resumeFrom": {
         "pr": 764,
@@ -1075,6 +1075,12 @@
         743,
         762
       ]
+    },
+    {
+      "domain": "design",
+      "action": "resume",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T19:41:24.726Z"
     }
   ]
 }
