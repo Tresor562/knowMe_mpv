@@ -36,6 +36,7 @@ export type KnowMeIconName =
   | 'heart'
   | 'play'
   | 'pause'
+  | 'download'
   | 'profile'
   | 'bell'
   | 'spark'
@@ -125,6 +126,14 @@ export function KnowMeIcon({
       rotate={name==='chevron-down'?'43deg':'-43deg'} color={color}/>
     <Line width={12*s} height={sw} left={10*s} top={11*s}
       rotate={name==='chevron-down'?'-43deg':'43deg'} color={color}/>
+  </View>;
+  if(name==='download')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center'}}>
+    <View style={{width:sw,height:11*s,backgroundColor:color,borderRadius:sw,marginTop:-4*s}}/>
+    <Line width={8*s} height={sw} left={5*s} top={10*s} rotate="44deg" color={color}/>
+    <Line width={8*s} height={sw} left={11*s} top={10*s} rotate="-44deg" color={color}/>
+    <View style={{position:'absolute',bottom:1*s,width:19*s,height:5*s,
+      borderLeftWidth:sw,borderBottomWidth:sw,borderRightWidth:sw,
+      borderColor:color,borderBottomLeftRadius:3*s,borderBottomRightRadius:3*s}}/>
   </View>;
   if(name==='pause')return <View style={{width:size,height:size,flexDirection:'row',
     justifyContent:'center',alignItems:'center',gap:4*s}}>

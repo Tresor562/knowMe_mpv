@@ -167,8 +167,14 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       try {
         File path = new File(parsed.getPath()).getCanonicalFile();
         File cache = getContext().getCacheDir().getCanonicalFile();
-        if (!path.getPath().startsWith(cache.getPath() + File.separator)
-            || !path.exists() || path.length()<1024L) return;
+        // Only explicit public video saves in our private documents folder
+        // are permitted outside the existing temporary story cache.
+        File offline = new File(getContext().getFilesDir(),
+          "knowme-offline-videos").getCanonicalFile();
+        boolean temporaryStory = path.getPath().startsWith(cache.getPath()+File.separator);
+        boolean savedVideo = offline.equals(path.getParentFile()) &&
+          path.getName().matches("[A-Za-z0-9_-]{1,128}\\.mp4");
+        if (!(temporaryStory||savedVideo) || !path.exists() || path.length()<1024L) return;
         player.setVideoPath(path.getAbsolutePath());
         player.requestFocus();
       } catch (IOException | NullPointerException ignored) {
