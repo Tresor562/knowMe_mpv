@@ -97,21 +97,30 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/badges-user-isolation",
-      "task": "Intégrer #734 et #738 (checks tous verts) ; développer prochain lot Profils, isolé des autres PR",
+      "branch": "chat/profiles/verification-withdraw-safe-web",
+      "task": "PR #734 merged main 4e9be9ac and #738 merged main eec888d5. PR #747 circle-notification-schedule-web: complete 14-field DTO, quiet hours/timezone/digest UI, 5 unit + 2 e2e added, coordination green, quality/APK still running. PR #749 verification-withdraw-safe-web: KnowMe modal/confirm, 3 unit tests added, CI queued. Neither PR merged; no Web/APK live verification.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T15:37:55.125Z",
-      "lastPr": 738,
+      "updatedAt": "2026-10-18T15:48:02.885Z",
+      "lastPr": 749,
       "resumeFrom": {
-        "pr": 738,
-        "branch": "chat/profiles/badges-user-isolation",
-        "head": "37a32ffd24cb946bd727c0c38c528e04cecd06dc",
-        "otherPr": 734,
-        "otherHead": "1c3f77499286678b6750f500ceb36c2921229132",
-        "mergedPr": 727,
-        "mergedCommit": "2e978d03a0cd3f7b2d928a3434764bc5312cde58"
+        "pr": 749,
+        "branch": "chat/profiles/verification-withdraw-safe-web",
+        "head": "e1badc7a3e0e4c21fd256d012605cdf10852dcae",
+        "otherPr": 747,
+        "otherBranch": "chat/profiles/circle-notification-schedule-web",
+        "otherHead": "8938ccfc6b5b949a3d78e0e2509263e7841776bf",
+        "merged": [
+          {
+            "pr": 734,
+            "commit": "4e9be9ac794c8e1a54b8cd2a46ce019c670b5ae9"
+          },
+          {
+            "pr": 738,
+            "commit": "eec888d501203cceadacd0f02352b2cec3130829"
+          }
+        ]
       }
     },
     "marketplace": {
@@ -913,6 +922,14 @@
       "domain": "marketplace",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "issue": 697
+    },
+    {
+      "at": "2026-10-18T15:48:02.885Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 749
     }
   ]
 }
