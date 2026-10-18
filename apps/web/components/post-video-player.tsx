@@ -35,6 +35,7 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
   const [error, setError] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
+  const [seekEvents, setSeekEvents] = useState({ back: 0, forward: 0 });
 
   const syncTime = useCallback(() => {
     const el = videoRef.current;
@@ -75,6 +76,8 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
     const max = Number.isFinite(video.duration) ? video.duration : 0;
     if (!max) return;
     video.currentTime = Math.max(0, Math.min(max, video.currentTime + delta));
+    const direction = delta < 0 ? 'back' : 'forward';
+    setSeekEvents(previous => ({ ...previous, [direction]: previous[direction] + 1 }));
     syncTime();
   }, [syncTime]);
 
@@ -185,11 +188,11 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
           </button>
           <button type="button" onClick={() => seekBy(-10)}
             aria-label={en ? 'Rewind 10 seconds' : 'Reculer de 10 secondes'}>
-            <KnowMeAnimatedIcon name="rewind-10" size={20}/>
+            <KnowMeAnimatedIcon name="rewind-10" size={20} eventToken={seekEvents.back}/>
           </button>
           <button type="button" onClick={() => seekBy(10)}
             aria-label={en ? 'Forward 10 seconds' : 'Avancer de 10 secondes'}>
-            <KnowMeAnimatedIcon name="forward-10" size={20}/>
+            <KnowMeAnimatedIcon name="forward-10" size={20} eventToken={seekEvents.forward}/>
           </button>
           <button type="button" onClick={toggleMute}
             aria-label={muted ? (en ? 'Unmute' : 'Activer le son') : (en ? 'Mute' : 'Couper le son')}
