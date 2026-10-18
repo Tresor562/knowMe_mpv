@@ -30,6 +30,8 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   const inflight = useRef(false);
   const initialFocus = useRef<HTMLElement | null>(null);
   const firstChoice = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const completeButton = useRef<HTMLButtonElement>(null);
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
 
@@ -37,9 +39,30 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
     initialFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     firstChoice.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !inflight.current) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
         event.stopImmediatePropagation();
-        onBackRef.current();
+        if (!inflight.current) onBackRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      )).filter(element => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !dialogRef.current.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !dialogRef.current.contains(active))) {
+        event.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -48,6 +71,10 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
       initialFocus.current?.focus();
     };
   }, []);
+
+  useEffect(() => {
+    if (submitted) completeButton.current?.focus();
+  }, [submitted]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,7 +120,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
           else onBack();
         }
       }}>
-      <form className="km-comment-report-sheet" role="dialog" aria-modal="true"
+      <form ref={dialogRef} tabIndex={-1} className="km-comment-report-sheet" role="dialog" aria-modal="true"
         aria-label={en ? 'Report publication' : 'Signaler la publication'}
         onSubmit={event => void submit(event)}>
         <div className="km-comment-report-handle" aria-hidden="true" />
@@ -113,7 +140,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
             <Link className="km-post-report-history-link" href="/feed/reports">
               {en ? 'View my reports' : 'Consulter mes signalements'}
             </Link>
-            <button className="km-comment-report-submit" type="button" onClick={onComplete}>
+            <button ref={completeButton} className="km-comment-report-submit" type="button" onClick={onComplete}>
               {en ? 'Done' : 'Terminer'}
             </button>
           </>
