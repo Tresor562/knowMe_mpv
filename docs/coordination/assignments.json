@@ -67,10 +67,10 @@
       "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/avatar-removal-actions",
-      "task": "Web et Android : retirer la photo de profil depuis les actions de l'avatar, confirmation KnowMe, contrôle API et tests",
+      "task": "PR #708 — suppression sécurisée de photo depuis le menu avatar Web/Android ; tests de non-régression et vérification CI",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T12:13:31.676Z",
-      "lastPr": null,
+      "updatedAt": "2026-10-18T12:17:50.293Z",
+      "lastPr": 708,
       "resumeFrom": null
     },
     "marketplace": {
