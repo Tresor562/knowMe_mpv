@@ -42,7 +42,8 @@ export function InAppNotifications() {
   const router = useRouter();
   const { locale } = useI18n();
   const en = locale === 'en';
-  const sessionToken = getAccessToken();
+  // Read browser-only credentials *after* hydration to avoid SSR/client mismatches.
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const lastToken = useRef<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [navAlertsLink, setNavAlertsLink] = useState<HTMLAnchorElement | null>(null);
@@ -53,6 +54,24 @@ export function InAppNotifications() {
   const insideCenter = pathname === '/notifications' || pathname.startsWith('/notifications/');
   const currentPathRef = useRef(pathname);
   currentPathRef.current = pathname;
+
+  useEffect(() => {
+    const sync = () => setSessionToken(token => {
+      const current = getAccessToken();
+      return current === token ? token : current;
+    });
+    sync();
+    window.addEventListener('storage', sync);
+    window.addEventListener('pageshow', sync);
+    window.addEventListener('focus', sync);
+    window.addEventListener('knowme-session-changed', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('pageshow', sync);
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('knowme-session-changed', sync);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     let alive = true, initialized = false, inFlight = false, repeat = false;
@@ -182,7 +201,7 @@ export function InAppNotifications() {
     } catch { /* The destination stays available while offline. */ }
     router.push(path);
   };
-  if (!getAccessToken() || insideCenter) return null;
+  if (!sessionToken || insideCenter) return null;
   if (unread === 0 && !active) return null;
 
   return <>{unread > 0 && navAlertsLink && createPortal(
