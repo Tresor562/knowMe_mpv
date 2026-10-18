@@ -319,7 +319,12 @@ export default function FeedPage() {
       <div className="km-header-nav-group">
       <header className="km-feed-header">
         <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
-        <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        <div className="km-feed-header-media-actions">
+          <Link className="km-feed-story-cta" href="/reels" aria-label={en?'Open reels':'Voir les Reels'}>
+            ▶ <span>Reels</span>
+          </Link>
+          <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+        </div>
       </header>
       <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
       </div>
