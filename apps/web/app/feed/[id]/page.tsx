@@ -8,6 +8,8 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import './comment-actions.css';
+import { CommentReportSheet } from '../../../components/comment-report-sheet';
+import '../../../components/comment-report-sheet.css';
 import { apiFetch } from '../../../lib/api';
 import { useSession, type StaffBadge, type VerificationBadge } from '../../../lib/use-session';
 import { AccountBadges } from '../../../components/AccountBadges';
@@ -63,6 +65,7 @@ export default function PostDetailPage() {
   const reactionHold = useRef<number|null>(null);
   const suppressReactionClick = useRef(false);
   const [contextCommentId, setContextCommentId] = useState<string | null>(null);
+  const [reportingComment, setReportingComment] = useState<Comment | null>(null);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [editFeedback, setEditFeedback] = useState('');
@@ -620,6 +623,12 @@ export default function PostDetailPage() {
             <button type="button" autoFocus onClick={() => void copyCommentText(selectedComment)}>
               Copier le texte
             </button>
+            {selectedComment.author.id !== user?.id && (
+              <button type="button" onClick={() => {
+                setReportingComment(selectedComment);
+                setContextCommentId(null);
+              }}>Signaler le commentaire</button>
+            )}
             <button type="button" onClick={() => {
               const id = selectedComment.id;
               setContextCommentId(null);
@@ -636,6 +645,14 @@ export default function PostDetailPage() {
             )}
           </section>
         </div>
+      )}
+
+      {reportingComment && (
+        <CommentReportSheet comment={reportingComment}
+          onClose={() => setReportingComment(null)}
+          onReported={() => {
+            setShareNotice('Signalement transmis à la modération KnowMe.');
+          }} />
       )}
 
       {editingComment && (
