@@ -110,11 +110,15 @@
       "status": "active",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/release-guard-readiness",
-      "task": "Vérification et durcissement des chemins CI / préflight de déploiement Web et APK",
+      "task": "PR #721 : audit lecture seule API/Web/Android avec 9 tests; vérifier CI du HEAD fda74c4 avant fusion, puis relever l'état réel des déploiements",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T14:05:40.631Z",
-      "lastPr": null,
-      "resumeFrom": null
+      "updatedAt": "2026-10-18T14:14:18.132Z",
+      "lastPr": 721,
+      "resumeFrom": {
+        "pr": 721,
+        "branch": "chat/infra/release-guard-readiness",
+        "commit": "fda74c4265532018884c1e32edb5a4b368a5bcd0"
+      }
     },
     "design": {
       "issue": 699,
