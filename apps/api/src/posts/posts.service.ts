@@ -164,8 +164,8 @@ export class PostsService {
   private validateEmoji(emoji: string) {
     const parts = [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(emoji)];
     if (parts.length !== 1 ||
-        !/[\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u20E3]/u.test(emoji) ||
-        /[\\r\\n]/u.test(emoji)) {
+        !/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3]/u.test(emoji) ||
+        /[\r\n]/u.test(emoji)) {
       throw new BadRequestException('Choisis un seul emoji pour cette réaction.');
     }
   }
