@@ -72,7 +72,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const dragStartY=useRef(0);
   const [recentPage,setRecentPage]=useState(false);
   const [emojiPageSize,setEmojiPageSize]=useState(112);
-  const textColor=colors.text,muted=colors.muted,panelBg=colors.surface,deepBg=colors.surfaceRaised;
+  const textColor='#e4e7f1',muted='#a6a9be',panelBg='#222536',deepBg='#2b2e40';
   const activeColor=colors.accent;
 
   useEffect(()=>{
@@ -248,20 +248,20 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.packStrip}
       contentContainerStyle={styles.packStripContent} keyboardShouldPersistTaps="always">
-      <Pressable style={[styles.roundTab,{backgroundColor:colors.backgroundAccent},recentPage&&styles.selectedTab]}
+      <Pressable style={[styles.roundTab,recentPage&&styles.selectedTab]}
         onPress={()=>{setRecentPage(true);setCategory('Récents');}}
         accessibilityLabel="Récents"><Text style={[styles.categorySymbol,{color:muted}]}>◷</Text></Pressable>
-      <Pressable style={[styles.roundTab,{backgroundColor:colors.backgroundAccent},category==='Favoris'&&styles.selectedTab]}
+      <Pressable style={[styles.roundTab,category==='Favoris'&&styles.selectedTab]}
         onPress={()=>{setRecentPage(false);setCategory('Favoris');}}
         accessibilityLabel="Favoris"><Text style={[styles.categorySymbol,{color:muted}]}>☆</Text></Pressable>
       {packs.slice(0,24).map(item=><Pressable key={item.key}
-          style={[styles.packCover,{backgroundColor:colors.backgroundAccent},packKey===item.key&&tab==='stickers'&&styles.packSelected]}
+          style={[styles.packCover,packKey===item.key&&tab==='stickers'&&styles.packSelected]}
           accessibilityLabel={`Pack ${item.name}`} onPress={()=>{changeTab('stickers');setPackKey(item.key);}}>
           <Text numberOfLines={1} style={styles.packCoverEmoji}>{item.stickers[0]?.glyph||'◈'}</Text>
         </Pressable>)}
       {!packs.length&&GLYPHS.slice(0,9).map((glyph,index)=>
         <Pressable key={glyph+index} onPress={()=>{onChangeTab('emoji');setCategory(null);}}
-          style={[styles.packCover,{backgroundColor:colors.backgroundAccent}]}><AnimatedEmoji glyph={glyph} size={30} autoPlay={false}/></Pressable>)}
+          style={styles.packCover}><AnimatedEmoji glyph={glyph} size={30} autoPlay={false}/></Pressable>)}
     </ScrollView>
     <View style={[styles.searchBar,{backgroundColor:deepBg}]}>
       <Pressable style={styles.searchTap} onPress={()=>setSearchOpen(current=>!current)}
@@ -273,24 +273,18 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
         <Pressable style={styles.searchPlaceholder} onPress={()=>setSearchOpen(true)}>
           <Text style={{color:muted,fontSize:15}}>Rechercher</Text>
         </Pressable>}
-
-      {searchOpen?<Pressable onPress={()=>{setSearch('');setSearchOpen(false);}} 
-        style={styles.searchClose} accessibilityRole="button" accessibilityLabel="Fermer la recherche">
+      {(tab==='emoji'?EMOJI_CATEGORIES:[
+        {label:'❤️',name:'Favoris'},
+        {label:'👍',name:'Récents'},
+        {label:'🎉',name:'Tous'}
+      ]).map(item=><Pressable key={item.name}
+        accessibilityLabel={item.name} accessibilityState={{selected:category===item.name}}
+        style={styles.filter} onPress={()=>{setCategory(current=>current===item.name?null:item.name);}}>
+        <Text style={{fontSize:21,opacity:category===item.name?1:0.65}}>{item.label}</Text>
+      </Pressable>)}
+      {searchOpen?<Pressable onPress={()=>{setSearch('');setSearchOpen(false);}} accessibilityLabel="Effacer la recherche">
         <KnowMeIcon name="close" size={20} color={muted}/></Pressable>:null}
     </View>
-    {!searchOpen&&<ScrollView horizontal showsHorizontalScrollIndicator={false}
-      style={styles.filterStrip} contentContainerStyle={styles.filterStripContent}>
-      {(tab==='emoji'?EMOJI_CATEGORIES:[
-        {label:'❤️',name:'Favoris'}, {label:'👍',name:'Récents'}, {label:'🎉',name:'Tous'}
-      ]).map(item=><Pressable key={item.name}
-        accessibilityRole="button" accessibilityLabel={item.name}
-        accessibilityState={{selected:category===item.name}}
-        style={[styles.filter,{backgroundColor:colors.backgroundAccent},
-          category===item.name&&{backgroundColor:colors.surfaceRaised}]}
-        onPress={()=>setCategory(current=>current===item.name?null:item.name)}>
-        <Text style={{fontSize:20}}>{item.label}</Text>
-      </Pressable>)}
-    </ScrollView>}
     {failure?<Pressable onPress={()=>{setFailure('');setPacks([]);setRetryToken(value=>value+1);}} style={styles.status}>
       <Text style={{color:'#ffaaa9',fontSize:12}}>{failure} · Réessayer</Text>
     </Pressable>:null}
@@ -302,14 +296,14 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
           contentContainerStyle={{gap:7,alignItems:'center',paddingVertical:5}}>
           <Pressable onPress={()=>setCategory(null)} accessibilityRole="button"
             accessibilityState={{selected:!category}}
-            style={[styles.groupChip,{backgroundColor:colors.backgroundAccent},!category&&{backgroundColor:colors.surfaceRaised}]}>
-            <Text style={[styles.groupLabel,{color:colors.text}]}>Tous</Text>
+            style={[styles.groupChip,!category&&styles.groupSelected]}>
+            <Text style={styles.groupLabel}>Tous</Text>
           </Pressable>
           {UNICODE_EMOJI_GROUPS.map(group=><Pressable key={group}
             onPress={()=>setCategory(group)} accessibilityRole="button"
             accessibilityState={{selected:category===group}}
-            style={[styles.groupChip,{backgroundColor:colors.backgroundAccent},category===group&&{backgroundColor:colors.surfaceRaised}]}>
-            <Text style={[styles.groupLabel,{color:colors.text}]}>{group}</Text>
+            style={[styles.groupChip,category===group&&styles.groupSelected]}>
+            <Text style={styles.groupLabel}>{group}</Text>
           </Pressable>)}
         </ScrollView>
         {!search&&category===null&&favorites.length>0?<View style={styles.section}>
@@ -418,9 +412,9 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
       </>}
     </ScrollView>
     <View style={styles.bottomRow}>
-      <View style={[styles.segment,{backgroundColor:colors.backgroundAccent}]}>
+      <View style={styles.segment}>
         {(['emoji','gifs','stickers'] as const).map(item=><Pressable key={item}
-          style={[styles.tabButton,tab===item&&styles.selectedTab,tab===item&&{backgroundColor:colors.surfaceRaised}]}
+          style={[styles.tabButton,tab===item&&styles.selectedTab]}
           accessibilityRole="tab" accessibilityState={{selected:tab===item}}
           onPress={()=>changeTab(item)}>
           <Text style={[styles.tabText,{color:tab===item?textColor:muted}]}>
@@ -441,7 +435,7 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
 
 const styles=StyleSheet.create({
   root:{width:'100%',overflow:'hidden',borderTopLeftRadius:23,borderTopRightRadius:23},
-  groupChip:{paddingHorizontal:12,minHeight:44,backgroundColor:'#33384b',borderRadius:16,
+  groupChip:{paddingHorizontal:12,minHeight:34,backgroundColor:'#33384b',borderRadius:18,
     justifyContent:'center',alignItems:'center'},
   groupSelected:{backgroundColor:'#57648a'},
   groupLabel:{color:'#e4e7f1',fontWeight:'700',fontSize:12},
@@ -449,38 +443,35 @@ const styles=StyleSheet.create({
   grab:{width:38,height:4,borderRadius:3,backgroundColor:'#596073'},
   packStrip:{maxHeight:58,flexGrow:0},
   packStripContent:{paddingHorizontal:10,alignItems:'center',gap:8,paddingBottom:7},
-  roundTab:{width:44,height:44,borderRadius:15,alignItems:'center',justifyContent:'center',backgroundColor:'#2d3041'},
+  roundTab:{width:42,height:42,borderRadius:23,alignItems:'center',justifyContent:'center',backgroundColor:'#2d3041'},
   categorySymbol:{fontSize:31,lineHeight:37},
   selectedTab:{backgroundColor:'#383c57'},
-  packCover:{width:44,height:44,borderRadius:13,alignItems:'center',justifyContent:'center',
+  packCover:{width:42,height:42,borderRadius:13,alignItems:'center',justifyContent:'center',
     overflow:'hidden',backgroundColor:'#313548'},
   packSelected:{borderColor:'#8698de',borderWidth:2},
   packCoverEmoji:{fontSize:25,textAlign:'center'},
   searchBar:{height:45,borderRadius:25,marginHorizontal:11,marginBottom:5,
     flexDirection:'row',alignItems:'center',paddingHorizontal:10,gap:7},
-  searchTap:{width:44,height:44,alignItems:'center',justifyContent:'center'},
-  searchClose:{width:44,height:44,alignItems:'center',justifyContent:'center'},
-  searchPlaceholder:{flex:1,justifyContent:'center',minHeight:44},
+  searchTap:{width:25,alignItems:'center'},
+  searchPlaceholder:{flex:1,justifyContent:'center',height:43},
   searchInput:{flex:1,minWidth:45,backgroundColor:'transparent',fontSize:15,paddingVertical:0},
-  filter:{minWidth:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:13},
-  filterStrip:{maxHeight:49,flexGrow:0,marginHorizontal:11,marginBottom:3},
-  filterStripContent:{alignItems:'center',gap:4,paddingHorizontal:2},
+  filter:{minWidth:27,height:36,alignItems:'center',justifyContent:'center'},
   status:{paddingHorizontal:15,minHeight:28,justifyContent:'center'},
   contentScroll:{flex:1,minHeight:0},
   content:{paddingHorizontal:11,paddingBottom:14},
   section:{marginTop:11,gap:10},
-  sectionTitle:{fontSize:14,fontWeight:'700',color:'#afb2c6',marginLeft:5},
+  sectionTitle:{fontSize:16,fontWeight:'700',color:'#afb2c6',marginLeft:5},
   grid:{flexDirection:'row',flexWrap:'wrap',rowGap:10,columnGap:0,justifyContent:'flex-start'},
   emojiTile:{height:47,alignItems:'center',justifyContent:'center'},
   stickerTile:{height:87,alignItems:'center',justifyContent:'center'},
   gifTile:{width:'48%',minHeight:175,marginBottom:10,borderRadius:9,overflow:'hidden'},
-  gifSend:{minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:9,marginTop:5},
-  importGif:{minHeight:44,borderWidth:1,borderRadius:12,alignItems:'center',justifyContent:'center',marginTop:14},
+  gifSend:{minHeight:40,alignItems:'center',justifyContent:'center',borderRadius:9,marginTop:5},
+  importGif:{minHeight:50,borderWidth:1,borderRadius:12,alignItems:'center',justifyContent:'center',marginTop:14},
   hint:{color:'#a6a9be',fontSize:13,paddingHorizontal:7,paddingVertical:8},
-  bottomRow:{height:58,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7,paddingHorizontal:10},
-  segment:{flex:1,minWidth:0,flexDirection:'row',borderRadius:18,padding:3,backgroundColor:'#292d44'},
-  tabButton:{flex:1,minWidth:0,minHeight:44,paddingHorizontal:4,alignItems:'center',justifyContent:'center',borderRadius:14},
-  tabText:{fontSize:12,fontWeight:'700'},
-  closeKeyboard:{width:44,height:44,borderRadius:14,flexShrink:0,
+  bottomRow:{height:65,flexDirection:'row',alignItems:'center',justifyContent:'center',position:'relative'},
+  segment:{flexDirection:'row',borderRadius:26,padding:4,backgroundColor:'#292d44'},
+  tabButton:{minWidth:91,minHeight:41,paddingHorizontal:12,alignItems:'center',justifyContent:'center',borderRadius:22},
+  tabText:{fontSize:16,fontWeight:'700'},
+  closeKeyboard:{position:'absolute',right:12,top:10,width:42,height:42,borderRadius:22,
     alignItems:'center',justifyContent:'center'}
 });
