@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-shared-content",
-      "task": "Group design #699 PR #762 HEAD af17e668: Web group info real media/files/links tabs + progressive search across authorized history, private file download grants, return to message, safe group leave menu; model unit/E2E new, previous CI failures in own E2E corrected; exact HEAD guard green, CI queued, APK pending. Backend permissions PR #754 (messaging) CI/guard failing; unimplemented parity matrix docs/design/GROUPS_TELEGRAM_WHATSAPP_PARITY_20261018.md. Older design PR #743 HEAD 1003774f CI failing, not merged. No Web or Android delivery verified.",
+      "task": "Group PR #762 validation and group member filters, menu usability, test coverage; maintain separation with Messaging #754 and other design PRs.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T17:30:55.352Z",
+      "updatedAt": "2026-10-18T18:02:34.729Z",
       "lastPr": 762,
       "resumeFrom": {
         "pr": 762,
@@ -1022,6 +1022,13 @@
       "at": "2026-10-18T17:30:55.352Z",
       "pr": 762,
       "otherPr": 743
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T18:02:34.729Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 762
     }
   ]
 }
