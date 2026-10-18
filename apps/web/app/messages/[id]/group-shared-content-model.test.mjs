@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages,searchSharedMessages} from './group-shared-content-model.ts';
+import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages,filterSharedContent,searchSharedMessages} from './group-shared-content-model.ts';
 
 const item = (id, kind, content='') => ({
   id, conversationId:'group-1', content, createdAt:'2026-10-18T16:00:00Z',
@@ -40,4 +40,15 @@ test('progressive group search finds accents, authors and document names',()=>{
   assert.deepEqual(searchSharedMessages(items,'Zoe').map(x=>x.id),['1']);
   assert.deepEqual(searchSharedMessages(items,'resume').map(x=>x.id),['2']);
   assert.deepEqual(searchSharedMessages(items,'').map(x=>x.id),[]);
+});
+
+test('private and group shared tabs filter actual media kinds without mixing files', () => {
+  const all=[item('img','IMAGE'),item('video','VIDEO'),item('gif','GIF'),
+    item('sticker','STICKER_IMAGE'),item('doc','DOCUMENT'),item('audio','AUDIO')];
+  assert.deepEqual(filterSharedContent(all,'media').map(x=>x.id),['img','video','gif','sticker']);
+  assert.deepEqual(filterSharedContent(all,'media','IMAGE').map(x=>x.id),['img']);
+  assert.deepEqual(filterSharedContent(all,'media','VIDEO').map(x=>x.id),['video']);
+  assert.deepEqual(filterSharedContent(all,'files').map(x=>x.id),['doc','audio']);
+  assert.deepEqual(filterSharedContent(all,'files','DOCUMENT').map(x=>x.id),['doc']);
+  assert.deepEqual(filterSharedContent(all,'files','AUDIO').map(x=>x.id),['audio']);
 });
