@@ -44,6 +44,9 @@ export class PostsService {
   async create(authorId: string, dto: CreatePostDto) {
     const selected=dto.mediaAssetIds??(dto.mediaAssetId?[dto.mediaAssetId]:[]);
     const ids=[...new Set(selected)];
+    if (!dto.content.trim() && !selected.length) {
+      throw new BadRequestException('Ajoute du texte ou au moins un média à la publication.');
+    }
     if(ids.length!==selected.length)throw new ForbiddenException('Un média ne peut être ajouté deux fois au même post.');
     const validated=[];
     for(const id of ids)validated.push(await this.media.assertOwnedPostMedia(authorId,id));
