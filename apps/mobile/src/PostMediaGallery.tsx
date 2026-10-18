@@ -64,7 +64,7 @@ export function PostMediaGallery({ media, fallbackUrl, caption }: {
               ]}>
               {isVideo ? (
                 <View style={styles.videoPlaceholder}>
-                  <KnowMeIcon name="play" size={30} color="#fff"/>
+                  <Text style={{color:"#fff",fontSize:35}}>▶</Text>
                   <Text style={styles.videoLabel}>Vidéo</Text>
                 </View>
               ) : (
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   more: { position:'absolute',top:0,bottom:0,left:0,right:0,
     justifyContent:'center',alignItems:'center',backgroundColor:'rgba(0,0,0,.68)' },
   moreText: { fontSize:32,fontWeight:'800',color:'#fff' },
-  modal: { flex:1,backgroundColor:'#050609',paddingTop:Math.max(36, 0),
+  modal: { flex:1,backgroundColor:'#050609',paddingTop:36,
     paddingBottom:20 },
   top: { height:53,flexDirection:'row',justifyContent:'space-between',
     alignItems:'center',paddingHorizontal:14 },
