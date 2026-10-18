@@ -112,9 +112,32 @@ function visit(dir) {
 }
 for (const dir of roots) visit(path.join(root, dir));
 fileRows.sort((a, b) => a.file.localeCompare(b.file));
+// Legacy Unicode candidates are prioritized by file/area, rather than
+// misleadingly describing the total as validated visual defects.
+const legacyByFile = fileRows.map(row => ({
+  file: row.file, count: row.findings.filter(f => f.kind === 'legacy-unicode-control-review').length,
+  lines: row.findings.filter(f => f.kind === 'legacy-unicode-control-review')
+    .slice(0, 8).map(f => f.line)
+})).filter(row => row.count).sort((a,b) => b.count - a.count || a.file.localeCompare(b.file));
+const designMigratedControls = [
+  'apps/web/components/post-video-player.tsx',
+  'apps/web/components/knowme-feedback.tsx',
+  'apps/web/components/comment-report-sheet.tsx',
+  'apps/web/components/post-edit-sheet.tsx',
+  'apps/web/components/profile-member-picker.tsx',
+  'apps/web/components/secret-profile-entry.tsx'
+];
+const regressions = legacyByFile.filter(row => designMigratedControls.includes(row.file));
+if (regressions.length) {
+  for (const issue of regressions)
+    warnings.push({ file: issue.file, line: issue.lines[0] || 1, severity: 'error',
+      issue: 'Legacy Unicode control reintroduced in a migrated Design surface' });
+}
 const result = {
   base: 'source tree at execution SHA', counts: sum, filesWithVectorsOrReferences: fileRows.length,
-  warnings, externalDependenciesNotVetted: true,
+  warnings, remainingLegacyControlCandidatesByFile: legacyByFile,
+  migratedDesignSurfaceRegressions: regressions,
+  externalDependenciesNotVetted: true,
   completeness: 'Static source inventory only: runtime remotely-loaded icons and 3rd-party package internals require runtime inspection'
 };
 if (process.argv.includes('--json')) console.log(JSON.stringify({ ...result, files: fileRows }, null, 2));
