@@ -3,6 +3,12 @@ Workstream: design
 Coordination-Issue: #699
 Functional owners: Messaging #693, Infrastructure #698, Social #694, Profiles #696, Reels/Stories #695.
 
+> **Périmètre élargi suite à la demande du 18/10/2026 :** le catalogue transverse et
+> plus complet `docs/design/PRIVATE_AND_GROUP_MESSAGING_PARITY_MATRIX_20261018.md`
+> recense 308 exigences réparties sur conversations privées, groupes, appels,
+> communautés, bots, sécurité, médias et synchronisation. Ce document reste la
+> sous-spécification détaillée des **groupes**, sans prétendre couvrir à lui seul
+> toute la messagerie KnowMe.
 > **Acceptance contract, not release declaration.** Each capability must have real API persistence,
 > permission checks, UI wiring on Web + Android, accessibility, tests, deployment and device evidence.
 > A hidden screen, visual toggle or pending PR does not count as delivered.
