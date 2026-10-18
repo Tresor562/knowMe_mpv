@@ -33,6 +33,7 @@ export default function MyPostReportsPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [records, setRecords] = useState<ReportRecord[]>([]);
+  const [recordsOwner, setRecordsOwner] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ReportStatusFilter>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,8 +42,12 @@ export default function MyPostReportsPage() {
   const [moreError, setMoreError] = useState('');
   const generation = useRef(0);
   const pageInFlight = useRef(false);
+  const activeOwner = useRef<string | null>(null);
+  activeOwner.current = user?.id ?? null;
 
   const reload = useCallback(async () => {
+    const requestOwner = user?.id;
+    if (!requestOwner) return;
     const requestId = ++generation.current;
     setLoading(true);
     setError('');
@@ -53,23 +58,27 @@ export default function MyPostReportsPage() {
         ? `/reports/mine/posts?status=${statusFilter}`
         : '/reports/mine/posts';
       const result = await apiFetch<ReportPage>(url);
-      if (requestId !== generation.current) return;
+      if (requestId !== generation.current || activeOwner.current !== requestOwner) return;
       setRecords(result.reports);
+      setRecordsOwner(requestOwner);
       setNextCursor(result.nextCursor);
     } catch (cause) {
-      if (requestId !== generation.current) return;
+      if (requestId !== generation.current || activeOwner.current !== requestOwner) return;
       setRecords([]);
+      setRecordsOwner(requestOwner);
       setNextCursor(null);
       setError(cause instanceof Error ? cause.message :
         (en ? 'Your reports are temporarily unavailable.' : 'Impossible de charger tes signalements.'));
     } finally {
-      if (requestId === generation.current) setLoading(false);
+      if (requestId === generation.current && activeOwner.current === requestOwner) setLoading(false);
     }
-  }, [en, statusFilter]);
+  }, [en, statusFilter, user?.id]);
 
   const loadMore = async () => {
-    if (!nextCursor || loading || loadingMore || pageInFlight.current) return;
+    if (!nextCursor || loading || loadingMore || pageInFlight.current ||
+      !user || recordsOwner !== user.id) return;
     const requestId = generation.current;
+    const requestOwner = user.id;
     pageInFlight.current = true;
     setLoadingMore(true);
     setMoreError('');
@@ -77,20 +86,20 @@ export default function MyPostReportsPage() {
       const result = await apiFetch<ReportPage>(
         `/reports/mine/posts?cursor=${encodeURIComponent(nextCursor)}${statusFilter ? `&status=${statusFilter}` : ''}`
       );
-      if (generation.current !== requestId) return;
+      if (generation.current !== requestId || activeOwner.current !== requestOwner) return;
       setRecords(previous => {
         const known = new Set(previous.map(item => item.id));
         return [...previous, ...result.reports.filter(item => !known.has(item.id))];
       });
       setNextCursor(result.nextCursor);
     } catch (cause) {
-      if (generation.current === requestId) {
+      if (generation.current === requestId && activeOwner.current === requestOwner) {
         setMoreError(cause instanceof Error ? cause.message :
           (en ? 'Could not load more reports.' : 'Chargement des signalements suivants impossible.'));
       }
     } finally {
       pageInFlight.current = false;
-      if (generation.current === requestId) setLoadingMore(false);
+      if (generation.current === requestId && activeOwner.current === requestOwner) setLoadingMore(false);
     }
   };
 
@@ -99,6 +108,9 @@ export default function MyPostReportsPage() {
   }, [sessionLoading, user?.id, reload]);
 
   const heading = en ? 'My publication reports' : 'Mes signalements de publications';
+  // Never expose cached reports for a prior authenticated account, even for one render.
+  const accountReportsReady = Boolean(user && recordsOwner === user.id);
+  const showLoading = loading || !accountReportsReady;
   if (sessionLoading || !user) {
     return <main className="shell km-post-report-history">
       <p role="status">{en ? 'Loading your account…' : 'Chargement du compte…'}</p>
@@ -152,8 +164,8 @@ export default function MyPostReportsPage() {
             }}>{label}</button>
         ))}
       </div>
-      {loading ? <p role="status">{en ? 'Loading reports…' : 'Chargement des signalements…'}</p> : null}
-      {error ? (
+      {showLoading ? <p role="status">{en ? 'Loading reports…' : 'Chargement des signalements…'}</p> : null}
+      {!showLoading && error ? (
         <div className="km-post-report-history-error" role="alert">
           <p>{error}</p>
           <button type="button" onClick={() => void reload()}>
@@ -161,7 +173,7 @@ export default function MyPostReportsPage() {
           </button>
         </div>
       ) : null}
-      {!loading && !error && records.length === 0 ? (
+      {!showLoading && !error && records.length === 0 ? (
         <section className="km-post-report-history-empty" aria-label={heading}>
           <h2>{statusFilter
             ? (en ? 'No reports with this status' : 'Aucun signalement avec ce statut')
@@ -172,7 +184,7 @@ export default function MyPostReportsPage() {
           <Link href="/feed">{en ? 'Return to publications' : 'Retour aux publications'}</Link>
         </section>
       ) : null}
-      {!loading && !error && records.length > 0 ? (
+      {!showLoading && !error && records.length > 0 ? (
         <ol className="km-post-report-history-list">
           {records.map(record => (
             <li key={record.id}>
@@ -192,10 +204,10 @@ export default function MyPostReportsPage() {
           ))}
         </ol>
       ) : null}
-      {!loading && !error && moreError ? (
+      {!showLoading && !error && moreError ? (
         <p role="alert" className="km-post-report-history-error">{moreError}</p>
       ) : null}
-      {!loading && !error && nextCursor ? (
+      {!showLoading && !error && nextCursor ? (
         <button type="button" className="km-post-report-history-more"
           disabled={loadingMore} onClick={() => void loadMore()}>
           {loadingMore ? (en ? 'Loading…' : 'Chargement…') :
