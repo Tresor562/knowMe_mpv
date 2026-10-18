@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages} from './group-shared-content-model.ts';
+import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages,searchSharedMessages} from './group-shared-content-model.ts';
 
 const item = (id, kind, content='') => ({
   id, conversationId:'group-1', content, createdAt:'2026-10-18T16:00:00Z',
@@ -28,4 +28,16 @@ test('pagination deduplicates without mutating previous result', () => {
   const b=appendSharedMessages(a,[item('old','IMAGE'),item('new','AUDIO')]);
   assert.deepEqual(b.map(x=>x.id),['old','new']);
   assert.equal(a.length,1);
+});
+
+test('progressive group search finds accents, authors and document names',()=>{
+  const items=[
+    {...item('1','TEXT','Révisions de mathématiques'),sender:{displayName:'Zoé'}},
+    {...item('2','DOCUMENT'),presentation:{kind:'DOCUMENT',assetId:'file',fileName:'Résumé.pdf'}},
+    {...item('3','TEXT','Événement de lundi'),sender:{displayName:'Alice'}}
+  ];
+  assert.deepEqual(searchSharedMessages(items,'MATHEMATIQUES').map(x=>x.id),['1']);
+  assert.deepEqual(searchSharedMessages(items,'Zoe').map(x=>x.id),['1']);
+  assert.deepEqual(searchSharedMessages(items,'resume').map(x=>x.id),['2']);
+  assert.deepEqual(searchSharedMessages(items,'').map(x=>x.id),[]);
 });
