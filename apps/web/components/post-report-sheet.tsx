@@ -33,7 +33,11 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   const dialogRef = useRef<HTMLFormElement>(null);
   const completeButton = useRef<HTMLButtonElement>(null);
   const onBackRef = useRef(onBack);
+  const onCompleteRef = useRef(onComplete);
+  const submittedRef = useRef(submitted);
   onBackRef.current = onBack;
+  onCompleteRef.current = onComplete;
+  submittedRef.current = submitted;
 
   useEffect(() => {
     initialFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -42,7 +46,10 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (!inflight.current) onBackRef.current();
+        if (!inflight.current) {
+          if (submittedRef.current) onCompleteRef.current();
+          else onBackRef.current();
+        }
         return;
       }
       if (event.key !== 'Tab' || !dialogRef.current) return;
