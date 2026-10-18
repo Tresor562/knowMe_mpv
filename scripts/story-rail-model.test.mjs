@@ -36,7 +36,8 @@ import { storyCompletionBps, storyProgressCheckpoint } from '../apps/mobile/src/
 test('Story progress is based on the actual player position, not opening the Story',()=>{
   assert.equal(storyCompletionBps(0,30_000),0);
   assert.equal(storyCompletionBps(15_000,30_000),5_000);
-  assert.equal(storyCompletionBps(29_999,30_000),10_000);
+  assert.equal(storyCompletionBps(29_999,30_000),9_999);
+  assert.equal(storyCompletionBps(30_000,30_000),10_000);
   assert.equal(storyCompletionBps(12_000,0),0);
   assert.equal(storyCompletionBps(NaN,30_000),0);
   assert.equal(storyCompletionBps(9_999_999,30_000),10_000);
