@@ -62,3 +62,19 @@ Les 15 emplacements signalés dans le premier audit sont :
 - `NetworkConnectivityNotice` transmet les événements `online/offline/restored` à l'icône et conserve sa réserve existante : `navigator.onLine` n'est pas une preuve de santé du backend.
 - Prochain contrôle obligatoire : comparer la capture et le comportement des mêmes états dans le navigateur et sur un APK réelle ; une réussite TypeScript ne constitue pas ce contrôle.
 
+
+## Lot de continuation — Android et performances des pictogrammes
+
+Les modifications `KnowMeNativeAnimatedIcon`, `KnowMeNativeIconButton` et `native-icon-motion-model` matérialisent des états Android pilotés par les fonctionnalités plutôt que par un clic supposé réussi :
+
+- Tailles des dessins 20–24 dp et **cibles tactiles de 48 dp** pour la nouvelle commande dédiée, sans grossir l'icône.
+- Libellé d'accessibilité fourni par la fonction appelante, appui court et long distincts, états disabled/selected/busy.
+- Cœur natif **rempli rouge** seulement si `selected` est réellement transmis ; un retrait de réaction doit venir des données enregistrées, jamais de l'animation elle-même.
+- Démarrage d'une animation répétée sur montage si un traitement est *déjà actif*. Arrêt de la boucle après `state`, arrière-plan Android ou réduction du mouvement.
+- Réduction du nombre de listeners système via le hook natif partagé. Attention : cela **ne transforme pas** les glyphes construits par `View` en chemins SVG natifs. La dépendance Expo/RN compatible et le lockfile natif restent du ressort d'Infra #698.
+
+Côté Web : `knowme-document-visibility.ts` centralise un unique listener `visibilitychange` et coupe la lecture des animations hors écran/onglet. Les effets tactiles globaux ont été restreints à `svg[data-knowme-icon]` et `svg[data-icon-touch]` afin de ne pas écraser les transformations des graphiques, lecteurs ou progrès. La fenêtre de partage n'agrandit plus ses traits SVG à 47 px : ses icônes restent à 22 px dans un cercle de 42 px, et les cinq actions occupent un rang compact. Les boutons de fermeture traités ont une cible d'au moins 44 px.
+
+**Coordination vérifiée :** la PR Design #743 couvre déjà `apps/mobile/src/NotificationCenterExperience.tsx` ; les pictogrammes emoji restants y ont été signalés sans écrire dans ce fichier depuis la PR #760. Les autres surfaces (Social #694, Messaging #693, Reels #695, Marketplace #697) restent à réviser lors des intégrations respectives.
+
+**Ne pas prétendre que 100 % des SVG Android/Web sont audités ou conformes.** L'étape suivante impose l'analyse des alertes de l'inventaire enrichi, des captures comparatives et la réconciliation des PR historiques qui bloquent le garde de coordination. Les commits sur la branche ne constituent pas un APK livré.
