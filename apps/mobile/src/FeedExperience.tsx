@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
+import NetInfo from '@react-native-community/netinfo';
+import { restoreOfflinePostDraft, saveOfflinePostDraft, clearOfflinePostDraft } from './offline-post-drafts';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
@@ -703,6 +705,10 @@ export function FeedExperience({
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [content, setContent] = useState('');
   const [composerOpen,setComposerOpen] = useState(false);
+  const [draftOwner,setDraftOwner] = useState('');
+  const [draftNotice,setDraftNotice] = useState('');
+  const [offline,setOffline] = useState(false);
+  const draftWrites=useRef<Promise<unknown>>(Promise.resolve());
   useEffect(()=>{
     if(!openComposerRequest)return;
     setComposerOpen(true);
@@ -711,6 +717,53 @@ export function FeedExperience({
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [postPhotoSupported, setPostPhotoSupported] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<SelectedAndroidMedia[]>([]);
+
+  useEffect(() => {
+    return NetInfo.addEventListener(state => {
+      setOffline(state.isConnected === false || state.isInternetReachable === false);
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDraftOwner('');
+    setContent('');
+    setSelectedPhotos([]);
+    setDraftNotice('');
+    void restoreOfflinePostDraft(userId).then(saved => {
+      if (cancelled) return;
+      if (saved) {
+        setContent(saved.content);
+        setSelectedPhotos(saved.media);
+        setDraftNotice(saved.missingMedia.length
+          ? 'Brouillon restauré. Sélectionne à nouveau : ' + saved.missingMedia.join(', ')
+          : 'Brouillon local restauré, même sans connexion.');
+      }
+    }).catch(() => {
+      if (!cancelled) setDraftNotice('Brouillon hors ligne indisponible sur cet appareil.');
+    }).finally(() => {
+      if (!cancelled) setDraftOwner(userId);
+    });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (draftOwner !== userId || publishing) return;
+    const value = content;
+    const media = selectedPhotos.slice();
+    const accountId = userId;
+    const timer = setTimeout(() => {
+      const save = draftWrites.current.catch(() => undefined)
+        .then(() => saveOfflinePostDraft(accountId, value, media));
+      draftWrites.current = save;
+      void save.then(result => {
+        setDraftNotice(result.missingMedia.length
+          ? 'Texte enregistré. Médias à sélectionner à nouveau : ' + result.missingMedia.join(', ')
+          : (value || media.length ? 'Brouillon enregistré sur cet appareil.' : ''));
+      }).catch(() => setDraftNotice('Impossible de sauvegarder le brouillon sur cet appareil.'));
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [userId, draftOwner, content, selectedPhotos, publishing]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
@@ -764,6 +817,10 @@ export function FeedExperience({
   async function publish() {
     const value=content.trim();
     if((!value&&!selectedPhotos.length)||publishing)return;
+    if(offline){
+      Alert.alert('Hors ligne','Ton brouillon reste sur cet appareil. Reconnecte-toi pour publier.');
+      return;
+    }
     setPublishing(true);
     try {
       const mediaAssetIds:string[]=[];
@@ -773,8 +830,11 @@ export function FeedExperience({
       await apiFetch('/posts',{
         method:'POST',body:JSON.stringify({content:value||' ',mediaAssetIds})
       });
+      await draftWrites.current.catch(() => undefined);
+      await clearOfflinePostDraft(userId).catch(() => undefined);
       setContent('');
       setSelectedPhotos([]);
+      setDraftNotice('');
       setComposerOpen(false);
       await load();
     }catch(cause){
@@ -944,18 +1004,26 @@ export function FeedExperience({
       content={content}
       onChangeContent={setContent}
       media={selectedPhotos}
-      canAttachPhoto={postPhotoSupported}
+      canAttachPhoto={postPhotoSupported || offline}
       onChoosePhoto={()=>setPhotoPickerOpen(true)}
       onRemovePhoto={()=>setSelectedPhotos([])}
       onPublish={()=>void publish()}
       publishing={publishing}
+      offline={offline}
+      draftNotice={draftNotice}
       onClose={()=>{if(!publishing)setComposerOpen(false);}}
     />
     <AndroidMediaLibraryPicker
       visible={photoPickerOpen} purpose="publication" mediaFilter="all" allowVideo multiple
       maxSelection={500}
       onClose={()=>setPhotoPickerOpen(false)}
-      onPickedMany={media=>{setSelectedPhotos(media);setPhotoPickerOpen(false);setComposerOpen(true);}}
+      onPickedMany={media=>{
+        setSelectedPhotos(previous=>{
+          const known=new Set(previous.map(item=>item.uri));
+          return [...previous,...media.filter(item=>!known.has(item.uri))].slice(0,500);
+        });
+        setPhotoPickerOpen(false);setComposerOpen(true);
+      }}
     />
     </>
   );
