@@ -60,12 +60,17 @@ export function KnowMeNativeAnimatedIcon({
     if (!enabled) { value.setValue(1); return; }
     if (nativeIconShouldLoop(state)) {
       value.setValue(0);
-      const loop = Animated.loop(Animated.sequence([
-        Animated.timing(value, { toValue: 1, duration: 850,
-          easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(value, { toValue: 0, duration: 850,
-          easing: Easing.inOut(Easing.sin), useNativeDriver: true })
-      ]));
+      const isSpinner = (name === 'refresh' || name === 'settings') &&
+        (state === 'loading' || state === 'syncing');
+      const loop = isSpinner
+        ? Animated.loop(Animated.timing(value, { toValue: 1, duration: 1050,
+            easing: Easing.linear, useNativeDriver: true }))
+        : Animated.loop(Animated.sequence([
+            Animated.timing(value, { toValue: 1, duration: 850,
+              easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(value, { toValue: 0, duration: 850,
+              easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+          ]));
       animation.current = loop;
       loop.start();
     } else if (changed) {
@@ -92,17 +97,26 @@ export function KnowMeNativeAnimatedIcon({
     : state === 'success' ? colors.accent
     : color ?? colors.text;
 
-  const scale = value.interpolate({
-    inputRange: [0, .55, 1],
-    outputRange: [state === 'selected' ? .82 : .95, 1.10, 1]
-  });
+  const isSpinner = (name === 'refresh' || name === 'settings') &&
+    (state === 'loading' || state === 'syncing');
+  const zoom = name === 'heart' || name === 'create' || name === 'bell'
+    ? [state === 'selected' ? .82 : .91, 1.14, 1]
+    : [.96, 1.035, 1];
+  const scale = value.interpolate({ inputRange: [0, .55, 1], outputRange: zoom });
   const translateY = value.interpolate({
     inputRange: [0, 1],
-    outputRange: [name === 'download' ? -2 : name === 'refresh' ? 0 : 1, 0]
+    outputRange: [name === 'download' ? -3 : name === 'arrow' || name === 'paperclip' ? -1 : 0, 0]
+  });
+  const translateX = value.interpolate({
+    inputRange: [0, 1],
+    outputRange: [name === 'back' ? -3 : name === 'messages' ? 2 : 0, 0]
   });
   const rotate = value.interpolate({
     inputRange: [0, 1],
-    outputRange: [name === 'settings' || name === 'refresh' ? '-12deg' : '0deg', '0deg']
+    outputRange: isSpinner ? ['0deg', '360deg']
+      : name === 'create' && state === 'open' ? ['0deg', '45deg']
+      : name === 'bell' && state === 'incoming' ? ['-13deg', '0deg']
+      : name === 'settings' ? ['-17deg', '0deg'] : ['0deg', '0deg']
   });
   const realProgress = nativeIconProgress(state, progress);
 
@@ -113,7 +127,7 @@ export function KnowMeNativeAnimatedIcon({
       importantForAccessibility="no-hide-descendants"
       style={{
         width: size, height: size, alignItems: 'center', justifyContent: 'center',
-        transform: enabled ? [{ scale }, { translateY }, { rotate }] : undefined
+        transform: enabled ? [{ scale }, { translateX }, { translateY }, { rotate }] : undefined
       }}>
       <KnowMeIcon name={effectiveName} size={size} color={effectiveColor} strokeWidth={strokeWidth}/>
       {realProgress !== null && (
