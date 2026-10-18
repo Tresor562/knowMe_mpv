@@ -27,17 +27,17 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/web-voice-review",
-      "task": "Reprise PR Web #723, KnowSticker #735 : contrôles exacts et résolution des échecs avant fusion",
+      "task": "PR #723 HEAD a483993 (Web audio explicit send), syntax/TS fixed, focus wrap Playwright assertion fixed; guard/CI/APK queued. PR #735 HEAD 66a472e rename KnowSticker, guard vert, CI queued, APK pending. 4/4 local targeted tests passed, pas de nouveau déploiement confirmé.",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:59:56.431Z",
+      "updatedAt": "2026-10-18T15:10:06.296Z",
       "lastPr": 723,
       "resumeFrom": {
         "pr": 723,
         "branch": "chat/messaging/web-voice-review",
-        "commit": "c54d29e44411a0fc6a45a423b1bb90f977529f94",
+        "commit": "a4839938b6db0648ac002cabb208a0e0d2dc698f",
         "alsoPr": 735,
         "alsoBranch": "chat/messaging/knowsticker-rename",
         "alsoCommit": "66a472eeb3e0b08193fde550936fcb8f3e31b956",
@@ -802,6 +802,14 @@
       "pr": 742,
       "alsoPr": 721,
       "head": "a339ee3d9e4bf772c1477169d68baf2a2a443b78"
+    },
+    {
+      "action": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T15:10:06.296Z",
+      "pr": 723,
+      "alsoPr": 735
     }
   ]
 }
