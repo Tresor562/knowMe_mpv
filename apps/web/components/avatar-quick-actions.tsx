@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -75,7 +76,7 @@ export function AvatarQuickActions({
       <button ref={trigger} className="km-avatar-plus" type="button" aria-haspopup="menu"
         aria-expanded={open} aria-label={en ? 'Profile photo actions' : 'Actions de la photo de profil'}
         onClick={() => { placeMenu(); setOpen(value => !value); }} disabled={busy}>
-        <KnowMeGlyph name="create" size={19} active={open}/>
+        <KnowMeAnimatedIcon name="create" size={19} state={open ? "open" : "closed"} />
       </button>
       {open && <div ref={menuRef} style={{ top: menuPosition.top, left: menuPosition.left }} className="km-avatar-menu" role="menu" aria-label={en ? 'Profile options' : 'Options du profil'}>
         <Link href="/stories/new" role="menuitem" onClick={() => setOpen(false)}>
