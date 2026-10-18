@@ -29,10 +29,11 @@ function detectKind(mime: string, preferSticker: boolean): MediaKind {
 }
 
 export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referenceChat=false,inputSlot,gifGalleryRequest=0,
-  expressionOpen=false,expressionExpanded=false,onToggleExpression}:{
+  expressionOpen=false,expressionExpanded=false,onToggleExpression,onRecordingChange}:{
   conversationId:string;onSent:(message:T)=>void;showVoice?:boolean;
   referenceChat?:boolean;inputSlot?:ReactNode;gifGalleryRequest?:number;
   expressionOpen?:boolean;expressionExpanded?:boolean;onToggleExpression?:()=>void;
+  onRecordingChange?:(active:boolean)=>void;
 }) {
   const { colors } = useAppearance();
   const { locale } = useI18n();
@@ -166,7 +167,7 @@ export function ChatMediaPicker<T>({conversationId,onSent,showVoice=true,referen
         {busy ? <ActivityIndicator color={colors.accent} size="small"/> :
           <KnowMeIcon name="create" size={24} color={colors.text}/>}
       </Pressable>}
-      {showVoice ? <KnowMeVoiceComposer busy={busy} referenceChat={referenceChat} onSend={file=>sendFiles([file])}/> : null}
+      {showVoice ? <KnowMeVoiceComposer busy={busy} referenceChat={referenceChat} onSend={file=>sendFiles([file])} onRecordingChange={onRecordingChange}/> : null}
     </View>
     {!!progress && <Text style={[styles.progress,{color:colors.muted}]}>{progress}</Text>}
     {!!notice && !busy && <Pressable onPress={()=>setMenuVisible(true)}>
