@@ -10,7 +10,7 @@ import { nextAvatarMenuIndex, type AvatarMenuNavigationKey } from './avatar-menu
 /* Web + native dependencies carry different @types/react minor versions.
    Bridge only the portal child structural type; keep the actual React portal.
    Never cast the underlying DOM actions or menu props to any. */
-type CompatiblePortalChild = ReturnType<typeof createPortal> & { children: never };
+type CompatiblePortalChild = ReturnType<typeof createPortal> & { children: never; type: never };
 
 type AvatarQuickActionsProps = {
   username: string;
