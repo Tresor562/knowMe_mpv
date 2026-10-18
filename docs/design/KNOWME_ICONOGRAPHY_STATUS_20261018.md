@@ -37,3 +37,28 @@ Tests ciblés : `pnpm --filter @knowme/web test`, `pnpm --filter @knowme/web bui
 Ne pas éditer les contrats métier d'autres PR ni déclarer cette demande achevée tant que les SVG de tous les écrans et les icônes natives n'ont pas été contrôlés. Pas de publication depuis cette branche.
 
 **Rollback :** revert de cette PR, puis suppression de l'import CSS global, ce qui restaure immédiatement la navigation et les glyphes antérieurs.
+
+## Inventaire source vérifié en CI
+
+Le run GitHub Actions `CI #39148793538` au commit `42209abe0166518602995d26d1b4744b0cff620b` était **réussi** : le premier audit y a traité **398 fichiers**, trouvé **96 occurrences JSX <svg>/<Svg>**, **2 SVG autonomes** et **15 alertes**. Ces alertes ne sont pas toutes des bugs d'accessibilité : certains SVG ont déjà un ancêtre `aria-hidden` et nécessitent un examen contextualisé. Le nouveau scanner, plus large, n'a pas encore été qualifié sur la dernière version au moment de ce rapport.
+
+Autre constat : le composant natif `KnowMeIcon` déclare **31 noms**, et chacun dispose d'une branche de rendu ; **ces branches restent essentiellement dessinées avec des Views Android, pas avec de véritables chemins SVG natifs**. Les SVG purs autonomes du dépôt sont le logo KnowMe et le motif de conversation.
+
+Les 15 emplacements signalés dans le premier audit sont :
+- Marketplace : `apps/web/app/marketplace/apks/page.tsx:96`, `history/page.tsx:195,201`, `marketplace/page.tsx:260,272`.
+- Stickers : `apps/web/app/messages/[id]/StickerPicker.tsx:369,375`.
+- Réels : `apps/web/app/reels/reel-playback.tsx:166,171,195,196`.
+- Réseau : `apps/web/components/network-connectivity-notice.tsx:71,75` (les glyphes ont ensuite été raccordés à l'état réel du réseau).
+- Collage médias : `apps/web/components/post-media-collage.tsx:102`.
+- Motif SVG : `apps/web/public/chat-pattern.svg:1` (marqué décoratif).
+
+**Ces lignes correspondent au commit audité, et peuvent se déplacer**. Les autres domaines doivent intégrer les composants réutilisables au moment de la fusion de leurs PR, sans remplacement aveugle des icônes de lecture, de badges ou de signaux d'appel.
+
+## Nouvelle architecture comportementale (suite de la reprise)
+
+- `KnowMeAnimatedIcon` reçoit un état **autoritatif**, un jeton d'événement facultatif, un progrès numérique facultatif.
+- `icon-motion-model.ts` teste sans React la correspondance des états : pause -> lecture, lecture -> pause, téléchargement fini -> coche, état progress -> progrès réel.
+- `knowme-icon-motion.css` porte les signatures propres aux fonctions (cœur, navigation, envoi, paramètres, cloche, lecture, micro, partage, réseau, transfert), sans boucles au repos.
+- `NetworkConnectivityNotice` transmet les événements `online/offline/restored` à l'icône et conserve sa réserve existante : `navigator.onLine` n'est pas une preuve de santé du backend.
+- Prochain contrôle obligatoire : comparer la capture et le comportement des mêmes états dans le navigateur et sur un APK réelle ; une réussite TypeScript ne constitue pas ce contrôle.
+
