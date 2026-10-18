@@ -1,6 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useI18n } from '../../components/i18n-provider';
+import { knowMeConfirm, knowMePrompt } from '../../components/knowme-feedback';
+import {
+  canSubmitVerificationRequest, verificationWithdrawalReason
+} from '../../lib/verification-request-model';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
@@ -56,6 +61,9 @@ function errorMessage(cause: unknown, fallback: string) {
 
 export default function VerificationPage() {
   const { user, loading: sessionLoading, refresh } = useSession({ required: true });
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const tr = (fr: string, english: string) => en ? english : fr;
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -114,18 +122,32 @@ export default function VerificationPage() {
   }
 
   async function withdraw(request: VerificationRequest) {
-    const reason = window.prompt('Motif du retrait de la demande :');
-    if (!reason?.trim() || busy) return;
+    if (busy) return;
+    const typed = await knowMePrompt(tr(
+      'Pourquoi retirer cette demande ? (3 à 500 caractères)',
+      'Why withdraw this request? (3–500 characters)'
+    ));
+    if (typed === null) return;
+    const reason = verificationWithdrawalReason(typed);
+    if (!reason) {
+      setMessage(tr('Le motif doit contenir entre 3 et 500 caractères.',
+        'The reason must contain between 3 and 500 characters.'));
+      return;
+    }
+    if (!await knowMeConfirm(tr(
+      'Confirmer le retrait de ta demande de vérification ?',
+      'Confirm withdrawal of your verification request?'
+    ))) return;
     setBusy(true);
     try {
-      await apiFetch(`/verification/requests/${request.id}/withdraw`, {
+      await apiFetch(`/verification/requests/${encodeURIComponent(request.id)}/withdraw`, {
         method: 'POST',
-        body: JSON.stringify({ reason: reason.trim() })
+        body: JSON.stringify({ reason })
       });
-      setMessage('Demande retirée.');
       await Promise.all([load(), refresh()]);
+      setMessage(tr('Demande retirée.', 'Request withdrawn.'));
     } catch (cause) {
-      setMessage(errorMessage(cause, 'Retrait impossible.'));
+      setMessage(errorMessage(cause, tr('Retrait impossible.', 'Could not withdraw request.')));
     } finally {
       setBusy(false);
     }
@@ -135,12 +157,7 @@ export default function VerificationPage() {
     return <main className="shell"><p>Chargement de la vérification…</p></main>;
   }
 
-  const pending = requests.some((item) =>
-    ['SUBMITTED', 'UNDER_REVIEW'].includes(item.status)
-  );
-  const approved = requests.find(
-    (item) => item.status === 'APPROVED' && item.expiresAt && new Date(item.expiresAt) > new Date()
-  );
+  const canSubmit = canSubmitVerificationRequest(requests);
 
   return (
     <main className="shell" style={{ maxWidth: 980, margin: '0 auto' }}>
@@ -182,7 +199,7 @@ export default function VerificationPage() {
         </article>
       </section>
 
-      {!pending && !approved && (
+      {canSubmit && (
         <form className="card grid" onSubmit={submit} style={{ padding: 24, marginBottom: 28 }}>
           <div>
             <small style={{ color: 'var(--mint)' }}>NOUVELLE DEMANDE</small>
@@ -259,7 +276,7 @@ export default function VerificationPage() {
                 ))}
               </details>
               {['SUBMITTED', 'UNDER_REVIEW'].includes(request.status) && (
-                <button className="btn" disabled={busy} onClick={() => void withdraw(request)}>
+                <button className="btn" type="button" disabled={busy} onClick={() => void withdraw(request)}>
                   Retirer la demande
                 </button>
               )}
