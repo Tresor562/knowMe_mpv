@@ -115,3 +115,30 @@ test('unread count follows the existing navigation when it becomes available', a
   await page.evaluate(() => document.querySelector('nav.km-smart-nav')?.remove());
   await expect(page.getByRole('link', { name: /145 notifications/ })).toBeVisible();
 });
+
+test('session changes update alerts without hydration mismatches or leaking previous account notices', async ({ page }) => {
+  await page.route('**/api/knowme/**', async route => {
+    const pathname = new URL(route.request().url()).pathname;
+    let data: unknown = {};
+    if (pathname.endsWith('/users/me')) data = {
+      id: 'design-user', username: 'design', displayName: 'Design', email: 'design@example.test'
+    };
+    if (pathname.endsWith('/notifications/center')) data = {
+      items: [old], totals: { unread: 1 }, preferences: prefs
+    };
+    if (pathname.endsWith('/notifications/unread-count')) data = { count: 1 };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
+  });
+  await page.goto('/login');
+  await expect(page.locator('.km-live-notification-dock')).toHaveCount(0);
+  await page.evaluate(() => {
+    localStorage.setItem('knowme_token', 'new-account-token');
+    window.dispatchEvent(new Event('knowme-session-changed'));
+  });
+  await expect(page.locator('.km-live-notification-counter')).toContainText('1');
+  await page.evaluate(() => {
+    localStorage.removeItem('knowme_token');
+    window.dispatchEvent(new Event('knowme-session-changed'));
+  });
+  await expect(page.locator('.km-live-notification-dock')).toHaveCount(0);
+});
