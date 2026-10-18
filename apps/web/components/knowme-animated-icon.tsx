@@ -68,6 +68,17 @@ export function KnowMeAnimatedIcon({
       style={{ width: size, height: size }}
     >
       <KnowMeGlyph key={motionId} name={visibleName} size={size} active={showSelected || state === 'success'} />
+      {state === 'typing' && (
+        <svg viewBox="0 0 24 24" width={size} height={size}
+          className="km-state-icon-typing" aria-hidden="true" focusable="false">
+          <circle cx="7" cy="14.5" r="1.2" />
+          <circle cx="12" cy="14.5" r="1.2" />
+          <circle cx="17" cy="14.5" r="1.2" />
+        </svg>
+      )}
+      {state === 'live' && (
+        <span className="km-state-icon-live-dot" aria-hidden="true" />
+      )}
       {ring && (
         <svg viewBox="0 0 24 24" width={size} height={size}
           className="km-state-icon-progress" aria-hidden="true" focusable="false">
