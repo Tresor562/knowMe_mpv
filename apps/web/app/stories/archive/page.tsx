@@ -26,7 +26,7 @@ const labels = {
     back:'Retour à la création', refresh:'Actualiser', empty:'Aucune Story archivée pour le moment.',
     emptyFiltered:'Aucune Story ne correspond à ce filtre.',
     all:'Toutes', pinned:'Épinglées', text:'Textes', photo:'Photos', video:'Vidéos',
-    open:'Ouvrir la Story', next:'Afficher plus de Stories', loading:'Chargement de ton archive…',
+    open:'Ouvrir la Story', insights:'Spectateurs et statistiques', next:'Afficher plus de Stories', loading:'Chargement de ton archive…',
     more:'Chargement des Stories suivantes…', error:'Impossible de charger ton archive.',
     moreError:'Impossible de charger la suite des Stories.',
     retry:'Réessayer', cached:'Les Stories déjà chargées restent disponibles.',
@@ -38,7 +38,7 @@ const labels = {
     back:'Back to Story creation', refresh:'Refresh', empty:'No archived Stories yet.',
     emptyFiltered:'No Stories match this filter.',
     all:'All', pinned:'Pinned', text:'Text', photo:'Photos', video:'Videos',
-    open:'Open Story', next:'Load more Stories', loading:'Loading your archive…',
+    open:'Open Story', insights:'Viewers and insights', next:'Load more Stories', loading:'Loading your archive…',
     more:'Loading more Stories…', error:'Unable to load your archive.',
     moreError:'Unable to load more Stories.',
     retry:'Retry', cached:'Previously loaded Stories are still available.',
@@ -164,6 +164,11 @@ export default function StoryArchivePage() {
                 <time dateTime={story.createdAt}>{t.created} {format(story.createdAt)}</time>
                 {story.archivedAt&&<time dateTime={story.archivedAt}>{t.archived} {format(story.archivedAt)}</time>}
               </div>
+            </Link>
+            <Link className="km-story-archive-insights"
+              href={'/stories/'+encodeURIComponent(story.id)+'/insights'}
+              aria-label={t.insights+' · '+(story.caption?.trim()||t.fallback)}>
+              {t.insights} <span aria-hidden="true">→</span>
             </Link>
           </li>
         )}
