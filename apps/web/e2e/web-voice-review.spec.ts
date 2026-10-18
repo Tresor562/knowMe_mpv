@@ -26,7 +26,7 @@ async function conversation(page:import('@playwright/test').Page){
       }
       createGain(){return{gain:{value:0},connect(){},disconnect(){}};}
       resume(){return Promise.resolve();}
-      close(){return Promise.resolve();}
+      close(){return new Promise<void>(resolve=>setTimeout(resolve,120));}
     }
     Object.defineProperty(window,'AudioContext',{configurable:true,value:FakeAudioContext});
   });
@@ -100,4 +100,19 @@ test('explicit send is required after recording and preview',async({page})=>{
   await dialog.getByRole('button',{name:'Envoyer le vocal'}).click();
   await expect(dialog).toHaveCount(0);
   expect(createdUploads).toBe(1);
+});
+
+test('cancel during audio shutdown never restores a deleted voice draft',async({page})=>{
+  await conversation(page);
+  let uploadCalls=0;
+  await page.route('**/api/knowme/media/uploads**',route=>{uploadCalls++;return route.abort();});
+  await page.getByRole('button',{name:'Enregistrer une note vocale'}).click();
+  const dialog=page.getByRole('dialog',{name:'Note vocale'});
+  await page.waitForTimeout(250);
+  await dialog.getByRole('button',{name:'Terminer'}).click();
+  await dialog.getByRole('button',{name:'Supprimer',exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await page.waitForTimeout(160);
+  await expect(dialog).toHaveCount(0);
+  expect(uploadCalls).toBe(0);
 });
