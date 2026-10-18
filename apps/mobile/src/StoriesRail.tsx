@@ -2,6 +2,7 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as FileSystem from 'expo-file-system';
 import {
+  AppState,
   Image,
   Modal,
   Pressable,
@@ -17,6 +18,7 @@ import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
+import { storyCompletionBps, storyProgressCheckpoint } from './story-view-progress-model';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -145,6 +147,9 @@ export function StoriesRail({
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const loadingNext = useRef(false);
   const [selected, setSelected] = useState<Story | null>(null);
+  const [storyProgress,setStoryProgress]=useState(0);
+  const activeStoryId=useRef<string|null>(null);
+  const lastProgressMilestone=useRef(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
   const [storyType, setStoryType] = useState<'TEXT'|'PHOTO'|'VIDEO'>('TEXT');
@@ -260,12 +265,47 @@ export function StoriesRail({
     };
   },[selected?.id,selected?.assetId,selected?.type]);
 
+  function reportStoryProgress(story:Story,completionBps:number){
+    if(story.viewer.own||activeStoryId.current!==story.id)return;
+    const checkpoint=storyProgressCheckpoint(completionBps,lastProgressMilestone.current);
+    if(checkpoint===null)return;
+    lastProgressMilestone.current=checkpoint;
+    void apiFetch('/stories/'+encodeURIComponent(story.id)+'/view',{
+      method:'POST',body:JSON.stringify({completionBps:checkpoint})
+    }).catch(()=>undefined);
+  }
+
+  // Text and photo stories use an actual five-second display timeline. The
+  // timer pauses in the background; failed photos never appear as completed.
+  useEffect(()=>{
+    if(!selected||selected.type==='VIDEO'||selected.type==='PHOTO'&&!selectedPhotoUri||mediaError)return;
+    const story=selected;
+    let elapsed=0;
+    const tick=setInterval(()=>{
+      if(activeStoryId.current!==story.id||AppState.currentState!=='active')return;
+      elapsed=Math.min(5000,elapsed+100);
+      const bps=storyCompletionBps(elapsed,5000);
+      setStoryProgress(bps);
+      reportStoryProgress(story,bps);
+      if(elapsed>=5000)clearInterval(tick);
+    },100);
+    return()=>clearInterval(tick);
+  },[selected?.id,selected?.type,selectedPhotoUri,mediaError]);
+
   async function openStory(story: Story) {
+    activeStoryId.current=story.id;
+    lastProgressMilestone.current=0;
+    setStoryProgress(0);
+    setSelectedPhotoUri(null);
+    setSelectedVideoUri(null);
+    setMediaError('');
     setSelected(story);
+    if(story.viewer.own)return;
     try {
-      await apiFetch('/stories/' + story.id + '/view', {
+      // Opening is exactly one view, not a declaration of 100% completion.
+      await apiFetch('/stories/' + encodeURIComponent(story.id) + '/view', {
         method: 'POST',
-        body: JSON.stringify({ completionBps: 10000 })
+        body: JSON.stringify({ completionBps: 0 })
       });
     } catch {
       // Viewing remains available even if the receipt cannot be recorded.
@@ -439,7 +479,8 @@ export function StoriesRail({
             <View
               style={[
                 styles.progressValue,
-                { backgroundColor: colors.text }
+                { backgroundColor: colors.text,
+                  width: `${storyProgress/100}%` as `${number}%` }
               ]}
             />
           </View>
@@ -527,6 +568,13 @@ export function StoriesRail({
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
+              onProgress={event=>{
+                if(activeStoryId.current!==selected.id)return;
+                const {positionMs,durationMs}=event.nativeEvent;
+                const bps=storyCompletionBps(positionMs,durationMs);
+                setStoryProgress(bps);
+                reportStoryProgress(selected,bps);
+              }}
               onPlaybackError={event=>{
                 setSelectedVideoUri(null);
                 setMediaError(event.nativeEvent.message||'Vidéo indisponible.');
