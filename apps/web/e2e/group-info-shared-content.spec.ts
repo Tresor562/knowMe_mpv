@@ -66,6 +66,10 @@ test('group media/files/links are real, paginated and deep-link to their message
   await page.getByRole('tab',{name:'Médias'}).click();
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/grp1?message=img1');
+  await page.getByRole('tab',{name:'Recherche'}).click();
+  await page.getByRole('searchbox',{name:'Rechercher les messages du groupe'}).fill('ressource');
+  await expect(page.getByRole('link',{name:'Voir le message'}))
+    .toHaveAttribute('href','/messages/grp1?message=web1');
   const noOverflow=await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1);
   expect(noOverflow).toBeTruthy();
 });
