@@ -79,9 +79,15 @@ export function InAppNotifications() {
       }
       inFlight = true;
       try {
-        const center = await apiFetch<NotificationCenter>('/notifications/center?view=ACTIVE&limit=30');
+        // Center totals describe the current page, not every unread item.
+        // Ask the existing dedicated endpoint for the authoritative badge count.
+        const [center, count] = await Promise.all([
+          apiFetch<NotificationCenter>('/notifications/center?view=ACTIVE&limit=30'),
+          apiFetch<{count: number}>('/notifications/unread-count').catch(() => null)
+        ]);
         if (!alive || currentToken !== getAccessToken()) return;
-        setUnread(Math.max(0, Number(center?.totals?.unread ?? 0) || 0));
+        const total = count?.count ?? center?.totals?.unread ?? 0;
+        setUnread(Math.max(0, Math.trunc(Number(total) || 0)));
         const items = Array.isArray(center?.items) ? center.items : [];
         const next: InAppNotification[] = [];
         for (const item of items) {
