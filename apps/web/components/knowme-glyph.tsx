@@ -11,7 +11,8 @@ export type KnowMeGlyphName =
   | 'send' | 'attach' | 'camera' | 'image' | 'microphone' | 'play' | 'pause'
   | 'download' | 'check' | 'check-double' | 'heart' | 'comment' | 'share'
   | 'bookmark' | 'smile' | 'sticker' | 'keyboard' | 'settings' | 'phone'
-  | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off';
+  | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off'
+  | 'story' | 'cover' | 'sparkles' | 'upload';
 
 type Props = Omit<SVGProps<SVGSVGElement>, 'name'> & {
   name: KnowMeGlyphName;
@@ -35,6 +36,10 @@ export function KnowMeGlyph({ name, size = 22, active = false, ...props }: Props
   };
 
   const shapes: Record<KnowMeGlyphName, ReactNode> = {
+    story: <><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 7.8v8.4M7.8 12h8.4"/></>,
+    cover: <><rect x="2.5" y="5.3" width="19" height="13.4" rx="2.5"/><path d="m3.3 16 5.6-5.1 3.9 3.6 3-2.65 5 4.65"/></>,
+    sparkles: <><path d="m12 2.4 2.1 6.3 6.3 2.1-6.3 2.1L12 19.2l-2.1-6.3-6.3-2.1 6.3-2.1L12 2.4ZM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8L19 17Z"/></>,
+    upload: <><path d="M12 15V3.5M7.6 7.9 12 3.5l4.4 4.4M4 14.3v5.4a1.8 1.8 0 0 0 1.8 1.8h12.4a1.8 1.8 0 0 0 1.8-1.8v-5.4"/></>,
     home: <><path d="M3 10.25 12 3l9 7.25V19a2 2 0 0 1-2 2h-4.5v-7h-5v7H5a2 2 0 0 1-2-2v-8.75Z" fill={active ? 'currentColor' : 'none'}/>{active && <path d="M9.5 21v-7h5v7" stroke="var(--bg)"/>}</>,
     discover: <><circle cx="9" cy="8.6" r="3.35"/><path d="M2.6 20c.25-3.8 2.65-6 6.4-6 2.3 0 4.05.8 5.1 2.45"/><circle cx="17.85" cy="8.4" r="2.65"/><path d="M16.8 14.8c2.8-.2 4.5 1.5 4.6 4.9"/></>,
     create: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M7.5 12h9"/></>,
