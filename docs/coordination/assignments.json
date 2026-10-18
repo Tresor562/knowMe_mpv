@@ -57,12 +57,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/android-video-scrub-gesture",
-      "task": "PR #709 fusionnée, Vercel production READY au SHA 51ee95b0; PR #710 métriques complètes API (CI+APK en cours), PR #713 scrub Android (CI en attente), PR #707 UI spectateurs bloquée par chevauchement PR #583.",
+      "task": "Contrôler et corriger les conflits d'intégration PR #710 et #713 : checks CI réussis mais GitHub mergeable=false",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T13:37:11.608Z",
+      "updatedAt": "2026-10-18T14:04:18.383Z",
       "lastPr": 713,
       "resumeFrom": {
         "pr": 713,
@@ -293,6 +293,14 @@
       "issue": 693,
       "branch": "chat/messaging/audio-recorder-send-controls",
       "pr": 706
+    },
+    {
+      "at": "2026-10-18T14:04:18.383Z",
+      "action": "resume",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "pr": 713
     }
   ]
 }
