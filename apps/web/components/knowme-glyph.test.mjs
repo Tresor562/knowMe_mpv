@@ -146,6 +146,10 @@ test('profile avatar menu is viewport-anchored, keyboard-accessible, and returns
   assert.match(avatar, /document\.body\.style\.overflow = 'hidden'/);
   assert.match(avatar, /trigger\.current\?\.focus\(\)/);
   assert.match(avatar, /className="km-avatar-lightbox"/);
+  assert.match(avatar, /const menuId = useId\(\)/);
+  assert.match(avatar, /aria-controls=\{open \? menuId : undefined\}/);
+  assert.match(avatar, /<div id=\{menuId\} ref=\{menuRef\}/);
+  assert.match(avatar, /event\.target === event\.currentTarget\) setPreview\(false\)/);
   assert.match(style, /\.km-avatar-menu \{\s*position: fixed;/);
   assert.match(style, /\.km-avatar-lightbox \{\s*position: fixed;/);
   assert.match(style, /overscroll-behavior: contain/);
