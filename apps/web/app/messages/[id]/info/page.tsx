@@ -150,7 +150,7 @@ export default function ConversationInfoPage() {
     } finally {setLeaving(false);}
   }
 
-  return <main className="shell km-info-page">
+  return <main className={`shell km-info-page${isGroup?' km-info-group-profile':''}`}>
     <header className="km-info-topbar">
       <Link href={`/messages/${encodeURIComponent(id)}`} className="km-info-back"
         aria-label={tr('Retour à la discussion', 'Back to chat')}>
@@ -181,6 +181,8 @@ export default function ConversationInfoPage() {
         <p>{isGroup
           ? `${members.length} ${tr('membres','members')}`
           : other ? `@${other.user.username}` : tr('Discussion privée','Private chat')}</p>
+        {isGroup && conversation.description && <p className="km-info-description"
+          title={conversation.description}>{conversation.description}</p> 
       </section>
       <nav className="km-info-actions" aria-label={tr('Actions de la discussion', 'Chat actions')}>
         <Link href={`/messages/${encodeURIComponent(id)}`}>
@@ -188,7 +190,9 @@ export default function ConversationInfoPage() {
             <path d="M20 11.5a8 8 0 0 1-8 8 9 9 0 0 1-3.5-.7L4 20l1.3-4A8 8 0 1 1 20 11.5Z"/></svg>
           <span>{tr('Messages', 'Messages')}</span>
         </Link>
-        <button type="button" onClick={() => void shareConversation()}>
+        <button type="button" onClick={() => void shareConversation()}
+          title={tr('Lien interne réservé aux membres, pas une invitation','Members-only internal link, not an invitation')}
+          aria-label={tr('Partager le lien interne de la discussion','Share internal conversation link')}>
           <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none" strokeWidth="1.8" aria-hidden="true">
             <path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
           <span>{copied ? tr('Lien copié','Link copied') : tr('Partager', 'Share')}</span>
