@@ -180,3 +180,39 @@
  .km-info-group-profile .km-info-identity{padding-top:8px}
  .km-info-group-profile .km-info-group-avatar{width:82px;height:82px}
 }
+
+/* Private chat profile uses the same compact density as group info, but never
+   exposes administrative group controls or fictitious invitations. */
+.km-info-page.km-info-private-profile{width:min(100%,760px);margin-inline:auto}
+.km-info-private-profile .km-info-identity{
+  padding:16px 8px 15px;background:transparent;border:0;box-shadow:none
+}
+.km-info-private-profile .km-info-identity .km-info-member-avatar{
+  width:88px;height:88px;border-radius:50%;box-shadow:none
+}
+.km-info-private-profile .km-info-identity h2{
+  font-size:clamp(19px,4vw,24px);line-height:1.25;margin-top:9px
+}
+.km-info-private-profile .km-info-identity > p{font-size:12px;line-height:1.45}
+.km-info-private-profile .km-info-actions{
+  display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;
+  gap:6px;padding:6px 4px 12px;overflow-x:auto;scrollbar-width:none
+}
+.km-info-private-profile .km-info-actions > :is(a,button){
+  flex:1;max-width:140px;min-width:72px;min-height:54px;
+  padding:7px 9px;gap:5px;font-size:11px;font-weight:660;
+  border-radius:14px;border:0;box-shadow:none;background:transparent
+}
+.km-info-private-profile .km-info-actions > :is(a,button):hover,
+.km-info-private-profile .km-info-actions > :is(a,button):focus-visible{
+  background:var(--bg-accent)
+}
+.km-info-private-profile .km-info-member-row{min-height:60px;padding:8px 5px}
+.km-info-private-profile .km-info-member-name strong{font-size:13px}
+.km-info-page .km-info-tabs [role='tab']:focus-visible{
+  outline:2px solid var(--mint);outline-offset:-2px;border-radius:10px
+}
+@media(max-width:380px){
+ .km-info-private-profile .km-info-actions > :is(a,button){min-width:68px;padding-inline:4px}
+ .km-info-private-profile .km-info-identity .km-info-member-avatar{width:80px;height:80px}
+}
