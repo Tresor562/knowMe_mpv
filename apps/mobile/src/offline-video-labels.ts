@@ -20,7 +20,7 @@ export function offlineVideoLabels(locale:string){
     video:(index:number)=>'Video '+index,
     device:'On this device',emptyTitle:'No saved videos',
     emptyMessage:'Open a Reel and choose “Offline” to save it.',
-    sizeUnit:'MB'
+    sizeUnit:'MB',storage:'Storage'
   }: {
     removeTitle:'Supprimer cette vidéo enregistrée ?',
     removeDescription:'La publication reste sur KnowMe. Seule la copie locale sera supprimée.',
@@ -40,6 +40,16 @@ export function offlineVideoLabels(locale:string){
     video:(index:number)=>'Vidéo '+index,
     device:'Sur cet appareil',emptyTitle:'Aucune vidéo enregistrée',
     emptyMessage:'Ouvre un Reel et touche « Hors ligne » pour l’enregistrer.',
-    sizeUnit:'Mo'
+    sizeUnit:'Mo',storage:'Stockage'
   };
+}
+
+/** Local videos can exceed several gigabytes; display safe binary file sizes. */
+export function offlineVideoSize(bytes:number,locale:string):string{
+  const safe=Number.isFinite(bytes)&&bytes>0?bytes:0;
+  const gib=safe/(1024*1024*1024);
+  const mib=safe/(1024*1024);
+  const en=locale==='en';
+  return gib>=1?gib.toFixed(1)+(en?' GB':' Go')
+    :mib.toFixed(1)+(en?' MB':' Mo');
 }
