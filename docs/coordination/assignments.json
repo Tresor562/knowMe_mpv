@@ -178,21 +178,23 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-shared-content",
-      "task": "Comprehensive Telegram + WhatsApp parity for DMs/groups + CI fix PR #762 and extend real shared-content tabs to DMs; coordinate server work with Messaging #693.",
+      "task": "PR #762 HEAD 43429fbe: 308-feature private+group parity matrix; real Web private/group shared media/files/links/progressive search, subfilters Photos/Videos/GIF/Stickers/Documents/Audio; private info compact and keyboard tabs; group management UI; E2E privacy controls; previous JSX CI build failure corrected. Latest head coordination green, CI running, APK pending, not merged or deployed. PR #743 HEAD 08edb0f8: in-app notification sensitive/immersive flow CI fix, coordination green, CI+APK in progress. Messaging PR #754 remains blocked by CI + anti-collision, needs own domain. No verified E2EE/calls/WhatsApp-Telegram full parity.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T18:28:27.565Z",
+      "updatedAt": "2026-10-18T18:47:10.282Z",
       "lastPr": 762,
       "resumeFrom": {
         "pr": 762,
         "branch": "chat/design/group-info-shared-content",
-        "commit": "33cc4fd30a056f38415b0db1378f38ba8fb43303",
+        "commit": "43429fbea53e3b1324ffe8932a8b6b76f14bd7c7",
         "otherPr": 743,
+        "otherHead": "08edb0f8c872c331ce6a9a2dadbce29c978f7a4d",
         "dependencyPr": 754,
-        "ownerDomain": "design",
-        "needed": "watch CI+APK on current HEAD and fix if failure; only merge on green checks + clean conflicts"
+        "parityDocument": "docs/design/PRIVATE_AND_GROUP_MESSAGING_PARITY_MATRIX_20261018.md",
+        "featureCount": 308,
+        "next": "check exact head CI / APK and E2E, merge after green + clean base; resume implementing in designated domains"
       }
     }
   },
@@ -1041,6 +1043,14 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "at": "2026-10-18T18:28:27.565Z",
       "pr": 762
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T18:47:10.282Z",
+      "pr": 762,
+      "alsoPr": 743
     }
   ]
 }
