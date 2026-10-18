@@ -2,12 +2,10 @@ import {useCallback,useEffect,useState} from 'react';
 import {ActivityIndicator,Alert,FlatList,Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
-import {offlineVideoLabels} from './offline-video-labels';
+import {offlineVideoLabels,offlineVideoSize} from './offline-video-labels';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {PublicPostVideo} from './PublicPostVideo';
 import {deleteSavedPublicVideo,listSavedPublicVideos,type SavedPublicVideo} from './offline-public-video';
-
-const mb=(size:number,unit:string)=>(size/(1024*1024)).toFixed(1)+' '+unit;
 
 /** Local-only collection; remains accessible when the remote feed is offline. */
 export function OfflineVideosLibrary({visible,onClose}:{
@@ -17,6 +15,7 @@ export function OfflineVideosLibrary({visible,onClose}:{
   const {locale}=useI18n();
   const t=offlineVideoLabels(locale);
   const [items,setItems]=useState<SavedPublicVideo[]>([]);
+  const storedBytes=items.reduce((sum,item)=>sum+item.bytes,0);
   const [chosen,setChosen]=useState<SavedPublicVideo|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -56,7 +55,7 @@ export function OfflineVideosLibrary({visible,onClose}:{
             {chosen?t.viewerTitle:t.listTitle}
           </Text>
           <Text style={{color:colors.muted,fontSize:12}}>
-            {chosen?t.viewerSubtitle:t.available(items.length)}
+            {chosen?t.viewerSubtitle:t.available(items.length)+' · '+t.storage+' '+offlineVideoSize(storedBytes,locale)}
           </Text>
         </View>
         {!chosen&&<Pressable accessibilityRole="button" accessibilityLabel={t.refresh}
@@ -68,7 +67,7 @@ export function OfflineVideosLibrary({visible,onClose}:{
         <View style={styles.viewer}>
           <PublicPostVideo key={chosen.url} url={chosen.url}/>
           <View style={styles.viewerBottom}>
-            <Text style={styles.viewerInfo}>{t.offlineSaved} · {mb(chosen.bytes,t.sizeUnit)}</Text>
+            <Text style={styles.viewerInfo}>{t.offlineSaved} · {offlineVideoSize(chosen.bytes,locale)}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={t.removeCurrent}
               onPress={()=>remove(chosen)} style={styles.removeLarge}>
               <KnowMeIcon name="close" color="#fff" size={19}/>
@@ -91,7 +90,7 @@ export function OfflineVideosLibrary({visible,onClose}:{
             </View>
             <View style={{flex:1,gap:5}}>
               <Text style={{fontWeight:'800',color:colors.text}}>{t.video(index+1)}</Text>
-              <Text style={{color:colors.muted,fontSize:12}}>{mb(item.bytes,t.sizeUnit)} · {t.device}</Text>
+              <Text style={{color:colors.muted,fontSize:12}}>{offlineVideoSize(item.bytes,locale)} · {t.device}</Text>
             </View>
           </Pressable>
           <Pressable accessibilityRole="button"
