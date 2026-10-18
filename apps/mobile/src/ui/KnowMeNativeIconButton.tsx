@@ -34,10 +34,12 @@ export function KnowMeNativeIconButton({
       state === 'progress',
     selected: state === 'selected' || state === 'open'
   };
+  // Keep caller background/radius customization, but never allow a per-screen
+  // style to shrink the accessibility target below Android's 48dp minimum.
   const controlStyle: StyleProp<ViewStyle> = [{
     width: 48, height: 48, minWidth: 48, minHeight: 48,
     borderRadius: 16, justifyContent: 'center', alignItems: 'center'
-  }, style];
+  }, style, { minWidth: 48, minHeight: 48 }];
 
   return <PressScale
     accessibilityRole="button"
