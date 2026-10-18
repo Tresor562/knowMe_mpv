@@ -32,6 +32,8 @@ export function GroupSharedContent({
   const [selecting,setSelecting] = useState(false);
   const [selectedIds,setSelectedIds] = useState<string[]>([]);
   const [selectionFeedback,setSelectionFeedback] = useState('');
+  const [savingSelected,setSavingSelected] = useState(false);
+  const selectionRun=useRef(0);
   const [subtype,setSubtype] = useState<SharedMediaFilter>('ALL');
   const [author,setAuthor] = useState('');
   const [fromDate,setFromDate] = useState('');
@@ -95,9 +97,11 @@ export function GroupSharedContent({
   },[filtered,selectedIds]);
 
   useEffect(()=>{
+    selectionRun.current++;
     setSelecting(false);
     setSelectedIds([]);
     setSelectionFeedback('');
+    setSavingSelected(false);
   },[kind,conversationId]);
 
   function toggleMessage(id:string) {
@@ -134,6 +138,32 @@ export function GroupSharedContent({
       if((cause as {name?:string})?.name==='AbortError')return;
       await copySelectedLinks();
     }
+  }
+
+  async function saveSelectedMessages() {
+    if(!selectedVisible.length||savingSelected)return;
+    const run=++selectionRun.current;
+    const ids=selectedVisible.slice(0,50).map(message=>message.id);
+    setSavingSelected(true);
+    setSelectionFeedback('');
+    let completed=0,failed=0;
+    // A bounded sequential mutation avoids generating a flood of API writes.
+    // The server independently checks membership and upserts each saved message.
+    for(const messageId of ids){
+      try {
+        await apiFetch('/saved-messages',{
+          method:'POST',body:JSON.stringify({messageId})
+        });
+        completed++;
+      } catch {
+        failed++;
+      }
+    }
+    if(selectionRun.current!==run)return;
+    setSavingSelected(false);
+    setSelectionFeedback(en
+      ? `${completed} message(s) saved.${failed?` ${failed} failed.`:''}`
+      : `${completed} message(s) enregistré(s).${failed?` ${failed} échec(s).`:''}`);
   }
 
   async function copySelectedLinks() {
@@ -255,6 +285,10 @@ export function GroupSharedContent({
         <button type="button" disabled={!selectedIds.length}
           onClick={()=>{setSelectedIds([]);setSelectionFeedback('');}}>
           {en?'Clear':'Effacer la sélection'}
+        </button>
+        <button type="button" disabled={!selectedVisible.length||savingSelected}
+          onClick={()=>void saveSelectedMessages()}>
+          {savingSelected?(en?'Saving…':'Enregistrement…'):(en?'Save selected':'Enregistrer la sélection')}
         </button>
         <button type="button" disabled={!selectedVisible.length}
           onClick={()=>void shareSelectedLinks()}>
