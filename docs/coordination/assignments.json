@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "branch": "chat/messaging/audio-recorder-send-controls",
+      "task": "Améliorer les contrôles vocaux des conversations Web/Android : envoyer, annuler, états, tests et accessibilité",
+      "claimedAt": "2026-10-18T12:00:47.563Z",
+      "updatedAt": "2026-10-18T12:00:47.563Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -103,5 +103,14 @@
       "resumeFrom": null
     }
   },
-  "history": []
+  "history": [
+    {
+      "event": "claim",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T12:00:47.563Z",
+      "issue": 693,
+      "branch": "chat/messaging/audio-recorder-send-controls"
+    }
+  ]
 }
