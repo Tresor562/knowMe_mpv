@@ -242,7 +242,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
 
   async function loadMore() {
     const cursor = comments[comments.length - 1]?.id;
-    if (!cursor || loadingMore || !hasMore || !feedFresh) return;
+    if (!cursor || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
       const page = await apiFetch<Comment[]>(`/posts/${postId}/comments?roots=true&cursor=${encodeURIComponent(cursor)}`);
@@ -825,7 +825,7 @@ export function FeedExperience({
 
   async function loadMore() {
     const cursor = posts[posts.length - 1]?.id;
-    if (!cursor || loadingMore || !hasMore) return;
+    if (!cursor || loadingMore || !hasMore || !feedFresh) return;
     setLoadingMore(true);
     try {
       const page = await apiFetch<PostSummary[]>(`/posts/feed?cursor=${encodeURIComponent(cursor)}`);
