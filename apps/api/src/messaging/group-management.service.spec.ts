@@ -94,4 +94,36 @@ describe('group management permission boundaries',()=>{
     await expect(service.removeMember('owner','group1','owner')).rejects.toThrow('GROUP_OWNER_PROTECTED');
     expect(realtime.revokeConversationAccess).not.toHaveBeenCalled();
   });
+  it('allows an explicitly permitted member to edit description, not permissions',async()=>{
+    const {tx,service}=setup(ConversationRole.MEMBER);
+    tx.conversation.findUnique.mockResolvedValue({id:'group1',isGroup:true,members:[{
+      role:ConversationRole.MEMBER}],membersCanEditInfo:true});
+    await expect(service.update('member','group1',{title:'Approved'})).resolves.toMatchObject({title:'Updated'});
+    await expect(service.updatePermissions('member','group1',{membersCanSendMessages:false}))
+      .rejects.toThrow('GROUP_PERMISSION_DENIED');
+  });
+
+  it('lets admins set group permissions and rejects empty changes',async()=>{
+    const {tx,service}=setup(ConversationRole.ADMIN);
+    await expect(service.updatePermissions('admin','group1',{})).rejects.toThrow('GROUP_NO_CHANGES');
+    await service.updatePermissions('admin','group1',{
+      membersCanSendMessages:false,membersCanSendStickers:false
+    });
+    expect(tx.conversation.update).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({membersCanSendMessages:false,membersCanSendStickers:false})
+    }));
+  });
+
+  it('allows adding accepted friends only when member was granted that permission',async()=>{
+    const {tx,service}=setup(ConversationRole.MEMBER);
+    tx.conversation.findUnique.mockResolvedValue({id:'group1',isGroup:true,members:[{
+      role:ConversationRole.MEMBER}],membersCanAddMembers:true});
+    await expect(service.addMembers('member','group1',['friend']))
+      .resolves.toMatchObject({added:1});
+    tx.conversation.findUnique.mockResolvedValue({id:'group1',isGroup:true,members:[{
+      role:ConversationRole.MEMBER}],membersCanAddMembers:false});
+    await expect(service.addMembers('member','group1',['friend']))
+      .rejects.toThrow('GROUP_PERMISSION_DENIED');
+  });
+
 });
