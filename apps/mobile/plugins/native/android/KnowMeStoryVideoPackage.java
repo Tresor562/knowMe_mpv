@@ -43,8 +43,11 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
 
     @ReactProp(name="paused", defaultBoolean=false)
     public void setPaused(StoryContainer view, boolean paused) {
-      if (paused) view.player.pause();
-      else if (view.ready) view.player.start();
+      view.paused = paused;
+      if (view.ready) {
+        if (paused) view.player.pause();
+        else view.player.start();
+      }
     }
 
     @Override public void onDropViewInstance(StoryContainer view) {
@@ -56,6 +59,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
   public static final class StoryContainer extends FrameLayout {
     final VideoView player;
     boolean ready = false;
+    boolean paused = false;
     String currentUri = "";
     StoryContainer(Context context) {
       super(context);
@@ -69,7 +73,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setOnPreparedListener(media -> {
         ready=true;
         media.setLooping(false);
-        player.start();
+        if (!paused) player.start();
       });
       player.setOnErrorListener((media,what,extra)->{
         ready=false;
@@ -81,15 +85,33 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       if (uri == null || uri.equals(currentUri)) return;
       currentUri=uri;
       ready=false;
-      if (!uri.startsWith("file://")) return;
+      // Stream only known published KnowMe attachments over TLS. Never accept
+      // arbitrary remote URLs or URL user-info/query/fragment from post data.
+      Uri parsed = Uri.parse(uri);
+      if ("https".equalsIgnoreCase(parsed.getScheme())) {
+        List<String> parts = parsed.getPathSegments();
+        if (!"31-56-85-53.sslip.io".equalsIgnoreCase(parsed.getHost())
+            || parsed.getPort()!=-1 || parsed.getUserInfo()!=null
+            || parsed.getQuery()!=null || parsed.getFragment()!=null
+            || parts.size()!=5 || !"knowme-api".equals(parts.get(0))
+            || !"media".equals(parts.get(1)) || !"public".equals(parts.get(2))
+            || !"post".equals(parts.get(3))
+            || !parts.get(4).matches("[A-Za-z0-9_-]{1,128}")) return;
+        // Native VideoView/MediaPlayer issues incremental HTTPS range reads and
+        // supports seeking. No unbounded MP4 is written into app cache.
+        player.setVideoURI(parsed);
+        player.requestFocus();
+        return;
+      }
+      if (!"file".equalsIgnoreCase(parsed.getScheme())) return;
       try {
-        File path = new File(Uri.parse(uri).getPath()).getCanonicalFile();
+        File path = new File(parsed.getPath()).getCanonicalFile();
         File cache = getContext().getCacheDir().getCanonicalFile();
         if (!path.getPath().startsWith(cache.getPath() + File.separator)
             || !path.exists() || path.length()<1024L) return;
         player.setVideoPath(path.getAbsolutePath());
         player.requestFocus();
-      } catch (IOException ignored) {
+      } catch (IOException | NullPointerException ignored) {
       }
     }
     void release() {
