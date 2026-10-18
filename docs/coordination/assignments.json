@@ -84,25 +84,21 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/creator-web-conflict-safe",
-      "task": "PR #716 Android créateur UNLISTED et PR #720 Avatar Studio FR/EN : qualité + coordination réussies, APK encore en attente; PR #727 formulaire créateur Web sans perte des brouillons, E2E en attente. Pas de collision Web avatar #551/#556.",
+      "task": "PR #720 fusionnée main (commit 9e15f9f) après quality/APK/coordination verts. PR #716 ouverte, quality+coordination verts, APK en cours ; PR #727 Web creator ouverte, 4 tests Node + 2 E2E ajoutés, quality/coordination en attente. Ne pas toucher menu avatar Web : PR #551/#556.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:26:07.250Z",
+      "updatedAt": "2026-10-18T14:29:44.604Z",
       "lastPr": 727,
       "resumeFrom": {
         "pr": 727,
         "branch": "chat/profiles/creator-web-conflict-safe",
-        "otherPrs": [
-          716,
-          720
-        ],
-        "merged": [
-          708,
-          711,
-          715
-        ]
+        "head": "a9759bf49ade3a70f216714af4175c61b590b0fd",
+        "otherPr": 716,
+        "otherHead": "e8c4aaf581ed5ed40a1cd88fcf5675d61b6c2096",
+        "mergedPr": 720,
+        "mergedCommit": "9e15f9f6fe46194ef50589479231eacaea264e8c"
       }
     },
     "marketplace": {
@@ -498,6 +494,14 @@
       "branch": "chat/design/accessible-feedback-dialogs",
       "pr": 730,
       "alsoPr": 724
+    },
+    {
+      "at": "2026-10-18T14:29:44.604Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 727
     }
   ]
 }
