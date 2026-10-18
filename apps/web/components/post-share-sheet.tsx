@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
-import { KnowMeGlyph } from './knowme-glyph';
+import { KnowMeAnimatedIcon, type KnowMeIconState } from './knowme-animated-icon';
 
-function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat' }) {
+function ShareGlyph({ name, state = 'idle' }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat'; state?: KnowMeIconState }) {
   const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'link', chat: 'chats' } as const;
-  return <KnowMeGlyph name={icons[name]} size={23}/>;
+  return <KnowMeAnimatedIcon name={icons[name]} size={23} state={state}/>;
 }
 
 type ShareConversation = {
@@ -40,6 +40,8 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [caption, setCaption] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC'>('FRIENDS');
   const [busy, setBusy] = useState(false);
+  const [busyOperation, setBusyOperation] = useState<'feed' | 'story' | 'message' | null>(null);
+  const [copied, setCopied] = useState(false);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState('');
   const [showConversations, setShowConversations] = useState(false);
@@ -67,8 +69,10 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   }, [onClose]);
 
   async function copyLink() {
+    setCopied(false);
     try {
       await navigator.clipboard.writeText(url);
+      setCopied(true);
       setFeedback(en ? 'Link copied.' : 'Lien copié.');
     } catch {
       setFeedback(en ? 'Copy unavailable on this device.' : 'Copie indisponible sur cet appareil.');
@@ -119,6 +123,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     }
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("message");
     setFeedback('');
     try {
       // Membership and permission checks stay enforced by the Messaging API.
@@ -136,6 +141,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
@@ -143,6 +149,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     if (submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("feed");
     setFeedback('');
     try {
       const text = [
@@ -160,6 +167,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
@@ -167,6 +175,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     if (submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("story");
     setFeedback('');
     try {
       await apiFetch('/stories', { method: 'POST', body: JSON.stringify({
@@ -181,6 +190,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
@@ -219,20 +229,20 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
         </div>
         <div className="km-share-actions">
           <button type="button" disabled={busy} onClick={() => void shareToFeed()}>
-            <ShareGlyph name="feed"/>{en ? 'To my feed' : 'Sur mon profil'}
+            <ShareGlyph name="feed" state={busyOperation === "feed" ? "sending" : "idle"}/>{en ? 'To my feed' : 'Sur mon profil'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareToStory()}>
-            <ShareGlyph name="story"/>{en ? 'To my Story' : 'Dans ma story'}
+            <ShareGlyph name="story" state={busyOperation === "story" ? "sending" : "idle"}/>{en ? 'To my Story' : 'Dans ma story'}
           </button>
           <button type="button" disabled={busy || loadingConversations} aria-expanded={showConversations}
             onClick={() => void showConversationPicker()}>
-            <ShareGlyph name="chat"/>{en ? 'Messages & groups' : 'Messages et groupes'}
+            <ShareGlyph name="chat" state={loadingConversations ? "loading" : showConversations ? "open" : "closed"}/>{en ? 'Messages & groups' : 'Messages et groupes'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareOutside()}>
             <ShareGlyph name="apps"/>{en ? 'Other apps' : 'Autres applis'}
           </button>
           <button type="button" disabled={busy} onClick={() => void copyLink()}>
-            <ShareGlyph name="link"/>{en ? 'Copy link' : 'Copier le lien'}
+            <ShareGlyph name="link" state={copied ? "success" : "idle"}/>{en ? 'Copy link' : 'Copier le lien'}
           </button>
         </div>
         {showConversations && (
@@ -260,6 +270,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
             </div>
             <button type="button" className="km-share-send-message" disabled={busy || !selectedConversationId}
               onClick={() => void sendToConversation()}>
+              <KnowMeAnimatedIcon name="send" size={20} state={busyOperation === "message" ? "sending" : "idle"}/>
               {en ? 'Send to selected conversation' : 'Envoyer dans cette conversation'}
             </button>
           </section>
