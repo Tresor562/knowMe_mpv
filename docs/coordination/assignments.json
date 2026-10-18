@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-shared-content",
-      "task": "PR #762 HEAD 33cc4fd3 — polished group identity with description and member-only share notice, member role tabs sorted owner-first, menu outside/Escape close/focus restore + e2e, actual authenticated shared media/files/links/search and document download filename fix; October Telegram/WhatsApp 2026 parity references updated. Latest HEAD guard passed, CI executing, APK pending; not merged nor deployed. Backend group permissions PR #754 blocked by exact file collision and existing group-management E2E failure; comment 6253314037; Messaging #693 owns. Previous design PR #743 open.",
+      "task": "Comprehensive Telegram + WhatsApp parity for DMs/groups + CI fix PR #762 and extend real shared-content tabs to DMs; coordinate server work with Messaging #693.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T18:09:28.228Z",
+      "updatedAt": "2026-10-18T18:28:27.565Z",
       "lastPr": 762,
       "resumeFrom": {
         "pr": 762,
@@ -1033,6 +1033,13 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "at": "2026-10-18T18:09:28.228Z",
+      "pr": 762
+    },
+    {
+      "domain": "design",
+      "action": "resume",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T18:28:27.565Z",
       "pr": 762
     }
   ]
