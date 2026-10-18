@@ -42,6 +42,7 @@ test('real native touch target and persistent red fill are wired to state', () =
   const ui = fs.readFileSync(path.join(dir, 'KnowMeUI.tsx'), 'utf8');
   const lifecycle = fs.readFileSync(path.join(dir, 'knowme-app-foreground.ts'), 'utf8');
   assert.match(control, /width: 48, height: 48, minWidth: 48, minHeight: 48/);
+  assert.match(control, /style, \{ minWidth: 48, minHeight: 48 \}/);
   assert.match(control, /onLongPress=\{onLongPress\}/);
   assert.match(control, /accessibilityLabel=\{label\}/);
   assert.match(control, /nativeIconProgress\(state, progress\)/);
