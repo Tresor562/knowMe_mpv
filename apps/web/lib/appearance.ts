@@ -143,9 +143,43 @@ function blendedPalette(
   };
 }
 
+/** Re-evaluate the anonymous SYSTEM palette when the OS switches light/dark.
+ * No account theme exists yet (e.g. login), so never write a stored preference. */
+export function applyAnonymousSystemAppearance() {
+  const root = document.documentElement;
+  const palette = window.matchMedia('(prefers-color-scheme: light)').matches ? SYSTEM_LIGHT : SYSTEM_DARK;
+  const opaque = root.dataset.effectiveReduceTransparency === 'true';
+  const tokens: Record<string, string> = {
+    '--bg': palette.background,
+    '--bg-accent': palette.backgroundAccent,
+    '--surface': palette.surface,
+    '--surface-2': palette.surfaceRaised,
+    '--surface-glass': opaque ? palette.surface : palette.surfaceGlass,
+    '--nav-glass': opaque ? palette.surface : palette.surfaceGlass,
+    '--input-bg': palette.surface,
+    '--text': palette.text,
+    '--muted': palette.muted,
+    '--mint': palette.accent,
+    '--orange': palette.secondary,
+    '--border': palette.border,
+    '--soft-border': palette.border,
+    '--on-primary': palette.onAccent,
+    '--on-accent': palette.onAccent,
+    '--danger': palette.danger
+  };
+  for (const [name, value] of Object.entries(tokens)) root.style.setProperty(name, value);
+  root.style.colorScheme = palette.statusBar === 'dark' ? 'light' : 'dark';
+}
+
 export function applyAppearance(response: AppearanceResponse) {
   const root = document.documentElement;
   const preference = response.preference;
+  // OS accessibility settings are safety floors: account preferences must never
+  // force motion or blur back on when the device asks for less.
+  const effectiveReducedMotion =
+    preference.animationsEnabled === false || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const effectiveReduceTransparency =
+    preference.reduceTransparency || window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
   const primaryTheme = resolveTheme(response, preference.effectiveThemeKey);
   const secondaryTheme = resolveTheme(response, preference.effectiveSecondaryThemeKey);
   const primary = resolvePalette(primaryTheme);
@@ -158,6 +192,8 @@ export function applyAppearance(response: AppearanceResponse) {
       : [])
   ];
 
+  root.dataset.effectiveReducedMotion = String(effectiveReducedMotion);
+  root.dataset.effectiveReduceTransparency = String(effectiveReduceTransparency);
   root.dataset.theme = preference.effectiveThemeKey;
   root.dataset.selectedTheme = preference.selectedThemeKey;
   root.dataset.secondaryTheme = preference.effectiveSecondaryThemeKey ?? '';
@@ -182,8 +218,8 @@ export function applyAppearance(response: AppearanceResponse) {
     '--bg-accent': palette.backgroundAccent,
     '--surface': palette.surface,
     '--surface-2': palette.surfaceRaised,
-    '--surface-glass': preference.reduceTransparency ? palette.surface : palette.surfaceGlass,
-    '--nav-glass': preference.reduceTransparency ? palette.surface : palette.surfaceGlass,
+    '--surface-glass': effectiveReduceTransparency ? palette.surface : palette.surfaceGlass,
+    '--nav-glass': effectiveReduceTransparency ? palette.surface : palette.surfaceGlass,
     '--input-bg': palette.surface,
     '--text': palette.text,
     '--muted': preference.contrast === 'HIGH' ? palette.text : palette.muted,

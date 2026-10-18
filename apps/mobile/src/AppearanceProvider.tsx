@@ -7,7 +7,8 @@ import {
   useMemo,
   useState
 } from 'react';
-import { useColorScheme } from 'react-native';
+import { AccessibilityInfo, useColorScheme } from 'react-native';
+import { accessibleGlassPalette, accessibleVisualStyle } from './appearance-accessibility';
 import {
   AppearanceResponse,
   AppearanceUpdateInput,
@@ -41,14 +42,38 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [appearance, setAppearance] = useState<AppearanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [systemReduceMotion, setSystemReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setSystemReduceMotion(enabled);
+    }).catch(() => {
+      // Older systems may not expose this accessibility setting.
+    });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      if (mounted) setSystemReduceMotion(enabled);
+    });
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
 
   const colors = useMemo(
-    () => resolveMobilePalette(appearance, systemColorScheme),
+    () => accessibleGlassPalette(
+      resolveMobilePalette(appearance, systemColorScheme),
+      appearance?.preference.reduceTransparency === true
+    ),
     [appearance, systemColorScheme]
   );
   const visual = useMemo(
-    () => resolveMobileVisualStyle(appearance),
-    [appearance]
+    () => accessibleVisualStyle(
+      resolveMobileVisualStyle(appearance),
+      systemReduceMotion || appearance?.preference.animationsEnabled === false,
+      appearance?.preference.reduceTransparency === true
+    ),
+    [appearance, systemReduceMotion]
   );
   const chat = useMemo(
     () => resolveMobileChatStyle(appearance),

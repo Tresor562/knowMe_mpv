@@ -1,0 +1,40 @@
+/* These overrides are applied to both account settings and OS accessibility.
+   Keep meaningful loading/error feedback; remove ornamental movement, not content. */
+:root[data-effective-reduce-transparency='true'] {
+  /* Also covers first visits without a cached theme when OS preferences change. */
+  --surface-glass: var(--surface) !important;
+  --nav-glass: var(--surface) !important;
+}
+:root[data-effective-reduced-motion='true'],
+:root[data-effective-reduced-motion='true'] * {
+  scroll-behavior: auto !important;
+}
+:root[data-effective-reduced-motion='true'] *,
+:root[data-effective-reduced-motion='true'] *::before,
+:root[data-effective-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+}
+:root[data-effective-reduce-transparency='true'] .bottom-nav,
+:root[data-effective-reduce-transparency='true'] .km-nav-create-menu,
+:root[data-effective-reduce-transparency='true'] .km-header-nav-group:has(.km-smart-nav[data-position='top']) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: var(--surface) !important;
+}
+
+/* One predictable keyboard focus language for every KnowMe destination.
+   :focus-visible avoids adding visual noise to taps on touch devices. */
+:where(a, button, input, textarea, select, summary, [role='button'], [role='link']):focus-visible {
+  outline: 2px solid var(--mint, #2a9df4);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, textarea, select, summary, [role='button'], [role='link']):focus-visible {
+    outline-color: Highlight;
+  }
+}
