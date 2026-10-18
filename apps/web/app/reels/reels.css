@@ -38,7 +38,7 @@
    while scrolling through the full-screen snap feed. */
 .km-reel-playback{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#030407;display:flex;align-items:center;justify-content:center}
 .km-reel-playback>.km-reel-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-.km-reel-tap-zone{position:absolute;inset:0;border:0;background:transparent;color:#fff;cursor:pointer;display:grid;place-items:center;touch-action:pan-y}
+.km-reel-tap-zone{position:absolute;inset:0;border:0;background:transparent;color:#fff;cursor:pointer;display:grid;place-items:center;touch-action:manipulation}
 .km-reel-tap-zone:focus-visible{outline:3px solid #a5efe9;outline-offset:-3px}
 .km-reel-pause-symbol{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:rgba(0,0,0,.3);filter:drop-shadow(0 3px 10px #0007);pointer-events:none}
 .km-reel-heart{display:grid;place-items:center;filter:drop-shadow(0 3px 18px #000a);animation:km-reel-pop .55s ease-out both;pointer-events:none}
