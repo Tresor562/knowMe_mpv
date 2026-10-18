@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
+import { messageSelectionLinks } from './shared-content-selection';
 import {
   appendSharedMessages, filterSharedHistory, sharedAuthorOptions, linksInMessage,
   type SharedMediaFilter, type SharedHistorySort,
@@ -28,6 +29,9 @@ export function GroupSharedContent({
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
   const [search,setSearch] = useState('');
+  const [selecting,setSelecting] = useState(false);
+  const [selectedIds,setSelectedIds] = useState<string[]>([]);
+  const [selectionFeedback,setSelectionFeedback] = useState('');
   const [subtype,setSubtype] = useState<SharedMediaFilter>('ALL');
   const [author,setAuthor] = useState('');
   const [fromDate,setFromDate] = useState('');
@@ -85,6 +89,38 @@ export function GroupSharedContent({
     kind, query: search, subtype: effectiveSubtype, author, fromDate, toDate, sort
   }),[messages,kind,search,effectiveSubtype,author,fromDate,toDate,sort]);
   const activeExtraFilters=Boolean(author || fromDate || toDate || sort!=='newest');
+  const selectedVisible=useMemo(()=>{
+    const selected=new Set(selectedIds);
+    return filtered.filter(item=>selected.has(item.id));
+  },[filtered,selectedIds]);
+
+  useEffect(()=>{
+    setSelecting(false);
+    setSelectedIds([]);
+    setSelectionFeedback('');
+  },[kind,conversationId]);
+
+  function toggleMessage(id:string) {
+    setSelectionFeedback('');
+    setSelectedIds(previous=>{
+      if(previous.includes(id))return previous.filter(value=>value!==id);
+      if(previous.length>=50)return previous;
+      return [...previous,id];
+    });
+  }
+
+  async function copySelectedLinks() {
+    const urls=messageSelectionLinks(conversationId,selectedIds,filtered,window.location.origin);
+    if(!urls.length)return;
+    try {
+      await navigator.clipboard.writeText(urls.join('\n'));
+      setSelectionFeedback(en?`${urls.length} message links copied.`:
+        `${urls.length} liens vers les messages copiés.`);
+    }catch{
+      setSelectionFeedback(en?'Clipboard unavailable. Nothing was copied.':
+        'Presse-papiers indisponible. Aucun lien copié.');
+    }
+  }
 
   async function downloadAttachment(message: SharedMessage) {
     const assetId=message.presentation?.assetId;
@@ -173,6 +209,25 @@ export function GroupSharedContent({
       <strong>{en?labels.en:labels.fr}</strong>
       <span>{filtered.length}{cursor?' +':''}</span>
     </div>
+    <div className="km-shared-select-bar" role="group"
+      aria-label={en?'Select shared messages':'Sélectionner des messages partagés'}>
+      <button type="button" aria-pressed={selecting}
+        onClick={()=>{
+          setSelecting(previous=>!previous);
+          setSelectedIds([]);
+          setSelectionFeedback('');
+        }}>
+        {selecting?(en?'Cancel':'Annuler'):(en?'Select':'Sélectionner')}
+      </button>
+      {selecting&&<>
+        <span aria-live="polite">{selectedVisible.length} / 50</span>
+        <button type="button" disabled={!selectedVisible.length}
+          onClick={()=>void copySelectedLinks()}>
+          {en?'Copy message links':'Copier les liens vers les messages'}
+        </button>
+      </>}
+    </div>
+    {selectionFeedback&&<p className="km-shared-copy-status" role="status">{selectionFeedback}</p>}
     {downloadError&&<p className="km-group-shared-error" role="alert">{downloadError}</p>}
     {error&&<div className="km-group-shared-error" role="alert">
       <p>{error}</p>
@@ -189,6 +244,14 @@ export function GroupSharedContent({
         const date=new Date(item.createdAt);
         const dateLabel=Number.isNaN(date.getTime())?'':date.toLocaleDateString(en?'en-US':'fr-FR');
         return <article className="km-group-shared-item" key={item.id}>
+          {selecting&&<label className="km-group-shared-checkbox">
+            <input type="checkbox" checked={selectedIds.includes(item.id)}
+              onChange={()=>toggleMessage(item.id)}
+              disabled={!selectedIds.includes(item.id)&&selectedIds.length>=50}
+              aria-label={en?
+                `Select message from ${item.sender?.displayName||item.sender?.username||'member'} on ${dateLabel}`:
+                `Sélectionner le message de ${item.sender?.displayName||item.sender?.username||'membre'} du ${dateLabel}`}/>
+          </label>}
           {kind!=='links'&&presentation?.assetId&&
             (presentation.kind==='IMAGE'||presentation.kind==='VIDEO'||
              presentation.kind==='GIF'||presentation.kind==='STICKER_IMAGE'||
