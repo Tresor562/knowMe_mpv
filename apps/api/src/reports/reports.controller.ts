@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ModerationService } from '../moderation/moderation.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -24,6 +24,14 @@ export class ReportsController {
       targetId: `${dto.targetType}:${dto.targetId}`
     });
     return this.reports.create(req.user.userId, dto);
+  }
+
+  @Get('mine/posts')
+  minePosts(
+    @Req() req: { user: { userId: string } },
+    @Query('cursor') cursor?: string
+  ) {
+    return this.reports.minePostReports(req.user.userId, cursor);
   }
 
   @Get('mine')
