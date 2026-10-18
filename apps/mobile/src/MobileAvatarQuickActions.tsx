@@ -109,7 +109,7 @@ export function MobileAvatarQuickActions({
     setBusy(true);
     setRemoveError('');
     try {
-      await removeActiveProfileAvatar(
+      const result = await removeActiveProfileAvatar(
         payload => apiFetch('/account/profile', {
           method: 'PATCH',
           body: JSON.stringify(payload)
@@ -119,7 +119,8 @@ export function MobileAvatarQuickActions({
       setPreview(false);
       setConfirming(false);
       setMenu(false);
-      KnowMeToast.show(copy.removed, 'success');
+      KnowMeToast.show(result.profileSynced ? copy.removed : copy.pendingSync,
+        result.profileSynced ? 'success' : 'info');
     } catch (cause) {
       // Keep the photo and the confirmation view visible for a deliberate retry.
       setRemoveError(cause instanceof Error ? cause.message : copy.removeFailed);
