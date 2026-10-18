@@ -1,0 +1,21 @@
+/* These overrides are applied to both account settings and OS accessibility.
+   Keep meaningful loading/error feedback; remove ornamental movement, not content. */
+:root[data-effective-reduced-motion='true'],
+:root[data-effective-reduced-motion='true'] * {
+  scroll-behavior: auto !important;
+}
+:root[data-effective-reduced-motion='true'] *,
+:root[data-effective-reduced-motion='true'] *::before,
+:root[data-effective-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+}
+:root[data-effective-reduce-transparency='true'] .bottom-nav,
+:root[data-effective-reduce-transparency='true'] .km-nav-create-menu {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: var(--surface) !important;
+}
