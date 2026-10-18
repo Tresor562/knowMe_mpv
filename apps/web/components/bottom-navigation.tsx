@@ -13,8 +13,8 @@ type NavPosition = 'top' | 'bottom';
 export const KNOWME_NAV_POSITION_KEY = 'knowme-navigation-position';
 const ROOT_ROUTES = new Set(['/dashboard', '/feed', '/discover', '/notifications', '/messages', '/profile']);
 
-function NavIcon({ name, active = false }: { name: IconName; active?: boolean }) {
-  return <KnowMeAnimatedIcon name={name} state={active ? 'selected' : 'idle'} size={22}/>;
+function NavIcon({ name, active = false, menuOpen = false }: { name: IconName; active?: boolean; menuOpen?: boolean }) {
+  return <KnowMeAnimatedIcon name={name} state={menuOpen ? 'open' : active ? 'selected' : 'idle'} size={22}/>;
 }
 
 function isTypingTarget(element: EventTarget | null): boolean {
@@ -168,7 +168,7 @@ export function BottomNavigation() {
         <div className="km-nav-create-wrap">
           <button type="button" className={'bottom-nav-item km-nav-create' + (createOpen ? ' is-active' : '')}
             aria-expanded={createOpen} aria-haspopup="menu" onClick={() => { setVisible(true); setCreateOpen(value => !value); }}>
-            <span className="bottom-nav-icon"><NavIcon name="create" active={createOpen}/></span>
+            <span className="bottom-nav-icon"><NavIcon name="create" menuOpen={createOpen}/></span>
             <span className="bottom-nav-label">{en ? 'Create' : 'Créer'}</span>
           </button>
           {createOpen && <div className="km-nav-create-menu" role="menu" aria-label={en ? 'Create' : 'Créer'}>
