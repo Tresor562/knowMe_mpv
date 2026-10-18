@@ -85,6 +85,11 @@ test('private chat has shared media, links, files and search without group admin
   await page.getByRole('button',{name:'Enregistrer la sélection'}).click();
   await expect(page.locator('.km-shared-copy-status')).toContainText('1 message(s) enregistré(s).');
   expect(saved).toEqual(['dm-text']);
+  await page.route('**/api/knowme/saved-messages',route=>
+    route.fulfill({status:403,contentType:'application/json',body:'{"message":"Forbidden"}'})
+  );
+  await page.getByRole('button',{name:'Enregistrer la sélection'}).click();
+  await expect(page.locator('.km-shared-copy-status')).toContainText('0 message(s) enregistré(s). 1 échec(s).');
   await expect(page.getByRole('button',{name:'Copier les liens vers les messages'})).toBeEnabled();
   await page.getByRole('button',{name:'Copier les liens vers les messages'}).click();
   await expect.poll(() => page.evaluate(()=>
