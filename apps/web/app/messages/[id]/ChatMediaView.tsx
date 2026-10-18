@@ -146,6 +146,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false, a
   const description = kind === 'GIF' ? 'GIF' : kind === 'STICKER_IMAGE' ? 'Sticker' : en ? 'Image' : 'Image';
   if(source){
     const media = <img className={`km-chat-media km-chat-media-${kind.toLowerCase()}`}
+      style={kind==='STICKER_IMAGE'?{width:128,height:128,maxWidth:'100%',objectFit:'contain'}:undefined}
       src={source} alt={description} loading="lazy" decoding="async" />;
     if(!enablePreview)return media;
 
