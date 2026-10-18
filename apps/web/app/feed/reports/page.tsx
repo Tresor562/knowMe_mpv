@@ -40,6 +40,7 @@ export default function MyPostReportsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState('');
+  const [staleCursor, setStaleCursor] = useState(false);
   const generation = useRef(0);
   const pageInFlight = useRef(false);
   const activeOwner = useRef<string | null>(null);
@@ -52,6 +53,7 @@ export default function MyPostReportsPage() {
     setLoading(true);
     setError('');
     setMoreError('');
+    setStaleCursor(false);
     setLoadingMore(false);
     // An older account's pagination must never block the newly signed-in account.
     pageInFlight.current = false;
@@ -96,8 +98,13 @@ export default function MyPostReportsPage() {
       setNextCursor(result.nextCursor);
     } catch (cause) {
       if (generation.current === requestId && activeOwner.current === requestOwner) {
-        setMoreError(cause instanceof Error ? cause.message :
-          (en ? 'Could not load more reports.' : 'Chargement des signalements suivants impossible.'));
+        const cursorExpired = (cause as { status?: number } | null)?.status === 400;
+        setStaleCursor(cursorExpired);
+        setMoreError(cursorExpired
+          ? (en ? 'This report history changed. Refresh to continue.' :
+              'Cet historique a changé. Actualise la liste pour continuer.')
+          : cause instanceof Error ? cause.message :
+            (en ? 'Could not load more reports.' : 'Chargement des signalements suivants impossible.'));
       }
     } finally {
       if (generation.current === requestId && activeOwner.current === requestOwner) {
@@ -209,9 +216,16 @@ export default function MyPostReportsPage() {
         </ol>
       ) : null}
       {!showLoading && !error && moreError ? (
-        <p role="alert" className="km-post-report-history-error">{moreError}</p>
+        <div role="alert" className="km-post-report-history-error">
+          <p>{moreError}</p>
+          {staleCursor ? (
+            <button type="button" onClick={() => void reload()}>
+              {en ? 'Refresh history' : 'Actualiser l’historique'}
+            </button>
+          ) : null}
+        </div>
       ) : null}
-      {!showLoading && !error && nextCursor ? (
+      {!showLoading && !error && nextCursor && !staleCursor ? (
         <button type="button" className="km-post-report-history-more"
           disabled={loadingMore} onClick={() => void loadMore()}>
           {loadingMore ? (en ? 'Loading…' : 'Chargement…') :
