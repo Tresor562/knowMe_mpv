@@ -53,6 +53,8 @@ export default function MyPostReportsPage() {
     setError('');
     setMoreError('');
     setLoadingMore(false);
+    // An older account's pagination must never block the newly signed-in account.
+    pageInFlight.current = false;
     try {
       const url = statusFilter
         ? `/reports/mine/posts?status=${statusFilter}`
@@ -98,8 +100,10 @@ export default function MyPostReportsPage() {
           (en ? 'Could not load more reports.' : 'Chargement des signalements suivants impossible.'));
       }
     } finally {
-      pageInFlight.current = false;
-      if (generation.current === requestId && activeOwner.current === requestOwner) setLoadingMore(false);
+      if (generation.current === requestId && activeOwner.current === requestOwner) {
+        pageInFlight.current = false;
+        setLoadingMore(false);
+      }
     }
   };
 
