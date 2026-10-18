@@ -15,7 +15,7 @@ type VoiceEngine={
   processor:ScriptProcessorNode;
   silent:GainNode;
 };
-type Phase='idle'|'starting'|'recording'|'ready'|'uploading';
+type Phase='idle'|'starting'|'recording'|'stopping'|'ready'|'uploading';
 const MAX_SECONDS=50; // Mic frame capture completes before users hit server upload limits.
 
 export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
@@ -52,15 +52,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     await item.context.close().catch(()=>undefined);
   }
 
-  useEffect(()=>()=>{
-    const item=engine.current;
-    if(!item)return;
-    item.processor.onaudioprocess=null;
-    item.processor.disconnect();
-    item.stream.getTracks().forEach(track=>track.stop());
-    void item.context.close().catch(()=>undefined);
-    engine.current=null;
-  },[]);
+  useEffect(()=>()=>{void stopEngine();},[]);
   useEffect(()=>{
     if(!ready){setPreviewUrl(null);return;}
     const url=URL.createObjectURL(ready);
@@ -129,8 +121,11 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
   }
   async function finish(){
     if(phaseRef.current!=='recording')return;
-    next('starting');
+    next('stopping');
     await stopEngine();
+    // Cancel or conversation-switch during asynchronous audio shutdown must
+    // never resurrect a deleted recording.
+    if(phaseRef.current!=='stopping'){chunks.current=[];return;}
     try{
       const wav=encodeKnowMeVoiceWav(chunks.current,sampleRate.current,MAX_SECONDS);
       chunks.current=[];
@@ -200,6 +195,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
         </div>
         <p>{phase==='recording'?(en?'Recording… press Done to review.':'Enregistrement… Termine pour écouter.'):
           phase==='starting'?(en?'Opening microphone…':'Ouverture du microphone…'):
+          phase==='stopping'?(en?'Preparing preview…':'Préparation de la préécoute…'):
           phase==='uploading'?(en?'Sending voice securely…':'Envoi sécurisé du vocal…'):
           en?'Listen before sending.':'Écoute ton vocal avant de l’envoyer.'}</p>
         {previewUrl&&<audio controls src={previewUrl} preload="metadata"
