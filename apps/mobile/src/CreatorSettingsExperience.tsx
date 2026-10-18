@@ -183,9 +183,8 @@ export function CreatorSettingsExperience() {
   const labelColor = { color: colors.text };
 
   function TogglePill({
-    value, active, title, onPress, disabled = false
+    active, title, onPress, disabled = false
   }: {
-    value: string;
     active: boolean;
     title: string;
     onPress: () => void;
@@ -342,7 +341,7 @@ export function CreatorSettingsExperience() {
           </Text>
           <View style={styles.wrap}>
             {CREATOR_CATEGORIES.map(item => (
-              <TogglePill key={item} value={item}
+              <TogglePill key={item}
                 title={(en ? EN_CATEGORIES : FR_CATEGORIES)[item] ?? item}
                 active={draft.category === item}
                 onPress={() => patchDraft({ category: item })} />
@@ -357,10 +356,10 @@ export function CreatorSettingsExperience() {
               'Unlisted: accessible with its link, not listed in discovery.')}
           </Text>
           <View style={styles.wrap}>
-            <TogglePill value="PUBLIC" title={tr('Public', 'Public')}
+            <TogglePill title={tr('Public', 'Public')}
               active={draft.visibility === 'PUBLIC'}
               onPress={() => patchDraft({ visibility: 'PUBLIC' })} />
-            <TogglePill value="UNLISTED" title={tr('Non répertorié', 'Unlisted')}
+            <TogglePill title={tr('Non répertorié', 'Unlisted')}
               active={draft.visibility === 'UNLISTED'}
               onPress={() => patchDraft({ visibility: 'UNLISTED' })} />
           </View>
@@ -371,10 +370,10 @@ export function CreatorSettingsExperience() {
                 {tr('Statut du profil', 'Profile status')}
               </Text>
               <View style={styles.wrap}>
-                <TogglePill value="ACTIVE" title={tr('Actif', 'Active')}
+                <TogglePill title={tr('Actif', 'Active')}
                   active={draft.status === 'ACTIVE'}
                   onPress={() => patchDraft({ status: 'ACTIVE' })} />
-                <TogglePill value="PAUSED" title={tr('En pause', 'Paused')}
+                <TogglePill title={tr('En pause', 'Paused')}
                   active={draft.status === 'PAUSED'}
                   onPress={() => patchDraft({ status: 'PAUSED' })} />
               </View>
