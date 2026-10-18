@@ -302,14 +302,14 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
           contentContainerStyle={{gap:7,alignItems:'center',paddingVertical:5}}>
           <Pressable onPress={()=>setCategory(null)} accessibilityRole="button"
             accessibilityState={{selected:!category}}
-            style={[styles.groupChip,!category&&styles.groupSelected]}>
-            <Text style={styles.groupLabel}>Tous</Text>
+            style={[styles.groupChip,{backgroundColor:colors.backgroundAccent},!category&&{backgroundColor:colors.surfaceRaised}]}>
+            <Text style={[styles.groupLabel,{color:colors.text}]}>Tous</Text>
           </Pressable>
           {UNICODE_EMOJI_GROUPS.map(group=><Pressable key={group}
             onPress={()=>setCategory(group)} accessibilityRole="button"
             accessibilityState={{selected:category===group}}
-            style={[styles.groupChip,category===group&&styles.groupSelected]}>
-            <Text style={styles.groupLabel}>{group}</Text>
+            style={[styles.groupChip,{backgroundColor:colors.backgroundAccent},category===group&&{backgroundColor:colors.surfaceRaised}]}>
+            <Text style={[styles.groupLabel,{color:colors.text}]}>{group}</Text>
           </Pressable>)}
         </ScrollView>
         {!search&&category===null&&favorites.length>0?<View style={styles.section}>
@@ -460,7 +460,7 @@ const styles=StyleSheet.create({
     flexDirection:'row',alignItems:'center',paddingHorizontal:10,gap:7},
   searchTap:{width:44,height:44,alignItems:'center',justifyContent:'center'},
   searchClose:{width:44,height:44,alignItems:'center',justifyContent:'center'},
-  searchPlaceholder:{flex:1,justifyContent:'center',height:43},
+  searchPlaceholder:{flex:1,justifyContent:'center',minHeight:44},
   searchInput:{flex:1,minWidth:45,backgroundColor:'transparent',fontSize:15,paddingVertical:0},
   filter:{minWidth:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:13},
   filterStrip:{maxHeight:49,flexGrow:0,marginHorizontal:11,marginBottom:3},
@@ -469,7 +469,7 @@ const styles=StyleSheet.create({
   contentScroll:{flex:1,minHeight:0},
   content:{paddingHorizontal:11,paddingBottom:14},
   section:{marginTop:11,gap:10},
-  sectionTitle:{fontSize:16,fontWeight:'700',color:'#afb2c6',marginLeft:5},
+  sectionTitle:{fontSize:14,fontWeight:'700',color:'#afb2c6',marginLeft:5},
   grid:{flexDirection:'row',flexWrap:'wrap',rowGap:10,columnGap:0,justifyContent:'flex-start'},
   emojiTile:{height:47,alignItems:'center',justifyContent:'center'},
   stickerTile:{height:87,alignItems:'center',justifyContent:'center'},
