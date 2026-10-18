@@ -37,7 +37,7 @@ describe('bounded private-media object reads',()=>{
   it('signs bounded S3 GET Range and returns only the requested bytes',async()=>{
     s3Env();
     const fetchMock=jest.spyOn(global,'fetch').mockResolvedValue(
-      new Response(Buffer.from('def'),{status:206,headers:{
+      new Response(new Uint8Array(Buffer.from('def')),{status:206,headers:{
         'content-range':'bytes 3-5/10'
       }})
     );
@@ -53,7 +53,7 @@ describe('bounded private-media object reads',()=>{
   it('fails closed if the object storage disregards the Range request',async()=>{
     s3Env();
     jest.spyOn(global,'fetch').mockResolvedValue(
-      new Response(Buffer.alloc(10),{status:200})
+      new Response(new Uint8Array(Buffer.alloc(10)),{status:200})
     );
     await expect(new MediaStorageService().getByteRange('video-1.mp4',3,5))
       .rejects.toThrow('did not honor');
@@ -73,7 +73,7 @@ describe('bounded private-media object reads',()=>{
   it('fails closed when the signed range has fewer bytes than expected',async()=>{
     s3Env();
     jest.spyOn(global,'fetch').mockResolvedValue(
-      new Response(Buffer.from('ab'),{status:206})
+      new Response(new Uint8Array(Buffer.from('ab')),{status:206})
     );
     await expect(new MediaStorageService().getByteRange('video-1.mp4',0,3))
       .rejects.toThrow('wrong byte range length');
