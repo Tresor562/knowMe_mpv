@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { ReactNode, type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, type ReactElement, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -614,6 +614,36 @@ export function KnowMeIcon({
   );
 }
 
+// One system preference listener for the entire app — never one per icon.
+let reducedMotionSnapshot = false;
+const reducedMotionListeners = new Set<() => void>();
+let reducedMotionSubscription: { remove: () => void } | null = null;
+function publishReducedMotion(reduced: boolean) {
+  if (reducedMotionSnapshot === reduced) return;
+  reducedMotionSnapshot = reduced;
+  reducedMotionListeners.forEach(listener => listener());
+}
+function subscribeReducedMotion(listener: () => void) {
+  reducedMotionListeners.add(listener);
+  if (reducedMotionListeners.size === 1) {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(publishReducedMotion)
+      .catch(() => { /* App preference remains available. */ });
+    reducedMotionSubscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged', publishReducedMotion
+    );
+  }
+  return () => {
+    reducedMotionListeners.delete(listener);
+    if (!reducedMotionListeners.size) {
+      reducedMotionSubscription?.remove();
+      reducedMotionSubscription = null;
+    }
+  };
+}
+const getReducedMotionSnapshot = () => reducedMotionSnapshot;
+const getServerReducedMotionSnapshot = () => false;
+
 export function PressScale({
   children,
   onPress,
@@ -633,15 +663,9 @@ export function PressScale({
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
-  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(reduced => { if (mounted) setSystemReducedMotion(reduced); })
-      .catch(() => { /* Use the KnowMe preference on older devices. */ });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setSystemReducedMotion);
-    return () => { mounted = false; subscription.remove(); };
-  }, []);
+  const systemReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion, getReducedMotionSnapshot, getServerReducedMotionSnapshot
+  );
   const motion = appearance?.preference.animationsEnabled !== false && !systemReducedMotion;
   useEffect(() => {
     if (!motion) { value.stopAnimation(); value.setValue(1); }
