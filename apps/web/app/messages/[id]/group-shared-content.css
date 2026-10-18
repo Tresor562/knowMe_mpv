@@ -74,3 +74,12 @@
 .km-group-shared-document > button:disabled{opacity:.55;cursor:wait}
 @media(max-width:430px){.km-group-shared-document{flex-wrap:wrap}
   .km-group-shared-document > button{margin-left:32px}}
+
+.km-group-shared-search{display:grid;gap:6px;padding:12px 4px;
+ font-size:12px;font-weight:650;color:var(--text)}
+.km-group-shared-search input{min-height:44px;width:100%;padding:8px 12px;
+ border:1px solid var(--soft-border);border-radius:15px;
+ background:var(--surface-2);color:var(--text);font:inherit;font-weight:400}
+.km-group-shared-search input:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.km-group-shared-snippet{font-size:13px;line-height:1.5;margin:2px 0 5px;
+ overflow-wrap:anywhere;white-space:pre-wrap}
