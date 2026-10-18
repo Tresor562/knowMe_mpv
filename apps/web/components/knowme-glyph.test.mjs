@@ -150,3 +150,18 @@ test('profile avatar menu is viewport-anchored, keyboard-accessible, and returns
   assert.match(style, /\.km-avatar-lightbox \{\s*position: fixed;/);
   assert.match(style, /overscroll-behavior: contain/);
 });
+
+
+test('share modal retains focus and cannot dismiss while a write is pending', () => {
+  const share = fs.readFileSync(path.join(dir, 'post-share-sheet.tsx'), 'utf8');
+  assert.match(share, /const dialogRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(share, /const closeRef = useRef\(onClose\)/);
+  assert.match(share, /closeRef\.current = onClose/);
+  assert.match(share, /dialogRef\.current\?\.querySelector<HTMLElement>/);
+  assert.match(share, /if \(!submitting\.current\)/);
+  assert.match(share, /event\.key !== 'Tab'/);
+  assert.match(share, /event\.shiftKey/);
+  assert.match(share, /dialogRef\.current\?\.contains\(active\)/);
+  assert.match(share, /previousFocus\.current\?\.focus\(\)/);
+  assert.match(share, /<section ref=\{dialogRef\} className="km-share-sheet" role="dialog" aria-modal="true"/);
+});
