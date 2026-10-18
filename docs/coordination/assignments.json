@@ -101,30 +101,20 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/verification-withdraw-safe-web",
-      "task": "Valider, corriger et fusionner PR #747 notifications et PR #749 vérification Web; continuer domaine Profils sans collisions",
+      "task": "PR #747 NOTIFICATIONS Web fusionnée main commit 6c5bf5d4 quality/coordination/APK verts. PR #749 vérification Web en attente CI HEAD 2500bc702268f16625c18bdd0fa5ad67a855fb6a ; modal/confirm KnowMe, approbation sans expiration, fail-closed GET, POST acknowledged versus refresh errors, FR/EN, 3 tests unitaires Node exécutés verts + 3 scénarios Playwright ajoutés; dernière correction anti-GET concurrent session refresh. Aucun Web prod/apk live vérifié.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T15:51:13.867Z",
+      "updatedAt": "2026-10-18T16:02:02.362Z",
       "lastPr": 749,
       "resumeFrom": {
         "pr": 749,
         "branch": "chat/profiles/verification-withdraw-safe-web",
-        "head": "e1badc7a3e0e4c21fd256d012605cdf10852dcae",
-        "otherPr": 747,
-        "otherBranch": "chat/profiles/circle-notification-schedule-web",
-        "otherHead": "8938ccfc6b5b949a3d78e0e2509263e7841776bf",
-        "merged": [
-          {
-            "pr": 734,
-            "commit": "4e9be9ac794c8e1a54b8cd2a46ce019c670b5ae9"
-          },
-          {
-            "pr": 738,
-            "commit": "eec888d501203cceadacd0f02352b2cec3130829"
-          }
-        ]
+        "head": "2500bc702268f16625c18bdd0fa5ad67a855fb6a",
+        "mergedPr": 747,
+        "mergedCommit": "6c5bf5d44d639a8fb8786bd47946bdb9418470b",
+        "waitingFor": "CI quality et coordination #749 HEAD exact puis fusion sûre"
       }
     },
     "marketplace": {
@@ -965,6 +955,14 @@
       "issue": 697,
       "branch": "chat/marketplace/android-verified-receipts",
       "pr": 752
+    },
+    {
+      "at": "2026-10-18T16:02:02.362Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 749
     }
   ]
 }
