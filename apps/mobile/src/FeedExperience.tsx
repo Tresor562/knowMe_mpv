@@ -508,12 +508,19 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </View>
           <Pressable accessibilityRole="button"
             accessibilityLabel={`Commentaire de ${comment.author.displayName}. Maintenir pour les options.`}
+            accessibilityActions={[{name:'activate',label:'Afficher les options du commentaire'}]}
+            onAccessibilityAction={event=>{
+              if(event.nativeEvent.actionName==='activate')setContextComment(comment);
+            }}
             onLongPress={()=>setContextComment(comment)} delayLongPress={420}>
             <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
           </Pressable>
           <View style={styles.threadTools}>
             <Pressable accessibilityRole="button" disabled={reactionBusy}
-              accessibilityLabel={`Réagir au commentaire de ${comment.author.displayName}`}
+              accessibilityLabel={reaction?.mine
+                ? `Retirer ma réaction ${reaction.mine} au commentaire de ${comment.author.displayName}`
+                : `Réagir au commentaire de ${comment.author.displayName}`}
+              accessibilityState={{selected:Boolean(reaction?.mine),disabled:reactionBusy}}
               onPress={()=>{
                 if(suppressReactionTap.current){suppressReactionTap.current=false;return;}
                 void reactTo(comment.id,reaction?.mine??'❤️');
