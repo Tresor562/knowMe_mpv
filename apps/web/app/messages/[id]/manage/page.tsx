@@ -15,9 +15,17 @@ type GroupMember = {
   role: Role;
   user: { id: string; username: string; displayName: string; avatarUrl: string|null };
 };
+type GroupPermissions={
+  membersCanSendMessages:boolean;
+  membersCanSendMedia:boolean;
+  membersCanSendStickers:boolean;
+  membersCanEditInfo:boolean;
+  membersCanAddMembers:boolean;
+};
 type Group = {
   id: string; title: string|null; description: string|null;
   viewerRole: Role; memberCount: number; members: GroupMember[];
+  permissions:GroupPermissions;
 };
 type Friend = { user: { id: string; displayName: string; username: string; avatarUrl?: string|null } };
 
@@ -86,6 +94,13 @@ export default function GroupManagementPage() {
     }finally{setBusy(false);}
   }
 
+  async function setPermission(key:keyof GroupPermissions,enabled:boolean){
+    if(!group||busy||group.viewerRole==='MEMBER')return;
+    await execute(()=>apiFetch(`${base}/permissions`,{
+      method:'PATCH',body:JSON.stringify({[key]:enabled})
+    }));
+  }
+
   async function saveGroup(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(!title.trim()||!group)return;
@@ -130,6 +145,8 @@ export default function GroupManagementPage() {
   const roleLabel=(role:Role)=>role==='OWNER'?tr('Propriétaire','Owner'):
     role==='ADMIN'?tr('Administrateur','Admin'):tr('Membre','Member');
   const canManage=group?.viewerRole==='OWNER'||group?.viewerRole==='ADMIN';
+  const canEdit=canManage||Boolean(group?.permissions.membersCanEditInfo);
+  const canAdd=canManage||Boolean(group?.permissions.membersCanAddMembers);
   if(sessionLoading||!user)return <main className="shell km-info-page"><p role="status">{tr('Chargement…','Loading…')}</p></main>;
   return <main className="shell km-info-page km-group-manage">
     <header className="km-info-topbar">
@@ -151,16 +168,16 @@ export default function GroupManagementPage() {
         <p>{group.memberCount} {tr('membres','members')} · {roleLabel(group.viewerRole)}</p>
         {group.description&&<p>{group.description}</p>}
       </section>
-      {canManage&&<>
+      {(canEdit||canAdd)&&<>
         <div className="km-group-manage-actions">
-          <button type="button" disabled={busy} onClick={()=>setEditOpen(v=>!v)}>
+          {canEdit&&<button type="button" disabled={busy} onClick={()=>setEditOpen(v=>!v)}>
             {tr('Modifier le groupe','Edit group')}
-          </button>
-          <button type="button" disabled={busy} onClick={()=>setAddOpen(v=>!v)}>
+          </button>}
+          {canAdd&&<button type="button" disabled={busy} onClick={()=>setAddOpen(v=>!v)}>
             {tr('Ajouter des membres','Add members')}
-          </button>
+          </button>}
         </div>
-        {editOpen&&<form className="km-group-inline-form" onSubmit={saveGroup}>
+        {editOpen&&canEdit&&<form className="km-group-inline-form" onSubmit={saveGroup}>
           <label htmlFor="km-group-edit-title">{tr('Nom du groupe','Group name')}</label>
           <input id="km-group-edit-title" maxLength={90} required value={title}
             onChange={event=>setTitle(event.target.value)}/>
@@ -169,7 +186,7 @@ export default function GroupManagementPage() {
             value={description} onChange={event=>setDescription(event.target.value)}/>
           <button type="submit" disabled={busy||!title.trim()}>{tr('Enregistrer','Save')}</button>
         </form>}
-        {addOpen&&<form className="km-group-inline-form" onSubmit={addMembers}>
+        {addOpen&&canAdd&&<form className="km-group-inline-form" onSubmit={addMembers}>
           <label htmlFor="km-group-friend-search">{tr('Choisir des amis','Choose friends')}</label>
           <input id="km-group-friend-search" type="search" value={search}
             onChange={event=>setSearch(event.target.value)}
@@ -191,6 +208,26 @@ export default function GroupManagementPage() {
           </button>
         </form>}
       </>}
+      {canManage&&<section aria-label={tr('Autorisations du groupe','Group permissions')}
+        className="km-group-permissions" style={{margin:'14px 0',display:'grid',gap:8}}>
+        <h2 className="km-group-section-heading">{tr('Autorisations des membres','Member permissions')}</h2>
+        <p className="km-info-hint">{tr('Les administrateurs restent autorisés. Ces règles sont vérifiées par le serveur.',
+          'Admins remain allowed. These rules are enforced by the server.')}</p>
+        {([
+          ['membersCanSendMessages',tr('Envoyer des messages','Send messages')],
+          ['membersCanSendMedia',tr('Envoyer des photos, vidéos, documents et audios','Send photos, videos, documents and audio')],
+          ['membersCanSendStickers',tr('Envoyer des stickers et GIF','Send stickers and GIFs')],
+          ['membersCanEditInfo',tr('Modifier le nom et la description du groupe','Edit group name and description')],
+          ['membersCanAddMembers',tr('Ajouter des membres (amis)','Add friends')]
+        ] as Array<[keyof GroupPermissions,string]>).map(([key,label])=>
+          <label key={key} style={{display:'flex',alignItems:'center',gap:10,minHeight:45,
+             padding:'6px 0',fontSize:14}}>
+            <input type="checkbox" checked={Boolean(group.permissions[key])} disabled={busy}
+              onChange={e=>void setPermission(key,e.target.checked)}
+              aria-label={label}/>
+            <span>{label}</span>
+          </label>)}
+      </section>}
       <h2 className="km-group-section-heading">{tr('Participants et rôles','Members and roles')}</h2>
       <div className="km-group-role-list">
         {group.members.map(member=>{
