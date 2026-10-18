@@ -40,6 +40,8 @@ export function InAppNotifications() {
   const router = useRouter();
   const { locale } = useI18n();
   const en = locale === 'en';
+  const sessionToken = getAccessToken();
+  const lastToken = useRef<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [queue, setQueue] = useState<InAppNotification[]>([]);
   const [paused, setPaused] = useState(false);
@@ -52,7 +54,14 @@ export function InAppNotifications() {
   useEffect(() => {
     let alive = true, initialized = false, inFlight = false, repeat = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let token = getAccessToken();
+    let token = sessionToken;
+    if (lastToken.current !== sessionToken) {
+      seenIds.current.clear();
+      lastToken.current = sessionToken;
+      initialized = false;
+      setQueue([]);
+      setUnread(0);
+    }
     const refresh = async () => {
       if (inFlight) { repeat = true; return; }
       const currentToken = getAccessToken();
@@ -73,7 +82,11 @@ export function InAppNotifications() {
         const items = Array.isArray(center?.items) ? center.items : [];
         const next: InAppNotification[] = [];
         for (const item of items) {
-          if (!item || typeof item.id !== 'string' || !item.id || seenIds.current.has(item.id)) continue;
+          // Transport payloads and old API versions are external runtime data.
+          if (!item || typeof item.id !== 'string' || !item.id ||
+              typeof item.type !== 'string' || typeof item.category !== 'string' ||
+              typeof item.title !== 'string' || typeof item.body !== 'string' ||
+              seenIds.current.has(item.id)) continue;
           seenIds.current.add(item.id);
           if (initialized && currentPathRef.current !== '/notifications' &&
               !currentPathRef.current.startsWith('/notifications/') &&
@@ -121,7 +134,7 @@ export function InAppNotifications() {
       window.removeEventListener('online', requestRefresh);
       window.removeEventListener('storage', requestRefresh);
     };
-  }, []);
+  }, [sessionToken]);
 
   useEffect(() => {
     if (insideCenter) setQueue([]);
