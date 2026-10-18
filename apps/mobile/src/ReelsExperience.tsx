@@ -146,7 +146,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
-        onDoubleTap={()=>{void ensureLike(post);}}/>
+        autoPlay onDoubleTap={()=>{void ensureLike(post);}}/>
         : <View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
         </View>}
