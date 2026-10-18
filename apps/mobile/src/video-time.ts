@@ -33,11 +33,16 @@ export function parseVideoTimestamp(value:string,durationMs:number):number|null{
   const tokens=value.trim().split(':');
   if(tokens.length<1||tokens.length>3||tokens.some(token=>!/^\d{1,6}$/.test(token)))return null;
   const numbers=tokens.map(Number);
-  if(tokens.length>1&&numbers.at(-1)!>59)return null;
-  if(tokens.length===3&&numbers[1]>59)return null;
+  // Length/format were checked above; explicit fallbacks also satisfy
+  // TypeScript's noUncheckedIndexedAccess and prevent NaN propagation.
+  const first=numbers[0]??0;
+  const second=numbers[1]??0;
+  const third=numbers[2]??0;
+  if(tokens.length>1&&(tokens.length===2?second:third)>59)return null;
+  if(tokens.length===3&&second>59)return null;
   const seconds=tokens.length===3
-    ?numbers[0]*3600+numbers[1]*60+numbers[2]
-    :tokens.length===2?numbers[0]*60+numbers[1]:numbers[0];
+    ?first*3600+second*60+third
+    :tokens.length===2?first*60+second:first;
   if(!Number.isSafeInteger(seconds))return null;
   return Math.min(Math.floor(durationMs),seconds*1000);
 }
