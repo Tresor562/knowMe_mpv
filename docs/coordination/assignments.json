@@ -113,12 +113,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "branch": "chat/marketplace/verified-transaction-history",
-      "task": "Merged #712 (408b9a1), #726 (a354bcd); #731 APK Web + #733 sticker Web pending CI/guard; #737 native Apps, #741 verified history pending CI; #739 shortcut links require #731/#733 merged. #717/#719 blocked by #583. Production Vercel observed behind main.",
+      "task": "Continuation GitHub: validate and merge #733, #731, #737, #739, #741 with dependencies, prevent regressions",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T14:59:53.447Z",
+      "updatedAt": "2026-10-18T15:03:01.302Z",
       "lastPr": 741,
       "resumeFrom": {
         "pr": 741,
@@ -757,6 +757,13 @@
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "at": "2026-10-18T15:01:44.634Z",
       "pr": 721
+    },
+    {
+      "at": "2026-10-18T15:03:01.302Z",
+      "action": "resume",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697
     }
   ]
 }
