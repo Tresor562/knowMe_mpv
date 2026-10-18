@@ -55,8 +55,13 @@ type Comment = {
   id: string;
   content: string;
   createdAt: string;
+  parentId?: string | null;
+  _count?: { replies: number };
   author: Author;
 };
+
+type ReactionSummary = {total:number;mine:string|null;emojis:Array<{emoji:string;count:number}>};
+const COMMENT_EMOJI_CHOICES = ['❤️','😂','😮','😢','😡'];
 
 function resolvePostImage(url: string) {
   return url.startsWith('/media/public/post/') ? `${API_URL}${url}` : url;
@@ -187,6 +192,13 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [post, setPost] = useState<PostDetail | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
+  const [replyTo,setReplyTo] = useState<Comment|null>(null);
+  const [repliesByParent,setRepliesByParent] = useState<Record<string,Comment[]>>({});
+  const [expandedReplies,setExpandedReplies] = useState<string[]>([]);
+  const [reactions,setReactions] = useState<Record<string,ReactionSummary>>({});
+  const [reactionPickerFor,setReactionPickerFor] = useState<string|null>(null);
+  const [reactionBusy,setReactionBusy] = useState(false);
+  const [customEmoji,setCustomEmoji] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -202,7 +214,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     try {
       const [postData, commentData] = await Promise.all([
         apiFetch<PostDetail>(`/posts/${postId}`),
-        apiFetch<Comment[]>(`/posts/${postId}/comments`)
+        apiFetch<Comment[]>(`/posts/${postId}/comments?roots=true`)
       ]);
       setPost(postData);
       setComments(commentData);
@@ -230,7 +242,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     if (!cursor || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const page = await apiFetch<Comment[]>(`/posts/${postId}/comments?cursor=${encodeURIComponent(cursor)}`);
+      const page = await apiFetch<Comment[]>(`/posts/${postId}/comments?roots=true&cursor=${encodeURIComponent(cursor)}`);
       setComments((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...page.filter((item) => !known.has(item.id))];
@@ -241,6 +253,53 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     } finally {
       setLoadingMore(false);
     }
+  }
+
+  const currentCommentIds = [...new Set([
+    ...comments.map(item=>item.id),
+    ...Object.values(repliesByParent).flat().map(item=>item.id)
+  ])].join(',');
+
+  useEffect(()=>{
+    if(!currentCommentIds) return;
+    let active=true;
+    const ids=currentCommentIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/30)},(_,i)=>{
+      const chunk=ids.slice(i*30,i*30+30);
+      return apiFetch<Record<string,ReactionSummary>>(
+        `/posts/${postId}/comments/reaction-summaries?ids=${encodeURIComponent(chunk.join(','))}`);
+    })).then(parts=>{if(active)setReactions(previous=>Object.assign({},previous,...parts));})
+      .catch(()=>undefined);
+    return()=>{active=false;};
+  },[postId,currentCommentIds]);
+
+  async function reactTo(id:string,emoji:string) {
+    if(reactionBusy) return;
+    setReactionBusy(true);
+    try{
+      const endpoint=`/posts/${postId}/comments/${encodeURIComponent(id)}/reaction`;
+      const result = reactions[id]?.mine===emoji
+        ? await apiFetch<ReactionSummary>(endpoint,{method:'DELETE'})
+        : await apiFetch<ReactionSummary>(endpoint,{method:'PUT',body:JSON.stringify({emoji})});
+      setReactions(previous=>({...previous,[id]:result}));
+      setReactionPickerFor(null);
+      setCustomEmoji('');
+    }catch(cause){Alert.alert('Réaction impossible',errorMessage(cause,'Réessaie.'));}
+    finally{setReactionBusy(false);}
+  }
+
+  async function toggleReplies(comment:Comment) {
+    if(expandedReplies.includes(comment.id)){
+      setExpandedReplies(prev=>prev.filter(id=>id!==comment.id));
+      return;
+    }
+    try {
+      const data=await apiFetch<Comment[]>(
+        `/posts/${postId}/comments/${encodeURIComponent(comment.id)}/replies`
+      );
+      setRepliesByParent(prev=>({...prev,[comment.id]:data}));
+      setExpandedReplies(prev=>prev.includes(comment.id)?prev:[...prev,comment.id]);
+    }catch(cause){Alert.alert('Réponses indisponibles',errorMessage(cause,'Réessaie.'));}
   }
 
   async function toggleLike() {
@@ -263,23 +322,37 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     const content = commentText.trim();
     if (!content || sending) return;
     setSending(true);
+    const replyParent=replyTo;
+    let created:Comment;
     try {
-      const created = await apiFetch<Comment>(`/posts/${postId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content })
+      created = await apiFetch<Comment>(`/posts/${postId}/comments`, {
+        method:'POST',body:JSON.stringify({
+          content,...(replyParent?{parentId:replyParent.id}:{})
+        })
       });
-      setCommentText('');
-      setComments((current) => [created, ...current.filter(item => item.id !== created.id)]);
-      discussionScroll.current?.scrollTo({ y: Math.max(0, commentsStart.current - 12), animated: true });
-      setPost((current) => current ? {
-        ...current,
-        _count: { ...current._count, comments: current._count.comments + 1 }
-      } : current);
-    } catch (cause) {
-      Alert.alert('Commentaire impossible', errorMessage(cause, 'Réessaie.'));
-    } finally {
+    } catch(cause){
+      const error=cause as {code?:string;message?:string};
+      const uncertain=error?.code==='KNOWME_TIMEOUT'||error?.code==='KNOWME_NETWORK_UNAVAILABLE';
+      Alert.alert('Envoi non confirmé', uncertain
+        ? 'Vérifie les commentaires avant de recommencer, afin d’éviter un doublon.'
+        :errorMessage(cause,'Réessaie.'));
       setSending(false);
+      return;
     }
+    setCommentText('');
+    setReplyTo(null);
+    setPost(current=>current?{...current,
+      _count:{...current._count,comments:current._count.comments+1}}:current);
+    if(replyParent){
+      setRepliesByParent(prev=>({
+        ...prev,[replyParent.id]:[...(prev[replyParent.id]??[]),created]
+      }));
+      setExpandedReplies(prev=>prev.includes(replyParent.id)?prev:[...prev,replyParent.id]);
+    }else{
+      setComments(current=>[created,...current.filter(item=>item.id!==created.id)]);
+      discussionScroll.current?.scrollTo({y:Math.max(0,commentsStart.current-12),animated:true});
+    }
+    setSending(false);
   }
 
   function confirmDeleteComment(comment: Comment) {
@@ -332,6 +405,87 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     } finally {
       setBusyId(null);
     }
+  }
+
+  function renderDiscussionComment(comment:Comment, depth:number):ReactNode {
+    const canDelete=comment.author.id===userId || post?.authorId===userId;
+    const children=repliesByParent[comment.id]??[];
+    const count=comment._count?.replies??0;
+    const expanded=expandedReplies.includes(comment.id);
+    return (
+      <View key={comment.id} style={[{marginLeft:Math.min(depth,4)*12},
+        styles.threadComment,{borderBottomColor:colors.border,
+        backgroundColor:comment.id===targetCommentId?colors.backgroundAccent:'transparent'}]}
+        onLayout={event=>{
+          if(comment.id===targetCommentId){
+            discussionScroll.current?.scrollTo({y:Math.max(0,event.nativeEvent.layout.y-80),animated:true});
+          }
+        }}>
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={`Profil de ${comment.author.displayName}`}
+          onPress={()=>onOpenProfile?.(comment.author.username)}>
+          <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={depth?30:36}/>
+        </Pressable>
+        <View style={styles.flex}>
+          <View style={styles.threadIdentity}>
+            <Pressable onPress={()=>onOpenProfile?.(comment.author.username)}>
+              <View style={styles.verifiedName}>
+                <Text style={[styles.compactAuthor,{color:colors.text}]}>{comment.author.displayName}</Text>
+                {comment.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}
+                {comment.author.verification?.isVerified?<BlueVerifiedBadge size={17} label={comment.author.verification.label}/>:null}
+                <RemoteCosmeticBadges username={comment.author.username} size={17}/>
+              </View>
+            </Pressable>
+            <Text style={[styles.smallMeta,{color:colors.muted}]}>{formatPostDate(comment.createdAt)}</Text>
+          </View>
+          <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
+          <View style={styles.threadTools}>
+            <Pressable accessibilityRole="button" disabled={reactionBusy}
+              accessibilityLabel={`Réagir au commentaire de ${comment.author.displayName}`}
+              onPress={()=>void reactTo(comment.id,'❤️')}
+              onLongPress={()=>setReactionPickerFor(comment.id)} delayLongPress={380}>
+              <Text style={[styles.threadToolText,{color:reactions[comment.id]?.mine?colors.accent:colors.muted}]}>
+                {reactions[comment.id]?.mine??'♡'} Réagir{reactions[comment.id]?.total?' · '+reactions[comment.id].total:''}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Choisir un emoji"
+              onPress={()=>setReactionPickerFor(comment.id)}>
+              <Text style={[styles.threadToolText,{color:colors.muted}]}>☺</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={()=>setReplyTo(comment)}>
+              <Text style={[styles.threadToolText,{color:colors.muted}]}>Répondre</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button"
+              onPress={()=>{void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})});}}>
+              <Text style={[styles.threadToolText,{color:colors.muted}]}>Partager</Text>
+            </Pressable>
+            {canDelete?<Pressable accessibilityRole="button" disabled={busyId===comment.id}
+              onPress={()=>confirmDeleteComment(comment)}>
+              <Text style={[styles.threadToolText,{color:colors.danger}]}>Supprimer</Text>
+            </Pressable>:null}
+          </View>
+          {reactions[comment.id]?.emojis?.length ? (
+            <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:6}}>
+              {reactions[comment.id].emojis.slice(0,5).map(r=><Text key={r.emoji}
+                style={[styles.smallMeta,{color:colors.muted}]}>{r.emoji} {r.count}</Text>)}
+            </View>
+          ):null}
+          {(count>0||children.length>0)?(
+            <Pressable accessibilityRole="button" onPress={()=>void toggleReplies(comment)}
+              style={{minHeight:42,justifyContent:'center'}}>
+              <Text style={[styles.threadToolText,{color:colors.accent}]}>
+                {expanded?'Masquer les réponses':`Voir les réponses (${count||children.length})`}
+              </Text>
+            </Pressable>
+          ):null}
+          {expanded && children.length>0 && (
+            <View style={{borderLeftWidth:2,borderLeftColor:colors.border,paddingLeft:5}}>
+              {children.map(child=>renderDiscussionComment(child,depth+1))}
+            </View>
+          )}
+        </View>
+      </View>
+    );
   }
 
   if (loading || !post) {
@@ -413,53 +567,27 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
       <View style={styles.commentsHeadingRow} onLayout={event => { commentsStart.current = event.nativeEvent.layout.y; }}>
         <Text style={[styles.commentsHeading, { color: colors.text }]}>Commentaires · {post._count.comments}</Text>
       </View>
-      {comments.map((comment) => {
-        const canDelete = comment.author.id === userId || post.authorId === userId;
-        return (
-          <View key={comment.id}
-            onLayout={event => {
-              if (comment.id === targetCommentId) {
-                discussionScroll.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 80), animated: true });
-              }
-            }}
-            style={[styles.threadComment, { borderBottomColor: colors.border, backgroundColor: comment.id === targetCommentId ? colors.backgroundAccent : 'transparent' }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Voir le profil de ${comment.author.displayName}`}
-              onPress={() => onOpenProfile?.(comment.author.username)}>
-              <Avatar uri={comment.author.avatarUrl} name={comment.author.displayName} size={36} />
-            </Pressable>
-            <View style={styles.flex}>
-              <View style={styles.threadIdentity}>
-                <Pressable accessibilityRole="button" onPress={() => onOpenProfile?.(comment.author.username)}>
-                  <View style={styles.verifiedName}><Text style={[styles.compactAuthor, { color: colors.text }]}>{comment.author.displayName}</Text>{comment.author.staff?.shield==='GOLD'?<GoldVerifiedBadge size={17}/>:null}{comment.author.verification?.isVerified?<BlueVerifiedBadge size={17} label={comment.author.verification.label}/>:null}<RemoteCosmeticBadges username={comment.author.username} size={17}/></View>
-                </Pressable>
-                <Text style={[styles.smallMeta, { color: colors.muted }]}>{formatPostDate(comment.createdAt)}</Text>
-              </View>
-              <KnowMeMentionText text={comment.content} style={[styles.threadBody, { color: colors.text }]}/>
-              <View style={styles.threadTools}>
-                <Pressable accessibilityRole="button" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})}); }}>
-                  <Text style={[styles.threadToolText, { color: colors.muted }]}>Partager</Text>
-                </Pressable>
-                {canDelete ? (
-                  <Pressable accessibilityRole="button" disabled={busyId === comment.id} onPress={() => confirmDeleteComment(comment)}>
-                    <Text style={[styles.threadToolText, { color: colors.danger }]}>{busyId === comment.id ? 'Suppression…' : 'Supprimer'}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        );
-      })}
+      {comments.map(comment=>renderDiscussionComment(comment,0))}
       {!comments.length && <View style={styles.emptyDiscussion}><KnowMeIcon name="messages" size={27} color={colors.muted}/><Text style={[styles.emptyDiscussionText, {color:colors.muted}]}>Aucun commentaire pour l’instant. Lance la discussion !</Text></View>}
       {hasMore && <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus'} disabled={loadingMore} onPress={() => void loadMore()} />}
     </ScrollView>
     <View style={[styles.commentDock, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      {replyTo ? (
+        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:10}}>
+          <Text style={[styles.smallMeta,{color:colors.text}]}>Réponse à {replyTo.author.displayName}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Annuler la réponse"
+            onPress={()=>setReplyTo(null)} style={{padding:10}}>
+            <KnowMeIcon name="close" color={colors.muted} size={20}/>
+          </Pressable>
+        </View>
+      ):null}
       <TextInput
         accessibilityLabel="Écrire un commentaire"
         value={commentText}
         onChangeText={setCommentText}
         multiline
         maxLength={500}
-        placeholder="Écris un commentaire…"
+        placeholder={replyTo?`Répondre à ${replyTo.author.displayName}…`:"Écris un commentaire…"}
         placeholderTextColor={colors.muted}
         selectionColor={colors.accent}
         style={[styles.commentDockInput, { backgroundColor: colors.backgroundAccent, color: colors.text }]}
