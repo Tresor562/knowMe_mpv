@@ -121,3 +121,20 @@ Les 12 alertes contextuelles restantes correspondent à des éléments SVG dans 
 - Cette amélioration ne prétend pas transformer `View` en SVG ; installer le renderer `react-native-svg` compatible Expo 53 / React Native 0.79, régénérer le lockfile et reconstruire l'APK natif demeure une dépendance bloquante d'Infra #698.
 
 **Périmètre restant** : les composants métier de Messagerie #693, Social #694, Réels/Stories #695, Profils #696, Marketplace #697 conservent encore des éléments à migrer, dont les SVG historiques et les icônes Android `View`. Le garde de coordination de PR #760 reste bloqué par des branches historiques non résolues. Cette PR **n'est pas livrée sur le Web ou l'APK**.
+
+
+## Vérification approfondie de la couverture design (18 octobre — lot complémentaire)
+
+**Changements réellement présents en branche PR #760 :**
+
+1. Des raccourcis Web du créateur utilisent maintenant des glyphes distincts (`lock`, `edit`, `refresh`, `user-plus`, `check`) pour les cas identification / édition propriétaire / vérification abonnement / suivre / déjà suivi. La bascule suit seulement les réponses persistées de l'API, et les zones d'action sont compactes (≥44 px).
+2. La page des téléchargements Web identifie les réseaux (Wi‑Fi, mobile, itinérance) et catégories (photos, vidéo, audio, fichiers) par des vecteurs 16–20 px. L'indicateur de chargement et la suppression de copies locales utilisent les **vrais états** plutôt qu'une réussite présumée.
+3. L'entrée KnowMe Secret sur les profils ne présente plus un gros bloc et un emoji d'espion : carte-ligne compacte, `shield` 23 px, action `send` 18 px et lien d'au moins 44 px.
+4. Le sélecteur de langue Android ne montre plus une croix Unicode en zone 38 dp, mais une action `KnowMeNativeIconButton` de 48 dp. Le contrôle compact de langue mesure au moins 48 dp, l'élément choisi utilise un état de coche confirmé, et l'entête des préférences affiche un statut de synchronisation uniquement pendant l'appel.
+5. Le CSS `knowme-icon-motion.css` possède désormais un mouvement de secours **à événement réel** pour chaque pictogramme (79 glyphes actuellement) et un effet continu léger pour les opérations `loading/syncing` qui n'ont pas d'animation spécialisée. Un bouton inactif n'anime jamais une tâche fictive ; les préférences d'accessibilité restent prioritaires.
+6. Les chiffres « 10 » des commandes avancer/reculer sont dessinés avec `path` et `ellipse`, sans dépendre des différences de métriques entre polices Android/Web.
+7. L'audit source regroupe les contrôles Unicode potentiellement non migrés par fichier et ligne, et l'option `--strict` interdit leur réapparition dans les six écrans Design déjà convertis. Les symboles dans les textes ordinaires ne doivent pas être comptés comme erreurs d'icône.
+
+**Faits vérifiés** : la CI complète du commit `651aef784169cedd012d13c357d947232268b40a` a réussi avant cette extension. Les derniers commits doivent valider leurs propres workflows. La compilation Android de branche, même réussie, n'équivaut ni à un test sur appareil ni à une APK signée et distribuée aux utilisateurs.
+
+**Blocages structurels restant honnêtement ouverts** : `react-native-svg` non installé sur Expo SDK 53, verrou pnpm à générer par Infra #698 ; domaines Messagerie #693, Social #694, Réels #695, Profils #696 et Marketplace #697 en PR parallèles ; garde de chevauchement GitHub non validé ; pas de preuve d'une inspection exhaustive des 24 surfaces, ni d'un nouveau déploiement Web/APK de cette branche. Ne pas effacer ces exigences de la checklist.
