@@ -20,10 +20,8 @@
   transition: color 140ms ease, fill 140ms ease, transform 140ms ease;
 }
 .km-state-icon--heart[data-icon-state='selected'] { color: #ef3340; }
-/* Unlike a static plus, an open menu exposes an X without a second glyph. */
-.km-state-icon--create[data-icon-state='open'] > svg:first-child {
-  transform: rotate(45deg);
-}
+/* The model replaces the open plus with a real close glyph. No transform
+   dependency: reduced-motion users still see the correct menu state. */
 .km-state-icon--heart[data-icon-state='idle'][data-icon-burst] > svg:first-child,
 .km-state-icon--heart[data-icon-state='unselected'][data-icon-burst] > svg:first-child {
   animation: km-icon-heart-release 220ms ease-out both;
