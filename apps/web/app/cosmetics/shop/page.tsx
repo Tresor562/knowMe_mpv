@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 
@@ -65,6 +65,9 @@ export default function CosmeticsShopPage() {
   const [shop, setShop] = useState<ShopResponse | null>(null);
   const [history, setHistory] = useState<PurchaseHistoryResponse | null>(null);
   const [busyOfferId, setBusyOfferId] = useState<string | null>(null);
+  const [confirmOfferId, setConfirmOfferId] = useState<string | null>(null);
+  const purchaseKeys = useRef(new Map<string, string>());
+  const sendingLock = useRef(false);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -91,8 +94,13 @@ export default function CosmeticsShopPage() {
   );
 
   async function purchase(offer: CosmeticOffer) {
+    if (sendingLock.current || busyOfferId || confirmOfferId !== offer.id ||
+        offer.owned || !offer.affordable) return;
+    sendingLock.current = true;
     setBusyOfferId(offer.id);
     setMessage('');
+    const clientPurchaseId = purchaseKeys.current.get(offer.id) ?? purchaseId(offer.id);
+    purchaseKeys.current.set(offer.id, clientPurchaseId);
     try {
       const result = await apiFetch<{
         replayed: boolean;
@@ -100,20 +108,28 @@ export default function CosmeticsShopPage() {
         ledgerEntry: { balanceAfter: number };
       }>('/cosmetics/shop/purchases', {
         method: 'POST',
-        body: JSON.stringify({
-          offerId: offer.id,
-          clientPurchaseId: purchaseId(offer.id)
-        })
+        body: JSON.stringify({ offerId: offer.id, clientPurchaseId })
       });
-      setMessage(
-        result.replayed
-          ? 'Cet achat avait déjà été enregistré. Aucun second débit n’a été effectué.'
-          : `${offer.item.name} a été ajouté à ton inventaire. Nouveau solde : ${result.ledgerEntry.balanceAfter} KnowCoins.`
-      );
+      purchaseKeys.current.delete(offer.id);
+      setShop(current => current ? {
+        ...current,
+        offers: current.offers.map(item => item.id === offer.id
+          ? { ...item, owned: true, affordable: false }
+          : item),
+        wallet: { ...current.wallet, balance: result.ledgerEntry.balanceAfter }
+      } : current);
+      setConfirmOfferId(null);
+      // A successful receipt is authoritative even if inventory refresh fails.
       await load();
+      setMessage(result.replayed
+        ? 'Cet achat avait déjà été enregistré. Aucun second débit n’a été effectué.'
+        : offer.item.name + ' a été ajouté à ton inventaire. Nouveau solde : ' +
+          result.ledgerEntry.balanceAfter + ' KnowCoins.');
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Achat impossible.');
+      setMessage(cause instanceof Error ? cause.message :
+        'Achat impossible. Réessayer utilise la même opération.');
     } finally {
+      sendingLock.current = false;
       setBusyOfferId(null);
     }
   }
@@ -171,8 +187,8 @@ export default function CosmeticsShopPage() {
                 </div>
                 <button
                   className={owned ? 'btn' : 'btn btn-primary'}
-                  disabled={owned || !offer.affordable || busyOfferId === offer.id}
-                  onClick={() => void purchase(offer)}
+                  disabled={owned || !offer.affordable || busyOfferId !== null}
+                  onClick={() => { setMessage(''); setConfirmOfferId(offer.id); }}
                 >
                   {owned
                     ? 'Déjà possédé'
@@ -183,6 +199,30 @@ export default function CosmeticsShopPage() {
                         : 'Solde insuffisant'}
                 </button>
               </div>
+              {confirmOfferId === offer.id && !owned && (
+                <div role="group" aria-label={'Confirmation achat ' + offer.item.name}
+                  style={{
+                    marginTop: 15, display: 'grid', gap: 11, padding: 14,
+                    background: 'var(--surface-2)', borderRadius: 17
+                  }}>
+                  <strong style={{ fontSize: 14 }}>Confirmer cet achat ?</strong>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>
+                    {offer.item.name} — {offer.priceKnowCoins.toLocaleString('fr-FR')} KnowCoins,
+                    débités uniquement après ta confirmation.
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+                    <button type="button" className="btn" disabled={busyOfferId !== null}
+                      onClick={() => setConfirmOfferId(null)} style={{ minHeight: 44 }}>
+                      Annuler
+                    </button>
+                    <button type="button" className="btn btn-primary"
+                      disabled={busyOfferId !== null}
+                      onClick={() => void purchase(offer)} style={{ minHeight: 44 }}>
+                      {busyOfferId === offer.id ? 'Validation…' : 'Confirmer et payer'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </article>
           );
         })}
