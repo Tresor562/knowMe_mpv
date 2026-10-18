@@ -1,13 +1,15 @@
 import {useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
 import type {RecordedKnowMeVoice} from './native-voice';
-import {cancelKnowMeVoice,discardKnowMeVoice,playKnowMeVoice,
+import {cancelKnowMeVoice,discardKnowMeVoice,getKnowMeVoicePlaybackStatus,playKnowMeVoice,
   startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
+import {voiceClock,voiceUiState,type VoicePhase} from './voice-composer-model';
+import {useI18n} from './I18nProvider';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {useAppearance} from './AppearanceProvider';
 import {KnowMeIcon, PressScale} from './ui/KnowMeUI';
 
-type Phase='idle'|'starting'|'recording'|'stopping'|'preview'|'sending';
+type Phase=VoicePhase;
 const MAX_SECONDS=56; // stop before the native 60-second media-recorder safety limit
 
 export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
@@ -16,14 +18,36 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   referenceChat?:boolean;
 }) {
   const {colors}=useAppearance();
+  const {locale}=useI18n();
+  const en=locale==='en';
+  const copy=en?{
+    record:'Record a voice message',heading:'Voice message',cancel:'Discard voice message',
+    unavailable:'Voice recording unavailable',missingMic:'The microphone is temporarily unavailable.',
+    recording:'Recording… Finish to review before sending.',
+    preview:'Ready to send. Listen first or discard it; nothing sends automatically.',
+    sending:'Sending securely…',starting:'Preparing microphone…',finish:'Finish recording',
+    listen:'Listen',stop:'Stop playback',send:'Send voice message',discard:'Discard recording',
+    max:'Maximum recording length: 56 seconds.'
+  }: {
+    record:'Enregistrer un message vocal',heading:'Message vocal',cancel:'Supprimer ce vocal',
+    unavailable:'Note vocale indisponible',missingMic:'Le microphone est temporairement indisponible.',
+    recording:'Enregistrement… Termine pour vérifier avant tout envoi.',
+    preview:'Prêt à envoyer. Écoute ou supprime : aucun envoi automatique.',
+    sending:'Envoi sécurisé…',starting:'Préparation du microphone…',finish:'Terminer l’enregistrement',
+    listen:'Écouter',stop:'Arrêter la lecture',send:'Envoyer le vocal',discard:'Supprimer l’enregistrement',
+    max:'Durée maximale de l’enregistrement : 56 secondes.'
+  };
   const [phase,setPhase]=useState<Phase>('idle');
   const [seconds,setSeconds]=useState(0);
   const [recorded,setRecorded]=useState<RecordedKnowMeVoice|null>(null);
   const [open,setOpen]=useState(false);
+  const [previewPlaying,setPreviewPlaying]=useState(false);
+  const [playbackBusy,setPlaybackBusy]=useState(false);
   const phaseRef=useRef<Phase>('idle');
   const capturedRef=useRef<RecordedKnowMeVoice|null>(null);
   const startedAt=useRef(0);
   function next(value:Phase){phaseRef.current=value;setPhase(value);}
+  const actions=voiceUiState(phase,busy);
   useEffect(()=>{
     if(phase!=='recording')return;
     const interval=setInterval(()=>{
@@ -33,6 +57,17 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     },250);
     return ()=>clearInterval(interval);
   },[phase]);
+
+  useEffect(()=>{
+    if(phase!=='preview'||!previewPlaying)return;
+    // Older native APKs do not have playbackStatus; users can still stop manually.
+    const interval=setInterval(()=>{
+      void getKnowMeVoicePlaybackStatus().then(status=>{
+        if(status&&phaseRef.current==='preview'&&!status.playing)setPreviewPlaying(false);
+      }).catch(()=>setPreviewPlaying(false));
+    },700);
+    return ()=>clearInterval(interval);
+  },[phase,previewPlaying]);
 
   useEffect(()=>()=>{
     if(phaseRef.current==='recording'||phaseRef.current==='starting'||phaseRef.current==='stopping'){
@@ -44,12 +79,12 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   },[]);
 
   function showError(error:unknown){
-    Alert.alert('Note vocale indisponible',
-      error instanceof Error?error.message:'Le microphone est temporairement indisponible.');
+    Alert.alert(copy.unavailable,
+      error instanceof Error?error.message:copy.missingMic);
   }
 
   async function begin(){
-    if(phaseRef.current!=='idle'||busy)return;
+    if(!voiceUiState(phaseRef.current,busy).canStart)return;
     setOpen(true);setSeconds(0);next('starting');
     try{
       await startKnowMeVoice();
@@ -65,7 +100,7 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     }
   }
   async function finish(){
-    if(phaseRef.current!=='recording')return;
+    if(!voiceUiState(phaseRef.current,busy).canFinish)return;
     next('stopping');
     try {
       const file=await stopKnowMeVoice();
@@ -73,9 +108,9 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
     }catch(error){next('idle');setOpen(false);showError(error);}
   }
   async function cancel(){
-    if(phaseRef.current==='sending'||phaseRef.current==='stopping')return;
+    if(!voiceUiState(phaseRef.current,busy).canCancel)return;
     const wasRecording=phaseRef.current==='recording'||phaseRef.current==='starting';
-    next('idle');setOpen(false);setSeconds(0);setRecorded(null);
+    next('idle');setOpen(false);setSeconds(0);setRecorded(null);setPreviewPlaying(false);
     try {
       if(wasRecording)await cancelKnowMeVoice();
       await stopKnowMeVoicePlayback();
@@ -85,8 +120,8 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   }
   async function send(){
     const file=capturedRef.current;
-    if(phaseRef.current!=='preview'||!file||busy)return;
-    next('sending');
+    if(!voiceUiState(phaseRef.current,busy).canSend||!file)return;
+    next('sending');setPreviewPlaying(false);
     try{
       await stopKnowMeVoicePlayback();
       const sent=await onSend(file);
@@ -99,16 +134,26 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
   useEffect(()=>{
     // A backgrounded app must not keep an unattended open microphone.
     const listener=AppState.addEventListener('change',status=>{
-      if(status!=='active'&&phaseRef.current==='recording') {
+      if(status!=='active'&&(phaseRef.current==='recording'||phaseRef.current==='starting')) {
         void cancel();
       }
     });
     return ()=>listener.remove();
   },[]);
-  const time=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
+  async function togglePreview(){
+    const file=capturedRef.current;
+    if(phaseRef.current!=='preview'||!file||playbackBusy)return;
+    setPlaybackBusy(true);
+    try {
+      if(previewPlaying){await stopKnowMeVoicePlayback();setPreviewPlaying(false);}
+      else {await playKnowMeVoice(file.uri);setPreviewPlaying(true);}
+    }catch(error){setPreviewPlaying(false);showError(error);}
+    finally{setPlaybackBusy(false);}
+  }
+  const time=voiceClock(phase==='preview'&&recorded?recorded.durationMs:seconds*1000);
   return <>
-    <PressScale accessibilityRole="button" accessibilityLabel="Enregistrer un message vocal"
-      disabled={busy||phase!=='idle'} onPress={()=>void begin()}
+    <PressScale accessibilityRole="button" accessibilityLabel={copy.record}
+      disabled={!actions.canStart} onPress={()=>void begin()}
       style={[styles.microphone,referenceChat?styles.referenceMicrophone:{backgroundColor:colors.backgroundAccent}]}>
       <KnowMeIcon name="microphone" size={referenceChat?26:23} color={referenceChat?'#0b141a':colors.accent}/>
     </PressScale>
@@ -116,54 +161,57 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
       <View style={styles.backdrop}>
         <View style={[styles.sheet,{backgroundColor:referenceChat?'#202c33':colors.surface,borderColor:referenceChat?'#35444b':colors.border}]}>
           <View style={styles.header}>
-            <Text style={[styles.heading,{color:referenceChat?'#e9edef':colors.text}]}>Note vocale</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Annuler le vocal"
-              disabled={phase==='sending'||phase==='stopping'} onPress={()=>{void cancel();}}
+            <Text style={[styles.heading,{color:referenceChat?'#e9edef':colors.text}]}>{copy.heading}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={copy.cancel}
+              disabled={!actions.canCancel} onPress={()=>{void cancel();}}
               style={styles.close}>
-              <KnowMeIcon name="close" color={colors.text} size={23}/>
+              <KnowMeIcon name="close" color={colors.danger} size={23}/>
             </Pressable>
           </View>
           <Text style={[styles.time,{color:referenceChat?'#53bdeb':colors.accent}]} accessibilityLiveRegion="polite">
             {phase==='recording'?'● ':''}{time}
           </Text>
           <Text style={[styles.hint,{color:referenceChat?'#aebac1':colors.muted}]}>
-            {phase==='recording'?'Enregistrement en cours… Appuie sur Terminer pour le vérifier.'
-             :phase==='preview'?'Note enregistrée. Tu peux l’écouter, l’envoyer ou l’annuler.'
-             :phase==='sending'?'Envoi sécurisé…':'Préparation du microphone…'}
+            {phase==='recording'?copy.recording
+             :phase==='preview'?copy.preview
+             :phase==='sending'?copy.sending:copy.starting}
           </Text>
           {phase==='starting'||phase==='stopping'||phase==='sending' ? <ActivityIndicator color={colors.accent}/> : null}
           {phase==='recording'&&
             <PressScale accessibilityRole="button" onPress={()=>void finish()}
               style={[styles.primary,{backgroundColor:colors.accent}]}>
-              <Text style={{color:colors.accentText,fontWeight:'800'}}>Terminer</Text>
+              <Text style={{color:colors.accentText,fontWeight:'700'}}>{copy.finish}</Text>
             </PressScale>}
           {phase==='preview'&&recorded&&<>
             <Text style={{color:colors.muted,fontSize:12}}>
               {Math.ceil(recorded.durationMs/1000)} s · {Math.ceil((recorded.size??0)/1024)} Ko
             </Text>
             <View style={styles.previewActions}>
-              <PressScale accessibilityRole="button" accessibilityLabel="Écouter la note"
-                onPress={()=>void playKnowMeVoice(recorded.uri).catch(showError)}
+              <PressScale accessibilityRole="button" accessibilityLabel={previewPlaying?copy.stop:copy.listen}
+                disabled={playbackBusy} onPress={()=>void togglePreview()}
                 style={[styles.secondary,{backgroundColor:colors.backgroundAccent}]}>
-                <Text style={{color:colors.text,fontSize:18}}>▶</Text>
-                <Text style={{color:colors.text,fontWeight:'800'}}>Écouter</Text>
+                {playbackBusy?<ActivityIndicator color={colors.accent}/>:
+                  <KnowMeIcon name={previewPlaying?'pause':'play'} size={22} color={colors.accent}/>}
+                <Text style={{color:colors.text,fontWeight:'700'}}>{previewPlaying?copy.stop:copy.listen}</Text>
               </PressScale>
-              <PressScale accessibilityRole="button" accessibilityLabel="Envoyer la note vocale"
-                onPress={()=>void send()}
+              <PressScale accessibilityRole="button" accessibilityLabel={copy.send}
+                disabled={!actions.canSend} onPress={()=>void send()}
                 style={[styles.sendVoice,{backgroundColor:colors.accent}]}>
                 <KnowMeIcon name="arrow" size={20} color={colors.accentText}/>
-                <Text style={{color:colors.accentText,fontWeight:'800',fontSize:16}}>Envoyer le vocal</Text>
+                <Text style={{color:colors.accentText,fontWeight:'700',fontSize:16}}>{copy.send}</Text>
               </PressScale>
             </View>
           </>}
-          {phase==='preview'&&<Pressable accessibilityRole="button" accessibilityLabel="Supprimer cet enregistrement"
-            onPress={()=>void cancel()} style={[styles.cancel,{borderColor:colors.border}]}>
-            <KnowMeIcon name="close" size={18} color={colors.muted}/>
-            <Text style={{color:colors.muted,fontWeight:'700'}}>Supprimer l’enregistrement</Text>
+          {phase==='preview'&&<Pressable accessibilityRole="button" accessibilityLabel={copy.discard}
+            onPress={()=>void cancel()} style={[styles.cancel,{borderColor:colors.danger}]}>
+            <KnowMeIcon name="close" size={18} color={colors.danger}/>
+            <Text style={{color:colors.danger,fontWeight:'700'}}>{copy.discard}</Text>
           </Pressable>}
-          {phase==='recording'&&<Pressable accessibilityRole="button" onPress={()=>void cancel()}
-            style={[styles.cancel,{borderColor:colors.border}]}>
-            <Text style={{color:colors.muted,fontWeight:'700'}}>Annuler l’enregistrement</Text>
+          {phase==='recording'&&<Text style={[styles.maxHint,{color:colors.muted}]}>{copy.max}</Text>}
+          {phase==='recording'&&<Pressable accessibilityRole="button" accessibilityLabel={copy.cancel} onPress={()=>void cancel()}
+            style={[styles.cancel,{borderColor:colors.danger}]}>
+            <KnowMeIcon name="close" color={colors.danger} size={18}/>
+            <Text style={{color:colors.danger,fontWeight:'700'}}>{copy.cancel}</Text>
           </Pressable>}
         </View>
       </View>
@@ -182,6 +230,7 @@ const styles=StyleSheet.create({
   close:{width:44,height:44,alignItems:'center',justifyContent:'center'},
   time:{fontSize:31,fontWeight:'800',textAlign:'center',fontVariant:['tabular-nums']},
   hint:{fontSize:13,lineHeight:20,textAlign:'center'},
+  maxHint:{fontSize:11,textAlign:'center'},
   actions:{flexDirection:'row',gap:10},
   previewActions:{gap:13,marginTop:10},
   sendVoice:{height:58,width:'100%',borderRadius:18,flexDirection:'row',
