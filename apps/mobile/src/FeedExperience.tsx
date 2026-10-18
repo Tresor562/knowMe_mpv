@@ -190,6 +190,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [comments, setComments] = useState<Comment[]>([]);
   const [replies, setReplies] = useState<Record<string, Comment[]>>({});
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [repliesMore, setRepliesMore] = useState<Record<string, boolean>>({});
   const [loadingReplies, setLoadingReplies] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -249,19 +250,27 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     }
   }
 
-  async function toggleReplies(parent: Comment) {
-    if (expanded.includes(parent.id)) {
+  async function toggleReplies(parent: Comment, append = false) {
+    if (!append && expanded.includes(parent.id)) {
       setExpanded(current => current.filter(id => id !== parent.id));
       return;
     }
     if (loadingReplies) return;
     setLoadingReplies(parent.id);
     try {
+      const current=replies[parent.id] ?? [];
+      const cursor=append ? current[current.length-1]?.id : undefined;
+      const query=cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
       const fetched = await apiFetch<Comment[]>(
-        `/posts/${postId}/comments/${encodeURIComponent(parent.id)}/replies`
+        `/posts/${postId}/comments/${encodeURIComponent(parent.id)}/replies${query}`
       );
-      setReplies(current => ({...current,[parent.id]:fetched}));
-      setExpanded(current => [...current,parent.id]);
+      setReplies(previous => {
+        const existing=append ? previous[parent.id] ?? [] : [];
+        const seen=new Set(existing.map(item=>item.id));
+        return {...previous,[parent.id]:[...existing,...fetched.filter(item=>!seen.has(item.id))]};
+      });
+      setRepliesMore(previous=>({...previous,[parent.id]:fetched.length===30}));
+      setExpanded(previous=>previous.includes(parent.id)?previous:[...previous,parent.id]);
     } catch (cause) {
       Alert.alert('Réponses indisponibles',errorMessage(cause,'Réessaie.'));
     } finally {setLoadingReplies(null);}
@@ -321,10 +330,14 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </View>
         </View>
         {visible && children.map(child => renderComment(child,depth+1))}
-        {visible && children.length===30 &&
-          <Pressable accessibilityRole="button" onPress={()=>{
-            Alert.alert('Plus de réponses','La pagination des réponses sera ajoutée prochainement.');
-          }}><Text style={{color:colors.muted}}>30 réponses affichées</Text></Pressable>}
+        {visible && repliesMore[item.id] &&
+          <Pressable accessibilityRole="button" disabled={loadingReplies===item.id}
+            onPress={() => void toggleReplies(item,true)}
+            style={{minHeight:42,paddingHorizontal:10,justifyContent:'center'}}>
+            <Text style={{color:colors.accent,fontSize:12,fontWeight:'700'}}>
+              {loadingReplies===item.id?'Chargement…':'Afficher les réponses suivantes'}
+            </Text>
+          </Pressable>}
       </View>
     );
   }
