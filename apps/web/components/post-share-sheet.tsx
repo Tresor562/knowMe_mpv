@@ -203,7 +203,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
         <header className="km-share-header">
           <h2>{en ? 'Share post' : 'Partager la publication'}</h2>
           <button type="button" className="km-share-close" onClick={onClose} disabled={busy}
-            aria-label={en ? 'Close' : 'Fermer'}>×</button>
+            aria-label={en ? 'Close' : 'Fermer'}><KnowMeAnimatedIcon name="close" size={21}/></button>
         </header>
         <div className="km-share-source">
           <strong>{post.author.displayName}</strong>
