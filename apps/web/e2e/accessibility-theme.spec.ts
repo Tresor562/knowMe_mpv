@@ -93,3 +93,17 @@ test('custom two-theme blend matches the saved palette on initial page paint', a
     effects: 'sparkle glow'
   });
 });
+
+test('anonymous SYSTEM palette follows light/dark changes without reloading', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/login');
+  const background = () => page.evaluate(() =>
+    document.documentElement.style.getPropertyValue('--bg'));
+  await expect.poll(background).toBe('#f6f7fc');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(background).toBe('#090e1c');
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(background).toBe('#f6f7fc');
+});
