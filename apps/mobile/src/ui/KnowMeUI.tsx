@@ -34,6 +34,8 @@ export type KnowMeIconName =
   | 'messages'
   | 'microphone'
   | 'heart'
+  | 'play'
+  | 'pause'
   | 'profile'
   | 'bell'
   | 'spark'
@@ -123,6 +125,16 @@ export function KnowMeIcon({
       rotate={name==='chevron-down'?'43deg':'-43deg'} color={color}/>
     <Line width={12*s} height={sw} left={10*s} top={11*s}
       rotate={name==='chevron-down'?'-43deg':'43deg'} color={color}/>
+  </View>;
+  if(name==='pause')return <View style={{width:size,height:size,flexDirection:'row',
+    justifyContent:'center',alignItems:'center',gap:4*s}}>
+    <View style={{width:5*s,height:17*s,borderRadius:2*s,backgroundColor:color}}/>
+    <View style={{width:5*s,height:17*s,borderRadius:2*s,backgroundColor:color}}/>
+  </View>;
+  if(name==='play')return <View style={{width:size,height:size,justifyContent:'center',alignItems:'center'}}>
+    <View style={{width:0,height:0,marginLeft:3*s,borderTopWidth:9*s,
+      borderBottomWidth:9*s,borderLeftWidth:15*s,borderTopColor:'transparent',
+      borderBottomColor:'transparent',borderLeftColor:color}}/>
   </View>;
   if(name==='keyboard')return <View style={{width:size,height:size,justifyContent:'center',alignItems:'center'}}>
     <View style={{width:22*s,height:16*s,borderColor:color,borderWidth:sw,borderRadius:3*s,padding:3*s,
