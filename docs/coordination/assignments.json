@@ -66,12 +66,15 @@
       "issue": 696,
       "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/avatar-removal-actions",
-      "task": "Reprise PR #708 : vérifier CI, qualité, régressions, intégrer Android correctement; poursuivre profils sans collision avec anciennes PR",
+      "branch": "chat/profiles/avatar-actions-ux-bilingual",
+      "task": "Avatar Android : feuille d’actions native FR/EN avec iconographie originale, confirmation inline et états d’erreur",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T13:25:11.041Z",
+      "updatedAt": "2026-10-18T13:28:25.173Z",
       "lastPr": 708,
-      "resumeFrom": null
+      "resumeFrom": {
+        "pr": 708,
+        "commit": "522fe10aa071c3cd11d0e7c764b7a5424517999e"
+      }
     },
     "marketplace": {
       "issue": 697,
