@@ -70,7 +70,7 @@ test('voice recording stops into local preview without sending, then discard',as
   await expect(dialog.getByRole('button',{name:'Envoyer le vocal'})).toBeVisible();
   await expect(dialog.locator('audio')).toBeVisible();
   expect(sentRequests).toBe(0);
-  await dialog.getByRole('button',{name:'Supprimer'}).click();
+  await dialog.getByRole('button',{name:'Supprimer',exact:true}).click();
   await expect(dialog).toHaveCount(0);
   expect(sentRequests).toBe(0);
 });
