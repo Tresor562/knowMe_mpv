@@ -19,6 +19,8 @@ import {
   MobileAvatarStudioState
 } from './avatar-studio';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import { avatarStudioPhase } from './avatar-studio-view-model';
 import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function message(cause: unknown, fallback: string) {
@@ -47,7 +49,7 @@ function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
       {visibleLayers.length === 0 && !manifest.legacyAvatarUrl ? (
         <View style={styles.fallback}>
           <Text style={[styles.fallbackInitials, { color: colors.text }]}>{manifest.fallback.initials}</Text>
-          <Text style={[styles.fallbackToken, { color: colors.muted }]}>{manifest.fallback.paletteToken}</Text>
+
         </View>
       ) : null}
       {visibleLayers.map((layer) => (
@@ -65,19 +67,25 @@ function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
 
 export function AvatarStudioExperience() {
   const { colors, visual } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const tr = (fr: string, english: string) => en ? english : fr;
   const [studio, setStudio] = useState<MobileAvatarStudioState | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busySlot, setBusySlot] = useState<MobileAvatarLayerSlot | null>(null);
   const [status, setStatus] = useState('');
+  const [statusError, setStatusError] = useState(false);
 
   const load = useCallback(async (manual = false) => {
     manual ? setRefreshing(true) : setLoading(true);
     try {
       setStudio(await getMobileAvatarStudio());
       setStatus('');
+      setStatusError(false);
     } catch (cause) {
-      setStatus(message(cause, 'Le studio d’avatar est indisponible.'));
+      setStatus(message(cause, tr('Le studio d’avatar est indisponible.', 'Avatar Studio is unavailable.')));
+      setStatusError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -107,18 +115,20 @@ export function AvatarStudioExperience() {
     if (busySlot) return;
     setBusySlot(slot);
     setStatus('');
+    setStatusError(false);
     try {
       const result = await equipMobileAvatarLayer(slot, itemId);
       setStudio(result.studio);
       setStatus(
         itemId
-          ? `${MOBILE_AVATAR_LAYER_LABELS[slot]} mis à jour.`
-          : `${MOBILE_AVATAR_LAYER_LABELS[slot]} retiré.`
+          ? tr(`${MOBILE_AVATAR_LAYER_LABELS[slot]} mis à jour.`, `${MOBILE_AVATAR_LAYER_LABELS[slot]} updated.`)
+          : tr(`${MOBILE_AVATAR_LAYER_LABELS[slot]} retiré.`, `${MOBILE_AVATAR_LAYER_LABELS[slot]} removed.`)
       );
     } catch (cause) {
       const text = message(cause, 'Modification impossible.');
       setStatus(text);
-      Alert.alert('Studio d’avatar', text);
+      setStatusError(true);
+      Alert.alert('Avatar Studio', text);
     } finally {
       setBusySlot(null);
     }
@@ -133,13 +143,14 @@ export function AvatarStudioExperience() {
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.text }]}>Avatar Studio</Text>
           <Text style={[styles.description, { color: colors.muted }]}>
-            Compose ton avatar avec les éléments de ton inventaire.
+            {tr('Compose ton avatar avec les éléments de ton inventaire.',
+                'Build your avatar using items you own.')}
           </Text>
         </View>
         <PressScale
           accessibilityRole="button"
-          accessibilityLabel="Actualiser"
-          disabled={refreshing}
+          accessibilityLabel={tr('Actualiser', 'Refresh')}
+          disabled={refreshing || loading}
           onPress={() => void load(true)}
           style={[
             styles.refresh,
@@ -150,14 +161,35 @@ export function AvatarStudioExperience() {
         </PressScale>
       </View>
 
-      {status ? <Text style={[styles.status, { color: colors.accent }]}>{status}</Text> : null}
+      {status && studio ? <Text accessibilityRole={statusError ? 'alert' : undefined}
+        style={[styles.status, { color: statusError ? colors.danger : colors.accent }]}>{status}</Text> : null}
 
-      {loading || !studio ? (
+      {avatarStudioPhase(loading, Boolean(studio)) === 'loading' ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={[styles.muted, { color: colors.muted }]}>Chargement du studio…</Text>
+          <Text style={[styles.muted, { color: colors.muted }]}>
+            {tr('Chargement du studio…', 'Loading Avatar Studio…')}
+          </Text>
         </View>
-      ) : (
+      ) : avatarStudioPhase(loading, Boolean(studio)) === 'error' ? (
+        <View style={styles.retryPanel}>
+          <KnowMeIcon name="refresh" size={28} color={colors.muted} />
+          <Text accessibilityRole="alert" style={[styles.retryMessage, { color: colors.text }]}>
+            {status || tr('Impossible de charger ton avatar.', 'Could not load your avatar.')}
+          </Text>
+          <PressScale accessibilityRole="button"
+            accessibilityLabel={tr('Réessayer le chargement du studio', 'Retry loading Avatar Studio')}
+            disabled={refreshing}
+            style={[styles.retryButton, { borderColor: colors.border, backgroundColor: colors.backgroundAccent }]}
+            onPress={() => void load(true)}>
+            {refreshing ? <ActivityIndicator color={colors.accent} size="small" /> :
+              <KnowMeIcon name="refresh" size={19} color={colors.accent} />}
+            <Text style={{ color: colors.text, fontWeight: '700' }}>
+              {refreshing ? tr('Nouvelle tentative…', 'Retrying…') : tr('Réessayer', 'Retry')}
+            </Text>
+          </PressScale>
+        </View>
+      ) : studio ? (
         <>
           <AvatarPreview manifest={studio.manifest} />
           <Text style={[styles.profileName, { color: colors.text }]}>{studio.profile.displayName}</Text>
@@ -203,7 +235,10 @@ export function AvatarStudioExperience() {
                       return (
                         <Pressable
                           key={entry.id}
-                          disabled={busySlot !== null}
+                          disabled={busySlot !== null || selected}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${entry.item.name}, ${selected ? tr('équipé', 'equipped') : rarityLabel(entry.item.rarity)}`}
+                          accessibilityState={{ disabled: busySlot !== null || selected, selected }}
                           onPress={() => void equip(slot, entry.item.id)}
                           style={({ pressed }) => [
                             styles.itemCard,
@@ -239,7 +274,7 @@ export function AvatarStudioExperience() {
             Seuls les éléments de ton inventaire peuvent être équipés. La visibilité de ton avatar suit tes réglages de confidentialité.
           </Text>
         </>
-      )}
+      ) : null}
     </GlassSurface>
   );
 }
@@ -252,9 +287,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '800' },
   description: { fontSize: 12.5, lineHeight: 18 },
   refresh: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
@@ -263,6 +298,11 @@ const styles = StyleSheet.create({
   status: { fontSize: 11.5, lineHeight: 17 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   muted: { fontSize: 10.5, lineHeight: 15 },
+  retryPanel: { minHeight: 190, alignItems: 'center', justifyContent: 'center', padding: 18, gap: 13 },
+  retryMessage: { textAlign: 'center', fontSize: 14, lineHeight: 21 },
+  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    minHeight: 48, minWidth: 146, paddingHorizontal: 20, gap: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderRadius: 17 },
   preview: {
     width: '100%',
     aspectRatio: 1,
@@ -288,9 +328,9 @@ const styles = StyleSheet.create({
   layerTitleBox: { flex: 1, gap: 2 },
   layerTitle: { fontSize: 13, fontWeight: '800' },
   removeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center'
