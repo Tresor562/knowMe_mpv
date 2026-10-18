@@ -8,6 +8,7 @@ import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
 import { knowMeConfirm } from '../../../../components/knowme-feedback';
 import { GroupSharedContent } from '../GroupSharedContent';
+import { GroupAvatarEditor } from '../GroupAvatarEditor';
 import './group-info-architecture.css';
 
 type Member = {
@@ -179,14 +180,8 @@ export default function ConversationInfoPage() {
       <div className="km-group-sidebar">
       <section className="km-info-identity" aria-label={tr('Identité de la discussion', 'Chat identity')}>
         {isGroup
-          ? <div className="km-info-group-avatar km-group-identity-mark"
-              role="img" aria-label={tr('Avatar du groupe par défaut','Default group avatar')}>
-              <svg viewBox="0 0 44 44" width="42" height="42" fill="none" stroke="currentColor"
-                strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="17" cy="17" r="5.5"/><path d="M7.5 31.5c.7-6 4-8.7 9.5-8.7 5.3 0 8.8 2.7 9.5 8.7"/>
-                <circle cx="30" cy="15.5" r="4"/><path d="M28.5 23c5.3-.7 8.1 2.2 8.5 7.5"/>
-              </svg>
-            </div>
+          ? <GroupAvatarEditor conversationId={id} title={title}
+              canManage={canManage} en={en}/>
           : other && <Avatar member={other} />}
         <h2>{title}</h2>
         <p>{isGroup
