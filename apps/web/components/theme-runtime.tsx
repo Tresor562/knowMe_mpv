@@ -58,8 +58,10 @@ export function ThemeRuntime() {
       if (event.key === 'knowme-appearance') applyStored();
     };
     const onSystemThemeChanged = () => {
-      const stored = loadLocalAppearance();
-      if (stored?.preference.effectiveThemeKey === 'system') applyAppearance(stored);
+      // SYSTEM themes need not have the literal key "system"; resolve the
+      // palette from the actual theme mode on every OS color-scheme change.
+      // Explicit Light/Dark themes will simply reapply their fixed palette.
+      applyStored();
     };
 
     window.addEventListener(APPEARANCE_EVENT, onAppearanceChanged);
