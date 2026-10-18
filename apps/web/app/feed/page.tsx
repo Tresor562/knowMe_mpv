@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { PostShareSheet } from '../../components/post-share-sheet';
+import { PostMediaCollage, type PostMediaItem } from '../../components/post-media-collage';
 import '../../components/post-share-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -27,6 +28,7 @@ type Post = {
   id: string;
   content: string;
   imageUrl?: string | null;
+  media?: PostMediaItem[];
   createdAt: string;
   author: { id: string; username: string; displayName: string; avatarUrl?: string | null; staff?: StaffBadge | null; verification?: VerificationBadge | null };
   _count: { likes: number; comments: number };
@@ -429,9 +431,8 @@ export default function FeedPage() {
                 {en ? 'Open post' : 'Voir la publication'}
               </Link>
             </div>}
-            {post.imageUrl && <Link className="km-post-media" href={`/feed/${post.id}`}>
-              <img src={resolvePostImage(post.imageUrl)} alt={en?'Post image':'Image de la publication'} loading="lazy"/>
-            </Link>}
+            <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
+              caption={post.content} en={en}/>
             <footer className="km-post-actions">
               <button type="button" onClick={() => void toggleLike(post.id)} disabled={!authorityFresh}
                 aria-label={en?'React to post':'Réagir à la publication'}>
