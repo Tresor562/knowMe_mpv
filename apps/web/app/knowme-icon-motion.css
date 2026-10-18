@@ -210,6 +210,21 @@
 .km-state-icon--send[data-icon-state='sending'] > svg:first-child {
   animation: km-icon-send-wait 1250ms ease-in-out infinite alternate;
 }
+/* The share sheet uses real request state for post/story, and the conversation
+   picker reflects the real GET loading state. No animation while idle. */
+.km-state-icon--home[data-icon-state='sending'] > svg:first-child,
+.km-state-icon--story[data-icon-state='sending'] > svg:first-child {
+  animation: km-icon-send-wait 1250ms ease-in-out infinite alternate;
+}
+.km-state-icon--chats[data-icon-state='loading'] > svg:first-child,
+.km-state-icon--group[data-icon-state='loading'] > svg:first-child {
+  animation: km-icon-pending 950ms ease-in-out infinite alternate;
+}
+@keyframes km-icon-pending {
+  from { opacity:.56; transform:scale(.965); }
+  to { opacity:1; transform:scale(1.03); }
+}
+
 @keyframes km-icon-typing-dot { from{opacity:.35;transform:translateY(1px)} to{opacity:1;transform:translateY(-1px)} }
 @keyframes km-icon-live-status { from{opacity:.58;transform:scale(.93)} to{opacity:1;transform:scale(1.15)} }
 @keyframes km-icon-call-live { from{opacity:.68;transform:scale(.97)} to{opacity:1;transform:scale(1.04)} }
