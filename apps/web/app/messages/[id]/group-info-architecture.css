@@ -354,3 +354,64 @@
     transition-duration:.01ms!important;
   }
 }
+
+/* Keep private-chat DOM appearance unchanged; only group pages use the new
+   sidebar/content workspace. Avoid extra boxes from structural wrappers. */
+.km-info-page.km-info-private-profile .km-group-workspace,
+.km-info-page.km-info-private-profile .km-group-sidebar,
+.km-info-page.km-info-private-profile .km-group-main-pane{
+  display:contents;
+}
+.km-group-architecture .km-group-workspace{
+  display:block;
+  min-width:0;
+}
+.km-group-architecture .km-group-sidebar,
+.km-group-architecture .km-group-main-pane{
+  min-width:0;
+}
+@media(min-width:960px){
+  .km-info-page.km-group-architecture{
+    width:min(100%,1120px);
+    max-width:1120px;
+    padding-inline:clamp(18px,3vw,38px);
+  }
+  .km-group-architecture .km-group-workspace{
+    display:grid;
+    grid-template-columns:minmax(268px,308px) minmax(0,1fr);
+    gap:clamp(18px,2.5vw,36px);
+    align-items:start;
+  }
+  .km-group-architecture .km-group-sidebar{
+    position:sticky;
+    top:70px;
+    align-self:start;
+    padding-right:clamp(12px,2vw,22px);
+    border-right:1px solid var(--km-group-line);
+    min-height:440px;
+  }
+  .km-group-architecture .km-group-main-pane{
+    padding-top:7px;
+  }
+  .km-group-architecture .km-info-identity{
+    padding-top:10px;
+  }
+  .km-group-architecture .km-info-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    border:0;
+    gap:5px;
+  }
+  .km-group-architecture .km-info-actions>:is(a,button,details){
+    min-width:0;
+    max-width:none;
+    width:100%;
+    min-height:56px;
+  }
+  .km-group-architecture .km-info-tabs{
+    padding-top:0;
+  }
+  .km-group-architecture .km-group-overview-section:first-child{
+    padding-top:15px;
+  }
+}
