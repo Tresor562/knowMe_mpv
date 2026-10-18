@@ -124,6 +124,7 @@ test('group member filters distinguish owner/admin and ordinary members without 
   await setup(page);
   await page.setViewportSize({width:360,height:760});
   await page.goto('/messages/grp1/info');
+  await page.getByRole('tab',{name:'Membres',exact:true}).click();
   const controls=page.getByRole('group',{name:'Filtrer les membres'});
   await expect(controls.getByRole('button',{name:'Tous'})).toHaveAttribute('aria-pressed','true');
   await controls.getByRole('button',{name:'Admins'}).click();
