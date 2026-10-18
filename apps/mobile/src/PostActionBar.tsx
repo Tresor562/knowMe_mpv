@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { FAVORITE_POST_REACTIONS, isValidPostEmojiReaction } from './post-reaction-selection-model';
 
 /** The API adapters are deliberately required. A reaction is never claimed saved locally. */
 export type NativePostActionBarProps = {
@@ -20,26 +21,6 @@ export type NativePostActionBarProps = {
   onSave?: () => Promise<void>;
 };
 
-const EMOJI_REACTIONS = ['❤️', '😂', '😮', '😢', '😡'];
-function BookmarkIcon({ color, filled }: { color: string; filled: boolean }) {
-  // Pure React Native geometry: rounded bookmark with a distinct notched base.
-  return <View style={{width:21,height:23,alignItems:'center',justifyContent:'flex-start'}}>
-    <View style={{width:17,height:17,borderTopWidth:1.8,borderLeftWidth:1.8,
-      borderRightWidth:1.8,borderColor:color,borderTopLeftRadius:3,
-      borderTopRightRadius:3,backgroundColor:filled?color:'transparent'}}/>
-    <View style={{position:'absolute',top:12,width:12,height:12,borderLeftWidth:1.8,
-      borderTopWidth:1.8,borderColor:color,transform:[{rotate:'45deg'}],
-      backgroundColor:filled?color:'transparent'}}/>
-  </View>;
-}
-
-const validEmoji = (value: string) => {
-  const cleaned = value.trim();
-  const withoutKeycaps = cleaned.replace(/[0-9#*]\uFE0F?\u20E3/gu, '');
-  return Boolean(cleaned && cleaned.length <= 32 &&
-    /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{20e3}]/u.test(cleaned) &&
-    !/[\p{Letter}\p{Number}\p{Punctuation}]/u.test(withoutKeycaps));
-};
 
 export function PostActionBar({
   postId, en = false, likeCount, commentCount, selectedReaction = null,
@@ -161,7 +142,7 @@ export function PostActionBar({
             </Pressable>
           </View>
           <View style={styles.emojiRow}>
-            {EMOJI_REACTIONS.map(emoji=><Pressable key={emoji}
+            {FAVORITE_POST_REACTIONS.map(emoji=><Pressable key={emoji}
               accessibilityRole="button" accessibilityLabel={en?`React with ${emoji}`:`Réagir avec ${emoji}`}
               accessibilityState={{selected:selectedReaction===emoji,disabled:busy}}
               disabled={busy} onPress={()=>void action(()=>onReact(emoji),true)}
@@ -184,11 +165,11 @@ export function PostActionBar({
                 placeholder="😀" placeholderTextColor={colors.muted}
                 style={[styles.input,{color:colors.text,backgroundColor:colors.backgroundAccent,
                   borderColor:colors.border}]}/>
-              <Pressable disabled={busy||!validEmoji(custom)}
+              <Pressable disabled={busy||!isValidPostEmojiReaction(custom)}
                 accessibilityRole="button" accessibilityLabel={en?"Confirm reaction":"Valider la réaction"}
                 onPress={()=>void action(()=>onReact(custom.trim()),true)}
                 style={[styles.send,{backgroundColor:colors.accent,
-                  opacity:busy||!validEmoji(custom)?0.45:1}]}>
+                  opacity:busy||!isValidPostEmojiReaction(custom)?0.45:1}]}>
                 <Text style={styles.sendText}>{en?"React":"Réagir"}</Text>
               </Pressable>
             </View>
