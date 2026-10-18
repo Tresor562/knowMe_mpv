@@ -259,3 +259,70 @@ main.shell:has(nav[aria-label='Vues du centre de notifications']) > footer.card 
 @media(max-width:440px) {
   main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card { padding-inline: 0 !important; }
 }
+
+/* Information de discussion : les données essentielles au-dessus, actions
+   discrètes dans une seule rangée et membres en liste native. */
+.km-info-page:not(.km-group-manage) { max-width: 740px; }
+.km-info-page:not(.km-group-manage) .km-info-identity {
+  padding: 14px 8px 16px; gap: 4px;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > h2 {
+  font-size: clamp(19px,4vw,23px); margin: 8px 0 0; line-height: 1.24;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > p {
+  font-size: 12px; margin-top: 3px;
+}
+.km-info-page:not(.km-group-manage) .km-info-group-avatar {
+  width: 80px; height: 80px;
+  box-shadow: none; border-width: 2px;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > .km-info-member-avatar {
+  width: 80px; height: 80px;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions {
+  display: flex; flex-wrap: nowrap; gap: 6px;
+  padding: 5px 0 8px; overflow-x: auto; scrollbar-width: none;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions::-webkit-scrollbar { display: none; }
+.km-info-page:not(.km-group-manage) .km-info-actions > * {
+  flex: 1 0 0; min-width: 70px; min-height: 54px !important;
+  padding: 7px 8px !important; gap: 3px;
+  border: 0; border-radius: 14px;
+  box-shadow: none; background: transparent;
+  font-size: 11px; font-weight: 650;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions > *:is(:hover,:focus-visible) {
+  background: var(--bg-accent);
+}
+.km-info-page:not(.km-group-manage) .km-info-actions svg {
+  width: 20px; height: 20px; flex: none;
+}
+.km-info-page:not(.km-group-manage) .km-info-tabs {
+  gap: 3px; margin: 4px 0 7px;
+}
+.km-info-page:not(.km-group-manage) .km-info-tabs button {
+  min-height: 44px; font-size: 12px; font-weight: 650;
+}
+.km-info-page:not(.km-group-manage) .km-info-search {
+  min-height: 44px; margin: 10px 0; border-radius: 15px;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-row {
+  min-height: 60px; gap: 11px; padding: 7px 4px;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-name strong {
+  font-size: 13px; font-weight: 670;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-name small {
+  font-size: 11px;
+}
+.km-info-page:not(.km-group-manage) .km-info-details dl > div {
+  min-height: 48px; padding: 9px 4px;
+}
+@media (max-width: 400px) {
+  .km-info-page:not(.km-group-manage) .km-info-actions > * {
+    min-width: 65px; padding-inline: 5px !important;
+  }
+  .km-info-page:not(.km-group-manage) .km-info-identity {
+    padding-top: 9px;
+  }
+}
