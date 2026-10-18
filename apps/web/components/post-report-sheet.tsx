@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '../lib/api';
 
 type Reason = 'SPAM' | 'HARASSMENT' | 'SCAM' | 'INAPPROPRIATE' | 'OTHER';
@@ -28,6 +29,8 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
   const inflight = useRef(false);
   const initialFocus = useRef<HTMLElement | null>(null);
   const firstChoice = useRef<HTMLInputElement>(null);
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
 
   useEffect(() => {
     initialFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -35,7 +38,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !inflight.current) {
         event.stopImmediatePropagation();
-        onBack();
+        onBackRef.current();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -43,7 +46,7 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
       window.removeEventListener('keydown', onKey);
       initialFocus.current?.focus();
     };
-  }, [onBack]);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -106,6 +109,9 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
                 ? 'The publication has been sent to KnowMe moderation.'
                 : 'La publication a été transmise à la modération KnowMe.'}
             </p>
+            <Link className="km-post-report-history-link" href="/feed/reports">
+              {en ? 'View my reports' : 'Consulter mes signalements'}
+            </Link>
             <button className="km-comment-report-submit" type="button" onClick={onComplete}>
               {en ? 'Done' : 'Terminer'}
             </button>
@@ -142,6 +148,9 @@ export function PostReportSheet({ post, en, onBack, onComplete }: {
               {busy ? (en ? 'Sending…' : 'Envoi…') :
                 (en ? 'Submit report' : 'Envoyer le signalement')}
             </button>
+            <Link className="km-post-report-history-link" href="/feed/reports">
+              {en ? 'Review my past reports' : 'Vérifier mes signalements précédents'}
+            </Link>
           </>
         )}
       </form>
