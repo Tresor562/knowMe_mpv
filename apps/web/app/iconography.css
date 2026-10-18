@@ -124,3 +124,21 @@
 :root[data-animations='false'] .km-avatar-menu {
   animation: none !important;
 }
+
+/* Compact, consistently aligned 21px glyphs in the five avatar menu items.
+   The accessible action name lives on the menu item, not on the glyph. */
+.km-avatar-menu > :is(button, a) > svg[data-knowme-icon] {
+  flex: 0 0 21px;
+  width: 21px;
+  height: 21px;
+  color: var(--mint);
+}
+.km-avatar-lightbox-close {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.km-avatar-lightbox-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
