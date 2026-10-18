@@ -87,25 +87,22 @@
       "issue": 696,
       "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/avatar-studio-full-i18n",
-      "task": "Reprise PR #716 et #720 : validation du dernier HEAD, corrections si nécessaire, fusion après vérifications ; poursuivre profils",
+      "branch": "chat/profiles/creator-web-conflict-safe",
+      "task": "PR #716 Android créateur UNLISTED et PR #720 Avatar Studio FR/EN : qualité + coordination réussies, APK encore en attente; PR #727 formulaire créateur Web sans perte des brouillons, E2E en attente. Pas de collision Web avatar #551/#556.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:16:33.619Z",
-      "lastPr": 720,
+      "updatedAt": "2026-10-18T14:26:07.250Z",
+      "lastPr": 727,
       "resumeFrom": {
-        "pr": 720,
-        "branch": "chat/profiles/avatar-studio-full-i18n",
-        "otherPr": 716,
-        "otherBranch": "chat/profiles/creator-privacy-save-reliability",
+        "pr": 727,
+        "branch": "chat/profiles/creator-web-conflict-safe",
+        "otherPrs": [
+          716,
+          720
+        ],
         "merged": [
-          {
-            "pr": 711,
-            "commit": "50bc8cdef9626f568e1971f07267cc5a572e71a9"
-          },
-          {
-            "pr": 715,
-            "commit": "c055116bcaae1bfa2b548644ba958bd1dd30587e"
-          }
+          708,
+          711,
+          715
         ]
       }
     },
