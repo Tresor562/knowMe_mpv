@@ -1,0 +1,51 @@
+/* Compact, readable KnowMe member picker.
+ * No stacked 14px padded cards or Unicode close marks.
+ * Every interactive row is >=48px and works with keyboard/screen reader.
+ */
+.km-member-picker { gap: 9px; }
+.km-member-selected {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+}
+.km-member-chip {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  max-width: min(100%, 275px); min-height: 44px;
+  border: 1px solid var(--soft-border);
+  border-radius: 99px; gap: 7px; padding: 6px 10px;
+  background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.km-member-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.km-member-chip > svg { flex: 0 0 auto; color: var(--muted); }
+.km-member-loading { display: inline-flex; align-items: center; gap: 8px; }
+.km-member-result {
+  appearance: none; box-sizing: border-box; display: flex; align-items: center;
+  gap: 10px; width: 100%; min-height: 56px; padding: 7px 10px;
+  border: 0; border-bottom: 1px solid var(--soft-border);
+  border-radius: 9px; background: transparent; color: var(--text);
+  text-align: left; cursor: pointer;
+}
+.km-member-result:disabled { opacity: .56; cursor: default; }
+.km-member-result:not(:disabled):is(:hover,:focus-visible) { background: var(--surface-2); }
+.km-member-avatar {
+  flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface-2);
+  font-size: 15px; font-weight: 750; color: var(--mint);
+}
+.km-member-details { flex: 1 1 auto; min-width: 0; font-size: 12px; line-height: 1.35; }
+.km-member-details > strong, .km-member-details > div, .km-member-details > small {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.km-member-details > strong { font-size: 13px; }
+.km-member-details > small { color: var(--muted); }
+.km-member-add-state {
+  display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px;
+  color: var(--mint); font-size: 12px;
+}
+.km-member-result:disabled .km-member-add-state { color: var(--muted); }
+.km-member-chip:focus-visible, .km-member-result:focus-visible {
+  outline: 2px solid var(--mint); outline-offset: 2px;
+}
+@media(max-width:380px) {
+  .km-member-add-state > span { display: none; }
+  .km-member-result { gap: 8px; padding-inline: 7px; }
+}

@@ -29,7 +29,7 @@
 .km-network-notice-copy strong { font-size: 13px; line-height: 1.25; font-weight: 650; }
 .km-network-notice-copy span { font-size: 11px; line-height: 1.35; color: var(--muted); }
 .km-network-notice-dismiss {
-  flex: 0 0 38px; width: 38px; height: 38px; padding: 10px;
+  flex: 0 0 44px; width: 44px; height: 44px; padding: 12px;
   display: grid; place-items: center;
   border: 0; border-radius: 50%;
   background: transparent; color: var(--muted); cursor: pointer;

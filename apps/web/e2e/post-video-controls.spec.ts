@@ -36,6 +36,15 @@ test('publication video player exposes seeking, speed and sound controls', async
   const viewer = page.getByRole('dialog',{name:'Galerie de la publication'});
   const player = viewer.locator('.km-post-video-player');
   await expect(player).toBeVisible();
+  // All interactive media pictograms use actual KnowMe paths, never emojis.
+  const toolbar = player.locator('.km-post-video-toolbar');
+  for (const icon of ['play','rewind-10','forward-10','volume','fullscreen']) {
+    await expect(toolbar.locator('[data-knowme-icon="' + icon + '"]')).toBeVisible();
+  }
+  const targets = await toolbar.locator('button').evaluateAll(buttons =>
+    buttons.map(button => ({ width: button.getBoundingClientRect().width,
+      height: button.getBoundingClientRect().height })));
+  expect(targets.every(target => target.width >= 44 && target.height >= 44)).toBe(true);
   await expect(player.getByRole('button',{name:'Mettre la vidéo en pause'})).toHaveCount(0);
   await expect(player.getByRole('button',{name:'Lire la vidéo'})).toBeVisible();
   await expect(player.getByRole('button',{name:'Reculer de 10 secondes'})).toBeVisible();
@@ -44,6 +53,7 @@ test('publication video player exposes seeking, speed and sound controls', async
   await expect(player.getByRole('button',{name:'Vitesse de lecture'})).toContainText('1.25×');
   await player.getByRole('button',{name:'Couper le son'}).click();
   await expect(player.getByRole('button',{name:'Activer le son'})).toBeVisible();
+  await expect(toolbar.locator('[data-knowme-icon="volume-off"]')).toBeVisible();
 
   await player.locator('video').evaluate(video => {
     Object.defineProperty(video,'duration',{configurable:true,value:3661});

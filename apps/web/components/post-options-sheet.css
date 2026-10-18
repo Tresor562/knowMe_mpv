@@ -73,3 +73,18 @@
   border-radius:15px;background:var(--surface-2);color:var(--text);font-weight:700;cursor:pointer;}
 .km-post-edit-actions button[type=submit] {background:var(--mint);color:var(--surface);font-weight:800;}
 .km-post-edit-actions button:disabled {opacity:.45;cursor:not-allowed;}
+
+/* Compact post edit actions: 20px state icon, 44px reliable hit targets. */
+.km-post-edit-sheet header .km-icon-action {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: inherit;
+}
+.km-post-edit-actions button[type=submit] {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}

@@ -1,0 +1,36 @@
+/* KnowMe compact accessible Web icon button: 44px target, 22px drawing. */
+.km-icon-action {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.km-icon-action:hover:not(:disabled) { background: var(--surface-2); }
+.km-icon-action:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.km-icon-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.km-icon-action[aria-pressed='true'] { color: var(--mint); }
+.km-icon-action:active:not(:disabled) { background: var(--surface-2); }
+@media (prefers-reduced-motion: reduce) {
+  .km-icon-action { transition: none !important; }
+}

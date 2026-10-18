@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { wrappedDialogFocus } from './dialog-focus';
 import { enqueueNotice } from './toast-queue';
+import { KnowMeGlyph } from './knowme-glyph';
+import { KnowMeIconButton } from './knowme-icon-button';
 type Dialog = { kind: 'confirm' | 'prompt'; message: string; initial?: string; resolve: (answer: boolean | string | null) => void };
 type Toast = { text: string; tone: 'info' | 'success' | 'error' };
 type QueuedToast = Toast & { id: number };
@@ -107,7 +109,7 @@ export function KnowMeDialogHost() {
       <div ref={box} role="dialog" aria-modal="true" className="km-feedback-dialog"
         aria-labelledby="km-feedback-title" aria-describedby="km-feedback-description">
         <div className="km-feedback-head">
-          <span className="km-feedback-symbol" aria-hidden="true">✦</span>
+          <span className="km-feedback-symbol" aria-hidden="true"><KnowMeGlyph name="shield" size={23}/></span>
           <div><small>KNOWME</small><h2 id="km-feedback-title">{active.kind === 'prompt'
             ? en ? 'Edit' : 'Modifier' : en ? 'Confirmation' : 'Confirmation'}</h2></div>
         </div>
@@ -134,9 +136,11 @@ export function KnowMeDialogHost() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastPaused(false);
       }}
       role={toast.tone === 'error' ? 'alert' : 'status'} aria-live={toast.tone === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
-      <span aria-hidden="true">✦</span><span>{toast.text}</span>
-      <button type="button" aria-label={en ? "Close notification" : "Fermer la notification"}
-        onClick={() => { setToastQueue((items) => items.slice(1)); setToastPaused(false); }}>×</button>
+      <span aria-hidden="true"><KnowMeGlyph name={toast.tone === 'error'
+        ? 'warning' : toast.tone === 'success' ? 'check-circle' : 'info'} size={21}/></span>
+      <span>{toast.text}</span>
+      <KnowMeIconButton name="close" size={20} label={en ? "Close notification" : "Fermer la notification"}
+        onClick={() => { setToastQueue((items) => items.slice(1)); setToastPaused(false); }}/>
     </div> : null}
   </>;
 }

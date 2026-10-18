@@ -24,3 +24,34 @@
 @media(max-width:500px){
   .km-post-media-viewer-stage>.km-post-video-player{max-width:calc(100% - 68px)}
 }
+
+
+/* Vector controls retain 20-22px artwork inside >=44px keyboard/touch targets.
+   Six controls still fit compact 320px screens without text-emoji fallbacks. */
+.km-post-video-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 5px 3px;
+  flex: 0 1 44px;
+}
+.km-post-video-toolbar button > .km-state-icon,
+.km-post-video-toolbar button > svg[data-knowme-icon] {
+  flex: 0 0 auto;
+}
+.km-post-video-toolbar button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+.km-post-video-tap .km-post-video-play svg[data-knowme-icon] {
+  margin-left: 3px;
+}
+@media (max-width: 380px) {
+  .km-post-video-toolbar button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 1px;
+  }
+}
