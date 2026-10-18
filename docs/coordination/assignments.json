@@ -90,25 +90,26 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/badges-user-isolation",
-      "task": "PR #727 Web Creator Settings CI in progress; PR #734 API follow-status/component isolé, CI/readiness en cours et collision #583 évitée; PR #738 anti-fuite de badges cosmétiques entre usernames, 4 tests locaux verts, GitHub CI en file.",
+      "task": "PR #727 Web Creator : 4 tests locaux verts, coordination+APK verts, quality en cours ; PR #734 API JWT follow-status+component isolé : 4 tests locaux verts, coordination verte, quality+readiness en cours, intégration page dépend PR #583 ; PR #738 isolation badge username : 4 tests locaux verts, coordination verte, APK+quality en cours. Aucune de ces PR n'a été fusionnée ; PR #716 précédemment fusionnée.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:54:47.876Z",
+      "updatedAt": "2026-10-18T14:56:11.771Z",
       "lastPr": 738,
       "resumeFrom": {
         "pr": 738,
         "branch": "chat/profiles/badges-user-isolation",
+        "head": "23b6da409de8bc147e0b13ae53ddf3b57e0d2907",
         "otherPrs": [
           727,
           734
         ],
-        "otherBranches": [
-          "chat/profiles/creator-web-conflict-safe",
-          "chat/profiles/creator-follow-authoritative"
+        "otherHeads": [
+          "a9759bf49ade3a70f216714af4175c61b590b0fd",
+          "1c3f77499286678b6750f500ceb36c2921229132"
         ],
-        "mergedPr": 716
+        "waitingFor": "CI quality #727/#734/#738; readiness #734; APK #738"
       }
     },
     "marketplace": {
@@ -706,6 +707,14 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 730
+    },
+    {
+      "at": "2026-10-18T14:56:11.771Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 738
     }
   ]
 }
