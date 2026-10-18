@@ -22,8 +22,8 @@ test('intentional Web freeze is explicitly visible, but fails when rollout is en
   assert.equal(evaluateReleaseHealth(state, { webEnabled: true }).status, 'critical');
 });
 test('database outage blocks deployment proof even while Web rollout is paused', () => {
-  assert.ok(codes(evaluateReleaseHealth({ ...ok(), ready: { status: 'ready', checks: { database: 'down' } }))
-    .includes('api-not-ready'));
+  const report = evaluateReleaseHealth({ ...ok(), ready: { status: 'ready', checks: { database: 'down' } } });
+  assert.ok(codes(report).includes('api-not-ready'));
 });
 test('missing Web is critical only if Web rollout is enabled', () => {
   assert.equal(evaluateReleaseHealth({ ...ok(), web: null }).status, 'degraded');
