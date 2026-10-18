@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22.23.2
       - name: Validate coordination guard logic
-        run: node --test scripts/coordination-check.test.mjs
+        run: node --test scripts/coordination-check.test.mjs scripts/coordination-assignments-core.test.mjs
       - name: Compare with concurrent GitHub pull requests
         env:
           GH_TOKEN: ${{ github.token }}
