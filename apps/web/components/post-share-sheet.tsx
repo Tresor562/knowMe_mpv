@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { KnowMeAnimatedIcon, type KnowMeIconState } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 function ShareGlyph({ name, state = 'idle' }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat'; state?: KnowMeIconState }) {
   const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'copy', chat: 'chats' } as const;
@@ -202,8 +203,8 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
         <div className="km-share-handle" aria-hidden="true"/>
         <header className="km-share-header">
           <h2>{en ? 'Share post' : 'Partager la publication'}</h2>
-          <button type="button" className="km-share-close" onClick={onClose} disabled={busy}
-            aria-label={en ? 'Close' : 'Fermer'}><KnowMeAnimatedIcon name="close" size={21}/></button>
+          <KnowMeIconButton name="close" size={21} className="km-share-close"
+            onClick={onClose} disabled={busy} label={en ? 'Close' : 'Fermer'} />
         </header>
         <div className="km-share-source">
           <strong>{post.author.displayName}</strong>
