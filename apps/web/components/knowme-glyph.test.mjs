@@ -59,6 +59,15 @@ test('motion derives from data, differentiates icon roles and stops safely', () 
   assert.match(visibility, /document\.addEventListener\('visibilitychange'/);
   assert.match(visibility, /document\.removeEventListener\('visibilitychange'/);
   assert.match(animated, /data-page-visible=\{visible \? 'true' : 'false'\}/);
+  const viewport = fs.readFileSync(path.join(dir, 'knowme-icon-viewport.ts'), 'utf8');
+  assert.match(viewport, /let sharedObserver: IntersectionObserver \| null/);
+  assert.match(viewport, /rootMargin: '64px 0px'/);
+  assert.match(viewport, /observer\.observe\(node\)/);
+  assert.match(viewport, /observer\.unobserve\(node\)/);
+  assert.match(viewport, /observer\.disconnect\(\)/);
+  assert.match(animated, /useKnowMeIconViewportVisible\(watching\)/);
+  assert.match(animated, /const visible = documentVisible && inViewport/);
+
   assert.match(animatedCss, /data-page-visible='false'/);
 });
 
