@@ -10,6 +10,7 @@ import {
   type InAppNotification,
   type InAppPreferences,
   notificationDestination,
+  notificationAlreadyVisible,
   notificationSymbol,
   shouldShowInAppNotice
 } from './in-app-notification-model';
@@ -90,6 +91,7 @@ export function InAppNotifications() {
           seenIds.current.add(item.id);
           if (initialized && currentPathRef.current !== '/notifications' &&
               !currentPathRef.current.startsWith('/notifications/') &&
+              !notificationAlreadyVisible(item, currentPathRef.current) &&
               shouldShowInAppNotice(item, center.preferences ?? null, new Date())) {
             next.push(item);
           }
