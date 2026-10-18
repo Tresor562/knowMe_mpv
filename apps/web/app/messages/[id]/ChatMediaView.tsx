@@ -6,6 +6,7 @@ import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { useI18n } from '../../../components/i18n-provider';
 import {buildKnowMePublicLink} from '@knowme/link-contract';
 import styles from './ChatVoiceNote.module.css';
+import {getWebChatAudio,subscribeWebChatAudio,toggleWebChatAudio,seekWebChatAudio} from '../web-audio-session';
 
 type MediaKind = 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
 type ChatMediaViewProps = {
@@ -13,51 +14,59 @@ type ChatMediaViewProps = {
   kind: MediaKind;
   fileName?: string;
   avatarUrl?: string | null;
+  origin?:string;
+  sender?:string;
   /** Only enable within chat messages, never inside the picker's interactive media tiles. */
   enablePreview?: boolean;
 };
 
-/** Message audio with native browser media controls under a KnowMe waveform UI. */
-function InlineAudioPlayer({source,assetId,en,avatarUrl}:{source:string;assetId:string;en:boolean;avatarUrl?:string|null}) {
-  const audio=useRef<HTMLAudioElement|null>(null);
-  const [playing,setPlaying]=useState(false);
-  const [duration,setDuration]=useState(0);
-  const [position,setPosition]=useState(0);
-  const [failure,setFailure]=useState(false);
-  const durationLabel=(value:number)=>{
-    if(!Number.isFinite(value))return '0:00';
-    const secs=Math.floor(value);
-    return `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
-  };
-  useEffect(()=>()=>{audio.current?.pause();},[]);
-  const bars=Array.from({length:32},(_,index)=>6+((index*17+assetId.charCodeAt(index%Math.max(1,assetId.length)))%20));
-  return <div className={styles.note} role="group" aria-label={en?'Voice message':'Message vocal'}>
-    <span className={styles.avatar} aria-hidden="true">{avatarUrl?<img src={avatarUrl} alt="" className={styles.avatarImage}/>:<span className={styles.avatarGlyph}>♫</span>}</span>
-    <button type="button" className={styles.play} disabled={failure}
-      aria-label={playing?(en?'Pause voice message':'Mettre le vocal en pause'):(en?'Play voice message':'Lire le message vocal')}
-      onClick={()=>{const player=audio.current;if(!player)return;
-        if(player.paused){void player.play().catch(()=>setFailure(true));}
-        else player.pause();
-      }}>{playing?'Ⅱ':'▶'}</button>
-    <div className={styles.content}>
-      <div className={styles.wave} aria-hidden="true">
-        {bars.map((height,index)=><span key={index} style={{height,opacity:index/32<=position/Math.max(duration,0.001)?1:0.5}}/>)}
-      </div>
-      <input className={styles.seek} type="range" min="0" step="0.1"
-        max={Math.max(0.1,duration)} value={Math.min(position,Math.max(0.1,duration))}
-        onChange={event=>{if(audio.current)audio.current.currentTime=Number(event.target.value);}}
-        aria-label={en?'Seek voice message':'Avancer dans le message vocal'}/>
-      <small className={styles.time}>{failure?(en?'Audio unavailable':'Audio indisponible'):`${durationLabel(position)} / ${durationLabel(duration)}`}</small>
-    </div>
-    <audio ref={audio} src={source} preload="metadata"
-      onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)}
-      onTimeUpdate={event=>setPosition(event.currentTarget.currentTime)}
-      onLoadedMetadata={event=>setDuration(Number.isFinite(event.currentTarget.duration)?event.currentTarget.duration:0)}
-      onError={()=>{setFailure(true);setPlaying(false);}}/>
-  </div>;
+/** Inline controller uses the same audio instance as the sticky top mini bar. */
+function InlineAudioPlayer({assetId,en,avatarUrl,sender,origin}:{
+ assetId:string;en:boolean;avatarUrl?:string|null;sender?:string;origin?:string;
+}) {
+ const [s,setS]=useState(getWebChatAudio);
+ useEffect(()=>subscribeWebChatAudio(setS),[]);
+ const own=s.assetId===assetId;
+ const downloaded=own&&s.downloaded;
+ const busy=own&&s.phase==='downloading';
+ const playing=own&&s.phase==='playing';
+ const bars=Array.from({length:30},(_,index)=>6+((index*17+assetId.charCodeAt(index%Math.max(1,assetId.length)))%20));
+ const durationLabel=(value:number)=>{
+   const secs=Math.floor(Math.max(0,value));return `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+ };
+ const progress=own&&s.duration>0?s.position/s.duration:0;
+ return <div className={styles.note} role="group" aria-label={en?'Voice message':'Message vocal'}>
+   <span className={styles.avatar} aria-hidden="true">{avatarUrl?<img src={avatarUrl}
+     alt="" className={styles.avatarImage}/>:<span className={styles.avatarGlyph}>♫</span>}</span>
+   <button type="button" className={styles.play} disabled={busy}
+     aria-label={playing?(en?'Pause voice message':'Mettre le vocal en pause'):
+       downloaded?(en?'Resume voice message':'Reprendre le vocal'):
+       (en?'Download and play voice':'Télécharger et lire le vocal')}
+     onClick={()=>toggleWebChatAudio(assetId,origin||'Conversation',sender||'Message vocal')}>
+     {busy?<span aria-hidden="true">…</span>:playing?
+     <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"
+       fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>:
+     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+       aria-hidden="true"><path d="M8 4v16l13-8z"/></svg>}
+   </button>
+   <div className={styles.content}>
+     <div className={styles.wave} aria-hidden="true">
+       {bars.map((h,i)=><span key={i} style={{height:h,opacity:i/30<=progress?1:0.4}}/>)}
+     </div>
+     <input className={styles.seek} type="range" min="0" step=".1"
+       disabled={!downloaded} max={Math.max(.1,own?s.duration:0)}
+       value={Math.min(own?s.position:0,Math.max(.1,own?s.duration:0))}
+       onChange={event=>seekWebChatAudio(Number(event.target.value))}
+       aria-label={en?'Seek voice message':'Avancer dans le vocal'}/>
+     <small className={styles.time}>{busy?(en?'Downloading…':'Téléchargement…'):
+       own&&s.error?s.error:downloaded?
+       `${durationLabel(s.position)} / ${durationLabel(s.duration)}`:
+       (en?'Not downloaded':'Non téléchargé')}</small>
+   </div>
+ </div>;
 }
 
-export function ChatMediaView({assetId, kind, fileName, enablePreview = false, avatarUrl}: ChatMediaViewProps) {
+export function ChatMediaView({assetId, kind, fileName, enablePreview = false, avatarUrl,origin,sender}: ChatMediaViewProps) {
   const {locale} = useI18n();
   const en = locale === 'en';
   const [source,setSource] = useState<string|null>(null);
@@ -70,6 +79,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false, a
   const downloadRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(()=>{
+    if(kind==='AUDIO')return; // Download only after the user actually plays audio.
     let live = true;
     let objectUrl: string | null = null;
     setSource(null);
@@ -137,7 +147,8 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false, a
 
   if(source&&kind==='VIDEO')return <video className="km-chat-media km-chat-media-video"
     controls playsInline preload="metadata" src={source} aria-label={en?'Video attachment':'Vidéo jointe'}/>;
-  if(source&&kind==='AUDIO')return <InlineAudioPlayer source={source} assetId={assetId} en={en} avatarUrl={avatarUrl}/>;
+  if(kind==='AUDIO')return <InlineAudioPlayer assetId={assetId} en={en} avatarUrl={avatarUrl}
+    origin={origin} sender={sender}/>;
   if(source&&kind==='DOCUMENT')return <a className="km-chat-media-download"
     href={source} download={fileName ?? 'knowme-document.pdf'} aria-label={fileName??(en?'Download PDF':'Télécharger le PDF')}>
     <span aria-hidden="true">▤</span> {en?'Download PDF':'Télécharger le PDF'}
@@ -146,6 +157,7 @@ export function ChatMediaView({assetId, kind, fileName, enablePreview = false, a
   const description = kind === 'GIF' ? 'GIF' : kind === 'STICKER_IMAGE' ? 'Sticker' : en ? 'Image' : 'Image';
   if(source){
     const media = <img className={`km-chat-media km-chat-media-${kind.toLowerCase()}`}
+      style={kind==='STICKER_IMAGE'?{width:128,height:128,maxWidth:'100%',objectFit:'contain'}:undefined}
       src={source} alt={description} loading="lazy" decoding="async" />;
     if(!enablePreview)return media;
 
