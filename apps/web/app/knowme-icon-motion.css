@@ -114,6 +114,45 @@
 @keyframes km-icon-record-live { from{transform:scale(.94);opacity:.65} to{transform:scale(1.06);opacity:1} }
 @keyframes km-icon-audio-live { from{transform:scale(.98);opacity:.75} to{transform:scale(1.035);opacity:1} }
 
+/* Status-specific overlays live only while the backend/caller says so. */
+.km-state-icon-typing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.km-state-icon-typing circle {
+  fill: currentColor;
+  stroke: none;
+  animation: km-icon-typing-dot 850ms ease-in-out infinite alternate;
+}
+.km-state-icon-typing circle:nth-child(2) { animation-delay: 125ms; }
+.km-state-icon-typing circle:nth-child(3) { animation-delay: 250ms; }
+.km-state-icon-live-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  right: -1px;
+  top: -1px;
+  border-radius: 50%;
+  background: #f2404f;
+  border: 1px solid var(--surface);
+  animation: km-icon-live-status 1400ms ease-in-out infinite alternate;
+}
+.km-state-icon--refresh[data-icon-state='syncing'] > svg:first-child {
+  animation: km-icon-spin 1100ms linear infinite;
+}
+.km-state-icon--phone[data-icon-state='call-active'] > svg:first-child,
+.km-state-icon--video[data-icon-state='call-active'] > svg:first-child {
+  animation: km-icon-call-live 1150ms ease-in-out infinite alternate;
+}
+.km-state-icon--send[data-icon-state='sending'] > svg:first-child {
+  animation: km-icon-send-wait 1250ms ease-in-out infinite alternate;
+}
+@keyframes km-icon-typing-dot { from{opacity:.35;transform:translateY(1px)} to{opacity:1;transform:translateY(-1px)} }
+@keyframes km-icon-live-status { from{opacity:.58;transform:scale(.93)} to{opacity:1;transform:scale(1.15)} }
+@keyframes km-icon-call-live { from{opacity:.68;transform:scale(.97)} to{opacity:1;transform:scale(1.04)} }
+@keyframes km-icon-send-wait { from{opacity:.74;transform:translate(0,0)} to{opacity:1;transform:translate(1px,-1px)} }
+
 /* Data-driven animations are always optional, not a UI requirement to operate. */
 @media (prefers-reduced-motion: reduce) {
   .km-state-icon svg { animation: none !important; transition: none !important; transform: none !important; }
@@ -127,4 +166,14 @@
 }
 :root[data-effective-reduced-motion='true'] .km-state-icon svg {
   animation: none !important; transition: none !important; transform: none !important;
+}
+
+/* Cover state-owned overlays as well as the SVG paths. */
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon-live-dot { animation: none !important; }
+}
+:root[data-animations='false'] .km-state-icon-live-dot,
+:root[data-animated-icons='false'] .km-state-icon-live-dot,
+:root[data-effective-reduced-motion='true'] .km-state-icon-live-dot {
+  animation: none !important;
 }
