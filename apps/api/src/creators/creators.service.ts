@@ -202,6 +202,35 @@ export class CreatorsService {
     };
   }
 
+  /**
+   * Return the stored subscription and count for this viewer instead of
+   * guessing from public profile data. Guests never receive private state.
+   */
+  async followStatus(viewerId: string, slug: string) {
+    const profile = await this.activeBySlug(slug);
+    if (profile.userId === viewerId) {
+      return {
+        following: false,
+        isOwner: true,
+        followerCount: profile.followerCount
+      };
+    }
+    const subscription = await this.prisma.creatorFollow.findUnique({
+      where: {
+        creatorId_followerId: {
+          creatorId: profile.userId,
+          followerId: viewerId
+        }
+      },
+      select: { followerId: true }
+    });
+    return {
+      following: Boolean(subscription),
+      isOwner: false,
+      followerCount: profile.followerCount
+    };
+  }
+
   async follow(followerId: string, slug: string) {
     const profile = await this.activeBySlug(slug);
     if (profile.userId === followerId) {
