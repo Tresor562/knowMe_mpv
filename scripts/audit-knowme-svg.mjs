@@ -68,6 +68,19 @@ function inspect(file) {
     add(row, 'native-icon-composed', source, /\b(?:KnowMeIcon|NavIcon|ActionIcon|ShareGlyph|PressScale)\b/g);
     if (extension === '.css') add(row, 'css-svg-reference', source, /url\([^)]*(?:\.svg|svg\+xml)[^)]*\)/gi);
   }
+  if (sourceTypes.has(extension) && extension !== '.css') {
+    // These warnings request human review: a surrounding aria-hidden parent may
+    // already correctly hide the decorative SVG from assistive technologies.
+    for (const match of source.matchAll(/<(?:svg|Svg)\b([^>]*?)>/gs)) {
+      const opening = match[0];
+      const context = { file: rel, line: lineOf(source, match.index) };
+      const spread = /\{\s*\.\.\./.test(opening);
+      if (!spread && !/\bviewBox\s*=/.test(opening))
+        warnings.push({ ...context, issue: 'Inline vector has no explicit viewBox (inspect inherited props)' });
+      if (!spread && !/\b(?:aria-hidden|aria-label|aria-labelledby|role)\s*=/.test(opening))
+        warnings.push({ ...context, issue: 'Inline vector accessibility semantics need review' });
+    }
+  }
   sum.inlineSVG += row.findings.filter(f => f.kind === 'inline-svg').length;
   sum.jsxSvgReferences += row.findings.filter(f => f.kind === 'react-native-svg').length;
   sum.dynamicSVG += row.findings.filter(f => f.kind === 'dynamic-svg').length;
