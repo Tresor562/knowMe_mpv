@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../../../components/i18n-provider';
 import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
@@ -47,6 +47,7 @@ export default function ConversationInfoPage() {
   const [memberFilter,setMemberFilter] = useState<'ALL'|'ADMINS'|'MEMBERS'>('ALL');
   const [copied, setCopied] = useState(false);
   const [leaving,setLeaving] = useState(false);
+  const moreMenuRef=useRef<HTMLDetailsElement>(null);
   const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('members');
 
   const load = useCallback(async () => {
@@ -70,6 +71,25 @@ export default function ConversationInfoPage() {
   }, [id, user?.id, locale]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(()=>{
+    const onPointerDown=(event: PointerEvent)=>{
+      if(moreMenuRef.current?.open && !moreMenuRef.current.contains(event.target as Node))
+        moreMenuRef.current.open=false;
+    };
+    const onKeyDown=(event: KeyboardEvent)=>{
+      if(event.key!=='Escape'||!moreMenuRef.current?.open)return;
+      event.preventDefault();
+      moreMenuRef.current.open=false;
+      moreMenuRef.current.querySelector<HTMLElement>('summary')?.focus();
+    };
+    document.addEventListener('pointerdown',onPointerDown);
+    document.addEventListener('keydown',onKeyDown);
+    return ()=>{
+      document.removeEventListener('pointerdown',onPointerDown);
+      document.removeEventListener('keydown',onKeyDown);
+    };
+  },[]);
 
   const visibleMembers = useMemo(() => {
     if (!conversation) return [];
@@ -179,9 +199,7 @@ export default function ConversationInfoPage() {
           </svg>
           <span>{canManage?tr('Gérer','Manage'):tr('Options','Options')}</span>
         </Link>}
-        {isGroup && <details className="km-info-more" onKeyDown={event=>{
-          if(event.key==='Escape')event.currentTarget.open=false;
-        }}>
+        {isGroup && <details ref={moreMenuRef} className="km-info-more">
           <summary role="button" aria-label={tr('Autres options du groupe','More group options')}
             title={tr('Autres options','More options')}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
