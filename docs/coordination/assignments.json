@@ -115,17 +115,17 @@
     },
     "infra": {
       "issue": 698,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/release-guard-readiness",
-      "task": "PR #721 : audit lecture seule API/Web/Android avec 9 tests; vérifier CI du HEAD fda74c4 avant fusion, puis relever l'état réel des déploiements",
+      "task": "PR #721 en brouillon : audit public API/Web/OTA, 10 tests; checks en cours au HEAD 1d1f31f. Avant fusion vérifier quality/coordination/audit/android, revue et main courant; puis preuve du déploiement.",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T14:14:18.132Z",
+      "updatedAt": "2026-10-18T14:16:21.295Z",
       "lastPr": 721,
       "resumeFrom": {
         "pr": 721,
         "branch": "chat/infra/release-guard-readiness",
-        "commit": "fda74c4265532018884c1e32edb5a4b368a5bcd0"
+        "commit": "1d1f31f141a2dee3f1b7946f1d5c035506edeeeb"
       }
     },
     "design": {
@@ -361,6 +361,15 @@
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "at": "2026-10-18T14:16:21.295Z",
+      "action": "pause",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "branch": "chat/infra/release-guard-readiness",
+      "pr": 721,
+      "head": "1d1f31f141a2dee3f1b7946f1d5c035506edeeeb"
     }
   ]
 }
