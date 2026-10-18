@@ -13,6 +13,9 @@
 }
 .km-post-action:active,.km-post-reaction-more:active { transform:scale(.96); }
 .km-post-action[aria-pressed='true'] { color:var(--mint); }
+/* A confirmed heart like is unmistakably red, in both themes. */
+.km-post-heart[aria-pressed='true'] { color:#e73d57; }
+.km-post-heart[aria-pressed='true']:hover { color:#d92f49; }
 .km-post-action-count { font-variant-numeric:tabular-nums; }
 .km-post-selected-emoji { font-size:20px; line-height:1; }
 .km-post-reaction-trigger { display:flex; align-items:center; flex:0 0 auto; }
