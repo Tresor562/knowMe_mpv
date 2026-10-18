@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
+import { useI18n } from './I18nProvider';
+import { reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
@@ -23,12 +25,15 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   onOpenPost:(id:string)=>void;
   onOpenProfile:(username:string)=>void;
 }){
+  const {locale}=useI18n();
+  const en=locale==='en';
   const [posts,setPosts]=useState<VideoPost[]>([]);
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
   const [hasMore,setHasMore]=useState(true);
   const [failure,setFailure]=useState('');
+  const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
@@ -50,7 +55,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     if(fetching.current||append&&!hasMore)return;
     fetching.current=true;
     append?setMore(true):setLoading(true);
-    setFailure('');
+    setFailure('');setFeedError(false);
     try{
       const cursor=append?cursorRef.current:null;
       const suffix=cursor?'?cursor='+encodeURIComponent(cursor):'';
@@ -74,6 +79,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         return [...previous,...data.filter(post=>!known.has(post.id))];
       });
     }catch(cause){
+      setFeedError(true);
       setFailure(cause instanceof Error?cause.message:'Impossible de charger les vidéos.');
     }finally{
       fetching.current=false;
@@ -87,6 +93,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   useEffect(()=>{
     if(!active&&clips[0])setActive(clips[0].id);
   },[clips,active]);
+
+  const emptyMode=reelsFeedState({clips:clips.length,posts:posts.length,loading,failed:feedError,hasMore});
 
   const onViewableItemsChanged=useRef(
     ({viewableItems}:{viewableItems:Array<{item:Clip;isViewable?:boolean}>})=>{
@@ -209,8 +217,25 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       getItemLayout={(_data,index)=>({length:viewportHeight,offset:index*viewportHeight,index})}
       initialNumToRender={2} windowSize={3} maxToRenderPerBatch={2}
       ListEmptyComponent={<View style={[styles.empty,{height:viewportHeight}]}>
-        {loading?<ActivityIndicator color="#88e9e3"/>:
-          <Text style={styles.emptyText}>Aucune vidéo disponible pour le moment.</Text>}
+        {emptyMode==='loading'?<ActivityIndicator color="#88e9e3"/>:
+          <View style={styles.emptyContent}>
+            <KnowMeIcon name={emptyMode==='failed'?'warning':'video-call'} size={48} color="#83e9de"/>
+            <Text style={styles.emptyText}>
+              {emptyMode==='failed'
+                ?en?'Videos could not be loaded. Check your connection.':'Impossible de charger les vidéos. Vérifie ta connexion.'
+                :emptyMode==='browse'
+                  ?en?'Searching for playable Reels in older posts.':'Parcourir les publications précédentes pour trouver des Réels.'
+                  :en?'No Reels available yet.':'Aucun Reel disponible pour le moment.'}
+            </Text>
+            {(emptyMode==='failed'||emptyMode==='browse')&&
+              <Pressable accessibilityRole="button" style={styles.retry}
+                onPress={()=>void load(emptyMode==='browse')}
+                disabled={loading||more}>
+                <Text style={styles.retryText}>
+                  {emptyMode==='browse'?(en?'Find more videos':'Chercher d’autres vidéos'):(en?'Retry':'Réessayer')}
+                </Text>
+              </Pressable>}
+          </View>}
       </View>}
       ListFooterComponent={more?<ActivityIndicator color="#88e9e3" style={{padding:16}}/>:null}/>
     <View style={styles.header} pointerEvents="box-none">
@@ -228,10 +253,19 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
       onProfile={onOpenProfile}/>
-    {Boolean(failure)&&<Pressable accessibilityRole="alert"
-      onPress={()=>setFailure('')} style={styles.error}>
-      <Text style={styles.errorText}>{failure}</Text>
-    </Pressable>}
+    {Boolean(failure)&&emptyMode!=='failed'&&
+      <View style={styles.error} accessibilityLiveRegion="polite">
+        <Text style={styles.errorText}>{failure}</Text>
+        {feedError&&<Pressable accessibilityRole="button" style={styles.errorAction}
+          onPress={()=>void load(true)} disabled={more}>
+          <Text style={styles.errorActionText}>{en?'Retry loading':'Réessayer le chargement'}</Text>
+        </Pressable>}
+        <Pressable accessibilityRole="button" onPress={()=>setFailure('')}
+          style={styles.errorDismiss}
+          accessibilityLabel={en?'Dismiss error':'Fermer le message d’erreur'}>
+          <Text style={styles.errorActionText}>×</Text>
+        </Pressable>
+      </View>}
   </View>;
 }
 
@@ -266,8 +300,15 @@ const styles=StyleSheet.create({
     backgroundColor:'rgba(255,255,255,.12)',borderRadius:17},
   title:{fontSize:16,color:'#fff',fontWeight:'800'},
   empty:{alignItems:'center',justifyContent:'center',paddingHorizontal:24},
-  emptyText:{color:'#bcd3d5',fontSize:14,textAlign:'center'},
+  emptyText:{color:'#bcd3d5',fontSize:14,textAlign:'center',lineHeight:21},
+  emptyContent:{maxWidth:300,alignItems:'center',gap:18},
+  retry:{minHeight:48,borderRadius:16,paddingHorizontal:22,alignItems:'center',
+    justifyContent:'center',backgroundColor:'#83e9de'},
+  retryText:{fontSize:14,fontWeight:'700',color:'#06332e'},
   error:{position:'absolute',top:65,left:20,right:20,borderRadius:13,
-    padding:13,backgroundColor:'#55272b'},
-  errorText:{color:'#fff',fontSize:12,textAlign:'center'}
+    padding:12,backgroundColor:'#55272b',flexDirection:'row',alignItems:'center',gap:8},
+  errorText:{color:'#fff',fontSize:12,flex:1},
+  errorAction:{minHeight:44,justifyContent:'center',paddingHorizontal:7},
+  errorActionText:{color:'#fff',fontSize:13,fontWeight:'700'},
+  errorDismiss:{width:44,height:44,alignItems:'center',justifyContent:'center'}
 });
