@@ -139,20 +139,20 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/accessible-feedback-dialogs",
-      "task": "Reprise PRs #724 (design system accessibilité OS Web/Android, coordination verte, CI en attente) et #730 (dialogues/notifications, coordination verte, CI active)",
+      "task": "Design #699 : PR #724 HEAD 0beff177 (focus clavier global, thèmes Web/Android, garde coordination relancée), PR #730 HEAD 78d29f87 (fenêtres, navigation clavier, E2E réels ajoutés), CI et APK derniers HEAD encore en file; pas de fusion/déploiement",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:32:36.644Z",
+      "updatedAt": "2026-10-18T14:39:07.180Z",
       "lastPr": 730,
       "resumeFrom": {
         "pr": 730,
         "branch": "chat/design/accessible-feedback-dialogs",
-        "commit": "478bb75c71fb0784962948b1a18e942750e45385",
+        "commit": "78d29f87e574492f072cbeba187cced9dad6d35b",
         "alsoPr": 724,
         "alsoBranch": "chat/design/system-accessibility-fallbacks",
-        "alsoHead": "80d787dc24b1e1cb255111071155c47c24eee890"
+        "alsoHead": "0beff177a969526bc0e4d290ba768aeb4bc478b4"
       }
     }
   },
@@ -557,6 +557,14 @@
       "issue": 693,
       "pr": 723,
       "alsoPr": 728
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T14:39:07.180Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 730,
+      "alsoPr": 724
     }
   ]
 }
