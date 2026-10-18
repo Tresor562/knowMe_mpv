@@ -6,7 +6,7 @@ export type IconOperationState =
   | 'idle' | 'selected' | 'unselected' | 'open' | 'closed'
   | 'loading' | 'progress' | 'success' | 'error'
   | 'sending' | 'recording' | 'playing' | 'paused'
-  | 'incoming' | 'offline';
+  | 'incoming' | 'offline' | 'typing' | 'syncing' | 'call-active' | 'live';
 
 export type IconSnapshot = {
   name: string;
@@ -35,5 +35,6 @@ export function didIconEventChange(previous: IconSnapshot, current: IconSnapshot
 }
 
 export function mayAnimateIndefinitely(state: IconOperationState): boolean {
-  return state === 'loading' || state === 'recording' || state === 'playing';
+  return state === 'loading' || state === 'recording' || state === 'playing' ||
+    state === 'typing' || state === 'syncing' || state === 'call-active' || state === 'live';
 }
