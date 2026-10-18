@@ -598,6 +598,46 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <KnowMeIcon name="arrow" size={22} color={colors.accentText}/>
       </Pressable>
     </View>
+    <Modal visible={Boolean(reactionPickerFor)} transparent animationType="slide"
+      onRequestClose={()=>setReactionPickerFor(null)} statusBarTranslucent>
+      <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Fermer les réactions"
+          style={styles.sheetScrim} onPress={()=>setReactionPickerFor(null)}/>
+        <View style={[styles.sheetPanel,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetHandle,{backgroundColor:colors.muted}]}/>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>Réagir au commentaire</Text>
+          <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:3,paddingVertical:12}}>
+            {COMMENT_EMOJI_CHOICES.map(emoji=>(
+              <Pressable key={emoji} accessibilityRole="button"
+                accessibilityLabel={`Réagir avec ${emoji}`}
+                disabled={reactionBusy}
+                onPress={()=>{if(reactionPickerFor)void reactTo(reactionPickerFor,emoji);}}
+                style={{flex:1,minHeight:54,borderRadius:18,alignItems:'center',justifyContent:'center',
+                  backgroundColor:colors.backgroundAccent}}>
+                <Text style={{fontSize:25}}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.smallMeta,{color:colors.muted,marginBottom:7}]}>
+            Autre emoji (choisis-le avec le clavier)
+          </Text>
+          <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
+            <TextInput value={customEmoji} onChangeText={setCustomEmoji} maxLength={32}
+              placeholder="😊" placeholderTextColor={colors.muted}
+              accessibilityLabel="Choisir un autre emoji"
+              style={{flex:1,minHeight:48,paddingHorizontal:13,borderRadius:14,
+                color:colors.text,backgroundColor:colors.backgroundAccent,fontSize:22}}/>
+            <Pressable accessibilityRole="button" accessibilityLabel="Valider l’emoji"
+              disabled={!customEmoji.trim()||reactionBusy}
+              onPress={()=>{if(reactionPickerFor)void reactTo(reactionPickerFor,customEmoji.trim());}}
+              style={{minHeight:48,paddingHorizontal:15,borderRadius:14,justifyContent:'center',
+                backgroundColor:colors.accent,opacity:reactionBusy?.5:1}}>
+              <Text style={{color:colors.accentText,fontWeight:'700'}}>Valider</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
     <PublicationActions
       post={optionsOpen ? post : null} userId={userId} onClose={() => setOptionsOpen(false)}
       onOpenProfile={onOpenProfile}
