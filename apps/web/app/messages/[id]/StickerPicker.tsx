@@ -6,7 +6,6 @@ import { useI18n } from '../../../components/i18n-provider';
 import { ChatMediaView } from './ChatMediaView';
 import { AnimatedEmojiGlyph } from '../../../components/AnimatedEmoji';
 import { knowMeToast } from '../../../components/knowme-feedback';
-import voiceStyles from './VoicePreview.module.css';
 
 type SavedMedia = {
   id:string;
@@ -106,15 +105,6 @@ export function StickerPicker<T>({
   const recorder=useRef<MediaRecorder|null>(null);
   const activeStream=useRef<MediaStream|null>(null);
   const recordedChunks=useRef<Blob[]>([]);
-  const recordingProcessingRef=useRef(false);
-  const [voicePreview,setVoicePreview]=useState<File|null>(null);
-  const [voicePreviewUrl,setVoicePreviewUrl]=useState('');
-  useEffect(()=>{
-    if(!voicePreview){setVoicePreviewUrl('');return;}
-    const url=URL.createObjectURL(voicePreview);
-    setVoicePreviewUrl(url);
-    return()=>URL.revokeObjectURL(url);
-  },[voicePreview]);
   const recordingTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const lastVoiceRequest=useRef(0);
   const [expanded,setExpanded]=useState(false);
@@ -257,7 +247,7 @@ export function StickerPicker<T>({
     }finally{setSending(null);}
   }
 
-  async function uploadAndSend(file:File,kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT'):Promise<boolean> {
+  async function uploadAndSend(file:File,kind:'GIF'|'STICKER_IMAGE'|'IMAGE'|'VIDEO'|'AUDIO'|'DOCUMENT') {
     const allowed = kind==='GIF'?['image/gif']:
       kind==='STICKER_IMAGE'?['image/png','image/webp']:
       kind==='VIDEO'?['video/mp4']:
@@ -268,9 +258,9 @@ export function StickerPicker<T>({
     if(!allowed.includes(file.type)||file.size<1024||file.size>limit) {
       setError(en?`Choose a supported file from 1 KB to ${Math.round(limit/1048576)} MB.`:
         `Choisis un fichier compatible de 1 Ko à ${Math.round(limit/1048576)} Mo.`);
-      return false;
+      return;
     }
-    if(sending)return false;
+    if(sending)return;
     setSending('upload');
     setError('');
     try {
@@ -293,30 +283,15 @@ export function StickerPicker<T>({
       onSent(message);
       setSavedMedia(current=>current?[asset,...current.filter(item=>item.id!==asset.id)].slice(0,100):current);
       setOpen(false);
-      return true;
     } catch(cause) {
       setError(cause instanceof Error?cause.message:(en?'Sending media failed.':'Envoi du média impossible.'));
-      return false;
     } finally {setSending(null);}
-  }
-
-  async function sendVoicePreview(){
-    const file=voicePreview;
-    if(!file||sending)return;
-    const sent=await uploadAndSend(file,'AUDIO');
-    // Keep local preview for retry if the secure upload or scanner rejects it.
-    if(sent)setVoicePreview(null);
   }
 
   useEffect(()=>{
     if(voiceRequest===0||lastVoiceRequest.current===voiceRequest)return;
     lastVoiceRequest.current=voiceRequest;
     const current=recorder.current;
-    if(voicePreview||recordingProcessingRef.current){
-      knowMeToast(en?'Send or discard the previous voice message first.':
-        'Envoie ou supprime d’abord le vocal précédent.','info');
-      return;
-    }
     if(current&&current.state==='recording'){
       current.stop();
       if(recordingTimer.current)clearTimeout(recordingTimer.current);
@@ -343,16 +318,9 @@ export function StickerPicker<T>({
           activeStream.current?.getTracks().forEach(track=>track.stop());
           activeStream.current=null;recorder.current=null;
           const parts=recordedChunks.current.slice();recordedChunks.current=[];
-          if(!parts.length){
-            knowMeToast(en?'The recording is empty.':'L’enregistrement est vide.','error');
-            return;
-          }
-          recordingProcessingRef.current=true;
-          void recordingToWav(new Blob(parts,{type:media.mimeType}))
-            .then(file=>setVoicePreview(file))
-            .catch(()=>knowMeToast(en?'Voice recording could not be processed.':
-              'Impossible de traiter le message vocal.','error'))
-            .finally(()=>{recordingProcessingRef.current=false;});
+          if(!parts.length)return;
+          void recordingToWav(new Blob(parts,{type:media.mimeType})).then(file=>uploadAndSend(file,'AUDIO'))
+            .catch(()=>knowMeToast(en?'Voice recording could not be processed.':'Impossible de traiter le message vocal.','error'));
         };
         media.start(250);onRecordingChange?.(true);
         recordingTimer.current=setTimeout(()=>{if(media.state==='recording')media.stop();},60000);
@@ -376,26 +344,6 @@ export function StickerPicker<T>({
   return <div className={referenceChat?'km-picker-anchor km-reference-picker':'km-picker-anchor'} ref={wrap}
     onFocusCapture={event=>{if((event.target as HTMLElement).matches('.km-chat-compose-input')){setTyping(true);setOpen(false);}}}
     onBlurCapture={event=>{if((event.target as HTMLElement).matches('.km-chat-compose-input'))setTyping(false);}}>
-    {voicePreview&&<section className={voiceStyles.panel} role="region"
-      aria-label={en?'Voice message review':'Vérification du message vocal'}>
-      <p className={voiceStyles.title}>{en?'Review voice message':'Vérifier le message vocal'}</p>
-      <p className={voiceStyles.help}>{en?
-        'Nothing has been sent. Listen and confirm, or discard the recording.':
-        'Rien n’a été envoyé. Écoute et confirme, ou supprime cet enregistrement.'}</p>
-      {voicePreviewUrl&&<audio className={voiceStyles.audio} controls preload="metadata"
-        src={voicePreviewUrl} aria-label={en?'Voice preview':'Préécoute du vocal'}/>}
-      <div className={voiceStyles.actions}>
-        <button type="button" className={voiceStyles.discard} disabled={sending==='upload'}
-          onClick={()=>setVoicePreview(null)} aria-label={en?'Discard recording':'Supprimer le vocal'}>
-          {en?'Discard':'Supprimer'}
-        </button>
-        <button type="button" className={voiceStyles.send} disabled={sending!==null}
-          onClick={()=>void sendVoicePreview()} aria-label={en?'Send voice message':'Envoyer le vocal'}>
-          {sending==='upload'?(en?'Sending…':'Envoi…'):(en?'Send voice':'Envoyer le vocal')}
-        </button>
-      </div>
-      {error&&<p role="alert" className={voiceStyles.help}>{error}</p>}
-    </section>}
     <button type="button" className="km-picker-trigger" aria-expanded={open}
       aria-controls="knowme-sticker-picker"
       aria-label={open?(en?'Return to typing':'Revenir au clavier'):(en?'Emoji GIF stickers':'Emojis GIF stickers')}
