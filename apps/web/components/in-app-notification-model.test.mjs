@@ -24,6 +24,8 @@ test('mute, instant mode, quiet hours and explicit permission govern noncritical
   assert.equal(shouldShowInAppNotice(item,{...enabled,masterEnabled:false},t),false);
   assert.equal(shouldShowInAppNotice(item,{...enabled,realtimeEnabled:false},t),false);
   assert.equal(shouldShowInAppNotice(item,{...enabled,digestMode:'CENTER_ONLY'},t),false);
+  assert.equal(shouldShowInAppNotice(item,{...enabled,digestMode:'HOURLY'},t),false);
+  assert.equal(shouldShowInAppNotice(item,{...enabled,digestMode:'DAILY'},t),false);
   assert.equal(shouldShowInAppNotice(item,{...enabled,mutedTypes:['CREATOR_POST']},t),false);
   assert.equal(shouldShowInAppNotice(item,{...enabled,categorySettings:{SOCIAL:false}},t),false);
   assert.equal(shouldShowInAppNotice({...item,readAt:'2026-10-18T20:00:00Z'},enabled,t),false);
