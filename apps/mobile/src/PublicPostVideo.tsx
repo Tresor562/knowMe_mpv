@@ -8,6 +8,7 @@ import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
+import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
@@ -23,6 +24,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const [positionMs,setPositionMs]=useState(0);
   const [durationMs,setDurationMs]=useState(0);
   const [seekToMs,setSeekToMs]=useState<number|undefined>(undefined);
+  const [resumeMs,setResumeMs]=useState<number|null>(null);
+  const playback=useRef({positionMs:0,durationMs:0,checkpointAt:0,completed:false});
   const [trackWidth,setTrackWidth]=useState(1);
   const [scrubMs,setScrubMs]=useState<number|null>(null);
   const [timeDialogOpen,setTimeDialogOpen]=useState(false);
@@ -45,8 +48,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       if(activeDownload.current)void activeDownload.current.pauseAsync().catch(()=>undefined);
       if(singleTapTimer.current!==null)clearTimeout(singleTapTimer.current);
       if(pulseTimer.current!==null)clearTimeout(pulseTimer.current);
+      const last=playback.current;
+      if(last.durationMs>0)void savePublicVideoResume(url,last.positionMs,last.durationMs).catch(()=>undefined);
     };
-  },[]);
+  },[url]);
   useEffect(()=>{
     let cancelled=false;
     setSaved(null);
@@ -109,9 +114,15 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setPositionMs(0);
     setDurationMs(0);
     setSeekToMs(undefined);
-    const offline=await savedPublicVideo(url).catch(()=>null);
+    playback.current={positionMs:0,durationMs:0,checkpointAt:0,completed:false};
+    setResumeMs(null);
+    const [offline,resume]=await Promise.all([
+      savedPublicVideo(url).catch(()=>null),
+      getPublicVideoResume(url).catch(()=>null)
+    ]);
     if(alive.current){
       if(offline)setSaved(offline);
+      setResumeMs(resume);
       setLocal(offline??API_URL+url);
     }
   }
@@ -148,6 +159,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     const bounded=clampVideoSeek(milliseconds,durationMs);
     setSeekToMs(bounded);
     setPositionMs(bounded);
+    setResumeMs(null);
+    playback.current.positionMs=bounded;
+    if(playback.current.durationMs>0)void savePublicVideoResume(url,bounded,playback.current.durationMs).catch(()=>undefined);
   }
   function confirmTimestamp(){
     const target=parseVideoTimestamp(timeInput,durationMs);
@@ -183,6 +197,19 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           const position=event.nativeEvent.positionMs;
           if(Number.isFinite(duration)&&duration>0)setDurationMs(duration);
           if(Number.isFinite(position)&&position>=0&&!scrubbing.current)setPositionMs(position);
+          if(Number.isFinite(duration)&&duration>0&&Number.isFinite(position)&&position>=0){
+            const current=playback.current;
+            current.positionMs=position;
+            current.durationMs=duration;
+            const completed=position>=duration-15000||position>=duration*.95;
+            const now=Date.now();
+            if(now-current.checkpointAt>=15000||completed&&!current.completed){
+              current.checkpointAt=now;
+              current.completed=completed;
+              void savePublicVideoResume(url,position,duration).catch(()=>undefined);
+            }
+            if(position>12000&&resumeMs!==null)setResumeMs(null);
+          }
         }}/>
       <Pressable style={styles.tapZone}
         accessibilityRole="button"
@@ -242,6 +269,27 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           <Text style={styles.skipText}>+10</Text>
         </Pressable>
       </View>
+      {resumeMs!==null&&durationMs>0&&positionMs<12000&&
+        <View style={[styles.resumeBox,onDoubleTap?styles.resumeReel:null]}>
+          <Pressable accessibilityRole="button" style={styles.resumeButton}
+            accessibilityLabel={en?'Resume from '+videoTime(resumeMs):'Reprendre à '+videoTime(resumeMs)}
+            onPress={()=>seek(resumeMs)}>
+            <KnowMeIcon name="play" size={18} color="#08312c"/>
+            <Text style={styles.resumeLabel}>
+              {en?'Resume '+videoTime(resumeMs):'Reprendre '+videoTime(resumeMs)}
+            </Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" style={styles.resumeClose}
+            accessibilityLabel={en?'Continue from the start':'Continuer depuis le début'}
+            onPress={()=>{
+              setResumeMs(null);
+              // Starting over is an explicit choice: don't re-prompt with the
+              // former bookmark the next time the user opens this video.
+              void savePublicVideoResume(url,durationMs,durationMs).catch(()=>undefined);
+            }}>
+            <KnowMeIcon name="close" size={18} color="#fff"/>
+          </Pressable>
+        </View>}
     </View>:<Pressable
       accessibilityRole="button" accessibilityLabel="Lire la vidéo"
       onPress={()=>void open()} style={[styles.open,{backgroundColor:colors.surface}]}>
@@ -312,6 +360,13 @@ const styles=StyleSheet.create({
     backgroundColor:'rgba(0,0,0,.68)',flexDirection:'row',
     alignItems:'center',gap:10},
   reelSeek:{bottom:205},
+  resumeBox:{position:'absolute',bottom:71,alignSelf:'center',flexDirection:'row',
+    backgroundColor:'rgba(4,20,24,.9)',borderRadius:16,padding:4,alignItems:'center',gap:4},
+  resumeReel:{bottom:262},
+  resumeButton:{minHeight:44,flexDirection:'row',alignItems:'center',paddingHorizontal:12,
+    gap:7,backgroundColor:'#83e9de',borderRadius:12},
+  resumeLabel:{fontSize:12,color:'#08312c',fontWeight:'800'},
+  resumeClose:{width:44,height:44,alignItems:'center',justifyContent:'center'},
   skipButton:{width:42,minHeight:44,alignItems:'center',justifyContent:'center'},
   skipText:{color:'#fff',fontSize:10,fontWeight:'800'},
   seekMiddle:{flex:1,gap:7},
