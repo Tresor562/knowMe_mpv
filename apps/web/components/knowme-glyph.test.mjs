@@ -46,15 +46,15 @@ test('motion derives from data, differentiates icon roles and stops safely', () 
 });
 
 test('only explicit icon SVGs get touch transforms; shared sheets use actual operation state', () => {
-  assert.match(css, /svg\\[data-knowme-icon\\]/);
-  assert.doesNotMatch(css, /svg:not\\(\\[data-no-touch-motion\\]\\)/);
+  assert.match(css, /svg\[data-knowme-icon\]/);
+  assert.doesNotMatch(css, /svg:not\(\[data-no-touch-motion\]\)/);
   const sheet = fs.readFileSync(path.join(dir, 'post-share-sheet.tsx'), 'utf8');
   assert.match(sheet, /busyOperation === "feed"/);
   assert.match(sheet, /busyOperation === "story"/);
   assert.match(sheet, /busyOperation === "message"/);
-  assert.match(sheet, /copied \\? "success" : "idle"/);
+  assert.match(sheet, /copied \? "success" : "idle"/);
   const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
-  assert.match(avatar, /state=\\{open \\? "open" : "closed"\\}/);
+  assert.match(avatar, /state=\{open \? "open" : "closed"\}/);
   assert.match(animatedCss, /data-icon-state='open'/);
   assert.match(animatedCss, /km-icon-heart-release/);
 });
