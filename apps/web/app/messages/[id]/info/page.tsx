@@ -175,7 +175,8 @@ export default function ConversationInfoPage() {
     </header>
     {(sessionLoading || loading) && <p className="km-info-status" role="status">{tr('Chargement…','Loading…')}</p>}
     {error && <p className="km-auth-error" role="alert">{error}</p>}
-    {!loading && !sessionLoading && conversation && <>
+    {!loading && !sessionLoading && conversation && <div className="km-group-workspace">
+      <div className="km-group-sidebar">
       <section className="km-info-identity" aria-label={tr('Identité de la discussion', 'Chat identity')}>
         {isGroup
           ? <div className="km-info-group-avatar km-group-identity-mark"
@@ -249,6 +250,8 @@ export default function ConversationInfoPage() {
           <span>{tr('Profil', 'Profile')}</span>
         </Link>}
       </nav>
+      </div>
+      <div className="km-group-main-pane">
       <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}
         onKeyDown={event=>{
           if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
@@ -412,6 +415,7 @@ export default function ConversationInfoPage() {
           : tr('Le lien de la discussion n’est accessible qu’à ses participants. Les informations du contact restent accessibles depuis son profil.',
              'The chat link is accessible to its participants only. Contact information is available on their profile.')}</p>
       </section>}
-    </>}
+      </div>
+    </div>}
   </main>;
 }
