@@ -82,10 +82,11 @@ function mergeMessages(current:Message[],incoming:Message[],prepend=false){
   return prepend?[...fresh,...current]:[...current,...fresh];
 }
 
-function MessageContent({item}:{item:Message}){
+function MessageContent({item,origin}:{item:Message;origin:string}){
   if(item.presentation?.kind==='GIF'||item.presentation?.kind==='STICKER_IMAGE'||item.presentation?.kind==='IMAGE'||
     item.presentation?.kind==='VIDEO'||item.presentation?.kind==='AUDIO'||item.presentation?.kind==='DOCUMENT') {
-    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} avatarUrl={item.sender?.avatarUrl} enablePreview/>;
+    return <ChatMediaView assetId={item.presentation.assetId} kind={item.presentation.kind} fileName={item.presentation.fileName} avatarUrl={item.sender?.avatarUrl}
+      origin={origin} sender={item.sender?.displayName??'Message vocal'} enablePreview/>;
   }
   if(item.presentation?.kind==='STICKER'){
     return(
@@ -516,7 +517,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
               ? <strong className="km-message-author">Nexus</strong>
               : <Link className="km-message-author" href={`/profile/${encodeURIComponent(item.sender.username)}`} aria-label={`Voir le profil de ${item.sender.displayName}`}>{item.sender.displayName}<AccountBadges username={item.sender.username} staff={item.sender.staff} verification={item.sender.verification} compact/></Link>
             )}
-            <MessageContent item={item}/>
+            <MessageContent item={item} origin={chatTitle}/>
             <div className="km-message-meta">
               <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleTimeString(en?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'})}</time>
               {mine&&<span aria-label={readers.length>0?(en?'Read':'Lu'):(en?'Sent':'Envoyé')} className={readers.length?'km-reference-read':'km-reference-sent'}>{readers.length?'✓✓':'✓'}</span>}
