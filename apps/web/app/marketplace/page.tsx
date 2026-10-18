@@ -351,7 +351,7 @@ export default function MarketplacePage() {
           {dialogError && <p className={styles.dialogError} role="alert">{dialogError}</p>}
           <div className={styles.dialogActions}>
             {selected.kind === 'gift' ? (
-              <Link className={styles.primaryAction} href="/gifts">
+              <Link className={styles.primaryAction} href={'/gifts?offer=' + encodeURIComponent(selected.id.slice(5))}>
                 {en ? 'Choose a recipient' : 'Choisir un destinataire'}
               </Link>
             ) : selected.owned ? (
