@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
 import { nativeIconChanged, nativeIconProgress, nativeIconShouldLoop, nativeVisibleGlyph } from './native-icon-motion-model.ts';
 
 test('native pause glyph reflects actual player state', () => {
@@ -29,4 +31,19 @@ test('native status changes animate once and do not invent progress', () => {
   assert.equal(nativeIconProgress('progress', -.2), 0);
   assert.equal(nativeIconProgress('progress', .64), .64);
   assert.equal(nativeIconProgress('progress', 1.3), 1);
+});
+
+test('real native touch target and persistent red fill are wired to state', () => {
+  const dir = import.meta.dirname;
+  const control = fs.readFileSync(path.join(dir, 'KnowMeNativeIconButton.tsx'), 'utf8');
+  const motion = fs.readFileSync(path.join(dir, 'KnowMeNativeAnimatedIcon.tsx'), 'utf8');
+  const ui = fs.readFileSync(path.join(dir, 'KnowMeUI.tsx'), 'utf8');
+  assert.match(control, /width: 48, height: 48, minWidth: 48, minHeight: 48/);
+  assert.match(control, /onLongPress=\{onLongPress\}/);
+  assert.match(control, /accessibilityLabel=\{label\}/);
+  assert.match(control, /selected: state === 'selected'/);
+  assert.match(motion, /filled=\{selectedHeart\}/);
+  assert.match(motion, /if \(!enabled \|\| !nativeIconShouldLoop\(state\)\)/);
+  assert.match(ui, /if \(name === 'heart' && filled\)/);
+  assert.match(ui, /onLongPress=\{onLongPress\}/);
 });
