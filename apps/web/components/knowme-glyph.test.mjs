@@ -43,6 +43,12 @@ test('motion derives from data, differentiates icon roles and stops safely', () 
   assert.match(animatedCss, /km-icon-heart-pop/);
   assert.match(animatedCss, /#ef3340/);
   assert.match(animatedCss, /prefers-reduced-motion: reduce/);
+  const visibility = fs.readFileSync(path.join(dir, 'knowme-document-visibility.ts'), 'utf8');
+  assert.match(visibility, /subscribers\.size === 1/);
+  assert.match(visibility, /document\.addEventListener\('visibilitychange'/);
+  assert.match(visibility, /document\.removeEventListener\('visibilitychange'/);
+  assert.match(animated, /data-page-visible=\{visible \? 'true' : 'false'\}/);
+  assert.match(animatedCss, /data-page-visible='false'/);
 });
 
 test('only explicit icon SVGs get touch transforms; shared sheets use actual operation state', () => {
