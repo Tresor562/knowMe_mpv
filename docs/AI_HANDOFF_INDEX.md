@@ -2,6 +2,9 @@
 
 Mandatory reading order for any future coding agent:
 
+**KnowMe trigger** : when a new conversation consists of the user saying `bien`, follow `docs/coordination/BIEN_PROTOCOL.md`. Reserve a domain atomically in the dedicated `coordination/workstream-assignments` branch, reuse the same domain within the conversation, develop it and report active/paused/free assignments. GitHub is the durable state; private conversations are not directly observable.
+
+
 0. `/docs/coordination/PARALLEL_WORK.md` and `/docs/coordination/workstreams.json`; choose the domain issue, inspect live competing PRs, and use an isolated `chat/<workstream>/<slug>` branch for new work.
 
 1. `/AGENTS.md`

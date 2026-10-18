@@ -6,6 +6,9 @@ These repository-level instructions apply to any coding assistant, agent, or fut
 
 ### Coordination obligatoire entre conversations
 
+**Convention explicite de lancement KnowMe :** si l'utilisateur ouvre une nouvelle discussion et écrit seulement `bien`, appliquer immédiatement `docs/coordination/BIEN_PROTOCOL.md` : consulter le registre d'occupation sur `coordination/workstream-assignments`, revendiquer atomiquement un seul domaine libre (ou en pause après les libres), commencer à développer ce domaine, y compris ses écrans, et donner le point des domaines pris, en pause et libres. Dans la même conversation, garder le même domaine. Ne jamais prétendre détecter directement l'activité privée des autres discussions.
+
+
 Avant toute intervention dans ce dépôt, lire `docs/coordination/PARALLEL_WORK.md` et `docs/coordination/workstreams.json`, identifier le domaine, l'issue et toutes les PR actuellement ouvertes. Toute nouvelle unité de travail démarre sur `chat/<workstream>/<slug>`, avec une PR liée à une issue de même domaine et le contrôle de chevauchement de fichiers. Ce protocole ajoute des garde-fous et ne remplace aucune règle de sécurité, design, qualité, CI ou livraison ci-dessous. **Ne jamais supposer voir en temps réel le travail non enregistré d'une autre conversation.**
 
 

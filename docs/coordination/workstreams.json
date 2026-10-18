@@ -86,5 +86,12 @@
       "merge into main",
       "Web and Android validation where affected"
     ]
+  },
+  "assignmentRegistry": {
+    "branch": "coordination/workstream-assignments",
+    "path": "docs/coordination/assignments.json",
+    "trigger": "bien",
+    "instructions": "docs/coordination/BIEN_PROTOCOL.md",
+    "updateRule": "blob SHA compare-and-swap; refresh and reselect on conflict"
   }
 }
