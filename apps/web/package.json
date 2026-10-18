@@ -6,7 +6,8 @@
     "build": "next build",
     "lint": "next lint",
     "start": "next start",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test": "node --test components/knowme-glyph.test.mjs"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
