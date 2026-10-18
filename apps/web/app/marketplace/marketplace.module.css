@@ -143,6 +143,12 @@
 .catalogHeader button:disabled { opacity: .4; }
 .items { display: grid; gap: 0; }
 .item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   display: grid;
   grid-template-columns: 73px minmax(0, 1fr) 20px;
   gap: 13px;
@@ -236,4 +242,71 @@
 @media(prefers-reduced-motion:reduce) {
   .skeletonItem { animation: none; }
   .item,.filters button { transition: none; }
+}
+
+.balance {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 17px;
+  color: var(--text);
+  background: var(--surface-2);
+  text-decoration: none;
+  font-size: 12px;
+}
+.balance span:first-child { flex: 1; color: var(--muted); }
+.balance strong { font-size: 13px; }
+.balance span:last-child { color: var(--muted); font-size: 20px; }
+.successNotice {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  color: var(--text);
+  border-radius: 13px;
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.purchaseDialog {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(100%, 480px);
+  max-width: 480px;
+  max-height: min(92dvh, 760px);
+  overflow-y: auto;
+  margin: auto auto 0;
+  padding: 18px 18px calc(20px + env(safe-area-inset-bottom));
+  border: 1px solid var(--soft-border);
+  border-radius: 27px 27px 0 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 -10px 40px rgba(0,0,0,.16);
+}
+.purchaseDialog::backdrop { background: rgba(9,16,24,.62); backdrop-filter: blur(5px); }
+.dialogHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.dialogHeading button { border: 0; background: transparent; color: var(--text); width: 48px; height: 48px; border-radius: 24px; font-size: 26px; cursor: pointer; }
+.dialogHeading button:hover, .dialogHeading button:focus-visible { background: var(--surface-2); }
+.dialogPreview { width: 92px; height: 92px; margin: 10px auto 15px; display: grid; place-items: center; border-radius: 25px; background: var(--surface-2); color: var(--mint); overflow: hidden; }
+.dialogPreview img { width: 100%; height: 100%; object-fit: cover; }
+.dialogPreview span { font-size: 44px; }
+.purchaseDialog h2 { text-align: center; margin: 0 0 7px; font-size: 20px; font-weight: 700; }
+.dialogDescription { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0 0 17px; }
+.dialogPrice { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--soft-border); font-size: 13px; }
+.dialogPrice span { color: var(--muted); }
+.dialogPrice strong { font-size: 13px; }
+.dialogActions { display: grid; gap: 9px; margin-top: 19px; }
+.dialogActions a, .dialogActions button { min-height: 48px; border-radius: 16px; padding: 11px 16px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 650; font-size: 14px; cursor: pointer; text-decoration: none; font-family: inherit; }
+.primaryAction { border: 0; background: var(--mint); color: var(--on-primary); }
+.secondaryAction { background: var(--surface-2); color: var(--text); border: 1px solid var(--soft-border); }
+.dialogActions button:disabled { opacity: .55; cursor: progress; }
+.dialogError { margin: 15px 0 0; font-size: 13px; color: var(--danger, #e25b58); line-height: 1.45; }
+.confirmText { margin: 2px 0 4px; font-size: 13px; line-height: 1.45; text-align: center; }
+.purchaseDialog :is(button,a):focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+@media(min-width:700px) {
+  .purchaseDialog { inset: 0; margin: auto; border-radius: 27px; max-height: min(84dvh,760px); }
+}
+:global(:root[data-reduce-transparency='true']) .purchaseDialog::backdrop { backdrop-filter: none; }
+@media(prefers-reduced-motion: reduce) {
+  .purchaseDialog::backdrop { backdrop-filter: none; }
 }
