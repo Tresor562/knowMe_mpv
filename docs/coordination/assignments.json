@@ -53,12 +53,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/story-archive-pagination",
-      "task": "PR #709 archive Stories (coordination réussie; CI/Android en cours); PR #707 spectateurs (collision PR #583, réconciliation requise). Reprendre validation CI exacte et fusion une fois gouvernance au vert.",
+      "task": "Suite dans la même conversation : qualifier, intégrer PR #709 CI verte, résoudre le blocage #707 et développer les Stories/Reels",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T12:21:24.795Z",
+      "updatedAt": "2026-10-18T13:25:28.032Z",
       "lastPr": 709,
       "resumeFrom": null
     },
@@ -181,6 +181,15 @@
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "issue": 697,
       "branch": "chat/marketplace/storefront-discovery"
+    },
+    {
+      "at": "2026-10-18T13:25:28.032Z",
+      "action": "resume",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "branch": "chat/reels/story-archive-pagination",
+      "pr": 709
     }
   ]
 }
