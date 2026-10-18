@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { apiFetch, type ApiError } from './api';
+import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import {
@@ -69,6 +70,7 @@ export function CreatorSettingsExperience() {
   const [notice, setNotice] = useState('');
   const [noticeError, setNoticeError] = useState(false);
   const [statsError, setStatsError] = useState(false);
+  const [versionConflict, setVersionConflict] = useState(false);
 
   function patchDraft(patch: Partial<CreatorDraft>) {
     setDraft(current => ({ ...current, ...patch }));
@@ -85,6 +87,7 @@ export function CreatorSettingsExperience() {
       const current = await apiFetch<CreatorProfile | null>('/creators/me');
       setProfile(current);
       setDraft(current ? draftFromProfile(current) : EMPTY_DRAFT);
+      setVersionConflict(false);
       setDashboard(null);
       setStatsError(false);
       if (current) {
@@ -148,6 +151,7 @@ export function CreatorSettingsExperience() {
       });
       setProfile(updated);
       setDraft(draftFromProfile(updated));
+      setVersionConflict(false);
       setDashboard(null);
       setStatsError(false);
       try {
@@ -161,6 +165,7 @@ export function CreatorSettingsExperience() {
     } catch (cause) {
       if ((cause as ApiError)?.code === 'CREATOR_VERSION_CONFLICT') {
         // Do not silently reload: that would destroy unsaved edits.
+        setVersionConflict(true);
         setNotice(tr(
           'Ce profil a été modifié ailleurs. Vérifie tes changements, puis recharge la version serveur avant de réessayer.',
           'This profile changed elsewhere. Review your edits, then reload the server version before retrying.'
@@ -173,6 +178,19 @@ export function CreatorSettingsExperience() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function confirmServerReload() {
+    if (busy || loading) return;
+    Alert.alert(
+      tr('Recharger la version serveur ?', 'Reload the server version?'),
+      tr('Tes modifications non enregistrées seront remplacées par les informations du serveur.',
+        'Your unsaved changes will be replaced by the latest server values.'),
+      [
+        { text: tr('Annuler', 'Cancel'), style: 'cancel' },
+        { text: tr('Recharger', 'Reload'), onPress: () => { void load(); } }
+      ]
+    );
   }
 
   const inputStyle = [
@@ -241,6 +259,20 @@ export function CreatorSettingsExperience() {
           style={[styles.notice, { color: noticeError ? colors.danger : colors.secondary }]}>
           {notice}
         </Text>
+      ) : null}
+
+      {versionConflict && !loading && !loadFailed ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={tr('Recharger la version du serveur', 'Reload server profile')}
+          style={[styles.retry, { borderColor: colors.border, backgroundColor: colors.backgroundAccent }]}
+          onPress={confirmServerReload}
+          disabled={busy}>
+          <KnowMeIcon name="refresh" size={20} color={colors.accent} />
+          <Text style={{ color: colors.text, fontWeight: '800' }}>
+            {tr('Recharger depuis le serveur', 'Reload from server')}
+          </Text>
+        </Pressable>
       ) : null}
 
       {loadFailed && !loading ? (
