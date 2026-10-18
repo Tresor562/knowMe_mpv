@@ -109,12 +109,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "branch": "chat/marketplace/verified-transaction-history",
-      "task": "PR #733 merged (090fd63) & Vercel prod READY. #731 approved CI+APK+initial guard, draft->ready triggered extra guard queued. #737 APK success, CI running. #739 pending CI/APK and depends #731. #741 CI and guard success, APK pending. #717/#719 still conflict #583. Merged overall: #722 #714 #712 #726 #733; don't claim newer APK shipped.",
+      "task": "Complete validated marketplace PRs #731, #737, #739, #741, preserving dependencies",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T15:11:35.637Z",
+      "updatedAt": "2026-10-18T15:26:19.201Z",
       "lastPr": 741,
       "resumeFrom": {
         "pr": 741,
@@ -832,6 +832,13 @@
       "action": "resume",
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9"
+    },
+    {
+      "at": "2026-10-18T15:26:19.201Z",
+      "action": "resume",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697
     }
   ]
 }
