@@ -1080,6 +1080,7 @@ export function FeedExperience({
       canAttachPhoto={postPhotoSupported || offline}
       onChoosePhoto={()=>setPhotoPickerOpen(true)}
       onRemovePhoto={()=>setSelectedPhotos([])}
+      onRemoveMedia={index=>setSelectedPhotos(current=>current.filter((_,i)=>i!==index))}
       onPublish={()=>void publish()}
       publishing={publishing}
       offline={offline}
