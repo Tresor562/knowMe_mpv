@@ -56,6 +56,10 @@ function inspect(file) {
     if (/<(?:script|foreignObject)\b|\bon\w+\s*=|javascript:/i.test(source)) {
       warnings.push({ file: rel, line: 1, severity: 'error', issue: 'Unsafe or foreign SVG content requires manual review' });
     }
+    if (/<image\b|data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source)) {
+      warnings.push({ file: rel, line: 1, severity: 'error',
+        issue: 'Raster image embedded in SVG: supply true vector paths or a separately managed image asset' });
+    }
     row.findings.push({ kind: 'standalone-svg', line: 1 });
   }
   if (extension === '.xml' && /<vector\b/i.test(source)) {
