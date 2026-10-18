@@ -178,23 +178,30 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/group-info-shared-content",
-      "task": "PR #743/#762 merged after all green; implementing private/group shared gallery author/date range and sort filters in isolated design branch, with tests.",
+      "branch": "chat/design/shared-history-date-author-filters",
+      "task": "Merged PRs #743 (9aac415) and #762 (2b0c0ac) on verified green CI/guard/APK; verified Vercel knowme-android production READY for both exact merge SHAs and knowme-nextech domain bound. PR #764 b94fcf5e open: private+group shared-history filter by verified sender identity, inclusive local date range, sort direction, media subtype, tests. Guard green; latest CI in_progress; APK pending. Messaging #756 owns ?message target navigation and is green but open, comment posted. No signed Android distribution confirmed; 308 requirement catalogue not fully built.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T19:22:07.162Z",
-      "lastPr": 762,
+      "updatedAt": "2026-10-18T19:32:12.699Z",
+      "lastPr": 764,
       "resumeFrom": {
-        "pr": 762,
-        "branch": "chat/design/group-info-shared-content",
-        "commit": "43429fbea53e3b1324ffe8932a8b6b76f14bd7c7",
-        "otherPr": 743,
-        "otherHead": "08edb0f8c872c331ce6a9a2dadbce29c978f7a4d",
-        "dependencyPr": 754,
-        "parityDocument": "docs/design/PRIVATE_AND_GROUP_MESSAGING_PARITY_MATRIX_20261018.md",
-        "featureCount": 308,
-        "next": "check exact head CI / APK and E2E, merge after green + clean base; resume implementing in designated domains"
+        "pr": 764,
+        "branch": "chat/design/shared-history-date-author-filters",
+        "commit": "b94fcf5e055244d9389d560b00f9ac6a2dba60b7",
+        "merged": [
+          {
+            "pr": 743,
+            "mergeCommit": "9aac41567909635ac8aadaa1983d9f3cfdf0f131"
+          },
+          {
+            "pr": 762,
+            "mergeCommit": "2b0c0ac0a5554df3e9a3ff3864d5dd955ec4aa85"
+          }
+        ],
+        "dependencyPr": 756,
+        "legacyPr": 754,
+        "need": "Finish PR #764 CI+APK then verify clean mergeability; integrated author/date filters in private/group; maintain strict domain ownership."
       }
     }
   },
@@ -1057,6 +1064,17 @@
       "at": "2026-10-18T19:22:07.162Z",
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T19:32:12.699Z",
+      "pr": 764,
+      "mergedPrs": [
+        743,
+        762
+      ]
     }
   ]
 }
