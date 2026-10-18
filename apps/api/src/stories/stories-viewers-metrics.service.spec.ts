@@ -72,7 +72,7 @@ describe('StoriesService.viewers — complete private owner metrics', () => {
     expect(prisma.storyView.findMany).toHaveBeenCalledWith({
       where: { storyId: 'story-1' },
       orderBy: [{ lastViewedAt: 'desc' }, { id: 'desc' }],
-      take: 500
+      take: 501
     });
     expect(prisma.storyView.count).toHaveBeenCalledWith({
       where: { storyId: 'story-1', screenshotAt: { not: null } }
@@ -98,6 +98,40 @@ describe('StoriesService.viewers — complete private owner metrics', () => {
       screenshots: 0, viewersTruncated: false, viewers: []
     });
     expect(prisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 identities per page and a continuation cursor without changing global totals', async () => {
+    const { prisma, service } = setup();
+    const row = (i: number) => ({
+      id: 'v' + i, viewerUserId: 'member-' + i, viewCount: 1, completionBps: 5000,
+      lastViewedAt: new Date(1_800_000_000_000 - i * 1000), screenshotAt: null
+    });
+    prisma.storyView.findMany
+      .mockResolvedValueOnce(Array.from({ length: 501 }, (_, i) => row(i)))
+      .mockResolvedValueOnce(Array.from({ length: 101 }, (_, i) => row(i + 500)));
+    prisma.storyView.aggregate.mockResolvedValue({
+      _count: { _all: 601 }, _sum: { viewCount: 601, completionBps: 3_005_000 }
+    });
+    prisma.storyView.count.mockResolvedValue(0);
+    prisma.storyReaction.count.mockResolvedValue(2);
+    prisma.storyReply.count.mockResolvedValue(1);
+    prisma.user.findMany.mockResolvedValue([]);
+
+    const first = await service.viewers('author', 'story-1');
+    expect(first.viewers).toHaveLength(500);
+    expect(first.nextCursor).toBe('v499');
+    expect(first.uniqueViewers).toBe(601);
+
+    const second = await service.viewers('author', 'story-1', first.nextCursor!);
+    expect(second.viewers).toHaveLength(101);
+    expect(second.viewers[0].viewerUserId).toBe('member-500');
+    expect(second.nextCursor).toBeNull();
+    expect(second.uniqueViewers).toBe(601);
+    expect(prisma.storyView.findMany).toHaveBeenLastCalledWith({
+      where: { storyId: 'story-1' },
+      orderBy: [{ lastViewedAt: 'desc' }, { id: 'desc' }],
+      take: 501, cursor: { id: 'v499' }, skip: 1
+    });
   });
 
   it('rejects non-owner access before any audience statistics query', async () => {
