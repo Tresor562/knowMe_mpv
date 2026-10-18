@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   equipCosmetic,
   fetchCosmeticInventory,
@@ -8,6 +8,8 @@ import {
   type CosmeticOffer
 } from './cosmetics';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
+import { filterMarketplaceOffers, type MarketplaceCatalogFilter } from './marketplace-offer-filters';
 import { KnowMeAlert, KnowMeToast } from './ui/KnowMeFeedback';
 import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
@@ -28,12 +30,16 @@ function purchaseKey(offerId: string) {
 /** Genuine KnowMe personalizations: the server defines offers, prices, ownership and equipment. */
 export function CosmeticsMarketplaceExperience() {
   const { colors } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [shop, setShop] = useState<Shop | null>(null);
   const [inventory, setInventory] = useState<Inventory | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<MarketplaceCatalogFilter>('all');
   // Keep the same idempotency key after a network error: a successful server
   // purchase with a lost response must never debit KnowCoins a second time.
   const pendingPurchases = useRef<Record<string, string>>({});
@@ -67,6 +73,16 @@ export function CosmeticsMarketplaceExperience() {
     () => new Set((inventory?.equipment ?? []).map(equipment => equipment.itemId)),
     [inventory]
   );
+  const visibleOffers = useMemo(
+    () => filterMarketplaceOffers(shop?.offers ?? [], search, filter, ownedIds, equippedIds),
+    [shop, search, filter, ownedIds, equippedIds]
+  );
+  const filters: Array<[MarketplaceCatalogFilter, string]> = [
+    ['all', en ? 'All' : 'Tout'],
+    ['available', en ? 'Available' : 'Disponibles'],
+    ['owned', en ? 'Owned' : 'Possédés'],
+    ['equipped', en ? 'Equipped' : 'Équipés']
+  ];
 
   const buy = async (offer: CosmeticOffer) => {
     if (busyId) return;
@@ -140,6 +156,46 @@ export function CosmeticsMarketplaceExperience() {
         </Pressable>
       </View>
 
+      <View style={[styles.searchField, { backgroundColor: colors.backgroundAccent, borderColor: colors.border }]}>
+        <KnowMeIcon name="search" size={19} color={colors.muted} />
+        <TextInput
+          accessibilityLabel={en ? 'Search marketplace items' : 'Rechercher un objet dans la marketplace'}
+          placeholder={en ? 'Search gifts, frames, styles…' : 'Rechercher cadres, styles, objets…'}
+          placeholderTextColor={colors.muted}
+          value={search}
+          onChangeText={setSearch}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          style={[styles.searchInput, { color: colors.text }]}
+        />
+        {search.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={en ? 'Clear search' : 'Effacer la recherche'}
+            onPress={() => setSearch('')}
+            style={styles.clearSearch}>
+            <Text style={{ fontSize: 22, color: colors.muted }}>×</Text>
+          </Pressable>
+        )}
+      </View>
+      <View accessibilityRole="tablist" style={styles.filterRow}>
+        {filters.map(([value, label]) => (
+          <Pressable key={value} accessibilityRole="tab"
+            accessibilityState={{ selected: filter === value }}
+            onPress={() => setFilter(value)}
+            style={[
+              styles.filterChip,
+              { backgroundColor: filter === value ? colors.backgroundAccent : colors.background,
+                borderColor: filter === value ? colors.accent : colors.border }
+            ]}>
+            <Text style={{ color: filter === value ? colors.accent : colors.muted, fontSize: 12, fontWeight: '700' }}>
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       {shop ? (
         <GlassSurface strength="soft" borderRadius={18} style={styles.balance}>
           <KnowMeIcon name="coins" size={22} color={colors.accent} />
@@ -173,7 +229,21 @@ export function CosmeticsMarketplaceExperience() {
         </Text>
       ) : null}
 
-      {shop?.offers.map(offer => {
+      {!loading && shop && shop.offers.length > 0 && visibleOffers.length === 0 ? (
+        <View style={styles.noMatches} accessibilityRole="text">
+          <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>
+            {en ? 'No items match your search or filter.' : 'Aucun objet ne correspond à ta recherche ou à ce filtre.'}
+          </Text>
+          <Pressable accessibilityRole="button" onPress={() => { setSearch(''); setFilter('all'); }}
+            style={[styles.retry, { borderColor: colors.border }]}>
+            <Text style={{ color: colors.accent, fontWeight: '700' }}>
+              {en ? 'Clear filters' : 'Effacer les filtres'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {visibleOffers.map(offer => {
         const owned = offer.owned || ownedIds.has(offer.itemId);
         const equipped = equippedIds.has(offer.itemId);
         const busy = busyId === offer.id;
@@ -243,6 +313,12 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 13, flex: 1 },
   balanceValue: { fontWeight: '800', fontSize: 13 },
   center: { minHeight: 110, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  searchField: { minHeight: 48, borderWidth: 1, borderRadius: 18, paddingLeft: 13, paddingRight: 4, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  searchInput: { flex: 1, minWidth: 0, minHeight: 46, fontSize: 14, paddingVertical: 8 },
+  clearSearch: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 3 },
+  filterChip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  noMatches: { minHeight: 130, padding: 18, alignItems: 'center', justifyContent: 'center', gap: 12 },
   message: { borderRadius: 18, padding: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
   retry: { minHeight: 44, borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, justifyContent: 'center' },
   empty: { textAlign: 'center', paddingVertical: 30, fontSize: 13 },
