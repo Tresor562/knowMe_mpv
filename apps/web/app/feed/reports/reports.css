@@ -87,3 +87,22 @@
 @media (prefers-reduced-motion: reduce) {
   .km-post-report-history * { scroll-behavior: auto; }
 }
+
+.km-post-report-history-more {
+  display: block;
+  min-height: 48px;
+  margin: 17px auto 10px;
+  padding: 10px 20px;
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 680;
+  cursor: pointer;
+}
+.km-post-report-history-more:disabled { opacity: .55; cursor: wait; }
+.km-post-report-history-more:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+}
