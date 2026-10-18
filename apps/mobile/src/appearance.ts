@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ColorSchemeName } from 'react-native';
 import { apiFetch } from './api';
-import { accessibleGlassPalette } from './appearance-accessibility';
 
 export type ThemePalette = {
   background: string;
@@ -387,11 +386,8 @@ export function resolveMobilePalette(
     secondary,
     appearance.preference.effectiveThemeBlendMode
   );
-  const palette = appearance.preference.contrast === 'HIGH'
-    ? { ...blended, muted: blended.text, border: blended.text }
-    : blended;
-  // A requested solid surface must win over a custom theme's translucent glass.
-  return accessibleGlassPalette(palette, appearance.preference.reduceTransparency === true);
+  if (appearance.preference.contrast !== 'HIGH') return blended;
+  return { ...blended, muted: blended.text, border: blended.text };
 }
 
 export async function loadCachedAppearance() {
