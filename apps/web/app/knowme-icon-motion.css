@@ -71,8 +71,14 @@
   animation-name: km-icon-focus;
 }
 .km-state-icon--back[data-icon-burst] > svg:first-child,
-.km-state-icon--forward[data-icon-burst] > svg:first-child {
+.km-state-icon--forward[data-icon-burst] > svg:first-child,
+.km-state-icon--rewind-10[data-icon-burst] > svg:first-child,
+.km-state-icon--forward-10[data-icon-burst] > svg:first-child {
   animation-name: km-icon-direction;
+}
+.km-state-icon--fullscreen[data-icon-burst] > svg:first-child,
+.km-state-icon--fullscreen-exit[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
 }
 .km-state-icon--play[data-icon-burst] > svg:first-child,
 .km-state-icon--pause[data-icon-burst] > svg:first-child,
