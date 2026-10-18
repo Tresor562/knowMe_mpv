@@ -66,6 +66,7 @@ export function KnowMeAnimatedIcon({
       data-icon-state={state}
       data-icon-burst={burst ? String(motionId) : undefined}
       data-auto-motion={visible && mayAnimateIndefinitely(state) ? 'true' : 'false'}
+      data-page-visible={visible ? 'true' : 'false'}
       aria-hidden="true"
       style={{ width: size, height: size }}
     >
