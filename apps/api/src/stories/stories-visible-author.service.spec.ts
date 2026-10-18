@@ -46,7 +46,7 @@ describe('StoriesService.visibleByAuthor', () => {
     ]));
   });
 
-  it('paginates by allowed Story ID and never expands the author's audience',async()=>{
+  it("paginates by allowed Story ID and never expands the author's audience",async()=>{
     const {prisma,service}=setup();
     prisma.story.findFirst.mockResolvedValue({id:'story-19'});
     prisma.story.findMany.mockResolvedValue([{id:'story-20',authorUserId:'author'}]);
