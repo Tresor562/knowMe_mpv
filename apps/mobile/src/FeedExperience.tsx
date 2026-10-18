@@ -2,7 +2,7 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
-  Image, type ImageStyle,
+  Image,
   Linking,
   Modal,
   Pressable,
@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import { API_URL, apiFetch } from './api';
+import { apiFetch } from './api';
 import { AndroidMediaLibraryPicker, type SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { useAppearance } from './AppearanceProvider';
@@ -27,7 +27,7 @@ import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
-import {PublicPostVideo} from './PublicPostVideo';
+import {PostMediaGallery} from './PostMediaGallery';
 
 type Author = {
   id: string;
@@ -62,10 +62,6 @@ type Comment = {
 
 type ReactionSummary = {total:number;mine:string|null;emojis:Array<{emoji:string;count:number}>};
 const COMMENT_EMOJI_CHOICES = ['❤️','😂','😮','😢','😡'];
-
-function resolvePostImage(url: string) {
-  return url.startsWith('/media/public/post/') ? `${API_URL}${url}` : url;
-}
 
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
@@ -564,23 +560,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </View>
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
-        {post.media?.length ? <View style={{flexDirection:'row',flexWrap:'wrap',gap:3}}>
-          {post.media.slice(0,5).map((medium,index)=><View key={medium.url}
-            style={{width:post.media!.length===1?'100%':index<2?'49%':'32%',
-              height:post.media!.length===1?290:index<2?205:127,
-              backgroundColor:colors.surface,overflow:'hidden',position:'relative',borderRadius:3}}>
-            {medium.mimeType.startsWith('image/')?
-              <Image source={{uri:resolvePostImage(medium.url)}} style={{width:'100%',height:'100%'}}
-                resizeMode="cover"/>:<PublicPostVideo url={medium.url}/>}
-            {index===4&&post.media!.length>5?<View
-              style={{position:'absolute',top:0,bottom:0,left:0,right:0,
-                backgroundColor:'#000a',justifyContent:'center',alignItems:'center'}}>
-              <Text style={{color:'#fff',fontSize:29,fontWeight:'800'}}>+{post.media!.length-5}</Text>
-            </View>:null}
-          </View>)}
-        </View>:post.imageUrl?
-          <Image source={{uri:resolvePostImage(post.imageUrl)}} style={styles.postImage as ImageStyle}
-            resizeMode="cover"/>:null}
+        <PostMediaGallery media={post.media} fallbackUrl={post.imageUrl} caption={post.content}/>
         <View style={styles.discussionMetrics}>
           <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la publication" onPress={() => void toggleLike()}
             style={styles.metricInline}>
@@ -929,24 +909,7 @@ export function FeedExperience({
             <Text style={{fontSize:24,lineHeight:26,color:colors.text}}>⋯</Text>
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
-          {item.media?.length?<View style={{flexDirection:'row',flexWrap:'wrap',gap:3}}>
-            {item.media.slice(0,5).map((medium,index)=><View key={medium.url}
-              style={{width:item.media!.length===1?'100%':index<2?'49%':'32%',
-                height:item.media!.length===1?275:index<2?198:126,
-                backgroundColor:colors.surface,position:'relative',overflow:'hidden',borderRadius:3}}>
-              {medium.mimeType.startsWith('image/')?
-                <Image source={{uri:resolvePostImage(medium.url)}}
-                  style={{width:'100%',height:'100%'}} resizeMode="cover"/>:
-                <PublicPostVideo url={medium.url}/>}
-              {index===4&&item.media!.length>5?<View
-                style={{position:'absolute',top:0,bottom:0,left:0,right:0,
-                  backgroundColor:'#000a',alignItems:'center',justifyContent:'center'}}>
-                <Text style={{color:'white',fontSize:27,fontWeight:'800'}}>+{item.media!.length-5}</Text>
-              </View>:null}
-            </View>)}
-          </View>:item.imageUrl?<Image
-            source={{uri:resolvePostImage(item.imageUrl)}}
-            style={styles.postImage as ImageStyle} resizeMode="cover"/>:null}
+          <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime" onPress={() => void like(item.id)} />
             <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
