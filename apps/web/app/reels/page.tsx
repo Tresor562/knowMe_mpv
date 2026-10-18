@@ -53,8 +53,21 @@ export default function ReelsPage() {
     setError('');
     try{
       const cursor=more?posts[posts.length-1]?.id:undefined;
-      const path=cursor?'/posts/feed?cursor='+encodeURIComponent(cursor):'/posts/feed';
-      const page=await apiFetch<Post[]>(path);
+      const suffix=cursor?'?cursor='+encodeURIComponent(cursor):'';
+      let page: Post[];
+      try {
+        // Use the video-only endpoint when the API has been upgraded.
+        const response=await apiFetch<Post[]>('/posts/videos'+suffix);
+        if(!Array.isArray(response))throw new Error('LEGACY_REELS_RESPONSE');
+        page=response;
+      }catch(cause){
+        const status=(cause as {status?:number})?.status;
+        if(status!==404 && !(cause instanceof Error && cause.message==='LEGACY_REELS_RESPONSE'))throw cause;
+        // During staged Web/VPS rollouts, the old feed stays functional.
+        const legacy=await apiFetch<Post[]>('/posts/feed'+suffix);
+        if(!Array.isArray(legacy))throw new Error('Réponse du fil indisponible.');
+        page=legacy;
+      }
       setPosts(current=>{
         if(!more) return page;
         const known=new Set(current.map(post=>post.id));
