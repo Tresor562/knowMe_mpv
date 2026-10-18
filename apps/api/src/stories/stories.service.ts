@@ -180,6 +180,39 @@ export class StoriesService {
 
 
   /**
+   * Page only the current viewer's visible Stories from one creator.
+   * Reuses the feed ACL, so private/friends/custom audiences never leak.
+   */
+  async visibleByAuthor(viewerId:string,username:string,cursor?:string){
+    await this.expireDue();
+    const author=await this.prisma.user.findUnique({
+      where:{username},select:{id:true}
+    });
+    if(!author)throw new NotFoundException({
+      code:'STORY_PROFILE_NOT_FOUND',message:'Profile not found.'
+    });
+    const acl=await this.storyFeedWhere(viewerId,new Date());
+    const where:Prisma.StoryWhereInput={AND:[acl,{authorUserId:author.id}]};
+    if(cursor){
+      const permitted=await this.prisma.story.findFirst({
+        where:{AND:[where,{id:cursor}]},select:{id:true}
+      });
+      if(!permitted)throw new BadRequestException({
+        code:'STORY_SEQUENCE_CURSOR_INVALID',message:'Invalid Story cursor.'
+      });
+    }
+    const rows=await this.prisma.story.findMany({
+      where,orderBy:[{createdAt:'desc'},{id:'desc'}],take:21,
+      ...(cursor?{cursor:{id:cursor},skip:1}:{})
+    });
+    const page=rows.slice(0,20);
+    return {
+      stories:await Promise.all(page.map(story=>this.serialize(story,viewerId))),
+      nextCursor:rows.length>20?page[page.length-1]?.id??null:null
+    };
+  }
+
+  /**
    * Story rail is paginated by author, not by Story. Counts include all
    * published, unexpired Stories visible to this viewer, including those
    * beyond the original feed's first 50 entries.
