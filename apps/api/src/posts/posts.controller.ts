@@ -45,6 +45,11 @@ export class PostsController {
     return this.posts.feed(cursor);
   }
 
+  @Get('videos')
+  videos(@Query('cursor') cursor?: string) {
+    return this.posts.videos(cursor);
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.posts.getById(id);
