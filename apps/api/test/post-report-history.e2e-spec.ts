@@ -96,5 +96,33 @@ describe('Private paginated publication report history (e2e)', () => {
       .get('/reports/mine').set(aliceAuth).expect(200);
     expect(legacy.body.some((entry: {targetType:string}) => entry.targetType === 'COMMENT'))
       .toBe(true);
+
+    await prisma.report.update({
+      where: { id: page1.body.reports[0].id },
+      data: { status: 'RESOLVED' }
+    });
+    const reviewed = await request(app.getHttpServer())
+      .get('/reports/mine/posts')
+      .query({ status: 'RESOLVED' })
+      .set(aliceAuth).expect(200);
+    expect(reviewed.body.reports).toHaveLength(1);
+    expect(reviewed.body.reports[0].status).toBe('RESOLVED');
+    expect(reviewed.body.nextCursor).toBeNull();
+
+    const open = await request(app.getHttpServer())
+      .get('/reports/mine/posts')
+      .query({ status: 'OPEN' })
+      .set(aliceAuth).expect(200);
+    expect(open.body.reports).toHaveLength(20);
+    expect(open.body.nextCursor).toEqual(expect.any(String));
+
+    await request(app.getHttpServer())
+      .get('/reports/mine/posts')
+      .query({ status: 'OPEN', cursor: reviewed.body.reports[0].id })
+      .set(aliceAuth).expect(400);
+    await request(app.getHttpServer())
+      .get('/reports/mine/posts')
+      .query({ status: 'NOT_REAL' })
+      .set(aliceAuth).expect(400);
   });
 });
