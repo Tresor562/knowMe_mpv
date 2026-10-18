@@ -258,3 +258,16 @@ test('creator actions, media categories and private profile CTA use compact stat
   assert.doesNotMatch(secret, /🕵️|className="card"/);
   assert.match(secretCss, /min-height: 44px/);
 });
+
+
+test('all vector glyphs have real-event motion fallback, idle never loops', () => {
+  const motion = fs.readFileSync(path.join(dir, '..', 'app', 'knowme-icon-motion.css'), 'utf8');
+  const model = fs.readFileSync(path.join(dir, 'knowme-animated-icon.tsx'), 'utf8');
+  assert.match(motion, /\.km-state-icon\[data-icon-burst\] > svg:first-child \{[\s\S]*?animation-name: km-icon-focus/);
+  assert.match(motion, /:where\(\.km-state-icon\[data-auto-motion='true'\]\[data-icon-state='loading'\]\)/);
+  assert.match(motion, /:where\(\.km-state-icon\[data-auto-motion='true'\]\[data-icon-state='syncing'\]\)/);
+  assert.match(motion, /km-state-icon--refresh\[data-icon-state='loading'\]/);
+  assert.match(motion, /km-state-icon--microphone\[data-icon-state='recording'\]/);
+  assert.match(model, /data-auto-motion=\{visible && mayAnimateIndefinitely\(state\)/);
+  assert.match(model, /settings\.animatedIcons === 'false'/);
+});
