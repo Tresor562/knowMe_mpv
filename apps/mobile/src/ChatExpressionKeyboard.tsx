@@ -11,6 +11,7 @@ import {KnowMeIcon} from './ui/KnowMeUI';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {KnowStickerPackCreator} from './KnowStickerPackCreator';
 import {readKnowStickerPacks,deleteKnowStickerPack,renameKnowStickerPack,renameKnowStickerItem,
+  setKnowStickerPackArchived,moveKnowStickerPack,setKnowStickerItemEmojis,
   sendKnowStickerImage,type KnowStickerPack} from './KnowStickerPackStore';
 import {knowStickerDisplayName} from './knowsticker-naming-model';
 import {UNICODE_EMOJI_CATALOG,UNICODE_EMOJI_GROUPS} from './unicode-emoji-catalog';
@@ -66,8 +67,9 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
   const [ownPacks,setOwnPacks]=useState<KnowStickerPack[]>([]);
   const [packCreatorOpen,setPackCreatorOpen]=useState(false);
   const [packRevision,setPackRevision]=useState(0);
+  const [showArchived,setShowArchived]=useState(false);
   const [renameTarget,setRenameTarget]=useState<{
-    kind:'pack'|'sticker';packId:string;stickerId?:string;
+    kind:'pack'|'sticker'|'emoji';packId:string;stickerId?:string;
   }|null>(null);
   const [renameValue,setRenameValue]=useState('');
   const [renameBusy,setRenameBusy]=useState(false);
@@ -165,10 +167,10 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     }catch(cause){setFailure(cause instanceof Error?cause.message:'Envoi du sticker impossible.');}
     finally{setBusy(false);}
   }
-  function openRename(kind:'pack'|'sticker',pack:KnowStickerPack,item?:KnowStickerPack['items'][number]){
+  function openRename(kind:'pack'|'sticker'|'emoji',pack:KnowStickerPack,item?:KnowStickerPack['items'][number]){
     if(busy||renameBusy)return;
     setRenameTarget({kind,packId:pack.id,stickerId:item?.id});
-    setRenameValue(kind==='pack'?pack.name:knowStickerDisplayName(item?.name??''));
+    setRenameValue(kind==='pack'?pack.name:kind==='emoji'?(item?.emojis??[]).join(' '):knowStickerDisplayName(item?.name??''));
     setRenameError('');
   }
   async function saveRename(){
@@ -178,6 +180,8 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
     try {
       if(target.kind==='pack'){
         await renameKnowStickerPack(target.packId,renameValue);
+      }else if(target.stickerId&&target.kind==='emoji'){
+        await setKnowStickerItemEmojis(target.packId,target.stickerId,renameValue);
       }else if(target.stickerId){
         await renameKnowStickerItem(target.packId,target.stickerId,renameValue);
       }
@@ -187,6 +191,32 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
       setRenameError(cause instanceof Error?cause.message:'Modification impossible.');
     }finally{setRenameBusy(false);}
   }
+  async function organizePack(id:string,action:'up'|'down'|'archive'|'restore'){
+    try{
+      if(action==='up'||action==='down')await moveKnowStickerPack(id,action==='up'?-1:1);
+      else await setKnowStickerPackArchived(id,action==='archive');
+      setPackRevision(value=>value+1);
+    }catch{setFailure('Impossible de modifier ce pack.');}
+  }
+  function packOptions(pack:KnowStickerPack){
+    Alert.alert('Pack KnowSticker',pack.name,[
+      {text:'Renommer',onPress:()=>openRename('pack',pack)},
+      {text:pack.archived?'Restaurer':'Archiver',
+        onPress:()=>void organizePack(pack.id,pack.archived?'restore':'archive')},
+      {text:'Monter',onPress:()=>void organizePack(pack.id,'up')},
+      {text:'Descendre',onPress:()=>void organizePack(pack.id,'down')},
+      {text:'Supprimer',style:'destructive',onPress:()=>confirmDeletePack(pack)},
+      {text:'Annuler',style:'cancel'}
+    ]);
+  }
+  function stickerOptions(pack:KnowStickerPack,item:KnowStickerPack['items'][number]){
+    Alert.alert('Sticker KnowMe',knowStickerDisplayName(item.name),[
+      {text:'Renommer',onPress:()=>openRename('sticker',pack,item)},
+      {text:'Associer des emojis',onPress:()=>openRename('emoji',pack,item)},
+      {text:'Annuler',style:'cancel'}
+    ]);
+  }
+
   function confirmDeletePack(pack:KnowStickerPack){
     Alert.alert('Supprimer le pack ?',pack.name,[
       {text:'Annuler',style:'cancel'},
