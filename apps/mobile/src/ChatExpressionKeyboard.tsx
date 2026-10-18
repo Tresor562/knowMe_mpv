@@ -381,11 +381,11 @@ export function ChatExpressionKeyboard<T>({conversationId,tab,onChangeTab,onClos
             </Text>
             <Pressable accessibilityRole="button" accessibilityLabel={`Renommer le pack ${owned.name}`}
               onPress={()=>openRename('pack',owned)} style={styles.renameAction}>
-              <KnowMeIcon name="edit" size={19} color={activeColor}/>
+              <Text style={{color:activeColor,fontSize:11,fontWeight:'700'}}>Renommer</Text>
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={`Supprimer le pack ${owned.name}`}
               onPress={()=>confirmDeletePack(owned)} style={styles.renameAction}>
-              <KnowMeIcon name="trash" size={19} color={muted}/>
+              <Text style={{color:muted,fontSize:11,fontWeight:'700'}}>Supprimer</Text>
             </Pressable>
           </View>
           <View style={styles.grid}>
