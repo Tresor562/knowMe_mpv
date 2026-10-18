@@ -39,8 +39,8 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
   };
 
   const shapes = {
-    'rewind-10': <><path d="M5 6.4V12h5.6"/><path d="M5.1 12a8 8 0 1 1 2.9 6"/><text x="12.1" y="16.05" fill="currentColor" stroke="none" textAnchor="middle" fontSize="7.8" fontWeight="700">10</text></>,
-    'forward-10': <><path d="M19 6.4V12h-5.6"/><path d="M18.9 12a8 8 0 1 0-2.9 6"/><text x="12.1" y="16.05" fill="currentColor" stroke="none" textAnchor="middle" fontSize="7.8" fontWeight="700">10</text></>,
+    'rewind-10': <><path d="M5 6.4V12h5.6"/><path d="M5.1 12a8 8 0 1 1 2.9 6"/><path d="m9.7 11 1.1-1v6" strokeWidth="1.25"/><ellipse cx="14.25" cy="13" rx="1.45" ry="2.85" strokeWidth="1.25"/></>,
+    'forward-10': <><path d="M19 6.4V12h-5.6"/><path d="M18.9 12a8 8 0 1 0-2.9 6"/><path d="m9.7 11 1.1-1v6" strokeWidth="1.25"/><ellipse cx="14.25" cy="13" rx="1.45" ry="2.85" strokeWidth="1.25"/></>,
     fullscreen: <><path d="M9 3.8H3.8V9M15 3.8h5.2V9M20.2 15v5.2H15M9 20.2H3.8V15"/></>,
     'fullscreen-exit': <><path d="M3.8 9H9V3.8M20.2 9H15V3.8M15 20.2V15h5.2M9 20.2V15H3.8"/></>,
     'copy': <><rect x="8" y="8" width="12.3" height="12.3" rx="2.1"/><path d="M16.3 8V5.7a2 2 0 0 0-2-2H5.7a2 2 0 0 0-2 2v8.6a2 2 0 0 0 2 2H8"/></>,
