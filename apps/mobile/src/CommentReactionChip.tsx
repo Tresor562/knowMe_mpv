@@ -115,7 +115,7 @@ export function CommentReactionChip({ postId, commentId }: {postId:string;commen
 const styles=StyleSheet.create({
   chip:{minHeight:34,alignItems:'center',justifyContent:'center',paddingHorizontal:3},
   pickerButton:{minWidth:32,minHeight:34,alignItems:'center',justifyContent:'center'},
-  label:{fontSize:13,fontWeight:'650'},
+  label:{fontSize:13,fontWeight:'600'},
   overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.54)'},
   sheet:{paddingHorizontal:14,paddingTop:10,paddingBottom:32,borderTopLeftRadius:26,borderTopRightRadius:26,borderWidth:StyleSheet.hairlineWidth},
   handle:{width:39,height:5,borderRadius:4,alignSelf:'center',marginBottom:16},
