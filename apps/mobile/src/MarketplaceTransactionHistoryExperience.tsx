@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
+import { useI18n } from './I18nProvider';
 import { apiFetch } from './api';
 import { fetchCosmeticPurchaseHistory, type CosmeticPurchaseReceipt } from './cosmetics';
 import {
@@ -19,6 +20,8 @@ import { KnowMeIcon } from './ui/KnowMeUI';
  */
 export function MarketplaceTransactionHistoryExperience() {
   const { colors } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
   const [cosmetics, setCosmetics] = useState<CosmeticPurchaseReceipt[]>([]);
   const [sentGifts, setSentGifts] = useState<MobileSocialGiftSentItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -56,8 +59,8 @@ export function MarketplaceTransactionHistoryExperience() {
 
   useEffect(() => { void reload(); }, [reload]);
 
-  const rows = useMemo(() => marketplaceReceiptRows(cosmetics, sentGifts, filter, query),
-    [cosmetics, sentGifts, filter, query]);
+  const rows = useMemo(() => marketplaceReceiptRows(cosmetics, sentGifts, filter, query, en ? 'en' : 'fr'),
+    [cosmetics, sentGifts, filter, query, en]);
 
   const loadOlder = async () => {
     if (loadingOlder || !cursor) return;
@@ -71,7 +74,8 @@ export function MarketplaceTransactionHistoryExperience() {
       setSentGifts(previous => appendUniqueGiftReceipts(previous, page.items));
       setCursor(page.nextCursor === requestedCursor ? null : page.nextCursor);
     } catch {
-      setOlderError('Impossible de charger les anciens cadeaux. Réessaie.');
+      setOlderError(en ? 'Older gifts could not be loaded. Retry.' :
+        'Impossible de charger les anciens cadeaux. Réessaie.');
     } finally {
       setLoadingOlder(false);
     }
@@ -81,26 +85,26 @@ export function MarketplaceTransactionHistoryExperience() {
     <View style={styles.root}>
       <View style={styles.heading}>
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <Text style={[styles.title, { color: colors.text }]}>Mes transactions</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{en ? 'My transactions' : 'Mes transactions'}</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Achats et cadeaux envoyés confirmés par KnowMe
+            {en ? 'Purchases and sent gifts verified by KnowMe' : 'Achats et cadeaux envoyés confirmés par KnowMe'}
           </Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Actualiser l’historique"
+        <Pressable accessibilityRole="button" accessibilityLabel={en ? 'Refresh transaction history' : 'Actualiser l’historique'}
           disabled={loading} onPress={() => void reload()}
           style={[styles.iconButton, { backgroundColor: colors.backgroundAccent }]}>
           <KnowMeIcon name="refresh" size={19} color={colors.accent}/>
         </Pressable>
       </View>
       <Text style={[styles.note, { color: colors.muted }]}>
-        Cette liste ne représente pas tout le portefeuille : les cadeaux reçus et autres
-        mouvements KnowCoins ne sont pas inclus.
+        {en ? 'This list is not your full wallet history: incoming gifts and other KnowCoins movements are excluded.' :
+          'Cette liste ne représente pas tout le portefeuille : les cadeaux reçus et autres mouvements KnowCoins ne sont pas inclus.'}
       </Text>
       <View style={styles.filters} accessibilityRole="tablist">
         {([
-          ['all', 'Tout'],
-          ['cosmetics', 'Achats'],
-          ['gifts', 'Cadeaux envoyés']
+          ['all', en ? 'All' : 'Tout'],
+          ['cosmetics', en ? 'Purchases' : 'Achats'],
+          ['gifts', en ? 'Sent gifts' : 'Cadeaux envoyés']
         ] as const).map(([value, label]) => (
           <Pressable key={value} accessibilityRole="tab"
             accessibilityState={{ selected: filter === value }}
@@ -118,15 +122,15 @@ export function MarketplaceTransactionHistoryExperience() {
       <View style={[styles.search, { borderColor: colors.border, backgroundColor: colors.backgroundAccent }]}>
         <KnowMeIcon name="search" size={19} color={colors.muted}/>
         <TextInput
-          accessibilityLabel="Rechercher dans les transactions"
+          accessibilityLabel={en ? 'Search transactions' : 'Rechercher dans les transactions'}
           value={query} onChangeText={setQuery}
-          placeholder="Rechercher un achat ou un cadeau…"
+          placeholder={en ? 'Search purchases or gifts…' : 'Rechercher un achat ou un cadeau…'}
           placeholderTextColor={colors.muted}
           autoCorrect={false}
           style={[styles.searchInput, { color: colors.text }]}
         />
         {query.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Effacer la recherche"
+          <Pressable accessibilityRole="button" accessibilityLabel={en ? 'Clear search' : 'Effacer la recherche'}
             onPress={() => setQuery('')} style={styles.iconButton}>
             <KnowMeIcon name="close" size={18} color={colors.muted}/>
           </Pressable>
@@ -135,31 +139,32 @@ export function MarketplaceTransactionHistoryExperience() {
       {missingSources.length > 0 && !loading && (
         <View style={[styles.warning, { backgroundColor: colors.backgroundAccent }]}>
           <Text accessibilityRole="alert" style={[styles.note, { color: colors.danger }]}>
-            Historique incomplet : {missingSources.join(' et ')} indisponibles.
+            {en ? 'History is incomplete; some receipts are unavailable.' :
+              'Historique incomplet : ' + missingSources.join(' et ') + ' indisponibles.'}
           </Text>
           <Pressable accessibilityRole="button" onPress={() => void reload()} style={styles.retry}>
-            <Text style={{ color: colors.accent, fontWeight: '700' }}>Réessayer</Text>
+            <Text style={{ color: colors.accent, fontWeight: '700' }}>{en ? 'Retry' : 'Réessayer'}</Text>
           </Pressable>
         </View>
       )}
       {loading ? (
         <View style={styles.empty}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={{ color: colors.muted, fontSize: 13 }}>Chargement des reçus…</Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>{en ? 'Loading receipts…' : 'Chargement des reçus…'}</Text>
         </View>
       ) : rows.length === 0 ? (
         <View style={styles.empty}>
           <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>
             {missingSources.length === 2
-              ? 'Impossible de consulter les reçus pour le moment.'
-              : 'Aucune transaction correspondante dans les résultats chargés.'}
+              ? (en ? 'Receipt history is unavailable.' : 'Impossible de consulter les reçus pour le moment.')
+              : (en ? 'No matching transactions in the loaded history.' : 'Aucune transaction correspondante dans les résultats chargés.')}
           </Text>
         </View>
       ) : rows.map(item => {
         const timestamp = Date.parse(item.createdAt);
         const date = Number.isFinite(timestamp)
-          ? new Date(timestamp).toLocaleString('fr-FR')
-          : 'Date indisponible';
+          ? new Date(timestamp).toLocaleString(en ? 'en-US' : 'fr-FR')
+          : (en ? 'Date unavailable' : 'Date indisponible');
         return (
           <View key={item.id} style={[styles.receipt, { borderBottomColor: colors.border }]}>
             <View style={[styles.receiptIcon, { backgroundColor: colors.backgroundAccent }]}>
@@ -172,7 +177,7 @@ export function MarketplaceTransactionHistoryExperience() {
             </View>
             <View style={{ alignItems: 'flex-end', gap: 3 }}>
               <Text style={[styles.amount, { color: colors.text }]}>
-                −{item.priceKnowCoins.toLocaleString('fr-FR')}
+                −{item.priceKnowCoins.toLocaleString(en ? 'en-US' : 'fr-FR')}
               </Text>
               <Text style={[styles.receiptDetail, { color: colors.muted }]}>KnowCoins</Text>
             </View>
@@ -186,7 +191,8 @@ export function MarketplaceTransactionHistoryExperience() {
             onPress={() => void loadOlder()}
             style={[styles.moreButton, { backgroundColor: colors.backgroundAccent }]}>
             <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13 }}>
-              {loadingOlder ? 'Chargement…' : 'Charger les anciens cadeaux'}
+              {loadingOlder ? (en ? 'Loading…' : 'Chargement…') :
+                (en ? 'Load older sent gifts' : 'Charger les anciens cadeaux')}
             </Text>
           </Pressable>
         </View>
