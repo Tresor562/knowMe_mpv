@@ -63,8 +63,10 @@ test('foreign publication can be reported with a reason; own publication cannot'
     targetId: 'friend-post',
     reason: 'Harcèlement ou intimidation : Contenu problématique'
   }]);
-  await dialog.getByRole('button', { name: 'Terminer' }).click();
+  // After server confirmation, Escape must close both report and options sheets.
+  await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Options de cette publication' })).toHaveCount(0);
   await expect(foreign).toBeVisible();
 });
 
