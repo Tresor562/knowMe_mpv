@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ENDPOINTS, evaluateReleaseHealth, getSafeJson, probeReleaseHealth } from './knowme-release-health-audit.mjs';
+
+const sha = 'a'.repeat(40);
+const api = { platform: 'api', commit: sha, version: '1.1.8', experienceRevision: '2026-10-17.1' };
+const web = { ...api, platform: 'web' };
+const ready = { status: 'ready', checks: { database: 'up' } };
+const android = { release: { version: '1.1.8', versionCode: 10800, sha256: 'b'.repeat(64),
+  url: 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-1.1.8-preview.apk' } };
+const ok = () => ({ api, web, ready, android });
+const codes = report => report.issues.map(x => x.code);
+
+test('healthy API + Web + Android feed is not misreported as degraded', () => {
+  assert.equal(evaluateReleaseHealth(ok(), { webEnabled: true }).status, 'healthy');
+});
+test('intentional Web freeze is explicitly visible, but fails when rollout is enabled', () => {
+  const state = { ...ok(), web: { ...web, commit: 'c'.repeat(40) } };
+  const paused = evaluateReleaseHealth(state);
+  assert.equal(paused.status, 'degraded');
+  assert.ok(codes(paused).includes('web-freeze'));
+  assert.equal(evaluateReleaseHealth(state, { webEnabled: true }).status, 'critical');
+});
+test('database outage blocks deployment proof even while Web rollout is paused', () => {
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), ready: { status: 'ready', checks: { database: 'down' } }))
+    .includes('api-not-ready'));
+});
+test('missing Web is critical only if Web rollout is enabled', () => {
+  assert.equal(evaluateReleaseHealth({ ...ok(), web: null }).status, 'degraded');
+  assert.equal(evaluateReleaseHealth({ ...ok(), web: null }, { webEnabled: true }).status, 'critical');
+});
+test('Android feed without release is not proof an APK was published', () => {
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), android: { release: null } })).includes('android-not-advertised'));
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), android: null })).includes('android-feed'));
+});
+test('tampered APK download URL and invalid hash fail closed', () => {
+  const feed = { release: { ...android.release, url: 'https://attacker.test/fake.apk', sha256: 'bad' } };
+  assert.equal(evaluateReleaseHealth({ ...ok(), android: feed }).status, 'critical');
+});
+test('unapproved endpoints do not start network calls', async () => {
+  await assert.rejects(getSafeJson('https://attacker.test/', () => assert.fail('network called')), /Disallowed/);
+});
+test('HTTP, content type and oversized responses fail closed', async () => {
+  const response = (text, status = 200, type = 'application/json') => ({
+    status, headers: { get: key => key === 'content-type' ? type : null }, text: async () => text,
+  });
+  await assert.rejects(getSafeJson(ENDPOINTS.api, async () => response('{}', 503)), /HTTP 503/);
+  await assert.rejects(getSafeJson(ENDPOINTS.api, async () => response('<html>', 200, 'text/html')), /content-type/);
+  await assert.rejects(getSafeJson(ENDPOINTS.api, async () => response('x'.repeat(65537))), /oversized/);
+});
+test('network timeout on readiness yields critical report but preserves other evidence', async () => {
+  const data = { [ENDPOINTS.api]: api, [ENDPOINTS.web]: web, [ENDPOINTS.android]: android };
+  const report = await probeReleaseHealth({ fetchImpl: async url => {
+    if (url === ENDPOINTS.ready) throw new Error('timeout');
+    return { status: 200,
+      headers: { get: key => key === 'content-type' ? 'application/json' : null },
+      text: async () => JSON.stringify(data[url]) };
+  } });
+  assert.equal(report.status, 'critical');
+  assert.equal(report.endpoints.ready.error, 'timeout');
+  assert.equal(report.endpoints.web.ok, true);
+});
