@@ -82,3 +82,23 @@ test('failed report remains visible and never displays a false success', async (
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Options de cette publication' })).toBeVisible();
 });
+
+test('publication report dialog traps keyboard focus and restores its menu trigger', async ({ page }) => {
+  await setup(page);
+  const foreign = page.locator('article.km-feed-post').filter({hasText:'Publication de mon amie'});
+  await foreign.getByRole('button',{name:'Options de la publication'}).click();
+  await page.getByRole('button',{name:'Signaler la publication'}).click();
+  const dialog=page.getByRole('dialog',{name:'Signaler la publication'});
+  const firstRadio=dialog.getByRole('radio',{name:'Spam ou publicité abusive'});
+  await expect(firstRadio).toBeFocused();
+  // Shift+Tab from the initial focused radio wraps to the last link in the modal.
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('link',{name:'Vérifier mes signalements précédents'})).toBeFocused();
+  // A following Tab must wrap back to the first focusable control inside this sheet.
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button',{name:'Fermer le signalement'})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog',{name:'Options de cette publication'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Signaler la publication'})).toBeFocused();
+});
+
