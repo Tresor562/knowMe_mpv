@@ -182,7 +182,7 @@ export default function ConversationInfoPage() {
           ? `${members.length} ${tr('membres','members')}`
           : other ? `@${other.user.username}` : tr('Discussion privée','Private chat')}</p>
         {isGroup && conversation.description && <p className="km-info-description"
-          title={conversation.description}>{conversation.description}</p> 
+          title={conversation.description}>{conversation.description}</p>}
       </section>
       <nav className="km-info-actions" aria-label={tr('Actions de la discussion', 'Chat actions')}>
         <Link href={`/messages/${encodeURIComponent(id)}`}>
