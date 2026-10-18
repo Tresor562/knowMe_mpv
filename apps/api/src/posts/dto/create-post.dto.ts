@@ -1,8 +1,7 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUrl, Length, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUrl, Length } from 'class-validator';
 
 export class CreatePostDto {
   @IsString()
-  @MinLength(1)
   content!: string;
 
   @IsOptional()
