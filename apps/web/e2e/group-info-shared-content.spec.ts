@@ -49,6 +49,19 @@ test('group media/files/links are real, paginated and deep-link to their message
   await page.setViewportSize({width:360,height:760});
   await page.goto('/messages/grp1/info');
   await expect(page.getByRole('heading',{name:'Groupe Révisions'})).toBeVisible();
+  await expect(page.getByRole('tab',{name:'Aperçu'})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('heading',{name:'À propos du groupe'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Contenus partagés'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Membres/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Paramètres du groupe'})).toBeVisible();
+  await expect(page.locator('.km-group-overview-member-list .km-info-member-row')).toHaveCount(2);
+  await expect(page.locator('.km-group-identity-mark')).toBeVisible();
+  await expect(page.locator('.km-info-group-avatar img')).toHaveCount(0);
+  await page.getByRole('button',{name:'Voir tous'}).click();
+  await expect(page.getByRole('tab',{name:'Membres',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('tab',{name:'Aperçu'}).click();
+  await page.getByRole('button',{name:'Médias',exact:true}).click();
+  await expect(page.getByRole('tab',{name:'Médias'})).toHaveAttribute('aria-selected','true');
   await page.getByRole('tab',{name:'Liens'}).click();
   await expect(page.getByRole('link',{name:'https://example.com/ressource'}))
     .toHaveAttribute('rel','noopener noreferrer');
