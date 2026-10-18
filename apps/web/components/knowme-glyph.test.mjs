@@ -127,3 +127,26 @@ test('icon action controls are accessible and preserve long-press semantics', ()
   assert.ok(css.includes("inset: 5px;"));
   assert.ok(css.includes(".km-avatar-plus:focus-visible"));
 });
+
+
+test('profile avatar menu is viewport-anchored, keyboard-accessible, and returns focus', () => {
+  const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
+  const style = fs.readFileSync(path.join(dir, '..', 'app', 'iconography.css'), 'utf8');
+  assert.match(avatar, /createPortal\(<div ref=\{menuRef\}/);
+  assert.match(avatar, /document\.body\)\}/);
+  assert.match(avatar, /menuRef\.current\?\.offsetHeight \?\? 290/);
+  assert.match(avatar, /event\.key === 'ArrowDown'/);
+  assert.match(avatar, /event\.key === 'ArrowUp'/);
+  assert.match(avatar, /event\.key === 'Home'/);
+  assert.match(avatar, /event\.key === 'End'/);
+  assert.match(avatar, /querySelector<HTMLElement>\('\[role="menuitem"\]:not\(\[disabled\]\)'\)/);
+  assert.match(avatar, /onBlur=\{event =>/);
+  assert.match(avatar, /previewClose\.current\?\.focus\(\)/);
+  assert.match(avatar, /event\.key === 'Tab'/);
+  assert.match(avatar, /document\.body\.style\.overflow = 'hidden'/);
+  assert.match(avatar, /trigger\.current\?\.focus\(\)/);
+  assert.match(avatar, /className="km-avatar-lightbox"/);
+  assert.match(style, /\.km-avatar-menu \{\s*position: fixed;/);
+  assert.match(style, /\.km-avatar-lightbox \{\s*position: fixed;/);
+  assert.match(style, /overscroll-behavior: contain/);
+});
