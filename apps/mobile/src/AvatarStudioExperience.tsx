@@ -12,7 +12,6 @@ import {
 import {
   equipMobileAvatarLayer,
   getMobileAvatarStudio,
-  MOBILE_AVATAR_LAYER_LABELS,
   MOBILE_AVATAR_LAYER_SLOTS,
   MobileAvatarLayerSlot,
   MobileAvatarManifest,
@@ -21,35 +20,27 @@ import {
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import { avatarStudioPhase } from './avatar-studio-view-model';
+import {
+  avatarStudioLabel, avatarStudioOptionCount, avatarStudioRarityLabel,
+  avatarStudioSlotLabel, avatarStudioSlotStatus
+} from './avatar-studio-l10n';
 import { GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
 function message(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-function rarityLabel(value: string) {
-  const labels: Record<string, string> = {
-    COMMON: 'Commun',
-    UNCOMMON: 'Peu commun',
-    RARE: 'Rare',
-    EPIC: 'Épique',
-    LEGENDARY: 'Légendaire'
-  };
-  return labels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase();
-}
-
-function AvatarPreview({ manifest }: { manifest: MobileAvatarManifest }) {
+function AvatarPreview({ manifest, label }: { manifest: MobileAvatarManifest; label: string }) {
   const { colors, visual } = useAppearance();
   const visibleLayers = manifest.layers.filter((layer) => layer.item);
   return (
-    <View style={[styles.preview, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: Math.max(visual.cardRadius, 30) }]} accessibilityLabel="Aperçu de l’avatar composé">
+    <View style={[styles.preview, { backgroundColor: colors.backgroundAccent, borderColor: colors.border, borderRadius: Math.max(visual.cardRadius, 30) }]} accessibilityLabel={label}>
       {visibleLayers.length === 0 && manifest.legacyAvatarUrl ? (
         <Image source={{ uri: manifest.legacyAvatarUrl }} style={styles.legacyAvatar} />
       ) : null}
       {visibleLayers.length === 0 && !manifest.legacyAvatarUrl ? (
         <View style={styles.fallback}>
           <Text style={[styles.fallbackInitials, { color: colors.text }]}>{manifest.fallback.initials}</Text>
-
         </View>
       ) : null}
       {visibleLayers.map((layer) => (
@@ -69,6 +60,8 @@ export function AvatarStudioExperience() {
   const { colors, visual } = useAppearance();
   const { locale } = useI18n();
   const en = locale === 'en';
+  const uiLocale = en ? 'en' : 'fr';
+  const copy = avatarStudioLabel(uiLocale);
   const tr = (fr: string, english: string) => en ? english : fr;
   const [studio, setStudio] = useState<MobileAvatarStudioState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,12 +113,10 @@ export function AvatarStudioExperience() {
       const result = await equipMobileAvatarLayer(slot, itemId);
       setStudio(result.studio);
       setStatus(
-        itemId
-          ? tr(`${MOBILE_AVATAR_LAYER_LABELS[slot]} mis à jour.`, `${MOBILE_AVATAR_LAYER_LABELS[slot]} updated.`)
-          : tr(`${MOBILE_AVATAR_LAYER_LABELS[slot]} retiré.`, `${MOBILE_AVATAR_LAYER_LABELS[slot]} removed.`)
+        avatarStudioSlotStatus(slot, itemId ? 'equipped' : 'removed', uiLocale)
       );
     } catch (cause) {
-      const text = message(cause, 'Modification impossible.');
+      const text = message(cause, copy.updateFailed);
       setStatus(text);
       setStatusError(true);
       Alert.alert('Avatar Studio', text);
@@ -191,7 +182,7 @@ export function AvatarStudioExperience() {
         </View>
       ) : studio ? (
         <>
-          <AvatarPreview manifest={studio.manifest} />
+          <AvatarPreview manifest={studio.manifest} label={copy.preview} />
           <Text style={[styles.profileName, { color: colors.text }]}>{studio.profile.displayName}</Text>
           <Text style={[styles.handle, { color: colors.accent }]}>@{studio.profile.username}</Text>
 
@@ -202,14 +193,14 @@ export function AvatarStudioExperience() {
               <View key={slot} style={[styles.layerSection, { backgroundColor: colors.surfaceGlass, borderColor: colors.border, borderRadius: visual.controlRadius }]}>
                 <View style={styles.layerHeader}>
                   <View style={styles.layerTitleBox}>
-                    <Text style={[styles.layerTitle, { color: colors.text }]}>{MOBILE_AVATAR_LAYER_LABELS[slot]}</Text>
+                    <Text style={[styles.layerTitle, { color: colors.text }]}>{avatarStudioSlotLabel(slot, uiLocale)}</Text>
                     <Text style={[styles.muted, { color: colors.muted }]}>
-                      {equipped ? `${equipped.name} équipé` : `${items.length} option(s)`}
+                      {equipped ? `${equipped.name} · ${copy.itemEquipped}` : avatarStudioOptionCount(items.length, uiLocale)}
                     </Text>
                   </View>
                   <PressScale
                     accessibilityRole="button"
-                    accessibilityLabel={`Retirer ${MOBILE_AVATAR_LAYER_LABELS[slot]}`}
+                    accessibilityLabel={`${copy.remove} · ${avatarStudioSlotLabel(slot, uiLocale)}`}
                     disabled={!equipped || busySlot !== null}
                     onPress={() => void equip(slot, null)}
                     style={[
@@ -223,7 +214,7 @@ export function AvatarStudioExperience() {
                 </View>
 
                 {items.length === 0 ? (
-                  <Text style={[styles.muted, { color: colors.muted }]}>Aucun objet compatible dans l’inventaire.</Text>
+                  <Text style={[styles.muted, { color: colors.muted }]}>{copy.inventoryEmpty}</Text>
                 ) : (
                   <ScrollView
                     horizontal
@@ -237,7 +228,7 @@ export function AvatarStudioExperience() {
                           key={entry.id}
                           disabled={busySlot !== null || selected}
                           accessibilityRole="button"
-                          accessibilityLabel={`${entry.item.name}, ${selected ? tr('équipé', 'equipped') : rarityLabel(entry.item.rarity)}`}
+                          accessibilityLabel={`${entry.item.name}, ${selected ? tr('équipé', 'equipped') : avatarStudioRarityLabel(entry.item.rarity, uiLocale)}`}
                           accessibilityState={{ disabled: busySlot !== null || selected, selected }}
                           onPress={() => void equip(slot, entry.item.id)}
                           style={({ pressed }) => [
@@ -259,7 +250,7 @@ export function AvatarStudioExperience() {
                             {entry.item.name}
                           </Text>
                           <Text style={[styles.itemRarity, { color: selected ? colors.accent : colors.muted }]}>
-                            {selected ? 'Équipé' : rarityLabel(entry.item.rarity)}
+                            {selected ? copy.equipped : avatarStudioRarityLabel(entry.item.rarity, uiLocale)}
                           </Text>
                         </Pressable>
                       );
@@ -271,7 +262,7 @@ export function AvatarStudioExperience() {
           })}
 
           <Text style={[styles.policy, { color: colors.muted }]}>
-            Seuls les éléments de ton inventaire peuvent être équipés. La visibilité de ton avatar suit tes réglages de confidentialité.
+            {copy.policy}
           </Text>
         </>
       ) : null}
