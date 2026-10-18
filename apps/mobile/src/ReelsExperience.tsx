@@ -213,7 +213,7 @@ const styles=StyleSheet.create({
   actions:{gap:10,alignItems:'center'},
   action:{width:51,minHeight:51,alignItems:'center',justifyContent:'center',
     gap:2,borderRadius:14,backgroundColor:'rgba(0,0,0,.38)'},
-  actionCount:{color:'#fff',fontSize:12,fontWeight:'750'},
+  actionCount:{color:'#fff',fontSize:12,fontWeight:'700'},
   header:{position:'absolute',top:0,left:0,right:0,
     paddingHorizontal:13,paddingTop:8,paddingBottom:15,
     flexDirection:'row',alignItems:'center',justifyContent:'space-between',
