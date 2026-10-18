@@ -19,7 +19,8 @@ export function marketplaceReceiptRows(
   cosmetics: readonly CosmeticPurchaseReceipt[],
   gifts: readonly MobileSocialGiftSentItem[],
   filter: ReceiptFilter = 'all',
-  query = ''
+  query = '',
+  locale: 'fr' | 'en' = 'fr'
 ): MarketplaceReceiptRow[] {
   const search = normalized(query);
   const all: MarketplaceReceiptRow[] = [
@@ -27,7 +28,7 @@ export function marketplaceReceiptRows(
       id: 'cosmetic:' + item.id,
       kind: 'cosmetics' as const,
       label: item.item.name,
-      detail: 'Achat de personnalisation',
+      detail: locale === 'en' ? 'Cosmetic purchase' : 'Achat de personnalisation',
       priceKnowCoins: item.priceKnowCoins,
       createdAt: item.purchasedAt
     })),
@@ -35,7 +36,8 @@ export function marketplaceReceiptRows(
       id: 'gift:' + item.id,
       kind: 'gifts' as const,
       label: item.gift.name,
-      detail: 'Cadeau à ' + (item.recipient?.displayName ?? 'un destinataire'),
+      detail: (locale === 'en' ? 'Gift for ' : 'Cadeau à ') +
+        (item.recipient?.displayName ?? (locale === 'en' ? 'a recipient' : 'un destinataire')),
       priceKnowCoins: item.priceKnowCoins,
       createdAt: item.sentAt
     }))
