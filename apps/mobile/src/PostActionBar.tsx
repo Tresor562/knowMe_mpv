@@ -200,7 +200,7 @@ const styles=StyleSheet.create({
   likeGroup:{flexDirection:'row',alignItems:'center'},
   action:{minHeight:46,minWidth:44,paddingHorizontal:9,flexDirection:'row',
     alignItems:'center',justifyContent:'center',gap:7,borderRadius:13},
-  pickerTrigger:{minHeight:46,minWidth:35,justifyContent:'center',alignItems:'center'},
+  pickerTrigger:{minHeight:46,minWidth:44,justifyContent:'center',alignItems:'center'},
   save:{marginLeft:'auto'},
   count:{fontSize:12,fontWeight:'600'},
   label:{fontSize:12,fontWeight:'600'},
