@@ -20,7 +20,11 @@ export function offlineVideoLabels(locale:string){
     video:(index:number)=>'Video '+index,
     device:'On this device',emptyTitle:'No saved videos',
     emptyMessage:'Open a Reel and choose “Offline” to save it.',
-    sizeUnit:'MB',storage:'Storage'
+    sizeUnit:'MB',storage:'Storage',
+    sortNewest:'Newest',sortOldest:'Oldest',sortLargest:'Largest',
+    clearAll:'Delete all',clearTitle:'Delete all downloaded videos?',
+    clearDescription:'This removes all saved copies from this device. Original posts stay on KnowMe.',
+    clearing:'Deleting saved videos…',clearError:'Some downloaded videos could not be deleted.'
   }: {
     removeTitle:'Supprimer cette vidéo enregistrée ?',
     removeDescription:'La publication reste sur KnowMe. Seule la copie locale sera supprimée.',
@@ -40,7 +44,11 @@ export function offlineVideoLabels(locale:string){
     video:(index:number)=>'Vidéo '+index,
     device:'Sur cet appareil',emptyTitle:'Aucune vidéo enregistrée',
     emptyMessage:'Ouvre un Reel et touche « Hors ligne » pour l’enregistrer.',
-    sizeUnit:'Mo',storage:'Stockage'
+    sizeUnit:'Mo',storage:'Stockage',
+    sortNewest:'Récentes',sortOldest:'Anciennes',sortLargest:'Plus volumineuses',
+    clearAll:'Tout supprimer',clearTitle:'Supprimer toutes les vidéos enregistrées ?',
+    clearDescription:'Toutes les copies locales seront supprimées de cet appareil. Les publications restent sur KnowMe.',
+    clearing:'Suppression des vidéos…',clearError:'Certaines vidéos enregistrées n’ont pas pu être supprimées.'
   };
 }
 
