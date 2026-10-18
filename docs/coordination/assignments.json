@@ -106,18 +106,24 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
-      "branch": "chat/marketplace/android-catalog-filters",
-      "task": "Reprise: corriger CI PR #712 Web et #714 Android, valider, puis extension Marketplace",
+      "branch": "chat/marketplace/sticker-collection-tab",
+      "task": "PRs #712(Web marketplace), #714(Android cosmetic search; CI/coordination/APK green, not merged), #717(Web gifts blocked #583), #719(Android gifts blocked #583), #722(Web legacy cosmetic checkout), #726(Android sticker packs). Other CI in flight; no merge/deployment.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T14:03:02.971Z",
-      "lastPr": 714,
+      "updatedAt": "2026-10-18T14:22:11.828Z",
+      "lastPr": 726,
       "resumeFrom": {
-        "pr": 714,
-        "branch": "chat/marketplace/android-catalog-filters",
-        "commit": "634c0b060e487b13fd0c74678ee3b7e15799da8f",
-        "alsoPr": 712
+        "pr": 726,
+        "branch": "chat/marketplace/sticker-collection-tab",
+        "commit": "35908be3fe12153e157831bce1a8ba58a7ec42f2",
+        "relatedPrs": [
+          712,
+          714,
+          717,
+          719,
+          722
+        ]
       }
     },
     "infra": {
@@ -413,6 +419,15 @@
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "at": "2026-10-18T14:22:11.828Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/sticker-collection-tab",
+      "pr": 726
     }
   ]
 }
