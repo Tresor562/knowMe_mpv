@@ -24,6 +24,8 @@ export function avatarActionText(locale: 'fr' | 'en') {
     back: en ? 'Back' : 'Retour',
     removing: en ? 'Removing…' : 'Suppression…',
     removed: en ? 'Your profile picture has been removed.' : 'Ta photo de profil a été retirée.',
+    pendingSync: en ? 'Picture removed on the server. Reopen your profile to refresh.'
+      : 'Photo retirée sur le serveur. Rouvre ton profil pour actualiser l’affichage.',
     removeFailed: en ? 'Could not remove the picture.' : 'Impossible de retirer la photo.',
     pictureChanged: en ? 'Your profile picture has been saved.' : 'Ta nouvelle photo de profil est enregistrée.',
     uploadFailed: en ? 'Could not change the picture.' : 'Impossible de changer la photo.',
