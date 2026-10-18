@@ -42,12 +42,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705: keyboard focus trap+Playwright regression at HEAD e65d699; CI/readiness/coordination queued; no merge/deploy",
+      "task": "PR #705 — investigate queued workflows, targeted regression fixes, merge when exact SHA checks prove green",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:20:27.238Z",
+      "updatedAt": "2026-10-18T14:22:20.446Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
@@ -428,6 +428,13 @@
       "issue": 697,
       "branch": "chat/marketplace/sticker-collection-tab",
       "pr": 726
+    },
+    {
+      "at": "2026-10-18T14:22:20.446Z",
+      "action": "resume",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
