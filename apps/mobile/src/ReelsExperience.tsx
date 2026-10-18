@@ -219,7 +219,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       ListEmptyComponent={<View style={[styles.empty,{height:viewportHeight}]}>
         {emptyMode==='loading'?<ActivityIndicator color="#88e9e3"/>:
           <View style={styles.emptyContent}>
-            <KnowMeIcon name={emptyMode==='failed'?'warning':'video-call'} size={48} color="#83e9de"/>
+            <KnowMeIcon name={emptyMode==='failed'?'refresh':'video-call'} size={48} color="#83e9de"/>
             <Text style={styles.emptyText}>
               {emptyMode==='failed'
                 ?en?'Videos could not be loaded. Check your connection.':'Impossible de charger les vidéos. Vérifie ta connexion.'
