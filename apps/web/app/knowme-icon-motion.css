@@ -1,0 +1,118 @@
+/*
+ * KnowMe expressive icon motion. Every family has semantic rules.
+ * CSS handles cheap transform/opacity; the caller supplies actual state.
+ */
+.km-state-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  isolation: isolate;
+  color: inherit;
+}
+.km-state-icon > svg:first-child {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform-origin: center;
+  transition: color 140ms ease, fill 140ms ease, transform 140ms ease;
+}
+.km-state-icon--heart[data-icon-state='selected'] { color: #ef3340; }
+.km-state-icon--bookmark[data-icon-state='selected'] { color: var(--mint); }
+.km-state-icon[data-icon-state='error'] { color: var(--danger); }
+.km-state-icon[data-icon-state='success'] { color: var(--mint); }
+.km-state-icon-progress {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: stroke-dashoffset 140ms linear;
+}
+.km-state-icon[data-icon-burst] > svg:first-child {
+  animation-duration: 290ms;
+  animation-timing-function: cubic-bezier(.16,.82,.22,1);
+  animation-iteration-count: 1;
+}
+.km-state-icon--heart[data-icon-state='selected'][data-icon-burst] > svg:first-child,
+.km-state-icon--bookmark[data-icon-state='selected'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-heart-pop;
+  animation-timing-function: cubic-bezier(.2,1.3,.35,1);
+}
+.km-state-icon--send[data-icon-burst] > svg:first-child,
+.km-state-icon--share[data-icon-burst] > svg:first-child,
+.km-state-icon--upload[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-flight;
+}
+.km-state-icon--comment[data-icon-burst] > svg:first-child,
+.km-state-icon--chats[data-icon-burst] > svg:first-child,
+.km-state-icon--create[data-icon-burst] > svg:first-child,
+.km-state-icon--story[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-dialog-pop;
+}
+.km-state-icon--settings[data-icon-burst] > svg:first-child,
+.km-state-icon--refresh[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gear-turn;
+}
+.km-state-icon--notifications[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-bell-ring;
+  transform-origin: 50% 18%;
+}
+.km-state-icon--search[data-icon-burst] > svg:first-child,
+.km-state-icon--home[data-icon-burst] > svg:first-child,
+.km-state-icon--profile[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+.km-state-icon--back[data-icon-burst] > svg:first-child,
+.km-state-icon--forward[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-direction;
+}
+.km-state-icon--play[data-icon-burst] > svg:first-child,
+.km-state-icon--pause[data-icon-burst] > svg:first-child,
+.km-state-icon--microphone[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+.km-state-icon--trash[data-icon-burst] > svg:first-child,
+.km-state-icon--close[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-exit;
+}
+.km-state-icon--download[data-icon-burst] > svg:first-child,
+.km-state-icon--check[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-download-settle;
+}
+/* Continuous animation is legal ONLY for an active task state. */
+.km-state-icon--refresh[data-icon-state='loading'] > svg:first-child,
+.km-state-icon--settings[data-icon-state='loading'] > svg:first-child {
+  animation: km-icon-spin 900ms linear infinite;
+}
+.km-state-icon--microphone[data-icon-state='recording'] > svg:first-child {
+  animation: km-icon-record-live 950ms ease-in-out infinite alternate;
+}
+.km-state-icon--play[data-icon-state='playing'] > svg:first-child,
+.km-state-icon--pause[data-icon-state='playing'] > svg:first-child {
+  animation: km-icon-audio-live 1100ms ease-in-out infinite alternate;
+}
+.km-state-icon--notifications[data-icon-state='incoming'] > svg:first-child {
+  animation: km-icon-bell-ring 350ms ease-in-out 2;
+}
+@keyframes km-icon-heart-pop { 0%{transform:scale(.85)} 55%{transform:scale(1.22)} 100%{transform:scale(1)} }
+@keyframes km-icon-flight { 0%{transform:translate(0,0) scale(.93);opacity:.76} 55%{transform:translate(2px,-2px) scale(1.07)} 100%{transform:translate(0,0) scale(1);opacity:1} }
+@keyframes km-icon-dialog-pop { 0%{transform:scale(.92)} 62%{transform:scale(1.09)} 100%{transform:scale(1)} }
+@keyframes km-icon-gear-turn { 0%{transform:rotate(-19deg)} 100%{transform:rotate(0)} }
+@keyframes km-icon-bell-ring { 0%,100%{transform:rotate(0)} 28%{transform:rotate(-16deg)} 65%{transform:rotate(11deg)} }
+@keyframes km-icon-focus { 0%{transform:scale(.93);opacity:.8} 100%{transform:scale(1);opacity:1} }
+@keyframes km-icon-direction { 0%{transform:translateX(-2px);opacity:.7} 100%{transform:translateX(0);opacity:1} }
+@keyframes km-icon-media-transition { 0%{transform:scale(.88)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
+@keyframes km-icon-confirm-exit { 0%{transform:scale(.93);opacity:.7} 100%{transform:scale(1);opacity:1} }
+@keyframes km-icon-download-settle { 0%{transform:translateY(-2px);opacity:.7} 100%{transform:translateY(0);opacity:1} }
+@keyframes km-icon-spin { to { transform:rotate(360deg) } }
+@keyframes km-icon-record-live { from{transform:scale(.94);opacity:.65} to{transform:scale(1.06);opacity:1} }
+@keyframes km-icon-audio-live { from{transform:scale(.98);opacity:.75} to{transform:scale(1.035);opacity:1} }
+
+/* Data-driven animations are always optional, not a UI requirement to operate. */
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon svg { animation: none !important; transition: none !important; transform: none !important; }
+}
+:root[data-animations='false'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
