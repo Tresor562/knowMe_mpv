@@ -1,11 +1,11 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 
 describe('Authenticated publication reports', () => {
   function setup() {
     const prisma = {
       post: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'post-1' })
+        findUnique: jest.fn().mockResolvedValue({ id: 'post-1', authorId: 'creator' })
       },
       report: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -34,7 +34,7 @@ describe('Authenticated publication reports', () => {
     const result = await service.create('viewer', dto);
     expect(prisma.post.findUnique).toHaveBeenCalledWith({
       where: { id: 'post-1' },
-      select: { id: true }
+      select: { id: true, authorId: true }
     });
     expect(prisma.report.findFirst).toHaveBeenCalledWith({
       where: {
@@ -61,6 +61,14 @@ describe('Authenticated publication reports', () => {
       }
     });
     expect(result.status).toBe('OPEN');
+  });
+
+  it('forbids reporting your own publication through the API, even if the UI is bypassed', async () => {
+    const { service, prisma } = setup();
+    prisma.post.findUnique.mockResolvedValue({ id: 'post-1', authorId: 'viewer' });
+    await expect(service.create('viewer', dto)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.report.findFirst).not.toHaveBeenCalled();
+    expect(prisma.report.create).not.toHaveBeenCalled();
   });
 
   it('rejects reports for deleted or non-existent publications', async () => {
