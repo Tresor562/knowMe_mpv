@@ -3,14 +3,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
 
-function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' }) {
+function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat' }) {
   const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
     strokeWidth:2, strokeLinecap:'round' as const, strokeLinejoin:'round' as const,
     width:23, height:23, 'aria-hidden':true as const };
   if (name === 'feed') return <svg {...common}><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/><path d="M9 20v-6h6v6"/></svg>;
   if (name === 'story') return <svg {...common}><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 8v8m-4-4h8"/></svg>;
+  if (name === 'chat') return <svg {...common}><path d="M20.5 11.5c0 4.7-4 8.5-9 8.5a10 10 0 0 1-3.7-.7L3 21l1.7-4.3A8 8 0 0 1 2.5 11.5c0-4.7 4-8.5 9-8.5s9 3.8 9 8.5Z"/><path d="M8 11.5h7"/></svg>;
   if (name === 'apps') return <svg {...common}><path d="M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6"/></svg>;
   return <svg {...common}><path d="M10 13a5 5 0 0 0 7.5.2l2-2a5 5 0 0 0-7.1-7.1l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.2l-2 2a5 5 0 0 0 7.1 7.1l1.5-1.5"/></svg>;
+}
+
+type ShareConversation = {
+  id: string;
+  title?: string | null;
+  isGroup: boolean;
+  members: Array<{ userId: string; user: { id: string; displayName: string; username: string } }>;
+};
+
+function conversationName(conversation: ShareConversation) {
+  const name = conversation.title?.trim();
+  if (name) return name;
+  const members = (conversation.members ?? [])
+    .map(member => member.user?.displayName || member.user?.username).filter(Boolean);
+  return members.join(', ') || (conversation.isGroup ? 'Groupe KnowMe' : 'Conversation KnowMe');
 }
 
 export type ShareablePost = {
@@ -31,6 +47,11 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState('');
+  const [showConversations, setShowConversations] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [conversations, setConversations] = useState<ShareConversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState('');
+  const [recipientQuery, setRecipientQuery] = useState('');
   const previousFocus = useRef<HTMLElement | null>(null);
   const url = typeof window === 'undefined' ? '' :
     `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
@@ -70,6 +91,56 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
       if ((cause as Error)?.name !== 'AbortError') {
         setFeedback(en ? 'Sharing unavailable.' : 'Partage indisponible.');
       }
+    }
+  }
+
+  async function showConversationPicker() {
+    if (busy) return;
+    if (showConversations) { setShowConversations(false); return; }
+    setShowConversations(true);
+    setFeedback('');
+    setLoadingConversations(true);
+    try {
+      const available = await apiFetch<ShareConversation[]>('/conversations');
+      if (!Array.isArray(available)) throw new Error(en ? 'Conversations unavailable.' : 'Conversations indisponibles.');
+      setConversations(available);
+    } catch (cause) {
+      setConversations([]);
+      setFeedback(cause instanceof Error ? cause.message : (en ? 'Could not load conversations.' : 'Chargement des conversations impossible.'));
+    } finally {
+      setLoadingConversations(false);
+    }
+  }
+
+  async function sendToConversation() {
+    if (submitting.current || !selectedConversationId) return;
+    const target = conversations.find(conversation => conversation.id === selectedConversationId);
+    if (!target) return;
+    const content = [caption.trim(), `${post.author.displayName} · KnowMe`, url]
+      .filter(Boolean).join('\n\n');
+    if (content.length > 4000) {
+      setFeedback(en ? 'Message too long (4,000 characters maximum).' : 'Message trop long (4 000 caractères maximum).');
+      return;
+    }
+    submitting.current = true;
+    setBusy(true);
+    setFeedback('');
+    try {
+      // Membership and permission checks stay enforced by the Messaging API.
+      await apiFetch(`/conversations/${encodeURIComponent(target.id)}/messages`, {
+        method: 'POST', body: JSON.stringify({ content })
+      });
+      onPublished();
+      onClose();
+    } catch (cause) {
+      const error = cause as { code?: string; message?: string };
+      const uncertain = error?.code === 'KNOWME_TIMEOUT' || error?.code === 'KNOWME_NETWORK_UNAVAILABLE';
+      setFeedback(uncertain
+        ? (en ? 'Delivery not confirmed. Check the chat before trying again.' : 'Envoi non confirmé. Vérifie la conversation avant de réessayer.')
+        : cause instanceof Error ? cause.message : (en ? 'Could not send message.' : 'Impossible d’envoyer le message.'));
+    } finally {
+      submitting.current = false;
+      setBusy(false);
     }
   }
 
@@ -158,6 +229,10 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
           <button type="button" disabled={busy} onClick={() => void shareToStory()}>
             <ShareGlyph name="story"/>{en ? 'To my Story' : 'Dans ma story'}
           </button>
+          <button type="button" disabled={busy || loadingConversations} aria-expanded={showConversations}
+            onClick={() => void showConversationPicker()}>
+            <ShareGlyph name="chat"/>{en ? 'Messages & groups' : 'Messages et groupes'}
+          </button>
           <button type="button" disabled={busy} onClick={() => void shareOutside()}>
             <ShareGlyph name="apps"/>{en ? 'Other apps' : 'Autres applis'}
           </button>
@@ -165,6 +240,35 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
             <ShareGlyph name="link"/>{en ? 'Copy link' : 'Copier le lien'}
           </button>
         </div>
+        {showConversations && (
+          <section className="km-share-conversations" aria-label={en ? 'Choose a conversation' : 'Choisir une conversation'}>
+            <label htmlFor="km-share-recipient-search">{en ? 'Find a conversation or group' : 'Rechercher une conversation ou un groupe'}</label>
+            <input id="km-share-recipient-search" value={recipientQuery} onChange={event => setRecipientQuery(event.target.value)}
+              placeholder={en ? 'Search conversations' : 'Rechercher des conversations'} disabled={loadingConversations || busy} />
+            {loadingConversations && <p role="status">{en ? 'Loading conversations…' : 'Chargement des conversations…'}</p>}
+            {!loadingConversations && conversations.length === 0 && <p>{en ? 'No conversation available.' : 'Aucune conversation disponible.'}</p>}
+            <div className="km-share-recipient-list" role="radiogroup" aria-label={en ? 'Conversation' : 'Conversation'}>
+              {conversations.filter(chat =>
+                conversationName(chat).toLocaleLowerCase().includes(recipientQuery.trim().toLocaleLowerCase())
+              ).slice(0,40).map(chat => (
+                <label className="km-share-recipient" key={chat.id}>
+                  <input type="radio" name="km-share-chat" value={chat.id}
+                    checked={selectedConversationId === chat.id}
+                    disabled={busy}
+                    onChange={() => setSelectedConversationId(chat.id)} />
+                  <span>
+                    <strong>{conversationName(chat)}</strong>
+                    <small>{chat.isGroup ? (en ? 'Group' : 'Groupe') : (en ? 'Private chat' : 'Conversation privée')}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button type="button" className="km-share-send-message" disabled={busy || !selectedConversationId}
+              onClick={() => void sendToConversation()}>
+              {en ? 'Send to selected conversation' : 'Envoyer dans cette conversation'}
+            </button>
+          </section>
+        )}
         {busy && <p role="status" className="km-share-feedback">{en ? 'Sharing…' : 'Partage en cours…'}</p>}
         {feedback && <p role="status" className="km-share-feedback">{feedback}</p>}
       </section>
