@@ -75,12 +75,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "branch": "chat/marketplace/storefront-discovery",
+      "task": "Développer Marketplace Web/Android : catalogue, cadeaux, stickers, APK et vrais parcours sûrs ; première PR isolée après audit",
+      "claimedAt": "2026-10-18T13:23:00.000Z",
+      "updatedAt": "2026-10-18T13:23:00.000Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -173,6 +173,14 @@
       "issue": 696,
       "branch": "chat/profiles/avatar-removal-actions",
       "pr": 708
+    },
+    {
+      "at": "2026-10-18T13:23:00.000Z",
+      "action": "claim",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/storefront-discovery"
     }
   ]
 }
