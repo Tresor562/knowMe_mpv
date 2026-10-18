@@ -96,6 +96,37 @@ export class PostsService {
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))}));
   }
 
+  /**
+   * Returns only posts containing published MP4 attachments, ordered newest
+   * first. This avoids forcing the Reels feed to scan unrelated text/photo
+   * posts, and keeps cursor semantics identical to the main post feed.
+   */
+  async videos(cursor?: string) {
+    const posts = await this.prisma.post.findMany({
+      where: { media: { some: { mimeType: 'video/mp4' } } },
+      take: 20,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        author: { select: publicAuthorSelect },
+        _count: { select: { likes: true, comments: true } },
+        media: {
+          where: { mimeType: 'video/mp4' },
+          orderBy: { position: 'asc' }
+        }
+      }
+    });
+    return posts.map(post => ({
+      ...post,
+      author: publicAuthor(post.author),
+      media: post.media.map(item => ({
+        url: `/media/public/post/${item.assetId}`,
+        mimeType: item.mimeType,
+        position: item.position
+      }))
+    }));
+  }
+
   async getById(postId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
