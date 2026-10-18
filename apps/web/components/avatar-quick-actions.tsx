@@ -2,10 +2,15 @@
 
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactElement } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
 import { KnowMeAnimatedIcon } from './knowme-animated-icon';
 import { nextAvatarMenuIndex, type AvatarMenuNavigationKey } from './avatar-menu-keyboard-model';
+
+/* Web + native dependencies carry different @types/react minor versions.
+   Bridge only the portal child structural type; keep the actual React portal.
+   Never cast the underlying DOM actions or menu props to any. */
+type CompatiblePortalChild = ReturnType<typeof createPortal> & { children: never };
 
 type AvatarQuickActionsProps = {
   username: string;
@@ -144,7 +149,7 @@ export function AvatarQuickActions({
         <Link role="menuitem" href="/profile-studio" onClick={() => setOpen(false)}>
           <ActionIcon name="design" />{en ? 'Edit profile design' : 'Personnaliser le profil'}
         </Link>
-      </div>, document.body) as unknown as ReactElement)}
+      </div>, document.body) as unknown as CompatiblePortalChild)}
       {preview && avatarUrl && (createPortal(<div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'}
         onClick={event => { if (event.target === event.currentTarget) setPreview(false); }}>
@@ -153,7 +158,7 @@ export function AvatarQuickActions({
           <KnowMeAnimatedIcon name="close" size={20}/></button>
         <img src={avatarUrl} alt={displayName} onClick={event => event.stopPropagation()} />
         <p>@{username}</p>
-      </div>, document.body) as unknown as ReactElement)}
+      </div>, document.body) as unknown as CompatiblePortalChild)}
     </div>
   );
 }
