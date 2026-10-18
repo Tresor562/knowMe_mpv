@@ -238,7 +238,7 @@ export default function ConversationInfoPage() {
         </button>
         <button type="button" role="tab" aria-selected={activeTab==='details'}
           onClick={() => setActiveTab('details')}>{tr('Détails','Details')}</button>
-        {isGroup && ([
+        {([
           {kind:'media', fr:'Médias', en:'Media'},
           {kind:'files', fr:'Fichiers', en:'Files'},
           {kind:'links', fr:'Liens', en:'Links'},
@@ -248,8 +248,8 @@ export default function ConversationInfoPage() {
           {en?tab.en:tab.fr}
         </button>)}
       </div>
-      {isGroup && (activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
-        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en}/>}
+      {(activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
+        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en}/>} 
 
       {activeTab === 'members' && <section className="km-info-members" role="tabpanel">
         {isGroup && <div className="km-info-search">
