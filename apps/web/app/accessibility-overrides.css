@@ -24,3 +24,16 @@
   backdrop-filter: none !important;
   background: var(--surface) !important;
 }
+
+/* One predictable keyboard focus language for every KnowMe destination.
+   :focus-visible avoids adding visual noise to taps on touch devices. */
+:where(a, button, input, textarea, select, summary, [role='button'], [role='link']):focus-visible {
+  outline: 2px solid var(--mint, #2a9df4);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, textarea, select, summary, [role='button'], [role='link']):focus-visible {
+    outline-color: Highlight;
+  }
+}
