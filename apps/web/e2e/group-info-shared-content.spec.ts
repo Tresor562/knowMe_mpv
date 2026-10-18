@@ -90,7 +90,7 @@ test('leaving a group requires confirmation and uses authenticated endpoint',asy
 test('non-members cannot browse group media or roster', async({page})=>{
   await setup(page,false);
   await page.goto('/messages/grp1/info');
-  await expect(page.getByRole('alert')).toContainText('introuvable');
+  await expect(page.locator('.km-info-page .km-auth-error[role="alert"]')).toContainText('introuvable');
   await expect(page.getByRole('tab',{name:'Médias'})).toHaveCount(0);
   await expect(page.getByRole('link',{name:/Alice/})).toHaveCount(0);
 });
