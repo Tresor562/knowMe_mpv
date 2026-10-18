@@ -109,12 +109,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "branch": "chat/marketplace/verified-transaction-history",
-      "task": "Continuation GitHub: validate and merge #733, #731, #737, #739, #741 with dependencies, prevent regressions",
+      "task": "PR #733 merged (090fd63) & Vercel prod READY. #731 approved CI+APK+initial guard, draft->ready triggered extra guard queued. #737 APK success, CI running. #739 pending CI/APK and depends #731. #741 CI and guard success, APK pending. #717/#719 still conflict #583. Merged overall: #722 #714 #712 #726 #733; don't claim newer APK shipped.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T15:03:01.302Z",
+      "updatedAt": "2026-10-18T15:11:35.637Z",
       "lastPr": 741,
       "resumeFrom": {
         "pr": 741,
@@ -124,16 +124,17 @@
           722,
           714,
           712,
-          726
+          726,
+          733
         ],
         "relatedPrs": [
           717,
           719,
           731,
-          733,
           737,
           739
-        ]
+        ],
+        "next": "Merge #731 only after fresh coordination guard succeeds; then #739 after own checks; #737/#741 after complete checks. Resolve #583 first for gifts."
       }
     },
     "infra": {
@@ -810,6 +811,15 @@
       "at": "2026-10-18T15:10:06.296Z",
       "pr": 723,
       "alsoPr": 735
+    },
+    {
+      "at": "2026-10-18T15:11:35.637Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/verified-transaction-history",
+      "pr": 741
     }
   ]
 }
