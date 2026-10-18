@@ -59,12 +59,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/android-go-to-timestamp",
-      "task": "PR #710 et #713 fusionnées (#710 API pas encore vérifiée sur VPS; #713 APK pas distribuée). PR #718 UI insights Web HEAD 3c616a9 CI relancée, PR #725 temps exact Android HEAD 8733429 checks en attente. PR #707 attente réconciliation #583, remplacer après #718.",
+      "task": "Réparer build TS #725, vérifier CI #718 puis poursuivre Story/Reels",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T14:20:08.766Z",
+      "updatedAt": "2026-10-18T14:22:59.663Z",
       "lastPr": 725,
       "resumeFrom": {
         "pr": 725,
@@ -435,6 +435,14 @@
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "event": "resume",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "at": "2026-10-18T14:22:59.663Z",
+      "issue": 695,
+      "pr": 725
     }
   ]
 }
