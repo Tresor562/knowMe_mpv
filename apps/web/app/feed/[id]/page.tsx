@@ -3,6 +3,7 @@ import { knowMeConfirm } from '../../../components/knowme-feedback';
 
 import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
+import { CommentEmojiReactions } from '../../../components/comment-emoji-reactions';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -380,6 +381,7 @@ export default function PostDetailPage() {
             <p><KnowMeMentionText text={item.content}/></p>
             <div className="km-post-comment-actions">
               <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
+              <CommentEmojiReactions postId={postId} commentId={item.id}/>
               <button type="button" onClick={() => beginReply(item)}>Répondre</button>
               <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
               <button type="button" onClick={() => setContextCommentId(item.id)}
