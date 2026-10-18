@@ -64,12 +64,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/avatar-removal-actions",
-      "task": "PR #708 — retrait de photo de profil Android, 3 tests locaux réussis, coordination CI verte ; qualité CI et APK à confirmer. Web en attente des PR #551/#556.",
+      "task": "Reprise PR #708 : vérifier CI, qualité, régressions, intégrer Android correctement; poursuivre profils sans collision avec anciennes PR",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T12:23:34.754Z",
+      "updatedAt": "2026-10-18T13:25:11.041Z",
       "lastPr": 708,
       "resumeFrom": null
     },
@@ -159,6 +159,15 @@
     {
       "at": "2026-10-18T12:23:34.754Z",
       "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "branch": "chat/profiles/avatar-removal-actions",
+      "pr": 708
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T13:25:11.041Z",
       "domain": "profiles",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
