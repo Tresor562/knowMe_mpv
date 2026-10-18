@@ -199,6 +199,9 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [post, setPost] = useState<PostDetail | null>(null);
   const [myLike, setMyLike] = useState<boolean|null>(null);
   const postLikeInFlight = useRef(false);
+  const detailLikeRevision=useRef(0);
+  const detailActor=useRef(userId);
+  detailActor.current=userId;
   const [postLikeBusy,setPostLikeBusy]=useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -249,9 +252,10 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
 
   useEffect(()=>{
     let active=true;
+    const revision=detailLikeRevision.current;
     setMyLike(null);
     void apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(postId)}`)
-      .then(result=>{if(active)setMyLike(result[postId]===true);})
+      .then(result=>{if(active&&revision===detailLikeRevision.current)setMyLike(result[postId]===true);})
       .catch(()=>{/* Unknown state on older or unreachable server. */});
     return()=>{active=false;};
   },[postId,userId]);
@@ -344,9 +348,12 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   async function toggleLike() {
     if (!post || postLikeInFlight.current) return;
     postLikeInFlight.current=true;
+    detailLikeRevision.current+=1;
     setPostLikeBusy(true);
     try {
+      const actor=userId;
       const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(post.id)}/like`,{method:'POST'});
+      if(detailActor.current!==actor)return;
       setMyLike(result.liked);
       setPost(current=>current?{...current,_count:{...current._count,
         likes:Math.max(0,current._count.likes+(result.liked?1:-1))}}:current);
@@ -834,6 +841,7 @@ export function FeedExperience({
   const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
   const [likePending,setLikePending] = useState<string[]>([]);
   const likeLock = useRef(new Set<string>());
+  const likeRevision=useRef(0);
   const [feedFresh,setFeedFresh] = useState(false);
   const [cachedNotice,setCachedNotice] = useState('');
   const feedRequest=useRef(0);
@@ -1019,13 +1027,14 @@ export function FeedExperience({
   const visiblePostIds=posts.map(post=>post.id).join(',');
   useEffect(()=>{
     let active=true;
+    const revision=likeRevision.current;
     setMyLikes({});
     if(!feedFresh || !visiblePostIds) return()=>{active=false;};
     const ids=visiblePostIds.split(',');
     void Promise.all(Array.from({length:Math.ceil(ids.length/50)},(_,index)=>{
       const batch=ids.slice(index*50,index*50+50);
       return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
-    })).then(pages=>{if(active)setMyLikes(Object.assign({},...pages));})
+    })).then(pages=>{if(active&&revision===likeRevision.current)setMyLikes(Object.assign({},...pages));})
       .catch(()=>{/* Never infer personal likes from a public count. */});
     return()=>{active=false;};
   },[visiblePostIds,userId,feedFresh]);
@@ -1038,6 +1047,7 @@ export function FeedExperience({
     try {
       const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(postId)}/like`,{method:'POST'});
       if(generation!==feedRequest.current)return;
+      likeRevision.current+=1;
       setMyLikes(current=>({...current,[postId]:result.liked}));
       setPosts(current=>current.map(post=>post.id===postId?{
         ...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}
