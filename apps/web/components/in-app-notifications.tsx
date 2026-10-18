@@ -52,6 +52,11 @@ export function InAppNotifications() {
   const seenIds = useRef(new Set<string>());
   const active = queue[0];
   const insideCenter = pathname === '/notifications' || pathname.startsWith('/notifications/');
+  // Data deletion/export and immersive games must not be interrupted by global
+  // activity banners or their polling. The notification center remains reachable
+  // through the application's normal navigation.
+  const suppressedFlow = pathname === '/account/data-rights' ||
+    pathname.startsWith('/games/');
   const currentPathRef = useRef(pathname);
   currentPathRef.current = pathname;
 
@@ -74,6 +79,11 @@ export function InAppNotifications() {
   }, [pathname]);
 
   useEffect(() => {
+    if (suppressedFlow) {
+      setQueue([]);
+      setUnread(0);
+      return;
+    }
     let alive = true, initialized = false, inFlight = false, repeat = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let token = sessionToken;
@@ -163,7 +173,7 @@ export function InAppNotifications() {
       window.removeEventListener('online', requestRefresh);
       window.removeEventListener('storage', requestRefresh);
     };
-  }, [sessionToken]);
+  }, [sessionToken, suppressedFlow]);
 
   useEffect(() => {
     if (insideCenter) setQueue([]);
@@ -201,7 +211,7 @@ export function InAppNotifications() {
     } catch { /* The destination stays available while offline. */ }
     router.push(path);
   };
-  if (!sessionToken || insideCenter) return null;
+  if (!sessionToken || insideCenter || suppressedFlow) return null;
   if (unread === 0 && !active) return null;
 
   return <>{unread > 0 && navAlertsLink && createPortal(
