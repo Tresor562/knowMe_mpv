@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {safeSharedLink,linksInMessage,contentKind,appendSharedMessages} from './group-shared-content-model.ts';
+
+const item = (id, kind, content='') => ({
+  id, conversationId:'group-1', content, createdAt:'2026-10-18T16:00:00Z',
+  presentation: kind ? {kind, assetId:'asset-' + id} : undefined
+});
+test('media / files categories reflect real message assets', () => {
+  assert.deepEqual(contentKind(item('1','IMAGE')),['media']);
+  assert.deepEqual(contentKind(item('2','VIDEO')),['media']);
+  assert.deepEqual(contentKind(item('3','GIF')),['media']);
+  assert.deepEqual(contentKind(item('4','DOCUMENT')),['files']);
+  assert.deepEqual(contentKind(item('5','AUDIO')),['files']);
+  assert.deepEqual(contentKind(item('6','STICKER')),[]);
+});
+test('only public http links are allowed and duplicates removed', () => {
+  assert.equal(safeSharedLink('javascript:alert(1)'),null);
+  assert.equal(safeSharedLink('data:text/html,evil'),null);
+  assert.equal(safeSharedLink('https://user:pass@example.com/file'),null);
+  assert.equal(safeSharedLink('https://example.com/a'), 'https://example.com/a');
+  const links=linksInMessage('Voir https://example.com/a, https://example.com/a et http://example.org/file.');
+  assert.deepEqual(links.map(v=>v.url),['https://example.com/a','http://example.org/file']);
+  assert.deepEqual(contentKind(item('1',null,'Regarde https://example.com')),['links']);
+});
+test('pagination deduplicates without mutating previous result', () => {
+  const a=[item('old','IMAGE')];
+  const b=appendSharedMessages(a,[item('old','IMAGE'),item('new','AUDIO')]);
+  assert.deepEqual(b.map(x=>x.id),['old','new']);
+  assert.equal(a.length,1);
+});
