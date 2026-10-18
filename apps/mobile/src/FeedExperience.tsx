@@ -195,6 +195,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [replyTo,setReplyTo] = useState<Comment|null>(null);
   const [repliesByParent,setRepliesByParent] = useState<Record<string,Comment[]>>({});
   const [expandedReplies,setExpandedReplies] = useState<string[]>([]);
+  const [moreReplies,setMoreReplies] = useState<Record<string,boolean>>({});
+  const [loadingReplies,setLoadingReplies] = useState<string|null>(null);
   const [reactions,setReactions] = useState<Record<string,ReactionSummary>>({});
   const [reactionPickerFor,setReactionPickerFor] = useState<string|null>(null);
   const [reactionBusy,setReactionBusy] = useState(false);
@@ -207,6 +209,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const discussionScroll = useRef<ScrollView>(null);
+  const commentInputRef = useRef<TextInput>(null);
   const commentsStart = useRef(0);
   const soughtCommentCursors = useRef(new Set<string>());
 
@@ -289,18 +292,29 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
     finally{setReactionBusy(false);}
   }
 
-  async function toggleReplies(comment:Comment) {
-    if(expandedReplies.includes(comment.id)){
+  async function toggleReplies(comment:Comment, append=false) {
+    if (!append && expandedReplies.includes(comment.id)) {
       setExpandedReplies(prev=>prev.filter(id=>id!==comment.id));
       return;
     }
+    if(loadingReplies) return;
+    setLoadingReplies(comment.id);
     try {
+      const existing=repliesByParent[comment.id]??[];
+      const cursor=append?existing[existing.length-1]?.id:undefined;
+      const query=cursor?`?cursor=${encodeURIComponent(cursor)}`:'';
       const data=await apiFetch<Comment[]>(
-        `/posts/${postId}/comments/${encodeURIComponent(comment.id)}/replies`
+        `/posts/${postId}/comments/${encodeURIComponent(comment.id)}/replies${query}`
       );
-      setRepliesByParent(prev=>({...prev,[comment.id]:data}));
+      setRepliesByParent(prev=>{
+        const previous=append?prev[comment.id]??[]:[];
+        const seen=new Set(previous.map(item=>item.id));
+        return {...prev,[comment.id]:[...previous,...data.filter(item=>!seen.has(item.id))]};
+      });
+      setMoreReplies(prev=>({...prev,[comment.id]:data.length===30}));
       setExpandedReplies(prev=>prev.includes(comment.id)?prev:[...prev,comment.id]);
     }catch(cause){Alert.alert('Réponses indisponibles',errorMessage(cause,'Réessaie.'));}
+    finally{setLoadingReplies(null);}
   }
 
   async function toggleLike() {
@@ -349,6 +363,9 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         ...prev,[replyParent.id]:[...(prev[replyParent.id]??[]),created]
       }));
       setExpandedReplies(prev=>prev.includes(replyParent.id)?prev:[...prev,replyParent.id]);
+      setComments(prev=>prev.map(item=>item.id===replyParent.id?{
+        ...item,_count:{replies:(item._count?.replies??0)+1}
+      }:item));
     }else{
       setComments(current=>[created,...current.filter(item=>item.id!==created.id)]);
       discussionScroll.current?.scrollTo({y:Math.max(0,commentsStart.current-12),animated:true});
@@ -460,7 +477,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
               onPress={()=>setReactionPickerFor(comment.id)}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>☺</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={()=>setReplyTo(comment)}>
+            <Pressable accessibilityRole="button" onPress={()=>{setReplyTo(comment);requestAnimationFrame(()=>commentInputRef.current?.focus());}}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>Répondre</Text>
             </Pressable>
             <Pressable accessibilityRole="button"
@@ -489,6 +506,17 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           {expanded && children.length>0 && (
             <View style={{borderLeftWidth:2,borderLeftColor:colors.border,paddingLeft:5}}>
               {children.map(child=>renderDiscussionComment(child,depth+1))}
+              {moreReplies[comment.id]&&(
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel="Afficher les réponses suivantes"
+                  disabled={loadingReplies===comment.id}
+                  onPress={()=>void toggleReplies(comment,true)}
+                  style={{minHeight:44,justifyContent:'center',paddingHorizontal:8}}>
+                  <Text style={[styles.threadToolText,{color:colors.accent}]}>
+                    {loadingReplies===comment.id?'Chargement…':'Afficher les réponses suivantes'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -589,7 +617,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           </Pressable>
         </View>
       ):null}
-      <TextInput
+      <TextInput ref={commentInputRef}
         accessibilityLabel="Écrire un commentaire"
         value={commentText}
         onChangeText={setCommentText}
