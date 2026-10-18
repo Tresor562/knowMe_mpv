@@ -10,6 +10,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
+import './multi-media-composer.css';
 import { useI18n } from '../../components/i18n-provider';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AccountBadges } from '../../components/AccountBadges';
