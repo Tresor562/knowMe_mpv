@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '../../../components/i18n-provider';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 import { storyUi } from '../story-i18n';
+import './story-archive.css';
 
 type Story = {
   id: string;
@@ -13,60 +15,165 @@ type Story = {
   createdAt: string;
   archivedAt?: string | null;
   pinnedAt?: string | null;
-  hashtags: string[];
+  hashtags?: string[];
 };
-
 type ArchiveResponse = { stories: Story[]; nextCursor: string | null };
+type Filter = 'all' | 'pinned' | 'text' | 'photo' | 'video';
+
+const labels = {
+  fr: {
+    title:'Archive des Stories', subtitle:'Tes Stories expirées ou archivées',
+    back:'Retour à la création', refresh:'Actualiser', empty:'Aucune Story archivée pour le moment.',
+    emptyFiltered:'Aucune Story ne correspond à ce filtre.',
+    all:'Toutes', pinned:'Épinglées', text:'Textes', photo:'Photos', video:'Vidéos',
+    open:'Ouvrir la Story', next:'Afficher plus de Stories', loading:'Chargement de ton archive…',
+    more:'Chargement des Stories suivantes…', error:'Impossible de charger ton archive.',
+    moreError:'Impossible de charger la suite des Stories.',
+    retry:'Réessayer', cached:'Les Stories déjà chargées restent disponibles.',
+    created:'Publiée le', archived:'Archivée le', pinnedMark:'Épinglée', fallback:'Story sans description',
+    results:'Stories affichées', partial:'Le filtre porte sur les Stories déjà chargées. Affiche la suite pour tout voir.'
+  },
+  en: {
+    title:'Story archive', subtitle:'Your expired or archived Stories',
+    back:'Back to Story creation', refresh:'Refresh', empty:'No archived Stories yet.',
+    emptyFiltered:'No Stories match this filter.',
+    all:'All', pinned:'Pinned', text:'Text', photo:'Photos', video:'Videos',
+    open:'Open Story', next:'Load more Stories', loading:'Loading your archive…',
+    more:'Loading more Stories…', error:'Unable to load your archive.',
+    moreError:'Unable to load more Stories.',
+    retry:'Retry', cached:'Previously loaded Stories are still available.',
+    created:'Published on', archived:'Archived on', pinnedMark:'Pinned', fallback:'Story without description',
+    results:'Stories shown', partial:'This filter applies to loaded Stories only. Load more to see the full archive.'
+  }
+} as const;
 
 export default function StoryArchivePage() {
-  const ui = storyUi();
-  const { user, loading: sessionLoading } = useSession({ required: true });
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const t = labels[en ? 'en' : 'fr'];
+  const ui = storyUi(en ? 'en' : 'fr');
+  const { user, loading:sessionLoading } = useSession({required:true});
+  const [stories,setStories] = useState<Story[]>([]);
+  const [nextCursor,setNextCursor] = useState<string|null>(null);
+  const [loading,setLoading] = useState(true);
+  const [loadingMore,setLoadingMore] = useState(false);
+  const [error,setError] = useState(false);
+  const [moreError,setMoreError] = useState(false);
+  const [filter,setFilter] = useState<Filter>('all');
+  const loadingPage = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setMessage('');
+    if (loadingPage.current) return;
+    loadingPage.current = true;
+    setLoading(true);setError(false);setMoreError(false);
     try {
-      const result = await apiFetch<ArchiveResponse>('/stories/me/archive');
-      setStories(result.stories);
-    } catch (cause) {
-      setStories([]);
-      setMessage(cause instanceof Error ? cause.message : ui.unavailable);
+      const page=await apiFetch<ArchiveResponse>('/stories/me/archive');
+      if (!Array.isArray(page.stories)) throw new Error('Invalid Story archive response');
+      setStories(page.stories);
+      setNextCursor(page.nextCursor ?? null);
+    } catch {
+      // Retain the last successful page for intermittent network failures.
+      setError(true);
     } finally {
-      setLoading(false);
+      loadingPage.current=false;setLoading(false);
     }
-  }, [ui.unavailable]);
+  },[]);
 
-  useEffect(() => {
-    if (!sessionLoading && user) void load();
-  }, [load, sessionLoading, user?.id]);
+  useEffect(()=>{if (!sessionLoading && user) void load();},[load,sessionLoading,user?.id]);
 
-  if (sessionLoading || loading) return <main className="shell"><p>{ui.loading}</p></main>;
+  const loadMore=async()=>{
+    if (!nextCursor||loadingPage.current) return;
+    loadingPage.current=true;setLoadingMore(true);setMoreError(false);
+    const cursor=nextCursor;
+    try {
+      const page=await apiFetch<ArchiveResponse>(
+        '/stories/me/archive?cursor='+encodeURIComponent(cursor)
+      );
+      if (!Array.isArray(page.stories)) throw new Error('Invalid Story archive page');
+      setStories(current=>{
+        const known=new Set(current.map(story=>story.id));
+        return [...current,...page.stories.filter(story=>!known.has(story.id))];
+      });
+      // A broken cursor contract must not create an infinite pagination loop.
+      setNextCursor(page.nextCursor && page.nextCursor!==cursor?page.nextCursor:null);
+    } catch {
+      setMoreError(true);
+    } finally {
+      loadingPage.current=false;setLoadingMore(false);
+    }
+  };
 
-  return (
-    <main className="shell" style={{ maxWidth: 820, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <Link className="btn" href="/stories/new">←</Link>
-        <div>
-          <small style={{ color: 'var(--mint)' }}>@{user?.username}</small>
-          <h1 style={{ margin: 0 }}>{ui.archive}</h1>
-        </div>
-      </header>
+  const visible=stories.filter(story=>{
+    if (filter==='pinned') return Boolean(story.pinnedAt);
+    if (filter==='all') return true;
+    return story.type.toLowerCase()===filter;
+  });
 
-      {message && <p role="alert" style={{ color: 'var(--orange)' }}>{message}</p>}
-      {!message && stories.length === 0 && <div className="card" style={{ padding: 24, textAlign: 'center' }}>{ui.noViews}</div>}
+  const format=(value?:string|null)=>{
+    if(!value)return '';
+    const date=new Date(value);
+    return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat(en?'en':'fr',{
+      dateStyle:'medium',timeStyle:'short'
+    }).format(date);
+  };
 
-      <section className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
-        {stories.map((story) => (
-          <Link href={`/stories/${story.id}`} key={story.id} className="card" style={{ minHeight: 240, padding: 16, textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'linear-gradient(145deg, rgba(121,87,255,.32), var(--surface))' }}>
-            <small style={{ color: 'var(--mint)' }}>{story.type}{story.pinnedAt ? ' · PINNED' : ''}</small>
-            <p style={{ fontSize: 18, whiteSpace: 'pre-wrap' }}>{story.caption || 'Story'}</p>
-            <small style={{ color: 'var(--muted)' }}>{new Date(story.createdAt).toLocaleDateString()}</small>
-          </Link>
-        ))}
-      </section>
-    </main>
-  );
+  return <main className="shell km-story-archive">
+    <header className="km-story-archive-header">
+      <Link href="/stories/new" className="km-story-archive-back"
+        aria-label={t.back} title={t.back}>←</Link>
+      <div className="km-story-archive-title">
+        <small>@{user?.username ?? 'KnowMe'} · {t.subtitle}</small>
+        <h1>{t.title}</h1>
+      </div>
+      <button type="button" onClick={()=>void load()}
+        disabled={sessionLoading||loading||loadingMore||!user}>{t.refresh}</button>
+    </header>
+
+    {error&&<div className="km-story-archive-error" role="alert">
+      <span>{t.error} {stories.length>0&&t.cached}</span>
+      <button type="button" onClick={()=>void load()} disabled={loading}>{t.retry}</button>
+    </div>}
+    {(sessionLoading||(loading&&stories.length===0))&&
+      <p role="status" className="km-story-archive-status">{t.loading}</p>}
+
+    {(stories.length>0 || (!loading&&!error)) && <>
+      {stories.length>0&&<div className="km-story-archive-filters" role="group" aria-label={t.title}>
+        {(['all','pinned','text','photo','video'] as Filter[]).map(value=>
+          <button type="button" key={value} aria-pressed={filter===value}
+            onClick={()=>setFilter(value)} className={filter===value?'selected':''}>{t[value]}</button>
+        )}
+      </div>}
+      {stories.length>0&&<div className="km-story-archive-count">
+        <span>{visible.length} {t.results}</span>
+        {nextCursor&&<small>{t.partial}</small>}
+      </div>}
+      {stories.length===0&&<p className="km-story-archive-status">{t.empty}</p>}
+      {stories.length>0&&visible.length===0&&
+        <p className="km-story-archive-status">{t.emptyFiltered}</p>}
+      <ul className="km-story-archive-grid">
+        {visible.map(story=>
+          <li key={story.id}>
+            <Link className="km-story-archive-entry" href={'/stories/'+encodeURIComponent(story.id)}
+              aria-label={t.open+' · '+(story.caption?.trim()||t.fallback)}>
+              <div className="km-story-archive-preview">
+                <span className="km-story-archive-type">{story.type==='TEXT'?t.text:story.type==='PHOTO'?t.photo:story.type==='VIDEO'?t.video:story.type}</span>
+                {story.pinnedAt&&<span className="km-story-archive-pinned">{t.pinnedMark}</span>}
+                <p>{story.caption?.trim()||t.fallback}</p>
+              </div>
+              <div className="km-story-archive-meta">
+                <time dateTime={story.createdAt}>{t.created} {format(story.createdAt)}</time>
+                {story.archivedAt&&<time dateTime={story.archivedAt}>{t.archived} {format(story.archivedAt)}</time>}
+              </div>
+            </Link>
+          </li>
+        )}
+      </ul>
+      {nextCursor&&<div className="km-story-archive-more">
+        {moreError&&<p role="alert">{t.moreError}</p>}
+        <button type="button" disabled={loadingMore} onClick={()=>void loadMore()}>
+          {loadingMore?t.more:moreError?t.retry:t.next}
+        </button>
+      </div>}
+    </>}
+  </main>;
 }
