@@ -3,7 +3,8 @@ import {ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View} f
 import type {RecordedKnowMeVoice} from './native-voice';
 import {cancelKnowMeVoice,discardKnowMeVoice,getKnowMeVoicePlaybackStatus,playKnowMeVoice,
   seekKnowMeVoicePlayback,startKnowMeVoice,stopKnowMeVoice,stopKnowMeVoicePlayback} from './native-voice';
-import {voiceClock,voiceProgress,voiceSeekMs,voiceUiState,type VoicePhase} from './voice-composer-model';
+import {shouldCancelNativeCaptureOnUnmount,shouldDiscardVoiceOnUnmount,
+  voiceClock,voiceProgress,voiceSeekMs,voiceUiState,type VoicePhase} from './voice-composer-model';
 import {useI18n} from './I18nProvider';
 import {KnowMeAlert as Alert} from './ui/KnowMeFeedback';
 import {useAppearance} from './AppearanceProvider';
@@ -86,13 +87,13 @@ export function KnowMeVoiceComposer({busy,onSend,referenceChat=false}:{
       mountedRef.current=false;
       const previous=phaseRef.current;
       phaseRef.current='idle';
-      if(previous==='recording'||previous==='starting'||previous==='stopping'){
+      if(shouldCancelNativeCaptureOnUnmount(previous)){
         void cancelKnowMeVoice().catch(()=>undefined);
       }
       // A confirmed upload must retain its file until onSend completes.
       // Other local previews are discarded on navigation/unmount.
       const file=capturedRef.current;
-      if(file&&previous!=='sending')void discardKnowMeVoice(file.uri).catch(()=>undefined);
+      if(file&&shouldDiscardVoiceOnUnmount(previous))void discardKnowMeVoice(file.uri).catch(()=>undefined);
       void stopKnowMeVoicePlayback().catch(()=>undefined);
     };
   },[]);
