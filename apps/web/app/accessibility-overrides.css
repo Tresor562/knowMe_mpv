@@ -19,7 +19,8 @@
   transition-delay: 0ms !important;
 }
 :root[data-effective-reduce-transparency='true'] .bottom-nav,
-:root[data-effective-reduce-transparency='true'] .km-nav-create-menu {
+:root[data-effective-reduce-transparency='true'] .km-nav-create-menu,
+:root[data-effective-reduce-transparency='true'] .km-header-nav-group:has(.km-smart-nav[data-position='top']) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background: var(--surface) !important;
