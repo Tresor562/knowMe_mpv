@@ -3,6 +3,7 @@ import { knowMeConfirm } from '../../../components/knowme-feedback';
 
 import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
+import { PostMediaCollage, type PostMediaItem } from '../../../components/post-media-collage';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -24,6 +25,7 @@ type Post = {
   id: string;
   content: string;
   imageUrl?: string | null;
+  media?: PostMediaItem[];
   createdAt: string;
   authorId: string;
   author: { id: string; displayName: string; username: string; avatarUrl?: string | null; staff?: StaffBadge | null; verification?: VerificationBadge | null };
@@ -538,7 +540,8 @@ export default function PostDetailPage() {
           </details>
         </header>
         <p className="km-post-detail-text"><KnowMeMentionText text={post.content}/></p>
-        {post.imageUrl && <img className="km-post-detail-image" src={post.imageUrl.startsWith('/media/public/post/') ? `/api/knowme${post.imageUrl}` : post.imageUrl} alt="Média de la publication" />}
+        <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
+          caption={post.content}/>
         <div className="km-post-actions">
           <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
           <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
