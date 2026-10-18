@@ -49,14 +49,18 @@ export class ReportsService {
   }
 
   /** Dedicated private, paginated social report history; keeps `mine()` backwards compatible. */
-  async minePostReports(reporterId: string, cursor?: string) {
+  async minePostReports(reporterId: string, cursor?: string, status?: string) {
+    if (status !== undefined && !['OPEN', 'RESOLVED', 'DISMISSED'].includes(status)) {
+      throw new BadRequestException('Statut de signalement invalide.');
+    }
+    const scope = { reporterId, targetType: 'POST', ...(status ? { status } : {}) };
     if (cursor !== undefined) {
       if (!/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)) {
         throw new BadRequestException('Curseur de signalements invalide.');
       }
       // Never accept an anchor from another user's report or another report type.
       const anchor = await this.prisma.report.findFirst({
-        where: { id: cursor, reporterId, targetType: 'POST' },
+        where: { id: cursor, ...scope },
         select: { id: true }
       });
       if (!anchor) throw new BadRequestException('Curseur de signalements invalide.');
@@ -64,7 +68,7 @@ export class ReportsService {
 
     const PAGE_SIZE = 20;
     const entries = await this.prisma.report.findMany({
-      where: { reporterId, targetType: 'POST' },
+      where: scope,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
