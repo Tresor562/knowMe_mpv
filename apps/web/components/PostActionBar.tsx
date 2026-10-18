@@ -14,6 +14,8 @@ export type PostActionBarProps = {
   saved?: boolean;
   online?: boolean;
   onHeart: () => Promise<void>;
+  /** Required to remove a selected non-heart emoji; never assume PUT toggles. */
+  onRemoveReaction?: () => Promise<void>;
   onReact: (emoji: string) => Promise<void>;
   onComments: () => void;
   onShare: () => void;
@@ -55,7 +57,7 @@ function validCustomReaction(value: string) {
 export function PostActionBar({
   postId, en, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true,
-  onHeart, onReact, onComments, onShare, onSave
+  onHeart, onRemoveReaction, onReact, onComments, onShare, onSave
 }: PostActionBarProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allEmojiOpen, setAllEmojiOpen] = useState(false);
@@ -150,6 +152,12 @@ export function PostActionBar({
   }
   function heartTap() {
     if (suppressTap.current) { suppressTap.current = false; return; }
+    // The historical /like endpoint toggles hearts. Non-heart emoji need an
+    // explicit DELETE callback rather than silently adding a heart instead.
+    if (selectedReaction && selectedReaction !== '❤️') {
+      if (onRemoveReaction) void execute(onRemoveReaction);
+      return;
+    }
     void execute(onHeart);
   }
   async function selectReaction(emoji: string) {
@@ -157,6 +165,7 @@ export function PostActionBar({
   }
   const heartActive = selectedReaction !== null;
   const heartIsSelected = selectedReaction === '❤️';
+  const canToggle = !selectedReaction || heartIsSelected || Boolean(onRemoveReaction);
   return (
     <div className="km-post-action-area" data-post-id={postId}>
       {reactionCounts.length > 0 && (
@@ -170,8 +179,10 @@ export function PostActionBar({
         aria-label={en ? 'Publication actions' : 'Actions de la publication'}>
         <div className="km-post-reaction-trigger">
           <button type="button" className="km-post-action km-post-heart"
-            disabled={!online || busy} aria-pressed={heartActive}
-            aria-label={en ? 'Like publication' : 'J’aime la publication'}
+            disabled={!online || busy || !canToggle} aria-pressed={heartActive}
+            aria-label={heartActive
+              ? (en ? 'Remove my reaction' : 'Retirer ma réaction')
+              : (en ? 'React to publication' : 'Réagir à la publication')}
             onPointerDown={onHeartPointerDown} onPointerMove={onHeartPointerMove}
             onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress}
             onPointerUp={cancelLongPress}
@@ -180,6 +191,7 @@ export function PostActionBar({
             {selectedReaction && selectedReaction !== '❤️'
               ? <span className="km-post-selected-emoji" aria-hidden="true">{selectedReaction}</span>
               : <Icon name="heart" active={heartIsSelected}/>}
+            {!heartActive && <span className="km-post-action-label">{en ? 'React' : 'Réagir'}</span>}
             <span className="km-post-action-count">{likeCount}</span>
           </button>
           <button type="button" ref={pickerButton} className="km-post-reaction-more"
