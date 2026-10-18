@@ -211,3 +211,40 @@
 .km-comment-reaction-more input {flex:1;min-width:0;border:1px solid var(--soft-border);border-radius:13px;padding:10px;background:var(--surface-2);color:var(--text);font:inherit;}
 .km-comment-reaction-more button {min-height:44px;border:0;border-radius:12px;padding:0 12px;background:var(--mint);color:var(--on-primary);font-weight:700;}
 @media(prefers-reduced-motion:reduce){.km-comment-reaction-options button {transition:none;}}
+
+/*
+ * A comment offers only two immediately visible operations: React / Reply.
+ * Copy, edit, report and delete remain in the existing long-press / right-click
+ * context sheet. Hide redundant shortcuts without removing their real handlers.
+ */
+.km-post-comment-actions > button:nth-of-type(2),
+.km-post-comment-actions > button:nth-of-type(4),
+.km-post-comment-actions > button:nth-of-type(n+6) { display:none; }
+
+/* Keep the context-menu trigger keyboard discoverable without adding a third
+ * persistent button. On Tab focus it becomes visible and operable. */
+.km-post-comment-actions > button:nth-of-type(5) {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  overflow:hidden;
+  white-space:nowrap;
+  clip-path:inset(50%);
+  border:0;
+}
+.km-post-comment-actions > button:nth-of-type(5):focus-visible {
+  position:static;
+  width:auto;
+  height:40px;
+  padding:7px 13px;
+  overflow:visible;
+  clip-path:none;
+  white-space:normal;
+  outline:2px solid var(--mint);
+  outline-offset:2px;
+  border-radius:12px;
+}
+.km-comment-react-button[aria-pressed="true"] {
+  color:#e73d57;
+}
