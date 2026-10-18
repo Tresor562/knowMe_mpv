@@ -35,3 +35,13 @@ test('never displays an APK download when metadata is missing or unsafe', async 
   await expect(page.getByText('Aucune APK vérifiée n’est publiée pour le moment.')).toBeVisible();
   await expect(page.getByRole('link', { name: /Ouvrir le téléchargement officiel KnowMe/ })).toHaveCount(0);
 });
+
+test('refuses a fake APK host even when its HTTPS path looks official', async ({ page }) => {
+  await setup(page, {
+    version: '1.1.8', versionCode: 11,
+    url: 'https://third-party.example/knowme-api/mobile-updates/android/apk/KnowMe-1.1.8-preview.apk',
+    sha256: 'a'.repeat(64)
+  });
+  await expect(page.getByText('Aucune APK vérifiée n’est publiée pour le moment.')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Ouvrir le téléchargement officiel KnowMe/ })).toHaveCount(0);
+});
