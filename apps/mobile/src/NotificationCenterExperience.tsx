@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import { KnowMeIcon, type KnowMeIconName } from './ui/KnowMeUI';
 import { getRealtimeSocket } from './realtime';
 
 type Category =
@@ -80,15 +81,15 @@ type CenterResponse = {
   };
 };
 
-const CATEGORY_META: Array<{ key: Category; label: string; icon: string }> = [
-  { key: 'SOCIAL', label: 'Social', icon: '👥' },
-  { key: 'MESSAGING', label: 'Messages', icon: '💬' },
-  { key: 'CHALLENGES', label: 'Défis et jeux', icon: '🎯' },
-  { key: 'GIFTS', label: 'Cadeaux', icon: '🎁' },
-  { key: 'SECRET', label: 'Secret', icon: '🕵️' },
-  { key: 'CIRCLES', label: 'Profils collectifs', icon: '⭐' },
-  { key: 'SECURITY', label: 'Sécurité', icon: '🛡️' },
-  { key: 'SYSTEM', label: 'Système', icon: '⚙️' }
+const CATEGORY_META: Array<{ key: Category; label: string; icon: KnowMeIconName }> = [
+  { key: 'SOCIAL', label: 'Social', icon: 'heart' },
+  { key: 'MESSAGING', label: 'Messages', icon: 'messages' },
+  { key: 'CHALLENGES', label: 'Défis et jeux', icon: 'challenge' },
+  { key: 'GIFTS', label: 'Cadeaux', icon: 'coins' },
+  { key: 'SECRET', label: 'Secret', icon: 'spark' },
+  { key: 'CIRCLES', label: 'Profils collectifs', icon: 'profile' },
+  { key: 'SECURITY', label: 'Sécurité', icon: 'check' },
+  { key: 'SYSTEM', label: 'Système', icon: 'settings' }
 ];
 
 const VIEWS: Array<{ key: CenterView; label: string }> = [
@@ -380,7 +381,7 @@ export function NotificationCenterExperience({
         <Pressable
           accessibilityRole="button"
           onPress={onClose}
-          style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+          style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
         >
           <Text style={{ color: colors.text }}>Fermer</Text>
         </Pressable>
@@ -424,9 +425,10 @@ export function NotificationCenterExperience({
           { backgroundColor: colors.surface, borderColor: colors.border }
         ]}
       >
-        <Text style={[styles.cardTitle, { color: colors.text }]}>
-          ⚙️ Préférences globales
-        </Text>
+        <View style={styles.preferenceTitle}>
+          <KnowMeIcon name="settings" size={20} color={colors.accent} />
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Préférences de notification</Text>
+        </View>
         <Text style={{ color: colors.muted }}>
           {center.preferences.realtimeEnabled
             ? 'Temps réel actif'
@@ -531,7 +533,7 @@ export function NotificationCenterExperience({
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void saveTimes()}
-            style={[styles.button, { borderColor: colors.accent, borderRadius: visual.controlRadius }]}
+            style={[styles.button, { borderColor: colors.accent, borderRadius: Math.min(visual.controlRadius, 14) }]}
           >
             <Text style={{ color: colors.accent, fontWeight: '800' }}>
               Enregistrer les horaires
@@ -546,10 +548,12 @@ export function NotificationCenterExperience({
               category.key === 'SECURITY' || category.key === 'SYSTEM';
             return (
               <View key={category.key} style={styles.settingRow}>
-                <Text style={{ color: colors.text }}>
-                  {category.icon} {category.label}
-                  {locked ? ' · essentiel' : ''}
-                </Text>
+                <View style={styles.preferenceTitle}>
+                  <KnowMeIcon name={category.icon} size={19} color={colors.muted} />
+                  <Text style={{ color: colors.text, fontSize: 13 }}>
+                    {category.label}{locked ? ' · essentiel' : ''}
+                  </Text>
+                </View>
                 <Switch
                   disabled={busy || locked}
                   value={center.preferences.categorySettings[category.key]}
@@ -599,15 +603,24 @@ export function NotificationCenterExperience({
               styles.card,
               {
                 backgroundColor: colors.surface,
-                borderColor: group.unreadCount ? colors.accent : colors.border
+                borderColor: colors.border
               }
             ]}
           >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {category?.icon ?? '🔔'} {group.latest.title}
-              {group.grouped ? ` ×${group.count}` : ''}
-              {group.latest.critical ? ' · essentiel' : ''}
-            </Text>
+            <View style={styles.noticeTitleRow}>
+              <View style={[styles.noticeIcon, { backgroundColor: colors.backgroundAccent }]}>
+                <KnowMeIcon name={category?.icon ?? 'bell'} size={21} color={colors.accent} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>
+                  {group.latest.title}{group.grouped ? ` · ${group.count}` : ''}
+                </Text>
+                {group.latest.critical && <Text style={[styles.criticalLabel, { color: colors.accent }]}>
+                  Essentiel
+                </Text>}
+              </View>
+              {group.unreadCount > 0 && <View style={[styles.unreadMark, { backgroundColor: colors.accent }]} />}
+            </View>
             <Text style={{ color: colors.muted, marginTop: 6 }}>
               {group.latest.body}
             </Text>
@@ -626,7 +639,7 @@ export function NotificationCenterExperience({
                 <Pressable
                   disabled={busy}
                   onPress={() => void markRead(group)}
-                  style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+                  style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
                 >
                   <Text style={{ color: colors.text }}>Ouvrir / lu</Text>
                 </Pressable>
@@ -636,21 +649,21 @@ export function NotificationCenterExperience({
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'SNOOZE')}
-                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
                   >
                     <Text style={{ color: colors.text }}>1 h</Text>
                   </Pressable>
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'ARCHIVE')}
-                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
                   >
                     <Text style={{ color: colors.text }}>Archiver</Text>
                   </Pressable>
                   <Pressable
                     disabled={busy}
                     onPress={() => void stateGroup(group, 'DISMISS')}
-                    style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+                    style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
                   >
                     <Text style={{ color: colors.text }}>Masquer</Text>
                   </Pressable>
@@ -660,7 +673,7 @@ export function NotificationCenterExperience({
                 <Pressable
                   disabled={busy}
                   onPress={() => void stateGroup(group, 'RESTORE')}
-                  style={[styles.button, { borderColor: colors.accent, borderRadius: visual.controlRadius }]}
+                  style={[styles.button, { borderColor: colors.accent, borderRadius: Math.min(visual.controlRadius, 14) }]}
                 >
                   <Text style={{ color: colors.accent }}>Restaurer</Text>
                 </Pressable>
@@ -675,7 +688,7 @@ export function NotificationCenterExperience({
           accessibilityRole="button"
           disabled={loadingMore || busy}
           onPress={() => void load(true)}
-          style={[styles.button, { borderColor: colors.border, borderRadius: visual.controlRadius }]}
+          style={[styles.button, { borderColor: colors.border, borderRadius: Math.min(visual.controlRadius, 14) }]}
         >
           <Text style={{ color: colors.text }}>
             {loadingMore ? 'Chargement…' : 'Charger plus'}
@@ -688,18 +701,23 @@ export function NotificationCenterExperience({
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 20, gap: 14 },
+  content: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 28, gap: 8 },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 6
+    gap: 10,
+    marginBottom: 5
   },
-  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
-  title: { fontSize: 30, fontWeight: '900', marginVertical: 4 },
-  card: { borderWidth: 1, borderRadius: 18, padding: 16 },
-  cardTitle: { fontSize: 17, fontWeight: '800' },
+  eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  title: { fontSize: 23, fontWeight: '800', marginVertical: 3 },
+  card: { borderBottomWidth: 1, borderRadius: 0, paddingVertical: 12, paddingHorizontal: 4 },
+  cardTitle: { fontSize: 14, lineHeight: 19, fontWeight: '750' },
+  noticeTitleRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  noticeIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  unreadMark: { width: 7, height: 7, borderRadius: 4, marginHorizontal: 5 },
+  preferenceTitle: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  criticalLabel: { fontSize: 11, fontWeight: '700', marginTop: 3 },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '800',
@@ -713,21 +731,25 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10
   },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  row: { flexDirection: 'row', gap: 8 },
-  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 },
+  row: { flexDirection: 'row', gap: 6 },
+  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8
   },
   button: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignItems: 'center'
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   input: {
     borderWidth: 1,
