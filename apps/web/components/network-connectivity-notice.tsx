@@ -69,11 +69,11 @@ export function NetworkConnectivityNotice() {
       <span className="km-network-notice-icon" aria-hidden="true">
         {offline
           ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
               <path d="m3 3 18 18M16.8 12.1A7 7 0 0 0 12 10.3M8.2 10.9A9.5 9.5 0 0 1 12 10.1M4 8.8A14 14 0 0 1 12 6c3.7 0 7 1.4 9 3.8M9.2 14.4a4.5 4.5 0 0 1 5.6 0M12 18.8h.01"/>
             </svg>
           : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
               <path d="M4 12.7 9.3 18 20 6"/>
             </svg>}
       </span>
