@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
+import { useKnowMeDocumentVisible } from './knowme-document-visibility';
 import {
   clampRealProgress, didIconEventChange, mayAnimateIndefinitely,
   presentationGlyphName, type IconOperationState
@@ -31,6 +32,7 @@ export function KnowMeAnimatedIcon({
   name, state = 'idle', size = 22, progress = null,
   eventToken = null, className = ''
 }: Props) {
+  const visible = useKnowMeDocumentVisible();
   const previous = useRef({ name, state, eventToken });
   const [burst, setBurst] = useState(false);
   const [motionId, setMotionId] = useState(0);
@@ -63,7 +65,7 @@ export function KnowMeAnimatedIcon({
       data-knowme-motion={visibleName}
       data-icon-state={state}
       data-icon-burst={burst ? String(motionId) : undefined}
-      data-auto-motion={mayAnimateIndefinitely(state) ? 'true' : 'false'}
+      data-auto-motion={visible && mayAnimateIndefinitely(state) ? 'true' : 'false'}
       aria-hidden="true"
       style={{ width: size, height: size }}
     >
