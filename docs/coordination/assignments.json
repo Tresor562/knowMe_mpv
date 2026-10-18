@@ -129,17 +129,17 @@
     },
     "infra": {
       "issue": 698,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/release-guard-readiness",
-      "task": "Reprise PR #721 : tests exact-head, audit release/API/Android, corrections, intégration conditionnelle",
+      "task": "PR #721 : audit en lecture seule API/PostgreSQL/Web VPS/Vercel/Android, 12/12 tests audit verts au HEAD cb8d528; attendre checks qualité, Android et coordination, revue, puis fusion (pas de déploiement sans preuves).",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T14:17:43.311Z",
+      "updatedAt": "2026-10-18T14:28:31.402Z",
       "lastPr": 721,
       "resumeFrom": {
         "pr": 721,
         "branch": "chat/infra/release-guard-readiness",
-        "commit": "1d1f31f141a2dee3f1b7946f1d5c035506edeeeb"
+        "commit": "cb8d528fcec626661c34f1eca9b15c957d2f90fe"
       }
     },
     "design": {
@@ -476,6 +476,15 @@
       "action": "pause",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T14:28:31.402Z",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "branch": "chat/infra/release-guard-readiness",
+      "pr": 721,
+      "head": "cb8d528fcec626661c34f1eca9b15c957d2f90fe"
     }
   ]
 }
