@@ -75,6 +75,16 @@ test('private chat has shared media, links, files and search without group admin
   await expect.poll(()=>page.evaluate(()=>
     (window as Window & { __lastSharedLinks?: string }).__lastSharedLinks
   )).toContain('/messages/dm-1?message=dm-text');
+  const saved:string[]=[];
+  page.on('request',request=>{
+    if(new URL(request.url()).pathname.endsWith('/saved-messages')&&request.method()==='POST'){
+      const payload=request.postDataJSON() as {messageId:string};
+      saved.push(payload.messageId);
+    }
+  });
+  await page.getByRole('button',{name:'Enregistrer la sélection'}).click();
+  await expect(page.locator('.km-shared-copy-status')).toContainText('1 message(s) enregistré(s).');
+  expect(saved).toEqual(['dm-text']);
   await expect(page.getByRole('button',{name:'Copier les liens vers les messages'})).toBeEnabled();
   await page.getByRole('button',{name:'Copier les liens vers les messages'}).click();
   await expect.poll(() => page.evaluate(()=>
