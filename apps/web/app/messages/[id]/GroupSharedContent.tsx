@@ -242,7 +242,9 @@ export function GroupSharedContent({
           : en?'No shared content of this type.':'Aucun contenu partagé de ce type.'}
       </p>}
     {kind==='search'&&!search.trim()&&<p className="km-group-shared-status">
-      {en?'Enter a term to search this group history.':'Saisis un terme pour rechercher dans les messages du groupe.'}
+      {en
+        ? (isGroup?'Enter a term to search this group history.':'Enter a term to search this private conversation.')
+        : (isGroup?'Saisis un terme pour rechercher dans les messages du groupe.':'Saisis un terme pour rechercher dans cette discussion privée.')}
     </p>}
     {!loading&&!error&&cursor&&<button type="button" className="km-group-shared-more"
       onClick={()=>void load(cursor)}>
