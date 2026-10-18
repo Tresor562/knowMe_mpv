@@ -7,11 +7,12 @@ type Props={
   paused?:boolean;
   seekToMs?:number;
   onProgress?:(event:NativeSyntheticEvent<VideoProgress>)=>void;
+  onPlaybackError?:(event:NativeSyntheticEvent<{message:string}>)=>void;
 };
 const AndroidPlayer=requireNativeComponent<Props>('KnowMeStoryVideoView');
 
-export function NativeStoryVideo({sourceUri,paused=false,style,seekToMs,onProgress}:Props) {
+export function NativeStoryVideo({sourceUri,paused=false,style,seekToMs,onProgress,onPlaybackError}:Props) {
   if(Platform.OS!=='android')return <View style={style}/>;
   return <AndroidPlayer sourceUri={sourceUri} paused={paused} style={style}
-    seekToMs={seekToMs} onProgress={onProgress}/>;
+    seekToMs={seekToMs} onProgress={onProgress} onPlaybackError={onPlaybackError}/>;
 }
