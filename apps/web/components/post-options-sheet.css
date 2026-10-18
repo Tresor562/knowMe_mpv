@@ -1,0 +1,61 @@
+.km-post-options-overlay {
+  position:fixed;inset:0;z-index:285;
+  display:flex;justify-content:center;align-items:flex-end;
+  background:rgba(0,0,0,.53);
+}
+.km-post-options-sheet {
+  width:min(100%,560px);
+  max-height:min(85dvh,720px);
+  display:flex;flex-direction:column;gap:3px;
+  padding:11px 14px calc(16px + env(safe-area-inset-bottom,0px));
+  overflow-y:auto;
+  background:var(--surface);color:var(--text);
+  border-radius:26px 26px 0 0;
+  box-shadow:0 -16px 44px rgba(0,0,0,.25);
+}
+.km-post-options-handle {
+  width:40px;height:5px;margin:0 auto 8px;
+  border-radius:999px;background:var(--soft-border);
+}
+.km-post-options-sheet header {
+  display:flex;gap:12px;align-items:center;justify-content:space-between;
+  padding-bottom:8px;
+}
+.km-post-options-sheet header h2 {font-size:17px;line-height:1.4;margin:0;}
+.km-post-options-sheet header button {
+  width:42px;height:42px;display:grid;place-items:center;
+  border-radius:50%;border:0;
+  background:var(--surface-2);color:var(--text);font-size:23px;cursor:pointer;
+}
+.km-post-options-sheet > p {
+  margin:0 3px 8px;color:var(--muted);font-size:12px;line-height:1.45;
+}
+.km-post-options-sheet > :is(button,a) {
+  min-height:49px;display:flex;align-items:center;gap:13px;
+  border:0;border-radius:13px;padding:8px 12px;
+  font:inherit;font-size:14px;font-weight:580;
+  color:var(--text);background:transparent;text-align:left;text-decoration:none;
+  cursor:pointer;
+}
+.km-post-options-sheet > :is(button,a):is(:hover,:focus-visible) {background:var(--surface-2);}
+.km-post-options-sheet > :is(button,a) > span {
+  display:grid;place-items:center;flex:0 0 28px;
+  width:28px;height:28px;font-size:20px;
+}
+.km-post-options-sheet > .km-post-options-danger {color:var(--danger);}
+.km-post-hide-trigger {
+  width:35px;height:35px;border-radius:50%;
+  display:grid;place-items:center;cursor:pointer;
+  border:0;background:transparent;color:var(--muted);font-size:19px;
+}
+.km-post-hide-trigger:is(:hover,:focus-visible) {background:var(--surface-2);}
+.km-post-dismissed-note {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;margin:8px 0;padding:11px 13px;
+  background:var(--surface-2);border:1px solid var(--soft-border);
+  border-radius:15px;font-size:13px;
+}
+.km-post-dismissed-note button {
+  min-height:42px;border:0;border-radius:12px;
+  color:var(--mint);background:var(--surface);padding:8px 12px;cursor:pointer;
+}
