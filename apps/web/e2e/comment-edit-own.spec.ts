@@ -42,10 +42,10 @@ test('edit is offered only on own comments and sends a verified PATCH request', 
   const other=page.locator('#knowme-comment-other-comment');
   const mine=page.locator('#knowme-comment-own-comment');
   await expect(other).toBeVisible();
-  await other.getByRole('button',{name:/Actions pour le commentaire/}).click();
+  await other.click({button:'right'});
   await expect(page.getByRole('button',{name:'Modifier le commentaire'})).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await mine.getByRole('button',{name:/Actions pour le commentaire/}).click();
+  await mine.click({button:'right'});
   await page.getByRole('button',{name:'Modifier le commentaire'}).click();
   const edit=page.getByRole('dialog',{name:'Modifier le commentaire'});
   await expect(edit).toBeVisible();
