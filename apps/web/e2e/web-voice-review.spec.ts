@@ -128,7 +128,8 @@ test('voice sheet traps focus and Escape cleans a private recording',async({page
   await expect(page.locator('body')).toHaveCSS('overflow','hidden');
   await expect(dialog.getByRole('button',{name:'Supprimer l’enregistrement'})).toBeFocused();
   await page.keyboard.press('Shift+Tab');
-  await expect(dialog.getByRole('button',{name:'Supprimer',exact:true})).toBeFocused();
+  // Focus wraps from the first control to the last enabled control in the sheet.
+  await expect(dialog.getByRole('button',{name:'Terminer'})).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(record).toBeFocused();
