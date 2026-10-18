@@ -10,10 +10,10 @@ test('native pause glyph reflects actual player state', () => {
 });
 
 test('native animation loop is limited to ongoing real events', () => {
-  for (const state of ['loading', 'recording', 'playing', 'typing', 'syncing', 'call-active', 'live']) {
+  for (const state of ['loading', 'recording', 'playing', 'typing', 'syncing', 'call-active', 'live'] as const) {
     assert.equal(nativeIconShouldLoop(state), true);
   }
-  for (const state of ['idle', 'selected', 'unselected', 'paused', 'success', 'error', 'offline', 'closed']) {
+  for (const state of ['idle', 'selected', 'unselected', 'paused', 'success', 'error', 'offline', 'closed'] as const) {
     assert.equal(nativeIconShouldLoop(state), false);
   }
 });
