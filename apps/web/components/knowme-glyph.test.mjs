@@ -191,6 +191,11 @@ test('post video toolbar uses truthful state-driven SVGs and 44px controls', () 
   assert.match(video, /aria-pressed=\{muted\}/);
   assert.match(video, /aria-pressed=\{fullscreen\}/);
   assert.match(video, /if \(event\.detail === 0\)/);
+  assert.match(video, /setSeekEvents\(previous =>/);
+  assert.match(video, /eventToken=\{seekEvents\.back\}/);
+  assert.match(video, /eventToken=\{seekEvents\.forward\}/);
+  assert.match(animatedCss, /km-state-icon--rewind-10\[data-icon-burst\]/);
+  assert.match(animatedCss, /km-state-icon--fullscreen\[data-icon-burst\]/);
   assert.doesNotMatch(video, /🔇|🔊|↶10|10↷|⛶|Ⅱ|▶/);
   assert.match(css, /min-width: 44px/);
   assert.match(css, /min-height: 44px/);
