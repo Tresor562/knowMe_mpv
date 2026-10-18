@@ -5,6 +5,8 @@ test.use({ serviceWorkers: 'block' });
 async function mockAccount(page: Page, options: {
   failInitialList?: boolean;
   failListAfterWithdrawal?: boolean;
+  emptyInitialList?: boolean;
+  failListAfterSubmission?: boolean;
 } = {}) {
   await page.addInitScript(() => {
     localStorage.setItem('knowme_token', 'verification-ui-test');
@@ -12,7 +14,9 @@ async function mockAccount(page: Page, options: {
   });
   let withdrawn = false;
   let mutationCount = 0;
+  let submissionCount = 0;
   let listCount = 0;
+  let submitted = false;
   await page.route('**/api/knowme/**', async route => {
     const req = route.request();
     const path = new URL(req.url()).pathname;
@@ -30,11 +34,12 @@ async function mockAccount(page: Page, options: {
       data = { locale: 'fr', direction: 'ltr' };
     } else if (path.endsWith('/verification/me')) {
       listCount += 1;
-      if (options.failInitialList || (withdrawn && options.failListAfterWithdrawal)) {
+      if (options.failInitialList || (withdrawn && options.failListAfterWithdrawal) ||
+          (submitted && options.failListAfterSubmission)) {
         status = 503;
         data = { code: 'VERIFICATION_UNAVAILABLE', message: 'Historique indisponible' };
       } else {
-        data = [{
+        data = options.emptyInitialList && !submitted ? [] : [{
           id: 'req-1', submissionNumber: 1,
           status: withdrawn ? 'WITHDRAWN' : 'SUBMITTED',
           level: 'STANDARD', evidenceCount: 0,
@@ -42,6 +47,10 @@ async function mockAccount(page: Page, options: {
           decisionVersion: 1, evidence: [], decisions: []
         }];
       }
+    } else if (path.endsWith('/verification/requests') && method === 'POST') {
+      submissionCount += 1;
+      submitted = true;
+      data = { id: 'req-1', status: 'SUBMITTED' };
     } else if (path.endsWith('/verification/requests/req-1/withdraw') && method === 'POST') {
       mutationCount += 1;
       withdrawn = true;
@@ -51,7 +60,11 @@ async function mockAccount(page: Page, options: {
   });
   await page.goto('/verification');
   await expect(page.getByRole('heading', { name: 'Vérification de l’identité' })).toBeVisible();
-  return { mutationCount: () => mutationCount, listCount: () => listCount };
+  return {
+    mutationCount: () => mutationCount,
+    submissionCount: () => submissionCount,
+    listCount: () => listCount
+  };
 }
 
 test('successful withdrawal remains a success when subsequent history refresh fails', async ({ page }) => {
@@ -74,4 +87,19 @@ test('failed initial history prevents accidental duplicate requests', async ({ p
   await expect(page.getByRole('button', { name: 'Soumettre pour examen' })).toHaveCount(0);
   await expect(page.getByText(/Aucun nouvel envoi ne sera proposé/)).toBeVisible();
   expect(state.mutationCount()).toBe(0);
+});
+
+test('accepted submission is not treated as failed when the history refresh is unavailable', async ({ page }) => {
+  const state = await mockAccount(page, {
+    emptyInitialList: true, failListAfterSubmission: true
+  });
+  await page.getByRole('textbox', { name: 'Nom à vérifier' }).fill('Compte de test');
+  await page.getByRole('textbox', { name: 'Prestataire' }).fill('MOCK_PROVIDER');
+  await page.getByRole('textbox', { name: 'Référence opaque' }).fill('reference-12345');
+  await page.getByRole('textbox', { name: 'Empreinte SHA-256' }).fill('a'.repeat(64));
+  await page.getByRole('button', { name: 'Soumettre pour examen' }).click();
+  await expect.poll(state.submissionCount).toBe(1);
+  await expect(page.getByText(/Demande soumise. Actualisation temporairement indisponible/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Soumettre pour examen' })).toHaveCount(0);
+  expect(state.submissionCount()).toBe(1);
 });
