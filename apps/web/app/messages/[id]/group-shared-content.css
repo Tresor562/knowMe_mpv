@@ -297,3 +297,22 @@
   .km-shared-select-bar{gap:3px}
   .km-shared-select-bar button{font-size:11px;padding-inline:9px}
 }
+
+/* Selection actions scroll in one discreet row on narrow devices rather than
+   stacking huge cards above the shared media list. */
+.km-group-shared-content .km-shared-select-bar{
+  display:flex;align-items:center;flex-wrap:nowrap;gap:3px;
+  min-height:50px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;scroll-snap-type:x proximity
+}
+.km-group-shared-content .km-shared-select-bar::-webkit-scrollbar{display:none}
+.km-group-shared-content .km-shared-select-bar > button{
+  flex:0 0 auto;scroll-snap-align:start;min-height:44px
+}
+.km-group-shared-content .km-shared-select-bar > span{
+  flex:0 0 auto;white-space:nowrap;padding-inline:5px
+}
+.km-group-shared-content .km-shared-selection-scope{
+  padding:1px 7px 7px;margin:0;color:var(--muted);
+  font-size:11px;line-height:1.45
+}
