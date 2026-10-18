@@ -18,6 +18,7 @@ type ReportRecord = {
 };
 
 type ReportPage = { reports: ReportRecord[]; nextCursor: string | null };
+type ReportStatusFilter = '' | 'OPEN' | 'RESOLVED' | 'DISMISSED';
 
 function reportStatus(value: string, en: boolean) {
   if (value === 'OPEN') return en ? 'Under review' : 'En cours d’examen';
@@ -32,6 +33,7 @@ export default function MyPostReportsPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [records, setRecords] = useState<ReportRecord[]>([]);
+  const [statusFilter, setStatusFilter] = useState<ReportStatusFilter>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -47,7 +49,10 @@ export default function MyPostReportsPage() {
     setMoreError('');
     setLoadingMore(false);
     try {
-      const result = await apiFetch<ReportPage>('/reports/mine/posts');
+      const url = statusFilter
+        ? `/reports/mine/posts?status=${statusFilter}`
+        : '/reports/mine/posts';
+      const result = await apiFetch<ReportPage>(url);
       if (requestId !== generation.current) return;
       setRecords(result.reports);
       setNextCursor(result.nextCursor);
@@ -60,7 +65,7 @@ export default function MyPostReportsPage() {
     } finally {
       if (requestId === generation.current) setLoading(false);
     }
-  }, [en]);
+  }, [en, statusFilter]);
 
   const loadMore = async () => {
     if (!nextCursor || loading || loadingMore || pageInFlight.current) return;
@@ -70,7 +75,7 @@ export default function MyPostReportsPage() {
     setMoreError('');
     try {
       const result = await apiFetch<ReportPage>(
-        `/reports/mine/posts?cursor=${encodeURIComponent(nextCursor)}`
+        `/reports/mine/posts?cursor=${encodeURIComponent(nextCursor)}${statusFilter ? `&status=${statusFilter}` : ''}`
       );
       if (generation.current !== requestId) return;
       setRecords(previous => {
@@ -123,6 +128,25 @@ export default function MyPostReportsPage() {
           ? 'Your publication reports appear here, newest first. Reporting does not remove a publication.'
           : 'Retrouve ici tes signalements de publications, des plus récents aux plus anciens. Un signalement ne supprime pas une publication.'}
       </p>
+      <div className="km-post-report-history-filters" role="group"
+        aria-label={en ? 'Filter report status' : 'Filtrer par statut'}>
+        {([
+          ['', en ? 'All' : 'Tous'],
+          ['OPEN', en ? 'Under review' : 'En cours'],
+          ['RESOLVED', en ? 'Reviewed' : 'Examinés'],
+          ['DISMISSED', en ? 'Closed' : 'Clôturés']
+        ] as const).map(([value, label]) => (
+          <button key={value || 'all'} type="button"
+            aria-pressed={statusFilter === value}
+            disabled={sessionLoading}
+            onClick={() => {
+              if (statusFilter !== value) {
+                setLoading(true);
+                setStatusFilter(value);
+              }
+            }}>{label}</button>
+        ))}
+      </div>
       {loading ? <p role="status">{en ? 'Loading reports…' : 'Chargement des signalements…'}</p> : null}
       {error ? (
         <div className="km-post-report-history-error" role="alert">
@@ -134,8 +158,10 @@ export default function MyPostReportsPage() {
       ) : null}
       {!loading && !error && records.length === 0 ? (
         <section className="km-post-report-history-empty" aria-label={heading}>
-          <h2>{en ? 'No publication reports in your recent history' :
-            'Aucun signalement de publication dans ton historique récent'}</h2>
+          <h2>{statusFilter
+            ? (en ? 'No reports with this status' : 'Aucun signalement avec ce statut')
+            : (en ? 'No publication reports in your recent history' :
+              'Aucun signalement de publication dans ton historique récent')}</h2>
           <p>{en ? 'Reports submitted for publications will appear here once confirmed.' :
             'Les signalements confirmés de publications apparaîtront ici.'}</p>
           <Link href="/feed">{en ? 'Return to publications' : 'Retour aux publications'}</Link>
