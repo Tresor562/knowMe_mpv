@@ -114,27 +114,30 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
-      "branch": "chat/marketplace/web-sticker-pack-directory",
-      "task": "Continue: merge validated Marketplace PRs, safe APK listing and link tabs with no regressions",
+      "branch": "chat/marketplace/verified-transaction-history",
+      "task": "Merged #712 (408b9a1), #726 (a354bcd); #731 APK Web + #733 sticker Web pending CI/guard; #737 native Apps, #741 verified history pending CI; #739 shortcut links require #731/#733 merged. #717/#719 blocked by #583. Production Vercel observed behind main.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T14:45:12.235Z",
-      "lastPr": 733,
+      "updatedAt": "2026-10-18T14:59:53.447Z",
+      "lastPr": 741,
       "resumeFrom": {
-        "pr": 733,
-        "branch": "chat/marketplace/web-sticker-pack-directory",
-        "commit": "9feb587c9ccb46cf20b3346eb06e2d97b1b1c32b",
+        "pr": 741,
+        "branch": "chat/marketplace/verified-transaction-history",
+        "commit": "f21accf833a1ca274025e58e09fced82e919b60e",
         "merged": [
           722,
-          714
+          714,
+          712,
+          726
         ],
         "relatedPrs": [
-          712,
           717,
           719,
-          726,
-          731
+          731,
+          733,
+          737,
+          739
         ]
       }
     },
@@ -723,6 +726,15 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 738
+    },
+    {
+      "at": "2026-10-18T14:59:53.447Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/verified-transaction-history",
+      "pr": 741
     }
   ]
 }
