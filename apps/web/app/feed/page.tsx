@@ -66,7 +66,6 @@ export default function FeedPage() {
   const [selectedMedia, setSelectedMedia] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<Array<{ file: File; url: string | null }>>([]);
   const [photoCapability, setPhotoCapability] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
 
