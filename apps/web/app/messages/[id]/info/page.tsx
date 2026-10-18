@@ -9,7 +9,7 @@ import { useSession } from '../../../../lib/use-session';
 import { knowMeConfirm } from '../../../../components/knowme-feedback';
 import { GroupSharedContent } from '../GroupSharedContent';
 import { GroupAvatarEditor } from '../GroupAvatarEditor';
-import './group-info-architecture.css';
+import '../group-info-architecture.css';
 
 type Member = {
   userId: string;
