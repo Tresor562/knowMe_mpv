@@ -1,6 +1,7 @@
 import { BlurView } from 'expo-blur';
-import { ReactNode, type ReactElement, useEffect, useMemo, useRef } from 'react';
+import { ReactNode, type ReactElement, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   Easing,
   Image,
@@ -109,12 +110,15 @@ export function KnowMeIcon({
   name,
   size = 22,
   color = '#AEB6C4',
-  strokeWidth = 1.8
+  strokeWidth = 1.8,
+  filled = false
 }: {
   name: KnowMeIconName;
   size?: number;
   color?: string;
   strokeWidth?: number;
+  /** For persistent confirmed states: currently supported by heart. */
+  filled?: boolean;
 }) {
   const s = size / 24;
   const sw = strokeWidth * s;
@@ -184,13 +188,41 @@ export function KnowMeIcon({
     <View style={{position:'absolute',right:1*s,top:6*s,width:7*s,height:12*s,borderWidth:sw,borderColor:color,
       borderTopLeftRadius:5*s,borderBottomLeftRadius:5*s,transform:[{rotate:'25deg'}]}}/>
   </View>;
-  if(name==='phone-call')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'-35deg'}]}}>
-    <View style={{width:11*s,height:19*s,borderWidth:sw,borderColor:color,borderTopLeftRadius:9*s,borderBottomRightRadius:9*s,borderTopRightRadius:2*s,borderBottomLeftRadius:2*s}}/>
-  </View>;
+  if (name === 'phone-call') return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', left: 7 * s, top: 4 * s, width: 12 * s, height: 16 * s,
+        borderLeftWidth: 3.4 * s, borderBottomWidth: 3.4 * s, borderColor: color,
+        borderBottomLeftRadius: 11 * s, transform: [{ rotate: '-42deg' }] }}/>
+      <View style={{ position: 'absolute', left: 3.5 * s, top: 3 * s, width: 6.2 * s, height: 8 * s,
+        backgroundColor: color, borderRadius: 3 * s, transform: [{ rotate: '-32deg' }] }}/>
+      <View style={{ position: 'absolute', right: 2.5 * s, bottom: 3.3 * s, width: 6.2 * s, height: 8 * s,
+        backgroundColor: color, borderRadius: 3 * s, transform: [{ rotate: '-32deg' }] }}/>
+    </View>
+  );
   if(name==='paperclip')return <View style={{width:size,height:size,alignItems:'center',justifyContent:'center',transform:[{rotate:'42deg'}]}}>
     <View style={{height:21*s,width:13*s,borderColor:color,borderWidth:sw,borderRadius:7*s,borderBottomColor:'transparent'}}/>
     <View style={{position:'absolute',height:14*s,width:5*s,borderColor:color,borderWidth:sw,borderRadius:4*s,top:5*s}}/>
   </View>;
+
+  // A real settings glyph instead of the former generic square-with-dot fallback.
+  if (name === 'settings') {
+    return <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 15.5 * s, height: 15.5 * s, borderRadius: 8 * s, borderWidth: sw, borderColor: color,
+        alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 5.4 * s, height: 5.4 * s, borderWidth: sw, borderColor: color, borderRadius: 3 * s }}/>
+      </View>
+      {Array.from({ length: 8 }, (_, index) => {
+        const angle = index * Math.PI / 4;
+        return <View key={index} style={{
+          position: 'absolute', width: 4 * s, height: 3 * s, borderRadius: 1 * s,
+          backgroundColor: color,
+          left: (12 + 9 * Math.cos(angle) - 2) * s,
+          top: (12 + 9 * Math.sin(angle) - 1.5) * s,
+          transform: [{ rotate: `${index * 45 + 90}deg` }]
+        }}/>;
+      })}
+    </View>;
+  }
 
   if (name === 'home') {
     return (
@@ -300,6 +332,19 @@ export function KnowMeIcon({
           top={22*s} color={color}/>
       </View>
     );
+  }
+
+  // A confirmed like must display a genuinely filled red heart, not a red outline.
+  // Native rounded primitives are used until the compatible SVG renderer lands.
+  if (name === 'heart' && filled) {
+    return <View style={{ width: size, height: size }} pointerEvents="none">
+      <View style={{ position: 'absolute', left: 7 * s, top: 9.2 * s, width: 10.8 * s,
+        height: 10.8 * s, transform: [{ rotate: '45deg' }], backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 3.3 * s, top: 4.9 * s,
+        width: 11 * s, height: 11 * s, borderRadius: 5.5 * s, backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 10.4 * s, top: 4.9 * s,
+        width: 11 * s, height: 11 * s, borderRadius: 5.5 * s, backgroundColor: color }} />
+    </View>;
   }
 
   if (name === 'heart') {
@@ -585,34 +630,82 @@ export function KnowMeIcon({
   );
 }
 
+// One system preference listener for the entire app — never one per icon.
+let reducedMotionSnapshot = false;
+const reducedMotionListeners = new Set<() => void>();
+let reducedMotionSubscription: { remove: () => void } | null = null;
+function publishReducedMotion(reduced: boolean) {
+  if (reducedMotionSnapshot === reduced) return;
+  reducedMotionSnapshot = reduced;
+  reducedMotionListeners.forEach(listener => listener());
+}
+function subscribeReducedMotion(listener: () => void) {
+  reducedMotionListeners.add(listener);
+  if (reducedMotionListeners.size === 1) {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(publishReducedMotion)
+      .catch(() => { /* App preference remains available. */ });
+    reducedMotionSubscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged', publishReducedMotion
+    );
+  }
+  return () => {
+    reducedMotionListeners.delete(listener);
+    if (!reducedMotionListeners.size) {
+      reducedMotionSubscription?.remove();
+      reducedMotionSubscription = null;
+    }
+  };
+}
+const getReducedMotionSnapshot = () => reducedMotionSnapshot;
+const getServerReducedMotionSnapshot = () => false;
+
+/** Shared subscription, reused by all interactive native icons. */
+export function useKnowMeSystemReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion, getReducedMotionSnapshot, getServerReducedMotionSnapshot
+  );
+}
+
 export function PressScale({
   children,
   onPress,
+  onLongPress,
   disabled = false,
   style,
   accessibilityRole,
   accessibilityLabel,
+  accessibilityHint,
+  accessibilityValue,
   accessibilityState
 }: {
   children: ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityRole?: PressableProps['accessibilityRole'];
   accessibilityLabel?: string;
+  accessibilityHint?: PressableProps['accessibilityHint'];
+  accessibilityValue?: PressableProps['accessibilityValue'];
   accessibilityState?: PressableProps['accessibilityState'];
 }) {
   const { appearance } = useAppearance();
   const value = useRef(new Animated.Value(1)).current;
-  const motion = appearance?.preference.animationsEnabled !== false;
+  const systemReducedMotion = useKnowMeSystemReducedMotion();
+  const motion = appearance?.preference.animationsEnabled !== false && !systemReducedMotion;
+  useEffect(() => {
+    if (!motion) { value.stopAnimation(); value.setValue(1); }
+  }, [motion, value]);
 
   function to(next: number) {
-    if (!motion) return;
-    Animated.spring(value, {
+    if (!motion || disabled) return;
+    value.stopAnimation();
+    Animated.timing(value, {
       toValue: next,
-      useNativeDriver: true,
-      speed: 28,
-      bounciness: 2
+      duration: next === 1 ? 150 : 95,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
     }).start();
   }
 
@@ -620,10 +713,14 @@ export function PressScale({
     <Pressable
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityValue={accessibilityValue}
       accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => to(0.97)}
+      onLongPress={onLongPress}
+      hitSlop={4}
+      onPressIn={() => to(0.93)}
       onPressOut={() => to(1)}
     >
       <Animated.View
