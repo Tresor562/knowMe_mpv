@@ -770,6 +770,9 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
+  const [likePending,setLikePending] = useState<string[]>([]);
+  const likeLock = useRef(new Set<string>());
   const [feedFresh,setFeedFresh] = useState(false);
   const [cachedNotice,setCachedNotice] = useState('');
   const feedRequest=useRef(0);
@@ -952,16 +955,37 @@ export function FeedExperience({
     }
   }
 
+  const visiblePostIds=posts.map(post=>post.id).join(',');
+  useEffect(()=>{
+    let active=true;
+    setMyLikes({});
+    if(!feedFresh || !visiblePostIds) return()=>{active=false;};
+    const ids=visiblePostIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/50)},(_,index)=>{
+      const batch=ids.slice(index*50,index*50+50);
+      return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
+    })).then(pages=>{if(active)setMyLikes(Object.assign({},...pages));})
+      .catch(()=>{/* Never infer personal likes from a public count. */});
+    return()=>{active=false;};
+  },[visiblePostIds,userId,feedFresh]);
+
   async function like(postId: string) {
-    if(!feedFresh || offline)return;
+    if(!feedFresh || offline || likeLock.current.has(postId))return;
+    likeLock.current.add(postId);
+    setLikePending(prev=>[...prev,postId]);
+    const generation=feedRequest.current;
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' });
-      setPosts((current) => current.map((post) => post.id === postId ? {
-        ...post,
-        _count: { ...post._count, likes: Math.max(0, post._count.likes + (result.liked ? 1 : -1)) }
-      } : post));
-    } catch (cause) {
-      Alert.alert('Action impossible', errorMessage(cause, 'Réessaie.'));
+      const result=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(postId)}/like`,{method:'POST'});
+      if(generation!==feedRequest.current)return;
+      setMyLikes(current=>({...current,[postId]:result.liked}));
+      setPosts(current=>current.map(post=>post.id===postId?{
+        ...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}
+      }:post));
+    }catch(cause){
+      Alert.alert('Réaction non confirmée',errorMessage(cause,'Réessaie.'));
+    }finally{
+      likeLock.current.delete(postId);
+      setLikePending(current=>current.filter(id=>id!==postId));
     }
   }
 
@@ -1088,6 +1112,7 @@ export function FeedExperience({
           <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
           <View style={styles.actionsRow}>
             <MetricButton icon="heart" count={item._count.likes} label="J’aime"
+              selected={myLikes[item.id]===true} disabled={likePending.includes(item.id)}
               onPress={feedFresh&&!offline?()=>void like(item.id):undefined} />
             <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
             <MetricButton icon="messages" count={item._count.comments} label="Commentaires"
