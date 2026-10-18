@@ -139,12 +139,12 @@
     },
     "infra": {
       "issue": 698,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
       "branch": "chat/infra/verified-main-release-lineage",
-      "task": "PR #721 HEAD e302c13: quality/audit/android/coordination green; ready for review, latest coordination queued; PR #742 HEAD a339ee3: guard VPS release source SHA ancestry main; 9 tests + main-ancestry job queued. Check exact-head CI and safe merge; main remains unprotected (#703), no VPS deploy verified.",
+      "task": "CI exact-HEAD all green #721/#742; review clean, integrate sequentially with expected SHA, verify production checks after fusion",
       "claimedAt": "2026-10-18T14:05:40.631Z",
-      "updatedAt": "2026-10-18T15:10:01.336Z",
+      "updatedAt": "2026-10-18T15:35:36.481Z",
       "lastPr": 742,
       "resumeFrom": {
         "pr": 742,
@@ -855,6 +855,13 @@
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "at": "2026-10-18T15:34:09.641Z",
       "issue": 693
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T15:35:36.481Z",
+      "domain": "infra",
+      "ownerRef": "session-236b9d60-01cb-4828-bb4e-6561ec860a42",
+      "pr": 742
     }
   ]
 }
