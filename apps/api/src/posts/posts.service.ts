@@ -161,6 +161,82 @@ export class PostsService {
     return replies.map(reply => ({ ...reply, author: publicAuthor(reply.author) }));
   }
 
+  private validateEmoji(emoji: string) {
+    const parts = [...new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(emoji)];
+    if (parts.length !== 1 ||
+        !/[\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u20E3]/u.test(emoji) ||
+        /[\\r\\n]/u.test(emoji)) {
+      throw new BadRequestException('Choisis un seul emoji pour cette réaction.');
+    }
+  }
+
+  async commentReactionSummaries(userId: string, postId: string, commentIds: string[]) {
+    if (!commentIds.length || commentIds.length > 30) {
+      throw new BadRequestException('Indique entre 1 et 30 commentaires.');
+    }
+    const valid = await this.prisma.postComment.findMany({
+      where: { postId, id: { in: commentIds } },
+      select: { id: true }
+    });
+    const validIds = valid.map(item => item.id);
+    const [counts, own] = await Promise.all([
+      this.prisma.postCommentReaction.groupBy({
+        by: ['commentId', 'emoji'],
+        where: { commentId: { in: validIds } },
+        _count: { _all: true }
+      }),
+      this.prisma.postCommentReaction.findMany({
+        where: { commentId: { in: validIds }, userId },
+        select: { commentId: true, emoji: true }
+      })
+    ]);
+    const answer: Record<string, {
+      total: number; mine: string | null; emojis: Array<{ emoji: string; count: number }>
+    }> = {};
+    for (const id of validIds) answer[id] = { total: 0, mine: null, emojis: [] };
+    for (const row of counts) {
+      const entry = answer[row.commentId];
+      if (!entry) continue;
+      entry.total += row._count._all;
+      entry.emojis.push({ emoji: row.emoji, count: row._count._all });
+    }
+    for (const item of own) {
+      const entry = answer[item.commentId];
+      if (entry) entry.mine = item.emoji;
+    }
+    for (const entry of Object.values(answer)) {
+      entry.emojis.sort((a, b) => b.count - a.count || a.emoji.localeCompare(b.emoji));
+    }
+    return answer;
+  }
+
+  async setCommentReaction(userId: string, postId: string, commentId: string, emoji: string) {
+    this.validateEmoji(emoji);
+    const comment = await this.prisma.postComment.findFirst({
+      where: { id: commentId, postId }, select: { id: true }
+    });
+    if (!comment) throw new NotFoundException('Commentaire introuvable.');
+    await this.prisma.postCommentReaction.upsert({
+      where: { commentId_userId: { commentId, userId } },
+      create: { commentId, userId, emoji },
+      update: { emoji }
+    });
+    const result = await this.commentReactionSummaries(userId, postId, [commentId]);
+    return result[commentId];
+  }
+
+  async removeCommentReaction(userId: string, postId: string, commentId: string) {
+    const comment = await this.prisma.postComment.findFirst({
+      where: { id: commentId, postId }, select: { id: true }
+    });
+    if (!comment) throw new NotFoundException('Commentaire introuvable.');
+    await this.prisma.postCommentReaction.deleteMany({
+      where: { commentId, userId }
+    });
+    const result = await this.commentReactionSummaries(userId, postId, [commentId]);
+    return result[commentId];
+  }
+
   async toggleLike(userId: string, postId: string) {
     const [post, actor] = await Promise.all([
       this.prisma.post.findUnique({ where: { id: postId } }),
