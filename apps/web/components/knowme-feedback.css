@@ -28,10 +28,11 @@
 .km-feedback-actions button:active { transform: scale(.97); }
 .km-feedback-actions .km-feedback-primary { background: var(--mint); color: var(--on-primary,#fff); border-color: transparent; }
 .km-feedback-actions button:disabled { opacity: .45; cursor: not-allowed; }
-.km-feedback-toast { position: fixed; z-index: 200001; top: 30px; left: 50%;
+.km-feedback-toast { position: fixed; z-index: 200001; top: max(12px, calc(env(safe-area-inset-top, 0px) + 12px)); left: 50%;
   transform: translateX(-50%); width: min(calc(100% - 32px),460px);
-  padding: 13px 17px; border-radius: 20px; border: 1px solid var(--border);
-  display: flex; gap: 12px; align-items: center; background: var(--surface-glass,var(--surface));
+  padding: 8px 8px 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+  min-height: 56px; max-height: min(45dvh, 240px); overflow-y: auto;
+  display: flex; gap: 10px; align-items: center; background: var(--surface-glass,var(--surface));
   color: var(--text); box-shadow: 0 12px 32px rgba(0,0,0,.18);
   backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
 .km-feedback-toast > span:first-child { color: var(--mint); }
