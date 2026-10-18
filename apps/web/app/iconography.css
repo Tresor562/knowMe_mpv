@@ -1,0 +1,55 @@
+/* Original KnowMe SVG family — compact, Telegram-inspired tactile behavior.
+   Animate only the actual interaction, never decorative SVGs or loading/status glyphs. */
+:root {
+  --km-glyph-stroke: 1.9;
+  --km-glyph-press: .90;
+  --km-glyph-touch-speed: 110ms;
+}
+
+[data-knowme-icon] {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  vertical-align: middle;
+  color: inherit;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center;
+}
+
+/* Existing inline SVGs share the same responsive touch motion until migrated
+   to the canonical family. Exclude illustrations, badges and media playback
+   surfaces by requiring an actual button/link/summary ancestor. */
+:where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true'])
+  :where(svg:not([data-no-touch-motion])) {
+  transform-origin: center;
+  transition: transform var(--km-glyph-touch-speed) cubic-bezier(.2,.72,.2,1),
+              opacity var(--km-glyph-touch-speed) ease;
+}
+:where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true']):active
+  :where(svg:not([data-no-touch-motion])) {
+  transform: scale(var(--km-glyph-press));
+  opacity: .88;
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true']):hover
+    [data-knowme-icon] { transform: translateY(-.5px); }
+  :where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true']):active
+    [data-knowme-icon] { transform: scale(var(--km-glyph-press)); }
+}
+/* Selected icons are selected by color/fill, not by infinite pulsing. */
+:root[data-animated-icons='true'] .bottom-nav-icon,
+:root[data-animated-icons='true'] .bottom-nav-icon svg {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a, summary, [role='button']) svg { transition: none !important; animation: none !important; }
+  :where(button, a, summary, [role='button']):active svg { transform: none !important; }
+}
+:root[data-animations='false'] :where(button, a, summary, [role='button']) svg {
+  transition: none !important;
+  animation: none !important;
+}
+:root[data-animations='false'] :where(button, a, summary, [role='button']):active svg {
+  transform: none !important;
+}
