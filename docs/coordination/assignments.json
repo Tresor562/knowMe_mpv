@@ -181,24 +181,20 @@
       "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/live-notices-compact-surfaces",
-      "task": "PR #743 HEAD 5405041c: in-app notification Web, counter in smart navigation with secondary floating fallback, authoritative full unread count, compact notifications center and chat/group controls; Android organizer compact + advanced center styled but not mounted. Latest CI/coordination/APK queued or pending. PR #724 merged ed058b1b after all checks, PR #730 merged 5999b0a. Android tab blocked by open #583; emoji keyboard changes handed to merged Messaging #735, group member count bug #693. No production verification.",
+      "task": "PR #743 latest HEAD 1003774f : auth-safe notification banner, correct unread count + dock badge, dismiss list-page suppression, Web compact group info/conversation header/composer/emoji sheet, web Playwright auth/nav tests. Guard green on preceding HEAD, latest CI/guard/APK pending. PRs #724 and #730 merged; APK advanced NotificationCenterExperience still not mounted; #583 owns SocialHub, #693 owns group member count correction. No release verified.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T16:13:06.037Z",
+      "updatedAt": "2026-10-18T16:23:20.800Z",
       "lastPr": 743,
       "resumeFrom": {
         "pr": 743,
         "branch": "chat/design/live-notices-compact-surfaces",
-        "commit": "5405041c554887f4c9415d81b28212d35a31aa59",
+        "commit": "1003774fc0a0292092d073001f6a3e6631d97ec7",
         "mergedPrs": [
           724,
           730
         ],
-        "mergedHeads": [
-          "ed058b1b37c2b5df3a5412d02d56f399ac094f4c",
-          "5999b0acc4eac3fab5309bac7a32a1f072abbb71"
-        ],
-        "externalIssue": 693,
-        "externalPr": 583
+        "externalPr": 583,
+        "externalIssue": 693
       }
     }
   },
@@ -1005,6 +1001,13 @@
       "alsoPr": 758,
       "groupPr": 754,
       "prototypePr": 750
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-18T16:23:20.800Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 743
     }
   ]
 }
