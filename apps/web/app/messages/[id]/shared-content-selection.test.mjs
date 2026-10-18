@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { messageSelectionLinks } from './shared-content-selection.ts';
+import { messageSelectionLinks, selectVisibleMessageIds } from './shared-content-selection.ts';
 
 const m=(id, conversationId='chat')=>({id,conversationId,content:'',createdAt:'2026-10-18T15:00:00Z'});
 test('only currently visible authorized messages in the same conversation yield links',()=>{
@@ -20,4 +20,13 @@ test('selection is bounded to fifty distinct messages',()=>{
   const result=messageSelectionLinks('chat',visible.map(x=>x.id),visible,'https://example.test',1000);
   assert.equal(result.length,50);
   assert.deepEqual(messageSelectionLinks('chat',[],visible,'https://example.test'),[]);
+});
+
+test('select-visible ignores duplicate and cross-chat results and enforces 50 limit',()=>{
+ const visible=[m('a'),m('other','another-chat'),m('a'),m('b')];
+ assert.deepEqual(selectVisibleMessageIds('chat',visible),['a','b']);
+ assert.deepEqual(selectVisibleMessageIds('chat',visible,1),['a']);
+ const rows=Array.from({length:80},(_,i)=>m(String(i)));
+ assert.equal(selectVisibleMessageIds('chat',rows).length,50);
+ assert.deepEqual(selectVisibleMessageIds('chat',[]),[]);
 });
