@@ -1,9 +1,15 @@
-name: Deploy KnowMe dynamic runtime to VPS (one time)
+name: Deploy KnowMe API to VPS after verified merges
 on:
   push:
     branches: [main]
+    # Deploy backend changes automatically; a workflow-only path meant
+    # merged API features never reached the VPS without manual dispatch.
     paths:
-      - .github/workflows/deploy-knowme-dynamic-runtime-vps.yml
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'ops/**'
+      - 'scripts/check-platform-deployment*'
+      - '.github/workflows/deploy-knowme-dynamic-runtime-vps.yml'
   workflow_dispatch:
 
 permissions:
