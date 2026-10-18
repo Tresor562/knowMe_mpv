@@ -42,12 +42,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "Web publication reporting — PR #705 draft, coordination green, CI quality/Playwright pending; Android feed blocked by historical #583 overlap",
+      "task": "Reprise de la PR #705: qualification CI, correction, suite Social",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T12:09:18.992Z",
+      "updatedAt": "2026-10-18T13:26:49.445Z",
       "lastPr": 705,
       "resumeFrom": null
     },
@@ -198,6 +198,13 @@
       "at": "2026-10-18T13:26:20.732Z",
       "branch": "chat/messaging/audio-recorder-send-controls",
       "pr": 706
+    },
+    {
+      "at": "2026-10-18T13:26:49.445Z",
+      "domain": "social",
+      "action": "resume",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
