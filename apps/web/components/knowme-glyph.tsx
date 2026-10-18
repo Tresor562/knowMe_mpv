@@ -1,4 +1,4 @@
-import type { ReactNode, SVGProps } from 'react';
+import type { SVGProps } from 'react';
 
 /**
  * KnowMe vector family: original 24px glyphs with consistent 1.9px strokes.
@@ -35,7 +35,7 @@ export function KnowMeGlyph({ name, size = 22, active = false, ...props }: Props
     'data-knowme-icon': name
   };
 
-  const shapes: Record<KnowMeGlyphName, ReactNode> = {
+  const shapes = {
     story: <><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 7.8v8.4M7.8 12h8.4"/></>,
     cover: <><rect x="2.5" y="5.3" width="19" height="13.4" rx="2.5"/><path d="m3.3 16 5.6-5.1 3.9 3.6 3-2.65 5 4.65"/></>,
     sparkles: <><path d="m12 2.4 2.1 6.3 6.3 2.1-6.3 2.1L12 19.2l-2.1-6.3-6.3-2.1 6.3-2.1L12 2.4ZM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8L19 17Z"/></>,
