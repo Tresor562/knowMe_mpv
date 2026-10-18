@@ -35,10 +35,10 @@ test('a report from another user’s comment reaches the real report endpoint', 
   });
 
   await page.goto('/feed/post-a');
-  await page.locator('#knowme-comment-own').click({button:'right'});
+  await page.locator('#knowme-comment-comment-own').click({button:'right'});
   await expect(page.getByRole('button',{name:'Signaler le commentaire'})).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await page.locator('#knowme-comment-other').click({button:'right'});
+  await page.locator('#knowme-comment-comment-other').click({button:'right'});
   await page.getByRole('button',{name:'Signaler le commentaire'}).click();
   const dialog=page.getByRole('dialog',{name:'Signaler le commentaire'});
   await expect(dialog).toBeVisible();
