@@ -6,6 +6,7 @@ import {
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { PublicPostVideo } from './PublicPostVideo';
+import { ReelCaptionSheet } from './ReelCaptionSheet';
 import { KnowMeIcon } from './ui/KnowMeUI';
 
 type Author={id:string;username:string;displayName:string};
@@ -27,6 +28,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [more,setMore]=useState(false);
   const [hasMore,setHasMore]=useState(true);
   const [failure,setFailure]=useState('');
+  const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
   const pending=useRef(false);
@@ -153,7 +155,16 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
             onPress={()=>onOpenProfile(post.author.username)}>
             <Text style={styles.creator}>@{post.author.username}</Text>
           </Pressable>
-          {Boolean(post.content)&&<Text style={styles.caption} numberOfLines={4}>{post.content}</Text>}
+          {Boolean(post.content)&&<>
+            <Text style={styles.caption} numberOfLines={4}>{post.content}</Text>
+            {(post.content.length>160||post.content.includes('\n'))&&
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={'Lire toute la description de '+post.author.displayName}
+                onPress={()=>setCaptionClip(post)} style={styles.readMore}>
+                <Text style={styles.readMoreText}>Voir toute la description</Text>
+                <KnowMeIcon name="arrow" color="#c5fff4" size={14}/>
+              </Pressable>}
+          </>}
           <Pressable accessibilityRole="button" onPress={()=>onOpenPost(post.id)}
             style={styles.postLink}>
             <Text style={styles.postLinkText}>Voir la publication</Text>
@@ -206,6 +217,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       <Text style={styles.title}>KnowMe · Reels</Text>
       <View style={{width:44}}/>
     </View>
+    <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
+      onProfile={onOpenProfile}/>
     {Boolean(failure)&&<Pressable accessibilityRole="alert"
       onPress={()=>setFailure('')} style={styles.error}>
       <Text style={styles.errorText}>{failure}</Text>
@@ -226,6 +239,9 @@ const styles=StyleSheet.create({
   description:{flex:1,minWidth:0,gap:8,marginRight:9},
   creator:{color:'#fff',fontSize:15,fontWeight:'800'},
   caption:{color:'#fff',fontSize:13,lineHeight:18},
+  readMore:{minHeight:44,flexDirection:'row',alignItems:'center',gap:8,
+    borderRadius:12,paddingHorizontal:6,alignSelf:'flex-start'},
+  readMoreText:{color:'#c5fff4',fontSize:12,fontWeight:'800'},
   postLink:{alignSelf:'flex-start',minHeight:40,justifyContent:'center',
     borderRadius:11,backgroundColor:'rgba(24,74,80,.65)',paddingHorizontal:12},
   postLinkText:{color:'#b5fff1',fontSize:12,fontWeight:'700'},
