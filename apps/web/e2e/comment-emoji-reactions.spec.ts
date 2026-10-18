@@ -41,7 +41,12 @@ test('reacts with a heart, switches emoji and removes an existing reaction',asyn
   await main.click();
   await expect(main).toHaveAttribute('aria-pressed','true');
   await expect(main).toContainText('1');
-  await page.getByRole('button',{name:'Choisir une réaction pour le commentaire de Ami'}).click();
+  // The extra picker button is intentionally absent from the visible footer.
+  await expect(page.getByRole('button',{name:'Choisir une réaction pour le commentaire de Ami'})).toBeHidden();
+  await expect(page.getByRole('button',{name:'Répondre'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copier le lien'})).toHaveCount(0);
+  // Right-click on the quick reaction opens the same full emoji picker.
+  await main.click({button:'right'});
   const selector=page.getByRole('dialog',{name:'Choisir une réaction'});
   await expect(selector).toBeVisible();
   await selector.getByRole('button',{name:'Réagir avec 😂'}).click();
@@ -50,5 +55,15 @@ test('reacts with a heart, switches emoji and removes an existing reaction',asyn
   await expect(main).toContainText('❤️');
   await main.click(); // same emoji toggles off
   await expect(main).toHaveAttribute('aria-pressed','false');
+  // Holding/right-clicking the comment body reveals the full permission-aware
+  // context sheet without a row of destructive buttons.
+  await page.locator('.km-post-comment').first().click({button:'right'});
+  const actions=page.getByRole('dialog',{name:'Actions sur le commentaire de Ami'});
+  await expect(actions).toBeVisible();
+  await expect(actions.getByRole('button',{name:'Copier le texte'})).toBeVisible();
+  await expect(actions.getByRole('button',{name:'Signaler le commentaire'})).toBeVisible();
+  await expect(actions.getByRole('button',{name:'Modifier le commentaire'})).toHaveCount(0);
+  await actions.getByRole('button',{name:'Fermer les actions'}).click();
+
   expect(all).toEqual(['❤️','😂','❤️','removed']);
 });
