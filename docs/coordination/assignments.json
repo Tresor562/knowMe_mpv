@@ -40,10 +40,10 @@
       "issue": 694,
       "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
-      "branch": "chat/messaging/sticker-voice-composer",
-      "task": "Audit et développement UX messagerie (vocaux, stickers, composer)",
+      "branch": "chat/social/report-publication-web",
+      "task": "Signalement réel des publications depuis le menu Web, UI responsive FR/EN et E2E",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T12:00:50.499Z",
+      "updatedAt": "2026-10-18T12:03:25.599Z",
       "lastPr": null,
       "resumeFrom": null
     },
