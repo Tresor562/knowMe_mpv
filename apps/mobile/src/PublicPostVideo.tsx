@@ -10,7 +10,9 @@ import {publicPostVideoId} from './offline-public-video-model';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
-export function PublicPostVideo({url,onDoubleTap,autoPlay=false}:{url:string;onDoubleTap?:()=>void;autoPlay?:boolean}){
+export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false}:{
+  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean
+}){
   const {colors}=useAppearance();
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
@@ -141,7 +143,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false}:{url:string;onD
   }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused} style={styles.video}
+      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
