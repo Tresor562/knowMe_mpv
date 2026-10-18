@@ -37,6 +37,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
   const triggerRef=useRef<HTMLButtonElement>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
   const phaseRef=useRef<Phase>('idle');
+  const mountedRef=useRef(true);
   function next(value:Phase){phaseRef.current=value;setPhase(value);}
   useEffect(()=>{if(open)closeRef.current?.focus();},[open]);
 
@@ -52,7 +53,16 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     await item.context.close().catch(()=>undefined);
   }
 
-  useEffect(()=>()=>{void stopEngine();},[]);
+  useEffect(()=>{
+    mountedRef.current=true;
+    return ()=>{
+      mountedRef.current=false;
+      phaseRef.current='idle';
+      chunks.current=[];
+      // A late microphone permission grant must not start an unmounted recorder.
+      void stopEngine();
+    };
+  },[]);
   useEffect(()=>{
     if(!ready){setPreviewUrl(null);return;}
     const url=URL.createObjectURL(ready);
@@ -89,7 +99,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
         throw new Error(en?'Microphone unavailable in this browser.':'Microphone indisponible dans ce navigateur.');
       }
       stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true},video:false});
-      if((phaseRef.current as Phase)!=='starting'){
+      if(!mountedRef.current||(phaseRef.current as Phase)!=='starting'){
         stream.getTracks().forEach(track=>track.stop());return;
       }
       context=new AudioContext();
@@ -107,7 +117,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
       silent.connect(context.destination);
       engine.current={stream,context,input,processor,silent};
       await context.resume();
-      if((phaseRef.current as Phase)!=='starting'){
+      if(!mountedRef.current||(phaseRef.current as Phase)!=='starting'){
         await stopEngine();return;
       }
       started.current=Date.now();next('recording');
@@ -125,7 +135,7 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     await stopEngine();
     // Cancel or conversation-switch during asynchronous audio shutdown must
     // never resurrect a deleted recording.
-    if(phaseRef.current!=='stopping'){chunks.current=[];return;}
+    if(!mountedRef.current||phaseRef.current!=='stopping'){chunks.current=[];return;}
     try{
       const wav=encodeKnowMeVoiceWav(chunks.current,sampleRate.current,MAX_SECONDS);
       chunks.current=[];
