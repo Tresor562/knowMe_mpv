@@ -36,10 +36,17 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
   const started=useRef(0);
   const triggerRef=useRef<HTMLButtonElement>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
+  const dialogRef=useRef<HTMLElement>(null);
   const phaseRef=useRef<Phase>('idle');
   const mountedRef=useRef(true);
   function next(value:Phase){phaseRef.current=value;setPhase(value);}
   useEffect(()=>{if(open)closeRef.current?.focus();},[open]);
+  useEffect(()=>{
+    if(!open)return;
+    const previous=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    return ()=>{document.body.style.overflow=previous;};
+  },[open]);
 
   async function stopEngine(){
     const item=engine.current;
@@ -88,6 +95,24 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     },300);
     return ()=>clearInterval(interval);
   },[phase]);
+
+  function handleDialogKeys(event:React.KeyboardEvent<HTMLElement>){
+    if(event.key==='Escape'&&phaseRef.current!=='uploading'){
+      event.preventDefault();
+      void cancel();
+      return;
+    }
+    if(event.key!=='Tab')return;
+    const nodes=dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), audio[controls], [tabindex]:not([tabindex="-1"])');
+    if(!nodes?.length)return;
+    const first=nodes[0],last=nodes[nodes.length-1];
+    if(event.shiftKey&&document.activeElement===first){
+      event.preventDefault();last?.focus();
+    }else if(!event.shiftKey&&document.activeElement===last){
+      event.preventDefault();first?.focus();
+    }
+  }
 
   async function begin(){
     if(disabled||phaseRef.current!=='idle')return;
@@ -193,8 +218,8 @@ export function WebVoiceCapture<T>({conversationId,onSent,disabled=false}:{
     </button>
     {error&&!open&&<span className={styles.error} role="alert">{error}</span>}
     {open&&<div className={styles.overlay} role="presentation">
-      <section className={styles.sheet} role="dialog" aria-modal="true"
-        aria-label={en?'Voice message':'Note vocale'}>
+      <section ref={dialogRef} className={styles.sheet} role="dialog" aria-modal="true"
+        aria-label={en?'Voice message':'Note vocale'} onKeyDown={handleDialogKeys}>
         <div className={styles.header}>
           <strong>{en?'Voice message':'Note vocale'}</strong>
           <button type="button" ref={closeRef} disabled={phase==='uploading'}
