@@ -97,12 +97,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/verification-withdraw-safe-web",
-      "task": "PR #734 merged main 4e9be9ac and #738 merged main eec888d5. PR #747 circle-notification-schedule-web: complete 14-field DTO, quiet hours/timezone/digest UI, 5 unit + 2 e2e added, coordination green, quality/APK still running. PR #749 verification-withdraw-safe-web: KnowMe modal/confirm, 3 unit tests added, CI queued. Neither PR merged; no Web/APK live verification.",
+      "task": "Valider, corriger et fusionner PR #747 notifications et PR #749 vérification Web; continuer domaine Profils sans collisions",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T15:48:02.885Z",
+      "updatedAt": "2026-10-18T15:51:13.867Z",
       "lastPr": 749,
       "resumeFrom": {
         "pr": 749,
@@ -943,6 +943,14 @@
       "at": "2026-10-18T15:50:00.234Z",
       "pr": 743,
       "mergedPr": 730
+    },
+    {
+      "at": "2026-10-18T15:51:13.867Z",
+      "action": "resume",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 749
     }
   ]
 }
