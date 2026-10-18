@@ -3,10 +3,14 @@ package com.knowme.app.video;
 import android.content.Context;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.MediaController;
 import android.widget.VideoView;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.NativeModule;
@@ -15,11 +19,14 @@ import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
+import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.facebook.react.common.MapBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public final class KnowMeStoryVideoPackage implements ReactPackage {
   @Override public List<NativeModule> createNativeModules(ReactApplicationContext context) {
@@ -50,6 +57,19 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       }
     }
 
+    @ReactProp(name="seekToMs", defaultDouble=-1)
+    public void seekToMs(StoryContainer view, double millis) {
+      if (Double.isNaN(millis) || Double.isInfinite(millis) || millis<0) return;
+      view.seekToMs=Math.min(Math.round(millis), Integer.MAX_VALUE);
+      if (view.ready) view.applySeek();
+    }
+
+    @Override
+    public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
+      return MapBuilder.<String, Object>of("topProgress",
+        MapBuilder.of("registrationName", "onProgress"));
+    }
+
     @Override public void onDropViewInstance(StoryContainer view) {
       view.release();
       super.onDropViewInstance(view);
@@ -61,6 +81,29 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     boolean ready = false;
     boolean paused = false;
     String currentUri = "";
+    long seekToMs = -1;
+    final Handler handler = new Handler(Looper.getMainLooper());
+    final Runnable ticker = new Runnable() {
+      @Override public void run() {
+        if (ready) emitProgress();
+        if (getWindowToken()!=null) handler.postDelayed(this, 1000L);
+      }
+    };
+    void emitProgress() {
+      if (getId() <= 0 || !(getContext() instanceof ThemedReactContext)) return;
+      WritableMap event = Arguments.createMap();
+      event.putDouble("positionMs", Math.max(0, player.getCurrentPosition()));
+      event.putDouble("durationMs", Math.max(0, player.getDuration()));
+      ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
+        .receiveEvent(getId(), "topProgress", event);
+    }
+    void applySeek() {
+      if (!ready || seekToMs<0) return;
+      int duration=player.getDuration();
+      if (duration>0) player.seekTo((int)Math.min(seekToMs, duration));
+      seekToMs=-1;
+      emitProgress();
+    }
     StoryContainer(Context context) {
       super(context);
       player = new VideoView(context);
@@ -73,7 +116,9 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setOnPreparedListener(media -> {
         ready=true;
         media.setLooping(false);
+        applySeek();
         if (!paused) player.start();
+        emitProgress();
       });
       player.setOnErrorListener((media,what,extra)->{
         ready=false;
@@ -81,10 +126,16 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       });
       addView(player);
     }
+    @Override protected void onAttachedToWindow() {
+      super.onAttachedToWindow();
+      handler.removeCallbacks(ticker);
+      handler.post(ticker);
+    }
     void setSourceUri(String uri) {
       if (uri == null || uri.equals(currentUri)) return;
       currentUri=uri;
       ready=false;
+      seekToMs=-1;
       // Stream only known published KnowMe attachments over TLS. Never accept
       // arbitrary remote URLs or URL user-info/query/fragment from post data.
       Uri parsed = Uri.parse(uri);
@@ -115,6 +166,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       }
     }
     void release() {
+      handler.removeCallbacks(ticker);
       ready=false;
       player.stopPlayback();
     }
