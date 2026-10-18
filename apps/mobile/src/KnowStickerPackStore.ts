@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import {apiFetch} from './api';
 import type {SelectedAndroidMedia} from './AndroidMediaLibraryPicker';
 import {convertToKnowStickerWebp} from './native-gallery';
+import {normalizeKnowStickerLabel,knowStickerUploadName} from './knowsticker-naming-model';
 
 const REGISTRY='knowme.knowsticker.local.packs.v1';
 const FORMAT='KNOWSTICKER_V1';
@@ -65,6 +66,50 @@ export async function createKnowStickerPack(name:string,media:SelectedAndroidMed
     throw error;
   }
 }
+/** Update both the private pack manifest and registry without changing file URIs. */
+async function saveRenamedPack(previous:KnowStickerPack,updated:KnowStickerPack,packs:KnowStickerPack[]){
+  if(!/^ks-[a-z0-9-]+$/.test(previous.id))throw new Error('Identifiant de pack invalide.');
+  const path=dir()+previous.id+'/manifest.knowsticker';
+  const oldManifest=await FileSystem.readAsStringAsync(path);
+  const nextManifest=JSON.stringify({
+    format:FORMAT,version:1,id:updated.id,name:updated.name,
+    files:updated.items.map((item,index)=>({
+      filename:item.uri.slice((dir()+updated.id+'/').length),
+      name:item.name,mime:item.mime,index
+    }))
+  });
+  await FileSystem.writeAsStringAsync(path,nextManifest);
+  try{
+    await writePacks(packs.map(pack=>pack.id===updated.id?updated:pack));
+  }catch(error){
+    await FileSystem.writeAsStringAsync(path,oldManifest).catch(()=>undefined);
+    throw error;
+  }
+  return updated;
+}
+
+/** The renaming action edits only metadata. No re-encoding, external upload or file rename. */
+export async function renameKnowStickerPack(id:string,input:string){
+  const name=normalizeKnowStickerLabel(input);
+  const packs=await readKnowStickerPacks();
+  const old=packs.find(pack=>pack.id===id);
+  if(!old)throw new Error('Pack KnowSticker introuvable.');
+  if(old.name===name)return old;
+  return saveRenamedPack(old,{...old,name},packs);
+}
+export async function renameKnowStickerItem(packId:string,itemId:string,input:string){
+  const name=knowStickerUploadName(input);
+  const packs=await readKnowStickerPacks();
+  const old=packs.find(pack=>pack.id===packId);
+  if(!old)throw new Error('Pack KnowSticker introuvable.');
+  const item=old.items.find(value=>value.id===itemId);
+  if(!item)throw new Error('Sticker introuvable dans ce pack.');
+  if(item.name===name)return old;
+  return saveRenamedPack(old,{
+    ...old,items:old.items.map(value=>value.id===itemId?{...value,name}:value)
+  },packs);
+}
+
 export async function deleteKnowStickerPack(id:string){
   const packs=await readKnowStickerPacks();
   if(!packs.some(p=>p.id===id))return;
