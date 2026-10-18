@@ -64,12 +64,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "branch": "chat/reels/android-feed-retry-state",
-      "task": "PR #718 fusionnée, Vercel READY; PR #725 CI+coord vertes, build APK en cours; PR #729 Runtime+coord verts, CI+APK en cours; PR #732 feed Retry Android checks en attente. PR #707 fermée remplacée par #718.",
+      "task": "Poursuite domaine Réels: fusion #725 CI+coord+APK vert, validation #729 et #732, corrections et nouvelles fonctions",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T14:34:57.275Z",
+      "updatedAt": "2026-10-18T14:43:35.088Z",
       "lastPr": 732,
       "resumeFrom": {
         "pr": 732,
@@ -617,6 +617,14 @@
       "at": "2026-10-18T14:42:30.819Z",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 730
+    },
+    {
+      "at": "2026-10-18T14:43:35.088Z",
+      "action": "resume",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "pr": 732
     }
   ]
 }
