@@ -53,19 +53,18 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705 Ready: eliminate remaining social reports UI/API regressions; CI exact SHA review",
+      "task": "PR #705: expired cursor refresh + report conflict 409 handling, Playwright tests; head 0d29afd, latest CI/readiness queued, no merge or deployment.",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:55:03.585Z",
+      "updatedAt": "2026-10-18T15:00:00.287Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
         "branch": "chat/social/report-publication-web",
-        "commit": "a5b001c4f042f7831bf6d06e939fd78c6599893c",
-        "next": "Inspect exact SHA CI #39137723127, readiness #39137723148, coordination #39137723136, APK #39137723262. Resolve failures, check diverged main/reviews, and merge only after green checks; manual production approval applies",
-        "infraQueueCommentId": 6251274240
+        "commit": "0d29afd550981b15f0c05900773334d6ba2c6716",
+        "next": "Inspect exact SHA checks CI #39138354245, runtime #39138354160, coordination #39138354287, APK #39138354195; fix failures; only merge after full tests and review, release requires manual approval."
       }
     },
     "reels": {
@@ -744,6 +743,13 @@
       "issue": 693,
       "pr": 723,
       "alsoPr": 735
+    },
+    {
+      "at": "2026-10-18T15:00:00.287Z",
+      "action": "pause",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
