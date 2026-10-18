@@ -13,5 +13,5 @@ export function enqueueNotice<T extends string>(
   const max = Math.max(1, Math.trunc(limit) || 1);
   if (current.length < max) return [...current, incoming];
   // Preserve the currently visible notice while making room for recent alerts.
-  return max === 1 ? [incoming] : [...current.slice(0, max - 2), incoming];
+  return max === 1 ? [incoming] : [...current.slice(0, max - 1), incoming];
 }
