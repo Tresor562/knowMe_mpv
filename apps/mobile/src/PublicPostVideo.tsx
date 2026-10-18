@@ -351,7 +351,7 @@ const styles=StyleSheet.create({
   timeModalActions:{flexDirection:'row',gap:10},
   timeModalButton:{flex:1,minHeight:48,borderRadius:14,alignItems:'center',justifyContent:'center'},
   timeCancel:{backgroundColor:'#324148'},timeConfirm:{backgroundColor:'#83e9de'},
-  timeCancelText:{fontSize:14,fontWeight:'750',color:'#fff'},
+  timeCancelText:{fontSize:14,fontWeight:'700',color:'#fff'},
   timeConfirmText:{fontSize:14,fontWeight:'800',color:'#082f2b'},
   open:{flex:1,alignItems:'center',justifyContent:'center',gap:9}
 });
