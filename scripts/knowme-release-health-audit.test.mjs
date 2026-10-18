@@ -48,6 +48,22 @@ test('HTTP, content type and oversized responses fail closed', async () => {
   await assert.rejects(getSafeJson(ENDPOINTS.api, async () => response('<html>', 200, 'text/html')), /content-type/);
   await assert.rejects(getSafeJson(ENDPOINTS.api, async () => response('x'.repeat(65537))), /oversized/);
 });
+
+test('streamed endpoint cannot allocate unbounded JSON when Content-Length is missing', async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(65537));
+      controller.close();
+    },
+  });
+  await assert.rejects(getSafeJson(ENDPOINTS.api, async () => ({
+    status: 200,
+    headers: { get: key => key === 'content-type' ? 'application/json' : null },
+    body: stream,
+    text: () => assert.fail('Should read bounded stream instead of text'),
+  })), /oversized/);
+});
+
 test('network timeout on readiness yields critical report but preserves other evidence', async () => {
   const data = { [ENDPOINTS.api]: api, [ENDPOINTS.web]: web, [ENDPOINTS.android]: android };
   const report = await probeReleaseHealth({ fetchImpl: async url => {
