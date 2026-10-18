@@ -2,16 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { KnowMeGlyph } from './knowme-glyph';
 
 function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat' }) {
-  const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
-    strokeWidth:2, strokeLinecap:'round' as const, strokeLinejoin:'round' as const,
-    width:23, height:23, 'aria-hidden':true as const };
-  if (name === 'feed') return <svg {...common}><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/><path d="M9 20v-6h6v6"/></svg>;
-  if (name === 'story') return <svg {...common}><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 8v8m-4-4h8"/></svg>;
-  if (name === 'chat') return <svg {...common}><path d="M20.5 11.5c0 4.7-4 8.5-9 8.5a10 10 0 0 1-3.7-.7L3 21l1.7-4.3A8 8 0 0 1 2.5 11.5c0-4.7 4-8.5 9-8.5s9 3.8 9 8.5Z"/><path d="M8 11.5h7"/></svg>;
-  if (name === 'apps') return <svg {...common}><path d="M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6"/></svg>;
-  return <svg {...common}><path d="M10 13a5 5 0 0 0 7.5.2l2-2a5 5 0 0 0-7.1-7.1l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.2l-2 2a5 5 0 0 0 7.1 7.1l1.5-1.5"/></svg>;
+  const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'link', chat: 'chats' } as const;
+  return <KnowMeGlyph name={icons[name]} size={23}/>;
 }
 
 type ShareConversation = {
