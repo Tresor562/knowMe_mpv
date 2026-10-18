@@ -11,7 +11,7 @@ const native = fs.readFileSync(path.join(dir, '..', '..', 'mobile', 'src', 'ui',
 
 test('every declared KnowMe SVG icon has its own drawable', () => {
   const declared = glyph.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
-  const shapeSource = glyph.match(/const shapes: Record<KnowMeGlyphName, ReactNode> = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
+  const shapeSource = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
   const names = [...declared.matchAll(/'([\w-]+)'/g)].map(m => m[1]);
   assert.ok(names.length >= 35);
   assert.equal(new Set(names).size, names.length);
