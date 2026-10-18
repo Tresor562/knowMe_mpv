@@ -42,12 +42,12 @@
     },
     "social": {
       "issue": 694,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705 Web: report publication + private report history + Playwright/Jest tests. Latest HEAD 2fa17f094c6ed68aeedc7ebd7befbf4dac4b0633; final CI queued, no merge/deployment. Detail page blocked by #583",
+      "task": "Corriger E2E PR #705 et achever les parcours signalement / historique social",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T13:36:49.720Z",
+      "updatedAt": "2026-10-18T14:05:16.123Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
@@ -301,6 +301,13 @@
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "issue": 695,
       "pr": 713
+    },
+    {
+      "action": "resume",
+      "domain": "social",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "at": "2026-10-18T14:05:16.123Z",
+      "pr": 705
     }
   ]
 }
