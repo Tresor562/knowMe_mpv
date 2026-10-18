@@ -90,12 +90,12 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "branch": "chat/profiles/badges-user-isolation",
-      "task": "PR #727 Web Creator : 4 tests locaux verts, coordination+APK verts, quality en cours ; PR #734 API JWT follow-status+component isolé : 4 tests locaux verts, coordination verte, quality+readiness en cours, intégration page dépend PR #583 ; PR #738 isolation badge username : 4 tests locaux verts, coordination verte, APK+quality en cours. Aucune de ces PR n'a été fusionnée ; PR #716 précédemment fusionnée.",
+      "task": "Valider CI et fusionner sans collision PR profils #727 #734 #738; poursuivre tests et stabilité",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:56:11.771Z",
+      "updatedAt": "2026-10-18T14:58:02.552Z",
       "lastPr": 738,
       "resumeFrom": {
         "pr": 738,
@@ -711,6 +711,14 @@
     {
       "at": "2026-10-18T14:56:11.771Z",
       "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 738
+    },
+    {
+      "at": "2026-10-18T14:58:02.552Z",
+      "action": "resume",
       "domain": "profiles",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
