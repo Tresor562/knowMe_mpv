@@ -6,6 +6,7 @@ import { KnowMeIcon } from './ui/KnowMeUI';
 /** The API adapters are deliberately required. A reaction is never claimed saved locally. */
 export type NativePostActionBarProps = {
   postId: string;
+  en?: boolean;
   likeCount: number;
   commentCount: number;
   selectedReaction?: string | null;
@@ -39,7 +40,7 @@ const validEmoji = (value: string) => {
 };
 
 export function PostActionBar({
-  postId, likeCount, commentCount, selectedReaction = null,
+  postId, en = false, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true, onHeart,
   onReact, onComments, onShare, onSave
 }: NativePostActionBarProps) {
@@ -78,7 +79,8 @@ export function PostActionBar({
         setMore(false);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Action non confirmée. Réessaie.');
+      setError(cause instanceof Error ? cause.message :
+        en ? 'Action not confirmed. Please retry.' : 'Action non confirmée. Réessaie.');
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -97,7 +99,9 @@ export function PostActionBar({
     <View style={styles.actions}>
       <View style={styles.likeGroup}>
         <Pressable accessibilityRole="button"
-          accessibilityLabel={active?'Modifier ma réaction':'J’aime la publication'}
+          accessibilityLabel={active
+            ? (en?'Change my reaction':'Modifier ma réaction')
+            : (en?'Like publication':'J’aime la publication')}
           accessibilityState={{selected:active,disabled:busy||!online}}
           disabled={busy||!online}
           delayLongPress={450}
@@ -112,25 +116,27 @@ export function PostActionBar({
             :<KnowMeIcon name="heart" size={21} color={active?colors.accent:colors.muted}/>}
           <Text style={[styles.count,{color:active?colors.accent:colors.muted}]}>{likeCount}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Choisir une réaction"
+        <Pressable accessibilityRole="button" accessibilityLabel={en?"Choose reaction":"Choisir une réaction"}
           accessibilityState={{disabled:busy||!online}}
           disabled={busy||!online} onPress={showReactions}
           style={({pressed})=>[styles.pickerTrigger,pressed&&styles.pressed]}>
           <KnowMeIcon name="chevron-down" size={16} color={colors.muted}/>
         </Pressable>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Commentaires : ${commentCount}`}
+      <Pressable accessibilityRole="button" accessibilityLabel={en?`Comments: ${commentCount}`:`Commentaires : ${commentCount}`}
         onPress={onComments} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
         <KnowMeIcon name="messages" size={21} color={colors.muted}/>
         <Text style={[styles.count,{color:colors.muted}]}>{commentCount}</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
+      <Pressable accessibilityRole="button" accessibilityLabel={en?"Share publication":"Partager la publication"}
         onPress={onShare} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
         <KnowMeIcon name="arrow" size={20} color={colors.muted}/>
-        <Text style={[styles.label,{color:colors.muted}]}>Partager</Text>
+        <Text style={[styles.label,{color:colors.muted}]}>{en?"Share":"Partager"}</Text>
       </Pressable>
       {onSave&&<Pressable accessibilityRole="button"
-        accessibilityLabel={saved?'Retirer des favoris':'Enregistrer la publication'}
+        accessibilityLabel={saved
+          ? (en?'Remove from saved':'Retirer des favoris')
+          : (en?'Save publication':'Enregistrer la publication')}
         accessibilityState={{selected:saved,disabled:busy||!online}}
         disabled={busy||!online} onPress={()=>void action(onSave)}
         style={({pressed})=>[styles.action,styles.save,pressed&&styles.pressed]}>
@@ -141,26 +147,26 @@ export function PostActionBar({
     <Modal visible={open} transparent animationType="slide" statusBarTranslucent
       onRequestClose={close}>
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Fermer les réactions" onPress={close}/>
+        <Pressable style={StyleSheet.absoluteFill} accessibilityLabel={en?"Close reactions":"Fermer les réactions"} onPress={close}/>
         <View style={[styles.sheet,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <View style={styles.heading}>
             <Text accessibilityRole="header" style={[styles.title,{color:colors.text}]}>
-              Réagir à la publication
+              {en?'React to publication':'Réagir à la publication'}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Fermer"
+            <Pressable accessibilityRole="button" accessibilityLabel={en?"Close":"Fermer"}
               disabled={busy} onPress={close} style={styles.close}>
               <KnowMeIcon name="close" size={22} color={colors.text}/>
             </Pressable>
           </View>
           <View style={styles.emojiRow}>
             {EMOJI_REACTIONS.map(emoji=><Pressable key={emoji}
-              accessibilityRole="button" accessibilityLabel={`Réagir avec ${emoji}`}
+              accessibilityRole="button" accessibilityLabel={en?`React with ${emoji}`:`Réagir avec ${emoji}`}
               accessibilityState={{selected:selectedReaction===emoji,disabled:busy}}
               disabled={busy} onPress={()=>void action(()=>onReact(emoji),true)}
               style={[styles.emojiButton,selectedReaction===emoji&&{backgroundColor:colors.backgroundAccent}]}>
               <Text style={styles.emoji}>{emoji}</Text>
             </Pressable>)}
-            <Pressable accessibilityRole="button" accessibilityLabel="Tous les emojis"
+            <Pressable accessibilityRole="button" accessibilityLabel={en?"More emoji reactions":"Tous les emojis"}
               accessibilityState={{expanded:more}} disabled={busy}
               onPress={()=>setMore(v=>!v)} style={[styles.emojiButton,{backgroundColor:colors.backgroundAccent}]}>
               <Text style={[styles.plus,{color:colors.text}]}>+</Text>
@@ -168,20 +174,20 @@ export function PostActionBar({
           </View>
           {more&&<View style={styles.custom}>
             <Text style={[styles.instructions,{color:colors.muted}]}>
-              Choisis un emoji dans ton clavier
+              {en?"Choose an emoji using your keyboard":"Choisis un emoji dans ton clavier"}
             </Text>
             <View style={styles.customRow}>
               <TextInput value={custom} onChangeText={setCustom} maxLength={32}
-                accessibilityLabel="Emoji personnalisé"
+                accessibilityLabel={en?"Custom emoji":"Emoji personnalisé"}
                 placeholder="😀" placeholderTextColor={colors.muted}
                 style={[styles.input,{color:colors.text,backgroundColor:colors.backgroundAccent,
                   borderColor:colors.border}]}/>
               <Pressable disabled={busy||!validEmoji(custom)}
-                accessibilityRole="button" accessibilityLabel="Valider la réaction"
+                accessibilityRole="button" accessibilityLabel={en?"Confirm reaction":"Valider la réaction"}
                 onPress={()=>void action(()=>onReact(custom.trim()),true)}
                 style={[styles.send,{backgroundColor:colors.accent,
                   opacity:busy||!validEmoji(custom)?0.45:1}]}>
-                <Text style={styles.sendText}>Réagir</Text>
+                <Text style={styles.sendText}>{en?"React":"Réagir"}</Text>
               </Pressable>
             </View>
           </View>}
