@@ -543,7 +543,7 @@ export function ConversationView({conversationId,embedded=false,onClose}:{conver
               <path d="M5 12h14m-6-6 6 6-6 6"/>
             </svg>}
         </button>:<WebVoiceCapture<Message> key={conversationId} conversationId={conversationId}
-          onSent={acceptSent} disabled={sending||nexusPending}/>
+          onSent={acceptSent} disabled={sending||nexusPending}/>}
       </form>
     </ScreenTag>
   );
