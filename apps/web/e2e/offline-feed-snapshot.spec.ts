@@ -52,6 +52,6 @@ test('public posts previously opened stay readable on API failure but interactio
   await page.reload();
   await expect(page.getByText(post.content)).toBeVisible();
   await expect(page.getByText(/Fil hors ligne du/)).toBeVisible();
-  await page.getByRole('button',{name:'J’aime'}).first().click();
+  await expect(page.getByRole('button',{name:'Réagir à la publication'}).first()).toBeDisabled();
   expect(likeRequests).toBe(0);
 });
