@@ -270,7 +270,7 @@ export function GroupSharedContent({
       {en?'Recipients must already have access to this conversation to open these links.':
         'Les destinataires doivent déjà avoir accès à cette discussion pour ouvrir ces liens.'}
     </p>}
-    {selectionFeedback&&<p className="km-shared-copy-status" role="status">{selectionFeedback}</p>
+    {selectionFeedback&&<p className="km-shared-copy-status" role="status">{selectionFeedback}</p>}
     {downloadError&&<p className="km-group-shared-error" role="alert">{downloadError}</p>}
     {error&&<div className="km-group-shared-error" role="alert">
       <p>{error}</p>
