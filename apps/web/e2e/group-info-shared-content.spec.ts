@@ -94,3 +94,21 @@ test('non-members cannot browse group media or roster', async({page})=>{
   await expect(page.getByRole('tab',{name:'Médias'})).toHaveCount(0);
   await expect(page.getByRole('link',{name:/Alice/})).toHaveCount(0);
 });
+
+test('group member filters distinguish owner/admin and ordinary members without leaking roles', async({page})=>{
+  await setup(page);
+  await page.setViewportSize({width:360,height:760});
+  await page.goto('/messages/grp1/info');
+  const controls=page.getByRole('group',{name:'Filtrer les membres'});
+  await expect(controls.getByRole('button',{name:'Tous'})).toHaveAttribute('aria-pressed','true');
+  await controls.getByRole('button',{name:'Admins'}).click();
+  await expect(page.getByRole('link',{name:/Alice/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Moi/})).toHaveCount(0);
+  await controls.getByRole('button',{name:'Membres'}).click();
+  await expect(page.getByRole('link',{name:/Moi/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Alice/})).toHaveCount(0);
+  await controls.getByRole('button',{name:'Tous'}).click();
+  await expect(page.getByRole('link',{name:/Alice/})).toBeVisible();
+  await expect(page.getByRole('link',{name:/Moi/})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
+});
