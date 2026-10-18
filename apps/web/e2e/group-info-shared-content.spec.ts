@@ -112,3 +112,22 @@ test('group member filters distinguish owner/admin and ordinary members without 
   await expect(page.getByRole('link',{name:/Moi/})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1)).toBe(false);
 });
+
+
+test('group actions menu closes on Escape and outside touch without obscuring the page',async({page})=>{
+  await setup(page);
+  await page.setViewportSize({width:360,height:760});
+  await page.goto('/messages/grp1/info');
+  const menu=page.locator('.km-info-more');
+  const trigger=menu.locator('summary');
+  await trigger.click();
+  await expect(menu).toHaveAttribute('open','');
+  await page.keyboard.press('Escape');
+  await expect(menu).not.toHaveAttribute('open','');
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await expect(menu).toHaveAttribute('open','');
+  await page.locator('.km-info-identity').click();
+  await expect(menu).not.toHaveAttribute('open','');
+  await expect(page.getByRole('heading',{name:'Groupe Révisions'})).toBeVisible();
+});
