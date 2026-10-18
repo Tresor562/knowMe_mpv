@@ -95,3 +95,31 @@
  font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
 .km-info-page .km-info-member-filters button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
 @media(max-width:370px){.km-info-page .km-info-member-filters button{padding-inline:8px}}
+
+
+/* Member navigation preserves 44px touch targets with lightweight selectable pills.
+   Search and role filters compose instead of competing for screen width. */
+.km-info-page .km-info-member-filters{
+  display:flex;align-items:center;gap:4px;min-width:0;
+  overflow-x:auto;scrollbar-width:none;padding:4px 1px 8px
+}
+.km-info-page .km-info-member-filters::-webkit-scrollbar{display:none}
+.km-info-page .km-info-member-filters button{
+  min-height:44px;min-width:44px;flex:0 0 auto;
+  padding:7px 12px;border:0;border-radius:12px;background:transparent;
+  color:var(--muted);font-size:12px;font-weight:650;cursor:pointer
+}
+.km-info-page .km-info-member-filters button[aria-pressed='true']{
+  color:var(--mint);background:var(--bg-accent);font-weight:750
+}
+.km-info-page .km-info-member-filters button:hover{
+  background:var(--surface-2)
+}
+.km-info-page .km-info-member-filters button:focus-visible{
+  outline:2px solid var(--mint);outline-offset:2px
+}
+.km-info-page .km-info-member-filters .km-info-member-count{
+  font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+  white-space:nowrap;margin-left:auto;padding:5px 6px
+}
+@media(max-width:390px){.km-info-page .km-info-member-filters button{padding-inline:9px}}
