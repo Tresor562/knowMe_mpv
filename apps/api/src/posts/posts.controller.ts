@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards
@@ -15,6 +16,7 @@ import { ModerationService } from '../moderation/moderation.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { EditCommentDto } from './dto/edit-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { SetCommentReactionDto } from './dto/set-comment-reaction.dto';
 import { PostsService } from './posts.service';
 
 @Controller('posts')
@@ -55,6 +57,40 @@ export class PostsController {
     @Query('roots') roots?: string
   ) {
     return this.posts.comments(id, cursor, roots === 'true');
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':postId/comments/reaction-summaries')
+  reactionSummaries(
+    @Req() req: { user: { userId: string } },
+    @Param('postId') postId: string,
+    @Query('ids') ids: string
+  ) {
+    return this.posts.commentReactionSummaries(
+      req.user.userId, postId,
+      typeof ids === 'string' ? [...new Set(ids.split(',').filter(Boolean))] : []
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':postId/comments/:commentId/reaction')
+  setReaction(
+    @Req() req: { user: { userId: string } },
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: SetCommentReactionDto
+  ) {
+    return this.posts.setCommentReaction(req.user.userId, postId, commentId, dto.emoji);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':postId/comments/:commentId/reaction')
+  removeReaction(
+    @Req() req: { user: { userId: string } },
+    @Param('postId') postId: string,
+    @Param('commentId') commentId: string
+  ) {
+    return this.posts.removeCommentReaction(req.user.userId, postId, commentId);
   }
 
   @Get(':postId/comments/:commentId/replies')

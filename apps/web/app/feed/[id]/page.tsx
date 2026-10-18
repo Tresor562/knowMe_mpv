@@ -31,6 +31,8 @@ type Post = {
 };
 
 const COMMENT_PAGE_SIZE = 30;
+const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '😡'];
+type ReactionSummary = { total: number; mine: string | null; emojis: Array<{emoji:string;count:number}> };
 
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
@@ -51,6 +53,13 @@ export default function PostDetailPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [busyCommentId, setBusyCommentId] = useState<string | null>(null);
+  const [reactionSummaries,setReactionSummaries] = useState<Record<string,ReactionSummary>>({});
+  const [reactionBusy,setReactionBusy] = useState<string|null>(null);
+  const [reactionPickerFor,setReactionPickerFor] = useState<string|null>(null);
+  const [moreReactions,setMoreReactions] = useState(false);
+  const [customEmoji,setCustomEmoji] = useState('');
+  const reactionHold = useRef<number|null>(null);
+  const suppressReactionClick = useRef(false);
   const [contextCommentId, setContextCommentId] = useState<string | null>(null);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -63,6 +72,51 @@ export default function PostDetailPage() {
     ...Object.values(repliesByParent).flat()
   ];
   const selectedComment = allLoadedComments.find(entry => entry.id === contextCommentId) ?? null;
+  const visibleCommentIds = [...new Set(allLoadedComments.map(item=>item.id))].join(',');
+
+  useEffect(() => {
+    if (!visibleCommentIds || !user) return;
+    let active = true;
+    const ids = visibleCommentIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/30)},(_,index)=>{
+      const batch = ids.slice(index*30,index*30+30);
+      return apiFetch<Record<string,ReactionSummary>>(
+        `/posts/${encodeURIComponent(postId)}/comments/reaction-summaries?ids=${encodeURIComponent(batch.join(','))}`
+      );
+    })).then(parts=>{
+      if(active) setReactionSummaries(old=>Object.assign({},old,...parts));
+    }).catch(()=>undefined);
+    return ()=>{active=false;};
+  },[postId,visibleCommentIds,user?.id]);
+
+  async function reactToComment(id:string,emoji:string) {
+    if(reactionBusy) return;
+    const current = reactionSummaries[id];
+    setReactionBusy(id);
+    try {
+      const endpoint = `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(id)}/reaction`;
+      const result = current?.mine === emoji
+        ? await apiFetch<ReactionSummary>(endpoint,{method:'DELETE'})
+        : await apiFetch<ReactionSummary>(endpoint,{method:'PUT',body:JSON.stringify({emoji})});
+      setReactionSummaries(old=>({...old,[id]:result}));
+      setReactionPickerFor(null);
+      setMoreReactions(false);
+      setCustomEmoji('');
+    }catch(cause){
+      setMessage(cause instanceof Error ? cause.message : 'Réaction indisponible.');
+    }finally{setReactionBusy(null);}
+  }
+
+  function openReactionPicker(id:string) {
+    setReactionPickerFor(id);
+    setMoreReactions(false);
+  }
+
+  function cancelReactionHold(){
+    if(reactionHold.current !== null) window.clearTimeout(reactionHold.current);
+    reactionHold.current = null;
+  }
+
 
   const clearHold = useCallback(() => {
     if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
@@ -78,7 +132,7 @@ export default function PostDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [contextCommentId]);
 
-  useEffect(() => () => clearHold(), [clearHold]);
+  useEffect(() => () => { clearHold(); cancelReactionHold(); }, [clearHold]);
 
   async function submitCommentEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -339,6 +393,7 @@ export default function PostDetailPage() {
   function renderComment(item: Comment, depth: number): React.ReactNode {
     const canDelete = item.author.id === user?.id || post?.authorId === user?.id;
     const children = repliesByParent[item.id] ?? [];
+    const currentReaction = reactionSummaries[item.id];
     const isExpanded = expandedReplies.includes(item.id);
     const count = item._count?.replies ?? 0;
     return (
@@ -380,6 +435,34 @@ export default function PostDetailPage() {
             <p><KnowMeMentionText text={item.content}/></p>
             <div className="km-post-comment-actions">
               <small>{new Date(item.createdAt).toLocaleString('fr-FR')}</small>
+              <button type="button" className="km-comment-react-button"
+                disabled={reactionBusy===item.id}
+                aria-label={`Réagir au commentaire de ${item.author.displayName}`}
+                aria-pressed={Boolean(currentReaction?.mine)}
+                onPointerDown={event=>{
+                  event.stopPropagation();
+                  suppressReactionClick.current=false;
+                  if(event.pointerType!=='mouse'){
+                    cancelReactionHold();
+                    reactionHold.current=window.setTimeout(()=>{
+                      suppressReactionClick.current=true;
+                      openReactionPicker(item.id);
+                    },420);
+                  }
+                }}
+                onPointerUp={event=>{event.stopPropagation();cancelReactionHold();}}
+                onPointerCancel={event=>{event.stopPropagation();cancelReactionHold();}}
+                onContextMenu={event=>{event.preventDefault();event.stopPropagation();openReactionPicker(item.id);}}
+                onClick={event=>{
+                  event.stopPropagation();
+                  if(suppressReactionClick.current){suppressReactionClick.current=false;return;}
+                  void reactToComment(item.id,'❤️');
+                }}>
+                {currentReaction?.mine ?? '♡'} Réagir
+                {Boolean(currentReaction?.total) && <span className="km-comment-reaction-count"> {currentReaction.total}</span>}
+              </button>
+              <button type="button" aria-label={`Choisir une réaction pour le commentaire de ${item.author.displayName}`}
+                onClick={()=>openReactionPicker(item.id)}>☺</button>
               <button type="button" onClick={() => beginReply(item)}>Répondre</button>
               <button type="button" onClick={() => void copyLink('comment', item.id)}>Lien</button>
               <button type="button" onClick={() => setContextCommentId(item.id)}
@@ -389,6 +472,13 @@ export default function PostDetailPage() {
                 {busyCommentId === item.id ? 'Suppression…' : 'Supprimer'}
               </button>}
             </div>
+            {currentReaction && currentReaction.emojis.length>0 && (
+              <div className="km-comment-reaction-breakdown">
+                {currentReaction.emojis.slice(0,5).map(r=>(
+                  <span key={r.emoji}>{r.emoji} {r.count}</span>
+                ))}
+              </div>
+            )}
             {(count > 0 || children.length > 0) && (
               <button className="km-comment-thread-toggle" type="button"
                 disabled={loadingReplies === item.id}
@@ -467,6 +557,38 @@ export default function PostDetailPage() {
         {!comments.length && <div className="km-post-comments-empty"><span aria-hidden="true">☏</span><p>Sois le premier à commenter.</p></div>}
       </section>
 
+      {reactionPickerFor && (
+        <div className="km-comment-reaction-overlay" role="presentation"
+          onMouseDown={event=>{if(event.target===event.currentTarget)setReactionPickerFor(null);}}>
+          <section role="dialog" aria-modal="true" className="km-comment-reaction-picker"
+            aria-label="Choisir une réaction">
+            <header><strong>Réagir au commentaire</strong>
+              <button type="button" onClick={()=>setReactionPickerFor(null)} aria-label="Fermer">×</button>
+            </header>
+            <div className="km-comment-reaction-options">
+              {QUICK_REACTIONS.map(emoji=>(
+                <button type="button" key={emoji} disabled={Boolean(reactionBusy)}
+                  aria-label={`Réagir avec ${emoji}`}
+                  onClick={()=>void reactToComment(reactionPickerFor,emoji)}>{emoji}</button>
+              ))}
+              <button type="button" aria-label="Plus d’emojis"
+                onClick={()=>setMoreReactions(value=>!value)}>+</button>
+            </div>
+            {moreReactions && (
+              <form className="km-comment-reaction-more" onSubmit={event=>{
+                event.preventDefault();
+                if(customEmoji.trim()) void reactToComment(reactionPickerFor,customEmoji.trim());
+              }}>
+                <label htmlFor="km-custom-reaction">Choisis un emoji avec ton clavier</label>
+                <input id="km-custom-reaction" value={customEmoji}
+                  maxLength={32} onChange={e=>setCustomEmoji(e.target.value)}
+                  placeholder="😊" autoFocus/>
+                <button type="submit" disabled={!customEmoji.trim() || Boolean(reactionBusy)}>Valider</button>
+              </form>
+            )}
+          </section>
+        </div>
+      )}
       {selectedComment && (
         <div className="km-comment-actions-overlay" role="presentation"
           onMouseDown={event => {

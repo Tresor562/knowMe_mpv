@@ -48,6 +48,7 @@ model User {
   posts                    Post[]
   postLikes                PostLike[]
   postComments             PostComment[]
+  postCommentReactions     PostCommentReaction[]
   notifications            Notification[]
   reports                  Report[]
   interests                UserInterest[]
@@ -269,9 +270,25 @@ model PostComment {
   author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   parent   PostComment?  @relation("KnowMePostCommentReplies", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   replies  PostComment[] @relation("KnowMePostCommentReplies")
+  reactions PostCommentReaction[]
 
   @@index([postId, createdAt])
   @@index([postId, parentId, createdAt])
+}
+
+model PostCommentReaction {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId, emoji])
 }
 
 model Notification {
