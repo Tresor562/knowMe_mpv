@@ -133,7 +133,7 @@ test('profile avatar menu is viewport-anchored, keyboard-accessible, and returns
   const avatar = fs.readFileSync(path.join(dir, 'avatar-quick-actions.tsx'), 'utf8');
   const style = fs.readFileSync(path.join(dir, '..', 'app', 'iconography.css'), 'utf8');
   assert.match(avatar, /createPortal\(<div id=\{menuId\} ref=\{menuRef\}/);
-  assert.match(avatar, /document\.body\) as unknown as ReactElement\)\}/);
+  assert.match(avatar, /document\.body\) as unknown as CompatiblePortalChild\)\}/);
   assert.match(avatar, /menuRef\.current\?\.offsetHeight \?\? 290/);
   assert.match(avatar, /nextAvatarMenuIndex\(/);
   assert.match(avatar, /AvatarMenuNavigationKey/);
