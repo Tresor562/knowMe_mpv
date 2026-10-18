@@ -210,3 +210,22 @@ test('shared notifications and reporting use real accessible iconography', () =>
   assert.doesNotMatch(report, /Fermer le signalement">×/);
   assert.match(style, /min-width: 44px/);
 });
+
+
+test('post editor and member picker use accessible compact vector affordances', () => {
+  const edit = fs.readFileSync(path.join(dir, 'post-edit-sheet.tsx'), 'utf8');
+  const editCss = fs.readFileSync(path.join(dir, 'post-options-sheet.css'), 'utf8');
+  const members = fs.readFileSync(path.join(dir, 'profile-member-picker.tsx'), 'utf8');
+  const membersCss = fs.readFileSync(path.join(dir, 'profile-member-picker.css'), 'utf8');
+  assert.match(edit, /<KnowMeIconButton name="close"/);
+  assert.match(edit, /<KnowMeAnimatedIcon name=\{busy \? 'refresh' : 'check'\}/);
+  assert.match(editCss, /km-post-edit-sheet header \.km-icon-action/);
+  assert.match(members, /aria-label=\{\`Retirer \$\{member\.displayName\} de la sélection\`\}/);
+  assert.match(members, /<KnowMeGlyph name="close" size=\{16\}/);
+  assert.match(members, /<KnowMeGlyph name=\{selected \? 'check' : unavailable \? 'lock' : 'user-plus'\}/);
+  assert.match(members, /<KnowMeAnimatedIcon name="search" size=\{17\} state="loading"/);
+  assert.doesNotMatch(members, /member\.username\} ×/);
+  assert.match(membersCss, /min-height: 44px/);
+  assert.match(membersCss, /min-height: 56px/);
+  assert.match(membersCss, /:focus-visible/);
+});
