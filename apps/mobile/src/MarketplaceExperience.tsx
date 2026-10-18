@@ -3,10 +3,11 @@ import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, View } 
 import { useAppearance } from './AppearanceProvider';
 import { PaymentsExperience } from './PaymentsExperience';
 import { CosmeticsMarketplaceExperience } from './CosmeticsMarketplaceExperience';
+import { MarketplaceStickerCollectionExperience } from './MarketplaceStickerCollectionExperience';
 import { SocialGiftsExperience } from './SocialGiftsExperience';
 import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
 
-type StoreSection = 'gifts' | 'styles' | 'coins';
+type StoreSection = 'gifts' | 'styles' | 'stickers' | 'coins';
 
 /**
  * Native KnowMe marketplace entry.
@@ -44,10 +45,12 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
         </View>
         <KnowMeIcon name="spark" size={23} color={colors.accent} />
       </GlassSurface>
-      <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroller}
+        contentContainerStyle={[styles.tabs, { borderBottomColor: colors.border }]}>
         {([
           ['gifts', 'Cadeaux', 'spark'],
           ['styles', 'Styles', 'spark'],
+          ['stickers', 'Stickers', 'sticker'],
           ['coins', 'KnowCoins', 'coins']
         ] as const).map(([value, title, icon]) => {
           const active = section === value;
@@ -64,7 +67,7 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       <ScrollView
         key={section}
@@ -76,7 +79,9 @@ export function MarketplaceExperience({ onBack }: { onBack: () => void }) {
           ? <SocialGiftsExperience />
           : section === 'styles'
             ? <CosmeticsMarketplaceExperience />
-            : <PaymentsExperience />}
+            : section === 'stickers'
+              ? <MarketplaceStickerCollectionExperience />
+              : <PaymentsExperience />}
       </ScrollView>
     </View>
   );
@@ -104,15 +109,15 @@ const styles = StyleSheet.create({
   heading: { flex: 1, minWidth: 0, gap: 3 },
   title: { fontWeight: '700', fontSize: 21, letterSpacing: -.5 },
   subtitle: { fontWeight: '400', fontSize: 12 },
+  tabsScroller: { flexGrow: 0, marginTop: 5 },
   tabs: {
     flexDirection: 'row',
-    gap: 8,
-    marginHorizontal: 13,
-    marginTop: 5,
+    gap: 5,
+    paddingHorizontal: 13,
     borderBottomWidth: StyleSheet.hairlineWidth
   },
   tab: {
-    flex: 1,
+    minWidth: 91,
     minHeight: 48,
     borderBottomWidth: 3,
     paddingVertical: 10,
