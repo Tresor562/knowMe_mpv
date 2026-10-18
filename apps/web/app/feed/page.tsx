@@ -208,7 +208,7 @@ export default function FeedPage() {
     const form = event.currentTarget;
     const data = new FormData(form);
     const content = String(data.get('content') ?? '').trim();
-    if (!content) return;
+    if (!content && selectedMedia.length === 0) return;
 
     publishInFlight.current = true;
     setPublishing(true);
@@ -343,7 +343,7 @@ export default function FeedPage() {
           <button type="button" aria-label={en?'Close editor':'Fermer l’éditeur'} disabled={publishing}
             className="km-feed-editor-back" onClick={()=>setComposeOpen(false)}>‹</button>
           <h2>{en?'Create a post':'Créer une publication'}</h2>
-          <button className="btn btn-primary" type="submit" disabled={publishing||!draftContent.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={publishing||(!draftContent.trim() && !selectedMedia.length)}>
             {publishing?(en?'Publishing…':'Publication…'):(en?'Post':'Publier')}
           </button>
         </div>
@@ -367,7 +367,7 @@ export default function FeedPage() {
         <div className="km-feed-compose-row">
           <textarea name="content" ref={composerInputRef} value={draftContent} onChange={event=>setDraftContent(event.target.value)}
             placeholder={en?'What would you like to share?':'Qu’as-tu envie de partager ?'}
-            rows={7} required disabled={publishing}/>
+            rows={7} disabled={publishing}/>
         </div>
         <small className="km-feed-editor-counter">{draftContent.length} {en ? "characters" : "caractères"}</small>
         {mediaPreviews.length > 0 && (
@@ -408,7 +408,7 @@ export default function FeedPage() {
             </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={publishing || !draftContent.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={publishing || (!draftContent.trim() && !selectedMedia.length)}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
         </div>
