@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../../components/i18n-provider';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
@@ -16,6 +16,8 @@ type ReportRecord = {
   createdAt: string;
   resolvedAt?: string | null;
 };
+
+type ReportPage = { reports: ReportRecord[]; nextCursor: string | null };
 
 function reportStatus(value: string, en: boolean) {
   if (value === 'OPEN') return en ? 'Under review' : 'En cours d’examen';
@@ -32,20 +34,60 @@ export default function MyPostReportsPage() {
   const [records, setRecords] = useState<ReportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState('');
+  const generation = useRef(0);
+  const pageInFlight = useRef(false);
 
   const reload = useCallback(async () => {
+    const requestId = ++generation.current;
     setLoading(true);
     setError('');
+    setMoreError('');
+    setLoadingMore(false);
     try {
-      const result = await apiFetch<ReportRecord[]>('/reports/mine');
-      setRecords(Array.isArray(result) ? result.filter(item => item.targetType === 'POST') : []);
+      const result = await apiFetch<ReportPage>('/reports/mine/posts');
+      if (requestId !== generation.current) return;
+      setRecords(result.reports);
+      setNextCursor(result.nextCursor);
     } catch (cause) {
+      if (requestId !== generation.current) return;
+      setRecords([]);
+      setNextCursor(null);
       setError(cause instanceof Error ? cause.message :
         (en ? 'Your reports are temporarily unavailable.' : 'Impossible de charger tes signalements.'));
     } finally {
-      setLoading(false);
+      if (requestId === generation.current) setLoading(false);
     }
   }, [en]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loading || loadingMore || pageInFlight.current) return;
+    const requestId = generation.current;
+    pageInFlight.current = true;
+    setLoadingMore(true);
+    setMoreError('');
+    try {
+      const result = await apiFetch<ReportPage>(
+        `/reports/mine/posts?cursor=${encodeURIComponent(nextCursor)}`
+      );
+      if (generation.current !== requestId) return;
+      setRecords(previous => {
+        const known = new Set(previous.map(item => item.id));
+        return [...previous, ...result.reports.filter(item => !known.has(item.id))];
+      });
+      setNextCursor(result.nextCursor);
+    } catch (cause) {
+      if (generation.current === requestId) {
+        setMoreError(cause instanceof Error ? cause.message :
+          (en ? 'Could not load more reports.' : 'Chargement des signalements suivants impossible.'));
+      }
+    } finally {
+      pageInFlight.current = false;
+      if (generation.current === requestId) setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (!sessionLoading && user) void reload();
@@ -78,8 +120,8 @@ export default function MyPostReportsPage() {
       </header>
       <p className="km-post-report-history-note">
         {en
-          ? 'The moderation service provides your 50 latest reports across all categories. Publication reports from that list appear below. Sending a report does not remove a post.'
-          : 'Le service affiche tes 50 derniers signalements, toutes catégories confondues. Ceux concernant des publications figurent ci-dessous. Signaler une publication ne la supprime pas.'}
+          ? 'Your publication reports appear here, newest first. Reporting does not remove a publication.'
+          : 'Retrouve ici tes signalements de publications, des plus récents aux plus anciens. Un signalement ne supprime pas une publication.'}
       </p>
       {loading ? <p role="status">{en ? 'Loading reports…' : 'Chargement des signalements…'}</p> : null}
       {error ? (
@@ -116,6 +158,16 @@ export default function MyPostReportsPage() {
             </li>
           ))}
         </ol>
+      ) : null}
+      {!loading && !error && moreError ? (
+        <p role="alert" className="km-post-report-history-error">{moreError}</p>
+      ) : null}
+      {!loading && !error && nextCursor ? (
+        <button type="button" className="km-post-report-history-more"
+          disabled={loadingMore} onClick={() => void loadMore()}>
+          {loadingMore ? (en ? 'Loading…' : 'Chargement…') :
+            (en ? 'Show more reports' : 'Afficher plus de signalements')}
+        </button>
       ) : null}
     </main>
   );
