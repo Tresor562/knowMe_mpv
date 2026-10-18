@@ -22,6 +22,17 @@ export type NativePostActionBarProps = {
 };
 
 
+function BookmarkIcon({color, filled}: {color: string; filled: boolean}) {
+  return <View style={{width:21,height:23,alignItems:'center',justifyContent:'flex-start'}}>
+    <View style={{width:17,height:17,borderTopWidth:1.8,borderLeftWidth:1.8,
+      borderRightWidth:1.8,borderColor:color,borderTopLeftRadius:3,
+      borderTopRightRadius:3,backgroundColor:filled?color:'transparent'}}/>
+    <View style={{position:'absolute',top:12,width:12,height:12,borderLeftWidth:1.8,
+      borderTopWidth:1.8,borderColor:color,transform:[{rotate:'45deg'}],
+      backgroundColor:filled?color:'transparent'}}/>
+  </View>;
+}
+
 export function PostActionBar({
   postId, en = false, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true, onHeart,
