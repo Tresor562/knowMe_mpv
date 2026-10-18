@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   title: { fontSize: 23, fontWeight: '800', marginVertical: 3 },
   card: { borderBottomWidth: 1, borderRadius: 0, paddingVertical: 12, paddingHorizontal: 4 },
-  cardTitle: { fontSize: 14, lineHeight: 19, fontWeight: '750' },
+  cardTitle: { fontSize: 14, lineHeight: 19, fontWeight: '700' },
   noticeTitleRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   noticeIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   unreadMark: { width: 7, height: 7, borderRadius: 4, marginHorizontal: 5 },
