@@ -6,7 +6,7 @@ import {
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { useI18n } from './I18nProvider';
-import { reelsFeedState } from './reels-feed-state';
+import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
@@ -31,6 +31,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
   const [hasMore,setHasMore]=useState(true);
   const [failure,setFailure]=useState('');
   const [feedError,setFeedError]=useState(false);
@@ -42,6 +43,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const fetching=useRef(false);
   const endReached=useRef(false);
   const cursorRef=useRef<string|null>(null);
+  const listRef=useRef<FlatList<Clip>|null>(null);
   const viewability=useRef({itemVisiblePercentThreshold:72}).current;
 
   const clips=useMemo<Clip[]>(()=>posts.flatMap(post=>
@@ -51,10 +53,12 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       .map(media=>({id:post.id+':'+media.position,post,media}))
   ),[posts]);
 
-  const load=useCallback(async(append:boolean)=>{
+  const load=useCallback(async(append:boolean,silent=false)=>{
     if(fetching.current||append&&!hasMore)return;
     fetching.current=true;
-    append?setMore(true):setLoading(true);
+    if(append)setMore(true);
+    else if(silent)setRefreshing(true);
+    else setLoading(true);
     setFailure('');setFeedError(false);
     try{
       const cursor=append?cursorRef.current:null;
@@ -80,6 +84,12 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         const known=new Set(previous.map(post=>post.id));
         return [...previous,...data.filter(post=>!known.has(post.id))];
       });
+      if(!append){
+        // The refreshed first Reel and the scroll offset must stay in sync.
+        setActive(null);
+        endReached.current=false;
+        listRef.current?.scrollToOffset({offset:0,animated:false});
+      }
     }catch(cause){
       setFeedError(true);
       setFailure(cause instanceof Error?cause.message:'Impossible de charger les vidéos.');
@@ -87,13 +97,15 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       fetching.current=false;
       setLoading(false);
       setMore(false);
+      setRefreshing(false);
     }
   },[hasMore]);
 
   useEffect(()=>{void load(false);},[]);
 
   useEffect(()=>{
-    if(!active&&clips[0])setActive(clips[0].id);
+    const selected=chooseVisibleReel(clips.map(clip=>clip.id),active);
+    if(selected!==active)setActive(selected);
   },[clips,active]);
 
   const emptyMode=reelsFeedState({clips:clips.length,posts:posts.length,loading,failed:feedError,hasMore});
@@ -158,7 +170,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)}
+        autoPlay externallyPaused={Boolean(captionClip)||refreshing}
         onDoubleTap={()=>{void ensureLike(post);}}/>
         : <View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
@@ -208,8 +220,10 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const height=event.nativeEvent.layout.height;
     if(height>0&&Math.abs(height-viewportHeight)>1)setViewportHeight(height);
   }}>
-    <FlatList data={clips} keyExtractor={item=>item.id}
+    <FlatList ref={listRef} data={clips} keyExtractor={item=>item.id}
       renderItem={renderClip} style={styles.list}
+      refreshing={refreshing} onRefresh={()=>void load(false,true)}
+      progressViewOffset={58}
       pagingEnabled decelerationRate="fast" showsVerticalScrollIndicator={false}
       viewabilityConfig={viewability} onViewableItemsChanged={onViewableItemsChanged}
       onEndReached={()=>{
@@ -246,10 +260,19 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         <KnowMeIcon name="back" size={23} color="#fff"/>
       </Pressable>
       <Text style={styles.title}>KnowMe · Reels</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Mes vidéos enregistrées"
-        onPress={()=>setOfflineLibraryOpen(true)} style={styles.back}>
-        <KnowMeIcon name="download" size={22} color="#fff"/>
-      </Pressable>
+      <View style={styles.headerActions}>
+        <Pressable accessibilityRole="button" style={styles.back}
+          accessibilityLabel={en?'Refresh Reels':'Actualiser les Réels'}
+          accessibilityState={{disabled:refreshing||loading||more}}
+          disabled={refreshing||loading||more}
+          onPress={()=>void load(false,true)}>
+          <KnowMeIcon name="refresh" size={21} color="#fff"/>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Saved videos':'Mes vidéos enregistrées'}
+          onPress={()=>setOfflineLibraryOpen(true)} style={styles.back}>
+          <KnowMeIcon name="download" size={22} color="#fff"/>
+        </Pressable>
+      </View>
     </View>
     <OfflineVideosLibrary visible={offlineLibraryOpen}
       onClose={()=>setOfflineLibraryOpen(false)}/>
@@ -300,7 +323,8 @@ const styles=StyleSheet.create({
     backgroundColor:'rgba(0,0,0,.38)'},
   back:{width:44,height:44,justifyContent:'center',alignItems:'center',
     backgroundColor:'rgba(255,255,255,.12)',borderRadius:17},
-  title:{fontSize:16,color:'#fff',fontWeight:'800'},
+  title:{fontSize:16,color:'#fff',fontWeight:'800',flexShrink:1},
+  headerActions:{flexDirection:'row',alignItems:'center',gap:6},
   empty:{alignItems:'center',justifyContent:'center',paddingHorizontal:24},
   emptyText:{color:'#bcd3d5',fontSize:14,textAlign:'center',lineHeight:21},
   emptyContent:{maxWidth:300,alignItems:'center',gap:18},
