@@ -27,17 +27,17 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/audio-recorder-send-controls",
-      "task": "Reprise #706 après CI et coordination : fiabiliser cycle d'enregistrement, préécoute et intégration des contrôles vocaux",
+      "task": "PR #706 HEAD 682eea3 : composer vocal Android FR/EN, send/discard, preview stop + progress/seek, permission microphone, background, cleanup; 3/3 tests locaux; guard vert; CI APK en cours. Web #596 coordonné.",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T13:26:20.732Z",
+      "updatedAt": "2026-10-18T13:37:52.483Z",
       "lastPr": 706,
       "resumeFrom": {
         "pr": 706,
         "branch": "chat/messaging/audio-recorder-send-controls",
-        "commit": "419318e3e476cc64ef53836c86f16052cb0c91b9"
+        "commit": "682eea3fec56146d473cbd750775a1afb9ea31bc"
       }
     },
     "social": {
@@ -233,6 +233,15 @@
       "issue": 695,
       "branch": "chat/reels/android-video-scrub-gesture",
       "pr": 713
+    },
+    {
+      "event": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T13:37:52.483Z",
+      "branch": "chat/messaging/audio-recorder-send-controls",
+      "pr": 706,
+      "head": "682eea3fec56146d473cbd750775a1afb9ea31bc"
     }
   ]
 }
