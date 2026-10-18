@@ -66,8 +66,10 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
 
     @Override
     public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
-      return MapBuilder.<String, Object>of("topProgress",
-        MapBuilder.of("registrationName", "onProgress"));
+      Map<String, Object> events=MapBuilder.newHashMap();
+      events.put("topProgress",MapBuilder.of("registrationName","onProgress"));
+      events.put("topPlaybackError",MapBuilder.of("registrationName","onPlaybackError"));
+      return events;
     }
 
     @Override public void onDropViewInstance(StoryContainer view) {
@@ -122,7 +124,14 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       });
       player.setOnErrorListener((media,what,extra)->{
         ready=false;
-        return false;
+        if(getId()>0 && getContext() instanceof ThemedReactContext){
+          WritableMap event=Arguments.createMap();
+          event.putString("message","Lecture de la vidéo indisponible.");
+          ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
+            .receiveEvent(getId(),"topPlaybackError",event);
+        }
+        // Never show the native Android system playback-error dialog.
+        return true;
       });
       addView(player);
     }
