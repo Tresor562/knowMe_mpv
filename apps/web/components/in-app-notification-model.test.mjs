@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { safeNotificationPath, notificationDestination, notificationSymbol, quietTimeActive, shouldShowInAppNotice } from './in-app-notification-model.ts';
+import { safeNotificationPath, notificationDestination, notificationAlreadyVisible, notificationSymbol, quietTimeActive, shouldShowInAppNotice } from './in-app-notification-model.ts';
 
 const item = { id:'n1', title:'Publication', body:'Une nouvelle publication', type:'CREATOR_POST', category:'SOCIAL', createdAt:'2026-10-18T16:00:00Z' };
 const enabled = { masterEnabled:true, realtimeEnabled:true, digestMode:'INSTANT', categorySettings:{SOCIAL:true} };
