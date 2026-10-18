@@ -84,21 +84,22 @@
     },
     "profiles": {
       "issue": 696,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
-      "branch": "chat/profiles/creator-web-conflict-safe",
-      "task": "Reprise #696 : diagnostiquer CI et intégrer PR #716/#727 puis corriger autres éléments profil sans conflits",
+      "branch": "chat/profiles/creator-follow-authoritative",
+      "task": "PR #716 fusionnée main (c42c6bdd). PR #727 Web creator ouverte quality en attente, coordination verte, APK en cours. PR #734 JWT follow-status + composant isolé, suite collision #583: page Web rétablie, CI et garde sur HEAD final en attente. Ne pas annoncer follow visible avant intégration #583.",
       "claimedAt": "2026-10-18T12:09:46.948Z",
-      "updatedAt": "2026-10-18T14:34:23.863Z",
-      "lastPr": 727,
+      "updatedAt": "2026-10-18T14:44:11.428Z",
+      "lastPr": 734,
       "resumeFrom": {
-        "pr": 727,
-        "branch": "chat/profiles/creator-web-conflict-safe",
-        "head": "a9759bf49ade3a70f216714af4175c61b590b0fd",
-        "otherPr": 716,
-        "otherHead": "e8c4aaf581ed5ed40a1cd88fcf5675d61b6c2096",
-        "mergedPr": 720,
-        "mergedCommit": "9e15f9f6fe46194ef50589479231eacaea264e8c"
+        "pr": 734,
+        "branch": "chat/profiles/creator-follow-authoritative",
+        "head": "1c3f77499286678b6750f500ceb36c2921229132",
+        "otherPr": 727,
+        "otherBranch": "chat/profiles/creator-web-conflict-safe",
+        "otherHead": "a9759bf49ade3a70f216714af4175c61b590b0fd",
+        "mergedPr": 716,
+        "mergedCommit": "c42c6bdd35b6a04eeb78461f5e65ee724fdb3025"
       }
     },
     "marketplace": {
@@ -625,6 +626,14 @@
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
       "issue": 695,
       "pr": 732
+    },
+    {
+      "at": "2026-10-18T14:44:11.428Z",
+      "action": "pause",
+      "domain": "profiles",
+      "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
+      "issue": 696,
+      "pr": 734
     }
   ]
 }
