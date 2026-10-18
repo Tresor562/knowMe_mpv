@@ -16,3 +16,24 @@
 .km-comment-report-submit{min-height:46px;border:0;border-radius:14px;color:var(--on-primary);background:var(--mint);font-weight:720;}
 .km-comment-report-submit:disabled{opacity:.52;}
 .km-comment-report-error{font-size:12px;color:var(--danger);}
+
+
+.km-comment-report-sheet header .km-icon-action {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  display: inline-flex;
+  place-items: center;
+  cursor: pointer;
+}
+.km-comment-report-sheet header .km-icon-action:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.km-comment-report-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
