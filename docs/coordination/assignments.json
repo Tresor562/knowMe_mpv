@@ -27,12 +27,12 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/web-voice-review",
-      "task": "PR #728 fusionnée SHA 4569e944 ; PR #723 Web HEAD c54d29e CI/guard/APK attendues après corrections JSX/TS ; PR #735 KnowSticker HEAD 66a472e CI/guard/APK attendues. Pas de déploiement vérifié.",
+      "task": "Reprise PR Web #723, KnowSticker #735 : contrôles exacts et résolution des échecs avant fusion",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T14:52:19.382Z",
+      "updatedAt": "2026-10-18T14:59:56.431Z",
       "lastPr": 723,
       "resumeFrom": {
         "pr": 723,
@@ -735,6 +735,15 @@
       "issue": 697,
       "branch": "chat/marketplace/verified-transaction-history",
       "pr": 741
+    },
+    {
+      "action": "resume",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T14:59:56.431Z",
+      "issue": 693,
+      "pr": 723,
+      "alsoPr": 735
     }
   ]
 }
