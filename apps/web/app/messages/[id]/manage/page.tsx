@@ -61,7 +61,7 @@ export default function GroupManagementPage() {
       setDescription(detail.description||'');
       setSelected(new Set());
       setError('');
-      if(detail.viewerRole!=='MEMBER') {
+      if(detail.viewerRole!=='MEMBER'||detail.permissions?.membersCanAddMembers) {
         const friendsList=await apiFetch<Friend[]>('/social/friends');
         setFriends(friendsList);
       }
