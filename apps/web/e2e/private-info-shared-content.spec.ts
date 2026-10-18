@@ -49,6 +49,23 @@ test('private chat has shared media, links, files and search without group admin
   await expect(page.getByRole('link',{name:'https://example.com/guide'})).toHaveCount(0);
   await page.getByLabel('Date de début').fill('2026-10-17');
   await expect(page.getByRole('link',{name:'https://example.com/guide'})).toHaveAttribute('rel','noopener noreferrer');
+  await page.evaluate(() => {
+    Object.defineProperty(navigator,'clipboard',{
+      configurable:true,
+      value:{writeText: async (value:string) => {
+        (window as Window & { __lastKnowMeLinks?: string }).__lastKnowMeLinks=value;
+      }}
+    });
+  });
+  await page.getByRole('button',{name:'Sélectionner',exact:true}).click();
+  await page.getByRole('checkbox',{name:/Sélectionner le message de Ami/}).check();
+  await expect(page.getByRole('button',{name:'Copier les liens vers les messages'})).toBeEnabled();
+  await page.getByRole('button',{name:'Copier les liens vers les messages'}).click();
+  await expect.poll(() => page.evaluate(()=>
+    (window as Window & { __lastKnowMeLinks?: string }).__lastKnowMeLinks
+  )).toContain('/messages/dm-1?message=dm-text');
+  await page.getByRole('button',{name:'Annuler',exact:true}).click();
+  await expect(page.getByRole('checkbox',{name:/Sélectionner le message de Ami/})).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Voir le message'}))
     .toHaveAttribute('href','/messages/dm-1?message=dm-text');
   await page.getByRole('tab',{name:'Recherche'}).click();
