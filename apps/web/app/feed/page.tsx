@@ -36,13 +36,13 @@ type Post = {
 
 const FEED_PAGE_SIZE = 20;
 
-function FeedIcon({ name }: { name: 'heart' | 'comment' | 'share' }) {
+function FeedIcon({ name, filled = false }: { name: 'heart' | 'comment' | 'share'; filled?: boolean }) {
   const paths = {
     heart: <path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.7a5.4 5.4 0 0 0 0-7.7Z" />,
     comment: <path d="M20.5 11.4a8.5 8.5 0 0 1-8.5 8.5 9.5 9.5 0 0 1-3.6-.8L3 21l1.8-5.3a8.5 8.5 0 1 1 15.7-4.3Z" />,
     share: <><path d="M12 16V3m0 0L7.7 7.3M12 3l4.3 4.3" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>,
   };
-  return <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none"
+  return <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill={name === 'heart' && filled ? 'currentColor' : 'none'}
     stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
@@ -51,6 +51,9 @@ export default function FeedPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [posts, setPosts] = useState<Post[]>([]);
+  const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
+  const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
+  const likesInFlight = useRef(new Set<string>());
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -389,16 +392,45 @@ export default function FeedPage() {
     }
   }
 
+  // Re-read the authenticated user's own reaction state for every newly loaded
+  // post page. A public likes count never tells us whether *I* have liked it.
+  const visiblePostIds = posts.map(post => post.id).join(',');
+  useEffect(() => {
+    let active = true;
+    setMyLikes({});
+    if (!user?.id || !authorityFresh || !visiblePostIds) return () => {active = false;};
+    const ids = visiblePostIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/50)}, (_,index) => {
+      const batch = ids.slice(index*50,index*50+50);
+      return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
+    })).then(pages => {
+      if (active) setMyLikes(Object.assign({},...pages));
+    }).catch(() => {
+      // Unknown is not "unliked": never cache an invented personal reaction.
+    });
+    return () => {active = false;};
+  },[user?.id,authorityFresh,visiblePostIds]);
+
   async function toggleLike(postId: string) {
-    if (!authorityFresh) return;
+    if (!authorityFresh || !user?.id || likesInFlight.current.has(postId)) return;
+    likesInFlight.current.add(postId);
+    setBusyLikeIds(current => [...current,postId]);
+    const accountId = user.id;
+    const generation = loadGeneration.current;
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' });
-      setPosts((current) => current.map((post) => post.id === postId
-        ? { ...post, _count: { ...post._count, likes: Math.max(0, post._count.likes + (result.liked ? 1 : -1)) } }
+      const result = await apiFetch<{ liked: boolean }>(`/posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
+      if (generation!==loadGeneration.current || accountId!==user?.id) return;
+      setMyLikes(current=>({...current,[postId]:result.liked}));
+      setPosts(current=>current.map(post=>post.id===postId
+        ? {...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}}
         : post));
     } catch (cause) {
-      invalidateFeedAuthority();
-      setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
+      if(generation===loadGeneration.current) {
+        setMessage(cause instanceof Error?cause.message:'Réaction non confirmée.');
+      }
+    } finally {
+      likesInFlight.current.delete(postId);
+      setBusyLikeIds(current=>current.filter(id=>id!==postId));
     }
   }
 
@@ -598,9 +630,13 @@ export default function FeedPage() {
             <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
               caption={post.content} en={en}/>
             <footer className="km-post-actions">
-              <button type="button" onClick={() => void toggleLike(post.id)} disabled={!authorityFresh}
-                aria-label={en?'React to post':'Réagir à la publication'}>
-                <FeedIcon name="heart"/><span>{post._count.likes}</span>
+              <button type="button" onClick={() => void toggleLike(post.id)}
+                disabled={!authorityFresh || busyLikeIds.includes(post.id)}
+                aria-label={myLikes[post.id] ? (en?'Remove my like':'Retirer mon J’aime') : (en?'React to post':'Réagir à la publication')}
+                aria-pressed={myLikes[post.id]===true}
+                style={{color:myLikes[post.id]===true?'#e73d57':undefined}}>
+                <FeedIcon name="heart" filled={myLikes[post.id]===true}/>
+                <span>{post._count.likes}</span>
               </button>
               {authorityFresh ? <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
                 <FeedIcon name="comment"/><span>{post._count.comments}</span>
