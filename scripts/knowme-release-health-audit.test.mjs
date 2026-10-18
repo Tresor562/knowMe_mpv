@@ -5,7 +5,7 @@ import { ENDPOINTS, evaluateReleaseHealth, getSafeJson, probeReleaseHealth, pars
 const sha = 'a'.repeat(40);
 const api = { platform: 'api', commit: sha, version: '1.1.8', experienceRevision: '2026-10-17.1' };
 const web = { ...api, platform: 'web' };
-const ready = { status: 'ready', checks: { database: 'up' } };
+const ready = { status: 'ready', service: 'knowme-api', checks: { database: 'up' }, release: { commit: sha, version: '1.1.8' } };
 const android = { release: { version: '1.1.8', versionCode: 10800, sha256: 'b'.repeat(64),
   url: 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-1.1.8-preview.apk' } };
 const ok = () => ({ api, web, vercel: { ...web }, ready, android });
@@ -22,7 +22,7 @@ test('intentional Web freeze is explicitly visible, but fails when rollout is en
   assert.equal(evaluateReleaseHealth(state, { webEnabled: true }).status, 'critical');
 });
 test('database outage blocks deployment proof even while Web rollout is paused', () => {
-  const report = evaluateReleaseHealth({ ...ok(), ready: { status: 'ready', checks: { database: 'down' } } });
+  const report = evaluateReleaseHealth({ ...ok(), ready: { ...ready, checks: { database: 'down' } } });
   assert.ok(codes(report).includes('api-not-ready'));
 });
 test('missing Web is critical only if Web rollout is enabled', () => {
@@ -103,4 +103,25 @@ test('Vercel and VPS are audited separately without treating a divergent Vercel 
   assert.ok(codes(divergent).includes('vercel-api-drift'));
   const unavailable = evaluateReleaseHealth({ ...ok(), vercel: null }, { webEnabled: true });
   assert.ok(codes(unavailable).includes('vercel-identity'));
+});
+
+test('strict release identities reject missing revision on API and Web', () => {
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), api: { ...api, experienceRevision: undefined } }, { webEnabled: true })).includes('api-identity'));
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), web: { ...web, experienceRevision: undefined } }, { webEnabled: true })).includes('web-identity'));
+});
+test('a ready database never masks a mismatched runtime release identity', () => {
+  const incompatible = { ...ready, release: { commit: 'f'.repeat(40), version: '1.1.8' } };
+  const report = evaluateReleaseHealth({ ...ok(), ready: incompatible }, { webEnabled: true });
+  assert.equal(report.status, 'critical');
+  assert.ok(codes(report).includes('readiness-release-drift'));
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), ready: { ...ready, release: null } }, { webEnabled: true })).includes('readiness-release-missing'));
+});
+test('legacy GitHub preview update is warning rather than an invalid self-hosted manifest', () => {
+  const notice = { ...android.release, url: 'https://github.com/Tresor562/knowMe_mpv/releases/download/v1.1.8-preview/KnowMe-1.1.8-preview.apk' };
+  const report = evaluateReleaseHealth({ ...ok(), android: { release: notice } }, { webEnabled: true });
+  assert.equal(report.status, 'degraded');
+  assert.ok(codes(report).includes('android-legacy-github'));
+  assert.ok(!codes(report).includes('android-manifest'));
+  const spoofed = { ...notice, url: 'https://github.com/attacker/repo/releases/download/v1.1.8-preview/KnowMe-1.1.8-preview.apk' };
+  assert.ok(codes(evaluateReleaseHealth({ ...ok(), android: { release: spoofed } }, { webEnabled: true })).includes('android-manifest'));
 });

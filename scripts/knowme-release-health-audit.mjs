@@ -13,6 +13,7 @@ export const ENDPOINTS = Object.freeze({
 const SHA = /^[a-f0-9]{40}$/i;
 const HEX = /^[a-f0-9]{64}$/i;
 const VERSION = /^\d+\.\d+\.\d+$/;
+const REVISION = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const asObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 // Operator-configured GitHub policy; never proof of actual VPS runtime settings.
@@ -28,18 +29,24 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
   const issue = (severity, code, detail) => issues.push({ severity, code, detail });
   const { api, ready, web, vercel, android } = snapshot;
   const validApi = asObject(api) && api.platform === 'api' && SHA.test(api.commit || '') &&
-    VERSION.test(api.version || '');
+    VERSION.test(api.version || '') && REVISION.test(api.experienceRevision || '');
   const validWeb = asObject(web) && web.platform === 'web' && SHA.test(web.commit || '') &&
-    VERSION.test(web.version || '');
+    VERSION.test(web.version || '') && REVISION.test(web.experienceRevision || '');
   if (webEnabled !== true && webEnabled !== false)
     issue('warning', 'web-policy-unknown', 'Web rollout policy unconfirmed; GitHub config is not VPS attestation');
   if (!validApi) issue('critical', 'api-identity', 'Invalid or unavailable API version metadata');
-  if (!asObject(ready) || ready.status !== 'ready' || ready.checks?.database !== 'up')
+  if (!asObject(ready) || ready.status !== 'ready' || ready.service !== 'knowme-api' || ready.checks?.database !== 'up')
     issue('critical', 'api-not-ready', 'API readiness or database is unhealthy');
+  if (validApi && asObject(ready) && ready.status === 'ready' && ready.checks?.database === 'up') {
+    if (!asObject(ready.release) || !SHA.test(ready.release.commit || '') || !VERSION.test(ready.release.version || ''))
+      issue('critical', 'readiness-release-missing', 'API readiness lacks verifiable release identity');
+    else if (ready.release.commit.toLowerCase() !== api.commit.toLowerCase() || ready.release.version !== api.version)
+      issue('critical', 'readiness-release-drift', 'API readiness and version endpoints disagree on deployed release');
+  }
   if (!validWeb) issue(webEnabled === true ? 'critical' : 'warning', 'web-identity',
     'Self-hosted Web identity endpoint is unavailable or invalid');
   const validVercel = asObject(vercel) && vercel.platform === 'web' &&
-    SHA.test(vercel.commit || '') && VERSION.test(vercel.version || '');
+    SHA.test(vercel.commit || '') && VERSION.test(vercel.version || '') && REVISION.test(vercel.experienceRevision || '');
   if (!validVercel) issue('warning', 'vercel-identity',
     'Vercel site release metadata is unavailable or invalid');
   if (validApi && validVercel && (api.commit.toLowerCase() !== vercel.commit.toLowerCase() ||
@@ -59,14 +66,21 @@ export function evaluateReleaseHealth(snapshot, { webEnabled = null } = {}) {
     issue('warning', 'android-not-advertised', 'No signed Android update currently advertised');
   } else {
     const release = android.release;
-    const expected = 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-' +
+    const hosted = 'https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/apk/KnowMe-' +
       release?.version + '-preview.apk';
-    if (!asObject(release) || !VERSION.test(release.version || '') ||
-        !Number.isSafeInteger(release.versionCode) || release.versionCode < 1 ||
-        !HEX.test(release.sha256 || '') || release.url !== expected)
-      issue('critical', 'android-manifest', 'Unsafe Android manifest or noncanonical APK URL');
-    else if (validApi && api.version !== release.version)
-      issue('warning', 'android-version-drift', 'Android update version differs from API release');
+    const githubFallback = 'https://github.com/Tresor562/knowMe_mpv/releases/download/v' +
+      release?.version + '-preview/KnowMe-' + release?.version + '-preview.apk';
+    const formatValid = asObject(release) && VERSION.test(release.version || '') &&
+      Number.isSafeInteger(release.versionCode) && release.versionCode >= 1 &&
+      HEX.test(release.sha256 || '');
+    if (!formatValid || (release.url !== hosted && release.url !== githubFallback)) {
+      issue('critical', 'android-manifest', 'Unsafe Android manifest or unrecognized APK URL');
+    } else {
+      if (release.url === githubFallback)
+        issue('warning', 'android-legacy-github', 'GitHub legacy update source, not verified self-hosted APK delivery');
+      if (validApi && api.version !== release.version)
+        issue('warning', 'android-version-drift', 'Android update version differs from API release');
+    }
   }
   const status = issues.some(x => x.severity === 'critical') ? 'critical' : issues.length ? 'degraded' : 'healthy';
   return {

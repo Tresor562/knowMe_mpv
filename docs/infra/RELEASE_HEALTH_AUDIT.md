@@ -8,9 +8,10 @@ Le workflow `KnowMe public release health audit` interroge uniquement en HTTPS e
 - version de l'API et état PostgreSQL depuis le VPS ;
 - version Web autohébergée depuis le VPS ;
 - version Web de `knowme-nextech.vercel.app` (Vercel) ;
-- manifeste de mises à jour Android autohébergé.
+- manifeste de mises à jour Android autohébergé, avec détection des anciennes releases GitHub encore autorisées par l'API.
 
 Il compare les identités de commit, versions et révisions du contrat lorsque disponibles.
+L'identité renvoyée par `/health/ready` est aussi confrontée à `/platform-sync/version`, afin de détecter un décalage interne du conteneur API.
 Il signale les erreurs de réseau, formats JSON dangereux, URL de téléchargement APK non
 canoniques, absence de release et désynchronisations distinctes Web VPS / Web Vercel.
 
