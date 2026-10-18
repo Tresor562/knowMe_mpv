@@ -76,6 +76,10 @@
 .km-state-icon--close[data-icon-burst] > svg:first-child {
   animation-name: km-icon-confirm-exit;
 }
+.km-state-icon--wifi[data-icon-burst] > svg:first-child,
+.km-state-icon--wifi-off[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-network-change;
+}
 .km-state-icon--download[data-icon-burst] > svg:first-child,
 .km-state-icon--check[data-icon-burst] > svg:first-child {
   animation-name: km-icon-download-settle;
@@ -105,6 +109,7 @@
 @keyframes km-icon-media-transition { 0%{transform:scale(.88)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
 @keyframes km-icon-confirm-exit { 0%{transform:scale(.93);opacity:.7} 100%{transform:scale(1);opacity:1} }
 @keyframes km-icon-download-settle { 0%{transform:translateY(-2px);opacity:.7} 100%{transform:translateY(0);opacity:1} }
+@keyframes km-icon-network-change { 0%{transform:translateY(2px) scale(.93);opacity:.55} 100%{transform:translateY(0) scale(1);opacity:1} }
 @keyframes km-icon-spin { to { transform:rotate(360deg) } }
 @keyframes km-icon-record-live { from{transform:scale(.94);opacity:.65} to{transform:scale(1.06);opacity:1} }
 @keyframes km-icon-audio-live { from{transform:scale(.98);opacity:.75} to{transform:scale(1.035);opacity:1} }
