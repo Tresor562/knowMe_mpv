@@ -5,6 +5,7 @@ import { apiFetch, getAccessToken } from '../lib/api';
 import {
   APPEARANCE_EVENT,
   AppearanceResponse,
+  applyAnonymousSystemAppearance,
   applyAppearance,
   loadLocalAppearance,
   saveLocalAppearance
@@ -58,10 +59,10 @@ export function ThemeRuntime() {
       if (event.key === 'knowme-appearance') applyStored();
     };
     const onSystemThemeChanged = () => {
-      // SYSTEM themes need not have the literal key "system"; resolve the
-      // palette from the actual theme mode on every OS color-scheme change.
-      // Explicit Light/Dark themes will simply reapply their fixed palette.
-      applyStored();
+      // SYSTEM themes may have custom keys; fixed themes keep their palette.
+      const stored = loadLocalAppearance();
+      if (stored) applyAppearance(stored);
+      else applyAnonymousSystemAppearance();
     };
 
     window.addEventListener(APPEARANCE_EVENT, onAppearanceChanged);
