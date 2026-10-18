@@ -102,23 +102,27 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
-      "branch": "chat/marketplace/sticker-collection-tab",
-      "task": "Resume PR #714 exact-head green; integrate collision-free PRs, QA sticker tab #726 and checkout, reconcile overlapping gift PRs with #583",
+      "branch": "chat/marketplace/web-sticker-pack-directory",
+      "task": "Merged: #722 SHA 3a4fe53 (Web deployed Vercel READY), #714 SHA d95c62d (Android code merged, APK release not verified). Pending: #712 new coordination guard queued; #726 CI ongoing; #731 APK official Web route CI; #733 Web sticker packs CI; #717/#719 conflict #583.",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T14:24:49.983Z",
-      "lastPr": 726,
+      "updatedAt": "2026-10-18T14:39:20.282Z",
+      "lastPr": 733,
       "resumeFrom": {
-        "pr": 726,
-        "branch": "chat/marketplace/sticker-collection-tab",
-        "commit": "35908be3fe12153e157831bce1a8ba58a7ec42f2",
+        "pr": 733,
+        "branch": "chat/marketplace/web-sticker-pack-directory",
+        "commit": "9feb587c9ccb46cf20b3346eb06e2d97b1b1c32b",
+        "merged": [
+          722,
+          714
+        ],
         "relatedPrs": [
           712,
-          714,
           717,
           719,
-          722
+          726,
+          731
         ]
       }
     },
@@ -574,6 +578,15 @@
       "branch": "chat/infra/release-guard-readiness",
       "pr": 721,
       "head": "1411f351381daf0d2c74360d8e23d5b2009c1139"
+    },
+    {
+      "at": "2026-10-18T14:39:20.282Z",
+      "action": "pause",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697,
+      "branch": "chat/marketplace/web-sticker-pack-directory",
+      "pr": 733
     }
   ]
 }
