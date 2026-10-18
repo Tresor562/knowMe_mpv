@@ -9,6 +9,8 @@ test('native pause glyph reflects actual player state', () => {
   assert.equal(nativeVisibleGlyph('pause', 'paused'), 'play');
   assert.equal(nativeVisibleGlyph('download', 'success'), 'check');
   assert.equal(nativeVisibleGlyph('heart', 'selected'), 'heart');
+  assert.equal(nativeVisibleGlyph('create', 'open'), 'close');
+  assert.equal(nativeVisibleGlyph('create', 'closed'), 'create');
 });
 
 test('native animation loop is limited to ongoing real events', () => {
