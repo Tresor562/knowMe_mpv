@@ -474,6 +474,10 @@ export function StoriesRail({
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
+              onPlaybackError={event=>{
+                setSelectedVideoUri(null);
+                setMediaError(event.nativeEvent.message||'Vidéo indisponible.');
+              }}
               style={StyleSheet.absoluteFillObject}/>:null}
             {mediaError?<Text style={[styles.storyCaption,{color:colors.danger}]}>
               {mediaError}
