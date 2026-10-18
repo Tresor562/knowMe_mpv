@@ -220,6 +220,8 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [editPost,setEditPost] = useState<PostSummary|null>(null);
   const [reportComment,setReportComment] = useState<Comment|null>(null);
+  const [contextComment,setContextComment] = useState<Comment|null>(null);
+  const [copyComment,setCopyComment] = useState<Comment|null>(null);
   const [editComment,setEditComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
@@ -497,47 +499,29 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
             </Pressable>
             <Text style={[styles.smallMeta,{color:colors.muted}]}>{formatPostDate(comment.createdAt)}</Text>
           </View>
-          <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={`Commentaire de ${comment.author.displayName}. Maintenir pour les options.`}
+            onLongPress={()=>setContextComment(comment)} delayLongPress={420}>
+            <KnowMeMentionText text={comment.content} style={[styles.threadBody,{color:colors.text}]}/>
+          </Pressable>
           <View style={styles.threadTools}>
             <Pressable accessibilityRole="button" disabled={reactionBusy}
               accessibilityLabel={`Réagir au commentaire de ${comment.author.displayName}`}
               onPress={()=>{
                 if(suppressReactionTap.current){suppressReactionTap.current=false;return;}
-                void reactTo(comment.id,'❤️');
+                void reactTo(comment.id,reaction?.mine??'❤️');
               }}
               onLongPress={()=>{
                 suppressReactionTap.current=true;
                 setReactionPickerFor(comment.id);
               }} delayLongPress={380}>
               <Text style={[styles.threadToolText,{color:reaction?.mine?colors.accent:colors.muted}]}>
-                {reaction?.mine??'♡'} Réagir{reaction?.total?' · '+reaction.total:''}
+                {reaction?.mine||'Réagir'}{reaction?.total?' · '+reaction.total:''}
               </Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Choisir un emoji"
-              onPress={()=>setReactionPickerFor(comment.id)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>☺</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={()=>{setReplyTo(comment);requestAnimationFrame(()=>commentInputRef.current?.focus());}}>
               <Text style={[styles.threadToolText,{color:colors.muted}]}>Répondre</Text>
             </Pressable>
-            <Pressable accessibilityRole="button"
-              onPress={()=>{void Share.share({message:buildKnowMePublicLink({kind:'comment',id:comment.id})});}}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Partager</Text>
-            </Pressable>
-            {comment.author.id!==userId ? <Pressable accessibilityRole="button"
-              accessibilityLabel={`Signaler le commentaire de ${comment.author.displayName}`}
-              onPress={()=>setReportComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Signaler</Text>
-            </Pressable>:null}
-            {comment.author.id===userId ? <Pressable accessibilityRole="button"
-              accessibilityLabel={`Modifier le commentaire de ${comment.author.displayName}`}
-              disabled={busyId===comment.id} onPress={()=>setEditComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.muted}]}>Modifier</Text>
-            </Pressable>:null}
-            {canDelete?<Pressable accessibilityRole="button" disabled={busyId===comment.id}
-              onPress={()=>confirmDeleteComment(comment)}>
-              <Text style={[styles.threadToolText,{color:colors.danger}]}>Supprimer</Text>
-            </Pressable>:null}
           </View>
           {reaction?.emojis?.length ? (
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:6}}>
@@ -671,6 +655,83 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         <KnowMeIcon name="arrow" size={22} color={colors.accentText}/>
       </Pressable>
     </View>
+    <Modal visible={Boolean(contextComment)} transparent animationType="slide" statusBarTranslucent
+      onRequestClose={()=>setContextComment(null)}>
+      <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Fermer les actions du commentaire"
+          style={styles.sheetScrim} onPress={()=>setContextComment(null)}/>
+        <View style={[styles.sheetPanel,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetHandle,{backgroundColor:colors.muted}]}/>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>Options du commentaire</Text>
+          <Text numberOfLines={3} style={[styles.threadBody,{color:colors.muted,marginVertical:10}]}>
+            {contextComment?.content}
+          </Text>
+          {contextComment && (
+            <>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{setReplyTo(contextComment);setContextComment(null);
+                  requestAnimationFrame(()=>commentInputRef.current?.focus());}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Répondre</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{setCopyComment(contextComment);setContextComment(null);}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Copier le texte</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{const text=contextComment.content;setContextComment(null);void Share.share({message:text});}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Partager</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                onPress={()=>{const id=contextComment.id;setContextComment(null);
+                  void Share.share({message:buildKnowMePublicLink({kind:'comment',id})});}}>
+                <Text style={[styles.contextActionLabel,{color:colors.text}]}>Partager le lien</Text>
+              </Pressable>
+              {contextComment.author.id===userId && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  disabled={busyId===contextComment.id}
+                  onPress={()=>{setEditComment(contextComment);setContextComment(null);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.text}]}>Modifier</Text>
+                </Pressable>
+              )}
+              {contextComment.author.id!==userId && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  onPress={()=>{setReportComment(contextComment);setContextComment(null);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.text}]}>Signaler</Text>
+                </Pressable>
+              )}
+              {(contextComment.author.id===userId || post?.authorId===userId) && (
+                <Pressable accessibilityRole="button" style={styles.contextActionRow}
+                  disabled={busyId===contextComment.id}
+                  onPress={()=>{const target=contextComment;setContextComment(null);confirmDeleteComment(target);}}>
+                  <Text style={[styles.contextActionLabel,{color:colors.danger}]}>Supprimer</Text>
+                </Pressable>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+    <Modal visible={Boolean(copyComment)} transparent animationType="slide" statusBarTranslucent
+      onRequestClose={()=>setCopyComment(null)}>
+      <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
+        <Pressable style={styles.sheetScrim} onPress={()=>setCopyComment(null)}/>
+        <View style={[styles.sheetPanel,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <View style={[styles.sheetHandle,{backgroundColor:colors.muted}]}/>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>Copier le commentaire</Text>
+          <Text style={[styles.smallMeta,{color:colors.muted,marginBottom:10}]}>
+            Sélectionne le texte ci-dessous pour utiliser la commande Copier d’Android.
+          </Text>
+          <Text selectable style={[styles.threadBody,{color:colors.text,padding:12,
+            backgroundColor:colors.backgroundAccent,borderRadius:12}]}>
+            {copyComment?.content}
+          </Text>
+          <Pressable accessibilityRole="button" style={styles.contextActionRow}
+            onPress={()=>setCopyComment(null)}>
+            <Text style={[styles.contextActionLabel,{color:colors.accent}]}>Fermer</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
     <Modal visible={Boolean(reactionPickerFor)} transparent animationType="slide"
       onRequestClose={()=>setReactionPickerFor(null)} statusBarTranslucent>
       <View style={[styles.sheetOverlay,{justifyContent:'flex-end'}]}>
@@ -1186,6 +1247,8 @@ const styles = StyleSheet.create({
   threadBody: { fontSize: 14.5, lineHeight: 21, marginTop: 4 },
   threadTools: { flexDirection: 'row', gap: 22, paddingTop: 7 },
   threadToolText: { fontSize: 12, fontWeight: '600', paddingVertical: 4 },
+  contextActionRow: { minHeight:48,justifyContent:'center',paddingHorizontal:10,borderRadius:12 },
+  contextActionLabel: {fontSize:14,fontWeight:'600'},
   emptyDiscussion: { alignItems: 'center', gap: 12, paddingVertical: 46 },
   emptyDiscussionText: { fontSize: 13, textAlign: 'center' },
   commentDock: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 },
