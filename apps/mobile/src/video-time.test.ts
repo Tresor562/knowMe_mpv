@@ -1,6 +1,6 @@
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
-import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp} from './video-time.ts';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent} from './video-time.ts';
 
 test('video clock never wraps after 59m59s, including five-hour videos',()=>{
   assert.equal(videoTime(0),'0:00');
@@ -82,4 +82,11 @@ test('resume storage ignores malformed or duplicate IDs and keeps a bounded hist
   assert.equal(entries[0]?.id,'clip99');
   assert.equal(entries.some(item=>item.id==='clip0'),false);
   assert.equal(nextVideoResumes(entries,'invalid/id',100_000,600_000,999).length,80);
+});
+
+test('native video completion rewinds on tap rather than toggling stale pause',()=>{
+  assert.equal(videoTapIntent(true,true),'replay');
+  assert.equal(videoTapIntent(true,false),'replay');
+  assert.equal(videoTapIntent(false,true),'play');
+  assert.equal(videoTapIntent(false,false),'pause');
 });
