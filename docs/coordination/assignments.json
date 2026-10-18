@@ -27,14 +27,18 @@
   "domains": {
     "messaging": {
       "issue": 693,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
       "branch": "chat/messaging/audio-recorder-send-controls",
-      "task": "Améliorer les contrôles vocaux des conversations Web/Android : envoyer, annuler, états, tests et accessibilité",
+      "task": "PR #706 : correctif vocaux Android isolé, anti-conflit vert ; CI et validation appareil en attente ; intégrer prototype Web après coordination #530/#567",
       "claimedAt": "2026-10-18T12:00:47.563Z",
-      "updatedAt": "2026-10-18T12:00:47.563Z",
-      "lastPr": null,
-      "resumeFrom": null
+      "updatedAt": "2026-10-18T12:13:08.205Z",
+      "lastPr": 706,
+      "resumeFrom": {
+        "pr": 706,
+        "branch": "chat/messaging/audio-recorder-send-controls",
+        "commit": "419318e3e476cc64ef53836c86f16052cb0c91b9"
+      }
     },
     "social": {
       "issue": 694,
@@ -142,6 +146,15 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "branch": "chat/profiles/profile-edit-accessible"
+    },
+    {
+      "event": "pause",
+      "domain": "messaging",
+      "ownerRef": "session-f8d73fd7-956b-4b4d-84a0-d84bc154bb93",
+      "at": "2026-10-18T12:13:08.205Z",
+      "issue": 693,
+      "branch": "chat/messaging/audio-recorder-send-controls",
+      "pr": 706
     }
   ]
 }
