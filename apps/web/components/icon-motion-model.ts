@@ -19,6 +19,7 @@ export function presentationGlyphName(name: string, state: IconOperationState): 
   if ((name === 'play' || name === 'pause') && state === 'playing') return 'pause';
   if ((name === 'play' || name === 'pause') && state === 'paused') return 'play';
   if (name === 'download' && state === 'success') return 'check';
+  if (name === 'copy' && state === 'success') return 'check';
   // The close state must stay recognizable with animations disabled.
   if (name === 'create' && state === 'open') return 'close';
   return name;
