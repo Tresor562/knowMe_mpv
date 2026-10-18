@@ -114,7 +114,7 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
             onLayout={event=>setTrackWidth(Math.max(1,event.nativeEvent.layout.width))}
             onPress={event=>seek(durationMs*event.nativeEvent.locationX/trackWidth)}
             style={styles.seekTrack}>
-            <View style={[styles.seekFill,{width:(durationMs>0?Math.min(100,100*positionMs/durationMs):0)+'%'}]}/>
+            <View style={[styles.seekFill,{width:`${durationMs>0?Math.min(100,100*positionMs/durationMs):0}%` as `${number}%`}]}/>
           </Pressable>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
