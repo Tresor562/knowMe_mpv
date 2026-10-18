@@ -99,7 +99,10 @@ test('icon action controls are accessible and preserve long-press semantics', ()
   const network = fs.readFileSync(path.join(dir, 'network-connectivity-notice.tsx'), 'utf8');
   const sheet = fs.readFileSync(path.join(dir, 'post-share-sheet.tsx'), 'utf8');
   const layout = fs.readFileSync(path.join(dir, '..', 'app', 'layout.tsx'), 'utf8');
-  assert.ok(action.includes('aria-label={label}'));
+  assert.ok(action.includes('aria-label={accessibleLabel}'));
+  assert.ok(action.includes('Number.isFinite(progress)'));
+  assert.ok(action.includes('Math.round(confirmedProgress * 100)'));
+  assert.ok(action.includes('title={onLongPress ? undefined : label}'));
   assert.ok(action.includes("type=\"button\""));
   assert.ok(action.includes('aria-pressed={toggle ? state ==='));
   assert.ok(action.includes('aria-busy={busy || undefined}'));
@@ -109,6 +112,10 @@ test('icon action controls are accessible and preserve long-press semantics', ()
   assert.ok(action.includes('onContextMenu={event =>'));
   assert.ok(action.includes('event.detail !== 0'));
   assert.ok(action.includes('onLongPress();'));
+  assert.ok(animated.includes("settings.animatedIcons === 'false'"));
+  assert.ok(animated.includes("settings.effectiveReducedMotion === 'true'"));
+  assert.ok(animatedCss.includes("km-state-icon--chats[data-icon-state='loading']"));
+  assert.ok(animatedCss.includes("km-state-icon--home[data-icon-state='sending']"));
   assert.ok(style.includes('min-width: 44px;'));
   assert.ok(style.includes('min-height: 44px;'));
   assert.ok(style.includes(':focus-visible'));
