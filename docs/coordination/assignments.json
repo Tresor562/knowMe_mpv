@@ -77,25 +77,28 @@
     },
     "reels": {
       "issue": 695,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/android-video-replay-complete",
-      "task": "CI #746/#751, réconcilier #748 après PR #736, corriger Story playback progress",
+      "branch": "chat/reels/android-offline-library-consolidated",
+      "task": "Merged #746 pull refresh, #736 offline i18n, #751 replay native. #755 visible-author Story API CI retriggered, #757 bilingual sort+bulk delete CI/APK queued. #753 accurate Story view progress blocked by #572/#583 StoriesRail overlap. #748 closed superseded.",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T15:57:02.928Z",
-      "lastPr": 751,
+      "updatedAt": "2026-10-18T16:16:01.657Z",
+      "lastPr": 757,
       "resumeFrom": {
-        "pr": 751,
-        "branch": "chat/reels/android-video-replay-complete",
-        "commit": "8d3fb4349767782dc47ac109191457482412b7c6",
-        "alsoPrs": [
-          746,
-          748
+        "pr": 757,
+        "branch": "chat/reels/android-offline-library-consolidated",
+        "commit": "c7e7d86085b9a1d360350c44566eedf3dfa8f0e9",
+        "alsoPr": 755,
+        "alsoHead": "68cc63d4862ec6bf4208dd9c5522974a1c0669f6",
+        "blockedPr": 753,
+        "blockedBy": [
+          572,
+          583
         ],
-        "blockedBy": 736,
-        "mergedPrs": [
-          732,
-          740
+        "merged": [
+          746,
+          736,
+          751
         ]
       }
     },
@@ -980,6 +983,15 @@
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 743,
       "mergedPr": 724
+    },
+    {
+      "at": "2026-10-18T16:16:01.657Z",
+      "action": "pause",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "pr": 757,
+      "branch": "chat/reels/android-offline-library-consolidated"
     }
   ]
 }
