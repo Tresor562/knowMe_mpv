@@ -90,12 +90,12 @@
     },
     "marketplace": {
       "issue": 697,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
       "branch": "chat/marketplace/android-catalog-filters",
-      "task": "PR #712 Web (fiches, achat confirmé, anti-double débit), PR #714 Android (recherche/filtres et tests). PR draft, CI/coordination finales à vérifier; non fusionnées/non déployées.",
+      "task": "Reprise: corriger CI PR #712 Web et #714 Android, valider, puis extension Marketplace",
       "claimedAt": "2026-10-18T13:23:00.000Z",
-      "updatedAt": "2026-10-18T13:39:12.062Z",
+      "updatedAt": "2026-10-18T14:03:02.971Z",
       "lastPr": 714,
       "resumeFrom": {
         "pr": 714,
@@ -277,6 +277,13 @@
       "ownerRef": "session-9c830ec1-a9e0-4d6a-af20-2b0c8557bc31",
       "issue": 696,
       "pr": 715
+    },
+    {
+      "at": "2026-10-18T14:03:02.971Z",
+      "action": "resume",
+      "domain": "marketplace",
+      "ownerRef": "session-27d8cce1-6445-4b47-83c4-1597c6ebf5d9",
+      "issue": 697
     }
   ]
 }
