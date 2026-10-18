@@ -14,7 +14,7 @@ export type SharedMessage = {
     text?: string;
   } | null;
 };
-export type SharedContentKind = 'media' | 'files' | 'links';
+export type SharedContentKind = 'media' | 'files' | 'links' | 'search';
 export type SharedLink = { url: string; text: string };
 
 /** Never render javascript:, data:, credentials or a URL with embedded controls. */
@@ -49,6 +49,17 @@ export function contentKind(message: SharedMessage): SharedContentKind[] {
   const content = kind === 'TEXT' ? message.presentation?.text ?? message.content : message.content;
   if (linksInMessage(content).length) list.push('links');
   return list;
+}
+
+/** Read-only progressive search. It never claims to search pages not yet loaded. */
+export function searchSharedMessages(items: SharedMessage[], query: string): SharedMessage[] {
+  const fold=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase();
+  const term=fold(query.trim()).slice(0,120);
+  if(!term)return [];
+  return items.filter(item=>fold([
+    item.content, item.presentation?.text, item.presentation?.fileName,
+    item.sender?.displayName, item.sender?.username
+  ].filter(value=>typeof value==='string').join(' ')).includes(term));
 }
 
 export function appendSharedMessages(old: SharedMessage[], incoming: SharedMessage[]): SharedMessage[] {
