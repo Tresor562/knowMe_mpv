@@ -69,22 +69,22 @@
     },
     "reels": {
       "issue": 695,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
-      "branch": "chat/reels/android-feed-retry-state",
-      "task": "Poursuite domaine Réels: fusion #725 CI+coord+APK vert, validation #729 et #732, corrections et nouvelles fonctions",
+      "branch": "chat/reels/android-resume-video-position",
+      "task": "PR #740 reprise vidéo Android attend CI/APK; PR #732 retry Réels CI/coord vertes, APK en attente; PR #725/#729 fusionnées",
       "claimedAt": "2026-10-18T12:04:24.678Z",
-      "updatedAt": "2026-10-18T14:43:35.088Z",
-      "lastPr": 732,
+      "updatedAt": "2026-10-18T15:02:10.850Z",
+      "lastPr": 740,
       "resumeFrom": {
-        "pr": 732,
-        "branch": "chat/reels/android-feed-retry-state",
-        "commit": "58c036dec3d143cae98e31ae742e2a4c14828d94",
-        "alsoPrs": [
+        "pr": 740,
+        "branch": "chat/reels/android-resume-video-position",
+        "commit": "08c214e5d9addbcbffbf74ffe500ffe197c98272",
+        "alsoPr": 732,
+        "mergedPrs": [
           725,
           729
-        ],
-        "mergedPr": 718
+        ]
       }
     },
     "profiles": {
