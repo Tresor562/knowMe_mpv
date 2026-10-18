@@ -49,12 +49,12 @@
     },
     "reels": {
       "issue": 695,
-      "status": "free",
-      "ownerRef": null,
-      "branch": null,
-      "task": null,
-      "claimedAt": null,
-      "updatedAt": null,
+      "status": "active",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "branch": "chat/reels/long-video-player-controls",
+      "task": "Lecteur Réels longs et stories: commandes, progression accessible, pause/reprise, Web/Android sans conflits",
+      "claimedAt": "2026-10-18T12:04:24.678Z",
+      "updatedAt": "2026-10-18T12:04:24.678Z",
       "lastPr": null,
       "resumeFrom": null
     },
@@ -118,6 +118,14 @@
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "issue": 694
+    },
+    {
+      "at": "2026-10-18T12:04:24.678Z",
+      "action": "claim",
+      "domain": "reels",
+      "ownerRef": "session-4fa61544-bacd-485f-af81-95128f154f0b",
+      "issue": 695,
+      "branch": "chat/reels/long-video-player-controls"
     }
   ]
 }
