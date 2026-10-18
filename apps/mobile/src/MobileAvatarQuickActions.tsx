@@ -6,6 +6,7 @@ import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaL
 import { useAppearance } from './AppearanceProvider';
 import { apiFetch } from './api';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
+import { removeActiveProfileAvatar } from './profile-avatar-removal';
 
 export function MobileAvatarQuickActions({
   avatarUrl, displayName, onCreateStory, onUpdated
@@ -44,12 +45,14 @@ export function MobileAvatarQuickActions({
     setBusy(true);
     try {
       // Keep the current photo on failed requests.
-      await apiFetch('/account/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({ avatarUrl: null })
-      });
+      await removeActiveProfileAvatar(
+        payload => apiFetch('/account/profile', {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        }),
+        onUpdated
+      );
       setPreview(false);
-      await onUpdated();
       Alert.alert('Photo retirée', 'Ton profil utilise maintenant l’avatar par défaut.');
     } catch (cause) {
       Alert.alert('Suppression impossible',
