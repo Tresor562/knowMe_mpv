@@ -1,7 +1,7 @@
 import { type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { PressScale, type KnowMeIconName } from './KnowMeUI';
 import { KnowMeNativeAnimatedIcon } from './KnowMeNativeAnimatedIcon';
-import { type NativeIconOperationState } from './native-icon-motion-model';
+import { nativeIconProgress, type NativeIconOperationState } from './native-icon-motion-model';
 
 type Props = {
   name: KnowMeIconName;
@@ -13,6 +13,8 @@ type Props = {
   disabled?: boolean;
   onPress: () => void;
   onLongPress?: () => void;
+  /** Optional localized text explaining long press to a screen-reader user. */
+  longPressHint?: string;
   progress?: number | null;
   eventToken?: string | number | null;
   /** Optional button surface overrides, without shrinking the hit target. */
@@ -22,10 +24,14 @@ type Props = {
 /** Compact 20–24dp drawing; independently >= 48dp Android action surface. */
 export function KnowMeNativeIconButton({
   name, label, state = 'idle', size = 22, color, disabled = false,
-  onPress, onLongPress, progress, eventToken, style
+  onPress, onLongPress, longPressHint, progress, eventToken, style
 }: Props) {
+  const actualProgress = nativeIconProgress(state, progress);
+  const accessibilityValue: PressableProps['accessibilityValue'] = actualProgress === null
+    ? undefined : { min: 0, max: 100, now: Math.round(actualProgress * 100) };
   const accessibilityState: PressableProps['accessibilityState'] = {
-    disabled, busy: state === 'loading' || state === 'sending' || state === 'syncing',
+    disabled, busy: state === 'loading' || state === 'sending' || state === 'syncing' ||
+      state === 'progress',
     selected: state === 'selected' || state === 'open'
   };
   const controlStyle: StyleProp<ViewStyle> = [{
@@ -36,6 +42,8 @@ export function KnowMeNativeIconButton({
   return <PressScale
     accessibilityRole="button"
     accessibilityLabel={label}
+    accessibilityHint={onLongPress ? longPressHint : undefined}
+    accessibilityValue={accessibilityValue}
     accessibilityState={accessibilityState}
     style={controlStyle}
     onPress={onPress}
