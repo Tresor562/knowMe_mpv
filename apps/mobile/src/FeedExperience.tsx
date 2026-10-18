@@ -32,6 +32,7 @@ import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
 import {CommentReportSheet} from './CommentReportSheet';
+import {PostEditSheet} from './PostEditSheet';
 
 type Author = {
   id: string;
@@ -142,11 +143,12 @@ function MetricButton({
 }
 
 /** Native KnowMe action sheet: the same actions are available on Android and iOS. */
-function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenProfile }: {
+function PublicationActions({ post, userId, onClose, onView, onEdit, onDelete, onOpenProfile }: {
   post: PostSummary | null;
   userId: string;
   onClose: () => void;
   onView?: (id: string) => void;
+  onEdit?: (post: PostSummary) => void;
   onDelete: (id: string) => void;
   onOpenProfile?: (username: string) => void;
 }) {
@@ -172,6 +174,8 @@ function PublicationActions({ post, userId, onClose, onView, onDelete, onOpenPro
           {onView ? action('Voir la publication', () => onView(post.id)) : null}
           {action('Partager la publication', () => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); })}
           {onOpenProfile ? action('Voir le profil', () => onOpenProfile(post.author.username)) : null}
+          {post.authorId === userId && onEdit ?
+            action('Modifier la publication', () => onEdit(post)) : null}
           {post.authorId === userId ? action('Supprimer la publication', () => onDelete(post.id), true) : null}
           {action('Annuler', onClose)}
         </View>
@@ -208,6 +212,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
   const [sending, setSending] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [editPost,setEditPost] = useState<PostSummary|null>(null);
   const [reportComment,setReportComment] = useState<Comment|null>(null);
   const discussionScroll = useRef<ScrollView>(null);
   const commentInputRef = useRef<TextInput>(null);
@@ -782,6 +787,7 @@ export function FeedExperience({
   }, [userId, draftOwner, content, selectedPhotos, publishing]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
+  const [editFeedPost,setEditFeedPost] = useState<PostSummary|null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);
   useEffect(() => { onDetailChange?.(Boolean(selectedPostId)); return () => onDetailChange?.(false); },[selectedPostId,onDetailChange]);
   const [refreshing, setRefreshing] = useState(false);
