@@ -424,31 +424,56 @@ export class StoriesService {
   }
 
   async viewers(userId: string, storyId: string) {
+    // The identity list stays bounded for payload/privacy safety, but totals
+    // must represent the entire Story audience, not just its latest 500 views.
     await this.requireOwnedStory(storyId, userId);
-    const [views, reactions, replies] = await Promise.all([
+    const [views, totals, reactions, replies, screenshots] = await Promise.all([
       this.prisma.storyView.findMany({
         where: { storyId },
-        orderBy: { lastViewedAt: 'desc' },
+        orderBy: [{ lastViewedAt: 'desc' }, { id: 'desc' }],
         take: 500
       }),
-      this.prisma.storyReaction.findMany({ where: { storyId } }),
-      this.prisma.storyReply.count({ where: { storyId, deletedAt: null } })
+      this.prisma.storyView.aggregate({
+        where: { storyId },
+        _count: { _all: true },
+        _sum: { viewCount: true, completionBps: true }
+      }),
+      this.prisma.storyReaction.count({ where: { storyId } }),
+      this.prisma.storyReply.count({ where: { storyId, deletedAt: null } }),
+      this.prisma.storyView.count({
+        where: { storyId, screenshotAt: { not: null } }
+      })
     ]);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: views.map((view) => view.viewerUserId) } },
-      select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
-    });
+    const users = views.length
+      ? await this.prisma.user.findMany({
+        where: { id: { in: views.map((view) => view.viewerUserId) } },
+        select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests: verificationRequestSelect }
+      })
+      : [];
     const userMap = new Map(users.map((user) => [user.id, user]));
+    const uniqueViewers = totals._count._all;
     return {
-      uniqueViewers: views.length,
-      totalViews: views.reduce((sum, view) => sum + view.viewCount, 0),
+      uniqueViewers,
+      totalViews: totals._sum.viewCount ?? 0,
       replies,
-      reactions: reactions.length,
-      averageCompletionBps: views.length
-        ? Math.round(views.reduce((sum, view) => sum + view.completionBps, 0) / views.length)
+      reactions,
+      averageCompletionBps: uniqueViewers
+        ? Math.round((totals._sum.completionBps ?? 0) / uniqueViewers)
         : 0,
-      screenshots: views.filter((view) => view.screenshotAt).length,
-      viewers: views.map((view) => { const u = userMap.get(view.viewerUserId); return { ...view, user: u ? { id:u.id, username:u.username, displayName:u.displayName, avatarUrl:u.avatarUrl, verification:toVerificationBadge(u.verificationRequests) } : null }; })
+      screenshots,
+      viewersTruncated: uniqueViewers > views.length,
+      viewers: views.map((view) => {
+        const u = userMap.get(view.viewerUserId);
+        return {
+          ...view,
+          user: u
+            ? {
+              id: u.id, username: u.username, displayName: u.displayName,
+              avatarUrl: u.avatarUrl, verification: toVerificationBadge(u.verificationRequests)
+            }
+            : null
+        };
+      })
     };
   }
 
