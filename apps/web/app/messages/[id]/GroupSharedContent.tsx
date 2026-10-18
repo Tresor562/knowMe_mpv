@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { apiFetch } from '../../../lib/api';
+import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { ChatMediaView } from './ChatMediaView';
 import {
   appendSharedMessages, contentKind, linksInMessage,
@@ -25,6 +25,8 @@ export function GroupSharedContent({
   const [cursor,setCursor] = useState<string|null>(null);
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState('');
+  const [downloading,setDownloading] = useState<string|null>(null);
+  const [downloadError,setDownloadError] = useState('');
   const [initialLoaded,setInitialLoaded] = useState(false);
   const requestSequence=useRef(0);
 
@@ -58,6 +60,31 @@ export function GroupSharedContent({
   },[load]);
 
   const filtered=useMemo(()=>messages.filter(message=>contentKind(message).includes(kind)),[messages,kind]);
+
+  async function downloadAttachment(message: SharedMessage) {
+    const assetId=message.presentation?.assetId;
+    if(!assetId||downloading)return;
+    setDownloading(message.id);setDownloadError('');
+    try {
+      const grant=await apiFetch<{path:string}>(
+        `/media/${encodeURIComponent(assetId)}/download-grant`,{method:'POST'}
+      );
+      // Download grants are temporary, per-user, and server-authorized.
+      const expected=`/media/${encodeURIComponent(assetId)}/content?token=`;
+      if(typeof grant?.path!=='string'||!grant.path.startsWith(expected))
+        throw new Error('INVALID_MEDIA_GRANT');
+      const data=await apiFetchBlob(grant.path);
+      const original=message.presentation?.fileName||'fichier';
+      const filename=original.replace(/[\\/<>:"|?*\\x00-\\x1f]+/g,'_').slice(0,160)||'fichier';
+      const url=URL.createObjectURL(data);
+      const a=document.createElement('a');a.href=url;a.download=filename;
+      document.body.appendChild(a);a.click();a.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),120000);
+    }catch(cause){
+      setDownloadError(cause instanceof Error ? cause.message :
+        en?'Download failed.':'Téléchargement impossible.');
+    }finally{setDownloading(null);}
+  }
   const labels=TITLES[kind];
   return <section className="km-group-shared-content" role="tabpanel"
     aria-label={en?labels.en:labels.fr} aria-busy={loading}>
@@ -65,6 +92,7 @@ export function GroupSharedContent({
       <strong>{en?labels.en:labels.fr}</strong>
       <span>{filtered.length}{cursor?' +':''}</span>
     </div>
+    {downloadError&&<p className="km-group-shared-error" role="alert">{downloadError}</p>}
     {error&&<div className="km-group-shared-error" role="alert">
       <p>{error}</p>
       <button type="button" onClick={()=>void load(initialLoaded?cursor:null)}>
@@ -83,10 +111,24 @@ export function GroupSharedContent({
           {kind!=='links'&&presentation?.assetId&&
             (presentation.kind==='IMAGE'||presentation.kind==='VIDEO'||
              presentation.kind==='GIF'||presentation.kind==='STICKER_IMAGE'||
-             presentation.kind==='AUDIO'||presentation.kind==='DOCUMENT')&&
+             presentation.kind==='AUDIO')&&
             <div className="km-group-shared-preview">
               <ChatMediaView assetId={presentation.assetId} kind={presentation.kind}
                 fileName={presentation.fileName} enablePreview />
+            </div>}
+          {kind==='files'&&presentation?.kind==='DOCUMENT'&&
+            <div className="km-group-shared-document">
+              <svg viewBox="0 0 24 24" width="23" height="23"
+                fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <path d="M5 2.5h9l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20z"/>
+                <path d="M14 2.5v6h5M8 13h8M8 17h6"/>
+              </svg>
+              <span>{presentation.fileName|| (en?'Document':'Document')}</span>
+              <button type="button" disabled={downloading===item.id}
+                onClick={()=>void downloadAttachment(item)}>
+                {downloading===item.id?(en?'Downloading…':'Téléchargement…'):
+                  (en?'Download':'Télécharger')}
+              </button>
             </div>}
           {kind==='links'&&<div className="km-group-shared-links">
             {details.map(link=><a key={link.url} href={link.url} target="_blank"
