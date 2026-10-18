@@ -14,3 +14,5 @@
 .km-comment-emoji-custom button{border:0;border-radius:10px;background:var(--mint);color:var(--on-primary);font-weight:700;min-width:42px}
 .km-comment-emoji-error{white-space:normal;font-size:11px;max-width:280px;color:var(--danger)}
 @media(prefers-reduced-motion:reduce){.km-comment-emoji-main:active{transform:none}}
+
+.km-comment-emoji-error-inline{position:absolute;z-index:64;top:100%;left:0;width:max-content;max-width:min(240px,65vw);white-space:normal;font-size:11px;padding:6px 9px;background:var(--surface);color:var(--danger);border:1px solid var(--soft-border);border-radius:11px;box-shadow:0 7px 20px rgba(0,0,0,.17)}
