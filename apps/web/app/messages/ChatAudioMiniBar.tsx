@@ -9,7 +9,15 @@ const fmt=(seconds:number)=>{
 };
 export function ChatAudioMiniBar(){
  const [s,setS]=useState(getWebChatAudio);
- useEffect(()=>subscribeWebChatAudio(setS),[]);
+ useEffect(()=>{
+   const unsubscribe=subscribeWebChatAudio(setS);
+   return ()=>{
+     unsubscribe();
+     // The parent /messages layout is gone: do not keep private audio
+     // playing without a visible stop control, e.g. after sign-out.
+     stopWebChatAudio();
+   };
+ },[]);
  if(!s.assetId)return null;
  const progress=s.duration>0?Math.min(100,Math.max(0,s.position/s.duration*100)):0;
  const playing=s.phase==='playing';
