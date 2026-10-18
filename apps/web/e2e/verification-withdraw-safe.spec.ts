@@ -50,7 +50,7 @@ async function mockAccount(page: Page, options: {
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
   });
   await page.goto('/verification');
-  await expect(page.getByRole('heading', { name: 'Vérification autoritaire' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Vérification de l’identité' })).toBeVisible();
   return { mutationCount: () => mutationCount, listCount: () => listCount };
 }
 
