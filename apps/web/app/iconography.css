@@ -17,17 +17,18 @@
   transform-origin: center;
 }
 
-/* Existing inline SVGs share the same responsive touch motion until migrated
-   to the canonical family. Exclude illustrations, badges and media playback
-   surfaces by requiring an actual button/link/summary ancestor. */
+/* Only audited KnowMe glyphs, or legacy SVGs deliberately opted in with
+   data-icon-touch, receive this motion. An arbitrary SVG under an interactive
+   wrapper might be a chart, playback spinner, progress graphic, or badge; a
+   blanket transform would damage its real state/animation. */
 :where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true'])
-  :where(svg:not([data-no-touch-motion])) {
+  :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transform-origin: center;
   transition: transform var(--km-glyph-touch-speed) cubic-bezier(.2,.72,.2,1),
               opacity var(--km-glyph-touch-speed) ease;
 }
 :where(button, a, summary, [role='button']):not([disabled]):not([aria-disabled='true']):active
-  :where(svg:not([data-no-touch-motion])) {
+  :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transform: scale(var(--km-glyph-press));
   opacity: .88;
 }
@@ -43,21 +44,21 @@
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  :where(button, a, summary, [role='button']) svg { transition: none !important; animation: none !important; }
-  :where(button, a, summary, [role='button']):active svg { transform: none !important; }
+  :where(button, a, summary, [role='button']) :where(svg[data-knowme-icon], svg[data-icon-touch]) { transition: none !important; animation: none !important; }
+  :where(button, a, summary, [role='button']):active :where(svg[data-knowme-icon], svg[data-icon-touch]) { transform: none !important; }
 }
-:root[data-animations='false'] :where(button, a, summary, [role='button']) svg {
+:root[data-animations='false'] :where(button, a, summary, [role='button']) :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transition: none !important;
   animation: none !important;
 }
-:root[data-animations='false'] :where(button, a, summary, [role='button']):active svg {
+:root[data-animations='false'] :where(button, a, summary, [role='button']):active :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transform: none !important;
 }
 
-:root[data-animated-icons='false'] :where(button, a, summary, [role='button']) svg {
+:root[data-animated-icons='false'] :where(button, a, summary, [role='button']) :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   animation: none !important;
   transition: none !important;
 }
-:root[data-animated-icons='false'] :where(button, a, summary, [role='button']):active svg {
+:root[data-animated-icons='false'] :where(button, a, summary, [role='button']):active :where(svg[data-knowme-icon], svg[data-icon-touch]) {
   transform: none !important;
 }
