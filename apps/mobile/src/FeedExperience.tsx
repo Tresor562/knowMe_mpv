@@ -28,6 +28,7 @@ import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PublicPostVideo} from './PublicPostVideo';
+import { CommentReactionChip } from './CommentReactionChip';
 
 type Author = {
   id: string;
@@ -304,6 +305,7 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
             </View>
             <KnowMeMentionText text={item.content} style={[styles.threadBody,{color:colors.text}]}/>
             <View style={[styles.threadTools,{flexWrap:'wrap'}]}>
+              <CommentReactionChip postId={postId} commentId={item.id}/>
               <Pressable accessibilityRole="button"
                 accessibilityLabel={`Répondre à ${item.author.displayName}`}
                 onPress={() => setReplyTarget(item)}>
