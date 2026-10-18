@@ -11,40 +11,44 @@ const animatedCss = fs.readFileSync(path.join(dir, '..', 'app', 'knowme-icon-mot
 const css = fs.readFileSync(path.join(dir, '..', 'app', 'iconography.css'), 'utf8');
 const native = fs.readFileSync(path.join(dir, '..', '..', 'mobile', 'src', 'ui', 'KnowMeUI.tsx'), 'utf8');
 
-test('every declared KnowMe SVG icon has its own drawable', () => {
+test('each declared SVG glyph has a drawable shape', () => {
   const declared = glyph.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
-  const shapeSource = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
+  const shapes = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
   const names = [...declared.matchAll(/'([\w-]+)'/g)].map(m => m[1]);
-  assert.ok(names.length >= 35);
+  assert.ok(names.length >= 40);
   assert.equal(new Set(names).size, names.length);
-  for (const name of names)
-    assert.match(shapeSource, new RegExp(`(?:^|[,\\n]\\s*)(?:'${name}'|${name}):\\s*<`));
+  for (const name of names) {
+    const rx = new RegExp(`(?:^|[,\\n]\\s*)(?:'${name}'|${name}):\\s*<`);
+    assert.match(shapes, rx, `missing glyph ${name}`);
+  }
   assert.match(glyph, /viewBox: '0 0 24 24'/);
   assert.match(glyph, /'aria-hidden': true/);
 });
 
-test('primary navigation selects the same state and uses the vector family', () => {
-  assert.match(navigation, /import \{ KnowMeGlyph \}/);
+test('navigation and actual connectivity consume the canonical animated glyph', () => {
+  assert.match(navigation, /KnowMeAnimatedIcon/);
   assert.match(navigation, /active=\{item\.matches\.includes\(pathname\)\}/);
+  const connectivity = fs.readFileSync(path.join(dir, 'network-connectivity-notice.tsx'), 'utf8');
+  assert.match(connectivity, /eventToken=\{state\}/);
+  assert.match(connectivity, /name=\{offline \? 'wifi-off' : 'wifi'\}/);
 });
 
-test('motion follows real icon states and progress (not touch-only guesses)', () => {
-  assert.match(animated, /previous\.current = \{ name, state, eventToken \}/);
-  assert.match(animated, /state === 'progress' && numericProgress !== null/);
-  assert.match(animated, /Math\.max\(0, Math\.min\(1, progress\)\)/);
-  assert.match(animated, /eventToken != null/);
-  assert.match(animatedCss, /\[data-icon-state='loading'\]/);
-  assert.match(animatedCss, /\[data-icon-state='recording'\]/);
-  assert.match(animatedCss, /\[data-icon-state='playing'\]/);
-  assert.match(animatedCss, /\[data-icon-state='selected'\]/);
+test('motion derives from data, differentiates icon roles and stops safely', () => {
+  assert.match(animated, /didIconEventChange\(earlier, next\)/);
+  assert.match(animated, /clampRealProgress\(state, progress\)/);
+  assert.match(animated, /presentationGlyphName\(name, state\)/);
+  assert.match(animated, /mayAnimateIndefinitely\(state\)/);
+  assert.match(animatedCss, /km-icon-bell-ring/);
+  assert.match(animatedCss, /km-icon-flight/);
+  assert.match(animatedCss, /km-icon-heart-pop/);
   assert.match(animatedCss, /#ef3340/);
   assert.match(animatedCss, /prefers-reduced-motion: reduce/);
 });
 
-test('SVG touch behavior is quick and offers accessibility reduced motion', () => {
+test('motion respects browser, KnowMe, and native system accessibility', () => {
   assert.match(css, /--km-glyph-touch-speed: 110ms/);
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /data-animations='false'/);
+  assert.match(animatedCss, /data-animated-icons='false'/);
   assert.match(native, /AccessibilityInfo\.isReduceMotionEnabled/);
   assert.match(native, /name === 'settings'/);
   assert.match(native, /onPressIn=\{\(\) => to\(0\.93\)\}/);
