@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/live-notices-compact-surfaces",
-      "task": "PR #743 latest HEAD 1003774f : auth-safe notification banner, correct unread count + dock badge, dismiss list-page suppression, Web compact group info/conversation header/composer/emoji sheet, web Playwright auth/nav tests. Guard green on preceding HEAD, latest CI/guard/APK pending. PRs #724 and #730 merged; APK advanced NotificationCenterExperience still not mounted; #583 owns SocialHub, #693 owns group member count correction. No release verified.",
+      "task": "Design #699: group profile UI with real media/files/links tabs and complete Telegram/WhatsApp parity acceptance matrix; messaging backend #754 independently owned.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T16:23:20.800Z",
+      "updatedAt": "2026-10-18T17:14:44.246Z",
       "lastPr": 743,
       "resumeFrom": {
         "pr": 743,
@@ -1008,6 +1008,12 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 743
+    },
+    {
+      "action": "resume",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-18T17:14:44.246Z"
     }
   ]
 }
