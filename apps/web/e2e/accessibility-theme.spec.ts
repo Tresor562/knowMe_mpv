@@ -17,6 +17,12 @@ test('system reduced motion applies before React hydration', async ({ page }) =>
   });
   expect(duration.animation).not.toBe('100s');
   expect(duration.transition).not.toBe('100s');
+
+  // OS changes during a session must update the existing mounted UI as well.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(page.locator('html')).toHaveAttribute('data-effective-reduced-motion', 'false');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.locator('html')).toHaveAttribute('data-effective-reduced-motion', 'true');
 });
 
 test('local solid-surface and motion settings prevent first-paint accessibility flashes', async ({ page }) => {
