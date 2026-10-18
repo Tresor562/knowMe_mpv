@@ -162,3 +162,49 @@ test('failed next page preserves already loaded reports and permits an explicit 
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(nextPageCalls).toBeGreaterThan(previousCalls);
 });
+
+test('a cursor invalidated by moderation refreshes the private list without retrying a stale page', async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('knowme_token', 'post-report-expired-cursor-token');
+    localStorage.setItem('knowme-locale', 'fr');
+  });
+  let firstPageCalls = 0;
+  let stalePageCalls = 0;
+  await page.route('**/api/knowme/**', async route => {
+    const url = new URL(route.request().url());
+    let data: unknown = {};
+    if (url.pathname.endsWith('/users/me')) {
+      data = {id:'viewer',username:'viewer',displayName:'Lecteur'};
+    } else if (url.pathname.endsWith('/reports/mine/posts')) {
+      if (url.searchParams.has('cursor')) {
+        stalePageCalls++;
+        await route.fulfill({status:400,contentType:'application/json',
+          body:JSON.stringify({message:'Curseur de signalements invalide.'})});
+        return;
+      }
+      firstPageCalls++;
+      data = firstPageCalls === 1
+        ? {reports:[{id:'r-1',targetType:'POST',targetId:'post-1',reason:'Avant changement',
+          status:'OPEN',createdAt:'2026-10-18T09:00:00Z'}],nextCursor:'r-1'}
+        : {reports:[{id:'r-2',targetType:'POST',targetId:'post-2',reason:'Après changement',
+          status:'RESOLVED',createdAt:'2026-10-18T10:00:00Z'}],nextCursor:null};
+    } else if (url.pathname.endsWith('/i18n/preferences')) {
+      data = {locale:'fr',direction:'ltr'};
+    } else if (url.pathname.endsWith('/appearance')) {
+      data = {preference:{effectiveThemeKey:'system'},themes:[]};
+    }
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
+  });
+  await page.goto('/feed/reports');
+  await expect(page.getByText('Avant changement')).toBeVisible();
+  await page.getByRole('button',{name:'Afficher plus de signalements'}).click();
+  await expect(page.getByRole('alert')).toContainText('Cet historique a changé');
+  await expect(page.getByText('Avant changement')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Afficher plus de signalements'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Actualiser l’historique'}).click();
+  await expect(page.getByText('Après changement')).toBeVisible();
+  await expect(page.getByText('Avant changement')).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(stalePageCalls).toBe(1);
+  expect(firstPageCalls).toBe(2);
+});
