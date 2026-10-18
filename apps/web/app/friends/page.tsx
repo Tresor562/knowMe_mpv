@@ -23,6 +23,7 @@ type Friend = {
   friendshipId: string;
   user: UserResult;
 };
+type OutgoingRequest = {id:string;addressee:UserResult};
 
 function ProfileSummary({ user }: { user: UserResult }) {
   return (
@@ -44,6 +45,7 @@ export default function FriendsPage() {
   const { user: sessionUser, loading: sessionLoading } = useSession({ required: true });
   const [results, setResults] = useState<UserResult[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [outgoing,setOutgoing] = useState<OutgoingRequest[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export default function FriendsPage() {
     loadGeneration.current += 1;
     setAuthorityFresh(false);
     setRequests([]);
+    setOutgoing([]);
     setFriends([]);
     setResults([]);
     setBusyId(null);
@@ -63,16 +66,23 @@ export default function FriendsPage() {
     const generation = ++loadGeneration.current;
     setAuthorityFresh(false);
     setRequests([]);
+    setOutgoing([]);
     setFriends([]);
     setMessage('');
 
     try {
-      const [incoming, currentFriends] = await Promise.all([
+      const [incoming,currentFriends,sent] = await Promise.all([
         apiFetch<FriendRequest[]>('/social/friend-requests/incoming'),
-        apiFetch<Friend[]>('/social/friends')
+        apiFetch<Friend[]>('/social/friends'),
+        apiFetch<OutgoingRequest[]>('/social/friend-requests/outgoing').catch(cause=>{
+          // Gradual VPS rollout: preserve the existing friends experience.
+          if((cause as {status?:number})?.status===404)return [];
+          throw cause;
+        })
       ]);
       if (generation !== loadGeneration.current) return;
       setRequests(incoming);
+      setOutgoing(sent);
       setFriends(currentFriends);
       setAuthorityFresh(true);
     } catch (cause) {
@@ -122,6 +132,7 @@ export default function FriendsPage() {
         method: 'POST',
         body: JSON.stringify({ addresseeId })
       });
+      await loadSocialData();
       setMessage('Demande envoyée.');
     } catch (cause) {
       invalidateSocialAuthority();
@@ -129,6 +140,19 @@ export default function FriendsPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function cancelSent(id:string) {
+    if(!authorityFresh)return;
+    setBusyId(id);
+    try{
+      await apiFetch('/social/friend-requests/'+encodeURIComponent(id),{method:'DELETE'});
+      await loadSocialData();
+      setMessage('Demande annulée.');
+    }catch(cause){
+      invalidateSocialAuthority();
+      setMessage(cause instanceof Error?cause.message:'Annulation impossible.');
+    }finally{setBusyId(null);}
   }
 
   async function respond(id: string, action: 'accept' | 'decline') {
@@ -237,6 +261,19 @@ export default function FriendsPage() {
         </section>
       )}
 
+      {authorityFresh&&outgoing.length>0&&<section style={{marginTop:24}}>
+        <h2>Demandes envoyées ({outgoing.length})</h2>
+        <div className="grid">
+          {outgoing.map(({id,addressee})=><article key={id} className="card"
+            style={{padding:18,display:'flex',alignItems:'center',gap:14,justifyContent:'space-between',flexWrap:'wrap'}}>
+            <ProfileSummary user={addressee}/>
+            <button type="button" className="btn"
+              disabled={busyId===id} onClick={()=>void cancelSent(id)}>
+              {busyId===id?'Annulation…':'Annuler la demande'}
+            </button>
+          </article>)}
+        </div>
+      </section>}
       <section style={{ marginTop: 24 }}>
         <h2>Mes amis{authorityFresh ? ` (${friends.length})` : ''}</h2>
         <div className="grid">
@@ -312,10 +349,14 @@ export default function FriendsPage() {
               <ProfileSummary user={user} />
               <button
                 className="btn btn-accent"
-                disabled={!authorityFresh || busyId === user.id}
+                disabled={!authorityFresh || busyId === user.id ||
+                  outgoing.some(request=>request.addressee.id===user.id) ||
+                  friends.some(friend=>friend.user.id===user.id)}
                 onClick={() => void addFriend(user.id)}
               >
-                {busyId === user.id ? 'Envoi…' : 'Ajouter'}
+                {busyId===user.id?'Envoi…':
+                  outgoing.some(request=>request.addressee.id===user.id)?'En attente':
+                  friends.some(friend=>friend.user.id===user.id)?'Déjà amis':'Ajouter'}
               </button>
             </article>
           ))}
