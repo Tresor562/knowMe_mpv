@@ -11,7 +11,7 @@ export type KnowMeGlyphName =
   | 'bookmark' | 'smile' | 'sticker' | 'keyboard' | 'settings' | 'phone'
   | 'video' | 'lock' | 'trash' | 'edit' | 'link' | 'eye' | 'eye-off'
   | 'story' | 'cover' | 'sparkles' | 'upload' | 'wifi' | 'wifi-off'
-  | 'copy' | 'reply' | 'pin' | 'archive' | 'folder' | 'file' | 'group' | 'user-plus' | 'shield' | 'verified' | 'gift' | 'clock' | 'calendar' | 'volume' | 'volume-off' | 'headphones' | 'music' | 'stop' | 'call-end' | 'more-horizontal' | 'info' | 'warning' | 'help' | 'logout' | 'star' | 'filter' | 'sort' | 'map-pin' | 'translate' | 'check-circle';
+  | 'copy' | 'reply' | 'pin' | 'archive' | 'folder' | 'file' | 'group' | 'user-plus' | 'shield' | 'verified' | 'gift' | 'clock' | 'calendar' | 'volume' | 'volume-off' | 'headphones' | 'music' | 'stop' | 'call-end' | 'more-horizontal' | 'info' | 'warning' | 'help' | 'logout' | 'star' | 'filter' | 'sort' | 'map-pin' | 'translate' | 'check-circle' | 'rewind-10' | 'forward-10' | 'fullscreen' | 'fullscreen-exit';
 
 type Props = {
   name: KnowMeGlyphName;
@@ -39,6 +39,10 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
   };
 
   const shapes = {
+    'rewind-10': <><path d="M5 6.4V12h5.6"/><path d="M5.1 12a8 8 0 1 1 2.9 6"/><text x="12.1" y="16.05" fill="currentColor" stroke="none" textAnchor="middle" fontSize="7.8" fontWeight="700">10</text></>,
+    'forward-10': <><path d="M19 6.4V12h-5.6"/><path d="M18.9 12a8 8 0 1 0-2.9 6"/><text x="12.1" y="16.05" fill="currentColor" stroke="none" textAnchor="middle" fontSize="7.8" fontWeight="700">10</text></>,
+    fullscreen: <><path d="M9 3.8H3.8V9M15 3.8h5.2V9M20.2 15v5.2H15M9 20.2H3.8V15"/></>,
+    'fullscreen-exit': <><path d="M3.8 9H9V3.8M20.2 9H15V3.8M15 20.2V15h5.2M9 20.2V15H3.8"/></>,
     'copy': <><rect x="8" y="8" width="12.3" height="12.3" rx="2.1"/><path d="M16.3 8V5.7a2 2 0 0 0-2-2H5.7a2 2 0 0 0-2 2v8.6a2 2 0 0 0 2 2H8"/></>,
     'reply': <><path d="M9.1 7 3.5 12l5.6 5M3.7 12H13a7.9 7.9 0 0 1 7.9 7.9V21"/></>,
     'pin': <><path d="m8.7 3.5 11.8 11.8-3.3 1-3.2-2.1-4.9 4.9-4.1-4.1 4.9-4.9-2.1-3.2 1-3.4ZM12 17.2 6.5 22"/></>,
