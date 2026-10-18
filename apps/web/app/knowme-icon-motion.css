@@ -37,6 +37,9 @@
   transition: stroke-dashoffset 140ms linear;
 }
 .km-state-icon[data-icon-burst] > svg:first-child {
+  /* Safe baseline for every glyph, including rarely used icon variants.
+     More specific semantic families below override this on real events. */
+  animation-name: km-icon-focus;
   animation-duration: 290ms;
   animation-timing-function: cubic-bezier(.16,.82,.22,1);
   animation-iteration-count: 1;
@@ -149,6 +152,13 @@
 @keyframes km-icon-confirm-focus {
   0%{transform:scale(.95);opacity:.7}
   100%{transform:scale(1);opacity:1}
+}
+
+/* Generic *active task* fallback for icons not mapped to a more specific
+   spinner. Low :where specificity preserves explicit refresh/gear movement. */
+:where(.km-state-icon[data-auto-motion='true'][data-icon-state='loading']) > svg:first-child,
+:where(.km-state-icon[data-auto-motion='true'][data-icon-state='syncing']) > svg:first-child {
+  animation: km-icon-pending 950ms ease-in-out infinite alternate;
 }
 
 /* Continuous animation is legal ONLY for an active task state. */
