@@ -10,6 +10,7 @@ import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
 import './multi-media-composer.css';
@@ -63,12 +64,83 @@ export default function FeedPage() {
   const [publishing, setPublishing] = useState(false);
   const [composeOpen,setComposeOpen] = useState(false);
   const [draftContent,setDraftContent] = useState('');
+  const [draftOwner,setDraftOwner] = useState('');
+  const [draftStatus,setDraftStatus] = useState('');
+  const [missingDraftMedia,setMissingDraftMedia] = useState<string[]>([]);
+  const [offline,setOffline] = useState(false);
+  const draftWrites = useRef<Promise<unknown>>(Promise.resolve());
   const [deletePending,setDeletePending] = useState<string|null>(null);
   const [selectedMedia, setSelectedMedia] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<Array<{ file: File; url: string | null }>>([]);
   const [photoCapability, setPhotoCapability] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+  // A draft never crosses account boundaries on a shared device.
+  useEffect(() => {
+    let cancelled = false;
+    setDraftOwner('');
+    setDraftContent('');
+    setSelectedMedia([]);
+    setMissingDraftMedia([]);
+    setDraftStatus('');
+    if (!user?.id || sessionLoading) return () => { cancelled = true; };
+    const accountId = user.id;
+    void loadPostDraft(accountId).then(saved => {
+      if (cancelled) return;
+      if (saved) {
+        setDraftContent(saved.content);
+        setSelectedMedia(saved.files);
+        setMissingDraftMedia(saved.missingAttachmentNames);
+        setDraftStatus(saved.missingAttachmentNames.length
+          ? (en ? 'Text restored. Re-select attachments that exceeded device storage.'
+                : 'Texte restauré. Sélectionne à nouveau les médias non enregistrés.')
+          : (en ? 'Offline draft restored on this device.' : 'Brouillon hors ligne restauré sur cet appareil.'));
+      }
+    }).catch(() => {
+      if (!cancelled) setDraftStatus(en ? 'Offline storage unavailable on this device.'
+        : 'Enregistrement hors ligne indisponible sur cet appareil.');
+    }).finally(() => {
+      if (!cancelled) setDraftOwner(accountId);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, sessionLoading]);
+
+  useEffect(() => {
+    if (!user?.id || draftOwner !== user.id || publishing) return;
+    const accountId = user.id;
+    const content = draftContent;
+    const files = selectedMedia.slice();
+    const timeout = window.setTimeout(() => {
+      // Serialize writes: a delayed large media write cannot overwrite a newer draft.
+      const write = draftWrites.current.catch(() => undefined)
+        .then(() => savePostDraft(accountId, content, files));
+      draftWrites.current = write;
+      void write.then(result => {
+        setMissingDraftMedia(result.attachmentsSaved ? [] : files.map(file => file.name));
+        setDraftStatus(result.attachmentsSaved
+          ? (content || files.length
+            ? (en ? 'Draft saved offline on this device.' : 'Brouillon enregistré hors ligne sur cet appareil.')
+            : '')
+          : (en ? 'Text saved. Attachments could not fit in device storage.'
+                : 'Texte enregistré. Espace insuffisant pour les pièces jointes.'));
+      }).catch(() => {
+        setDraftStatus(en ? 'Draft not saved on this device.' : 'Brouillon non enregistré sur cet appareil.');
+      });
+    }, 450);
+    return () => window.clearTimeout(timeout);
+  }, [user?.id, draftOwner, draftContent, selectedMedia, publishing, en]);
 
   // The global Create → Publication action must open the real post editor,
   // including when navigating from another section of KnowMe. Consume the hash
@@ -215,6 +287,11 @@ export default function FeedPage() {
     const data = new FormData(form);
     const content = String(data.get('content') ?? '').trim();
     if (!content && selectedMedia.length === 0) return;
+    if (offline) {
+      setPublishMessage(en ? 'You are offline. Your draft stays on this device until you reconnect.'
+        : 'Tu es hors ligne. Ton brouillon reste sur cet appareil jusqu’au retour de la connexion.');
+      return;
+    }
 
     publishInFlight.current = true;
     setPublishing(true);
@@ -254,9 +331,15 @@ export default function FeedPage() {
         method: 'POST',
         body: JSON.stringify({content, ...(mediaAssetIds.length ? {mediaAssetIds} : {})})
       });
+      // Clear only AFTER the server confirms the publication. A network
+      // timeout must never erase a draft or retry a non-idempotent POST.
+      await draftWrites.current.catch(() => undefined);
+      await clearPostDraft(user!.id).catch(() => undefined);
       form.reset();
       setSelectedMedia([]);
       setDraftContent('');
+      setMissingDraftMedia([]);
+      setDraftStatus('');
       setPublishMessage('');
       setComposeOpen(false);
       await loadFeed();
@@ -354,7 +437,7 @@ export default function FeedPage() {
           <button type="button" aria-label={en?'Close editor':'Fermer l’éditeur'} disabled={publishing}
             className="km-feed-editor-back" onClick={()=>setComposeOpen(false)}>‹</button>
           <h2>{en?'Create a post':'Créer une publication'}</h2>
-          <button className="btn btn-primary" type="submit" disabled={publishing||(!draftContent.trim() && !selectedMedia.length)}>
+          <button className="btn btn-primary" type="submit" disabled={publishing||offline||(!draftContent.trim() && !selectedMedia.length)}>
             {publishing?(en?'Publishing…':'Publication…'):(en?'Post':'Publier')}
           </button>
         </div>
@@ -381,6 +464,15 @@ export default function FeedPage() {
             rows={7} disabled={publishing}/>
         </div>
         <small className="km-feed-editor-counter">{draftContent.length} {en ? "characters" : "caractères"}</small>
+        {offline && <p className="km-feed-draft-offline" role="status">
+          {en ? 'Offline: keep writing. Publishing requires a connection.'
+              : 'Hors ligne : tu peux continuer à écrire. La publication nécessite Internet.'}
+        </p>}
+        {draftStatus && <p className="km-feed-draft-status" role="status">{draftStatus}</p>}
+        {missingDraftMedia.length > 0 && <p className="km-feed-draft-warning" role="alert">
+          {en ? 'Select these files again before publishing:' : 'Sélectionne de nouveau ces fichiers avant de publier :'}
+          {' '}{missingDraftMedia.join(', ')}
+        </p>}
         {mediaPreviews.length > 0 && (
           <div className="km-feed-selected-media"
             aria-label={en ? 'Selected media' : 'Médias sélectionnés'}>
@@ -419,7 +511,7 @@ export default function FeedPage() {
             </button>}
             <Link href="/stories/new">{en?'Add a story':'Ajouter une story'}</Link>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={publishing || (!draftContent.trim() && !selectedMedia.length)}>
+          <button className="btn btn-primary" type="submit" disabled={publishing || offline || (!draftContent.trim() && !selectedMedia.length)}>
             {publishing ? (en?'Publishing…':'Publication…') : (en?'Publish':'Publier')}
           </button>
         </div>
