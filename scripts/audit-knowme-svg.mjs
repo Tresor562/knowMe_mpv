@@ -38,6 +38,8 @@ function add(row, kind, source, regex) {
 }
 function inspect(file) {
   const rel = path.relative(root, file).replaceAll(path.sep, '/');
+  // Do not parse the scanner's own regex literals as imaginary JSX <svg> tags.
+  if (rel === 'scripts/audit-knowme-svg.mjs') return;
   const extension = path.extname(file).toLowerCase();
   if (!sourceTypes.has(extension) && !vectorTypes.has(extension) && !rasterTypes.has(extension)) return;
   sum.inspectedFiles++;
@@ -48,10 +50,10 @@ function inspect(file) {
     sum.svgFiles++;
     const svgRoot = source.match(/<svg\b[^>]*>/is)?.[0] ?? '';
     if (!svgRoot || !/\bviewBox\s*=/.test(svgRoot)) {
-      warnings.push({ file: rel, line: 1, issue: 'Standalone SVG missing root or viewBox' });
+      warnings.push({ file: rel, line: 1, severity: 'error', issue: 'Standalone SVG missing root or viewBox' });
     }
     if (/<(?:script|foreignObject)\b|\bon\w+\s*=|javascript:/i.test(source)) {
-      warnings.push({ file: rel, line: 1, issue: 'Unsafe or foreign SVG content requires manual review' });
+      warnings.push({ file: rel, line: 1, severity: 'error', issue: 'Unsafe or foreign SVG content requires manual review' });
     }
     row.findings.push({ kind: 'standalone-svg', line: 1 });
   }
@@ -76,9 +78,9 @@ function inspect(file) {
       const context = { file: rel, line: lineOf(source, match.index) };
       const spread = /\{\s*\.\.\./.test(opening);
       if (!spread && !/\bviewBox\s*=/.test(opening))
-        warnings.push({ ...context, issue: 'Inline vector has no explicit viewBox (inspect inherited props)' });
+        warnings.push({ ...context, severity: 'review', issue: 'Inline vector has no explicit viewBox (inspect inherited props)' });
       if (!spread && !/\b(?:aria-hidden|aria-label|aria-labelledby|role)\s*=/.test(opening))
-        warnings.push({ ...context, issue: 'Inline vector accessibility semantics need review' });
+        warnings.push({ ...context, severity: 'review', issue: 'Inline vector accessibility semantics need review' });
     }
   }
   sum.inlineSVG += row.findings.filter(f => f.kind === 'inline-svg').length;
@@ -113,4 +115,5 @@ else console.log(JSON.stringify({ ...result,
     return groups;
   }, {})
 }, null, 2));
-if (process.argv.includes('--strict') && warnings.length) process.exitCode = 1;
+// Contextual SVG semantics are review signals, not provably invalid markup.
+if (process.argv.includes('--strict') && warnings.some(w => w.severity === 'error')) process.exitCode = 1;
