@@ -21,3 +21,21 @@ export function messageSelectionLinks(
   }
   return out;
 }
+
+/** Bulk selection replaces stale/hidden picks with the current visible tab
+ * only. An explicit 50-message limit keeps native share and clipboard usable. */
+export function selectVisibleMessageIds(
+  conversationId: string,
+  visible: readonly SharedMessage[],
+  limit=50
+): string[] {
+  const selected:string[]=[];
+  const seen=new Set<string>();
+  for(const item of visible){
+    if(item.conversationId!==conversationId||!item.id||seen.has(item.id))continue;
+    selected.push(item.id);
+    seen.add(item.id);
+    if(selected.length>=Math.min(50,Math.max(1,limit)))break;
+  }
+  return selected;
+}
