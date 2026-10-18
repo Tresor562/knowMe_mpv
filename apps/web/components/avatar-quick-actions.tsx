@@ -97,7 +97,7 @@ export function AvatarQuickActions({
       </div>}
       {preview && avatarUrl && <div className="km-avatar-lightbox" role="dialog" aria-modal="true"
         aria-label={en ? 'Profile picture' : 'Photo de profil'} onClick={() => setPreview(false)}>
-        <button type="button" className="km-avatar-lightbox-close" onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}>×</button>
+        <button type="button" className="km-avatar-lightbox-close" onClick={() => setPreview(false)} aria-label={en ? 'Close' : 'Fermer'}><KnowMeGlyph name="close" size={20}/></button>
         <img src={avatarUrl} alt={displayName} onClick={event => event.stopPropagation()} />
         <p>@{username}</p>
       </div>}
