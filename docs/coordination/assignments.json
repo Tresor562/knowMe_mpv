@@ -47,19 +47,18 @@
     },
     "social": {
       "issue": 694,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "branch": "chat/social/report-publication-web",
-      "task": "PR #705 — investigate queued workflows, targeted regression fixes, merge when exact SHA checks prove green",
+      "task": "PR #705: post report focus trap, Escape dismissal and paginated error/retry e2e. HEAD 681e2c65; CI/readiness/APK/coordination all queued; no merge/deploy.",
       "claimedAt": "2026-10-18T12:00:50.499Z",
-      "updatedAt": "2026-10-18T14:22:20.446Z",
+      "updatedAt": "2026-10-18T14:27:02.340Z",
       "lastPr": 705,
       "resumeFrom": {
         "pr": 705,
         "branch": "chat/social/report-publication-web",
-        "commit": "e65d6993597b73853fca710ac497c165fc23c895",
-        "next": "Check exact SHA CI/run 39135410271 and readiness 39135410407; resolve tests, review and integration if green; no branch auto-deploy",
-        "issueComment": 6250996858
+        "commit": "681e2c65a0a0ff5d932246f71a724e9542d866a6",
+        "next": "Check exact HEAD workflow statuses (CI 39135964525, Runtime 39135964552, coordination 39135964570), repair any failure, then review and integrate with release approval."
       }
     },
     "reels": {
@@ -470,6 +469,13 @@
       "at": "2026-10-18T14:25:11.873Z",
       "issue": 693,
       "pr": 728
+    },
+    {
+      "at": "2026-10-18T14:27:02.340Z",
+      "domain": "social",
+      "action": "pause",
+      "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
+      "pr": 705
     }
   ]
 }
