@@ -50,3 +50,16 @@ test('voice composer requires explicit send and bounds playback seeking',async()
   assert.equal(voiceSeekMs(100,200,30000),15000);
   assert.equal(voiceSeekMs(Number.NaN,200,30000),0);
 });
+
+test('unmount cleanup revokes microphone while preserving only user-confirmed sending',async()=>{
+  const {shouldCancelNativeCaptureOnUnmount,shouldDiscardVoiceOnUnmount}
+    =await import('../src/voice-composer-model.ts');
+  assert.equal(shouldCancelNativeCaptureOnUnmount('starting'),true);
+  assert.equal(shouldCancelNativeCaptureOnUnmount('recording'),true);
+  assert.equal(shouldCancelNativeCaptureOnUnmount('stopping'),true);
+  assert.equal(shouldCancelNativeCaptureOnUnmount('preview'),false);
+  assert.equal(shouldCancelNativeCaptureOnUnmount('sending'),false);
+  assert.equal(shouldDiscardVoiceOnUnmount('preview'),true);
+  assert.equal(shouldDiscardVoiceOnUnmount('recording'),true);
+  assert.equal(shouldDiscardVoiceOnUnmount('sending'),false);
+});
