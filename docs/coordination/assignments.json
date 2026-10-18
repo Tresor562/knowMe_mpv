@@ -140,12 +140,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/accessible-feedback-dialogs",
-      "task": "PR #724 accessibilité thèmes Web+Android (collision PR #520 retirée; CI/coordination du HEAD 80d787dc en attente); PR #730 boîtes de dialogue et notifications accessibles (coordination verte; CI en cours); aucune fusion/déploiement prouvés",
+      "task": "Reprise PRs #724 (design system accessibilité OS Web/Android, coordination verte, CI en attente) et #730 (dialogues/notifications, coordination verte, CI active)",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T14:29:36.215Z",
+      "updatedAt": "2026-10-18T14:32:36.644Z",
       "lastPr": 730,
       "resumeFrom": {
         "pr": 730,
@@ -509,6 +509,13 @@
       "domain": "social",
       "ownerRef": "session-d4fcbbaa-f8fe-4d43-be06-18752a235eb9",
       "pr": 705
+    },
+    {
+      "action": "resume",
+      "at": "2026-10-18T14:32:36.644Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 730
     }
   ]
 }
