@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,Pressable,StyleSheet,Text,View} from 'react-native';
+import {Alert,AppState,Pressable,StyleSheet,Text,View} from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
@@ -14,6 +14,7 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
   const {colors}=useAppearance();
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
+  const [appActive,setAppActive]=useState(AppState.currentState==='active');
   const [error,setError]=useState('');
   const [positionMs,setPositionMs]=useState(0);
   const [durationMs,setDurationMs]=useState(0);
@@ -28,6 +29,14 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [pulse,setPulse]=useState(false);
   const pulseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  // React Native can keep a VideoView alive behind the app. Never play
+  // private/public videos in background, and preserve manual pause on return.
+  useEffect(()=>{
+    const listener=AppState.addEventListener('change',next=>{
+      setAppActive(next==='active');
+    });
+    return ()=>listener.remove();
+  },[]);
   useEffect(()=>{
     alive.current=true;
     return()=>{
@@ -135,7 +144,7 @@ export function PublicPostVideo({url,onDoubleTap}:{url:string;onDoubleTap?:()=>v
   }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused} style={styles.video}
+      <NativeStoryVideo sourceUri={local} paused={paused||!appActive} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
