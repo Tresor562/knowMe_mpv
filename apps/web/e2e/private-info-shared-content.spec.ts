@@ -58,7 +58,23 @@ test('private chat has shared media, links, files and search without group admin
     });
   });
   await page.getByRole('button',{name:'Sélectionner',exact:true}).click();
+  await page.getByRole('button',{name:'Tout sélectionner'}).click();
+  await expect(page.getByRole('checkbox',{name:/Sélectionner le message de Ami/})).toBeChecked();
+  await page.getByRole('button',{name:'Effacer la sélection'}).click();
+  await expect(page.getByRole('checkbox',{name:/Sélectionner le message de Ami/})).not.toBeChecked();
   await page.getByRole('checkbox',{name:/Sélectionner le message de Ami/}).check();
+  await page.evaluate(()=>{
+    Object.defineProperty(navigator,'share',{
+      configurable:true,
+      value:async (data:{text?:string})=>{
+        (window as Window & { __lastSharedLinks?: string }).__lastSharedLinks=data.text;
+      }
+    });
+  });
+  await page.getByRole('button',{name:'Partager les liens'}).click();
+  await expect.poll(()=>page.evaluate(()=>
+    (window as Window & { __lastSharedLinks?: string }).__lastSharedLinks
+  )).toContain('/messages/dm-1?message=dm-text');
   await expect(page.getByRole('button',{name:'Copier les liens vers les messages'})).toBeEnabled();
   await page.getByRole('button',{name:'Copier les liens vers les messages'}).click();
   await expect.poll(() => page.evaluate(()=>
