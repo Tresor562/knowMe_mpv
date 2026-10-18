@@ -65,11 +65,42 @@
   flex-wrap: wrap;
   font-size: 13px;
 }
-.km-post-report-history-meta strong { color: var(--text); }
+.km-post-report-history-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.km-post-report-history-status[data-status='OPEN'] {
+  background: color-mix(in srgb, var(--orange) 16%, var(--surface));
+}
+.km-post-report-history-status[data-status='RESOLVED'] {
+  background: color-mix(in srgb, var(--mint) 16%, var(--surface));
+}
+.km-post-report-history-status[data-status='DISMISSED'] {
+  background: var(--surface-2);
+  color: var(--muted);
+}
 .km-post-report-history-meta time { color: var(--muted); font-size: 12px; }
 .km-post-report-history-list p { font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 .km-post-report-history-list a,
-.km-post-report-history-empty a { color: var(--mint); font-weight: 650; font-size: 13px; }
+.km-post-report-history-empty a {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+  padding: 6px 1px;
+  color: var(--mint);
+  font-weight: 650;
+  font-size: 13px;
+  text-underline-offset: 3px;
+}
 .km-post-report-history-empty { padding: 28px 0; }
 .km-post-report-history-empty h2 { font-size: 17px; margin: 0 0 10px; }
 .km-post-report-history-empty p { color: var(--muted); font-size: 14px; }
