@@ -37,7 +37,7 @@ type MarketEntry = {
   href: string;
   offer?: CosmeticOffer;
 };
-type Filter = 'all' | 'gift' | 'style';
+type Filter = 'all' | 'gift' | 'style' | 'owned';
 
 function purchaseId(offerId: string) {
   const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -124,7 +124,8 @@ export default function MarketplacePage() {
   const visible = useMemo(() => {
     const normalized = search.trim().toLocaleLowerCase();
     return entries.filter(entry =>
-      (filter === 'all' || entry.kind === filter) &&
+      (filter === 'all' || entry.kind === filter ||
+        (filter === 'owned' && entry.kind === 'style' && entry.owned)) &&
       (!normalized ||
         (entry.name + ' ' + entry.description).toLocaleLowerCase().includes(normalized))
     );
@@ -236,6 +237,7 @@ export default function MarketplacePage() {
           ['all', en ? 'All' : 'Tout'],
           ['gift', en ? 'Gifts' : 'Cadeaux'],
           ['style', en ? 'Styles' : 'Personnalisation'],
+          ['owned', en ? 'Owned' : 'Possédés'],
         ] as [Filter, string][]).map(([value, title]) => (
           <button key={value} type="button" className={filter === value ? styles.current : ''}
             aria-pressed={filter === value} onClick={() => setFilter(value)}>{title}</button>
@@ -253,6 +255,29 @@ export default function MarketplacePage() {
           <span>{en ? 'My collection' : 'Ma collection'}</span>
           <span aria-hidden="true">›</span>
         </Link>
+        <Link href="/marketplace/stickers">
+          <span aria-hidden="true" className={styles.shortcutIcon}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 5.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7l-7.5 7.5H6a2 2 0 0 1-2-2z"/>
+              <path d="M12.5 20V15a2.5 2.5 0 0 1 2.5-2.5H20"/>
+              <path d="m9 8 1.5 2.5L13 12l-2.5 1.5L9 16l-1.5-2.5L5 12l2.5-1.5z"/>
+            </svg>
+          </span>
+          <span>{en ? 'Sticker packs' : 'Packs de stickers'}</span>
+          <span aria-hidden="true">›</span>
+        </Link>
+        <Link href="/marketplace/apks">
+          <span aria-hidden="true" className={styles.shortcutIcon}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="3" width="16" height="18" rx="3"/>
+              <path d="m12 7 0 9m-4-4 4 4 4-4M9 18h6"/>
+            </svg>
+          </span>
+          <span>{en ? 'Apps and APKs' : 'Applications et APK'}</span>
+          <span aria-hidden="true">›</span>
+        </Link>
       </nav>
 
       {feedback && <p className={styles.successNotice} role="status">{feedback}</p>}
@@ -261,6 +286,7 @@ export default function MarketplacePage() {
         <div className={styles.catalogHeader}>
           <h2>{filter === 'gift' ? (en ? 'Gifts' : 'Cadeaux') :
             filter === 'style' ? (en ? 'Customization' : 'Personnalisation') :
+            filter === 'owned' ? (en ? 'My owned items' : 'Mes objets possédés') :
               (en ? 'Discover' : 'Découvrir')}</h2>
           <button type="button" onClick={() => void load(true)} disabled={refreshing || loading}
             aria-label={en ? 'Refresh the marketplace' : 'Actualiser la marketplace'}>
