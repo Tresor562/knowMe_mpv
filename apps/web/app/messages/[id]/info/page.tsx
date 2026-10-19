@@ -8,6 +8,8 @@ import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
 import { knowMeConfirm } from '../../../../components/knowme-feedback';
 import { GroupSharedContent } from '../GroupSharedContent';
+import { GroupAvatarEditor } from '../GroupAvatarEditor';
+import '../group-info-architecture.css';
 
 type Member = {
   userId: string;
@@ -48,7 +50,7 @@ export default function ConversationInfoPage() {
   const [copied, setCopied] = useState(false);
   const [leaving,setLeaving] = useState(false);
   const moreMenuRef=useRef<HTMLDetailsElement>(null);
-  const [activeTab, setActiveTab] = useState<'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('members');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('overview');
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -63,6 +65,9 @@ export default function ConversationInfoPage() {
         ? 'This conversation cannot be found in your chats.'
         : 'Cette conversation est introuvable dans tes discussions.');
       setConversation(found);
+      // The overview exists only for groups. Private chats retain their real
+      // participants panel instead of landing on an empty overview.
+      setActiveTab(current => current==='overview' && !found.isGroup ? 'members' : current);
     } catch (cause) {
       setConversation(null);
       setError(cause instanceof Error ? cause.message
@@ -110,6 +115,11 @@ export default function ConversationInfoPage() {
   const viewerRole = members.find(member=>member.userId===user?.id)?.role ?? 'MEMBER';
   const canManage = isGroup && (viewerRole==='OWNER'||viewerRole==='ADMIN');
   const other = members.find(member => member.userId !== user?.id);
+  const memberPreview = [...members].sort((a,b)=>{
+    const priority = (role:Member['role']) => role==='OWNER'?0:role==='ADMIN'?1:2;
+    return priority(a.role)-priority(b.role) ||
+      a.user.displayName.localeCompare(b.user.displayName,locale);
+  }).slice(0,3);
   const title = conversation
     ? (conversation.title || (isGroup
       ? tr('Groupe sans nom', 'Untitled group')
@@ -150,14 +160,14 @@ export default function ConversationInfoPage() {
     } finally {setLeaving(false);}
   }
 
-  return <main className={`shell km-info-page ${isGroup?'km-info-group-profile':'km-info-private-profile'}`}>
+  return <main className={`shell km-info-page ${isGroup?'km-info-group-profile km-group-architecture':'km-info-private-profile'}`}>
     <header className="km-info-topbar">
       <Link href={`/messages/${encodeURIComponent(id)}`} className="km-info-back"
         aria-label={tr('Retour à la discussion', 'Back to chat')}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
           strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
       </Link>
-      <h1>{tr('Informations', 'Information')}</h1>
+      <h1>{isGroup ? tr('Informations du groupe','Group info') : tr('Informations','Information')}</h1>
       <button type="button" className="km-info-refresh" onClick={() => void load()}
         disabled={loading} aria-label={tr('Actualiser','Refresh')}>
         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none"
@@ -166,23 +176,20 @@ export default function ConversationInfoPage() {
     </header>
     {(sessionLoading || loading) && <p className="km-info-status" role="status">{tr('Chargement…','Loading…')}</p>}
     {error && <p className="km-auth-error" role="alert">{error}</p>}
-    {!loading && !sessionLoading && conversation && <>
+    {!loading && !sessionLoading && conversation && <div className="km-group-workspace">
+      <div className="km-group-sidebar">
       <section className="km-info-identity" aria-label={tr('Identité de la discussion', 'Chat identity')}>
         {isGroup
-          ? <div className="km-info-group-avatar" aria-hidden="true">
-            {members.slice(0, 4).map(member =>
-              <span key={member.userId}>
-                {member.user.avatarUrl ? <img src={member.user.avatarUrl} alt="" /> :
-                  (Array.from(member.user.displayName)[0] || '?').toLocaleUpperCase()}
-              </span>)}
-          </div>
+          ? <GroupAvatarEditor conversationId={id} title={title}
+              canManage={canManage} en={en}/>
           : other && <Avatar member={other} />}
         <h2>{title}</h2>
         <p>{isGroup
           ? `${members.length} ${tr('membres','members')}`
           : other ? `@${other.user.username}` : tr('Discussion privée','Private chat')}</p>
-        {isGroup && conversation.description && <p className="km-info-description"
-          title={conversation.description}>{conversation.description}</p>}
+        {isGroup && <p className="km-group-hero-role">
+          {viewerRole==='OWNER'?tr('Propriétaire','Owner'):viewerRole==='ADMIN'?tr('Administrateur','Administrator'):tr('Membre','Member')}
+        </p>}
       </section>
       <nav className="km-info-actions" aria-label={tr('Actions de la discussion', 'Chat actions')}>
         <Link href={`/messages/${encodeURIComponent(id)}`}>
@@ -190,6 +197,13 @@ export default function ConversationInfoPage() {
             <path d="M20 11.5a8 8 0 0 1-8 8 9 9 0 0 1-3.5-.7L4 20l1.3-4A8 8 0 1 1 20 11.5Z"/></svg>
           <span>{tr('Messages', 'Messages')}</span>
         </Link>
+        {isGroup&&<button type="button" onClick={()=>setActiveTab('search')}
+          aria-label={tr('Rechercher dans ce groupe','Search this group')}>
+          <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none"
+            strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/>
+            <path d="m16 16 5 5"/></svg>
+          <span>{tr('Rechercher','Search')}</span>
+        </button>}
         <button type="button" onClick={() => void shareConversation()}
           title={tr('Lien interne réservé aux membres, pas une invitation','Members-only internal link, not an invitation')}
           aria-label={tr('Partager le lien interne de la discussion','Share internal conversation link')}>
@@ -231,6 +245,8 @@ export default function ConversationInfoPage() {
           <span>{tr('Profil', 'Profile')}</span>
         </Link>}
       </nav>
+      </div>
+      <div className="km-group-main-pane">
       <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}
         onKeyDown={event=>{
           if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
@@ -243,6 +259,10 @@ export default function ConversationInfoPage() {
           tabs[next].click();
           tabs[next].focus();
         }}>
+        {isGroup&&<button type="button" role="tab" aria-selected={activeTab==='overview'}
+          onClick={()=>setActiveTab('overview')}>
+          {tr('Aperçu','Overview')}
+        </button>}
         <button type="button" role="tab" aria-selected={activeTab==='members'}
           onClick={() => setActiveTab('members')}>
           {isGroup ? tr('Membres','Members') : tr('Participants', 'Participants')}
@@ -259,6 +279,79 @@ export default function ConversationInfoPage() {
           {en?tab.en:tab.fr}
         </button>)}
       </div>
+      {isGroup && activeTab==='overview' && <section className="km-group-overview" role="tabpanel"
+        aria-label={tr('Aperçu du groupe','Group overview')}>
+        <section className="km-group-overview-section km-group-about"
+          aria-labelledby="km-group-about-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-about-heading">{tr('À propos du groupe','About the group')}</h3>
+            {canManage&&<Link href={`/messages/${encodeURIComponent(id)}/manage`}>
+              {tr('Modifier','Edit')}
+            </Link>}
+          </div>
+          <p className={conversation.description?'':'is-empty'}>
+            {conversation.description||tr('Aucune description pour ce groupe.','This group has no description yet.')}
+          </p>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-content-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-content-heading">{tr('Contenus partagés','Shared content')}</h3>
+          </div>
+          <div className="km-group-overview-shortcuts">
+            {([
+              {id:'media',fr:'Médias',english:'Media',icon:'photo'},
+              {id:'files',fr:'Fichiers',english:'Files',icon:'file'},
+              {id:'links',fr:'Liens',english:'Links',icon:'link'}
+            ] as const).map(item=><button key={item.id} type="button"
+              onClick={()=>setActiveTab(item.id)}>
+              {item.icon==='photo'
+                ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                    strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/>
+                    <circle cx="8.5" cy="9" r="1.5"/><path d="m5 18 5.5-5.5 3.5 3 2.5-2.5 3.5 5"/></svg>
+                :item.icon==='file'
+                  ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                      strokeWidth="1.8" aria-hidden="true"><path d="M6 2.5h8l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20zM14 3v5h5M9 13h6M9 17h6"/></svg>
+                  : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                      strokeWidth="1.8" aria-hidden="true"><path d="m10 13 4-4M8.8 15.5l-1.6 1.6a4 4 0 0 1-5.7-5.7l4-4a4 4 0 0 1 5.7 0M15.2 8.5l1.6-1.6a4 4 0 1 1 5.7 5.7l-4 4a4 4 0 0 1-5.7 0"/></svg>}
+              <span>{en?item.english:item.fr}</span>
+              <span aria-hidden="true">›</span>
+            </button>)}
+          </div>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-members-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-members-heading">{tr('Membres','Members')} <span>{members.length}</span></h3>
+            <button type="button" onClick={()=>setActiveTab('members')}>{tr('Voir tous','See all')}</button>
+          </div>
+          <div className="km-group-overview-member-list">
+            {memberPreview.map(member=><Link key={member.userId} className="km-info-member-row"
+              href={`/profile/${encodeURIComponent(member.user.username)}`}>
+              <Avatar member={member} size="small"/>
+              <span className="km-info-member-name">
+                <strong>{member.user.displayName}</strong>
+                <small>{member.role==='OWNER'?tr('Propriétaire','Owner'):
+                  member.role==='ADMIN'?tr('Administrateur','Administrator'):`@${member.user.username}`}</small>
+              </span>
+              <span aria-hidden="true">›</span>
+            </Link>)}
+          </div>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-settings-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-settings-heading">{tr('Paramètres du groupe','Group settings')}</h3>
+          </div>
+          <Link className="km-group-settings-link" href={`/messages/${encodeURIComponent(id)}/manage`}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+              stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/><path d="m10 2-1 3-2 1-3-1-2 4 2 2v2l-2 2 2 4 3-1 2 1 1 3h4l1-3 2-1 3 1 2-4-2-2v-2l2-2-2-4-3 1-2-1-1-3z"/></svg>
+            <span><strong>{tr('Membres et administration','Members and administration')}</strong>
+              <small>{canManage?tr('Modifier le nom, la description et gérer les membres','Edit group details and manage members'):
+                tr('Consulter les membres et les informations','View members and information')}</small>
+            </span>
+            <span aria-hidden="true">›</span>
+          </Link>
+        </section>
+      </section>}
       {(activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
         <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en} isGroup={isGroup}/>} 
 
@@ -317,6 +410,7 @@ export default function ConversationInfoPage() {
           : tr('Le lien de la discussion n’est accessible qu’à ses participants. Les informations du contact restent accessibles depuis son profil.',
              'The chat link is accessible to its participants only. Contact information is available on their profile.')}</p>
       </section>}
-    </>}
+      </div>
+    </div>}
   </main>;
 }

@@ -30,6 +30,8 @@ test('private chat has shared media, links, files and search without group admin
   await page.setViewportSize({width:360,height:760});
   await page.goto('/messages/dm-1/info');
   await expect(page.getByRole('heading',{name:'Ami'})).toBeVisible();
+  await expect(page.getByRole('tab',{name:'Participants'})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('tab',{name:'Aperçu'})).toHaveCount(0);
   await expect(page.getByRole('tab',{name:'Médias'})).toBeVisible();
   await expect(page.getByRole('tab',{name:'Fichiers'})).toBeVisible();
   await expect(page.getByRole('tab',{name:'Liens'})).toBeVisible();
