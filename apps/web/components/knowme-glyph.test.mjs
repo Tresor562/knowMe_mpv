@@ -297,3 +297,37 @@ test('official KnowMe brand remains the canonical asset, without unsafe SVG cont
   assert.match(css, /:root\[data-animated-icons='false'\] \.km-brand-logo/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+
+test('three original collectible gifts are vector, state-controlled, motion-safe and accessible', () => {
+  const gift = fs.readFileSync(path.join(dir, 'knowme-gift-artwork.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(dir, 'knowme-gift-artwork.css'), 'utf8');
+  for (const variant of ['aurora', 'cosmos', 'blossom']) {
+    assert.ok(gift.includes(variant), variant);
+  }
+  assert.match(gift, /type KnowMeGiftState = 'idle' \| 'opening' \| 'opened' \| 'claimed'/);
+  assert.match(gift, /state = 'idle'/);
+  assert.match(gift, /eventToken = null/);
+  assert.match(gift, /before\.state !== state/);
+  assert.match(gift, /state === 'idle'\) return/);
+  assert.match(gift, /data-state=\{state\}/);
+  assert.match(gift, /data-burst=\{burst \? 'true' : 'false'\}/);
+  assert.match(gift, /aria-label=\{\(label \|\| fallback\) \+ status\}/);
+  assert.match(gift, /<svg key=\{eventToken \?\? state\} viewBox="0 0 128 128"/);
+  assert.match(gift, /useKnowMeIconViewportVisible\(/);
+  assert.match(gift, /preferences\.effectiveReducedMotion === 'true'/);
+  assert.match(gift, /linearGradient/);
+  assert.match(gift, /radialGradient/);
+  assert.match(gift, /km-collectible-lid/);
+  assert.match(gift, /km-collectible-bow/);
+  assert.match(gift, /km-collectible-magic/);
+  assert.doesNotMatch(gift, /<image\b|data:image|\.png|foreignObject|<text\b/);
+  assert.match(css, /km-gift-lid-peek/);
+  assert.match(css, /km-gift-lid-open/);
+  assert.match(css, /km-gift-claimed/);
+  assert.match(css, /data-burst='true'\]\[data-visible='true'\]/);
+  assert.match(css, /data-state='opening'/);
+  assert.match(css, /data-state='opened'/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /data-visible='false'/);
+});
