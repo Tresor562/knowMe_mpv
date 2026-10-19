@@ -281,17 +281,16 @@ test('rewind and forward 10 are font-independent SVG numerals', () => {
 });
 
 
-test('official KnowMe logo is true vector and responds to touch without forced motion', () => {
+test('official KnowMe brand remains the canonical asset, without unsafe SVG content', () => {
   const logo = fs.readFileSync(path.join(dir, '..', 'public', 'brand', 'knowme-logo.svg'), 'utf8');
   const css = fs.readFileSync(path.join(dir, '..', 'app', 'iconography.css'), 'utf8');
+  // The approved brand is a 256px PNG embedded in an SVG wrapper.
+  // Replacing it with an unrelated vector both changes identity and breaks
+  // Android's release icon/splash generator.
   assert.match(logo, /viewBox="0 0 256 256"/);
-  assert.match(logo, /<path\b/);
-  assert.match(logo, /<linearGradient\b/);
-  assert.match(logo, /<radialGradient\b/);
+  assert.match(logo, /<image\b[^>]*href="data:image\/png;base64,/);
   assert.match(logo, /aria-label="KnowMe"/);
-  assert.doesNotMatch(logo, /<image\b|data:image\/(?:png|jpe?g|webp|gif);base64,/i);
   assert.doesNotMatch(logo, /<script\b|<foreignObject\b|javascript:/i);
-  assert.ok(Buffer.byteLength(logo, 'utf8') < 8000, 'logo should not be a hidden 88KB PNG');
   assert.match(css, /\.km-brand:hover \.km-brand-logo/);
   assert.match(css, /\.km-brand:active \.km-brand-logo/);
   assert.match(css, /:root\[data-animated-icons='false'\] \.km-brand-logo/);
