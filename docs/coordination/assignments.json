@@ -178,23 +178,40 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/shared-selection-actions",
-      "task": "Redesign group info screen hierarchy and document missing end-to-end group avatar storage; do not conflict with Messaging #754 schema/API.",
+      "branch": "chat/design/group-info-structured-ux",
+      "task": "PR #766 merged 436a78d78b4ca6ad5a57bd95993b5b0f84400762. PR #767 HEAD fe51398d: group info redesign Web mobile & two-column desktop, persistent private group avatar API + model migration + tests; CI initial failed Prisma drift from extra SQL FKs, fixed with PostgreSQL reference-validation/cleanup triggers, focus restoration fixed; Runtime readiness & guard green, CI and APK still in-progress. DO NOT claim photo works until PR merges AND VPS API migrations/releases. Messaging #693, Infra #698 asked to integrate avatars into chat list/header/Android and deploy signed release on VPS.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-18T22:30:00.001Z",
-      "lastPr": 766,
+      "updatedAt": "2026-10-19T04:43:08.002Z",
+      "lastPr": 767,
       "resumeFrom": {
-        "pr": 766,
-        "branch": "chat/design/shared-selection-actions",
-        "commit": "cf347ea1ae371974bd02606f75654c93eb406406",
-        "followupBranch": "chat/design/shared-selection-bulk-save",
-        "followupFeature": "save selected messages via existing server API",
-        "mergedPr": 765,
-        "mergedCommit": "0baf2727bd23934d188c7c163f83638dc1ef8d5e",
-        "issueComment": 6254739093,
-        "checks": [
+        "pr": 767,
+        "branch": "chat/design/group-info-structured-ux",
+        "commit": "fe51398d54543e805a5429c7e721d892adc32698",
+        "mergedPr": 766,
+        "mergedCommit": "436a78d78b4ca6ad5a57bd95993b5b0f84400762",
+        "issues": [
+          693,
+          698
+        ],
+        "required": [
+          "CI",
+          "Runtime readiness",
+          "KnowMe coordination guard",
+          "KnowMe APK Build Once"
+        ],
+        "statuses": [
+          {
+            "name": "KnowMe coordination guard",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Runtime readiness",
+            "status": "completed",
+            "conclusion": "success"
+          },
           {
             "name": "KnowMe coordination guard",
             "status": "completed",
@@ -211,7 +228,7 @@
             "conclusion": "success"
           }
         ],
-        "toDo": "Verify APK Build Once exact SHA success and merge PR #766 if clean; open followup bulk-save PR based on main after #766 merge; fix tests if needed"
+        "next": "inspect exact-head CI/API migration diff, fix if red, merge only when checks all green and clean; then verify production signed release & VPS migration for group photo."
       }
     }
   },
@@ -1120,6 +1137,13 @@
       "action": "resume",
       "at": "2026-10-18T22:30:00.001Z",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406"
+    },
+    {
+      "action": "pause",
+      "at": "2026-10-19T04:43:08.002Z",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 767
     }
   ]
 }
