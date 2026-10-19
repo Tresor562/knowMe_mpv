@@ -178,12 +178,12 @@
     },
     "design": {
       "issue": 699,
-      "status": "paused",
+      "status": "active",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "branch": "chat/design/group-info-structured-ux",
-      "task": "PR #766 merged 436a78d78b4ca6ad5a57bd95993b5b0f84400762. PR #767 HEAD fe51398d: group info redesign Web mobile & two-column desktop, persistent private group avatar API + model migration + tests; CI initial failed Prisma drift from extra SQL FKs, fixed with PostgreSQL reference-validation/cleanup triggers, focus restoration fixed; Runtime readiness & guard green, CI and APK still in-progress. DO NOT claim photo works until PR merges AND VPS API migrations/releases. Messaging #693, Infra #698 asked to integrate avatars into chat list/header/Android and deploy signed release on VPS.",
+      "task": "Group avatar enhancement: square photo crop/zoom/drag before upload with accessibility and tests after PR #767 merged; VPS deploy not yet confirmed.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-19T04:43:08.002Z",
+      "updatedAt": "2026-10-19T04:48:02.002Z",
       "lastPr": 767,
       "resumeFrom": {
         "pr": 767,
@@ -1144,6 +1144,12 @@
       "domain": "design",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "pr": 767
+    },
+    {
+      "domain": "design",
+      "action": "resume",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "at": "2026-10-19T04:48:02.002Z"
     }
   ]
 }
