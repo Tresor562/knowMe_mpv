@@ -44,6 +44,33 @@
   animation-timing-function: cubic-bezier(.16,.82,.22,1);
   animation-iteration-count: 1;
 }
+/* Exhaustive 79-glyph semantic family. Specific glyph rules below win on
+   equal specificity, retaining heart, bell, media and network nuances.
+   These run ONLY on a real event token/state transition, never at rest. */
+[data-motion-role='navigation'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-direction;
+}
+[data-motion-role='communication'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-dialog-pop;
+}
+[data-motion-role='media'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+[data-motion-role='social'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-heart-pop;
+}
+[data-motion-role='transfer'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-stack;
+}
+[data-motion-role='security'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-focus;
+}
+[data-motion-role='reward'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gift-pop;
+}
+[data-motion-role='utility'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
 .km-state-icon--heart[data-icon-state='selected'][data-icon-burst] > svg:first-child,
 .km-state-icon--bookmark[data-icon-state='selected'][data-icon-burst] > svg:first-child {
   animation-name: km-icon-heart-pop;
