@@ -182,7 +182,7 @@ test('every one of the 79 vector icons draws nonempty geometry at phone and desk
       return { name: button.getAttribute('data-glyph'), valid,
         bounds: [box.x, box.y, box.width, box.height], primitives: primitives.length,
         target: [area.width, area.height] };
-    })));
+    }));
     const failures = geometry.filter(item => !item.valid);
     expect(failures, 'Every glyph must have visible bounded artwork and accessible touch target').toEqual([]);
   }
