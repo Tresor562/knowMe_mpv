@@ -12,6 +12,10 @@ SOURCES={
    "artist":"BAMEN","work":"FREE [Military Soldier] RIGGED",
    "original_work":"https://sketchfab.com/3d-models/free-military-soldier-rigged-e9c56308a67d4a3db62e914fafa4d198",
    "license":"CC-BY-4.0","license_url":"https://creativecommons.org/licenses/by/4.0/",
+   "animation_credits":[
+      {"creators":"Quaternius","work":"Universal Animation Library 1 & 2","license":"CC0-1.0","url":"https://quaternius.com"},
+      {"creators":"Ian Mason, Sebastian Starke and Taku Komura","work":"100STYLE motion capture dataset","license":"CC-BY-4.0","url":"https://zenodo.org/records/8127870"}
+   ],
    "modifications":"Distributed by cktang88/3d-fps with animation adaptations; normalized/imported into Blender for KnowMe pipeline proof.",
    "source_project":"https://github.com/cktang88/3d-fps/tree/130ac2a5c856401ec36e7d35afcfefe40c5801f4"
  },
