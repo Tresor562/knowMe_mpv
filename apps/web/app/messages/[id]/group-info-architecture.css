@@ -597,6 +597,8 @@
   background:rgba(0,0,0,.87);
 }
 @media(max-width:360px){
+  /* At 320px, leave 304px for the panel and 288px for the full-size crop. */
+  .km-group-avatar-crop-backdrop{padding-inline:8px;}
   .km-group-avatar-crop-panel{border-radius:18px;}
   .km-group-crop-body{padding-inline:7px;}
 }
