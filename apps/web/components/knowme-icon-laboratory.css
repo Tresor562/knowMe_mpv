@@ -234,3 +234,73 @@
   .km-icon-lab-theme-options .km-icon-lab-chip { flex: 1 0 44%; }
   .km-icon-lab-preview-symbol { width: 82px; flex-basis: 82px; height: 82px; }
 }
+
+
+/* Faithful logo review: two sources share exactly the same coordinates.
+   Only the prototype reveal is clipped; original logo remains untouched. */
+.km-icon-lab-brand-overlay {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  background: var(--lab-inner);
+}
+.km-icon-lab-brand-overlay-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  font-size: 12px;
+}
+.km-icon-lab-brand-overlay-head output { color: var(--lab-accent); font-variant-numeric: tabular-nums; }
+.km-icon-lab-brand-overlay-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(192px, 100%);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 44px;
+}
+.km-icon-lab-brand-overlay-stage > img,
+.km-icon-lab-brand-overlay-vector img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  display: block;
+}
+.km-icon-lab-brand-overlay-vector {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.km-icon-lab-brand-overlay-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid #fff;
+  box-shadow: 0 0 0 1px #131726, 0 0 8px 2px #1618268c;
+  pointer-events: none;
+}
+.km-icon-lab-brand-overlay > label {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 670;
+}
+.km-icon-lab-brand-overlay > input[type='range'] {
+  width: min(320px, 100%);
+  height: 44px;
+  min-height: 44px;
+  accent-color: var(--lab-accent);
+  cursor: ew-resize;
+}
+.km-icon-lab-brand-overlay > input:focus-visible {
+  outline: 2px solid var(--lab-accent);
+  outline-offset: 2px;
+}
