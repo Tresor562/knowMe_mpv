@@ -439,3 +439,24 @@ test('native icon parity gate fails when necessary SVG prerequisites are missing
     assert.match(strict.stderr, /Native SVG parity release gate BLOCKED/);
   }
 });
+
+
+test('post options sheets have vector actions and modal keyboard focus safety', () => {
+  const menu = fs.readFileSync(path.join(dir, 'post-options-sheet.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(dir, 'post-options-sheet.css'), 'utf8');
+  for (const icon of ['share','link','file','profile','edit','trash','eye-off']) {
+    assert.ok(menu.includes('name="' + icon + '"'), 'missing action ' + icon);
+  }
+  assert.match(menu, /<KnowMeIconButton name="close" size=\{20\}/);
+  assert.doesNotMatch(menu, /aria-hidden="true">[↗⛓▤◯✎×−○]/);
+  assert.match(menu, /const reasonIcons: KnowMeGlyphName\[\]/);
+  assert.match(menu, /function usePostSheetFocus/);
+  assert.match(menu, /previouslyFocused\?\.focus\(\)/);
+  assert.match(menu, /event\.key !== 'Tab'/);
+  assert.match(menu, /window\.requestAnimationFrame/);
+  assert.match(menu, /document\.body\.style\.overflow = 'hidden'/);
+  assert.equal((menu.match(/const sheetRef = usePostSheetFocus\(onClose\)/g) ?? []).length, 2);
+  assert.match(css, /\.km-post-options-sheet header \.km-icon-action/);
+  assert.match(css, /min-width: 44px/);
+  assert.match(css, /:focus-visible/);
+});
