@@ -155,7 +155,8 @@ export function KnowMeIconLaboratory() {
         <div className="km-icon-lab-preview">
           <div className="km-icon-lab-preview-symbol" data-testid="icon-lab-preview">
             <KnowMeAnimatedIcon name={active} size={previewSize} state={state}
-              progress={state === 'progress' ? .64 : null} eventToken={event}/>
+              progress={state === 'progress' ? .64 : null} eventToken={event}
+              motionEnabled={motionPreview}/>
           </div>
           <div className="km-icon-lab-preview-copy">
             <strong>{active}</strong>
@@ -196,7 +197,7 @@ export function KnowMeIconLaboratory() {
             className="km-icon-lab-glyph" data-glyph={name}
             aria-pressed={active === name} aria-label={name}
             onClick={() => selectGlyph(name)}>
-            <KnowMeAnimatedIcon name={name} size={24} state="idle"/>
+            <KnowMeAnimatedIcon name={name} size={24} state="idle" motionEnabled={motionPreview}/>
             <span>{name}</span>
           </button>)}
         </div>
@@ -213,7 +214,8 @@ export function KnowMeIconLaboratory() {
             <h3>{variant}</h3>
             <div className="km-icon-lab-artwork">
               <KnowMeGiftArtwork variant={variant} size={136}
-                state={giftStates[variant]} eventToken={giftEvents[variant]}/>
+                state={giftStates[variant]} eventToken={giftEvents[variant]}
+                motionEnabled={motionPreview}/>
             </div>
             <div className="km-icon-lab-gift-controls" role="group"
               aria-label={t('État du cadeau ', 'Gift state ') + variant}>
