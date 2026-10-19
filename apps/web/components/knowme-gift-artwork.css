@@ -21,7 +21,9 @@
 .km-collectible[data-state='opening'] .km-collectible-lid {
   transform: translate(-3px, -11px) rotate(-6deg);
 }
-.km-collectible[data-burst='true'][data-visible='true'][data-state='opening'] .km-collectible-lid,
+.km-collectible[data-burst='true'][data-visible='true'][data-state='opening'] .km-collectible-lid {
+  animation: km-gift-lid-peek 740ms cubic-bezier(.16,.93,.2,1.14) both;
+}
 .km-collectible[data-burst='true'][data-visible='true'][data-state='opened'] .km-collectible-lid {
   animation: km-gift-lid-open 740ms cubic-bezier(.16,.93,.2,1.14) both;
 }
@@ -33,6 +35,11 @@
 }
 .km-collectible[data-burst='true'][data-visible='true'] .km-collectible-bow {
   animation: km-gift-bow 760ms ease-out both;
+}
+@keyframes km-gift-lid-peek {
+  0% { transform: translate(0,0) rotate(0); }
+  65% { transform: translate(-6px,-16px) rotate(-9deg); }
+  100% { transform: translate(-3px,-11px) rotate(-6deg); }
 }
 @keyframes km-gift-lid-open {
   0% { transform: translate(0,0) rotate(0); }
