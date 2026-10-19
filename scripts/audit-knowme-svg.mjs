@@ -29,7 +29,7 @@ const sum = {
   inspectedFiles: 0, svgFiles: 0, androidVectorFiles: 0, inlineSVG: 0,
   jsxSvgReferences: 0, dynamicSVG: 0, iconLibraryReferences: 0,
   nativeComposedIconReferences: 0, rasterAssetFiles: 0, cssSvgReferences: 0,
-  legacyUnicodeControlCandidates: 0, rasterWrappedSvgFiles: 0
+  legacyUnicodeControlCandidates: 0, rasterInsideSvgFiles: 0, rasterWrappedSvgFiles: 0
 };
 function lineOf(source, index) { return source.slice(0, index).split('\n').length; }
 function add(row, kind, source, regex) {
@@ -78,6 +78,24 @@ function inspect(file) {
         issue: approvedBrand
           ? 'Official KnowMe brand raster retained for Android asset generation; not an icon-family vector'
           : 'Raster image embedded in SVG: supply true vector paths or a separately managed image asset' });
+    }
+    // A file with an .svg extension may only be a container for a PNG/JPEG.
+    // The official historic logo is intentionally retained until fidelity QA
+    // approves its independently-drawn vector prototype.
+    if (/<image\\b[^>]+(?:href|xlink:href)=["']data:image\\/(?:png|jpeg|webp|gif)/i.test(source)) {
+      sum.rasterInsideSvgFiles++;
+      row.findings.push({ kind: 'embedded-raster-in-svg', line: 1,
+        sample: 'bitmap media data inside SVG (not true vector artwork)' });
+      warnings.push({ file: rel, line: 1,
+        severity: rel === 'apps/web/public/brand/knowme-logo.svg' ? 'review' : 'error',
+        issue: 'Raster image embedded in SVG; approve genuine paths before claiming vector parity' });
+    }
+    if (rel === 'apps/web/public/brand/knowme-logo-vector-prototype.svg') {
+      if (!/<(?:path|ellipse|circle|rect)\\b/i.test(source) ||
+          /<image\\b|data:image\\//i.test(source)) {
+        warnings.push({ file: rel, line: 1, severity: 'error',
+          issue: 'Vector logo prototype must be drawn with real paths, not raster imagery' });
+      }
     }
     row.findings.push({ kind: 'standalone-svg', line: 1 });
   }
