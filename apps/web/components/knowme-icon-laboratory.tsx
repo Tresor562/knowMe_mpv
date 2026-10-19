@@ -86,6 +86,31 @@ export function KnowMeIconLaboratory() {
           'Visual QA only: states are simulated locally. No purchase, message or server event is triggered.')}
       </p>
 
+      <section className="km-icon-lab-panel" aria-labelledby="km-icon-lab-brand-heading">
+        <div className="km-icon-lab-panel-title">
+          <h2 id="km-icon-lab-brand-heading">
+            {t('Comparaison du logo — fidélité visuelle', 'Logo comparison — visual fidelity')}
+          </h2>
+          <span>{t('Identité inchangée en production', 'Production identity unchanged')}</span>
+        </div>
+        <div className="km-icon-lab-brand-comparison">
+          <figure>
+            <img src="/brand/knowme-logo.svg" width={120} height={120}
+              alt={t('Logo actuel de KnowMe, image intégrée au fichier SVG', 'Current KnowMe logo, bitmap embedded inside SVG')}/>
+            <figcaption>{t('Logo actuel (PNG encapsulé dans SVG)', 'Current logo (PNG inside SVG)')}</figcaption>
+          </figure>
+          <figure>
+            <img src="/brand/knowme-logo-vector-prototype.svg" width={120} height={120}
+              alt={t('Prototype vectoriel du logo KnowMe redessiné avec formes et dégradés', 'True-vector logo draft made from shapes and gradients')}/>
+            <figcaption>{t('Prototype 100 % tracés vectoriels', '100% vector-path prototype')}</figcaption>
+          </figure>
+        </div>
+        <p className="km-icon-lab-brand-note">
+          {t('Le prototype ne remplace pas le logo officiel. Comparer les proportions, couleurs, bords et dégradés sur mobile avant toute adoption.',
+            'The prototype does not replace the official logo. Review proportions, colors, edges and gradients on a phone before adoption.')}
+        </p>
+      </section>
+
       <section className="km-icon-lab-panel" aria-labelledby="km-icon-lab-control-heading">
         <div className="km-icon-lab-panel-title">
           <h2 id="km-icon-lab-control-heading">{t('Contrôler les animations', 'Control animations')}</h2>
