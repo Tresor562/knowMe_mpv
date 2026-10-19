@@ -16,6 +16,7 @@ import {
   ViewStyle
 } from 'react-native';
 import { useAppearance } from '../AppearanceProvider';
+import { hasKnowMeNativeVectorGlyph, KnowMeNativeVectorIcon } from './KnowMeNativeVectorIcon';
 
 // Expo's BlurView ships class types from a different React typing generation
 // in certain dependency trees. Preserve the real native blur implementation
@@ -120,6 +121,15 @@ export function KnowMeIcon({
   /** For persistent confirmed states: currently supported by heart. */
   filled?: boolean;
 }) {
+  // SVG geometry is used on real Android surfaces for every named icon.
+  // Older View compositions remain a fallback for legacy dynamic names.
+  if (hasKnowMeNativeVectorGlyph(name)) {
+    return <KnowMeNativeVectorIcon
+      name={name} size={size} color={color}
+      strokeWidth={strokeWidth} selected={filled}
+    />;
+  }
+
   const s = size / 24;
   const sw = strokeWidth * s;
   const commonBorder = { borderColor: color, borderWidth: sw };
