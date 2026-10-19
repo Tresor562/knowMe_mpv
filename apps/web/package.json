@@ -7,7 +7,7 @@
     "lint": "next lint",
     "start": "next start",
     "test:e2e": "playwright test",
-    "test": "node --experimental-strip-types --test components/knowme-glyph.test.mjs components/icon-motion-model.test.mjs components/avatar-menu-keyboard-model.test.mjs && node ../../scripts/audit-knowme-svg.mjs --strict && node ../../scripts/audit-knowme-icon-parity.mjs"
+    "test": "node --experimental-strip-types --test components/knowme-glyph.test.mjs components/icon-motion-model.test.mjs components/avatar-menu-keyboard-model.test.mjs components/knowme-glyph-motion-roles.test.mjs && node ../../scripts/audit-knowme-svg.mjs --strict && node ../../scripts/audit-knowme-icon-parity.mjs"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
