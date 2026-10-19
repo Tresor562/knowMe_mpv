@@ -34,7 +34,7 @@ jobs:
           blender --version | head -n 2
           ffmpeg -version | head -n 1
       - name: Validate generator syntax
-        run: python3 -m py_compile tools/asset_factory/build.py tools/asset_factory/verify.py tools/asset_factory/create_preview.py
+        run: python3 -m py_compile tools/asset_factory/build.py tools/asset_factory/hero.py tools/asset_factory/verify.py tools/asset_factory/create_preview.py
       - name: Generate real skeletal mascot and physically shaded 3D crown
         shell: bash
         run: |
@@ -42,6 +42,7 @@ jobs:
           mkdir -p artifacts/knowme-3d
           blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind mascot --out artifacts/knowme-3d --size 360 --frames 16
           blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind crown --out artifacts/knowme-3d --size 360 --frames 16
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind hero --out artifacts/knowme-3d --size 420 --frames 16
       - name: Verify actual GLB skeleton, animation clips and playable media
         run: python3 tools/asset_factory/verify.py artifacts/knowme-3d
       - name: Build interactive HTML preview from actual GLB geometry
