@@ -161,6 +161,7 @@ const legacyByFile = fileRows.map(row => ({
     .slice(0, 8).map(f => f.line)
 })).filter(row => row.count).sort((a,b) => b.count - a.count || a.file.localeCompare(b.file));
 const designMigratedControls = [
+  'apps/web/app/notifications/page.tsx',
   'apps/web/components/post-video-player.tsx',
   'apps/web/components/knowme-feedback.tsx',
   'apps/web/components/comment-report-sheet.tsx',
