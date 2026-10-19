@@ -1,9 +1,57 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
 import { KnowMeIconButton } from './knowme-icon-button';
+
+/** All post option sheets behave as real keyboard-accessible dialogs.
+ * Keep callback updates out of the focus lifecycle to avoid focus jumps
+ * when consumers recreate inline onClose handlers.
+ */
+function usePostSheetFocus(onClose: () => void) {
+  const sheetRef = useRef<HTMLElement | null>(null);
+  const dismiss = useRef(onClose);
+  useEffect(() => { dismiss.current = onClose; }, [onClose]);
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const id = window.requestAnimationFrame(() =>
+      sheetRef.current?.querySelector<HTMLButtonElement>('header button')?.focus());
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(sheetRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      ) ?? [])].filter(element => element.getClientRects().length > 0);
+      if (!focusable.length) { event.preventDefault(); return; }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const current = document.activeElement;
+      if (event.shiftKey && (current === first || !sheetRef.current?.contains(current))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (current === last || !sheetRef.current?.contains(current))) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = overflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
+  return sheetRef;
+}
 
 export type PostOption = {
   id: string;
@@ -14,15 +62,11 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
   post:PostOption; own:boolean; en:boolean;onClose:()=>void;
   onShare:()=>void;onCopy:()=>void;onEdit:()=>void;onDelete:()=>void;onDisinterest:()=>void;
 }) {
-  useEffect(()=>{
-    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')onClose();};
-    window.addEventListener('keydown',onKey);
-    return ()=>window.removeEventListener('keydown',onKey);
-  },[onClose]);
+  const sheetRef = usePostSheetFocus(onClose);
 
   return <div className="km-post-options-overlay" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
-    <section className="km-post-options-sheet" role="dialog" aria-modal="true"
+    <section ref={sheetRef} className="km-post-options-sheet" role="dialog" aria-modal="true"
       aria-label={own?(en?'Your post options':'Options de ta publication'):
         (en?'Other post options':'Options de cette publication')}>
       <div className="km-post-options-handle" aria-hidden="true"/>
@@ -65,14 +109,10 @@ export function PostDisinterestSheet({en,onClose,onChoose}:{
   const reasons = en ?
     ['Not interesting','Content is repetitive','Content is disturbing','I see too many posts from this author','Other'] :
     ['Pas intéressant','Contenu répétitif','Contenu dérangeant','Trop de publications de cet auteur','Autre'];
-  useEffect(()=>{
-    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')onClose();};
-    window.addEventListener('keydown',onKey);
-    return ()=>window.removeEventListener('keydown',onKey);
-  },[onClose]);
+  const sheetRef = usePostSheetFocus(onClose);
   return <div className="km-post-options-overlay" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
-    <section className="km-post-options-sheet" role="dialog" aria-modal="true"
+    <section ref={sheetRef} className="km-post-options-sheet" role="dialog" aria-modal="true"
       aria-label={en?'Why hide this publication?':'Pourquoi masquer cette publication ?'}>
       <div className="km-post-options-handle" aria-hidden="true"/>
       <header>
