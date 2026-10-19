@@ -59,6 +59,17 @@ def area(name,xyz,energy,rgb,size):
 
 def authored(key,source):
     bpy.ops.import_scene.gltf(filepath=str(source))
+    # The upstream games contain presentation/debug meshes in their GLBs.
+    # Do NOT let those outliers blow up the bounding box and shrink the real art.
+    discard={
+        "artist_hero":{"Icosphere"},
+        "artist_tactical":{"0","Icosphere"},
+        "gift_car":{"Fabric"},
+    }.get(key,set())
+    for obj in list(bpy.context.scene.objects):
+        if obj.type=="MESH" and obj.name in discard:
+            print("ARTIST_ASSET_REMOVE_NON_HERO_SUBMESH",key,obj.name)
+            bpy.data.objects.remove(obj,do_unlink=True)
     meshes=[o for o in bpy.context.scene.objects if o.type=="MESH"]
     assert meshes, "No authored mesh in imported GLB"
     all_objs=[o for o in bpy.context.scene.objects if o.type in {"MESH","ARMATURE","EMPTY"}]
@@ -75,6 +86,7 @@ def authored(key,source):
         obj.matrix_world=m
     bpy.context.view_layer.update()
     lo,hi=bounds(meshes)
+    print("ARTIST_RAW_BOUNDS",key,tuple(round(x,4) for x in lo),tuple(round(x,4) for x in hi))
     width=max(hi.x-lo.x,hi.y-lo.y)
     height=hi.z-lo.z
     length=max(width,height)
@@ -87,6 +99,17 @@ def authored(key,source):
     root.location.y-=.5*(lo.y+hi.y)
     root.location.z-=lo.z
     bpy.context.view_layer.update()
+    # Source rigged clips often start with all imported NLA strips active,
+    # combining dozens of animations into one broken pose.
+    # Preview one neutral/idle clip but keep all source actions for GLB export.
+    for obj in all_objs:
+        ad=obj.animation_data
+        if ad is None:continue
+        for track in ad.nla_tracks:track.mute=True
+        if imported_actions and obj.type=="ARMATURE":
+            idle=next((ac for ac in imported_actions
+                if ac.name.startswith("idle_") or ac.name=="idle"),None)
+            if idle is not None:ad.action=idle
     # A rigid turntable is a preview-only animation for UNRIGGED art.
     # For skinned characters, preserve the artist's original animation clips unchanged.
     if not imported_actions:
