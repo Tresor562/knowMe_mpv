@@ -83,3 +83,17 @@
 .km-collectible[data-visible='false'] svg {
   animation: none !important;
 }
+
+
+/* Small front-face emblems are illustrated separately for every gift type:
+   Aurora is a faceted crystal, Cosmos an orbiting sphere, Blossom a flower.
+   The persistent silhouette distinguishes their identity without motion. */
+.km-collectible-emblem { transform-origin: 83px 88px; }
+.km-collectible[data-burst='true'][data-visible='true'][data-state='claimed'] .km-collectible-emblem {
+  animation: km-gift-emblem-gleam 650ms cubic-bezier(.18,.82,.24,1.1) both;
+}
+@keyframes km-gift-emblem-gleam {
+  0% { transform: scale(.72); opacity: .62; }
+  45% { transform: scale(1.21); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
