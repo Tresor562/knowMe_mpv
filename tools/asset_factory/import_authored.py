@@ -112,6 +112,15 @@ def authored(key,source):
             idle=next((ac for ac in imported_actions
                 if ac.name.startswith("idle_") or ac.name=="idle"),None)
             if idle is not None:ad.action=idle
+    # Tactical mesh ships with no authored skeletal clips, and its glTF importer
+    # can retain a malformed runtime pose. Explicit REST rebind recovers its
+    # sculpted static neutral silhouette while keeping the author mesh/UVs.
+    if key=="artist_tactical":
+        armatures=[o for o in all_objs if o.type=="ARMATURE"]
+        for arm in armatures:
+            arm.data.pose_position="REST"
+            print("ARTIST_TACTICAL_REST_POSE",arm.name,len(arm.data.bones))
+        bpy.context.view_layer.update()
     # A rigid turntable is a preview-only animation for UNRIGGED art.
     # For skinned characters, preserve the artist's original animation clips unchanged.
     if not imported_actions:
