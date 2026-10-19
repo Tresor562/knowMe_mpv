@@ -60,11 +60,19 @@ function plainValue(expr, selected) {
     return plainValue(selected ? expr.whenTrue : expr.whenFalse, selected);
   throw Error('Unsupported dynamic SVG attribute: ' + expr.getText(ast).slice(0, 120));
 }
+const safeSvgAttributes = new Set([
+  'd', 'x', 'y', 'width', 'height', 'cx', 'cy', 'r', 'rx', 'ry',
+  'stroke', 'strokeWidth', 'strokeDasharray', 'strokeOpacity',
+  'strokeLinecap', 'strokeLinejoin', 'fill', 'fillOpacity',
+  'opacity', 'transform'
+]);
 function attributes(element, selected) {
   const attrs = {};
   for (const prop of element.properties) {
     if (!ts.isJsxAttribute(prop)) throw Error('SVG spread attributes cannot be exported safely');
     const name = prop.name.getText(ast);
+    if (!safeSvgAttributes.has(name))
+      throw Error('Unsafe or nonportable SVG attribute: '+name);
     if (!prop.initializer) { attrs[name] = true; continue; }
     if (ts.isStringLiteral(prop.initializer)) attrs[name] = prop.initializer.text;
     else if (ts.isJsxExpression(prop.initializer) && prop.initializer.expression)
