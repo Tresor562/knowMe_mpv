@@ -57,8 +57,18 @@ function inspect(file) {
       warnings.push({ file: rel, line: 1, severity: 'error', issue: 'Unsafe or foreign SVG content requires manual review' });
     }
     if (/<image\b|data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source)) {
-      warnings.push({ file: rel, line: 1, severity: 'error',
-        issue: 'Raster image embedded in SVG: supply true vector paths or a separately managed image asset' });
+      // The pre-existing official KnowMe brand is a raster embedded inside
+      // an SVG wrapper. Android's sync-brand-assets.cjs needs its exact PNG.
+      // This exception applies ONLY to the approved brand path; unapproved
+      // raster-in-SVG icons still fail the strict pictogram audit.
+      const approvedBrand = rel === 'apps/web/public/brand/knowme-logo.svg' &&
+        /<image\b[^>]*href="data:image\/png;base64,[A-Za-z0-9+/=]+"/i.test(source) &&
+        /aria-label="KnowMe"/.test(svgRoot);
+      warnings.push({ file: rel, line: 1,
+        severity: approvedBrand ? 'review' : 'error',
+        issue: approvedBrand
+          ? 'Official KnowMe brand raster retained for Android asset generation; not an icon-family vector'
+          : 'Raster image embedded in SVG: supply true vector paths or a separately managed image asset' });
     }
     row.findings.push({ kind: 'standalone-svg', line: 1 });
   }
