@@ -1,0 +1,69 @@
+/* Original KnowMe collectible artwork — gradients + real vector layers,
+   never screenshot images. No permanent loops on idle collectible cards. */
+.km-collectible {
+  display: inline-flex;
+  position: relative;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  contain: layout style paint;
+  isolation: isolate;
+}
+.km-collectible > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.km-collectible-body, .km-collectible-lid, .km-collectible-bow,
+.km-collectible-magic { transform-origin: 64px 65px; }
+.km-collectible-lid { transform-origin: 63px 53px; }
+.km-collectible[data-state='opened'] .km-collectible-lid,
+.km-collectible[data-state='claimed'] .km-collectible-lid {
+  transform: translate(-7px, -19px) rotate(-11deg);
+}
+.km-collectible[data-state='opening'] .km-collectible-lid {
+  transform: translate(-3px, -11px) rotate(-6deg);
+}
+.km-collectible[data-burst='true'][data-visible='true'][data-state='opening'] .km-collectible-lid,
+.km-collectible[data-burst='true'][data-visible='true'][data-state='opened'] .km-collectible-lid {
+  animation: km-gift-lid-open 740ms cubic-bezier(.16,.93,.2,1.14) both;
+}
+.km-collectible[data-burst='true'][data-visible='true'][data-state='claimed'] .km-collectible-body {
+  animation: km-gift-claimed 750ms cubic-bezier(.2,1,.3,1) both;
+}
+.km-collectible[data-burst='true'][data-visible='true'] .km-collectible-magic {
+  animation: km-gift-magic 800ms ease-out both;
+}
+.km-collectible[data-burst='true'][data-visible='true'] .km-collectible-bow {
+  animation: km-gift-bow 760ms ease-out both;
+}
+@keyframes km-gift-lid-open {
+  0% { transform: translate(0,0) rotate(0); }
+  47% { transform: translate(-6px,-27px) rotate(-17deg); }
+  100% { transform: translate(-7px,-19px) rotate(-11deg); }
+}
+@keyframes km-gift-claimed {
+  0% { transform: scale(.94) translateY(4px); opacity: .76; }
+  55% { transform: scale(1.07) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes km-gift-magic {
+  0% { transform: scale(.7) translateY(8px); opacity: .12; }
+  56% { transform: scale(1.18) translateY(-5px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes km-gift-bow {
+  0% { transform: scale(.82); }
+  60% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+/* Motion must never be necessary to understand opening or claimed status. */
+@media (prefers-reduced-motion: reduce) {
+  .km-collectible *, .km-collectible svg { animation: none !important; transition: none !important; }
+}
+:root[data-animations='false'] .km-collectible *,
+:root[data-animated-icons='false'] .km-collectible *,
+:root[data-effective-reduced-motion='true'] .km-collectible * {
+  animation: none !important; transition: none !important;
+}
+.km-collectible[data-visible='false'] *,
+.km-collectible[data-visible='false'] svg {
+  animation: none !important;
+}
