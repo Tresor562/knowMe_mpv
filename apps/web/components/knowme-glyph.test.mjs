@@ -385,3 +385,19 @@ test('brand QA vector is genuine geometry and cannot silently replace official i
   assert.match(official, /src="\/brand\/knowme-logo\.svg"/);
   assert.doesNotMatch(official, /knowme-logo-vector-prototype/);
 });
+
+
+test('three gift designs have distinct engraved vector emblems and event-only gleam', () => {
+  const gift = fs.readFileSync(path.join(dir, 'knowme-gift-artwork.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(dir, 'knowme-gift-artwork.css'), 'utf8');
+  for (const motif of ['aurora', 'cosmos', 'blossom']) {
+    assert.match(gift, new RegExp('km-collectible-emblem-' + motif));
+  }
+  assert.match(gift, /variant === 'aurora' && <g className="km-collectible-emblem-aurora">/);
+  assert.match(gift, /variant === 'cosmos' && <g className="km-collectible-emblem-cosmos">/);
+  assert.match(gift, /variant === 'blossom' && <g className="km-collectible-emblem-blossom">/);
+  assert.match(gift, /<ellipse cx="83" cy="88.5" rx="9.5" ry="12"/);
+  assert.match(css, /data-burst='true'\]\[data-visible='true'\]\[data-state='claimed'\] \.km-collectible-emblem/);
+  assert.match(css, /@keyframes km-gift-emblem-gleam/);
+  assert.doesNotMatch(gift, /<image\b|<foreignObject\b|data:image|<text\b/);
+});
