@@ -13,7 +13,7 @@ const native = fs.readFileSync(path.join(dir, '..', '..', 'mobile', 'src', 'ui',
 
 test('each declared SVG glyph has a drawable shape', () => {
   const declared = glyph.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
-  const shapes = glyph.match(/const shapes = \{([\s\S]*?)\n  \};/)?.[1] ?? '';
+  const shapes = glyph.match(/const shapes = \{([\s\S]*?)\n  \} satisfies Record<KnowMeGlyphName, unknown>;/)?.[1] ?? '';
   const names = [...declared.matchAll(/'([\w-]+)'/g)].map(m => m[1]);
   assert.ok(names.length >= 79);
   for (const essential of [
@@ -29,6 +29,7 @@ test('each declared SVG glyph has a drawable shape', () => {
     const rx = new RegExp(`(?:^|[,\\n]\\s*)(?:'${name}'|${name}):\\s*<`);
     assert.match(shapes, rx, `missing glyph ${name}`);
   }
+  assert.match(glyph, /satisfies Record<KnowMeGlyphName, unknown>/);
   assert.match(glyph, /viewBox: '0 0 24 24'/);
   assert.match(glyph, /'aria-hidden': true/);
 });
