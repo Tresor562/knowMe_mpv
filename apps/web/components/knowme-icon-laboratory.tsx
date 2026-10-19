@@ -52,6 +52,7 @@ export function KnowMeIconLaboratory() {
   const [event, setEvent] = useState(0);
   const [theme, setTheme] = useState<LabTheme>('system');
   const [previewSize, setPreviewSize] = useState(54);
+  const [logoReveal, setLogoReveal] = useState(50);
   const [motionPreview, setMotionPreview] = useState(true);
   const [giftStates, setGiftStates] = useState<Record<KnowMeGiftVariant, KnowMeGiftState>>({
     aurora: 'idle', cosmos: 'idle', blossom: 'idle'
@@ -140,6 +141,34 @@ export function KnowMeIconLaboratory() {
               alt={t('Prototype vectoriel du logo KnowMe redessiné avec formes et dégradés', 'True-vector logo draft made from shapes and gradients')}/>
             <figcaption>{t('Prototype 100 % tracés vectoriels', '100% vector-path prototype')}</figcaption>
           </figure>
+        </div>
+        <div className="km-icon-lab-brand-overlay">
+          <div className="km-icon-lab-brand-overlay-head">
+            <strong>{t('Comparer les contours au même emplacement', 'Compare outlines in the same position')}</strong>
+            <output htmlFor="km-brand-logo-compare">{logoReveal}%</output>
+          </div>
+          <div className="km-icon-lab-brand-overlay-stage" data-testid="logo-comparison">
+            <img src="/brand/knowme-logo.svg" width={192} height={192} draggable={false}
+              alt={t('Logo d’origine', 'Original brand logo')}/>
+            <div className="km-icon-lab-brand-overlay-vector"
+              data-testid="logo-vector-reveal" style={{ clipPath: `inset(0 ${100 - logoReveal}% 0 0)` }}>
+              <img src="/brand/knowme-logo-vector-prototype.svg" width={192} height={192}
+                draggable={false} alt={t('Calque du logo vectoriel', 'Vector logo overlay')}/>
+            </div>
+            <div className="km-icon-lab-brand-overlay-line"
+              style={{ left: `${logoReveal}%` }} aria-hidden="true"/>
+          </div>
+          <label htmlFor="km-brand-logo-compare">
+            {t('Révéler le prototype vectoriel', 'Reveal the vector prototype')}
+          </label>
+          <input id="km-brand-logo-compare" type="range" min="0" max="100" step="1"
+            value={logoReveal}
+            aria-label={t('Pourcentage de comparaison du logo', 'Logo comparison percentage')}
+            onChange={event => setLogoReveal(Number(event.target.value))}/>
+          <p className="km-icon-lab-brand-note">
+            {t('0 % : logo original. 100 % : prototype vectoriel. Glisse pour inspecter les contours, le relief et les couleurs à la même échelle.',
+              '0%: original logo. 100%: vector draft. Drag to inspect outlines, depth and colors at the exact same scale.')}
+          </p>
         </div>
         <p className="km-icon-lab-brand-note">
           {t('Le prototype ne remplace pas le logo officiel. Comparer les proportions, couleurs, bords et dégradés sur mobile avant toute adoption.',
