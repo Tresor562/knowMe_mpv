@@ -72,10 +72,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends blender ffmpeg python3-numpy
+          sudo apt-get install -y --no-install-recommends blender ffmpeg python3-numpy python3-pil
       - name: Compile and license provenance checks
         run: |
-          python3 -m py_compile tools/asset_factory/download_authored.py tools/asset_factory/import_authored.py tools/asset_factory/verify_authored.py tools/asset_factory/create_authored_preview.py
+          python3 -m py_compile tools/asset_factory/download_authored.py tools/asset_factory/import_authored.py tools/asset_factory/verify_authored.py tools/asset_factory/create_authored_preview.py tools/asset_factory/verify_posters.py
       - name: Download pinned CC BY and CC0 author-created meshes
         run: python3 tools/asset_factory/download_authored.py "$RUNNER_TEMP/knowme-author-sources"
       - name: Blender import real artist geometry, UV and materials (no procedural anatomy)
@@ -87,6 +87,8 @@ jobs:
           done
       - name: Reject missing textures, UVs, skeleton or animations
         run: python3 tools/asset_factory/verify_authored.py "$RUNNER_TEMP/knowme-author-sources" artifacts/knowme-authored
+      - name: Reject blank, offscreen, or tiny Blender preview renders
+        run: python3 tools/asset_factory/verify_posters.py artifacts/knowme-authored
       - name: Generate credited interactive 3D GLB viewer
         run: python3 tools/asset_factory/create_authored_preview.py "$RUNNER_TEMP/knowme-author-sources" artifacts/knowme-authored
       - name: Capture artist attribution and file hashes
