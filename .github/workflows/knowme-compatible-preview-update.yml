@@ -52,6 +52,13 @@ jobs:
             echo '::notice::Superseded CI completion. Do not ship an old APK.'
             exit 0
           fi
+          # Do not advertise a higher versionCode that silently removes the
+          # newly shipped native SVG engine from installed preview APKs.
+          if [[ ! -s apps/mobile/src/ui/KnowMeNativeVectorIcon.tsx ]] ||
+             [[ ! -s scripts/check-knowme-native-vector-contract.mjs ]]; then
+            echo '::notice::KnowMe native SVG not integrated in main. Refuse regression release.'
+            exit 0
+          fi
           node scripts/platform-sync-preflight.mjs
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
 
