@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { knowMeConfirm } from '../../../components/knowme-feedback';
+import { computeAvatarCrop, GROUP_AVATAR_PREVIEW_SIZE, GROUP_AVATAR_OUTPUT_SIZE } from './group-avatar-crop';
 
 const TYPES=['image/jpeg','image/png','image/webp'];
 const MAX_BYTES=5*1024*1024;
@@ -22,10 +23,21 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [preview,setPreview]=useState(false);
+  const [cropUrl,setCropUrl]=useState<string|null>(null);
+  const [cropMime,setCropMime]=useState('image/jpeg');
+  const [dimensions,setDimensions]=useState<{width:number;height:number}|null>(null);
+  const [zoom,setZoom]=useState(1);
+  const [pan,setPan]=useState({x:0,y:0});
+  const drag=useRef<{x:number;y:number;panX:number;panY:number}|null>(null);
+  const cropImage=useRef<HTMLImageElement>(null);
+  const cropDialog=useRef<HTMLDivElement>(null);
+  const cropClose=useRef<HTMLButtonElement>(null);
   const picker=useRef<HTMLInputElement>(null);
   const trigger=useRef<HTMLButtonElement>(null);
   const avatarButton=useRef<HTMLButtonElement>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
+
+  useEffect(()=>()=>{if(cropUrl)URL.revokeObjectURL(cropUrl);},[cropUrl]);
 
   useEffect(()=>{
     let alive=true;
@@ -55,37 +67,87 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     return ()=>{alive=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[conversationId,revision,canManage,en]);
 
-  async function upload(event:ChangeEvent<HTMLInputElement>){
+  function closeCrop(){
+    if(busy)return;
+    setCropUrl(null);
+    setDimensions(null);
+    drag.current=null;
+    trigger.current?.focus();
+  }
+
+  function chooseImage(event:ChangeEvent<HTMLInputElement>){
     const image=event.currentTarget.files?.[0];
     event.currentTarget.value='';
-    if(!image||busy)return;
+    if(!image||busy||!canEdit)return;
     if(!TYPES.includes(image.type)||image.size<1024||image.size>MAX_BYTES){
       setError(tr('Choisis une photo JPEG, PNG ou WebP entre 1 Ko et 5 Mo.',
         'Choose a JPEG, PNG or WebP picture between 1 KB and 5 MB.'));
       return;
     }
+    setError('');setNotice('');setCropMime(image.type);
+    setDimensions(null);setZoom(1);setPan({x:0,y:0});
+    setCropUrl(URL.createObjectURL(image));
+  }
+
+  const crop=dimensions?computeAvatarCrop(dimensions.width,dimensions.height,zoom,pan.x,pan.y):null;
+
+  function moveCrop(x:number,y:number){
+    if(!dimensions)return;
+    const next=computeAvatarCrop(dimensions.width,dimensions.height,zoom,x,y);
+    setPan({x:next.panX,y:next.panY});
+  }
+
+  function changeZoom(nextZoom:number){
+    if(!dimensions)return;
+    const next=computeAvatarCrop(dimensions.width,dimensions.height,nextZoom,pan.x,pan.y);
+    setZoom(next.zoom);
+    setPan({x:next.panX,y:next.panY});
+  }
+
+  async function saveCrop(){
+    if(!cropUrl||!cropImage.current||!dimensions||!crop||busy||!canEdit)return;
     setBusy(true);setError('');setNotice('');
-    try{
+    try {
+      const canvas=document.createElement('canvas');
+      canvas.width=GROUP_AVATAR_OUTPUT_SIZE;
+      canvas.height=GROUP_AVATAR_OUTPUT_SIZE;
+      const context=canvas.getContext('2d');
+      if(!context)throw new Error(tr('Recadrage non disponible sur cet appareil.','Cropping is unavailable on this device.'));
+      context.imageSmoothingEnabled=true;
+      context.imageSmoothingQuality='high';
+      if(cropMime==='image/jpeg'){
+        context.fillStyle='#ffffff';
+        context.fillRect(0,0,canvas.width,canvas.height);
+      }
+      context.drawImage(cropImage.current,
+        crop.sourceX,crop.sourceY,crop.sourceSize,crop.sourceSize,
+        0,0,canvas.width,canvas.height);
+      const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,cropMime,0.92));
+      if(!blob||!TYPES.includes(blob.type)||blob.size<1024||blob.size>MAX_BYTES)
+        throw new Error(tr('La photo recadrée ne respecte pas la limite de 5 Mo.',
+          'The cropped picture exceeds the 5 MB limit or is invalid.'));
       const caps=await apiFetch<Capabilities>(base+'/capabilities');
       if(!caps.canEdit)throw new Error(tr('Seuls les administrateurs peuvent changer cette photo.',
         'Only group admins can change this picture.'));
       const session=await apiFetch<UploadSession>('/media/uploads',{
         method:'POST',
-        body:JSON.stringify({purpose:'AVATAR',visibility:'PRIVATE',maxBytes:MAX_BYTES,allowedMime:[image.type]})
+        body:JSON.stringify({purpose:'AVATAR',visibility:'PRIVATE',maxBytes:MAX_BYTES,allowedMime:[blob.type]})
       });
+      const extension=blob.type==='image/png'?'png':blob.type==='image/webp'?'webp':'jpg';
       const form=new FormData();
-      form.append('file',image,image.name);
-      const asset=await apiFetch<UploadedAsset>(`/media/uploads/${encodeURIComponent(session.id)}/complete`,{
-        method:'POST',headers:{'x-upload-token':session.uploadToken},body:form
-      });
+      form.append('file',blob,`group-avatar.${extension}`);
+      const asset=await apiFetch<UploadedAsset>(
+        `/media/uploads/${encodeURIComponent(session.id)}/complete`,{
+          method:'POST',headers:{'x-upload-token':session.uploadToken},body:form
+        });
       if(asset.status!=='AVAILABLE'||asset.scannerVerdict!=='CLEAN')
         throw new Error(tr('La vérification de sécurité de la photo a échoué.',
           'The picture did not pass the security scan.'));
-      await apiFetch(base,{
-        method:'PATCH',body:JSON.stringify({mediaAssetId:asset.id})
-      });
-      setRevision(v=>v+1);
+      await apiFetch(base,{method:'PATCH',body:JSON.stringify({mediaAssetId:asset.id})});
+      setCropUrl(null);setDimensions(null);drag.current=null;
+      setRevision(value=>value+1);
       setNotice(tr('Photo du groupe enregistrée.','Group picture saved.'));
+      trigger.current?.focus();
     }catch(cause){
       setError(cause instanceof Error?cause.message:tr('Envoi de la photo impossible.',
         'Could not upload group picture.'));
@@ -148,7 +210,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
         </svg>
       </button>}
       <input ref={picker} type="file" hidden accept={TYPES.join(',')}
-        onChange={event=>void upload(event)}
+        onChange={chooseImage}
         aria-label={tr('Choisir une photo du groupe','Choose group picture')}/>
     </div>
     {canEdit&&photo&&<button type="button" className="km-group-avatar-remove"
