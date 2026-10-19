@@ -1,71 +1,75 @@
 #!/usr/bin/env node
-/** Track actual vector family parity across Web and native KnowMe.
- * This is an audit, NOT proof that a View-composed Android icon is true SVG.
- * node scripts/audit-knowme-icon-parity.mjs [--json]
- * node scripts/audit-knowme-icon-parity.mjs --require-parity  # fails until native SVG parity is actually proven
+/** Audit *real* SVG geometry and native renderer readiness.
+ * Mechanical prerequisites never replace physical device visual QA.
+ * node scripts/audit-knowme-icon-parity.mjs [--json] [--require-parity]
  */
 import fs from 'node:fs';
 import path from 'node:path';
-
 const root = path.resolve(import.meta.dirname, '..');
-const webPath = path.join(root, 'apps/web/components/knowme-glyph.tsx');
-const nativePath = path.join(root, 'apps/mobile/src/ui/KnowMeUI.tsx');
-const web = fs.readFileSync(webPath, 'utf8');
-const native = fs.readFileSync(nativePath, 'utf8');
+const read = p => fs.readFileSync(path.join(root,p), 'utf8');
+const web = read('apps/web/components/knowme-glyph.tsx');
+const native = read('apps/mobile/src/ui/KnowMeUI.tsx');
+const renderer = read('apps/mobile/src/ui/KnowMeNativeVectorIcon.tsx');
+const vector = JSON.parse(read('apps/mobile/src/ui/knowme-native-vector-contract.json'));
+const pkg = JSON.parse(read('apps/mobile/package.json'));
+const lock = read('pnpm-lock.yaml');
 
 function names(text, declaration) {
-  const r = new RegExp('export type ' + declaration + ' =([\\s\\S]*?);');
-  const declarationText = text.match(r)?.[1];
-  if (!declarationText) throw new Error('Missing ' + declaration);
-  return [...declarationText.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]);
+  const m = text.match(new RegExp('export type ' + declaration + ' =([\\s\\S]*?);'));
+  if (!m) throw new Error('Missing glyph type '+declaration);
+  return [...m[1].matchAll(/'([a-z0-9-]+)'/g)].map(x => x[1]);
 }
-const webNames = names(web, 'KnowMeGlyphName');
-const nativeNames = names(native, 'KnowMeIconName');
+const webNames = names(web,'KnowMeGlyphName');
+const nativeNames = names(native,'KnowMeIconName');
 const aliases = {
-  notifications: 'bell',
-  chats: 'messages',
-  phone: 'phone-call',
-  attach: 'paperclip',
-  sparkles: 'spark',
-  more: 'more-vertical',
-  video: 'video-call'
+  messages: 'chats', bell: 'notifications', spark: 'sparkles',
+  'video-call': 'video', 'phone-call': 'phone',
+  'more-vertical': 'more', paperclip: 'attach'
 };
-const nativeSet = new Set(nativeNames);
-const matched = webNames.filter(name => nativeSet.has(aliases[name] ?? name));
-const webOnly = webNames.filter(name => !nativeSet.has(aliases[name] ?? name));
-const nativeOnly = nativeNames.filter(name =>
-  !webNames.includes(name) && !Object.values(aliases).includes(name));
-const mobilePackage = fs.readFileSync(path.join(root, 'apps/mobile/package.json'), 'utf8');
-const nativeSVGRendererDeclared = /['"]react-native-svg['"]/.test(mobilePackage);
-const nativeRendersSvgPaths = /from\s*['"]react-native-svg['"]/.test(native) &&
-  /<(?:Svg|Path)\b/.test(native);
-// These are only minimum mechanical requirements. Even when they pass,
-// genuine end-to-end shape, animation and accessibility parity needs QA.
+const geometry = vector.glyphs || {};
+const hasValidPaths = name => {
+  const item = geometry[name];
+  return !!item && ['inactive','active'].every(variant =>
+    Array.isArray(item[variant]) && item[variant].length > 0 &&
+    item[variant].every(node => ['path','circle','ellipse','rect','line',
+      'polyline','polygon','g'].includes(node.tag)));
+};
+const webWithoutNativeGeometry = webNames.filter(name => !hasValidPaths(name));
+const nativeWithoutVectorGeometry = nativeNames.filter(name =>
+  !hasValidPaths(aliases[name] ?? name));
+const nativeSVGRendererDeclared = pkg.dependencies?.['react-native-svg'] === '15.11.2';
+const nativeSVGRendererLocked = /\\n  react-native-svg@15\\.11\\.2:/.test(lock) &&
+  /\\n      react-native-svg:\\n        specifier: 15\\.11\\.2/.test(lock);
+const nativeRendersSvgPaths = /from ['"]react-native-svg['"]/.test(renderer) &&
+  /<Svg\\b/.test(renderer) && /(?:createElement\\(Element|<Path\\b)/.test(renderer);
+const wiredIntoExistingNativeScreens =
+  /hasKnowMeNativeVectorGlyph\\(name\\)/.test(native) &&
+  /<KnowMeNativeVectorIcon\\b/.test(native);
 const minimumVectorPrerequisites = nativeSVGRendererDeclared &&
-  nativeRendersSvgPaths && webOnly.length === 0;
+  nativeSVGRendererLocked && nativeRendersSvgPaths &&
+  wiredIntoExistingNativeScreens &&
+  webWithoutNativeGeometry.length === 0 &&
+  nativeWithoutVectorGeometry.length === 0;
 const report = {
   webCount: webNames.length,
   nativeNameCount: nativeNames.length,
+  nativeVectorContractCount: Object.keys(geometry).length,
   nativeSVGRendererDeclared,
+  nativeSVGRendererLocked,
   nativeRendersSvgPaths,
+  wiredIntoExistingNativeScreens,
+  webWithoutNativeGeometry,
+  nativeWithoutVectorGeometry,
   minimumVectorPrerequisites,
-  namesMappedToNativeViewOrVector: matched.length,
-  webOnly,
-  nativeOnly,
   status: minimumVectorPrerequisites
-    ? 'PREREQUISITES_ONLY: device visual and UX parity still require review'
-    : 'INCOMPLETE: native SVG renderer, glyph mapping or path coverage missing'
+    ? 'CODE_PREREQUISITES_OK: physical device visual, interaction and accessibility QA still required'
+    : 'INCOMPLETE: missing SVG geometry, renderer, lockfile or native screen wiring'
 };
 if (new Set(webNames).size !== webNames.length ||
-    new Set(nativeNames).size !== nativeNames.length) throw new Error('Duplicate glyph name');
-if (process.argv.includes('--json')) console.log(JSON.stringify(report,null,2));
-else console.log(JSON.stringify({
-  ...report,
-  webOnly: webOnly.slice(0, 18),
-  webOnlyRemaining: Math.max(0, webOnly.length - 18)
-}, null, 2));
-
+    new Set(nativeNames).size !== nativeNames.length)
+  throw Error('Duplicate named icons');
+console.log(JSON.stringify(report,null,2));
 if (process.argv.includes('--require-parity') && !minimumVectorPrerequisites) {
-  console.error('Native SVG parity release gate BLOCKED. Install renderer, implement true SVG paths and map every Web glyph, then verify on device.');
+  console.error('Native vector parity prerequisites blocked. Resolve missing items above.');
   process.exitCode = 2;
 }
