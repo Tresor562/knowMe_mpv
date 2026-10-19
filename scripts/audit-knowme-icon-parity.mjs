@@ -40,7 +40,8 @@ const nativeWithoutVectorGeometry = nativeNames.filter(name =>
 const nativeSVGRendererDeclared = pkg.dependencies?.['react-native-svg'] === '15.11.2';
 const nativeSVGRendererLocked =
   lock.includes('  react-native-svg@15.11.2:') &&
-  lock.includes('      react-native-svg:\\n        specifier: 15.11.2');
+  lock.includes('      react-native-svg:') &&
+  lock.includes('        specifier: 15.11.2');
 const nativeRendersSvgPaths =
   renderer.includes("from 'react-native-svg'") &&
   renderer.includes('<Svg') &&
