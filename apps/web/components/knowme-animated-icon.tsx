@@ -37,13 +37,16 @@ export function KnowMeAnimatedIcon({
   eventToken = null, className = '', motionEnabled = true
 }: Props) {
   const documentVisible = useKnowMeDocumentVisible();
-  const watching = mayAnimateIndefinitely(state) || state === 'sending' ||
-    state === 'incoming' || state === 'success' || state === 'selected';
-  const { ref: iconRef, visible: inViewport } = useKnowMeIconViewportVisible(watching);
-  const visible = documentVisible && inViewport;
   const previous = useRef({ name, state, eventToken });
   const [burst, setBurst] = useState(false);
   const [motionId, setMotionId] = useState(0);
+  // Even a one-off event can happen outside the viewport (e.g. skip video).
+  // Observe it until its feedback has settled, including transitions back to
+  // idle. Pure idle glyphs without events are still excluded for efficiency.
+  const watching = state !== 'idle' || previous.current.state !== 'idle' ||
+    eventToken !== null || burst;
+  const { ref: iconRef, visible: inViewport } = useKnowMeIconViewportVisible(watching);
+  const visible = documentVisible && inViewport;
 
   useEffect(() => {
     const earlier = previous.current;
