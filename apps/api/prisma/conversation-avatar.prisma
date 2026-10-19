@@ -1,0 +1,11 @@
+// Group-owned media identity is separate from users' AVATAR resources.
+// Authorization always checks ConversationMember before read/write.
+model ConversationAvatar {
+  conversationId String @id
+  mediaAssetId   String
+  updatedById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([mediaAssetId])
+}

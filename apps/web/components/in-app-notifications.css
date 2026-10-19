@@ -1,0 +1,422 @@
+/* Heads-up activity is a presentation of the existing KnowMe notification center.
+   The app does not request OS notification permissions or manufacture activities. */
+.km-live-notification-dock {
+  position: fixed; z-index: 960;
+  top: max(72px, calc(env(safe-area-inset-top, 0px) + 66px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  width: min(350px, calc(100vw - 24px)); pointer-events: none;
+  font-family: inherit;
+}
+.km-live-notification-dock > * { pointer-events: auto; }
+.km-live-notification-card {
+  display: flex; align-items: flex-start; gap: 8px;
+  box-sizing: border-box; width: 100%; min-height: 72px;
+  padding: 9px 7px 9px 10px; color: var(--text); background: var(--surface-glass, var(--surface));
+  border: 1px solid var(--soft-border); border-radius: 20px;
+  box-shadow: 0 12px 38px rgba(0,0,0,.15);
+  backdrop-filter: blur(20px) saturate(1.18);
+  -webkit-backdrop-filter: blur(20px) saturate(1.18);
+  animation: km-heads-up-in .22s ease both;
+}
+.km-live-notification-icon {
+  flex: 0 0 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 12px; color: var(--mint); background: var(--bg-accent);
+}
+.km-live-notification-content {
+  flex: 1; min-width: 0; min-height: 48px; text-align: left;
+  background: none; border: 0; padding: 2px 0; cursor: pointer;
+  color: var(--text); display: flex; flex-direction: column; gap: 3px;
+}
+.km-live-notification-content strong {
+  font-size: 13px; line-height: 1.28; font-weight: 750;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.km-live-notification-content span {
+  font-size: 12px; line-height: 1.4; color: var(--muted);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  line-clamp: 3; overflow: hidden; overflow-wrap: anywhere;
+}
+.km-live-notification-dismiss {
+  flex: 0 0 44px; width: 44px; height: 44px;
+  display: grid; place-items: center; border-radius: 14px;
+  background: none; border: none; color: var(--muted); cursor: pointer;
+}
+.km-live-notification-counter {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-width: 48px; min-height: 44px; box-sizing: border-box;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--soft-border); text-decoration: none;
+  background: var(--surface); color: var(--mint); box-shadow: 0 4px 15px rgba(0,0,0,.12);
+  font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.km-live-notification-dock :is(button, a):focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.km-live-notification-dock :is(button,a):hover { background-color: var(--surface-2); }
+:root[data-reduce-transparency='true'] .km-live-notification-card,
+:root[data-effective-reduce-transparency='true'] .km-live-notification-card {
+  background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+@keyframes km-heads-up-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .km-live-notification-card { animation: none; }
+}
+:root[data-effective-reduced-motion='true'] .km-live-notification-card { animation: none; }
+@media(max-width: 620px) {
+  .km-live-notification-dock { top: max(64px, calc(env(safe-area-inset-top, 0px) + 56px)); width: min(330px, calc(100vw - 24px)); }
+}
+
+/* The unread count belongs next to the existing Alerts icon on main screens.
+   A small floating shortcut remains only on secondary screens with no main dock. */
+nav.km-smart-nav a[href='/notifications'] { position: relative; }
+.km-live-nav-badge {
+  position: absolute; top: 2px; right: 4px;
+  display: grid; place-items: center; min-width: 17px; min-height: 17px;
+  padding: 0 4px; border-radius: 999px;
+  background: var(--mint); color: var(--on-primary, #fff);
+  box-shadow: 0 0 0 2px var(--surface); pointer-events: none;
+  font-size: 10px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1100px) {
+  nav.km-smart-nav[data-layout='desktop'] .km-live-nav-badge { top: 1px; right: 5px; }
+}
+
+/* Compact visual language: 44px is a touch target, not a reason to render
+   enormous filled buttons. Apply to shared shell buttons without changing
+   specialized floating/primary composer controls. */
+:root { --km-compact-hit: 44px; --km-compact-label: 13px; }
+.shell :is(button.btn, a.btn) {
+  min-height: var(--km-compact-hit);
+  border-radius: 13px;
+  font-size: var(--km-compact-label);
+  font-weight: 650;
+  line-height: 1.25;
+  padding: 9px 13px;
+  max-width: 100%;
+}
+.shell header :is(button.btn, a.btn),
+.shell nav :is(button.btn, a.btn) {
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  border-color: transparent;
+}
+.shell header :is(button.btn-primary, a.btn-primary),
+.shell nav :is(button.btn-primary, a.btn-primary) {
+  background: color-mix(in srgb, var(--mint) 12%, var(--surface));
+  color: var(--mint);
+  border-color: transparent;
+}
+
+/* Chat list: identity first; metadata subdued; no chunky action blocks. */
+.km-messenger-shell .km-chat-main { min-height: 72px; padding-block: 8px; align-items: center; }
+.km-messenger-shell .km-chat-avatar { border-radius: 50%; flex-shrink: 0; }
+.km-messenger-shell .km-chat-copy { min-width: 0; }
+.km-messenger-shell .km-chat-firstline { gap: 5px; min-width: 0; }
+.km-messenger-shell .km-chat-firstline strong { font-size: 14px; font-weight: 720; line-height: 1.35; }
+.km-messenger-shell .km-chat-preview { font-size: 12px; line-height: 1.4; margin-top: 4px; }
+.km-messenger-shell .km-chat-time { font-size: 10px; font-variant-numeric: tabular-nums; }
+.km-messenger-shell .km-chat-badge { min-width: 20px; height: 20px; font-size: 10px; }
+.km-messenger-shell .km-chat-context > summary {
+  min-width: 44px; min-height: 44px; display: grid; place-items: center;
+  border-radius: 50%; background: transparent;
+}
+.km-messenger-shell .km-chat-filters button {
+  min-height: 44px; border-radius: 13px; padding-inline: 12px; font-size: 12px;
+}
+.km-messenger-shell .km-chat-search { min-height: 44px; border-radius: 18px; }
+.km-messenger-shell .km-messages-header .km-action { width: 44px; height: 44px; display: grid; place-items: center; }
+
+/* Expressions remain anchored to the composer as a keyboard-like sheet.
+   The tabs, pack strip and media tools keep independent touch targets. */
+.km-picker-reference-sheet :is(.km-picker-tabs button, .km-reference-pack-strip button, .km-reference-filters button),
+.km-picker-anchor :is(.km-picker-trigger, .km-reference-attach) { min-width: 44px; min-height: 44px; }
+.km-picker-reference-sheet .km-picker-tabs button {
+  font-size: 12px; border-radius: 12px; padding: 7px 9px;
+}
+.km-picker-reference-sheet .km-picker-search { border-radius: 16px; }
+.km-chat-composer .km-send-button { width: 48px; height: 48px; min-width: 48px; min-height: 48px; flex-basis: 48px; border-radius: 50%; }
+body:has([aria-modal='true']) .km-live-notification-dock { display: none; }
+@media(max-width: 390px) {
+  .km-messenger-shell .km-chat-firstline strong { font-size: 13px; }
+  .km-messenger-shell .km-chat-context > summary { min-width: 44px; }
+  .km-picker-reference-sheet .km-reference-pack-strip { gap: 3px; }
+}
+
+/* Group profile / members: native-feeling information rows instead of stacked
+   oversized action cards. Scope this to the existing functional group screen. */
+.km-info-page.km-group-manage { max-width: 780px; }
+.km-group-manage .km-info-topbar { min-height: 60px; gap: 8px; }
+.km-group-manage .km-info-topbar h1 { font-size: clamp(18px, 3.5vw, 22px); line-height: 1.25; }
+.km-group-manage :is(.km-info-back, .km-info-refresh) {
+  width: 44px; height: 44px; min-width: 44px; border-radius: 14px;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.km-group-manage .km-group-manage-intro {
+  border: 0; border-bottom: 1px solid var(--soft-border);
+  border-radius: 0; padding: 14px 4px 18px; box-shadow: none;
+  background: transparent;
+}
+.km-group-manage .km-group-manage-intro h2 { font-size: 20px; line-height: 1.3; margin: 0 0 4px; }
+.km-group-manage .km-group-manage-intro p { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.km-group-manage .km-group-manage-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0;
+}
+.km-group-manage .km-group-manage-actions > button,
+.km-group-manage .km-group-row-actions > button,
+.km-group-manage .km-group-inline-form button[type='submit'] {
+  width: auto; min-height: 44px; padding: 8px 12px;
+  border-radius: 13px; font-size: 12px; font-weight: 650;
+  background: var(--surface-2); color: var(--text); box-shadow: none;
+}
+.km-group-manage .km-group-row-actions > button.is-danger {
+  color: var(--danger, var(--orange));
+  background: color-mix(in srgb, var(--danger, var(--orange)) 9%, var(--surface));
+}
+.km-group-manage .km-group-role-list { display: grid; gap: 0; }
+.km-group-manage .km-group-role-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  min-height: 68px; padding: 9px 0;
+  border: 0; border-bottom: 1px solid var(--soft-border);
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+.km-group-manage .km-group-member-info { flex: 1 1 180px; min-width: 0; text-decoration: none; }
+.km-group-manage .km-group-member-info strong { font-size: 13px; }
+.km-group-manage .km-group-member-info small { font-size: 11px; color: var(--muted); }
+.km-group-manage .km-group-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.km-group-manage .km-group-section-heading { font-size: 15px; margin-top: 20px; }
+@media(max-width:420px) {
+  .km-group-manage .km-group-role-row { flex-wrap: nowrap; gap: 6px; }
+  .km-group-manage .km-group-row-actions > button { padding-inline: 9px; }
+}
+
+/* Actual Web notification-center layout: same functionality, much less chrome.
+   This is scoped to the center's existing semantic navigation and avoids
+   editing its page file, which is concurrently changed by an older PR. */
+main.shell:has(nav[aria-label='Vues du centre de notifications']) {
+  max-width: 760px !important; gap: 12px !important; padding-inline: clamp(10px, 3vw, 20px);
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > .km-header-nav-group > header.card {
+  padding: 14px 12px 10px !important; border: 0 !important;
+  box-shadow: none !important; background: transparent !important;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header h1 {
+  margin: 3px 0 !important; font-size: clamp(20px, 4vw, 25px) !important;
+  line-height: 1.18;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header p {
+  font-size: 12px; line-height: 1.4; margin: 4px 0 0;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav {
+  gap: 3px !important; margin-top: 8px !important; overflow-x: auto;
+  flex-wrap: nowrap !important; scrollbar-width: none;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav::-webkit-scrollbar {display:none;}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) header nav button {
+  flex: 0 0 auto; white-space: nowrap; padding-inline: 12px !important;
+  min-height: 42px; border-radius: 12px;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card {
+  grid-template-columns: 38px minmax(0,1fr) !important;
+  gap: 10px !important; padding: 10px 4px 12px !important;
+  border: none !important; border-bottom: 1px solid var(--soft-border) !important;
+  border-radius: 0 !important; box-shadow: none !important;
+  background: transparent !important;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:first-child {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--bg-accent);
+  font-size: 0 !important; color: var(--mint);
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:first-child::before {
+  content: ''; width: 21px; height: 21px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card > div:nth-child(2) {
+  min-width: 0;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card strong {
+  font-size: 13px; line-height: 1.35;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card p {
+  margin: 5px 0 6px !important; font-size: 12px; line-height: 1.45;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card button.btn {
+  min-height: 40px; padding: 7px 10px !important; border-radius: 11px;
+  font-size: 11px; background: transparent; color: var(--text);
+  border: 1px solid transparent; box-shadow: none;
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card button.btn-primary {
+  color: var(--mint); background: color-mix(in srgb, var(--mint) 10%, var(--surface));
+}
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card :is(button, a):focus-visible {
+  outline: 2px solid var(--mint); outline-offset: 2px;
+}
+/* Implementation details are not user-facing notification content. */
+main.shell:has(nav[aria-label='Vues du centre de notifications']) > footer.card {
+  display: none;
+}
+@media(max-width:440px) {
+  main.shell:has(nav[aria-label='Vues du centre de notifications']) > section > article.card { padding-inline: 0 !important; }
+}
+
+/* Information de discussion : les données essentielles au-dessus, actions
+   discrètes dans une seule rangée et membres en liste native. */
+.km-info-page:not(.km-group-manage) { max-width: 740px; }
+.km-info-page:not(.km-group-manage) .km-info-identity {
+  padding: 14px 8px 16px; gap: 4px;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > h2 {
+  font-size: clamp(19px,4vw,23px); margin: 8px 0 0; line-height: 1.24;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > p {
+  font-size: 12px; margin-top: 3px;
+}
+.km-info-page:not(.km-group-manage) .km-info-group-avatar {
+  width: 80px; height: 80px;
+  box-shadow: none; border-width: 2px;
+}
+.km-info-page:not(.km-group-manage) .km-info-identity > .km-info-member-avatar {
+  width: 80px; height: 80px;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions {
+  display: flex; flex-wrap: nowrap; gap: 6px;
+  padding: 5px 0 8px; overflow-x: auto; scrollbar-width: none;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions::-webkit-scrollbar { display: none; }
+.km-info-page:not(.km-group-manage) .km-info-actions > * {
+  flex: 1 0 0; min-width: 70px; min-height: 54px !important;
+  padding: 7px 8px !important; gap: 3px;
+  border: 0; border-radius: 14px;
+  box-shadow: none; background: transparent;
+  font-size: 11px; font-weight: 650;
+}
+.km-info-page:not(.km-group-manage) .km-info-actions > *:is(:hover,:focus-visible) {
+  background: var(--bg-accent);
+}
+.km-info-page:not(.km-group-manage) .km-info-actions svg {
+  width: 20px; height: 20px; flex: none;
+}
+.km-info-page:not(.km-group-manage) .km-info-tabs {
+  gap: 3px; margin: 4px 0 7px;
+}
+.km-info-page:not(.km-group-manage) .km-info-tabs button {
+  min-height: 44px; font-size: 12px; font-weight: 650;
+}
+.km-info-page:not(.km-group-manage) .km-info-search {
+  min-height: 44px; margin: 10px 0; border-radius: 15px;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-row {
+  min-height: 60px; gap: 11px; padding: 7px 4px;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-name strong {
+  font-size: 13px; font-weight: 670;
+}
+.km-info-page:not(.km-group-manage) .km-info-member-name small {
+  font-size: 11px;
+}
+.km-info-page:not(.km-group-manage) .km-info-details dl > div {
+  min-height: 48px; padding: 9px 4px;
+}
+@media (max-width: 400px) {
+  .km-info-page:not(.km-group-manage) .km-info-actions > * {
+    min-width: 65px; padding-inline: 5px !important;
+  }
+  .km-info-page:not(.km-group-manage) .km-info-identity {
+    padding-top: 9px;
+  }
+}
+
+/* Conversation details: compact Telegram-like hierarchy without losing 44px
+   gesture/keyboard targets or KnowMe's own visual identity. */
+.km-chat-screen .km-chat-header {
+  height: 64px; min-height: 64px;
+  padding: 5px clamp(8px,2vw,14px); gap: 7px;
+}
+.km-chat-screen .km-chat-header :is(button.km-action, a.km-action) {
+  width: 44px; height: 44px; min-width: 44px;
+  display: grid; place-items: center;
+  background: transparent; border-radius: 13px;
+}
+.km-chat-screen .km-chat-header .km-chat-avatar {
+  width: 42px; height: 42px; min-width: 42px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details {
+  min-width: 0; overflow: hidden;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details h1 {
+  font-size: 14px; font-weight: 700; line-height: 1.32;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.km-chat-screen .km-chat-header .km-chat-header-details p {
+  font-size: 11px; margin: 2px 0 0;
+}
+.km-chat-screen .km-chat-transcript {
+  padding: 14px clamp(8px,2.3vw,20px) 18px;
+  gap: 6px;
+}
+.km-chat-screen .km-message-bubble {
+  font-size: 13px; line-height: 1.48;
+  padding: 8px 11px 6px;
+  max-width: min(82%, 540px);
+}
+.km-chat-screen .km-chat-composer {
+  min-height: 62px; gap: 6px;
+  padding: 7px clamp(8px, 2vw, 14px)
+    calc(7px + env(safe-area-inset-bottom,0px));
+}
+.km-chat-screen .km-chat-composer .km-chat-compose-input {
+  height: 44px; min-height: 44px;
+  border-radius: 18px; padding: 9px 12px;
+  font-size: 14px;
+}
+.km-chat-screen .km-chat-composer .km-send-button {
+  flex: 0 0 48px; width: 48px; height: 48px;
+  min-width: 48px; min-height: 48px; border-radius: 50%;
+}
+.km-chat-screen .km-chat-menu-anchor .km-chat-context-menu {
+  border-radius: 14px; padding: 5px;
+}
+.km-chat-screen .km-chat-menu-anchor .km-chat-context-menu > * {
+  min-height: 44px; padding: 9px 11px; font-size: 12px;
+}
+.km-chat-screen .km-chat-inline-search {
+  min-height: 52px; padding: 5px 10px;
+}
+:root[data-effective-reduce-transparency='true'] .km-chat-screen .km-chat-header,
+:root[data-effective-reduce-transparency='true'] .km-chat-screen .km-chat-composer {
+  background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+@media (max-width: 460px) {
+  .km-chat-screen .km-chat-header { gap: 4px; padding-inline: 6px; }
+  .km-chat-screen .km-chat-header .km-chat-avatar { width: 38px; height: 38px; min-width: 38px; }
+  .km-chat-screen .km-chat-header .km-chat-header-details h1 { font-size: 13px; }
+  .km-chat-screen .km-message-bubble { max-width: 88%; }
+}
+
+/* Emoji, stickers, GIF: a composer-attached keyboard with scrolling categories,
+   measured tabs and predictable hit targets instead of oversized sheets. */
+.km-picker-reference-sheet { border-radius: 20px 20px 0 0; }
+.km-picker-reference-sheet .km-picker-tabs {
+  display: flex; gap: 3px; min-width: 0;
+}
+.km-picker-reference-sheet .km-picker-tabs [role='tab'] {
+  flex: 1 1 0; min-width: 0; min-height: 44px;
+  padding: 7px 6px; border-radius: 12px;
+  font-size: 12px;
+}
+.km-picker-reference-sheet .km-picker-search {
+  min-height: 44px; border-radius: 15px;
+}
+.km-picker-reference-sheet .km-picker-sticker-grid {
+  gap: 4px; padding: 6px 4px;
+}
+.km-picker-reference-sheet .km-picker-close,
+.km-picker-reference-sheet .km-picker-search button {
+  min-width: 44px; min-height: 44px;
+  border: 0; border-radius: 13px;
+}
+:root[data-effective-reduce-transparency='true'] .km-picker-reference-sheet {
+  background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+}

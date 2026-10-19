@@ -43,6 +43,12 @@ export default function PostDetailPage() {
   const postId = params.id;
   const { user, loading: sessionLoading } = useSession({ required: true });
   const [post, setPost] = useState<Post | null>(null);
+  const [myLike, setMyLike] = useState<boolean | null>(null);
+  const likeInFlight = useRef(false);
+  const likeRevision=useRef(0);
+  const currentAccount=useRef<string|null>(null);
+  currentAccount.current=user?.id??null;
+  const [likeBusy, setLikeBusy] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [repliesByParent, setRepliesByParent] = useState<Record<string, Comment[]>>({});
   const [replyMoreByParent, setReplyMoreByParent] = useState<Record<string, boolean>>({});
@@ -357,12 +363,35 @@ export default function PostDetailPage() {
     }
   }
 
+  useEffect(() => {
+    let active = true;
+    const revision=likeRevision.current;
+    setMyLike(null);
+    if (!user?.id || !postId) return () => {active = false;};
+    void apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(postId)}`)
+      .then(result => {if(active && revision===likeRevision.current) setMyLike(result[postId] === true);})
+      .catch(()=>{/* Keep selection unknown when the status could not be loaded. */});
+    return () => {active = false;};
+  },[postId,user?.id]);
+
   async function like() {
+    if(likeInFlight.current || !user?.id) return;
+    likeInFlight.current = true;
+    likeRevision.current+=1;
+    setLikeBusy(true);
+    const actor = user.id;
     try {
-      await apiFetch(`/posts/${postId}/like`, { method: 'POST' });
-      await load();
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
+      const result = await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(postId)}/like`,{method:'POST'});
+      if(actor!==currentAccount.current) return;
+      setMyLike(result.liked);
+      setPost(current=>current ? {...current,
+        _count:{...current._count,likes:Math.max(0,current._count.likes+(result.liked?1:-1))}
+      }:current);
+    }catch(cause){
+      setMessage(cause instanceof Error?cause.message:'Action non confirmée.');
+    }finally{
+      likeInFlight.current = false;
+      setLikeBusy(false);
     }
   }
 
@@ -461,9 +490,9 @@ export default function PostDetailPage() {
                 onClick={event=>{
                   event.stopPropagation();
                   if(suppressReactionClick.current){suppressReactionClick.current=false;return;}
-                  void reactToComment(item.id,'❤️');
+                  void reactToComment(item.id,currentReaction?.mine??'❤️');
                 }}>
-                {currentReaction?.mine ?? '♡'} Réagir
+                {currentReaction?.mine || 'Réagir'}
                 {Boolean(currentReaction?.total) && <span className="km-comment-reaction-count"> {currentReaction.total}</span>}
               </button>
               <button type="button" aria-label={`Choisir une réaction pour le commentaire de ${item.author.displayName}`}
@@ -546,7 +575,15 @@ export default function PostDetailPage() {
         <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
           caption={post.content}/>
         <div className="km-post-actions">
-          <button type="button" onClick={() => void like()}>♡ <span>{post._count.likes}</span></button>
+          <button type="button" onClick={() => void like()} disabled={likeBusy}
+            aria-label={myLike?'Retirer mon J’aime':'Réagir à la publication'} aria-pressed={myLike===true}
+            style={{color:myLike?'#e73d57':undefined}}>
+            <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"
+              fill={myLike?'currentColor':'none'} stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.8 4.9a5.4 5.4 0 0 0-7.7 0L12 6l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.4a5.4 5.4 0 0 0 0-7.7Z"/>
+            </svg> <span>{post._count.likes}</span>
+          </button>
           <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
           <button type="button" onClick={() => void sharePost()}>↗ <span>Partager</span></button>
         </div>

@@ -1,11 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../../../components/i18n-provider';
 import { apiFetch } from '../../../../lib/api';
 import { useSession } from '../../../../lib/use-session';
+import { knowMeConfirm } from '../../../../components/knowme-feedback';
+import { GroupSharedContent } from '../GroupSharedContent';
+import { GroupAvatarEditor } from '../GroupAvatarEditor';
+import '../group-info-architecture.css';
 
 type Member = {
   userId: string;
@@ -33,6 +37,7 @@ function Avatar({ member, size = 'regular' }: { member: Member; size?: 'regular'
 
 export default function ConversationInfoPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user, loading: sessionLoading } = useSession({ required: true });
   const { locale } = useI18n();
   const en = locale === 'en';
@@ -41,8 +46,11 @@ export default function ConversationInfoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [memberFilter,setMemberFilter] = useState<'ALL'|'ADMINS'|'MEMBERS'>('ALL');
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'details'>('members');
+  const [leaving,setLeaving] = useState(false);
+  const moreMenuRef=useRef<HTMLDetailsElement>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'details' | 'media' | 'files' | 'links' | 'search'>('overview');
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -57,6 +65,9 @@ export default function ConversationInfoPage() {
         ? 'This conversation cannot be found in your chats.'
         : 'Cette conversation est introuvable dans tes discussions.');
       setConversation(found);
+      // The overview exists only for groups. Private chats retain their real
+      // participants panel instead of landing on an empty overview.
+      setActiveTab(current => current==='overview' && !found.isGroup ? 'members' : current);
     } catch (cause) {
       setConversation(null);
       setError(cause instanceof Error ? cause.message
@@ -66,20 +77,49 @@ export default function ConversationInfoPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(()=>{
+    const onPointerDown=(event: PointerEvent)=>{
+      if(moreMenuRef.current?.open && !moreMenuRef.current.contains(event.target as Node))
+        moreMenuRef.current.open=false;
+    };
+    const onKeyDown=(event: KeyboardEvent)=>{
+      if(event.key!=='Escape'||!moreMenuRef.current?.open)return;
+      event.preventDefault();
+      moreMenuRef.current.open=false;
+      moreMenuRef.current.querySelector<HTMLElement>('summary')?.focus();
+    };
+    document.addEventListener('pointerdown',onPointerDown);
+    document.addEventListener('keydown',onKeyDown);
+    return ()=>{
+      document.removeEventListener('pointerdown',onPointerDown);
+      document.removeEventListener('keydown',onKeyDown);
+    };
+  },[]);
+
   const visibleMembers = useMemo(() => {
     if (!conversation) return [];
     const term = query.trim().toLocaleLowerCase();
+    const priority = (role: Member['role']) => role==='OWNER' ? 0 : role==='ADMIN' ? 1 : 2;
     return conversation.members.filter(member => {
       const name = `${member.user.displayName} ${member.user.username}`.toLocaleLowerCase();
-      return name.includes(term);
-    }).sort((a,b) => a.user.displayName.localeCompare(b.user.displayName, locale));
-  }, [conversation, query, locale]);
+      const roleAllowed = memberFilter==='ALL'||
+        (memberFilter==='ADMINS' && (member.role==='OWNER'||member.role==='ADMIN'))||
+        (memberFilter==='MEMBERS' && member.role==='MEMBER');
+      return roleAllowed && name.includes(term);
+    }).sort((a,b) => priority(a.role)-priority(b.role) ||
+      a.user.displayName.localeCompare(b.user.displayName, locale));
+  }, [conversation, query, locale, memberFilter]);
 
   const isGroup = conversation?.isGroup ?? false;
   const members = conversation?.members ?? [];
   const viewerRole = members.find(member=>member.userId===user?.id)?.role ?? 'MEMBER';
   const canManage = isGroup && (viewerRole==='OWNER'||viewerRole==='ADMIN');
   const other = members.find(member => member.userId !== user?.id);
+  const memberPreview = [...members].sort((a,b)=>{
+    const priority = (role:Member['role']) => role==='OWNER'?0:role==='ADMIN'?1:2;
+    return priority(a.role)-priority(b.role) ||
+      a.user.displayName.localeCompare(b.user.displayName,locale);
+  }).slice(0,3);
   const title = conversation
     ? (conversation.title || (isGroup
       ? tr('Groupe sans nom', 'Untitled group')
@@ -101,14 +141,33 @@ export default function ConversationInfoPage() {
     }
   }
 
-  return <main className="shell km-info-page">
+  async function leaveGroup() {
+    if (!isGroup || !user?.id || leaving) return;
+    if(viewerRole==='OWNER') {
+      setError(tr('Transfère la propriété avant de quitter le groupe.','Transfer ownership before leaving the group.'));
+      return;
+    }
+    const confirmed=await knowMeConfirm(tr('Quitter ce groupe ? Tu ne recevras plus ses messages.',
+      'Leave this group? You will no longer receive its messages.'));
+    if(!confirmed)return;
+    setLeaving(true);
+    setError('');
+    try {
+      await apiFetch(`/conversations/${encodeURIComponent(id)}/group/members/${encodeURIComponent(user.id)}`,{method:'DELETE'});
+      router.replace('/messages');
+    } catch(cause) {
+      setError(cause instanceof Error?cause.message:tr('Impossible de quitter le groupe.','Could not leave this group.'));
+    } finally {setLeaving(false);}
+  }
+
+  return <main className={`shell km-info-page ${isGroup?'km-info-group-profile km-group-architecture':'km-info-private-profile'}`}>
     <header className="km-info-topbar">
       <Link href={`/messages/${encodeURIComponent(id)}`} className="km-info-back"
         aria-label={tr('Retour à la discussion', 'Back to chat')}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
           strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
       </Link>
-      <h1>{tr('Informations', 'Information')}</h1>
+      <h1>{isGroup ? tr('Informations du groupe','Group info') : tr('Informations','Information')}</h1>
       <button type="button" className="km-info-refresh" onClick={() => void load()}
         disabled={loading} aria-label={tr('Actualiser','Refresh')}>
         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none"
@@ -117,21 +176,20 @@ export default function ConversationInfoPage() {
     </header>
     {(sessionLoading || loading) && <p className="km-info-status" role="status">{tr('Chargement…','Loading…')}</p>}
     {error && <p className="km-auth-error" role="alert">{error}</p>}
-    {!loading && !sessionLoading && conversation && <>
+    {!loading && !sessionLoading && conversation && <div className="km-group-workspace">
+      <div className="km-group-sidebar">
       <section className="km-info-identity" aria-label={tr('Identité de la discussion', 'Chat identity')}>
         {isGroup
-          ? <div className="km-info-group-avatar" aria-hidden="true">
-            {members.slice(0, 4).map(member =>
-              <span key={member.userId}>
-                {member.user.avatarUrl ? <img src={member.user.avatarUrl} alt="" /> :
-                  (Array.from(member.user.displayName)[0] || '?').toLocaleUpperCase()}
-              </span>)}
-          </div>
+          ? <GroupAvatarEditor key={id} conversationId={id} title={title}
+              canManage={canManage} en={en}/>
           : other && <Avatar member={other} />}
         <h2>{title}</h2>
         <p>{isGroup
           ? `${members.length} ${tr('membres','members')}`
           : other ? `@${other.user.username}` : tr('Discussion privée','Private chat')}</p>
+        {isGroup && <p className="km-group-hero-role">
+          {viewerRole==='OWNER'?tr('Propriétaire','Owner'):viewerRole==='ADMIN'?tr('Administrateur','Administrator'):tr('Membre','Member')}
+        </p>}
       </section>
       <nav className="km-info-actions" aria-label={tr('Actions de la discussion', 'Chat actions')}>
         <Link href={`/messages/${encodeURIComponent(id)}`}>
@@ -139,7 +197,16 @@ export default function ConversationInfoPage() {
             <path d="M20 11.5a8 8 0 0 1-8 8 9 9 0 0 1-3.5-.7L4 20l1.3-4A8 8 0 1 1 20 11.5Z"/></svg>
           <span>{tr('Messages', 'Messages')}</span>
         </Link>
-        <button type="button" onClick={() => void shareConversation()}>
+        {isGroup&&<button type="button" onClick={()=>setActiveTab('search')}
+          aria-label={tr('Rechercher dans ce groupe','Search this group')}>
+          <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none"
+            strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/>
+            <path d="m16 16 5 5"/></svg>
+          <span>{tr('Rechercher','Search')}</span>
+        </button>}
+        <button type="button" onClick={() => void shareConversation()}
+          title={tr('Lien interne réservé aux membres, pas une invitation','Members-only internal link, not an invitation')}
+          aria-label={tr('Partager le lien interne de la discussion','Share internal conversation link')}>
           <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none" strokeWidth="1.8" aria-hidden="true">
             <path d="M12 16V3m-5 5 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
           <span>{copied ? tr('Lien copié','Link copied') : tr('Partager', 'Share')}</span>
@@ -150,20 +217,144 @@ export default function ConversationInfoPage() {
           </svg>
           <span>{canManage?tr('Gérer','Manage'):tr('Options','Options')}</span>
         </Link>}
+        {isGroup && <details ref={moreMenuRef} className="km-info-more">
+          <summary role="button" aria-label={tr('Autres options du groupe','More group options')}
+            title={tr('Autres options','More options')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.65"/><circle cx="12" cy="12" r="1.65"/>
+              <circle cx="12" cy="19" r="1.65"/>
+            </svg>
+            <span>{tr('Plus','More')}</span>
+          </summary>
+          <div className="km-info-more-menu">
+            <Link href={`/messages/${encodeURIComponent(id)}/manage`}>
+              {tr('Membres et permissions','Members and permissions')}
+            </Link>
+            {viewerRole!=='OWNER' && <button type="button" disabled={leaving}
+              className="is-danger" onClick={()=>void leaveGroup()}>
+              {leaving?tr('Départ…','Leaving…'):tr('Quitter le groupe','Leave group')}
+            </button>}
+            {viewerRole==='OWNER' && <span className="km-info-more-hint">
+              {tr('Transfert de propriété requis avant le départ','Ownership transfer required before leaving')}
+            </span>}
+          </div>
+        </details>}
         {!isGroup && other && <Link href={`/profile/${encodeURIComponent(other.user.username)}`}>
           <svg viewBox="0 0 24 24" width="23" height="23" stroke="currentColor" fill="none" strokeWidth="1.8" aria-hidden="true">
             <circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.7-4 3.2-6 7.5-6s6.8 2 7.5 6"/></svg>
           <span>{tr('Profil', 'Profile')}</span>
         </Link>}
       </nav>
-      <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}>
+      </div>
+      <div className="km-group-main-pane">
+      <div className="km-info-tabs" role="tablist" aria-label={tr('Sections','Sections')}
+        onKeyDown={event=>{
+          if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+          const tabs=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+          const index=tabs.indexOf(document.activeElement as HTMLButtonElement);
+          if(index<0)return;
+          event.preventDefault();
+          const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:
+            (index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+          tabs[next].click();
+          tabs[next].focus();
+        }}>
+        {isGroup&&<button type="button" role="tab" aria-selected={activeTab==='overview'}
+          onClick={()=>setActiveTab('overview')}>
+          {tr('Aperçu','Overview')}
+        </button>}
         <button type="button" role="tab" aria-selected={activeTab==='members'}
           onClick={() => setActiveTab('members')}>
           {isGroup ? tr('Membres','Members') : tr('Participants', 'Participants')}
         </button>
         <button type="button" role="tab" aria-selected={activeTab==='details'}
           onClick={() => setActiveTab('details')}>{tr('Détails','Details')}</button>
+        {([
+          {kind:'media', fr:'Médias', en:'Media'},
+          {kind:'files', fr:'Fichiers', en:'Files'},
+          {kind:'links', fr:'Liens', en:'Links'},
+          {kind:'search', fr:'Recherche', en:'Search'}
+        ] as const).map(tab => <button key={tab.kind} type="button" role="tab"
+          aria-selected={activeTab===tab.kind} onClick={()=>setActiveTab(tab.kind)}>
+          {en?tab.en:tab.fr}
+        </button>)}
       </div>
+      {isGroup && activeTab==='overview' && <section className="km-group-overview" role="tabpanel"
+        aria-label={tr('Aperçu du groupe','Group overview')}>
+        <section className="km-group-overview-section km-group-about"
+          aria-labelledby="km-group-about-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-about-heading">{tr('À propos du groupe','About the group')}</h3>
+            {canManage&&<Link href={`/messages/${encodeURIComponent(id)}/manage`}>
+              {tr('Modifier','Edit')}
+            </Link>}
+          </div>
+          <p className={conversation.description?'':'is-empty'}>
+            {conversation.description||tr('Aucune description pour ce groupe.','This group has no description yet.')}
+          </p>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-content-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-content-heading">{tr('Contenus partagés','Shared content')}</h3>
+          </div>
+          <div className="km-group-overview-shortcuts">
+            {([
+              {id:'media',fr:'Médias',english:'Media',icon:'photo'},
+              {id:'files',fr:'Fichiers',english:'Files',icon:'file'},
+              {id:'links',fr:'Liens',english:'Links',icon:'link'}
+            ] as const).map(item=><button key={item.id} type="button"
+              onClick={()=>setActiveTab(item.id)}>
+              {item.icon==='photo'
+                ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                    strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/>
+                    <circle cx="8.5" cy="9" r="1.5"/><path d="m5 18 5.5-5.5 3.5 3 2.5-2.5 3.5 5"/></svg>
+                :item.icon==='file'
+                  ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                      strokeWidth="1.8" aria-hidden="true"><path d="M6 2.5h8l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20zM14 3v5h5M9 13h6M9 17h6"/></svg>
+                  : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                      strokeWidth="1.8" aria-hidden="true"><path d="m10 13 4-4M8.8 15.5l-1.6 1.6a4 4 0 0 1-5.7-5.7l4-4a4 4 0 0 1 5.7 0M15.2 8.5l1.6-1.6a4 4 0 1 1 5.7 5.7l-4 4a4 4 0 0 1-5.7 0"/></svg>}
+              <span>{en?item.english:item.fr}</span>
+              <span aria-hidden="true">›</span>
+            </button>)}
+          </div>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-members-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-members-heading">{tr('Membres','Members')} <span>{members.length}</span></h3>
+            <button type="button" onClick={()=>setActiveTab('members')}>{tr('Voir tous','See all')}</button>
+          </div>
+          <div className="km-group-overview-member-list">
+            {memberPreview.map(member=><Link key={member.userId} className="km-info-member-row"
+              href={`/profile/${encodeURIComponent(member.user.username)}`}>
+              <Avatar member={member} size="small"/>
+              <span className="km-info-member-name">
+                <strong>{member.user.displayName}</strong>
+                <small>{member.role==='OWNER'?tr('Propriétaire','Owner'):
+                  member.role==='ADMIN'?tr('Administrateur','Administrator'):`@${member.user.username}`}</small>
+              </span>
+              <span aria-hidden="true">›</span>
+            </Link>)}
+          </div>
+        </section>
+        <section className="km-group-overview-section" aria-labelledby="km-group-settings-heading">
+          <div className="km-group-section-header">
+            <h3 id="km-group-settings-heading">{tr('Paramètres du groupe','Group settings')}</h3>
+          </div>
+          <Link className="km-group-settings-link" href={`/messages/${encodeURIComponent(id)}/manage`}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+              stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/><path d="m10 2-1 3-2 1-3-1-2 4 2 2v2l-2 2 2 4 3-1 2 1 1 3h4l1-3 2-1 3 1 2-4-2-2v-2l2-2-2-4-3 1-2-1-1-3z"/></svg>
+            <span><strong>{tr('Membres et administration','Members and administration')}</strong>
+              <small>{canManage?tr('Modifier le nom, la description et gérer les membres','Edit group details and manage members'):
+                tr('Consulter les membres et les informations','View members and information')}</small>
+            </span>
+            <span aria-hidden="true">›</span>
+          </Link>
+        </section>
+      </section>}
+      {(activeTab==='media'||activeTab==='files'||activeTab==='links'||activeTab==='search') &&
+        <GroupSharedContent key={id} conversationId={id} kind={activeTab} en={en} isGroup={isGroup}/>} 
+
       {activeTab === 'members' && <section className="km-info-members" role="tabpanel">
         {isGroup && <div className="km-info-search">
           <svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" fill="none"
@@ -171,6 +362,21 @@ export default function ConversationInfoPage() {
           <input type="search" value={query} onChange={event => setQuery(event.target.value)}
             placeholder={tr('Rechercher un membre', 'Search members')}
             aria-label={tr('Rechercher un membre','Search members')} />
+        </div>}
+        {isGroup && <div className="km-info-member-filters"
+          role="group" aria-label={tr('Filtrer les membres','Filter group members')}>
+          {([
+            {key:'ALL',fr:'Tous',en:'All'},
+            {key:'ADMINS',fr:'Admins',en:'Admins'},
+            {key:'MEMBERS',fr:'Membres',en:'Members'}
+          ] as const).map(item=><button type="button" key={item.key}
+            aria-pressed={memberFilter===item.key}
+            onClick={()=>setMemberFilter(item.key)}>
+            {en?item.en:item.fr}
+          </button>)}
+          <span role="status" className="km-info-member-count">
+            {visibleMembers.length} / {members.length}
+          </span>
         </div>}
         {visibleMembers.length === 0
           ? <p className="km-info-status">{tr('Aucun membre correspondant.', 'No matching members.')}</p>
@@ -204,6 +410,7 @@ export default function ConversationInfoPage() {
           : tr('Le lien de la discussion n’est accessible qu’à ses participants. Les informations du contact restent accessibles depuis son profil.',
              'The chat link is accessible to its participants only. Contact information is available on their profile.')}</p>
       </section>}
-    </>}
+      </div>
+    </div>}
   </main>;
 }

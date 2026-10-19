@@ -45,6 +45,7 @@ test('group information shows real member details, search and native sections on
   await expect(page.getByRole('heading', { name: 'Groupe Études' })).toBeVisible();
   await expect(page.getByText('3 membres')).toBeVisible();
   await expect(page.getByRole('link', { name: /Alice/ })).toHaveAttribute('href', '/profile/alice');
+  await page.getByRole('tab',{name:'Membres',exact:true}).click();
   await page.getByRole('searchbox', { name: 'Rechercher un membre' }).fill('Bob');
   await expect(page.getByRole('link', { name: /Bob/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Alice/ })).toHaveCount(0);
