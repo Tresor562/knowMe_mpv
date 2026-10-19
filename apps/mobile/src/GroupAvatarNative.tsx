@@ -154,7 +154,7 @@ export function GroupAvatarNative({conversationId,title,canManage=false}:{
         onLoad={()=>setPhotoLoaded(true)}
         onError={()=>setPhotoLoaded(false)}
         resizeMode="cover" accessibilityLabel={tr('Photo du groupe','Group picture')}/>:null}
-      {!photoLoaded?<KnowMeIcon name="profile" size={38} color={colors.accent}/>:null}
+      {!photoLoaded?<KnowMeIcon name="messages" size={38} color={colors.accent}/>:null}
       <Pressable accessibilityRole="button"
         accessibilityLabel={tr('Voir la photo du groupe','View group picture')}
         accessibilityState={{disabled:!photoLoaded}}
