@@ -44,7 +44,9 @@ export function LanguageSettingsExperience() {
         onChange={(nextLocale) => change(nextLocale)}
       />
       <Text style={[styles.meta, { color: colors.muted }]}>
-        {t('settings.languageFallback')}{persisted ? ' · synchronisée' : ' · cet appareil'}
+        {t('settings.languageFallback')}{persisted
+          ? locale === 'en' ? ' · synced' : ' · synchronisée'
+          : locale === 'en' ? ' · this device' : ' · cet appareil'}
       </Text>
       {message ? <Text style={[styles.message, { color: colors.secondary }]}>{message}</Text> : null}
     </GlassSurface>
