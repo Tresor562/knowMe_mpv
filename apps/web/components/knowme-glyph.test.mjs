@@ -401,3 +401,22 @@ test('three gift designs have distinct engraved vector emblems and event-only gl
   assert.match(css, /@keyframes km-gift-emblem-gleam/);
   assert.doesNotMatch(gift, /<image\b|<foreignObject\b|data:image|<text\b/);
 });
+
+
+test('brand vector prototype contains no embedded raster; legacy logo is explicitly disclosed', () => {
+  const web = path.join(dir, '..');
+  const official = fs.readFileSync(path.join(web, 'public', 'brand', 'knowme-logo.svg'), 'utf8');
+  const prototype = fs.readFileSync(path.join(web, 'public', 'brand', 'knowme-logo-vector-prototype.svg'), 'utf8');
+  const audit = fs.readFileSync(path.join(web, '..', '..', 'scripts', 'audit-knowme-svg.mjs'), 'utf8');
+  const lab = fs.readFileSync(path.join(dir, 'knowme-icon-laboratory.tsx'), 'utf8');
+  assert.match(official, /<image\b[^>]+href="data:image\/png;base64,/);
+  assert.match(prototype, /<path\b/);
+  assert.match(prototype, /<linearGradient\b/);
+  assert.match(prototype, /<radialGradient\b/);
+  assert.doesNotMatch(prototype, /<image\b|data:image\/|<script\b|<foreignObject\b/);
+  assert.match(audit, /rasterInsideSvgFiles/);
+  assert.match(audit, /embedded-raster-in-svg/);
+  assert.match(lab, /id="km-brand-logo-compare"/);
+  assert.match(lab, /data-testid="logo-vector-reveal"/);
+  assert.match(lab, /logoReveal/);
+});
