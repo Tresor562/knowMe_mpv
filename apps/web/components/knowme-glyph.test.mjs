@@ -269,7 +269,7 @@ test('all vector glyphs have real-event motion fallback, idle never loops', () =
   assert.match(motion, /:where\(\.km-state-icon\[data-auto-motion='true'\]\[data-icon-state='syncing'\]\)/);
   assert.match(motion, /km-state-icon--refresh\[data-icon-state='loading'\]/);
   assert.match(motion, /km-state-icon--microphone\[data-icon-state='recording'\]/);
-  assert.match(model, /data-auto-motion=\{visible && mayAnimateIndefinitely\(state\)/);
+  assert.match(model, /data-auto-motion=\{motionEnabled && visible && mayAnimateIndefinitely\(state\)/);
   assert.match(model, /settings\.animatedIcons === 'false'/);
 });
 
@@ -311,7 +311,7 @@ test('three original collectible gifts are vector, state-controlled, motion-safe
   assert.match(gift, /before\.state !== state/);
   assert.match(gift, /state === 'idle'\) return/);
   assert.match(gift, /data-state=\{state\}/);
-  assert.match(gift, /data-burst=\{burst \? 'true' : 'false'\}/);
+  assert.match(gift, /data-burst=\{motionEnabled && burst \? 'true' : 'false'\}/);
   assert.match(gift, /aria-label=\{\(label \|\| fallback\) \+ status\}/);
   assert.match(gift, /<svg key=\{eventToken \?\? state\} viewBox="0 0 128 128"/);
   assert.match(gift, /useKnowMeIconViewportVisible\(/);
