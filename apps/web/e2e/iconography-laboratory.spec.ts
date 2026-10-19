@@ -60,3 +60,16 @@ test('reduced motion and 44px touch surfaces hold on compact mobile', async ({ p
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(overflow).toBe(false);
 });
+
+test('brand comparison presents both logos without replacing the official asset', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/design/iconography');
+  const section = page.getByRole('region', { name: /Comparaison du logo/ });
+  await expect(section.getByRole('img', { name: /Logo actuel de KnowMe/ })).toBeVisible();
+  await expect(section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe/ })).toBeVisible();
+  await expect(section.getByText('Le prototype ne remplace pas le logo officiel.')).toBeVisible();
+  await expect(section.locator('img[src="/brand/knowme-logo.svg"]')).toHaveCount(1);
+  await expect(section.locator('img[src="/brand/knowme-logo-vector-prototype.svg"]')).toHaveCount(1);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  expect(overflow).toBe(false);
+});
