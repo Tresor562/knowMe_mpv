@@ -44,12 +44,24 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     let objectUrl:string|null=null;
     setPhoto(null);
     setCanEdit(false);
+    setError('');
     const load=async()=>{
+      // A missing capabilities route means the group avatar API has not been
+      // rolled out (or cannot be reached). It is NOT the same as no saved photo.
+      let capability:Capabilities;
       try{
-        const capability=await apiFetch<Capabilities>(base+'/capabilities');
-        if(!alive)return;
-        setCanEdit(canManage && capability.canEdit);
-        if(!capability.read)return;
+        capability=await apiFetch<Capabilities>(base+'/capabilities');
+      }catch{
+        if(alive&&canManage)setError(tr(
+          'La modification de la photo du groupe est indisponible sur le serveur. Réessaie plus tard.',
+          'Group picture editing is unavailable on the server. Try again later.'
+        ));
+        return;
+      }
+      if(!alive)return;
+      setCanEdit(canManage && capability.canEdit);
+      if(!capability.read)return;
+      try{
         const blob=await apiFetchBlob(base);
         if(!alive)return;
         if(!TYPES.includes(blob.type)||blob.size>MAX_BYTES)return;
@@ -57,10 +69,10 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
         setPhoto(objectUrl);
       }catch(cause){
         if(!alive)return;
-        // 404 means no saved picture. Other errors must not display a
-        // fabricated photo or imply the viewer has extra permissions.
+        // Only the actual image endpoint's 404 means "no saved photo".
         if((cause as {status?:number})?.status!==404)
-          setError(cause instanceof Error?cause.message:tr('Photo indisponible.','Photo unavailable.'));
+          setError(tr('La photo du groupe est momentanément inaccessible.',
+            'The group picture is temporarily unavailable.'));
       }
     };
     void load();
