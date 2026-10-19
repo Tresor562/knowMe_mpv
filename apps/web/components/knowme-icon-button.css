@@ -34,3 +34,26 @@
 @media (prefers-reduced-motion: reduce) {
   .km-icon-action { transition: none !important; }
 }
+
+/* Physical tactile response is immediate on press, never a fake server state.
+   The stateful SVG inside can still render a real success or pending status. */
+.km-icon-action > .km-state-icon {
+  transform: translateZ(0) scale(1);
+  transform-origin: center;
+  transition: transform 165ms cubic-bezier(.18, .85, .24, 1.25);
+}
+.km-icon-action:active:not(:disabled) > .km-state-icon {
+  transform: translateZ(0) scale(.89);
+}
+.km-icon-action[aria-pressed='true']:not(:active) > .km-state-icon {
+  transform: translateZ(0) scale(1.035);
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-icon-action > .km-state-icon { transform: none !important; transition: none !important; }
+}
+:root[data-animations='false'] .km-icon-action > .km-state-icon,
+:root[data-animated-icons='false'] .km-icon-action > .km-state-icon,
+:root[data-effective-reduced-motion='true'] .km-icon-action > .km-state-icon {
+  transform: none !important;
+  transition: none !important;
+}
