@@ -79,9 +79,8 @@ export function GroupAvatarNative({conversationId,title,canManage=false}:{
       const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
       temporary=`${FileSystem.cacheDirectory}knowme-group-avatar-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       await FileSystem.copyAsync({from:file.uri,to:temporary});
-      const info=await FileSystem.getInfoAsync(temporary,{size:true});
-      const size=info.exists&&'size' in info ? info.size : 0;
-      if(!size||size<1024||size>MAX_BYTES)
+      const info=await FileSystem.getInfoAsync(temporary);
+      if(!info.exists||info.isDirectory||!info.size||info.size<1024||info.size>MAX_BYTES)
         throw new Error(tr('La photo doit peser entre 1 Ko et 5 Mo.',
           'Picture must be between 1 KB and 5 MB.'));
       const capabilities=await apiFetch<Capabilities>(base+'/capabilities');
