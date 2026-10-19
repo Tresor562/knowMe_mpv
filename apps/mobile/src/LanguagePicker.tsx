@@ -30,7 +30,7 @@ export function LanguagePicker({
   compact?: boolean;
 }) {
   const { colors, visual } = useAppearance();
-  const { t } = useI18n();
+  const { t, locale: interfaceLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -102,10 +102,10 @@ export function LanguagePicker({
                 {t('common.chooseLanguage')}
               </Text>
               <Text style={[styles.count, { color: colors.muted }]}>
-                {SUPPORTED_LOCALES.length} langues / scripts
+                {SUPPORTED_LOCALES.length} {interfaceLocale === 'en' ? 'languages / scripts' : 'langues / écritures'}
               </Text>
             </View>
-            <KnowMeNativeIconButton name="close" size={20} label={value === 'en' ? 'Close language selection' : 'Fermer le choix de langue'}
+            <KnowMeNativeIconButton name="close" size={20} label={interfaceLocale === 'en' ? 'Close language selection' : 'Fermer le choix de langue'}
               onPress={() => setOpen(false)}
               style={[styles.close, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}
               color={colors.text} />
@@ -140,6 +140,9 @@ export function LanguagePicker({
               const selected = item.locale === value;
               return (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.nativeName} · ${item.locale}`}
+                  accessibilityState={{ selected }}
                   onPress={() => {
                     void onChange(item.locale);
                     setOpen(false);
