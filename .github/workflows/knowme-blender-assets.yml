@@ -1,0 +1,59 @@
+name: KnowMe Blender Asset Factory
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/knowme-blender-assets.yml'
+      - 'tools/asset_factory/**'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/knowme-blender-assets.yml'
+      - 'tools/asset_factory/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowme-blender-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install Blender and FFmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender ffmpeg
+          blender --version | head -n 2
+          ffmpeg -version | head -n 1
+      - name: Validate generator syntax
+        run: python3 -m py_compile tools/asset_factory/build.py tools/asset_factory/verify.py
+      - name: Generate real skeletal mascot and physically shaded 3D crown
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/knowme-3d
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind mascot --out artifacts/knowme-3d --size 360 --frames 16
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind crown --out artifacts/knowme-3d --size 360 --frames 16
+      - name: Verify actual GLB skeleton, animation clips and playable media
+        run: python3 tools/asset_factory/verify.py artifacts/knowme-3d
+      - name: Checksum generated output
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd artifacts/knowme-3d && sha256sum *.blend *.glb *.png *.webm *.json > SHA256SUMS.txt)
+      - name: Upload real Blender assets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-rigged-3d-assets
+          path: artifacts/knowme-3d/
+          if-no-files-found: warn
+          retention-days: 7
