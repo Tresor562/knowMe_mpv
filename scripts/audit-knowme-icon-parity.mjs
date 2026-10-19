@@ -38,13 +38,16 @@ const webWithoutNativeGeometry = webNames.filter(name => !hasValidPaths(name));
 const nativeWithoutVectorGeometry = nativeNames.filter(name =>
   !hasValidPaths(aliases[name] ?? name));
 const nativeSVGRendererDeclared = pkg.dependencies?.['react-native-svg'] === '15.11.2';
-const nativeSVGRendererLocked = /\\n  react-native-svg@15\\.11\\.2:/.test(lock) &&
-  /\\n      react-native-svg:\\n        specifier: 15\\.11\\.2/.test(lock);
-const nativeRendersSvgPaths = /from ['"]react-native-svg['"]/.test(renderer) &&
-  /<Svg\\b/.test(renderer) && /(?:createElement\\(Element|<Path\\b)/.test(renderer);
+const nativeSVGRendererLocked =
+  lock.includes('  react-native-svg@15.11.2:') &&
+  lock.includes('      react-native-svg:\\n        specifier: 15.11.2');
+const nativeRendersSvgPaths =
+  renderer.includes("from 'react-native-svg'") &&
+  renderer.includes('<Svg') &&
+  renderer.includes('createElement(Element');
 const wiredIntoExistingNativeScreens =
-  /hasKnowMeNativeVectorGlyph\\(name\\)/.test(native) &&
-  /<KnowMeNativeVectorIcon\\b/.test(native);
+  native.includes('hasKnowMeNativeVectorGlyph(name)') &&
+  native.includes('<KnowMeNativeVectorIcon');
 const minimumVectorPrerequisites = nativeSVGRendererDeclared &&
   nativeSVGRendererLocked && nativeRendersSvgPaths &&
   wiredIntoExistingNativeScreens &&
