@@ -90,7 +90,8 @@ test('design QA theme and motion controls are isolated from app preferences', as
     expect(color).toBeTruthy();
   }
   const size = page.getByRole('slider', { name: 'Taille du pictogramme' });
-  await size.fill('72');
+  await size.focus();
+  await page.keyboard.press('End');
   await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
     .toHaveCSS('width', '72px');
   const motion = page.getByRole('checkbox', { name: 'Animer les démonstrations' });
