@@ -178,57 +178,62 @@
     },
     "design": {
       "issue": 699,
-      "status": "active",
+      "status": "paused",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
-      "branch": "chat/design/group-info-structured-ux",
-      "task": "Group avatar enhancement: square photo crop/zoom/drag before upload with accessibility and tests after PR #767 merged; VPS deploy not yet confirmed.",
+      "branch": "chat/design/android-group-photo-management",
+      "task": "Group info architecture and private group photo: PR #767 merged, Vercel READY; API VPS deployment/migration unverified. PR #769 crop Web HEAD cbe4a533e tests KnowMe coordination guard:success,CI:null,KnowMe APK Build Once:null; PR #770 native group avatar from built-in gallery HEAD b6d241e0b tests KnowMe APK Build Once:null,CI:null,KnowMe coordination guard:success. Need exact-head CI/guard/APK, clean merge, then signed Android app distribution and QA. Android access temporary Messages->Organiser->groupe; Messaging #693 owns direct header/chat list integration. Infra #698 owns VPS migration deployment.",
       "claimedAt": "2026-10-18T14:08:12.118Z",
-      "updatedAt": "2026-10-19T04:48:02.002Z",
-      "lastPr": 767,
+      "updatedAt": "2026-10-19T05:19:00.447Z",
+      "lastPr": 770,
       "resumeFrom": {
-        "pr": 767,
-        "branch": "chat/design/group-info-structured-ux",
-        "commit": "fe51398d54543e805a5429c7e721d892adc32698",
-        "mergedPr": 766,
-        "mergedCommit": "436a78d78b4ca6ad5a57bd95993b5b0f84400762",
-        "issues": [
+        "pr": 770,
+        "branch": "chat/design/android-group-photo-management",
+        "commit": "b6d241e0bedc40201d70c5d6386e23c1ccb4a87a",
+        "otherPr": 769,
+        "otherBranch": "chat/design/group-avatar-crop-editor",
+        "otherCommit": "cbe4a533e90e1d04df85b90b04f0ed4a01ae3b36",
+        "mergedPr": 767,
+        "checks": {
+          "crop": [
+            {
+              "name": "KnowMe coordination guard",
+              "status": "completed",
+              "conclusion": "success"
+            },
+            {
+              "name": "CI",
+              "status": "in_progress",
+              "conclusion": null
+            },
+            {
+              "name": "KnowMe APK Build Once",
+              "status": "in_progress",
+              "conclusion": null
+            }
+          ],
+          "native": [
+            {
+              "name": "KnowMe APK Build Once",
+              "status": "pending",
+              "conclusion": null
+            },
+            {
+              "name": "CI",
+              "status": "in_progress",
+              "conclusion": null
+            },
+            {
+              "name": "KnowMe coordination guard",
+              "status": "completed",
+              "conclusion": "success"
+            }
+          ]
+        },
+        "dependencies": [
           693,
           698
         ],
-        "required": [
-          "CI",
-          "Runtime readiness",
-          "KnowMe coordination guard",
-          "KnowMe APK Build Once"
-        ],
-        "statuses": [
-          {
-            "name": "KnowMe coordination guard",
-            "status": "completed",
-            "conclusion": "success"
-          },
-          {
-            "name": "Runtime readiness",
-            "status": "completed",
-            "conclusion": "success"
-          },
-          {
-            "name": "KnowMe coordination guard",
-            "status": "completed",
-            "conclusion": "success"
-          },
-          {
-            "name": "KnowMe APK Build Once",
-            "status": "in_progress",
-            "conclusion": null
-          },
-          {
-            "name": "CI",
-            "status": "completed",
-            "conclusion": "success"
-          }
-        ],
-        "next": "inspect exact-head CI/API migration diff, fix if red, merge only when checks all green and clean; then verify production signed release & VPS migration for group photo."
+        "next": "Fix any CI errors. Merge only after clean + CI/guard/APK all success. Verify VPS API migration and mobile signed release; direct native chat-header and list still blocked by Messaging conflicts."
       }
     }
   },
@@ -1150,6 +1155,14 @@
       "action": "resume",
       "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
       "at": "2026-10-19T04:48:02.002Z"
+    },
+    {
+      "action": "pause",
+      "domain": "design",
+      "ownerRef": "session-5aaf01ce-9115-48e4-91a8-428bcc910406",
+      "pr": 770,
+      "otherPr": 769,
+      "at": "2026-10-19T05:19:00.447Z"
     }
   ]
 }
