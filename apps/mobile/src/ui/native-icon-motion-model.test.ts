@@ -85,7 +85,10 @@ test('Android language selector has accessible vector close and true syncing sta
   const language = fs.readFileSync(path.join(dir, '..', 'LanguagePicker.tsx'), 'utf8');
   const settings = fs.readFileSync(path.join(dir, '..', 'LanguageSettingsExperience.tsx'), 'utf8');
   assert.match(language, /<KnowMeNativeIconButton name="close" size=\{20\}/);
-  assert.match(language, /label=\{value === 'en' \? 'Close language selection' : 'Fermer le choix de langue'\}/);
+  assert.match(language, /label=\{interfaceLocale === 'en' \? 'Close language selection' : 'Fermer le choix de langue'\}/);
+  assert.match(language, /accessibilityState=\{\{ selected \}\}/);
+  assert.match(language, /accessibilityLabel=\{\`\$\{item\.nativeName\} · \$\{item\.locale\}\`\}/);
+  assert.match(settings, /locale === 'en' \? ' · synced' : ' · synchronisée'/);
   assert.match(language, /minHeight: 48,/);
   assert.match(language, /width: 48,\s*height: 48,/);
   assert.match(language, /<KnowMeNativeAnimatedIcon name="check"/);
