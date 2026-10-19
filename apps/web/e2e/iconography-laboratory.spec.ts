@@ -29,6 +29,8 @@ test('three real-vector gifts visibly open without making a purchase', async ({ 
   for (const name of ['aurora', 'cosmos', 'blossom']) {
     const gift = gifts.filter({ has: page.getByRole('heading', { name, exact: true }) });
     const art = gift.locator('.km-collectible');
+    // The three models must never be just recolors of the same ribbon box.
+    await expect(gift.locator('.km-collectible-emblem-' + name)).toHaveCount(1);
     await expect(art).toHaveAttribute('data-state', 'idle');
     await gift.getByRole('button', { name: 'Ouvert' }).click();
     await expect(art).toHaveAttribute('data-state', 'opened');
