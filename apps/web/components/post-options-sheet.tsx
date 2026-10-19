@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 export type PostOption = {
   id: string;
@@ -26,30 +28,30 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
       <div className="km-post-options-handle" aria-hidden="true"/>
       <header>
         <h2>{own?(en?'Your publication':'Ta publication'):(en?'Publication options':'Options de la publication')}</h2>
-        <button type="button" aria-label={en?'Close':'Fermer'} onClick={onClose}>×</button>
+        <KnowMeIconButton name="close" size={20} label={en?'Close':'Fermer'} onClick={onClose}/>
       </header>
       <button type="button" onClick={onShare}>
-        <span aria-hidden="true">↗</span>{en?'Share':'Partager'}
+        <span aria-hidden="true"><KnowMeGlyph name="share" size={21}/></span>{en?'Share':'Partager'}
       </button>
       <button type="button" onClick={onCopy}>
-        <span aria-hidden="true">⛓</span>{en?'Copy link':'Copier le lien'}
+        <span aria-hidden="true"><KnowMeGlyph name="link" size={21}/></span>{en?'Copy link':'Copier le lien'}
       </button>
       <Link href={`/feed/${encodeURIComponent(post.id)}`} onClick={onClose}>
-        <span aria-hidden="true">▤</span>{en?'View publication':'Voir la publication'}
+        <span aria-hidden="true"><KnowMeGlyph name="file" size={21}/></span>{en?'View publication':'Voir la publication'}
       </Link>
       <Link href={`/profile/${encodeURIComponent(post.author.username)}`} onClick={onClose}>
-        <span aria-hidden="true">◯</span>{en?'View profile':'Voir le profil'}
+        <span aria-hidden="true"><KnowMeGlyph name="profile" size={21}/></span>{en?'View profile':'Voir le profil'}
       </Link>
       {own && <button type="button" onClick={onEdit}>
-        <span aria-hidden="true">✎</span>{en?'Edit publication':'Modifier la publication'}
+        <span aria-hidden="true"><KnowMeGlyph name="edit" size={21}/></span>{en?'Edit publication':'Modifier la publication'}
       </button>}
       {own ? (
         <button type="button" className="km-post-options-danger" onClick={onDelete}>
-          <span aria-hidden="true">×</span>{en?'Delete publication':'Supprimer la publication'}
+          <span aria-hidden="true"><KnowMeGlyph name="trash" size={21}/></span>{en?'Delete publication':'Supprimer la publication'}
         </button>
       ) : (
         <button type="button" onClick={onDisinterest}>
-          <span aria-hidden="true">−</span>{en?'Hide from my feed':'Masquer de mon fil'}
+          <span aria-hidden="true"><KnowMeGlyph name="eye-off" size={21}/></span>{en?'Hide from my feed':'Masquer de mon fil'}
         </button>
       )}
     </section>
@@ -59,6 +61,7 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
 export function PostDisinterestSheet({en,onClose,onChoose}:{
   en:boolean;onClose:()=>void;onChoose:(reason:string)=>void;
 }) {
+  const reasonIcons: KnowMeGlyphName[] = ['eye-off', 'refresh', 'warning', 'profile', 'more-horizontal'];
   const reasons = en ?
     ['Not interesting','Content is repetitive','Content is disturbing','I see too many posts from this author','Other'] :
     ['Pas intéressant','Contenu répétitif','Contenu dérangeant','Trop de publications de cet auteur','Autre'];
@@ -74,13 +77,14 @@ export function PostDisinterestSheet({en,onClose,onChoose}:{
       <div className="km-post-options-handle" aria-hidden="true"/>
       <header>
         <h2>{en?'Why hide this publication?':'Pourquoi masquer cette publication ?'}</h2>
-        <button type="button" aria-label={en?'Close':'Fermer'} onClick={onClose}>×</button>
+        <KnowMeIconButton name="close" size={20} label={en?'Close':'Fermer'} onClick={onClose}/>
       </header>
       <p>{en?'Your choice hides this publication in this session only.':
         'Ce choix masque la publication pour cette session uniquement.'}</p>
-      {reasons.map(reason=><button type="button" key={reason}
+      {reasons.map((reason,index)=><button type="button" key={reason}
         onClick={()=>onChoose(reason)}>
-        <span aria-hidden="true">○</span>{reason}
+        <span aria-hidden="true"><KnowMeGlyph name={reasonIcons[index] ?? 'more-horizontal'} size={20}/></span>
+        {reason}
       </button>)}
     </section>
   </div>;
