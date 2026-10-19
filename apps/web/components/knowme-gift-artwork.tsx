@@ -16,6 +16,8 @@ type Props = {
   /** Only increment after a confirmed action. An initial idle card never bursts. */
   eventToken?: string | number | null;
   label?: string;
+  /** Local preview override; persisted reward state is unchanged. */
+  motionEnabled?: boolean;
 };
 
 const PALETTES: Record<KnowMeGiftVariant, {
@@ -43,7 +45,7 @@ const PALETTES: Record<KnowMeGiftVariant, {
  */
 export function KnowMeGiftArtwork({
   variant, state = 'idle', size = 128, eventToken = null,
-  className = '', label
+  className = '', label, motionEnabled = true
 }: Props) {
   const id = useId().replace(/:/g, '');
   const gradient = (name: string) => `url(#km-gift-${id}-${name})`;
@@ -59,7 +61,7 @@ export function KnowMeGiftArtwork({
   useEffect(() => {
     const before = previous.current;
     previous.current = { state, eventToken };
-    if (!visible) { setBurst(false); return; }
+    if (!visible || !motionEnabled) { setBurst(false); return; }
     const changed = before.state !== state ||
       (eventToken !== null && eventToken !== before.eventToken);
     if (!changed || state === 'idle') return;
@@ -71,7 +73,7 @@ export function KnowMeGiftArtwork({
     setBurst(true);
     const timeout = window.setTimeout(() => setBurst(false), 820);
     return () => window.clearTimeout(timeout);
-  }, [state, eventToken, visible]);
+  }, [state, eventToken, visible, motionEnabled]);
 
   const fallback = variant === 'aurora' ? 'Cadeau Aurore'
     : variant === 'cosmos' ? 'Cadeau Cosmos' : 'Cadeau Fleur';
@@ -81,7 +83,7 @@ export function KnowMeGiftArtwork({
   return (
     <span ref={ref}
       className={['km-collectible', `km-collectible--${variant}`, className].filter(Boolean).join(' ')}
-      data-state={state} data-burst={burst ? 'true' : 'false'}
+      data-state={state} data-burst={motionEnabled && burst ? 'true' : 'false'}
       data-visible={visible ? 'true' : 'false'}
       style={{ width: size, height: size }}
     >
