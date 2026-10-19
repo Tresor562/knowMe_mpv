@@ -118,6 +118,6 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
     link: <><path d="m10.1 13.8 3.8-3.8m-5 6.5-1.2 1.2a4 4 0 0 1-5.6-5.6l4-4a4 4 0 0 1 5.6 0m.6-1.6 1.2-1.2a4 4 0 0 1 5.6 5.6l-4 4a4 4 0 0 1-5.6 0"/></>,
     eye: <><path d="M2 12s3.8-6.3 10-6.3S22 12 22 12s-3.8 6.3-10 6.3S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></>,
     'eye-off': <><path d="m3.3 3.3 17.4 17.4M5.3 7.7C3.3 9.4 2 12 2 12s3.8 6.3 10 6.3c1.5 0 2.8-.35 4-.9M9.6 5.9c.75-.15 1.55-.2 2.4-.2 6.2 0 10 6.3 10 6.3s-.85 1.5-2.25 3"/></>
-  };
+  } satisfies Record<KnowMeGlyphName, unknown>;
   return <svg {...shared} className={className}>{shapes[name]}</svg>;
 }
