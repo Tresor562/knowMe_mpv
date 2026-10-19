@@ -185,6 +185,38 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     return ()=>window.removeEventListener('keydown',onKey);
   },[preview]);
 
+  useEffect(()=>{
+    if(!cropUrl)return;
+    cropClose.current?.focus();
+    const onKey=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){
+        if(!busy){
+          event.preventDefault();
+          setCropUrl(null);
+          setDimensions(null);
+          drag.current=null;
+          trigger.current?.focus();
+        }
+        return;
+      }
+      if(event.key!=='Tab'||!cropDialog.current)return;
+      const focusable=[...cropDialog.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),input:not([disabled]),[tabindex="0"]'
+      )].filter(item=>item.getClientRects().length>0);
+      if(!focusable.length)return;
+      const current=focusable.indexOf(document.activeElement as HTMLElement);
+      if(event.shiftKey&&(current===0||current<0)){
+        event.preventDefault();
+        focusable[focusable.length-1].focus();
+      }else if(!event.shiftKey&&current===focusable.length-1){
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    };
+    window.addEventListener('keydown',onKey);
+    return ()=>window.removeEventListener('keydown',onKey);
+  },[cropUrl,busy]);
+
   return <div className="km-group-avatar-editor">
     <div className="km-group-avatar-frame">
       <button ref={avatarButton} className="km-info-group-avatar km-group-identity-mark" type="button"
@@ -221,6 +253,93 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
       {tr('Enregistrement de la photo…','Saving picture…')}</p>}
     {notice&&<p className="km-group-avatar-status" role="status">{notice}</p>}
     {error&&<p className="km-group-avatar-error" role="alert">{error}</p>}
+    {cropUrl&&<div ref={cropDialog} className="km-group-avatar-crop-backdrop" role="dialog"
+      aria-modal="true" aria-label={tr('Recadrer la photo du groupe','Crop group picture')}
+      aria-describedby="km-group-crop-help">
+      <div className="km-group-avatar-crop-panel">
+        <header className="km-group-crop-header">
+          <button ref={cropClose} type="button" onClick={closeCrop}
+            disabled={busy} aria-label={tr('Annuler le recadrage','Cancel crop')}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.8" width="22" height="22" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+          <h3>{tr('Recadrer la photo','Crop picture')}</h3>
+          <button type="button" disabled={!crop||busy} onClick={()=>void saveCrop()}
+            className="km-group-crop-save">
+            {busy?tr('Enregistrement…','Saving…'):tr('Terminé','Done')}
+          </button>
+        </header>
+        <div className="km-group-crop-body">
+          <p id="km-group-crop-help">
+            {tr('Glisse la photo pour la déplacer. Utilise le zoom ou les flèches du clavier.',
+              'Drag the picture to move it. Use zoom or the arrow keys.')}
+          </p>
+          <div className="km-group-crop-viewport" tabIndex={0}
+            role="img" aria-label={tr('Photo à recadrer, déplaçable avec les flèches',
+              'Crop picture, use arrow keys to move')}
+            onPointerDown={event=>{
+              if(!crop||busy||(event.pointerType==='mouse'&&event.button!==0))return;
+              drag.current={x:event.clientX,y:event.clientY,
+                panX:crop.panX,panY:crop.panY};
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={event=>{
+              if(!drag.current||busy)return;
+              moveCrop(drag.current.panX+event.clientX-drag.current.x,
+                drag.current.panY+event.clientY-drag.current.y);
+            }}
+            onPointerUp={()=>{drag.current=null;}}
+            onPointerCancel={()=>{drag.current=null;}}
+            onKeyDown={event=>{
+              if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key)||busy)return;
+              event.preventDefault();
+              const delta=event.shiftKey?18:6;
+              moveCrop(pan.x+(event.key==='ArrowLeft'?delta:event.key==='ArrowRight'?-delta:0),
+                pan.y+(event.key==='ArrowUp'?delta:event.key==='ArrowDown'?-delta:0));
+            }}>
+            <img src={cropUrl} ref={cropImage} alt="" draggable={false}
+              style={crop?{left:crop.left,top:crop.top,
+                width:crop.cssWidth,height:crop.cssHeight}:undefined}
+              onLoad={event=>{
+                const w=event.currentTarget.naturalWidth,h=event.currentTarget.naturalHeight;
+                if(!w||!h||w>8192||h>8192||w*h>36000000){
+                  setDimensions(null);
+                  setError(tr('Image trop grande ou illisible. Choisis une autre photo.',
+                    'Picture is too large or unreadable. Choose a different one.'));
+                  return;
+                }
+                setDimensions({width:w,height:h});
+              }}
+              onError={()=>{
+                setDimensions(null);
+                setError(tr('Impossible de lire cette photo. Choisis une autre image.',
+                  'Could not read this picture. Choose a different image.'));
+              }}/>
+            <span className="km-group-crop-outline" aria-hidden="true"/>
+          </div>
+          <div className="km-group-crop-zoom">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none"
+              strokeWidth="1.8" aria-hidden="true"><circle cx="10" cy="10" r="6"/>
+              <path d="m14.5 14.5 5 5M7.5 10h5"/></svg>
+            <label htmlFor="km-group-photo-zoom">{tr('Zoom','Zoom')}</label>
+            <input id="km-group-photo-zoom" type="range" min="1" max="3" step="0.05"
+              value={zoom} disabled={!dimensions||busy}
+              onChange={event=>changeZoom(Number(event.target.value))}
+              aria-label={tr('Agrandir ou réduire la photo','Zoom group picture')}/>
+            <output htmlFor="km-group-photo-zoom">{zoom.toFixed(2)}×</output>
+          </div>
+          <button type="button" className="km-group-crop-reset" disabled={!dimensions||busy}
+            onClick={()=>{setZoom(1);setPan({x:0,y:0});}}>
+            {tr('Recentrer','Reset position')}
+          </button>
+          {error&&<p className="km-group-avatar-error" role="alert">{error}</p>}
+          {busy&&<p className="km-group-avatar-status" role="status">
+            {tr('Enregistrement de la photo recadrée…','Saving cropped picture…')}</p>}
+        </div>
+      </div>
+    </div>}
     {preview&&photo&&<div className="km-group-avatar-preview" role="dialog" aria-modal="true"
       aria-label={tr('Photo du groupe','Group picture')} onClick={()=>{
         setPreview(false);avatarButton.current?.focus();
