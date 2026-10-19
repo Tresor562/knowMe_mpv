@@ -138,3 +138,16 @@ Les 12 alertes contextuelles restantes correspondent à des éléments SVG dans 
 **Faits vérifiés** : la CI complète du commit `651aef784169cedd012d13c357d947232268b40a` a réussi avant cette extension. Les derniers commits doivent valider leurs propres workflows. La compilation Android de branche, même réussie, n'équivaut ni à un test sur appareil ni à une APK signée et distribuée aux utilisateurs.
 
 **Blocages structurels restant honnêtement ouverts** : `react-native-svg` non installé sur Expo SDK 53, verrou pnpm à générer par Infra #698 ; domaines Messagerie #693, Social #694, Réels #695, Profils #696 et Marketplace #697 en PR parallèles ; garde de chevauchement GitHub non validé ; pas de preuve d'une inspection exhaustive des 24 surfaces, ni d'un nouveau déploiement Web/APK de cette branche. Ne pas effacer ces exigences de la checklist.
+
+
+## Contrôle de fidélité du logo officiel — image encapsulée vs vrai SVG (19 octobre)
+
+Le laboratoire `/design/iconography` propose désormais **une superposition pilotée par curseur 0–100 %** entre le logo officiel et son prototype redessiné en chemins SVG. À 0 %, seule l'image d'origine est visible ; à 100 %, seul le prototype vectoriel est visible. Les deux utilisent exactement le même cadrage et la même échelle, avec action au doigt, souris ou clavier (Home/End). Le mode responsive 360 px conserve une commande de hauteur ≥44 px. Des tests navigateur vérifient le déplacement du curseur et le masquage réel du calque.
+
+Le logo officiel `apps/web/public/brand/knowme-logo.svg` contient **un PNG en base64 dans une balise `<image>`**. Ce n'est **pas** un logo entièrement vectoriel malgré son extension. Un vrai SVG dessiné avec dégradés, cercles et tracés est préparé dans `apps/web/public/brand/knowme-logo-vector-prototype.svg`, sans image intégrée. Il reste un **prototype**, car son remplacement sans contrôle visuel risquerait d'altérer l'identité de KnowMe ; la source en production reste donc inchangée.
+
+L'audit `scripts/audit-knowme-svg.mjs --strict` détecte désormais les images raster encapsulées dans les SVG ; le logo historique est une exception **signalée** en revue (et non un silence), tandis que les nouvelles encapsulations constituent des erreurs bloquantes. Le prototype est soumis à une vérification automatique de présence de véritables tracés, sans `<image>` ni URI `data:image/`.
+
+Enfin, `node scripts/audit-knowme-icon-parity.mjs --require-parity` est une **porte de sortie explicitement bloquante** tant que le moteur natif SVG Android, ses vrais chemins et la couverture de tous les noms Web ne sont pas au rendez-vous. L'audit ordinaire reste informatif et n'empêche pas une compilation de branche servant aux vérifications ; le succès de compilation ne vaut jamais une certification vectorielle native.
+
+**Restant** : aval visuel du logo avant substitution, renderer `react-native-svg` réellement installé et compilé, migration du catalogue natif, correction des conflits entre branches, validation sur appareil réel et déploiement.
