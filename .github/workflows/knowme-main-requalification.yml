@@ -58,17 +58,17 @@ jobs:
           import { readFileSync } from 'node:fs';
           const canonical = readFileSync('.github/workflows/ci.yml', 'utf8');
           const clone = readFileSync('.github/workflows/knowme-main-requalification.yml', 'utf8');
-          const marker = '\\njobs:\\n';
+          const marker = '\njobs:\n';
           const pos = canonical.indexOf(marker);
           if (pos < 0) throw Error('Missing canonical CI jobs definition');
           const expected = canonical.slice(pos + marker.length).trim();
-          const start = clone.indexOf('\\n  quality:\\n');
-          const end = clone.indexOf('\\n  dispatch-apk:\\n', start);
+          const start = clone.indexOf('\n  quality:\n');
+          const end = clone.indexOf('\n  dispatch-apk:\n', start);
           if (start < 0 || end < 0) throw Error('Missing cloned quality job');
           const fragment = clone.slice(start + 1, end);
           const actual = fragment.replace(
-            '  quality:\\n    needs: qualify\\n    if: needs.qualify.outputs.run_quality == \'true\'\\n',
-            '  quality:\\n'
+            '  quality:\n    needs: qualify\n    if: needs.qualify.outputs.run_quality == \'true\'\n',
+            '  quality:\n'
           ).trim();
           if (actual !== expected) throw Error('Requalification quality diverged from ci.yml; update both before any release');
           console.log('Canonical quality job reproduced exactly for current main');
