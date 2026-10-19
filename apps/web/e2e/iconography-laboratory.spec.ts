@@ -1,5 +1,21 @@
 import { test, expect } from '@playwright/test';
 
+/** WCAG 2.x contrast check on colors as actually painted by Chromium. */
+function contrastRatio(foreground: string, background: string) {
+  const luminance = (color: string) => {
+    const values = color.match(/\\d+(?:\\.\\d+)?/g)?.slice(0, 3).map(Number);
+    if (!values || values.length !== 3) throw new Error('Unable to read RGB color: ' + color);
+    const linear = values.map(value => {
+      const s = value / 255;
+      return s <= .04045 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4;
+    });
+    return .2126 * linear[0]! + .7152 * linear[1]! + .0722 * linear[2]!;
+  };
+  const a = luminance(foreground);
+  const b = luminance(background);
+  return (Math.max(a,b)+.05) / (Math.min(a,b)+.05);
+}
+
 test('design laboratory exposes 79 original icons, supports semantic states and filtering', async ({ page }) => {
   await page.goto('/design/iconography');
   await expect(page.getByRole('heading', { name: /Laboratoire des pictogrammes|Iconography laboratory/ }))
@@ -88,8 +104,12 @@ test('design QA theme and motion controls are isolated from app preferences', as
     await theme.getByRole('button', { name }).click();
     await expect(lab).toHaveAttribute('data-lab-theme', value);
     await expect(theme.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
-    const color = await lab.evaluate(node => getComputedStyle(node).color);
-    expect(color).toBeTruthy();
+    const paints = await lab.evaluate(node => ({
+      foreground: getComputedStyle(node).color,
+      background: getComputedStyle(node.querySelector('.km-icon-lab-panel')!).backgroundColor
+    }));
+    expect(contrastRatio(paints.foreground, paints.background))
+      .toBeGreaterThanOrEqual(4.5);
   }
   const size = page.getByRole('slider', { name: 'Taille du pictogramme' });
   await size.focus();
