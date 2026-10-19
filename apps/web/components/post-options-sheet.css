@@ -88,3 +88,27 @@
   align-items: center;
   gap: 8px;
 }
+
+
+/* Unified 21px pictograms: action sheet control text remains the accessible
+ * name, while SVG details are always decorative. */
+.km-post-options-sheet header .km-icon-action {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  font-size: inherit;
+}
+.km-post-options-sheet > :is(button,a) > span > svg[data-knowme-icon] {
+  width: 21px;
+  height: 21px;
+}
+.km-post-options-sheet > :is(button,a):focus-visible,
+.km-post-options-sheet header .km-icon-action:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: -2px;
+}
