@@ -24,7 +24,7 @@ test('design laboratory exposes 79 original icons, supports semantic states and 
   await expect(page.getByRole('note')).toContainText(/simulés localement|simulated locally/);
   await page.getByRole('button', { name: 'heart', exact: true }).click();
   await page.getByRole('group', { name: /État de l’icône prévisualisée|Preview icon state/ })
-    .getByRole('button', { name: 'selected' }).click();
+    .getByRole('button', { name: 'selected', exact: true }).click();
   await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
     .toHaveAttribute('data-icon-state', 'selected');
   await expect(page.getByTestId('icon-lab-preview').locator('[data-knowme-icon="heart"]'))
