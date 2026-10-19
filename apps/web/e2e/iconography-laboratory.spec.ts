@@ -83,8 +83,12 @@ test('brand comparison presents both logos without replacing the official asset'
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/design/iconography');
   const section = page.getByRole('region', { name: /Comparaison du logo|Logo comparison/ });
-  await expect(section.getByRole('img', { name: /Logo actuel de KnowMe|Current KnowMe logo/ })).toBeVisible();
-  await expect(section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe|True-vector logo draft/ })).toBeVisible();
+  const officialImage = section.getByRole('img', { name: /Logo actuel de KnowMe|Current KnowMe logo/ });
+  const prototypeImage = section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe|True-vector logo draft/ });
+  await expect(officialImage).toHaveCount(1);
+  await expect(prototypeImage).toHaveCount(1);
+  await expect(officialImage).toBeVisible();
+  await expect(prototypeImage).toBeVisible();
   await expect(section.getByText(/Le prototype ne remplace pas le logo officiel|prototype does not replace the official logo/)).toBeVisible();
   await expect(section.locator('img[src="/brand/knowme-logo.svg"]')).toHaveCount(2);
   await expect(section.locator('img[src="/brand/knowme-logo-vector-prototype.svg"]')).toHaveCount(2);
