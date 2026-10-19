@@ -19,10 +19,11 @@
     "expo-file-system": "18.1.11",
     "expo-secure-store": "14.2.3",
     "expo-status-bar": "2.2.3",
+    "expo-updates": "0.28.18",
     "react": "19.0.0",
     "react-native": "0.79.5",
-    "socket.io-client": "4.8.1",
-    "expo-updates": "0.28.18"
+    "react-native-svg": "15.11.2",
+    "socket.io-client": "4.8.1"
   },
   "devDependencies": {
     "@types/node": "22.10.0",
