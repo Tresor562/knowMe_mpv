@@ -151,6 +151,11 @@ def make_mascot():
         for f,z,h,l,r,leg in poses:pose(f,z,h,l,r,leg)
         for fc in action.fcurves:
             for pt in fc.keyframe_points:pt.interpolation="BEZIER"
+        # Stash every action in a distinct NLA track for reliable glTF clip export.
+        track=rig.animation_data.nla_tracks.new()
+        track.name=action.name
+        track.strips.new(action.name,1,action)
+    rig.animation_data.action=None
     bpy.context.scene.frame_set(1)
     return rig
 
@@ -198,6 +203,10 @@ def make_crown():
             pivot.location.z=1.55+rise
             pivot.keyframe_insert("rotation_euler",frame=f)
             pivot.keyframe_insert("location",frame=f)
+        track=pivot.animation_data.nla_tracks.new()
+        track.name=act.name
+        track.strips.new(act.name,1,act)
+    pivot.animation_data.action=None
     bpy.context.scene.frame_set(1)
     return pivot
 
@@ -240,6 +249,9 @@ def export(kind,out,root,frames,size):
     bpy.ops.export_scene.gltf(filepath=str(out/(kind+".glb")),export_format="GLB",
         use_selection=True,export_animations=True,export_animation_mode="ACTIONS",
         export_frame_range=False,export_force_sampling=True,export_lights=False,export_cameras=False)
+    # Mute NLA clips so the explicit preview action plays without stacking motions.
+    if root.animation_data:
+        for track in root.animation_data.nla_tracks:track.mute=True
     # Poster and short transparent turn/character clip for low-end clients.
     if root.animation_data and root.animation_data.action:
         preferred="KnowMe_Wave" if kind=="mascot" else "KnowMe_Orbit"
