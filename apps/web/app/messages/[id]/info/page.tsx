@@ -180,7 +180,7 @@ export default function ConversationInfoPage() {
       <div className="km-group-sidebar">
       <section className="km-info-identity" aria-label={tr('Identité de la discussion', 'Chat identity')}>
         {isGroup
-          ? <GroupAvatarEditor conversationId={id} title={title}
+          ? <GroupAvatarEditor key={id} conversationId={id} title={title}
               canManage={canManage} en={en}/>
           : other && <Avatar member={other} />}
         <h2>{title}</h2>

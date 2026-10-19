@@ -74,3 +74,28 @@ qu'après migration VPS, API disponible et QA Android/Web.
 - Une API existante sur ancien backend pourra retourner 404 : l'interface
   affiche alors un avatar par défaut et **n'affiche pas un faux bouton de
   changement** si le serveur ne déclare pas `canEdit`.
+
+
+## Éditeur de recadrage utilisateur — PR #769
+Après la livraison du stockage privé par PR #767, la photo doit être éditable
+**avant** le téléchargement : image locale JPEG/PNG/WebP (1 Ko–5 Mo), ouverture
+d'une fenêtre de recadrage carré, zoom ×1–×3, glisser au doigt/souris,
+déplacement accessible aux flèches (+ Shift pour avancer davantage),
+recentrage, annulation, puis validation explicite.
+
+- Le carré 288px visible représente exactement la zone dessinée dans un
+  canvas 768×768. Les dimensions, panoramiques et facteurs de zoom proviennent
+  d'un calcul pur partagé avec l'export. Pas de décalage « joli aperçu »
+  / « mauvaise photo sauvegardée ».
+- Aucun upload n'est effectué avant **Terminé**. Un départ, `Échap` ou
+  `Annuler` supprime le brouillon sans contact avec l'API d'upload.
+- Le navigateur refuse le décodage inexploitable et les dimensions excessives.
+  L'API reste autoritaire : appartenance, permission OWNER/ADMIN, propriété du
+  média, analyse de sécurité CLEAN, limite de taille et type MIME sont
+  revérifiés côté serveur.
+- La modale conserve le focus au clavier, piège `Tab` et le rend au déclencheur
+  après la fermeture ; commande tactile ≥44px, FR/EN et animations réduites.
+- Ce lot est **Web**. Son équivalent Android natif a besoin d'un écran Expo
+  autonome, d'un sélecteur/picker et d'un upload au même endpoint sécurisé.
+- La fusion GitHub et la compilation APK n'affirment **pas** que l'API VPS
+  utilise déjà la migration SQL du modèle ConversationAvatar.
