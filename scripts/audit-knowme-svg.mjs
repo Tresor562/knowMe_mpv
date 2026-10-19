@@ -115,7 +115,7 @@ function inspect(file) {
     // This surfaces typography-based controls still requiring the icon family.
     if (extension === '.tsx' || extension === '.jsx') {
       add(row, 'legacy-unicode-control-review', source,
-        /(?:>\s*[×✕▶Ⅱ⛶✦]\s*<|[🔇🔊🕵]|↶10|10↷)/g);
+        /(?:>\s*[×✕▶Ⅱ⛶✦↗⛓▤◯✎−○]\s*<|[🔇🔊🕵]|↶10|10↷)/g);
     }
     if (extension === '.css') add(row, 'css-svg-reference', source, /url\([^)]*(?:\.svg|svg\+xml)[^)]*\)/gi);
   }
@@ -165,6 +165,7 @@ const designMigratedControls = [
   'apps/web/components/knowme-feedback.tsx',
   'apps/web/components/comment-report-sheet.tsx',
   'apps/web/components/post-edit-sheet.tsx',
+  'apps/web/components/post-options-sheet.tsx',
   'apps/web/components/profile-member-picker.tsx',
   'apps/web/components/secret-profile-entry.tsx',
   'apps/web/components/creator-follow-control.tsx',
