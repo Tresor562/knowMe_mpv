@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 const dir = import.meta.dirname;
 const glyph = fs.readFileSync(path.join(dir, 'knowme-glyph.tsx'), 'utf8');
@@ -419,4 +420,19 @@ test('brand vector prototype contains no embedded raster; legacy logo is explici
   assert.match(lab, /id="km-brand-logo-compare"/);
   assert.match(lab, /data-testid="logo-vector-reveal"/);
   assert.match(lab, /logoReveal/);
+});
+
+
+test('native icon parity gate fails when necessary SVG prerequisites are missing', () => {
+  const script = path.join(dir, '..', '..', '..', 'scripts', 'audit-knowme-icon-parity.mjs');
+  const diagnostic = spawnSync(process.execPath, [script, '--json'], { encoding: 'utf8' });
+  assert.equal(diagnostic.status, 0, diagnostic.stderr);
+  const report = JSON.parse(diagnostic.stdout);
+  assert.equal(report.webCount, 79);
+  assert.equal(typeof report.nativeRendersSvgPaths, 'boolean');
+  const strict = spawnSync(process.execPath, [script, '--require-parity', '--json'], { encoding: 'utf8' });
+  assert.equal(strict.status, report.minimumVectorPrerequisites ? 0 : 2, strict.stderr);
+  if (!report.minimumVectorPrerequisites) {
+    assert.match(strict.stderr, /Native SVG parity release gate BLOCKED/);
+  }
 });
