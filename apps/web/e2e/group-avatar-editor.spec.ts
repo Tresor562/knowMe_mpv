@@ -5,7 +5,7 @@ const tinyPng=Buffer.from(
   'base64'
 );
 
-async function setup(page: import('@playwright/test').Page, role:'ADMIN'|'MEMBER'='ADMIN') {
+async function setup(page: import('@playwright/test').Page, role:'ADMIN'|'MEMBER'='ADMIN', capabilitiesUnavailable=false) {
   await page.addInitScript(()=>{
     localStorage.setItem('knowme_token','group-photo-e2e');
     localStorage.setItem('knowme-locale','fr');
@@ -30,8 +30,9 @@ async function setup(page: import('@playwright/test').Page, role:'ADMIN'|'MEMBER
             user:{id:'other',username:'autre',displayName:'Autre',avatarUrl:null}}
         ]}]);
     if(pathname.endsWith('/conversations/group-1/group/avatar/capabilities'))
-      return json({read:true,canEdit:role==='ADMIN',maxBytes:5242880,
-        allowedMime:['image/jpeg','image/png','image/webp']});
+      return capabilitiesUnavailable ? json({code:'NOT_FOUND'},404)
+        : json({read:true,canEdit:role==='ADMIN',maxBytes:5242880,
+          allowedMime:['image/jpeg','image/png','image/webp']});
     if(pathname.endsWith('/conversations/group-1/group/avatar')){
       if(method==='GET')return photo
         ? route.fulfill({status:200,contentType:'image/png',body:tinyPng})
@@ -180,5 +181,17 @@ test('crop frame remains fully usable without horizontal scrolling at 320px',asy
   expect(widths.frameRight).toBeLessThanOrEqual(widths.panelRight);
   expect(state.uploads()).toBe(0);
   await editor.getByRole('button',{name:'Annuler le recadrage'}).click();
+  expect(state.uploads()).toBe(0);
+});
+
+
+test('admin sees a clear message instead of a fake photo action when the API is missing',async({page})=>{
+  const state=await setup(page,'ADMIN',true);
+  await page.goto('/messages/group-1/info');
+  await expect(page.getByRole('heading',{name:'Club de sciences'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Changer la photo du groupe'})).toHaveCount(0);
+  await expect(page.getByRole('alert').filter({
+    hasText:'La modification de la photo du groupe est indisponible sur le serveur.'
+  })).toBeVisible();
   expect(state.uploads()).toBe(0);
 });
