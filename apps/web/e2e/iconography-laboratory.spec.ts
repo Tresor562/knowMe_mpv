@@ -141,3 +141,36 @@ test('design QA theme and motion controls are isolated from app preferences', as
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1))
     .toBe(false);
 });
+
+
+test('every one of the 79 vector icons draws nonempty geometry at phone and desktop widths', async ({ page }) => {
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/design/iconography');
+    const glyphs = page.locator('.km-icon-lab-glyph');
+    await expect(glyphs).toHaveCount(79);
+    const geometry = await glyphs.evaluateAll(buttons => buttons.map(button => {
+      const svg = button.querySelector('svg[data-knowme-icon]');
+      if (!(svg instanceof SVGSVGElement)) {
+        return { name: button.getAttribute('data-glyph'), invalid: 'missing svg' };
+      }
+      const box = svg.getBBox();
+      const area = button.getBoundingClientRect();
+      const primitives = svg.querySelectorAll('path,circle,rect,line,polyline,polygon,ellipse');
+      const valid =
+        svg.getAttribute('viewBox') === '0 0 24 24' &&
+        svg.getAttribute('aria-hidden') === 'true' &&
+        !!primitives.length &&
+        [box.x, box.y, box.width, box.height].every(Number.isFinite) &&
+        box.width > 0 && box.height > 0 &&
+        box.x >= -2 && box.y >= -2 &&
+        box.x + box.width <= 26 && box.y + box.height <= 26 &&
+        area.width >= 44 && area.height >= 44;
+      return { name: button.getAttribute('data-glyph'), valid,
+        bounds: [box.x, box.y, box.width, box.height], primitives: primitives.length,
+        target: [area.width, area.height] };
+    })));
+    const failures = geometry.filter(item => !item.valid);
+    expect(failures, 'Every glyph must have visible bounded artwork and accessible touch target').toEqual([]);
+  }
+});
