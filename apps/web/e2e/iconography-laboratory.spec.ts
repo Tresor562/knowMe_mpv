@@ -91,6 +91,8 @@ test('brand comparison presents both logos without replacing the official asset'
   const slider = section.getByRole('slider', { name: 'Pourcentage de comparaison du logo' });
   const overlay = section.getByTestId('logo-vector-reveal');
   await expect(slider).toHaveValue('50');
+  await expect(slider).toHaveAttribute('aria-valuetext', '50% du prototype vectoriel visible');
+  await expect(section.getByTestId('logo-comparison')).toHaveAttribute('aria-hidden', 'true');
   await expect(overlay).toHaveCSS('clip-path', 'inset(0px 50% 0px 0px)');
   await slider.focus();
   await page.keyboard.press('Home');
