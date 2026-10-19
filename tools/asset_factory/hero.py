@@ -93,6 +93,7 @@ def hero():
         for b,p in zip(spline.bezier_points,coords):
             b.co=p;b.handle_left_type="AUTO";b.handle_right_type="AUTO"
         ob=bpy.data.objects.new(name,cv);bpy.context.collection.objects.link(ob)
+        bpy.ops.object.select_all(action="DESELECT")
         bpy.context.view_layer.objects.active=ob;ob.select_set(True)
         bpy.ops.object.convert(target="MESH");ob=bpy.context.object
         ob.data.materials.append(mats[m]);ob.select_set(False)
