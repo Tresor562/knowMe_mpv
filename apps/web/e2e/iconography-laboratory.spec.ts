@@ -119,9 +119,23 @@ test('design QA theme and motion controls are isolated from app preferences', as
   const motion = page.getByRole('checkbox', { name: 'Animer les démonstrations' });
   await motion.uncheck();
   await expect(lab).toHaveAttribute('data-lab-motion', 'off');
+  // The local switch must reach React components, not merely suppress CSS:
+  // active states and claimed gifts must also stop scheduling JS bursts.
+  const states = page.getByRole('group', { name: 'État de l’icône prévisualisée' });
+  await states.getByRole('button', { name: 'loading' }).click();
+  const symbol = page.getByTestId('icon-lab-preview').locator('.km-state-icon');
+  await expect(symbol).toHaveAttribute('data-auto-motion', 'false');
   await page.getByRole('button', { name: 'Rejouer le mouvement' }).click();
-  await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon > svg'))
-    .toHaveCSS('animation-name', 'none');
+  await expect(symbol).not.toHaveAttribute('data-icon-burst', /.+/);
+  await expect(symbol.locator('svg').first()).toHaveCSS('animation-name', 'none');
+  const aurora = page.locator('.km-icon-lab-gift').filter({
+    has: page.getByRole('heading', { name: 'aurora', exact: true })
+  });
+  await aurora.getByRole('button', { name: 'Acquis' }).click();
+  await expect(aurora.locator('.km-collectible')).toHaveAttribute('data-state', 'claimed');
+  await expect(aurora.locator('.km-collectible')).toHaveAttribute('data-burst', 'false');
+  await motion.check();
+  await expect(lab).toHaveAttribute('data-lab-motion', 'on');
   expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme')))
     .toEqual(originalRootTheme);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1))
