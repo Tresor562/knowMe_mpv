@@ -193,3 +193,39 @@ test('every one of the 79 vector icons draws nonempty geometry at phone and desk
     expect(failures, 'Every glyph must have visible bounded artwork and accessible touch target').toEqual([]);
   }
 });
+
+
+test('official raster and genuine-vector logo have a measurable 64px fidelity baseline', async ({ page }) => {
+  await page.goto('/design/iconography');
+  const deviation = await page.evaluate(async () => {
+    async function sample(src: string) {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('Canvas unavailable in logo review');
+      context.clearRect(0, 0, 64, 64);
+      context.drawImage(image, 0, 0, 64, 64);
+      return context.getImageData(0, 0, 64, 64).data;
+    }
+    const official = await sample('/brand/knowme-logo.svg');
+    const draft = await sample('/brand/knowme-logo-vector-prototype.svg');
+    let delta = 0;
+    let colored = 0;
+    const pixels = 64 * 64;
+    for (let index = 0; index < official.length; index += 4) {
+      // Opaque white or a fully transparent image must never pass this review.
+      if (official[index + 3] > 0 && draft[index + 3] > 0) colored++;
+      for (let channel = 0; channel < 3; channel++)
+        delta += Math.abs(official[index + channel] - draft[index + channel]);
+    }
+    return { meanRgbDifference: delta / (pixels * 3), sharedOpaquePixels: colored };
+  });
+  expect(deviation.sharedOpaquePixels).toBeGreaterThan(3200);
+  expect(Number.isFinite(deviation.meanRgbDifference)).toBe(true);
+  expect(deviation.meanRgbDifference).toBeGreaterThan(0);
+  // Diagnostic, deliberately NOT an approval: UX must compare the overlay.
+  console.info('KNOWME_VECTOR_LOGO_FIDELITY_BASELINE', deviation);
+});
