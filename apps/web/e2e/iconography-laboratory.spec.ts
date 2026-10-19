@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 /** WCAG 2.x contrast check on colors as actually painted by Chromium. */
 function contrastRatio(foreground: string, background: string) {
   const luminance = (color: string) => {
-    const values = color.match(/\\d+(?:\\.\\d+)?/g)?.slice(0, 3).map(Number);
+    const values = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
     if (!values || values.length !== 3) throw new Error('Unable to read RGB color: ' + color);
     const linear = values.map(value => {
       const s = value / 255;
