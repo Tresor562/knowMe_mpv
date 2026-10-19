@@ -355,3 +355,13 @@ test('interactive QA lab is noindex, exposes exhaustive glyphs and never calls p
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /max-width: 390px/);
 });
+
+
+test('shared vector buttons give tactile feedback without faking persisted state', () => {
+  const css = fs.readFileSync(path.join(dir, 'knowme-icon-button.css'), 'utf8');
+  assert.match(css, /\.km-icon-action:active:not\(:disabled\) > \.km-state-icon/);
+  assert.match(css, /scale\(\.89\)/);
+  assert.match(css, /\.km-icon-action\[aria-pressed='true'\]:not\(:active\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /data-effective-reduced-motion='true'/);
+});
