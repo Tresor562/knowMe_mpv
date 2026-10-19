@@ -151,3 +151,14 @@ L'audit `scripts/audit-knowme-svg.mjs --strict` détecte désormais les images r
 Enfin, `node scripts/audit-knowme-icon-parity.mjs --require-parity` est une **porte de sortie explicitement bloquante** tant que le moteur natif SVG Android, ses vrais chemins et la couverture de tous les noms Web ne sont pas au rendez-vous. L'audit ordinaire reste informatif et n'empêche pas une compilation de branche servant aux vérifications ; le succès de compilation ne vaut jamais une certification vectorielle native.
 
 **Restant** : aval visuel du logo avant substitution, renderer `react-native-svg` réellement installé et compilé, migration du catalogue natif, correction des conflits entre branches, validation sur appareil réel et déploiement.
+
+
+## Contrat source Web → Android — géométrie SVG sans approximation (19 octobre)
+
+Nouveau générateur reproductible `scripts/export-knowme-vector-contract.mjs` : son parseur **TypeScript JSX** lit directement le composant canonique `apps/web/components/knowme-glyph.tsx` et extrait les primitives `path`, `circle`, `rect`, `ellipse`, etc. sans dupliquer 79 tracés manuellement. Pour chaque glyph, il produit les variantes **`inactive` et `active`**, le rôle d'animation issu de `knowme-glyph-motion-roles.ts`, la grille 24 × 24, et un contrat de teintes `currentColor` / `var(--bg)` à adapter à la palette Android.
+
+`node scripts/export-knowme-vector-contract.mjs --json` affiche une représentation structurée exportable. `node --test scripts/export-knowme-vector-contract.test.mjs` vérifie les **79 entrées**, unicité, présence de géométrie, états cœur/marque-page/certification, correspondance exhaustive des rôles de motion, absence de bitmap et chiffres « 10 » indépendants des polices. Ces tests sont câblés au script `@knowme/web test` et doivent réussir sur le commit exact. Toute géométrie JSX dynamique non reconnue doit **faire échouer** la génération au lieu d'inventer un dessin.
+
+**Important** : il s'agit maintenant d'une source vectorielle native **préparée**, pas du moteur Android exécuté. L'APK emploie toujours des icônes composées par `View` tant que la dépendance `react-native-svg` compatible Expo 53 / RN 0.79 n'a pas été installée avec le lockfile et le catalogue raccordé à un renderer natif. La documentation de compatibilité React Native indique qu'une version de la branche `15.11.x` est adaptée à RN 0.79 ; vérifier la recommandation exacte de `expo install` avant de modifier `apps/mobile/package.json`, actuellement sujet à des collisions de PR.
+
+**Ne pas déclarer la refonte 100 % livrée** avant installation native, QA de chaque page/appareil, résolution du garde de coordination et publication Web/APK vérifiée.
