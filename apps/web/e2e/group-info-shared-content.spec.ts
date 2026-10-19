@@ -212,9 +212,21 @@ test('group administrator can upload and view a scanned private group picture',a
   });
   await page.goto('/messages/grp1/info');
   await expect(page.getByRole('button',{name:'Changer la photo du groupe'})).toBeVisible();
+  // The cropped-photo editor must decode a real picture, not arbitrary bytes.
+  const validPng=Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+    'base64'
+  );
   await page.locator('input[aria-label="Choisir une photo du groupe"]').setInputFiles({
-    name:'group.png',mimeType:'image/png',buffer:Buffer.alloc(2048,1)
+    name:'group.png',mimeType:'image/png',
+    buffer:Buffer.concat([validPng,Buffer.alloc(1024)])
   });
+  const cropEditor=page.getByRole('dialog',{name:'Recadrer la photo du groupe'});
+  await expect(cropEditor).toBeVisible();
+  expect(updated).toBe(false); // no asset is sent before crop confirmation
+  await expect(cropEditor.getByRole('button',{name:'Terminé'})).toBeEnabled();
+  await cropEditor.getByRole('button',{name:'Terminé'}).click();
+  await expect(cropEditor).toHaveCount(0);
   await expect(page.getByText('Photo du groupe enregistrée.')).toBeVisible();
   await expect(page.getByRole('button',{name:'Voir la photo du groupe'})).toBeVisible();
   expect(updated).toBe(true);
