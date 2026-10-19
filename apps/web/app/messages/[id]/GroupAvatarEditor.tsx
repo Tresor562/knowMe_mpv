@@ -24,6 +24,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
   const [preview,setPreview]=useState(false);
   const picker=useRef<HTMLInputElement>(null);
   const trigger=useRef<HTMLButtonElement>(null);
+  const avatarButton=useRef<HTMLButtonElement>(null);
   const closeRef=useRef<HTMLButtonElement>(null);
 
   useEffect(()=>{
@@ -111,7 +112,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     const onKey=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){
         setPreview(false);
-        trigger.current?.focus();
+        avatarButton.current?.focus();
       }
       if(event.key==='Tab'){
         event.preventDefault();
@@ -124,7 +125,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
 
   return <div className="km-group-avatar-editor">
     <div className="km-group-avatar-frame">
-      <button className="km-info-group-avatar km-group-identity-mark" type="button"
+      <button ref={avatarButton} className="km-info-group-avatar km-group-identity-mark" type="button"
         disabled={!photo}
         onClick={()=>setPreview(true)}
         aria-label={photo?tr('Voir la photo du groupe','View group picture'):
@@ -160,11 +161,11 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     {error&&<p className="km-group-avatar-error" role="alert">{error}</p>}
     {preview&&photo&&<div className="km-group-avatar-preview" role="dialog" aria-modal="true"
       aria-label={tr('Photo du groupe','Group picture')} onClick={()=>{
-        setPreview(false);trigger.current?.focus();
+        setPreview(false);avatarButton.current?.focus();
       }}>
       <div className="km-group-avatar-preview-inner" onClick={event=>event.stopPropagation()}>
         <button ref={closeRef} type="button" onClick={()=>{
-          setPreview(false);trigger.current?.focus();
+          setPreview(false);avatarButton.current?.focus();
         }} aria-label={tr('Fermer','Close')}>×</button>
         <img src={photo} alt={title}/>
       </div>
