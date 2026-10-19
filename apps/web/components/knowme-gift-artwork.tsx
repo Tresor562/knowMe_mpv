@@ -122,6 +122,39 @@ export function KnowMeGiftArtwork({
             fill={gradient('ribbon')} opacity=".8"/>
           <path d="M29 58v31m3 7 24 11m12 2 26-11"
             fill="none" stroke="#fff" strokeOpacity=".23" strokeWidth="1.7"/>
+          {/* Hand-authored miniature face engravings distinguish the gifts even
+              in grayscale and in Reduce Motion. Never reuse a tint-only icon. */}
+          <g className="km-collectible-emblem">
+            <ellipse cx="83" cy="88.5" rx="9.5" ry="12"
+              fill={gradient('side')} stroke={p.gem} strokeOpacity=".7" strokeWidth="1.2"/>
+            <ellipse cx="83" cy="88" rx="8" ry="10.5"
+              fill={gradient('jewel')} opacity=".95"/>
+            {variant === 'aurora' && <g className="km-collectible-emblem-aurora">
+              <path d="M83 78 89 87.5 83 98l-6-10.5Z" fill={p.gem}
+                stroke="#fff" strokeWidth=".75" strokeOpacity=".85"/>
+              <path d="M83 78 83 98m-6-10.5h12M77 87.5 83 83l6 4.5-6 6Z"
+                fill="none" stroke={p.side} strokeWidth=".8" strokeOpacity=".73"/>
+              <path d="M92 79v4m-2-2h4" stroke="#fff" strokeWidth=".9" strokeLinecap="round"/>
+            </g>}
+            {variant === 'cosmos' && <g className="km-collectible-emblem-cosmos">
+              <circle cx="83" cy="88" r="5.6" fill={p.side}
+                stroke={p.gem} strokeWidth="1"/>
+              <path d="M77.2 86.5a15 4.9-24 0 0 12.8 2.9"
+                fill="none" stroke="#fff" strokeWidth="1.35" strokeLinecap="round"/>
+              <path d="m82 84 1.7-1.8 2 1.8-1.7 1.8Z" fill={p.gem}/>
+              <circle cx="79.5" cy="92.5" r="1.15" fill={p.ribbon}/>
+            </g>}
+            {variant === 'blossom' && <g className="km-collectible-emblem-blossom">
+              <ellipse cx="83" cy="83" rx="2.75" ry="4.3" fill={p.gem}/>
+              <ellipse cx="83" cy="93" rx="2.75" ry="4.3" fill={p.gem}/>
+              <ellipse cx="78.1" cy="88" rx="4.3" ry="2.75" fill={p.gem}/>
+              <ellipse cx="87.9" cy="88" rx="4.3" ry="2.75" fill={p.gem}/>
+              <ellipse cx="79.6" cy="84.6" rx="2.8" ry="3.8" transform="rotate(-45 79.6 84.6)" fill={p.gem}/>
+              <ellipse cx="86.4" cy="91.4" rx="2.8" ry="3.8" transform="rotate(-45 86.4 91.4)" fill={p.gem}/>
+              <circle cx="83" cy="88" r="3.5" fill={p.ribbon}
+                stroke="#fff" strokeWidth=".85" strokeOpacity=".8"/>
+            </g>}
+          </g>
         </g>
         <g className="km-collectible-lid">
           <path d="M19 48 58 28c4-2 8-2 12 0l39 20-43 23Z"
