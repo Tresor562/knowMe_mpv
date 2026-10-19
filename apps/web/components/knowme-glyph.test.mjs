@@ -320,11 +320,16 @@ test('three original collectible gifts are vector, state-controlled, motion-safe
   assert.match(gift, /radialGradient/);
   assert.match(gift, /km-collectible-lid/);
   assert.match(gift, /km-collectible-bow/);
+  assert.match(gift, /km-collectible-crown/);
+  assert.match(gift, /variant === 'aurora'/);
+  assert.match(gift, /variant === 'cosmos'/);
+  assert.match(gift, /variant === 'blossom'/);
   assert.match(gift, /km-collectible-magic/);
   assert.doesNotMatch(gift, /<image\b|data:image|\.png|foreignObject|<text\b/);
   assert.match(css, /km-gift-lid-peek/);
   assert.match(css, /km-gift-lid-open/);
   assert.match(css, /km-gift-claimed/);
+  assert.match(css, /km-gift-crown/);
   assert.match(css, /data-burst='true'\]\[data-visible='true'\]/);
   assert.match(css, /data-state='opening'/);
   assert.match(css, /data-state='opened'/);
