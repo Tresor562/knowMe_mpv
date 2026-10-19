@@ -29,7 +29,7 @@ const sum = {
   inspectedFiles: 0, svgFiles: 0, androidVectorFiles: 0, inlineSVG: 0,
   jsxSvgReferences: 0, dynamicSVG: 0, iconLibraryReferences: 0,
   nativeComposedIconReferences: 0, rasterAssetFiles: 0, cssSvgReferences: 0,
-  legacyUnicodeControlCandidates: 0
+  legacyUnicodeControlCandidates: 0, rasterWrappedSvgFiles: 0
 };
 function lineOf(source, index) { return source.slice(0, index).split('\n').length; }
 function add(row, kind, source, regex) {
@@ -55,6 +55,15 @@ function inspect(file) {
     }
     if (/<(?:script|foreignObject)\b|\bon\w+\s*=|javascript:/i.test(source)) {
       warnings.push({ file: rel, line: 1, severity: 'error', issue: 'Unsafe or foreign SVG content requires manual review' });
+    }
+    // An SVG wrapper around a base64 PNG/JPEG is not scalable icon geometry.
+    // The existing KnowMe brand logo is legacy identity, reviewed explicitly,
+    // and must not silently become a new production icon family.
+    if (/<image\b/i.test(source) || /data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source)) {
+      sum.rasterWrappedSvgFiles++;
+      warnings.push({ file: rel, line: 1,
+        severity: rel === 'apps/web/public/brand/knowme-logo.svg' ? 'review' : 'error',
+        issue: 'SVG wraps a raster asset and is not genuine scalable vector artwork' });
     }
     if (/<image\b|data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(source)) {
       // The pre-existing official KnowMe brand is a raster embedded inside
