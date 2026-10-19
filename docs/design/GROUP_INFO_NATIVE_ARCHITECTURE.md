@@ -62,11 +62,15 @@ qu'après migration VPS, API disponible et QA Android/Web.
   en-têtes** n'affichent pas encore ce nouvel asset. Ils exigent le raccordement
   `GroupAvatarEditor` équivalent en React Native et un endpoint de résumé
   d'avatar dans le contrat de liste, avec cache invalidé en temps réel.
-- Le modèle Prisma indépendant évite les conflits de schéma actifs mais ne
-  déclare pas encore de relations Prisma avec Conversation/MediaAsset. La
-  vérification d'appartenance et des assets est effectuée à chaque requête ;
-  une purge des références orphelines à la suppression définitive d'un groupe
-  reste à prévoir.
+- Le modèle Prisma indépendant évite les conflits de schéma actifs et ne
+  déclare pas de relation Prisma dans `Conversation` ou `MediaAsset` (fichiers
+  détenus par des PR concurrentes). La migration **alignée sur ce modèle**
+  installe des triggers PostgreSQL : validation de l'existence des deux
+  références avec verrous `KEY SHARE` à chaque insertion/mise à jour,
+  suppression atomique de l'avatar quand la conversation ou son média est
+  supprimé. Les permissions et l'état de sécurité sont vérifiés de plus par
+  l'API à chaque requête. **Limite :** ces triggers SQL, non modélisés par
+  Prisma, exigent un test de migration PostgreSQL au déploiement.
 - Une API existante sur ancien backend pourra retourner 404 : l'interface
   affiche alors un avatar par défaut et **n'affiche pas un faux bouton de
   changement** si le serveur ne déclare pas `canEdit`.
