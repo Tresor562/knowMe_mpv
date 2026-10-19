@@ -142,6 +142,23 @@ export function KnowMeGiftArtwork({
             <path d="m63 32-8 20 12-9 10 12-8-23Z"
               fill={gradient('ribbon')} opacity=".9"/>
             <circle cx="64" cy="33" r="6.8" fill={gradient('jewel')} stroke="#fff" strokeOpacity=".75" strokeWidth="1"/>
+            {variant === 'aurora' && <g className="km-collectible-crown">
+              <path d="m64 18 8 14-8 12-8-12Z" fill={gradient('jewel')}
+                stroke="#fff" strokeOpacity=".8" strokeWidth="1.2"/>
+              <path d="M64 18v26m-8-12h16" fill="none" stroke="#fff"
+                strokeOpacity=".55" strokeWidth="1"/>
+            </g>}
+            {variant === 'cosmos' && <g className="km-collectible-crown">
+              <path d="m64 14 4.2 12 12 4-12 4.2L64 46l-4.2-11.8-12-4.2 12-4Z"
+                fill={gradient('jewel')} stroke="#fff" strokeOpacity=".8" strokeWidth="1.1"/>
+              <circle cx="64" cy="30" r="2.8" fill="#fff" opacity=".82"/>
+            </g>}
+            {variant === 'blossom' && <g className="km-collectible-crown">
+              <ellipse cx="64" cy="20" rx="5.5" ry="9" fill={gradient('jewel')}/>
+              <ellipse cx="53" cy="27" rx="5.5" ry="9" transform="rotate(-48 53 27)" fill={gradient('jewel')}/>
+              <ellipse cx="75" cy="27" rx="5.5" ry="9" transform="rotate(48 75 27)" fill={gradient('jewel')}/>
+              <circle cx="64" cy="32" r="5.2" fill={p.ribbon} stroke="#fff" strokeWidth="1"/>
+            </g>}
           </g>
         </g>
         <g className="km-collectible-magic">
