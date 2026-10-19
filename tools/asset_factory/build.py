@@ -15,7 +15,7 @@ from mathutils import Vector
 def args():
     argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else []
     parser=argparse.ArgumentParser()
-    parser.add_argument("--kind",choices=("mascot","crown"),required=True)
+    parser.add_argument("--kind",choices=("mascot","crown","hero"),required=True)
     parser.add_argument("--out",required=True)
     parser.add_argument("--frames",type=int,default=16)
     parser.add_argument("--size",type=int,default=440)
@@ -228,9 +228,9 @@ def studio(kind):
     area("Golden accent",(-2,2,3),600,(1,.69,.38),2)
     cam=bpy.data.cameras.new("Hero portrait camera");cam_obj=bpy.data.objects.new("Camera",cam)
     scene.collection.objects.link(cam_obj)
-    cam_obj.location=(3.9,-7.7,3.4) if kind=="crown" else (3.4,-7.8,3.0)
+    cam_obj.location=(3.9,-7.7,3.4) if kind=="crown" else ((3.0,-8.4,3.45) if kind=="hero" else (3.4,-7.8,3.0))
     look(cam_obj,(0,0,1.55 if kind=="crown" else 1.43))
-    cam.type="ORTHO";cam.ortho_scale=3.9 if kind=="mascot" else 3.8
+    cam.type="ORTHO";cam.ortho_scale=4.1 if kind=="hero" else (3.9 if kind=="mascot" else 3.8)
     scene.camera=cam_obj
     scene.render.image_settings.file_format="PNG"
     scene.render.resolution_percentage=100
@@ -258,7 +258,7 @@ def export(kind,out,root,frames,size):
         for track in root.animation_data.nla_tracks:track.mute=True
     # Poster and short transparent turn/character clip for low-end clients.
     if root.animation_data and root.animation_data.action:
-        preferred="KnowMe_Wave" if kind=="mascot" else "KnowMe_Orbit"
+        preferred={"mascot":"KnowMe_Wave","hero":"KnowMe_Hero_Greet","crown":"KnowMe_Orbit"}[kind]
         action=bpy.data.actions.get(preferred)
         if action:root.animation_data.action=action
     scene.render.resolution_x=size;scene.render.resolution_y=size
@@ -279,7 +279,7 @@ def export(kind,out,root,frames,size):
     shutil.rmtree(folder)
     return {"asset":kind,"source":kind+".blend","model":kind+".glb","poster":kind+".png",
             "video":kind+".webm","blender":bpy.app.version_string,
-            "animation_names":["KnowMe_Idle","KnowMe_Wave","KnowMe_Celebrate"] if kind=="mascot" else ["KnowMe_Orbit","KnowMe_Reveal"]}
+            "animation_names":sorted(a.name for a in bpy.data.actions if a.name.startswith("KnowMe_"))}
 
 def main():
     a=args()
@@ -288,7 +288,12 @@ def main():
     out=Path(a.out).resolve();out.mkdir(parents=True,exist_ok=True)
     bpy.ops.object.select_all(action="SELECT");bpy.ops.object.delete(use_global=False)
     bpy.context.scene.frame_set(1)
-    root=make_mascot() if a.kind=="mascot" else make_crown()
+    if a.kind=="hero":
+        sys.path.insert(0,str(Path(__file__).resolve().parent))
+        from hero import hero
+        root=hero()
+    else:
+        root=make_mascot() if a.kind=="mascot" else make_crown()
     studio(a.kind)
     result=export(a.kind,out,root,a.frames,a.size)
     (out/(a.kind+".json")).write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
