@@ -4,6 +4,8 @@
 name: KnowMe exact-main release requalification
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: '43 */6 * * *'
   issues:
