@@ -27,7 +27,7 @@ small{color:#8895b4;font-size:11px}.controls button{font-size:13px}
 </head><body><main>
 <header><div><small>KNOWME MOTION FACTORY • BLENDER 4</small><h1>Objets 3D réels, animés.</h1></div><span class="status">GLB + rigging</span></header>
 <p>Ce sont de vrais maillages Blender exportés en glTF. Glisse le doigt pour tourner la scène ; lance chaque animation.</p>
-<nav role="group" aria-label="Choisir un modèle"><button id="mascot" aria-pressed="true">Personnage articulé</button><button id="crown" aria-pressed="false">Couronne 3D</button></nav>
+<nav role="group" aria-label="Choisir un modèle"><button id="hero" aria-pressed="true">Personnage fantasy</button><button id="mascot" aria-pressed="false">Mascotte</button><button id="crown" aria-pressed="false">Couronne 3D</button></nav>
 <model-viewer id="mv" camera-controls auto-rotate shadow-intensity="1" exposure="1.25" environment-image="neutral" interaction-prompt="auto" alt="Modèle 3D KnowMe"></model-viewer>
 <div class="controls" id="clips"></div><p class="hint" id="detail">Chargement du modèle…</p>
 <small>Ce lecteur a besoin d'Internet uniquement pour charger la bibliothèque gratuite model-viewer. Les deux GLB sont intégrés à cette page ; aucun PNG n'est utilisé comme modèle.</small>
@@ -52,15 +52,16 @@ viewer.addEventListener("load",()=>{
  if(names[0]){viewer.animationName=names[0];viewer.play()}
 });
 viewer.addEventListener("error",()=>{detail.textContent="Impossible de charger le modèle : vérifie WebGL et la connexion au lecteur CDN."});
+document.getElementById("hero").addEventListener("click",()=>select("hero"));
 document.getElementById("mascot").addEventListener("click",()=>select("mascot"));
 document.getElementById("crown").addEventListener("click",()=>select("crown"));
-customElements.whenDefined("model-viewer").then(()=>select("mascot"));
+customElements.whenDefined("model-viewer").then(()=>select("hero"));
 </script></body></html>'''
 
 def main(directory):
     folder=Path(directory)
     models={}
-    for n in ("mascot","crown"):
+    for n in ("hero","mascot","crown"):
         raw=(folder/(n+".glb")).read_bytes()
         assert raw[:4]==b"glTF",n+" not a GLB"
         models[n]="data:model/gltf-binary;base64,"+base64.b64encode(raw).decode("ascii")
