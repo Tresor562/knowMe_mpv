@@ -162,3 +162,37 @@ Nouveau générateur reproductible `scripts/export-knowme-vector-contract.mjs` :
 **Important** : il s'agit maintenant d'une source vectorielle native **préparée**, pas du moteur Android exécuté. L'APK emploie toujours des icônes composées par `View` tant que la dépendance `react-native-svg` compatible Expo 53 / RN 0.79 n'a pas été installée avec le lockfile et le catalogue raccordé à un renderer natif. La documentation de compatibilité React Native indique qu'une version de la branche `15.11.x` est adaptée à RN 0.79 ; vérifier la recommandation exacte de `expo install` avant de modifier `apps/mobile/package.json`, actuellement sujet à des collisions de PR.
 
 **Ne pas déclarer la refonte 100 % livrée** avant installation native, QA de chaque page/appareil, résolution du garde de coordination et publication Web/APK vérifiée.
+
+## Lot du 19 octobre — SVG Android natifs partageant les tracés Web
+
+Cette étape **ajoute du code fonctionnel dans la PR brouillon**, et ne signifie pas
+que l'APK installée par les utilisateurs a été modifiée.
+
+- Le catalogue `apps/mobile/src/ui/knowme-native-vector-contract.json` contient
+  **84 glyphes à chemins SVG natifs** : 79 géométries issues de
+  `apps/web/components/knowme-glyph.tsx` et 5 glyphes propres à Android
+  (`challenge`, `coins`, `arrow`, `chevron-down`, `chevron-up`).
+  Chaque pictogramme stocke ses états inactif/actif. Les logos officiels
+  restent inchangés.
+- `KnowMeNativeVectorIcon.tsx` utilise `react-native-svg@15.11.2` et
+  effectue les substitutions de nom pour les appels Android historiques
+  (messages/chats, bell/notifications, etc.).
+  `KnowMeUI.tsx` pointe en priorité vers le rendu SVG réel et
+  conserve les anciennes primitives View comme secours.
+- Le lockfile pnpm a été recalculé **par GitHub Actions** avec
+  `pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts`
+  et le workflow temporaire a ensuite été supprimé.
+- `scripts/check-knowme-native-vector-contract.mjs` vérifie
+  la cohérence exacte avec la sortie de
+  `scripts/export-knowme-vector-contract.mjs --json`.
+  `scripts/audit-knowme-icon-parity.mjs --require-parity` vérifie
+  les 84 géométries, les 31 noms natifs, le moteur, sa déclaration et son
+  verrouillage ; ce contrôle mécanique **ne valide pas le rendu à l'écran**.
+- Les tests de contrat et de parité sont intégrés aux suites Web/Android.
+  La CI du commit terminal doit être examinée séparément.
+- **Reste à vérifier avant fusion** : contrôle visuel et tactile sur plusieurs
+  téléphones, accessibilité et performance, revue de tous les SVG inline
+  historiques, intégration des écrans modifiés par les PR des autres domaines,
+  collisions de coordination, fusion et publication Web/APK.
+
+**Statut** : natif SVG implémenté sur branche Design, non publié.
