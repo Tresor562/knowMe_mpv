@@ -21,9 +21,9 @@ export type NativeAnimatedIconProps = {
 };
 
 /**
- * Native-driver animation around the original Android KnowMeIcon family.
- * The caller owns the real persisted/API state. This wrapper is deliberately
- * not a replacement for react-native-svg vector paths (pending dependency).
+ * Native-driver animation around the KnowMe SVG glyph family.
+ * The caller owns the real persisted/API state. Vector geometry is rendered
+ * by KnowMeNativeVectorIcon through the shared KnowMeIcon entry point.
  */
 export function KnowMeNativeAnimatedIcon({
   name, state = 'idle', size = 22, color,
