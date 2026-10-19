@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { apiFetch, apiFetchBlob } from '../../../lib/api';
 import { knowMeConfirm } from '../../../components/knowme-feedback';
+import { GroupAvatarCropper } from './GroupAvatarCropper';
 
 const TYPES=['image/jpeg','image/png','image/webp'];
 const MAX_BYTES=5*1024*1024;
@@ -55,15 +56,21 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
     return ()=>{alive=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
   },[conversationId,revision,canManage,en]);
 
-  async function upload(event:ChangeEvent<HTMLInputElement>){
+  function choosePhoto(event:ChangeEvent<HTMLInputElement>){
     const image=event.currentTarget.files?.[0];
     event.currentTarget.value='';
     if(!image||busy)return;
+    setError('');setNotice('');
     if(!TYPES.includes(image.type)||image.size<1024||image.size>MAX_BYTES){
       setError(tr('Choisis une photo JPEG, PNG ou WebP entre 1 Ko et 5 Mo.',
         'Choose a JPEG, PNG or WebP picture between 1 KB and 5 MB.'));
       return;
     }
+    setChosenPhoto(image);
+  }
+
+  async function uploadPicture(image:File):Promise<boolean>{
+    if(busy)return false;
     setBusy(true);setError('');setNotice('');
     try{
       const caps=await apiFetch<Capabilities>(base+'/capabilities');
@@ -86,10 +93,12 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
       });
       setRevision(v=>v+1);
       setNotice(tr('Photo du groupe enregistrée.','Group picture saved.'));
+      return true;
     }catch(cause){
       setError(cause instanceof Error?cause.message:tr('Envoi de la photo impossible.',
         'Could not upload group picture.'));
-    }finally{setBusy(false);}
+      return false;
+    }finally{setBusy(false)}
   }
 
   async function remove(){
@@ -148,7 +157,7 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
         </svg>
       </button>}
       <input ref={picker} type="file" hidden accept={TYPES.join(',')}
-        onChange={event=>void upload(event)}
+        onChange={choosePhoto}
         aria-label={tr('Choisir une photo du groupe','Choose group picture')}/>
     </div>
     {canEdit&&photo&&<button type="button" className="km-group-avatar-remove"
@@ -159,6 +168,15 @@ export function GroupAvatarEditor({conversationId,title,canManage,en}:{
       {tr('Enregistrement de la photo…','Saving picture…')}</p>}
     {notice&&<p className="km-group-avatar-status" role="status">{notice}</p>}
     {error&&<p className="km-group-avatar-error" role="alert">{error}</p>}
+    {chosenPhoto&&<GroupAvatarCropper
+      file={chosenPhoto} en={en} busy={busy} error={error}
+      onCancel={()=>{setChosenPhoto(null);trigger.current?.focus();}}
+      onApply={async cropped=>{
+        const saved=await uploadPicture(cropped);
+        if(saved){setChosenPhoto(null);trigger.current?.focus();}
+        return saved;
+      }}
+    />}
     {preview&&photo&&<div className="km-group-avatar-preview" role="dialog" aria-modal="true"
       aria-label={tr('Photo du groupe','Group picture')} onClick={()=>{
         setPreview(false);avatarButton.current?.focus();
