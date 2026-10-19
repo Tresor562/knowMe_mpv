@@ -2,6 +2,7 @@
 /** Track actual vector family parity across Web and native KnowMe.
  * This is an audit, NOT proof that a View-composed Android icon is true SVG.
  * node scripts/audit-knowme-icon-parity.mjs [--json]
+ * node scripts/audit-knowme-icon-parity.mjs --require-parity  # fails until native SVG parity is actually proven
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,16 +35,26 @@ const matched = webNames.filter(name => nativeSet.has(aliases[name] ?? name));
 const webOnly = webNames.filter(name => !nativeSet.has(aliases[name] ?? name));
 const nativeOnly = nativeNames.filter(name =>
   !webNames.includes(name) && !Object.values(aliases).includes(name));
+const mobilePackage = fs.readFileSync(path.join(root, 'apps/mobile/package.json'), 'utf8');
+const nativeSVGRendererDeclared = /['"]react-native-svg['"]/.test(mobilePackage);
+const nativeRendersSvgPaths = /from\s*['"]react-native-svg['"]/.test(native) &&
+  /<(?:Svg|Path)\b/.test(native);
+// These are only minimum mechanical requirements. Even when they pass,
+// genuine end-to-end shape, animation and accessibility parity needs QA.
+const minimumVectorPrerequisites = nativeSVGRendererDeclared &&
+  nativeRendersSvgPaths && webOnly.length === 0;
 const report = {
   webCount: webNames.length,
   nativeNameCount: nativeNames.length,
-  nativeSVGRendererDeclared: /['"]react-native-svg['"]/.test(
-    fs.readFileSync(path.join(root, 'apps/mobile/package.json'), 'utf8')
-  ),
+  nativeSVGRendererDeclared,
+  nativeRendersSvgPaths,
+  minimumVectorPrerequisites,
   namesMappedToNativeViewOrVector: matched.length,
   webOnly,
   nativeOnly,
-  status: 'INCOMPLETE: native names composed with Views, not native SVG paths'
+  status: minimumVectorPrerequisites
+    ? 'PREREQUISITES_ONLY: device visual and UX parity still require review'
+    : 'INCOMPLETE: native SVG renderer, glyph mapping or path coverage missing'
 };
 if (new Set(webNames).size !== webNames.length ||
     new Set(nativeNames).size !== nativeNames.length) throw new Error('Duplicate glyph name');
@@ -53,3 +64,8 @@ else console.log(JSON.stringify({
   webOnly: webOnly.slice(0, 18),
   webOnlyRemaining: Math.max(0, webOnly.length - 18)
 }, null, 2));
+
+if (process.argv.includes('--require-parity') && !minimumVectorPrerequisites) {
+  console.error('Native SVG parity release gate BLOCKED. Install renderer, implement true SVG paths and map every Web glyph, then verify on device.');
+  process.exitCode = 2;
+}
