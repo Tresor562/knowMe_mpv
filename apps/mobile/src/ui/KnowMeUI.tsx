@@ -118,7 +118,7 @@ export function KnowMeIcon({
   size?: number;
   color?: string;
   strokeWidth?: number;
-  /** For persistent confirmed states: currently supported by heart. */
+  /** Confirmed selected variant for all native SVG glyphs. */
   filled?: boolean;
 }) {
   // SVG geometry is used on real Android surfaces for every named icon.
