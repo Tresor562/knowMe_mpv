@@ -49,7 +49,7 @@ def cube(name,where,scale,mat,bevel=.08):
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
     if bevel:
         m=obj.modifiers.new("Soft beveled edge","BEVEL");m.width=bevel;m.segments=3
-        m=obj.modifiers.new("Weighted corner normals","WEIGHTED_NORMAL")
+        # Avoid Blender 4.0 auto-smooth warnings for weighted normals.
     obj.data.materials.append(mat)
     return obj
 
@@ -213,7 +213,11 @@ def make_crown():
 def studio(kind):
     scene=bpy.context.scene
     scene.render.engine="CYCLES"
-    scene.cycles.samples=10
+    scene.cycles.samples=18
+    # Ubuntu's packaged Blender may lack OpenImageDenoise.
+    # Explicitly disable Cycles denoising instead of failing render.
+    for view_layer in scene.view_layers:
+        view_layer.cycles.use_denoising=False
     scene.render.film_transparent=True
     scene.world.color=(.09,.055,.17)
     def area(name,where,power,color,size):
