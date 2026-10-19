@@ -46,6 +46,15 @@ jobs:
             echo 'run_apk=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Do not replace manually installed SVG previews with a newer but
+          # feature-incomplete APK built from a still-outdated main.
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY/pulls/760" --jq '.merged')" != 'true' ]] ||
+             ! gh api "repos/$GITHUB_REPOSITORY/contents/apps/mobile/src/ui/KnowMeNativeVectorIcon.tsx?ref=main" >/dev/null 2>&1; then
+            echo '::notice::SVG native integration is not in main. Do not ship an APK that removes it.'
+            echo 'run_quality=false' >> "$GITHUB_OUTPUT"
+            echo 'run_apk=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$current/check-runs?per_page=100")"
           quality="$(jq '[.check_runs[] | select(.name == "quality" and .conclusion == "success")] | length' <<< "$checks")"
           apk="$(jq '[.check_runs[] | select(.name == "android-apk" and .conclusion == "success")] | length' <<< "$checks")"
