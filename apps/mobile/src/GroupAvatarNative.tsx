@@ -9,10 +9,13 @@ import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import {
+  MAX_GROUP_AVATAR_BYTES, privateGroupAvatarImageUrl, validateGroupAvatarCandidate,
+  type GroupAvatarCapabilities
+} from './group-avatar-native-policy';
 
-const MAX_BYTES=5*1024*1024;
-const ALLOWED=new Set(['image/jpeg','image/png','image/webp']);
-type Capabilities={read:boolean;canEdit:boolean;allowedMime:string[];maxBytes:number};
+const MAX_BYTES=MAX_GROUP_AVATAR_BYTES;
+type Capabilities=GroupAvatarCapabilities;
 type UploadSession={id:string;uploadToken:string};
 type UploadedAsset={id:string;status:string;scannerVerdict?:string};
 type ImageSource={uri:string;headers:{Authorization:string}};
@@ -52,7 +55,7 @@ export function GroupAvatarNative({conversationId,title,canManage=false}:{
         if(!caps.read)return;
         const token=await getAccessToken();
         if(current&&token)setUri({
-          uri:`${API_URL}${base}?revision=${revision}`,
+          uri:privateGroupAvatarImageUrl(API_URL,conversationId,revision),
           headers:{Authorization:`Bearer ${token}`}
         });
       }catch(cause){
@@ -71,7 +74,7 @@ export function GroupAvatarNative({conversationId,title,canManage=false}:{
     let temporary:string|null=null;
     try {
       const mime=file.mime.toLowerCase();
-      if(!ALLOWED.has(mime))
+      if(validateGroupAvatarCandidate(mime,1024)==='FORMAT')
         throw new Error(tr('Choisis une image JPEG, PNG ou WebP.',
           'Select a JPEG, PNG or WebP picture.'));
       if(!FileSystem.cacheDirectory)
@@ -80,13 +83,13 @@ export function GroupAvatarNative({conversationId,title,canManage=false}:{
       temporary=`${FileSystem.cacheDirectory}knowme-group-avatar-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       await FileSystem.copyAsync({from:file.uri,to:temporary});
       const info=await FileSystem.getInfoAsync(temporary);
-      if(!info.exists||info.isDirectory||!info.size||info.size<1024||info.size>MAX_BYTES)
+      if(!info.exists||info.isDirectory||validateGroupAvatarCandidate(mime,info.size)==='SIZE')
         throw new Error(tr('La photo doit peser entre 1 Ko et 5 Mo.',
           'Picture must be between 1 KB and 5 MB.'));
       const capabilities=await apiFetch<Capabilities>(base+'/capabilities');
-      if(!capabilities.canEdit)
-        throw new Error(tr('Seuls les administrateurs peuvent modifier la photo.',
-          'Only administrators can edit the group picture.'));
+      if(validateGroupAvatarCandidate(mime,info.size,capabilities)!==null)
+        throw new Error(tr('Le serveur n’autorise pas cette modification.',
+          'The server does not permit this picture change.'));
       const session=await apiFetch<UploadSession>('/media/uploads',{
         method:'POST',
         body:JSON.stringify({
