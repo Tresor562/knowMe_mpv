@@ -19,7 +19,7 @@ def check(p):
     assert box[0]>=0 and box[1]>=0
     print(f"POSTER_VISIBLE {p.name}: coverage={occupied:.1%}, width={rw:.1%}, height={rh:.1%}")
 def main(folder):
-    for name in ("artist_hero","artist_tactical","gift_car"):
+    for name in ("artist_hero","gift_car"):
         check(Path(folder)/(name+".png"))
 if __name__=="__main__":
     if len(sys.argv)!=2:raise SystemExit("Usage: verify_posters.py OUTPUT")

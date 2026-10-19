@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in artist_hero artist_tactical gift_car; do
+          for key in artist_hero gift_car; do
             blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/import_authored.py -- --key "$key" --sources "$RUNNER_TEMP/knowme-author-sources" --out artifacts/knowme-authored --size 360 --frames 8
           done
       - name: Reject missing textures, UVs, skeleton or animations

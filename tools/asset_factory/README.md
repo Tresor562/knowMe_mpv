@@ -28,3 +28,11 @@ Les artefacts sont accessibles dans Actions > exécution du workflow > Artifacts
 Ceci est un socle 3D procédural vérifiable, **pas encore un personnage final de qualité Genshin Impact/GTA ni un objet au fini de Telegram**. Un artiste pourra retravailler les sculptures, UV, textures, expressions et animations dans les .blend. Le GLB fournit de vrais modèles manipulables et des clips, le WebM est seulement une vidéo rendue. Le rendu Cycles CPU est compatible avec les runners standard mais reste coûteux : workflow limité aux changements spécifiques du dossier.
 
 Workstream: infra (#698), intégration visuelle future à coordonner avec design (#699) et marketplace (#697). Aucun déploiement, changement de base de données, d'APK ou d'écran dans cette PR.
+
+## Études de modèles réellement sculptés
+
+Le workflow importe un soldat 3D de BAMEN (CC BY 4.0, animations Quaternius/100STYLE créditées) et le modèle de voiture ToyCar de Khronos/Guido Odendahl (CC0). Il conserve UV, matériaux, textures et animations existantes sans construire ces œuvres avec des primitives. Voir upstream_provenance.json et preview_artists.html dans les artefacts GitHub.
+
+Ces modèles tiers ne sont pas des personnages exclusifs KnowMe et ne prouvent pas une qualité Genshin/GTA.
+
+**Quarantaine :** le modèle artist_tactical (DanlyVostok, CC BY 4.0) présente des transformations squelettiques anormales : son rendu est quasi invisible. Son URL et sa provenance sont conservées, mais il reste exclu des exports certifiés et du lecteur. Ne jamais contourner les tests de visibilité pour le publier.

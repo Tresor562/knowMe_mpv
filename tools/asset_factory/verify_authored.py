@@ -13,7 +13,9 @@ def doc(path):
 def main(sources,out):
     p=json.loads((sources/"provenance.json").read_text())
     assert set(p)=={"artist_hero","artist_tactical","gift_car"}
-    for key,meta in p.items():
+    # Quarantine artist_tactical until its source skeleton / transforms are repaired.
+    for key in ("artist_hero","gift_car"):
+        meta=p[key]
         orig=sources/(key+".glb")
         baked=out/(key+".glb")
         assert hashlib.sha256(orig.read_bytes()).hexdigest()==meta["sha256"]

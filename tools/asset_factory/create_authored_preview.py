@@ -1,7 +1,7 @@
 """Offline-data preview: embed imported professional model GLBs. CDN needed for renderer."""
 from pathlib import Path
 import base64,json,sys
-names=[("artist_hero","Personnage articulé"),("artist_tactical","Tenue tactique sculptée"),("gift_car","Cadeau automobile 3D")]
+names=[("artist_hero","Personnage articulé"),("gift_car","Cadeau automobile 3D")]
 TEMPLATE='''<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KnowMe • modèles 3D créés par des artistes</title>
