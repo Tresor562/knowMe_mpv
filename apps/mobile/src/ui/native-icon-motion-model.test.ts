@@ -96,3 +96,17 @@ test('Android language selector has accessible vector close and true syncing sta
   assert.match(settings, /<KnowMeNativeAnimatedIcon name=\{busy \? 'refresh' : 'discover'\}/);
   assert.match(settings, /state=\{busy \? 'syncing' : 'idle'\}/);
 });
+
+
+test('Android media cache controls remain usable after a failed delete and announce selected categories', () => {
+  const dir = import.meta.dirname;
+  const settings = fs.readFileSync(path.join(dir, '..', 'MediaDownloadSettingsExperience.tsx'), 'utf8');
+  assert.match(settings, /accessibilityRole="checkbox"/);
+  assert.match(settings, /accessibilityRole="radio"/);
+  assert.match(settings, /accessibilityState=\{\{ checked: selected, disabled: busy \}\}/);
+  assert.match(settings, /<KnowMeNativeAnimatedIcon name=\{MEDIA_ICONS\[kind\]\}/);
+  assert.match(settings, /minHeight: 48/);
+  assert.match(settings, /await clearMobileMediaCache\(\)/);
+  assert.match(settings, /catch \(cause\) \{\s*setMessage\(cause instanceof Error \? cause\.message : 'Suppression impossible\.'\)/);
+  assert.match(settings, /finally \{\s*setBusy\(false\)/);
+});
