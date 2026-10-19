@@ -152,3 +152,33 @@ test('group crop preview supports accessible keyboard movement and has no mobile
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
   expect(state.uploads()).toBe(0);
 });
+
+
+test('crop frame remains fully usable without horizontal scrolling at 320px',async({page})=>{
+  const state=await setup(page);
+  await page.setViewportSize({width:320,height:640});
+  await page.goto('/messages/group-1/info');
+  await page.locator('input[aria-label="Choisir une photo du groupe"]').setInputFiles({
+    name:'club.png',mimeType:'image/png',buffer:Buffer.concat([tinyPng,Buffer.alloc(1024)])
+  });
+  const editor=page.getByRole('dialog',{name:'Recadrer la photo du groupe'});
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole('button',{name:'Terminé'})).toBeEnabled();
+  const widths=await editor.evaluate(element=>{
+    const body=element.querySelector('.km-group-crop-body') as HTMLElement;
+    const viewport=element.querySelector('.km-group-crop-viewport') as HTMLElement;
+    const outer=element.querySelector('.km-group-avatar-crop-panel') as HTMLElement;
+    const frame=viewport.getBoundingClientRect();
+    const panel=outer.getBoundingClientRect();
+    return {clientWidth:body.clientWidth,scrollWidth:body.scrollWidth,
+      frameWidth:frame.width,frameLeft:frame.left,frameRight:frame.right,
+      panelLeft:panel.left,panelRight:panel.right};
+  });
+  expect(widths.scrollWidth).toBeLessThanOrEqual(widths.clientWidth+1);
+  expect(widths.frameWidth).toBe(288);
+  expect(widths.frameLeft).toBeGreaterThanOrEqual(widths.panelLeft);
+  expect(widths.frameRight).toBeLessThanOrEqual(widths.panelRight);
+  expect(state.uploads()).toBe(0);
+  await editor.getByRole('button',{name:'Annuler le recadrage'}).click();
+  expect(state.uploads()).toBe(0);
+});
