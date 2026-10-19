@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GroupAvatarNative } from './GroupAvatarNative';
+import { useI18n } from './I18nProvider';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 
@@ -56,6 +57,8 @@ export function ConversationOrganizationDetail({
   onOpenTool?: (tool: Tool) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const {locale}=useI18n();
+  const en=locale==='en';
   const [folders, setFolders] = useState<Folder[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [archives, setArchives] = useState<Archive[]>([]);
@@ -217,16 +220,17 @@ export function ConversationOrganizationDetail({
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content}>
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>CONVERSATION · ORGANISATION PRIVÉE</Text>
+      <Text style={[styles.eyebrow,{color:colors.accent}]}>
+        {isGroup?(en?'GROUP INFORMATION':'INFORMATIONS DU GROUPE'):'CONVERSATION · ORGANISATION PRIVÉE'}
+      </Text>
       <Text style={[styles.heading, { color: colors.text }]}>{title}</Text>
       {isGroup&&conversation?(
         <View style={[styles.groupProfile,{borderColor:colors.border,
           backgroundColor:colors.surface,borderRadius:visual.cardRadius}]}>
           <GroupAvatarNative conversationId={conversationId} title={title}
             canManage={canManageGroup}/>
-          <Text style={[styles.groupName,{color:colors.text}]}>{title}</Text>
           <Text style={[styles.groupCount,{color:colors.muted}]}>
-            {conversation.members.length} membres
+            {conversation.members.length} {en?'members':'membres'}
           </Text>
           {conversation.description?<Text style={[styles.groupDescription,{color:colors.text}]}>
             {conversation.description}
@@ -235,11 +239,12 @@ export function ConversationOrganizationDetail({
       ):null}
       <Text style={[styles.muted,{color:colors.muted}]}>
         {isGroup
-          ? 'Groupe · photo et informations visibles par les membres ; modification réservée aux administrateurs.'
+          ? (en?'Group photos are private to members. Only authorized administrators can edit them.':
+            'La photo du groupe est réservée aux membres. Seuls les administrateurs autorisés peuvent la modifier.')
           : 'Vue en lecture seule de tes outils personnels pour cette conversation.'}
       </Text>
       {isGroup?<Text style={[styles.groupSectionLabel,{color:colors.muted}]}>
-        ORGANISATION PERSONNELLE
+        {en?'PERSONAL ORGANIZATION':'ORGANISATION PERSONNELLE'}
       </Text>:null}
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       {loading ? <Text style={[styles.muted, { color: colors.muted }]}>Chargement…</Text> : null}
@@ -280,7 +285,6 @@ export type ConversationOrganizationTool = Tool;
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 44, gap: 12 },
   groupProfile:{borderWidth:1,padding:14,alignItems:'center',gap:5},
-  groupName:{fontSize:18,fontWeight:'800',textAlign:'center'},
   groupCount:{fontSize:12,marginBottom:4},
   groupDescription:{fontSize:13,lineHeight:19,textAlign:'center'},
   groupSectionLabel:{fontSize:11,fontWeight:'800',letterSpacing:1.1,
