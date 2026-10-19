@@ -426,17 +426,23 @@ test('brand vector prototype contains no embedded raster; legacy logo is explici
 });
 
 
-test('native icon parity gate fails when necessary SVG prerequisites are missing', () => {
+test('native icon parity reports all shared geometry and validates real SVG prerequisites', () => {
   const script = path.join(dir, '..', '..', '..', 'scripts', 'audit-knowme-icon-parity.mjs');
   const diagnostic = spawnSync(process.execPath, [script, '--json'], { encoding: 'utf8' });
   assert.equal(diagnostic.status, 0, diagnostic.stderr);
   const report = JSON.parse(diagnostic.stdout);
   assert.equal(report.webCount, 79);
-  assert.equal(typeof report.nativeRendersSvgPaths, 'boolean');
+  assert.equal(report.nativeVectorContractCount, 84);
+  assert.deepEqual(report.webWithoutNativeGeometry, []);
+  assert.deepEqual(report.nativeWithoutVectorGeometry, []);
   const strict = spawnSync(process.execPath, [script, '--require-parity', '--json'], { encoding: 'utf8' });
   assert.equal(strict.status, report.minimumVectorPrerequisites ? 0 : 2, strict.stderr);
   if (!report.minimumVectorPrerequisites) {
-    assert.match(strict.stderr, /Native SVG parity release gate BLOCKED/);
+    assert.match(strict.stderr, /Native vector parity prerequisites blocked/);
+  } else {
+    assert.equal(report.nativeSVGRendererLocked, true);
+    assert.equal(report.nativeRendersSvgPaths, true);
+    assert.equal(report.wiredIntoExistingNativeScreens, true);
   }
 });
 
