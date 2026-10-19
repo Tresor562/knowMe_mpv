@@ -365,3 +365,23 @@ test('shared vector buttons give tactile feedback without faking persisted state
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /data-effective-reduced-motion='true'/);
 });
+
+
+test('brand QA vector is genuine geometry and cannot silently replace official identity', () => {
+  const fsPath = path.join(dir, '..', 'public', 'brand');
+  const original = fs.readFileSync(path.join(fsPath, 'knowme-logo.svg'), 'utf8');
+  const vector = fs.readFileSync(path.join(fsPath, 'knowme-logo-vector-prototype.svg'), 'utf8');
+  const lab = fs.readFileSync(path.join(dir, 'knowme-icon-laboratory.tsx'), 'utf8');
+  const official = fs.readFileSync(path.join(dir, 'knowme-brand.tsx'), 'utf8');
+  assert.match(original, /data:image\/png;base64,/);
+  assert.doesNotMatch(vector, /data:image\/|<image\b|<script\b|<foreignObject\b|javascript:/i);
+  assert.match(vector, /viewBox="0 0 256 256"/);
+  assert.match(vector, /<path\b/);
+  assert.match(vector, /<radialGradient\b/);
+  assert.match(vector, /<linearGradient\b/);
+  assert.ok(vector.length < original.length / 8, 'vector prototype should be much smaller than bitmap wrapper');
+  assert.match(lab, /img src="\/brand\/knowme-logo-vector-prototype\.svg"/);
+  assert.match(lab, /Le prototype ne remplace pas le logo officiel/);
+  assert.match(official, /src="\/brand\/knowme-logo\.svg"/);
+  assert.doesNotMatch(official, /knowme-logo-vector-prototype/);
+});
