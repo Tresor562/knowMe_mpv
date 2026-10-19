@@ -27,12 +27,14 @@ type Props = {
   progress?: number | null;
   eventToken?: string | number | null;
   className?: string;
+  /** Optional QA/host override. Never changes account preferences. */
+  motionEnabled?: boolean;
 };
 
 /** Zero pending timers and no invisible animations for motion-sensitive users. */
 export function KnowMeAnimatedIcon({
   name, state = 'idle', size = 22, progress = null,
-  eventToken = null, className = ''
+  eventToken = null, className = '', motionEnabled = true
 }: Props) {
   const documentVisible = useKnowMeDocumentVisible();
   const watching = mayAnimateIndefinitely(state) || state === 'sending' ||
@@ -48,7 +50,7 @@ export function KnowMeAnimatedIcon({
     const next = { name, state, eventToken };
     const changed = didIconEventChange(earlier, next);
     previous.current = next;
-    if (!visible) { setBurst(false); return; }
+    if (!visible || !motionEnabled) { setBurst(false); return; }
     if (!changed) return;
     // Animation settings are a user choice, not a reason to schedule hidden
     // timers for hundreds of idle icons on every server event.
@@ -65,7 +67,7 @@ export function KnowMeAnimatedIcon({
     setMotionId(v => v + 1);
     const timeout = window.setTimeout(() => setBurst(false), 380);
     return () => window.clearTimeout(timeout);
-  }, [name, state, eventToken, visible]);
+  }, [name, state, eventToken, visible, motionEnabled]);
 
   const numericProgress = clampRealProgress(state, progress);
   const visibleName = presentationGlyphName(name, state) as KnowMeGlyphName;
@@ -83,8 +85,8 @@ export function KnowMeAnimatedIcon({
       data-knowme-motion={visibleName}
       data-motion-role={KNOWME_GLYPH_MOTION_ROLE[visibleName]}
       data-icon-state={state}
-      data-icon-burst={burst ? String(motionId) : undefined}
-      data-auto-motion={visible && mayAnimateIndefinitely(state) ? 'true' : 'false'}
+      data-icon-burst={motionEnabled && burst ? String(motionId) : undefined}
+      data-auto-motion={motionEnabled && visible && mayAnimateIndefinitely(state) ? 'true' : 'false'}
       data-page-visible={visible ? 'true' : 'false'}
       aria-hidden="true"
       style={{ width: size, height: size }}
