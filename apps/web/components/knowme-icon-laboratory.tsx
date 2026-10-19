@@ -19,6 +19,12 @@ const STATES: KnowMeIconState[] = [
   'playing', 'paused', 'recording', 'typing', 'syncing', 'live'
 ];
 const VARIANTS: KnowMeGiftVariant[] = ['aurora', 'cosmos', 'blossom'];
+const THEMES = ['system', 'light', 'dark', 'amoled'] as const;
+type LabTheme = typeof THEMES[number];
+const THEME_LABELS: Record<LabTheme, [string, string]> = {
+  system: ['Système', 'System'], light: ['Clair', 'Light'],
+  dark: ['Sombre', 'Dark'], amoled: ['AMOLED', 'AMOLED']
+};
 const GIFT_STATES: KnowMeGiftState[] = ['idle', 'opening', 'opened', 'claimed'];
 const TRANSLATIONS: Record<KnowMeGiftState, [string, string]> = {
   idle: ['Au repos', 'Idle'], opening: ['Ouverture', 'Opening'],
@@ -44,6 +50,9 @@ export function KnowMeIconLaboratory() {
   const [active, setActive] = useState<KnowMeGlyphName>('heart');
   const [state, setState] = useState<KnowMeIconState>('idle');
   const [event, setEvent] = useState(0);
+  const [theme, setTheme] = useState<LabTheme>('system');
+  const [previewSize, setPreviewSize] = useState(54);
+  const [motionPreview, setMotionPreview] = useState(true);
   const [giftStates, setGiftStates] = useState<Record<KnowMeGiftVariant, KnowMeGiftState>>({
     aurora: 'idle', cosmos: 'idle', blossom: 'idle'
   });
@@ -69,7 +78,8 @@ export function KnowMeIconLaboratory() {
   }
 
   return (
-    <main className="km-icon-lab" id="knowme-iconography-lab">
+    <main className="km-icon-lab" id="knowme-iconography-lab"
+      data-lab-theme={theme} data-lab-motion={motionPreview ? "on" : "off"}>
       <header className="km-icon-lab-hero">
         <div className="km-icon-lab-heading">
           <p className="km-icon-lab-kicker">KNOWME / VECTOR QA</p>
@@ -85,6 +95,32 @@ export function KnowMeIconLaboratory() {
         {t('Banc d’essai visuel uniquement : les états sont simulés localement. Aucun achat, message ou événement serveur n’est déclenché.',
           'Visual QA only: states are simulated locally. No purchase, message or server event is triggered.')}
       </p>
+
+      <section className="km-icon-lab-panel" aria-labelledby="km-icon-lab-theme-heading">
+        <div className="km-icon-lab-panel-title">
+          <h2 id="km-icon-lab-theme-heading">{t('Comparer les thèmes et la lisibilité', 'Compare themes and legibility')}</h2>
+          <span>{t('Prévisualisation locale uniquement', 'Local preview only')}</span>
+        </div>
+        <div className="km-icon-lab-theme-options" role="group" aria-label={t('Thème du laboratoire', 'Laboratory theme')}>
+          {THEMES.map(value => <button key={value} type="button" className="km-icon-lab-chip"
+            aria-pressed={theme === value} onClick={() => setTheme(value)}>
+            {THEME_LABELS[value][en ? 1 : 0]}
+          </button>)}
+        </div>
+        <div className="km-icon-lab-preview-options">
+          <label className="km-icon-lab-size">
+            <span>{t('Taille du dessin prévisualisé', 'Preview glyph size')}: {previewSize}px</span>
+            <input type="range" min={18} max={72} step={2}
+              value={previewSize} onChange={event => setPreviewSize(Number(event.target.value))}
+              aria-label={t('Taille du pictogramme', 'Glyph size')}/>
+          </label>
+          <label className="km-icon-lab-motion-choice">
+            <input type="checkbox" checked={motionPreview}
+              onChange={event => setMotionPreview(event.target.checked)} />
+            <span>{t('Animer les démonstrations', 'Animate previews')}</span>
+          </label>
+        </div>
+      </section>
 
       <section className="km-icon-lab-panel" aria-labelledby="km-icon-lab-brand-heading">
         <div className="km-icon-lab-panel-title">
@@ -118,7 +154,7 @@ export function KnowMeIconLaboratory() {
         </div>
         <div className="km-icon-lab-preview">
           <div className="km-icon-lab-preview-symbol" data-testid="icon-lab-preview">
-            <KnowMeAnimatedIcon name={active} size={54} state={state}
+            <KnowMeAnimatedIcon name={active} size={previewSize} state={state}
               progress={state === 'progress' ? .64 : null} eventToken={event}/>
           </div>
           <div className="km-icon-lab-preview-copy">
