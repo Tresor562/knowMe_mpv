@@ -132,7 +132,7 @@ export function KnowMeNativeAnimatedIcon({
         transform: enabled ? [{ scale }, { translateX }, { translateY }, { rotate }] : undefined
       }}>
       <KnowMeIcon name={effectiveName} size={size} color={effectiveColor}
-        strokeWidth={strokeWidth} filled={selectedHeart}/>
+        strokeWidth={strokeWidth} filled={state === 'selected'}/>
       {realProgress !== null && (
         <Animated.View style={{
           position: 'absolute', bottom: -3, left: 2, right: 2, height: 2,
