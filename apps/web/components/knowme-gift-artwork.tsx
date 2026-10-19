@@ -75,6 +75,9 @@ export function KnowMeGiftArtwork({
 
   const fallback = variant === 'aurora' ? 'Cadeau Aurore'
     : variant === 'cosmos' ? 'Cadeau Cosmos' : 'Cadeau Fleur';
+  const status = state === 'claimed' ? ' · acquis'
+    : state === 'opened' ? ' · ouvert'
+    : state === 'opening' ? ' · ouverture en cours' : '';
   return (
     <span ref={ref}
       className={['km-collectible', `km-collectible--${variant}`, className].filter(Boolean).join(' ')}
@@ -82,8 +85,8 @@ export function KnowMeGiftArtwork({
       data-visible={visible ? 'true' : 'false'}
       style={{ width: size, height: size }}
     >
-      <svg viewBox="0 0 128 128" width={size} height={size}
-        role="img" aria-label={label || fallback} focusable="false">
+      <svg key={eventToken ?? state} viewBox="0 0 128 128" width={size} height={size}
+        role="img" aria-label={(label || fallback) + status} focusable="false">
         <defs>
           <linearGradient id={`km-gift-${id}-top`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor={p.top}/>
