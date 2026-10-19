@@ -16,14 +16,17 @@ def inspect_glb(path):
     return doc
 def main(folder):
     folder=Path(folder)
-    for name in ("mascot","crown"):
+    for name in ("mascot","crown","hero"):
         for ext in ("blend","glb","png","webm","json"):
             path=folder/(name+"."+ext)
             assert path.is_file() and path.stat().st_size>100,"Missing asset "+str(path)
         doc=inspect_glb(folder/(name+".glb"))
-        if name=="mascot":
+        if name in ("mascot","hero"):
             assert doc.get("skins"),"No actual skinning exported"
-            assert max(len(s.get("joints",[])) for s in doc["skins"])>=6,"Incomplete skeletal rig"
+            assert max(len(s.get("joints",[])) for s in doc["skins"])>=(20 if name=="hero" else 6),"Incomplete skeletal rig"
+            if name=="hero":
+                assert len(doc.get("animations",[]))>=6,"Missing high-level character expressions and motions"
+                assert len(doc.get("meshes",[]))>=70,"Hero geometry has too few separately sculpted components"
         assert (folder/(name+".webm")).read_bytes()[:4]==b"\x1aE\xdf\xa3","Not a WebM"
         assert (folder/(name+".png")).read_bytes()[:8]==b"\x89PNG\r\n\x1a\n","Not a PNG"
         print(name,len(doc["meshes"]),"meshes",len(doc["animations"]),"animations",len(doc.get("skins",[])),"skins")
