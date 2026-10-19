@@ -25,7 +25,16 @@ for (const entry of rolesSource.matchAll(/^\s*(?:'([a-z0-9-]+)'|([a-z0-9-]+)):\s
   roles[name] = entry[3];
 }
 
-const ast = ts.createSourceFile(sourcePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+// Parse the canonical static initializer on its own. Its containing React
+// component uses TSX declarations from two incompatible React type copies;
+// isolating the declaration also catches malformed JSX independently.
+const start = text.indexOf('  const shapes = {');
+const stop = start < 0 ? -1 : text.indexOf('\n  };', start);
+if (start < 0 || stop < 0) throw Error('Missing canonical shapes initializer delimiters');
+const fragment = text.slice(start, stop + '\n  };'.length);
+const ast = ts.createSourceFile(sourcePath, fragment, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+if (ast.parseDiagnostics.length) throw Error('Cannot parse canonical icon JSX: ' +
+  ast.parseDiagnostics.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).join('; '));
 const declaration = text.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
 const names = [...declaration.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]);
 if (!names.length || names.length !== new Set(names).size) throw Error('Invalid/duplicate Web glyph declarations');
