@@ -16,6 +16,15 @@ import ts from 'typescript';
 
 const sourcePath = path.resolve(import.meta.dirname, '../apps/web/components/knowme-glyph.tsx');
 const text = fs.readFileSync(sourcePath, 'utf8');
+const rolesPath = path.resolve(import.meta.dirname, '../apps/web/components/knowme-glyph-motion-roles.ts');
+const rolesSource = fs.readFileSync(rolesPath, 'utf8');
+const roles = {};
+for (const entry of rolesSource.matchAll(/^\s*(?:'([a-z0-9-]+)'|([a-z0-9-]+)):\s*'(navigation|communication|media|social|transfer|security|reward|utility)',?\s*$/gm)) {
+  const name = entry[1] || entry[2];
+  if (roles[name]) throw Error('Duplicate semantic vector role '+name);
+  roles[name] = entry[3];
+}
+
 const ast = ts.createSourceFile(sourcePath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const declaration = text.match(/export type KnowMeGlyphName =([\s\S]*?);/)?.[1] ?? '';
 const names = [...declaration.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]);
@@ -85,8 +94,11 @@ for (const prop of shapes.properties) {
     (node.children ? valid(node.children) : true));
   if (!inactive.length || !valid(inactive) || !valid(active))
     throw Error('Glyph '+name+' has missing or unsupported SVG geometry');
-  glyphs[name] = { inactive, active };
+  if (!roles[name]) throw Error('No semantic motion role for vector '+name);
+  glyphs[name] = { role: roles[name], inactive, active };
 }
+if (Object.keys(roles).length !== names.length)
+  throw Error('Motion roles and vector family differ');
 const missing = names.filter(name => !glyphs[name]);
 const extra = Object.keys(glyphs).filter(name => !names.includes(name));
 if (missing.length || extra.length) throw Error('Vector contract mismatch: '+JSON.stringify({missing,extra}));
