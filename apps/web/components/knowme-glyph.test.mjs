@@ -460,3 +460,22 @@ test('post options sheets have vector actions and modal keyboard focus safety', 
   assert.match(css, /min-width: 44px/);
   assert.match(css, /:focus-visible/);
 });
+
+
+test('notifications use event and category SVGs with real unread/critical state', () => {
+  const source = fs.readFileSync(path.join(dir, '..', 'app', 'notifications', 'page.tsx'), 'utf8');
+  const style = fs.readFileSync(path.join(dir, '..', 'app', 'notifications', 'notification-vectors.css'), 'utf8');
+  assert.match(source, /Record<string, KnowMeGlyphName>/);
+  assert.match(source, /icon: KnowMeGlyphName/);
+  assert.match(source, /<KnowMeGlyph name=\{category\.icon\} size=\{18\}/);
+  assert.match(source, /<KnowMeGlyph name=\{ICONS\[notification\.type\]/);
+  assert.match(source, /active=\{group\.unreadCount > 0\}/);
+  assert.match(source, /<KnowMeAnimatedIcon name="refresh" state="loading"/);
+  for (const icon of ['forward','check-double','clock','archive','eye-off','refresh']) {
+    assert.match(source, new RegExp('<KnowMeGlyph name="' + icon + '" size=\\{17\\}/>'));
+  }
+  assert.doesNotMatch(source, /[👥💬🎯🎁🕵⭐🛡⚙🤝🗞🔔]/u);
+  assert.match(style, /min-height: 44px/);
+  assert.match(style, /\.km-notification-type-icon/);
+  assert.match(style, /:focus-visible/);
+});
