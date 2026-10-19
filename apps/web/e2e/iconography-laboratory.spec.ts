@@ -21,18 +21,18 @@ test('design laboratory exposes 79 original icons, supports semantic states and 
   await expect(page.getByRole('heading', { name: /Laboratoire des pictogrammes|Iconography laboratory/ }))
     .toBeVisible();
   await expect(page.locator('[data-glyph]')).toHaveCount(79);
-  await expect(page.getByRole('note')).toContainText('simulés localement');
+  await expect(page.getByRole('note')).toContainText(/simulés localement|simulated locally/);
   await page.getByRole('button', { name: 'heart', exact: true }).click();
-  await page.getByRole('group', { name: 'État de l’icône prévisualisée' })
+  await page.getByRole('group', { name: /État de l’icône prévisualisée|Preview icon state/ })
     .getByRole('button', { name: 'selected' }).click();
   await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
     .toHaveAttribute('data-icon-state', 'selected');
   await expect(page.getByTestId('icon-lab-preview').locator('[data-knowme-icon="heart"]'))
     .toBeVisible();
-  await page.getByLabel('Rechercher une icône').fill('fullscreen');
+  await page.getByLabel(/Rechercher une icône|Search for an icon/).fill('fullscreen');
   await expect(page.locator('[data-glyph]')).toHaveCount(2);
-  await page.getByLabel('Rechercher une icône').clear();
-  await page.getByRole('group', { name: 'Catégorie', exact: true }).getByRole('button', { name: 'Multimédia' }).click();
+  await page.getByLabel(/Rechercher une icône|Search for an icon/).clear();
+  await page.getByRole('group', { name: /^(Catégorie|Category)$/ }).getByRole('button', { name: /Multimédia|Media/ }).click();
   await expect(page.locator('[data-glyph]')).not.toHaveCount(79);
   await expect(page.locator('[data-glyph="play"]')).toBeVisible();
   await expect(page.locator('[data-glyph="heart"]')).toHaveCount(0);
@@ -48,13 +48,13 @@ test('three real-vector gifts visibly open without making a purchase', async ({ 
     // The three models must never be just recolors of the same ribbon box.
     await expect(gift.locator('.km-collectible-emblem-' + name)).toHaveCount(1);
     await expect(art).toHaveAttribute('data-state', 'idle');
-    await gift.getByRole('button', { name: 'Ouvert' }).click();
+    await gift.getByRole('button', { name: /^(Ouvert|Opened)$/ }).click();
     await expect(art).toHaveAttribute('data-state', 'opened');
-    await gift.getByRole('button', { name: 'Acquis' }).click();
+    await gift.getByRole('button', { name: /^(Acquis|Claimed)$/ }).click();
     await expect(art).toHaveAttribute('data-state', 'claimed');
     await expect(gift.locator('svg[role="img"]')).toBeVisible();
   }
-  await expect(page.getByText('Aucun achat, message ou événement serveur n’est déclenché.'))
+  await expect(page.getByText(/Aucun achat, message ou événement serveur|No purchase, message or server event/))
     .toBeVisible();
 });
 
@@ -69,7 +69,7 @@ test('reduced motion and 44px touch surfaces hold on compact mobile', async ({ p
   });
   expect(dimensions.width).toBeGreaterThanOrEqual(44);
   expect(dimensions.height).toBeGreaterThanOrEqual(44);
-  await page.getByRole('button', { name: 'Rejouer le mouvement' }).click();
+  await page.getByRole('button', { name: /Rejouer le mouvement|Replay motion/ }).click();
   await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
     .toHaveAttribute('data-icon-state', 'idle');
   const animation = await page.getByTestId('icon-lab-preview')
@@ -83,15 +83,15 @@ test('brand comparison presents both logos without replacing the official asset'
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/design/iconography');
   const section = page.getByRole('region', { name: /Comparaison du logo/ });
-  await expect(section.getByRole('img', { name: /Logo actuel de KnowMe/ })).toBeVisible();
-  await expect(section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe/ })).toBeVisible();
-  await expect(section.getByText('Le prototype ne remplace pas le logo officiel.')).toBeVisible();
+  await expect(section.getByRole('img', { name: /Logo actuel de KnowMe|Current KnowMe logo/ })).toBeVisible();
+  await expect(section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe|True-vector logo draft/ })).toBeVisible();
+  await expect(section.getByText(/Le prototype ne remplace pas le logo officiel|prototype does not replace the official logo/)).toBeVisible();
   await expect(section.locator('img[src="/brand/knowme-logo.svg"]')).toHaveCount(2);
   await expect(section.locator('img[src="/brand/knowme-logo-vector-prototype.svg"]')).toHaveCount(2);
-  const slider = section.getByRole('slider', { name: 'Pourcentage de comparaison du logo' });
+  const slider = section.getByRole('slider', { name: /Pourcentage de comparaison du logo|Logo comparison percentage/ });
   const overlay = section.getByTestId('logo-vector-reveal');
   await expect(slider).toHaveValue('50');
-  await expect(slider).toHaveAttribute('aria-valuetext', '50% du prototype vectoriel visible');
+  await expect(slider).toHaveAttribute('aria-valuetext', /50% du prototype vectoriel visible|50% of the vector prototype revealed/);
   await expect(section.getByTestId('logo-comparison')).toHaveAttribute('aria-hidden', 'true');
   await expect(overlay).toHaveCSS('clip-path', 'inset(0px 50% 0px 0px)');
   await slider.focus();
@@ -112,10 +112,10 @@ test('design QA theme and motion controls are isolated from app preferences', as
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/design/iconography');
   const lab = page.locator('#knowme-iconography-lab');
-  const theme = page.getByRole('group', { name: 'Thème du laboratoire' });
+  const theme = page.getByRole('group', { name: /Thème du laboratoire|Laboratory theme/ });
   const originalRootTheme = await page.evaluate(() =>
     document.documentElement.getAttribute('data-theme'));
-  for (const [name, value] of [['Clair','light'], ['Sombre','dark'], ['AMOLED','amoled']] as const) {
+  for (const [name, value] of [[/Clair|Light/,'light'], [/Sombre|Dark/,'dark'], [/AMOLED/,'amoled']] as const) {
     await theme.getByRole('button', { name }).click();
     await expect(lab).toHaveAttribute('data-lab-theme', value);
     await expect(theme.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
@@ -126,27 +126,27 @@ test('design QA theme and motion controls are isolated from app preferences', as
     expect(contrastRatio(paints.foreground, paints.background))
       .toBeGreaterThanOrEqual(4.5);
   }
-  const size = page.getByRole('slider', { name: 'Taille du pictogramme' });
+  const size = page.getByRole('slider', { name: /Taille du pictogramme|Glyph size/ });
   await size.focus();
   await page.keyboard.press('End');
   await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
     .toHaveCSS('width', '72px');
-  const motion = page.getByRole('checkbox', { name: 'Animer les démonstrations' });
+  const motion = page.getByRole('checkbox', { name: /Animer les démonstrations|Animate previews/ });
   await motion.uncheck();
   await expect(lab).toHaveAttribute('data-lab-motion', 'off');
   // The local switch must reach React components, not merely suppress CSS:
   // active states and claimed gifts must also stop scheduling JS bursts.
-  const states = page.getByRole('group', { name: 'État de l’icône prévisualisée' });
+  const states = page.getByRole('group', { name: /État de l’icône prévisualisée|Preview icon state/ });
   await states.getByRole('button', { name: 'loading' }).click();
   const symbol = page.getByTestId('icon-lab-preview').locator('.km-state-icon');
   await expect(symbol).toHaveAttribute('data-auto-motion', 'false');
-  await page.getByRole('button', { name: 'Rejouer le mouvement' }).click();
+  await page.getByRole('button', { name: /Rejouer le mouvement|Replay motion/ }).click();
   await expect(symbol).not.toHaveAttribute('data-icon-burst', /.+/);
   await expect(symbol.locator('svg').first()).toHaveCSS('animation-name', 'none');
   const aurora = page.locator('.km-icon-lab-gift').filter({
     has: page.getByRole('heading', { name: 'aurora', exact: true })
   });
-  await aurora.getByRole('button', { name: 'Acquis' }).click();
+  await aurora.getByRole('button', { name: /^(Acquis|Claimed)$/ }).click();
   await expect(aurora.locator('.km-collectible')).toHaveAttribute('data-state', 'claimed');
   await expect(aurora.locator('.km-collectible')).toHaveAttribute('data-burst', 'false');
   await motion.check();
