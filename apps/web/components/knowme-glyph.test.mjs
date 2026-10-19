@@ -68,6 +68,9 @@ test('motion derives from data, differentiates icon roles and stops safely', () 
   assert.match(viewport, /observer\.unobserve\(node\)/);
   assert.match(viewport, /observer\.disconnect\(\)/);
   assert.match(animated, /useKnowMeIconViewportVisible\(watching\)/);
+  assert.match(animated, /previous\.current\.state !== 'idle'/);
+  assert.match(animated, /eventToken !== null \|\| burst/);
+  assert.match(animated, /const watching = state !== 'idle'/);
   assert.match(animated, /const visible = documentVisible && inViewport/);
 
   assert.match(animatedCss, /data-page-visible='false'/);
