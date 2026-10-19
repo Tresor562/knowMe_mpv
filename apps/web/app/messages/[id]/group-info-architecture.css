@@ -492,3 +492,114 @@
     width:82px;height:82px;
   }
 }
+
+/* Group photo cropping is a real editing step, not a preview of an already
+   uploaded image. The 288px square maps exactly to the source crop algorithm. */
+.km-group-avatar-crop-backdrop{
+  position:fixed;inset:0;z-index:1100;
+  display:flex;align-items:center;justify-content:center;
+  padding:12px;
+  padding-top:max(12px,env(safe-area-inset-top,0px));
+  padding-bottom:max(12px,env(safe-area-inset-bottom,0px));
+  background:rgba(0,0,0,.72);
+}
+.km-group-avatar-crop-panel{
+  display:flex;flex-direction:column;
+  width:min(100%,420px);max-height:min(94dvh,740px);
+  border:1px solid var(--soft-border,rgba(255,255,255,.14));
+  background:var(--surface,#161b20);
+  color:var(--text,#fff);
+  border-radius:22px;
+  overflow:hidden;
+  box-shadow:0 20px 70px rgba(0,0,0,.30);
+}
+.km-group-crop-header{
+  display:grid;grid-template-columns:48px 1fr auto;
+  align-items:center;gap:8px;
+  min-height:58px;
+  padding:4px 10px;
+  border-bottom:1px solid var(--soft-border,rgba(127,127,127,.18));
+}
+.km-group-crop-header h3{
+  margin:0;font-size:15px;font-weight:750;line-height:1.35;text-align:center;
+}
+.km-group-crop-header button{
+  min-height:44px;min-width:44px;display:inline-grid;place-items:center;
+  border:0;border-radius:13px;background:transparent;color:inherit;cursor:pointer;
+  padding:7px 10px;font-size:12px;font-weight:700;
+}
+.km-group-crop-header .km-group-crop-save{
+  background:var(--bg-accent,rgba(0,140,120,.13));
+  color:var(--mint,var(--text));
+  padding-inline:15px;
+}
+.km-group-crop-header button:disabled{
+  opacity:.45;cursor:not-allowed;
+}
+.km-group-crop-body{
+  display:flex;flex-direction:column;align-items:center;
+  gap:12px;overflow-y:auto;padding:13px 10px 18px;
+}
+.km-group-crop-body>p:first-child{
+  margin:0;max-width:315px;
+  color:var(--muted,var(--text));
+  line-height:1.45;text-align:center;font-size:12px;
+}
+.km-group-crop-viewport{
+  position:relative;flex:0 0 auto;
+  width:288px;height:288px;max-width:none;
+  overflow:hidden;background:#171b22;
+  border-radius:14px;isolation:isolate;
+  outline:1px solid rgba(255,255,255,.25);
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+}
+.km-group-crop-viewport:active{cursor:grabbing}
+.km-group-crop-viewport>img{
+  display:block;position:absolute;
+  max-width:none;max-height:none;min-width:0;min-height:0;
+  object-fit:fill;pointer-events:none;user-select:none;
+  -webkit-user-drag:none;
+}
+.km-group-crop-viewport .km-group-crop-outline{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  border:1.5px solid rgba(255,255,255,.8);
+  border-radius:14px;
+  box-shadow:inset 0 0 0 100vmax rgba(0,0,0,0);
+}
+.km-group-crop-zoom{
+  display:flex;align-items:center;gap:9px;
+  width:min(100%,335px);min-height:44px;
+  color:var(--text);
+}
+.km-group-crop-zoom>svg{flex:0 0 18px;color:var(--muted)}
+.km-group-crop-zoom label{
+  font-size:12px;white-space:nowrap;font-weight:660;
+}
+.km-group-crop-zoom input{
+  flex:1;min-width:90px;min-height:44px;accent-color:var(--mint);
+  cursor:pointer;
+}
+.km-group-crop-zoom output{
+  width:44px;font-size:11px;white-space:nowrap;text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--muted);
+}
+.km-group-crop-reset{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:8px 14px;border:0;
+  border-radius:13px;background:var(--bg-accent,transparent);
+  color:var(--mint,var(--text));font-size:12px;
+  font-weight:700;cursor:pointer;
+}
+.km-group-avatar-crop-backdrop :is(button,input,[tabindex]):focus-visible{
+  outline:2px solid var(--mint,#48d0b4);outline-offset:3px;
+}
+:root[data-effective-reduce-transparency='true'] .km-group-avatar-crop-backdrop{
+  background:rgba(0,0,0,.87);
+}
+@media(max-width:360px){
+  .km-group-avatar-crop-panel{border-radius:18px;}
+  .km-group-crop-body{padding-inline:7px;}
+}
+@media(prefers-reduced-motion:reduce){
+  .km-group-avatar-crop-backdrop *{transition:none!important;animation:none!important}
+}
