@@ -13,6 +13,9 @@ test('all 79 canonical Web glyphs export as real vector primitives for future na
   assert.equal(Object.keys(glyphs).length, 79);
   assert.deepEqual(manifest.viewBox, [0,0,24,24]);
   assert.equal(manifest.inherited.strokeWidth, 1.9);
+  for (const name of Object.keys(glyphs)) {
+    assert.ok(['navigation','communication','media','social','transfer','security','reward','utility'].includes(glyphs[name].role), name);
+  }
   for (const [name, shape] of Object.entries(glyphs)) {
     assert.ok(shape.inactive.length > 0, name);
     assert.ok(shape.active.length > 0, name);
