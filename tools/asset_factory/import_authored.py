@@ -49,13 +49,13 @@ def look(obj,at):
     v=Vector(at)-obj.location
     obj.rotation_euler=v.to_track_quat("-Z","Y").to_euler()
 
-def area(name,xyz,energy,rgb,size):
+def area(name,xyz,energy,rgb,size,target):
     data=bpy.data.lights.new(name,"AREA")
     data.energy=energy;data.color=rgb;data.shape="DISK";data.size=size
     ob=bpy.data.objects.new(name,data)
     bpy.context.collection.objects.link(ob)
     ob.location=xyz
-    look(ob,(0,0,1.35))
+    look(ob,target)
 
 def authored(key,source):
     bpy.ops.import_scene.gltf(filepath=str(source))
@@ -90,7 +90,8 @@ def authored(key,source):
     width=max(hi.x-lo.x,hi.y-lo.y)
     height=hi.z-lo.z
     length=max(width,height)
-    assert .05<length<10000, ("unexpected scene dimensions",length)
+    # Model authors use different units (meters, centimeters, tiny glTF sample units).
+    assert 0.0001<length<10000, ("unexpected scene dimensions",length)
     factor=(2.55/length if key!="gift_car" else 1.6/length)
     root.scale=(factor,)*3
     bpy.context.view_layer.update()
@@ -99,6 +100,7 @@ def authored(key,source):
     root.location.y-=.5*(lo.y+hi.y)
     root.location.z-=lo.z
     bpy.context.view_layer.update()
+    print("ARTIST_NORMALIZED_BOUNDS",key,tuple(round(x,4) for x in bounds(meshes)[0]),tuple(round(x,4) for x in bounds(meshes)[1]))
     # Source rigged clips often start with all imported NLA strips active,
     # combining dozens of animations into one broken pose.
     # Preview one neutral/idle clip but keep all source actions for GLB export.
@@ -138,15 +140,27 @@ def authored(key,source):
 
 def render_scene(key,scene,mesh_count):
     scene.world.color=(.08,.06,.13)
-    area("Gallery key",(-3,-4,6),900,(.97,.9,.75),4)
-    area("Blue rim",(2,3,5),1200,(.48,.56,1),3)
-    area("White fill",(3,-4,2),480,(.94,.96,1),5)
+    scene.frame_set(1)
+    meshes=[o for o in scene.objects if o.type=="MESH"]
+    low,high=bounds(meshes)
+    middle=(low+high)*.5
+    extent=high-low
+    span=max(float(extent.x),float(extent.y),float(extent.z),.001)
+    print("ARTIST_RENDER_BOUNDS",key,"center",tuple(round(a,4) for a in middle),
+          "extent",tuple(round(a,4) for a in extent))
+    # Camera and lights follow actual imported author geometry, including unusual
+    # source units/origins. A static camera made skinned assets render completely blank.
+    area("Gallery key",middle+Vector((-span*1.5,-span*2,span*2.5)),900,(.97,.9,.75),span*2,middle)
+    area("Blue rim",middle+Vector((span*1.5,span*2,span*2)),1200,(.48,.56,1),span*1.7,middle)
+    area("White fill",middle+Vector((span*1.4,-span*1.8,span*.7)),480,(.94,.96,1),span*2.5,middle)
     cam=bpy.data.cameras.new("Product camera")
     obj=bpy.data.objects.new("Camera",cam)
     scene.collection.objects.link(obj)
-    obj.location=(4.0,-7.6,3.4 if key!="gift_car" else 2.8)
-    look(obj,(0,0,1.3 if key!="gift_car" else .8))
-    cam.type="ORTHO";cam.ortho_scale=3.65 if key!="gift_car" else 2.5
+    obj.location=middle+Vector((span*1.3,-span*3.5,span*1.2))
+    look(obj,middle)
+    cam.type="ORTHO"
+    cam.ortho_scale=max(float(extent.z)*1.35,float(max(extent.x,extent.y))*1.85,.25)
+    cam.clip_end=max(500.0,span*10)
     scene.camera=obj
 
 def produce(a,registry):
