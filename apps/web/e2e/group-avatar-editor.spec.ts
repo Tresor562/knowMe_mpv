@@ -66,6 +66,16 @@ test('group administrator can upload, preview, and remove a private group photo'
   await page.locator('input[aria-label="Choisir une photo du groupe"]').setInputFiles({
     name:'club.png',mimeType:'image/png',buffer:Buffer.concat([tinyPng,Buffer.alloc(1024)])
   });
+  const crop=page.getByRole('dialog',{name:'Recadrer la photo du groupe'});
+  await expect(crop).toBeVisible();
+  await expect(page.getByRole('slider',{name:'Zoom de la photo'})).toBeEnabled();
+  await page.getByRole('slider',{name:'Zoom de la photo'}).fill('1.5');
+  await expect(crop.getByText('150 %')).toBeVisible();
+  await page.getByRole('group',{name:/Déplacer le recadrage/}).focus();
+  await page.keyboard.press('ArrowRight');
+  expect(state.uploads()).toBe(0);
+  await crop.getByRole('button',{name:'Enregistrer la photo'}).click();
+  await expect(crop).toHaveCount(0);
   await expect(page.getByRole('status').filter({hasText:'Photo du groupe enregistrée.'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Voir la photo du groupe'})).toBeVisible();
   expect(state.uploads()).toBe(1);
@@ -102,4 +112,21 @@ test('group info uses a distinct sidebar and a content pane on desktop',async({p
   });
   expect(values.rightLeft).toBeGreaterThan(values.leftRight);
   expect(values.viewport).toBeLessThanOrEqual(1281);
+});
+
+test('canceling avatar crop never uploads and restores keyboard focus',async({page})=>{
+  const state=await setup(page);
+  await page.goto('/messages/group-1/info');
+  const edit=page.getByRole('button',{name:'Changer la photo du groupe'});
+  await edit.click();
+  await page.locator('input[aria-label="Choisir une photo du groupe"]').setInputFiles({
+    name:'cancel.png',mimeType:'image/png',buffer:Buffer.concat([tinyPng,Buffer.alloc(1024)])
+  });
+  const crop=page.getByRole('dialog',{name:'Recadrer la photo du groupe'});
+  await expect(crop).toBeVisible();
+  await crop.getByRole('button',{name:'Annuler'}).first().click();
+  await expect(crop).toHaveCount(0);
+  await expect(edit).toBeFocused();
+  expect(state.uploads()).toBe(0);
+  expect(state.hasPhoto()).toBe(false);
 });
