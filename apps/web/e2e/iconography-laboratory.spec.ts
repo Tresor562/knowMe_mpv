@@ -82,7 +82,7 @@ test('reduced motion and 44px touch surfaces hold on compact mobile', async ({ p
 test('brand comparison presents both logos without replacing the official asset', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/design/iconography');
-  const section = page.getByRole('region', { name: /Comparaison du logo/ });
+  const section = page.getByRole('region', { name: /Comparaison du logo|Logo comparison/ });
   await expect(section.getByRole('img', { name: /Logo actuel de KnowMe|Current KnowMe logo/ })).toBeVisible();
   await expect(section.getByRole('img', { name: /Prototype vectoriel du logo KnowMe|True-vector logo draft/ })).toBeVisible();
   await expect(section.getByText(/Le prototype ne remplace pas le logo officiel|prototype does not replace the official logo/)).toBeVisible();
