@@ -73,3 +73,34 @@ test('brand comparison presents both logos without replacing the official asset'
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   expect(overflow).toBe(false);
 });
+
+
+test('design QA theme and motion controls are isolated from app preferences', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/design/iconography');
+  const lab = page.locator('#knowme-iconography-lab');
+  const theme = page.getByRole('group', { name: 'Thème du laboratoire' });
+  const originalRootTheme = await page.evaluate(() =>
+    document.documentElement.getAttribute('data-theme'));
+  for (const [name, value] of [['Clair','light'], ['Sombre','dark'], ['AMOLED','amoled']] as const) {
+    await theme.getByRole('button', { name }).click();
+    await expect(lab).toHaveAttribute('data-lab-theme', value);
+    await expect(theme.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+    const color = await lab.evaluate(node => getComputedStyle(node).color);
+    expect(color).toBeTruthy();
+  }
+  const size = page.getByRole('slider', { name: 'Taille du pictogramme' });
+  await size.fill('72');
+  await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon'))
+    .toHaveCSS('width', '72px');
+  const motion = page.getByRole('checkbox', { name: 'Animer les démonstrations' });
+  await motion.uncheck();
+  await expect(lab).toHaveAttribute('data-lab-motion', 'off');
+  await page.getByRole('button', { name: 'Rejouer le mouvement' }).click();
+  await expect(page.getByTestId('icon-lab-preview').locator('.km-state-icon > svg'))
+    .toHaveCSS('animation-name', 'none');
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+    .toEqual(originalRootTheme);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1))
+    .toBe(false);
+});
