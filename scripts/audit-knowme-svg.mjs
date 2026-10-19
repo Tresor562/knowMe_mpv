@@ -82,7 +82,7 @@ function inspect(file) {
     // A file with an .svg extension may only be a container for a PNG/JPEG.
     // The official historic logo is intentionally retained until fidelity QA
     // approves its independently-drawn vector prototype.
-    if (/<image\\b[^>]+(?:href|xlink:href)=["']data:image\\/(?:png|jpeg|webp|gif)/i.test(source)) {
+    if (/<image\b[^>]+(?:href|xlink:href)=["']data:image\/(?:png|jpeg|webp|gif)/i.test(source)) {
       sum.rasterInsideSvgFiles++;
       row.findings.push({ kind: 'embedded-raster-in-svg', line: 1,
         sample: 'bitmap media data inside SVG (not true vector artwork)' });
@@ -91,8 +91,8 @@ function inspect(file) {
         issue: 'Raster image embedded in SVG; approve genuine paths before claiming vector parity' });
     }
     if (rel === 'apps/web/public/brand/knowme-logo-vector-prototype.svg') {
-      if (!/<(?:path|ellipse|circle|rect)\\b/i.test(source) ||
-          /<image\\b|data:image\\//i.test(source)) {
+      if (!/<(?:path|ellipse|circle|rect)\b/i.test(source) ||
+          /<image\b|data:image\//i.test(source)) {
         warnings.push({ file: rel, line: 1, severity: 'error',
           issue: 'Vector logo prototype must be drawn with real paths, not raster imagery' });
       }
