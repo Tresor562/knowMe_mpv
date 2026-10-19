@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
+import { KNOWME_GLYPH_MOTION_ROLE } from './knowme-glyph-motion-roles';
 import { useKnowMeDocumentVisible } from './knowme-document-visibility';
 import { useKnowMeIconViewportVisible } from './knowme-icon-viewport';
 import {
@@ -80,6 +81,7 @@ export function KnowMeAnimatedIcon({
       ref={iconRef}
       className={classes}
       data-knowme-motion={visibleName}
+      data-motion-role={KNOWME_GLYPH_MOTION_ROLE[visibleName]}
       data-icon-state={state}
       data-icon-burst={burst ? String(motionId) : undefined}
       data-auto-motion={visible && mayAnimateIndefinitely(state) ? 'true' : 'false'}
