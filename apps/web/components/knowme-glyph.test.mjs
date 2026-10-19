@@ -336,3 +336,22 @@ test('three original collectible gifts are vector, state-controlled, motion-safe
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /data-visible='false'/);
 });
+
+
+test('interactive QA lab is noindex, exposes exhaustive glyphs and never calls production APIs', () => {
+  const root = path.join(dir, '..', 'app', 'design', 'iconography');
+  const route = fs.readFileSync(path.join(root, 'page.tsx'), 'utf8');
+  const lab = fs.readFileSync(path.join(dir, 'knowme-icon-laboratory.tsx'), 'utf8');
+  const css = fs.readFileSync(path.join(dir, 'knowme-icon-laboratory.css'), 'utf8');
+  assert.match(route, /robots: \{ index: false, follow: false \}/);
+  assert.match(lab, /Object\.keys\(KNOWME_GLYPH_MOTION_ROLE\) as KnowMeGlyphName\[\]/);
+  assert.match(lab, /visible\.map\(name =>/);
+  assert.match(lab, /<KnowMeAnimatedIcon name=\{active\}/);
+  assert.match(lab, /<KnowMeGiftArtwork variant=\{variant\}/);
+  assert.match(lab, /VARIANTS: KnowMeGiftVariant\[\] = \['aurora', 'cosmos', 'blossom'\]/);
+  assert.match(lab, /const GIFT_STATES: KnowMeGiftState\[\]/);
+  assert.doesNotMatch(lab, /apiFetch\(|fetch\(|window\.location\s*=|navigator\.sendBeacon/);
+  assert.match(css, /min-height: 44px/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /max-width: 390px/);
+});
