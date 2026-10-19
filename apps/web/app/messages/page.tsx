@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { KnowMeBrand } from '../../components/knowme-brand';
 import { ConversationView } from './[id]/conversation-view';
+import { GroupAvatarThumbnail } from './GroupAvatarThumbnail';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../components/i18n-provider';
 import { apiFetch } from '../../lib/api';
@@ -62,6 +63,7 @@ export default function MessagesPage() {
   const [filter, setFilter] = useState<'all'|'unread'|'pinned'>('all');
   const socket = useMemo(()=>getRealtimeSocket(),[]);
   const [conversations,setConversations] = useState<Conversation[]>([]);
+  const [avatarRefreshKey,setAvatarRefreshKey] = useState(0);
   const [pinnedConversationIds,setPinnedConversationIds] = useState<Set<string>>(new Set());
   const [pinLimit,setPinLimit] = useState<number|null>(null);
   const [pinBusyId,setPinBusyId] = useState<string|null>(null);
@@ -84,6 +86,7 @@ export default function MessagesPage() {
         apiFetch<ConversationPinsResponse>('/conversation-pins')
       ]);
       setConversations(conversationData);
+      setAvatarRefreshKey(value=>value+1);
       applyPinData(pinData);
       setMessage('');
     } catch (cause) {
@@ -279,7 +282,11 @@ export default function MessagesPage() {
                 }
               }}>
               <div className={`km-chat-avatar${isNexus?' km-chat-ai':''}`}>
-                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : photo ? <img src={photo} alt="" className="km-chat-avatar-image" /> : (Array.from(name)[0] || '?').toUpperCase()}
+                {isNexus ? <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg> : conversation.isGroup
+                  ? <GroupAvatarThumbnail conversationId={conversation.id} viewerId={user?.id??''}
+                      fallback={(Array.from(name)[0] || '?').toUpperCase()} refreshKey={avatarRefreshKey}/>
+                  : photo ? <img src={photo} alt="" className="km-chat-avatar-image" />
+                  : (Array.from(name)[0] || '?').toUpperCase()}
                 {online && <span className="km-chat-online" aria-label={en?'Online':'En ligne'}/>}
               </div>
               <div className="km-chat-copy">
