@@ -832,7 +832,7 @@ export function FeedExperience({
   mode?: 'home' | 'discover';
   currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   onOpenDiscover?: () => void;
-  onOpenReels?: () => void;
+  onOpenReels?: (postId?:string,position?:number) => void;
   onOpenProfile?: (username: string) => void;
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
