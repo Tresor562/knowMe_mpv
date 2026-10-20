@@ -9,12 +9,13 @@ import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-op
 import { PostEditSheet } from '../../components/post-edit-sheet';
 import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { saveOfflineFeed, loadOfflineFeed } from '../../lib/offline-feed';
 import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
+import { ReelSuggestionsRail } from './ReelSuggestionsRail';
 import './multi-media-composer.css';
 import './reference-home.css';
 import { useI18n } from '../../components/i18n-provider';
@@ -53,6 +54,7 @@ export default function FeedPage() {
   const en = locale === 'en';
   const [feedMenuOpen, setFeedMenuOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [reelsAfterPost, setReelsAfterPost] = useState<number | null>(null);
   const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
   const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
   const likesInFlight = useRef(new Set<string>());
@@ -169,6 +171,13 @@ export default function FeedPage() {
       window.removeEventListener('knowme:open-post-composer', openFromMainNavigation);
     };
   }, []);
+  // Choose a bounded insertion point once per mounted feed: new pages never shift the strip.
+  useEffect(() => {
+    if (!user?.id || !posts.length || reelsAfterPost !== null) return;
+    const seed = [...user.id].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%4)));
+  }, [user?.id,posts.length,reelsAfterPost]);
+
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const [showingCache,setShowingCache] = useState(false);
   const loadGeneration = useRef(0);
@@ -628,8 +637,9 @@ export default function FeedPage() {
           </div>
         )}
 
-        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
-          <article className="km-feed-post" key={post.id}>
+        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map((post, index) => (
+          <Fragment key={post.id}>
+          <article className="km-feed-post">
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
                 <span className="km-post-avatar">
@@ -677,6 +687,8 @@ export default function FeedPage() {
               </button>
             </footer>
           </article>
+          {index+1 === reelsAfterPost && authorityFresh && <ReelSuggestionsRail en={en}/>}
+          </Fragment>
         ))}
       </section>
 
