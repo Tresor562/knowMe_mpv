@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { staffAccountSelect, toStaffBadge } from '../staff/staff-profile';
 import { verificationRequestSelect, toVerificationBadge } from '../verification/verification-profile';
 import { PostsService } from './posts.service';
+import { CreatorsService } from '../creators/creators.service';
 
 const authorSelect = {
   id: true, username: true, displayName: true, avatarUrl: true,
@@ -15,8 +16,27 @@ const authorSelect = {
 export class ReelsFeedService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly posts: PostsService
+    private readonly posts: PostsService,
+    private readonly creators: CreatorsService
   ) {}
+
+  private async creatorSlug(authorId: string) {
+    const profile = await this.prisma.creatorProfile.findUnique({
+      where: { userId: authorId }, select: { slug: true }
+    });
+    if (!profile) throw new NotFoundException('Profil créateur introuvable.');
+    return profile.slug;
+  }
+
+  async creatorFollowStatus(viewerId: string, authorId: string) {
+    return this.creators.followStatus(viewerId, await this.creatorSlug(authorId));
+  }
+
+  async creatorFollow(viewerId: string, authorId: string, follow: boolean) {
+    const slug = await this.creatorSlug(authorId);
+    return follow ? this.creators.follow(viewerId, slug)
+      : this.creators.unfollow(viewerId, slug);
+  }
 
   /** Subscription authorization is derived from authenticated viewer identity. */
   async following(userId: string, cursor?: string) {
