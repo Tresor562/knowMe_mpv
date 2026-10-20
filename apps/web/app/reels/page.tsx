@@ -9,8 +9,8 @@ import { ReelPlayback } from './reel-playback';
 import { ReelShareSheet } from './reel-share-sheet';
 import { ReelFollowButton, ReelCommentSheet } from './reel-social-interactions';
 import { ReelIcon } from './reel-icons';
-import './reels-reference-shell.css';
 import './reels.css';
+import './reels-reference-shell.css';
 
 type Author = { id: string; username: string; displayName: string; avatarUrl?:string|null;
   verification?:{isVerified:boolean;label:string}|null;
@@ -321,6 +321,7 @@ export default function ReelsPage() {
               </div>
               <div className="km-reel-actions">
                 <button type="button" disabled={pendingLike===post.id}
+                  aria-pressed={Boolean(liked[post.id])}
                   onClick={()=>void like(post)} aria-label={en?'React to publication':'Réagir à la publication'}>
                   <ReelIcon name="heart" filled={liked[post.id]} size={34}/>
                   {counts[post.id]??post._count.likes}
