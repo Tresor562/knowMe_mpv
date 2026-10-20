@@ -64,9 +64,9 @@ export default function ReelsPage() {
     const params=new URLSearchParams(window.location.search);
     const postId=params.get('post')??'';
     const positionValue=params.get('position')??'';
-    if(/^[A-Za-z0-9_-]{1,128}$/.test(postId)&&/^[0-9]{1,3}$/.test(positionValue)
-    if(/^[A-Za-z0-9_-]{1,128}$/.test(postId)&&/^\\d{1,3}$/.test(positionValue)
-      &&Number.isSafeInteger(position)&&position>=0&&position<=100){
+    const position=Number(positionValue);
+    if(/^[A-Za-z0-9_-]{1,128}$/.test(postId) && /^[0-9]{1,3}$/.test(positionValue)
+      && Number.isSafeInteger(position) && position>=0 && position<=100){
       setRequestedVideo({postId,position});
     }
   },[]);
