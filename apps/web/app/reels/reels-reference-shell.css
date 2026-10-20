@@ -208,3 +208,8 @@
 .km-reels-page .km-reel-minimal-timeline span{top:7px;height:2px;background:var(--km-accent,#51f1e4)}
 .km-reels-page .km-reel-certified{width:19px;height:19px;border-radius:50%;font-size:12px;box-shadow:0 0 0 1px #ffffff55}
 @media(max-width:660px){.km-reels-page .km-reel-info{bottom:112px}.km-reels-page .km-reel-actions{bottom:132px}}
+
+/* The bottom comment composer must never cover active playback controls. */
+.km-reel-frame:has(.km-reel-player-controls--expanded) .km-reel-compose{
+  opacity:0;visibility:hidden;pointer-events:none
+}
