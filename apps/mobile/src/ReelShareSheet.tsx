@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import {buildKnowMePublicLink} from '@knowme/link-contract';
 import {apiFetch} from './api';
+import {downloadPublicVideoOffline,savedPublicVideo} from './offline-public-video';
 import {KnowMeIcon,type KnowMeIconName} from './ui/KnowMeUI';
 
 type ReelSharePost={
@@ -46,7 +47,8 @@ function ReelAction({icon,label,onPress,disabled=false}:{
 }
 
 /** Native KnowMe Reels bottom sheet; all writes use existing authenticated APIs. */
-export function ReelShareSheet({post,en,onClose,onOpenPost,onHide,onOpenDownloads}:{
+export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpenDownloads}:{
+  videoUrl:string;
   post:ReelSharePost;
   en:boolean;
   onClose:()=>void;
@@ -61,6 +63,8 @@ export function ReelShareSheet({post,en,onClose,onOpenPost,onHide,onOpenDownload
   const [selectedId,setSelectedId]=useState('');
   const [note,setNote]=useState('');
   const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
+  const [downloadPct,setDownloadPct]=useState(0);
   const [busy,setBusy]=useState(false);
   const inflight=useRef(false);
   const link=useMemo(()=>buildKnowMePublicLink({kind:'post',id:post.id}),[post.id]);
@@ -109,6 +113,21 @@ export function ReelShareSheet({post,en,onClose,onOpenPost,onHide,onOpenDownload
           'Envoi non confirmé. Vérifie la discussion avant de réessayer.')
         :cause instanceof Error?cause.message:
           (en?'Message could not be sent.':'Envoi du message impossible.'));
+    }finally{inflight.current=false;setBusy(false);}
+  }
+
+  async function saveOffline(){
+    if(inflight.current)return;
+    inflight.current=true;setBusy(true);setError('');setNotice('');setDownloadPct(0);
+    try{
+      const already=await savedPublicVideo(videoUrl);
+      if(!already)await downloadPublicVideoOffline(videoUrl,fraction=>{
+        setDownloadPct(Math.round(Math.max(0,Math.min(1,fraction))*100));
+      });
+      setNotice(en?'Saved to your offline videos.':'Vidéo enregistrée hors ligne.');
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:
+        (en?'Download failed.':'Téléchargement impossible.'));
     }finally{inflight.current=false;setBusy(false);}
   }
 
@@ -248,11 +267,16 @@ export function ReelShareSheet({post,en,onClose,onOpenPost,onHide,onOpenDownload
               onPress={chooseStoryAudience}/>
             <ReelAction icon="arrow" label={en?'Other apps / link':'Applis / lien'} disabled={busy}
               onPress={()=>{void shareExternally();}}/>
-            <ReelAction icon="download" label={en?'Offline library':'Hors ligne'}
-              disabled={busy} onPress={onOpenDownloads}/>
+            <ReelAction icon="download" label={busy?(en?'Downloading '+downloadPct+'%':'Téléchargement '+downloadPct+'%'):(en?'Download':'Télécharger')}
+              disabled={busy} onPress={()=>{void saveOffline();}}/>
           </View>
           <View style={styles.divider}/>
           <Text style={styles.section}>{en?'Reel options':'Options du Reel'}</Text>
+          <Pressable style={styles.option} accessibilityRole="button" disabled={busy}
+            onPress={onOpenDownloads}>
+            <KnowMeIcon name="download" size={23} color="#eee"/>
+            <Text style={styles.optionLabel}>{en?'My offline videos':'Mes vidéos hors ligne'}</Text>
+          </Pressable>
           <Pressable style={styles.option} accessibilityRole="button" disabled={busy}
             onPress={onOpenPost}>
             <KnowMeIcon name="messages" size={23} color="#eee"/>
@@ -274,6 +298,7 @@ export function ReelShareSheet({post,en,onClose,onOpenPost,onHide,onOpenDownload
             {en?'For direct link copying, use the copy option in Android’s system share menu.':
               'Pour copier le lien, utilise l’option de copie du menu de partage Android.'}
           </Text>
+          {Boolean(notice)&&<Text accessibilityRole="text" style={styles.success}>{notice}</Text>}
           {Boolean(error)&&<Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         </ScrollView>
       </View>
@@ -329,5 +354,6 @@ const styles=StyleSheet.create({
     paddingHorizontal:10,borderRadius:13},
   optionLabel:{color:'#fff',fontSize:15,fontWeight:'600'},
   finePrint:{fontSize:11,lineHeight:17,color:'#a6a6aa',paddingHorizontal:5},
-  error:{fontSize:13,color:'#ffb5b7',lineHeight:19}
+  error:{fontSize:13,color:'#ffb5b7',lineHeight:19},
+  success:{fontSize:13,color:'#a4f5e9',lineHeight:19}
 });
