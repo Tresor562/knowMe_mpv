@@ -74,6 +74,16 @@ export class PostsController {
     return this.posts.videosFromFollowing(req.user.userId, cursor);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('likes')
+  likeStates(
+    @Req() req: { user: { userId: string } },
+    @Query('ids') ids: string
+  ) {
+    return this.posts.likeStates(req.user.userId,
+      typeof ids === 'string' ? ids.split(',') : []);
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.posts.getById(id);
@@ -129,16 +139,6 @@ export class PostsController {
     @Query('cursor') cursor?: string
   ) {
     return this.posts.commentReplies(postId, commentId, cursor);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('likes')
-  likeStates(
-    @Req() req: { user: { userId: string } },
-    @Query('ids') ids: string
-  ) {
-    return this.posts.likeStates(req.user.userId,
-      typeof ids === 'string' ? ids.split(',') : []);
   }
 
   @UseGuards(JwtAuthGuard)
