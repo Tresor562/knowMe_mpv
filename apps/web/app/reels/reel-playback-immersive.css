@@ -1,8 +1,8 @@
 /* Reels-only player overlay. No edits to the shared page CSS owned by PR #692. */
 .km-reel-player-controls--hidden{display:none}
 .km-reel-player-controls--expanded{
-  bottom:0;
-  padding:10px 12px max(10px,env(safe-area-inset-bottom,0px));
+  bottom:max(80px,calc(70px + env(safe-area-inset-bottom,0px)));
+  padding:8px 12px;
   background:linear-gradient(0deg,rgba(0,0,0,.82),rgba(0,0,0,.28) 72%,transparent)
 }
 .km-reel-minimal-timeline{
