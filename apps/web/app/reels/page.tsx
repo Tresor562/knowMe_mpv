@@ -52,8 +52,22 @@ export default function ReelsPage() {
   const [counts,setCounts]=useState<Record<string,number>>({});
   const [liked,setLiked]=useState<Record<string,boolean>>({});
   const [pendingLike,setPendingLike]=useState<string|null>(null);
+  const [favorites,setFavorites]=useState<Record<string,boolean>>({});
   const reelRoot=useRef<HTMLDivElement>(null);
   const requestEpoch=useRef(0);
+
+  useEffect(()=>{
+    try { const saved=JSON.parse(localStorage.getItem('knowme-reel-favorites')||'{}');
+      if(saved&&typeof saved==='object'&&!Array.isArray(saved))setFavorites(saved);
+    }catch{/* Storage may be unavailable. */}
+  },[]);
+  function toggleFavorite(id:string){
+    setFavorites(current=>{
+      const next={...current,[id]:!current[id]};
+      try{localStorage.setItem('knowme-reel-favorites',JSON.stringify(next));}catch{/* Session-only fallback. */}
+      return next;
+    });
+  }
 
   const clips=useMemo<Clip[]>(() => posts.flatMap(post =>
     (post.media??[]).filter(media => media.mimeType === 'video/mp4' && mediaUrl(media.url))
@@ -328,6 +342,11 @@ export default function ReelsPage() {
                   aria-label={en?'Open comments':'Ouvrir les commentaires'}>
                   <ReelIcon name="comment" size={32}/>{commentCounts[post.id]??post._count.comments}
                 </Link>
+                <button type="button" aria-pressed={Boolean(favorites[post.id])}
+                  onClick={()=>toggleFavorite(post.id)}
+                  aria-label={favorites[post.id]?(en?'Remove from favorites':'Retirer des favoris'):(en?'Add to favorites':'Ajouter aux favoris')}>
+                  <ReelIcon name="bookmark" filled={favorites[post.id]} size={30}/>
+                </button>
                 <button type="button" onClick={()=>setSharingPost(post)}
                   aria-label={en?'Share video':'Partager la vidéo'}>
                   <ReelIcon name="share" size={32}/>
