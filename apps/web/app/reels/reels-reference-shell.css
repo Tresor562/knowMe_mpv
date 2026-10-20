@@ -192,3 +192,17 @@
 @media(prefers-reduced-transparency:reduce){
   .km-reel-compose{backdrop-filter:none;-webkit-backdrop-filter:none;background:#23272d}
 }
+
+/* Immersive layout correction: keep video-first chrome compact. */
+.km-reels-page .km-reels-top-tabs{gap:18px;top:max(70px,calc(64px + env(safe-area-inset-top,0px)))}
+.km-reels-page .km-reels-top-tabs button{min-width:0;min-height:44px;padding:7px 8px;border:0;border-radius:0;background:transparent;font-weight:550}
+.km-reels-page .km-reels-top-tabs .km-reel-tab-active{background:transparent;border:0;color:#fff;font-weight:750}
+.km-reels-page .km-reels-top-tabs .km-reel-tab-active:after{bottom:0;height:3px;background:var(--km-accent,#51f1e4)}
+.km-reels-page .km-reel-info{bottom:112px;gap:5px}
+.km-reels-page .km-reel-actions{bottom:132px}
+.km-reels-page .km-reel-info .km-reel-avatar{border:2px solid transparent}
+.km-reels-page .km-reel-info .km-reel-avatar.km-reel-avatar--story{border-color:var(--km-accent,#51f1e4)}
+.km-reels-page .km-reel-minimal-timeline{height:16px;bottom:max(74px,calc(66px + env(safe-area-inset-bottom,0px)));background:linear-gradient(180deg,transparent 7px,rgba(255,255,255,.4) 7px,rgba(255,255,255,.4) 9px,transparent 9px)}
+.km-reels-page .km-reel-minimal-timeline span{top:7px;height:2px;background:var(--km-accent,#51f1e4)}
+.km-reels-page .km-reel-certified{width:19px;height:19px;border-radius:50%;font-size:12px;box-shadow:0 0 0 1px #ffffff55}
+@media(max-width:660px){.km-reels-page .km-reel-info{bottom:112px}.km-reels-page .km-reel-actions{bottom:132px}}
