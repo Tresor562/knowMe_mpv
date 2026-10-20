@@ -128,8 +128,10 @@
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .km-reel-compose strong{font-size:25px}
 .km-reels-page .km-reel-player-controls--expanded{
-  bottom:max(76px,calc(62px + env(safe-area-inset-bottom,0px)));
-  padding:8px 12px;max-width:100%
+  /* Controls must be tappable and remain ABOVE the comment composer. */
+  bottom:max(85px,calc(77px + env(safe-area-inset-bottom,0px)));
+  z-index:15;
+  padding:7px 12px;max-width:100%
 }
 .km-reels-page .km-reel-minimal-timeline{
   bottom:max(93px,calc(79px + env(safe-area-inset-bottom,0px)))
