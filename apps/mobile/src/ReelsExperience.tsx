@@ -193,19 +193,19 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const username=current.post.author.username;
     if(Object.prototype.hasOwnProperty.call(following,username))return;
     let mounted=true;
-    void apiFetch<FollowState>('/creators/'+encodeURIComponent(username)+'/follow-status')
+    void apiFetch<FollowState>('/reels/creators/'+encodeURIComponent(current.post.author.id)+'/follow-status')
       .then(value=>{if(mounted)setFollowing(old=>({...old,[username]:value}));})
       .catch(()=>{if(mounted)setFollowing(old=>({...old,[username]:null}));});
     return()=>{mounted=false;};
   },[active,visibleClips,following]);
 
-  async function toggleFollow(username:string){
+  async function toggleFollow(authorId:string,username:string){
     const current=following[username];
     if(!current){onOpenProfile(username);return;}
     if(current.isOwner||busyFollow)return;
     setBusyFollow(username);
     try{
-      await apiFetch('/creators/'+encodeURIComponent(username)+'/follow',{
+      await apiFetch('/reels/creators/'+encodeURIComponent(authorId)+'/follow',{
         method:current.following?'DELETE':'PUT'
       });
       setFollowing(old=>({...old,[username]:{...current,following:!current.following}}));
@@ -303,7 +303,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
             label={post.author.staff.label}/>}
           {follow!==undefined&&!follow?.isOwner&&
             <Pressable accessibilityRole="button" disabled={busyFollow===post.author.username}
-              onPress={()=>void toggleFollow(post.author.username)}
+              onPress={()=>void toggleFollow(post.author.id,post.author.username)}
               style={styles.followButton}>
               <Text style={styles.followText}>
                 {busyFollow===post.author.username?'…'
