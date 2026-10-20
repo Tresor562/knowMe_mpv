@@ -27,6 +27,7 @@ test('reel suggestions use real MP4 posts and remain outside publication markup'
   await page.goto('/feed');
   const rail=page.getByRole('complementary',{name:'Suggestions de réels'});
   await expect(rail).toBeVisible();
+  await rail.scrollIntoViewIfNeeded();
   await expect(page.locator('.km-feed-post')).toHaveCount(1);
   await expect(page.locator('article .km-feed-reel-recommendations')).toHaveCount(0);
   await expect(rail.getByRole('link',{name:'Regarder le réel de Auteur'}))
