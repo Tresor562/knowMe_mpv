@@ -66,6 +66,7 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [downloadPct,setDownloadPct]=useState(0);
+  const [downloading,setDownloading]=useState(false);
   const [busy,setBusy]=useState(false);
   const inflight=useRef(false);
   const link=useMemo(()=>buildKnowMePublicLink({kind:'post',id:post.id}),[post.id]);
@@ -119,7 +120,7 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
 
   async function saveOffline(){
     if(inflight.current)return;
-    inflight.current=true;setBusy(true);setError('');setNotice('');setDownloadPct(0);
+    inflight.current=true;setBusy(true);setDownloading(true);setError('');setNotice('');setDownloadPct(0);
     try{
       const already=await savedPublicVideo(videoUrl);
       if(!already)await downloadPublicVideoOffline(videoUrl,fraction=>{
@@ -129,7 +130,7 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
     }catch(cause){
       setError(cause instanceof Error?cause.message:
         (en?'Download failed.':'Téléchargement impossible.'));
-    }finally{inflight.current=false;setBusy(false);}
+    }finally{inflight.current=false;setBusy(false);setDownloading(false);}
   }
 
   async function shareExternally(){
@@ -271,7 +272,7 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
               onPress={chooseStoryAudience}/>
             <ReelAction icon="arrow" label={en?'Other apps / link':'Applis / lien'} disabled={busy}
               onPress={()=>{void shareExternally();}}/>
-            <ReelAction icon="download" label={busy?(en?'Downloading '+downloadPct+'%':'Téléchargement '+downloadPct+'%'):(en?'Download':'Télécharger')}
+            <ReelAction icon="download" label={downloading?(en?'Downloading '+downloadPct+'%':'Téléchargement '+downloadPct+'%'):(en?'Download':'Télécharger')}
               disabled={busy} onPress={()=>{void saveOffline();}}/>
           </View>
           <View style={styles.divider}/>
