@@ -49,6 +49,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [filter,setFilter]=useState('');
   const [following,setFollowing]=useState<Record<string,FollowState|null>>({});
   const [busyFollow,setBusyFollow]=useState<string|null>(null);
+  const [offlineRequests,setOfflineRequests]=useState<Record<string,number>>({});
+  const [offlineStatus,setOfflineStatus]=useState<Record<string,boolean>>({});
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
@@ -175,18 +177,54 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     }
   ).current;
 
+  useEffect(()=>{
+    const current=visibleClips.find(clip=>clip.id===active);
+    if(!current)return;
+    const username=current.post.author.username;
+    if(Object.prototype.hasOwnProperty.call(following,username))return;
+    let mounted=true;
+    void apiFetch<FollowState>('/creators/'+encodeURIComponent(username)+'/follow-status')
+      .then(value=>{if(mounted)setFollowing(old=>({...old,[username]:value}));})
+      .catch(()=>{if(mounted)setFollowing(old=>({...old,[username]:null}));});
+    return()=>{mounted=false;};
+  },[active,visibleClips,following]);
+
+  async function toggleFollow(username:string){
+    const current=following[username];
+    if(!current){onOpenProfile(username);return;}
+    if(current.isOwner||busyFollow)return;
+    setBusyFollow(username);
+    try{
+      await apiFetch('/creators/'+encodeURIComponent(username)+'/follow',{
+        method:current.following?'DELETE':'PUT'
+      });
+      setFollowing(old=>({...old,[username]:{...current,following:!current.following}}));
+      if(feed==='following'&&current.following)void load(false,true);
+    }catch(cause){
+      setFailure(cause instanceof Error?cause.message:(en?'Follow unavailable.':'Abonnement indisponible.'));
+    }finally{setBusyFollow(null);}
+  }
+
+  async function openOwnProfile(){
+    try{
+      const me=await apiFetch<{username:string}>('/users/me');
+      if(!me.username)throw new Error(en?'Profile unavailable.':'Profil indisponible.');
+      onOpenProfile(me.username);
+    }catch(cause){setFailure(cause instanceof Error?cause.message:'Profil indisponible.');}
+  }
+
   async function toggleLike(post:VideoPost){
     if(pending.current)return;
     pending.current=true;
     try{
-      const response=await apiFetch<{liked:boolean}>(`/posts/${encodeURIComponent(post.id)}/like`,{
+      const response=await apiFetch<{liked:boolean;count:number}>(`/posts/${encodeURIComponent(post.id)}/like`,{
         method:'POST'
       });
       setLikes(current=>{
         const previous=current[post.id]??{count:post._count.likes,liked:false};
         return {...current,[post.id]:{
           liked:response.liked,
-          count:Math.max(0,previous.count+(response.liked===previous.liked?0:response.liked?1:-1))
+          count:Number.isFinite(response.count)?response.count:Math.max(0,previous.count+(response.liked===previous.liked?0:response.liked?1:-1))
         }};
       });
     }catch(cause){
@@ -220,57 +258,100 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     }
   }
 
-  function renderClip({item}: {item:Clip}){
+
+  function renderClip({item}:{item:Clip}){
     const post=item.post;
-    // Unmount the active Reel while the local library is open. Otherwise
-    // both players can emit sound behind the modal.
     const shown=item.id===active&&!offlineLibraryOpen;
-    const liked=likes[post.id];
+    const like=likes[post.id];
+    const follow=following[post.author.username];
+    const tags=(post.content.match(/#[\\p{L}\\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
-      {shown ? <PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||refreshing}
-        onDoubleTap={()=>{void ensureLike(post);}}/>
-        : <View style={styles.inactive} accessible={false}>
-          <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
+      {shown?<PublicPostVideo key={item.id} url={item.media.url}
+        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen}
+        onDoubleTap={()=>{void ensureLike(post);}}
+        offlineRequest={offlineRequests[item.id]??0}
+        onOfflineStatus={saved=>setOfflineStatus(old=>
+          old[item.id]===saved?old:{...old,[item.id]:saved})}/>
+        :<View style={styles.inactive} accessible={false}>
+          <KnowMeIcon name="video-call" size={42} color="#b7d5da"/>
         </View>}
+      <View pointerEvents="none" style={styles.bottomScrim}/>
       <View style={styles.information} pointerEvents="box-none">
-        <View style={styles.description} pointerEvents="box-none">
-          <Pressable accessibilityRole="button"
-            accessibilityLabel={`Voir le profil de ${post.author.displayName}`}
+        <View style={styles.creatorLine}>
+          <Pressable accessibilityRole="button" style={styles.creatorAvatar}
+            accessibilityLabel={en?'View creator profile':'Voir le profil'}
             onPress={()=>onOpenProfile(post.author.username)}>
-            <Text style={styles.creator}>@{post.author.username}</Text>
+            <Avatar name={post.author.displayName} uri={avatarUri(post.author.avatarUrl)} size={44}/>
           </Pressable>
-          {Boolean(post.content)&&<>
-            <Text style={styles.caption} numberOfLines={4}>{post.content}</Text>
-            <Pressable accessibilityRole="button"
-              accessibilityLabel={'Lire toute la description de '+post.author.displayName}
-              onPress={()=>setCaptionClip(post)} style={styles.readMore}>
-              <Text style={styles.readMoreText}>Voir toute la description</Text>
-              <KnowMeIcon name="arrow" color="#c5fff4" size={14}/>
-            </Pressable>
-          </>}
-          <Pressable accessibilityRole="button" onPress={()=>onOpenPost(post.id)}
-            style={styles.postLink}>
-            <Text style={styles.postLinkText}>Voir la publication</Text>
+          <Pressable accessibilityRole="button" onPress={()=>onOpenProfile(post.author.username)}>
+            <Text style={styles.creator} numberOfLines={1}>@{post.author.username}</Text>
           </Pressable>
+          {post.author.verification?.isVerified&&<BlueVerifiedBadge size={18}
+            label={post.author.verification.label}/>}
+          {post.author.staff?.shield==='GOLD'&&<GoldVerifiedBadge size={18}
+            label={post.author.staff.label}/>}
+          {follow!==undefined&&!follow?.isOwner&&
+            <Pressable accessibilityRole="button" disabled={busyFollow===post.author.username}
+              onPress={()=>void toggleFollow(post.author.username)}
+              style={styles.followButton}>
+              <Text style={styles.followText}>
+                {busyFollow===post.author.username?'…'
+                  :follow===null?(en?'Profile':'Profil')
+                  :follow.following?(en?'Following':'Abonné'):(en?'Follow':'Suivre')}
+              </Text>
+            </Pressable>}
         </View>
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Réagir à la vidéo"
-            onPress={()=>void toggleLike(post)} style={styles.action}>
-            <KnowMeIcon name="heart" size={25} color={liked?.liked?'#fb6e80':'#fff'}/>
-            <Text style={styles.actionCount}>{liked?.count??post._count.likes}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Voir les commentaires"
-            onPress={()=>onOpenPost(post.id)} style={styles.action}>
-            <KnowMeIcon name="messages" size={25} color="#fff"/>
-            <Text style={styles.actionCount}>{post._count.comments}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Partager la vidéo"
-            onPress={()=>void sharePost(post.id)} style={styles.action}>
-            <KnowMeIcon name="arrow" size={25} color="#fff"/>
-          </Pressable>
-        </View>
+        {Boolean(post.content)&&<Pressable accessibilityRole="button"
+          accessibilityLabel={en?'Read full description':'Voir toute la description'}
+          onPress={()=>setCaptionClip(post)} style={styles.captionContainer}>
+          <Text style={styles.caption} numberOfLines={2}>{post.content}</Text>
+          <Text style={styles.moreText}>{en?'more':'…plus'}</Text>
+        </Pressable>}
+        {tags.length>0&&<View style={styles.hashtags}>
+          {tags.map(tag=><Pressable key={tag} accessibilityRole="button"
+            onPress={()=>{setFilter(tag);setSearchOpen(true);}}>
+            <Text style={styles.hashtag}>{tag}</Text>
+          </Pressable>)}
+        </View>}
       </View>
+      <View style={styles.actions} pointerEvents="box-none">
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Like video':'Aimer le réel'}
+          accessibilityState={{selected:like?.liked??false,disabled:pending.current}}
+          onPress={()=>void toggleLike(post)} style={styles.action}>
+          {like?.liked?<Text style={styles.redHeart}>♥</Text>:
+            <KnowMeIcon name="heart" size={33} color="#fff" strokeWidth={1.85}/>}
+          <Text style={styles.actionCount}>{shortCount(like?.count??post._count.likes)}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Comments':'Commentaires'}
+          onPress={()=>onOpenPost(post.id)} style={styles.action}>
+          <KnowMeIcon name="messages" size={32} color="#fff" strokeWidth={1.85}/>
+          <Text style={styles.actionCount}>{shortCount(post._count.comments)}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Share video':'Partager le réel'}
+          onPress={()=>void sharePost(post.id)} style={styles.action}>
+          <KnowMeIcon name="arrow" size={32} color="#fff" strokeWidth={1.85}/>
+        </Pressable>
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={offlineStatus[item.id]
+            ?(en?'Remove offline copy':'Retirer la vidéo hors ligne')
+            :(en?'Save video offline':'Enregistrer hors ligne')}
+          accessibilityState={{selected:Boolean(offlineStatus[item.id])}}
+          onPress={()=>setOfflineRequests(old=>({...old,[item.id]:(old[item.id]??0)+1}))}
+          style={styles.action}>
+          <KnowMeIcon name={offlineStatus[item.id]?'check':'download'} size={29}
+            color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
+          <Text style={styles.actionCount}>{en?'Offline':'Hors ligne'}</Text>
+        </Pressable>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={en?'Add comment':'Ajouter un commentaire'}
+        style={styles.commentComposer} onPress={()=>onOpenPost(post.id)}>
+        <Avatar name={post.author.displayName} uri={avatarUri(post.author.avatarUrl)} size={30}/>
+        <Text style={styles.commentPlaceholder} numberOfLines={1}>
+          {en?'Add a comment…':'Ajouter un commentaire…'}
+        </Text>
+        <Text style={styles.mentionIcon}>@</Text>
+        <KnowMeIcon name="smile" size={24} color="#fff"/>
+      </Pressable>
     </View>;
   }
 
