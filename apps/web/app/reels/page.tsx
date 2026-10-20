@@ -127,7 +127,8 @@ export default function ReelsPage() {
       .toLocaleLowerCase().includes(q)):clips;
   },[clips,query]);
   useEffect(()=>{
-    if(!activeId&&visibleClips[0])setActiveId(visibleClips[0].id);
+    if(!visibleClips.some(clip=>clip.id===activeId))
+      setActiveId(visibleClips[0]?.id??null);
   },[activeId,visibleClips]);
 
   useEffect(()=>{
