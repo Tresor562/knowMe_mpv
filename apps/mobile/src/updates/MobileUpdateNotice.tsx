@@ -97,8 +97,9 @@ export function MobileUpdateNotice() {
       requestInProgress.current = true;
       try {
         // The public self-hosted API is available before authentication.
-        const [feed, installedVersion, background] = await Promise.all([
-          apiFetch<AndroidReleaseFeed>('/mobile-updates/android'),
+        // An already downloaded update must remain installable even if the
+        // update API is temporarily offline after the Android transfer.
+        const [installedVersion, background] = await Promise.all([
           installer.getInstalledVersionCode(),
           installer.getBackgroundUpdateStatus?.().catch(() => null) ?? Promise.resolve(null)
         ]);
@@ -117,6 +118,7 @@ export function MobileUpdateNotice() {
           }
         }
         setReadyVersion(0);
+        const feed = await apiFetch<AndroidReleaseFeed>('/mobile-updates/android');
         const next = feed.release;
         if (!active) return 'unavailable';
         if (
@@ -341,7 +343,7 @@ export function MobileUpdateNotice() {
             style={[styles.primary, { backgroundColor: colors.accent }]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
-              {installing ? 'Lancement…' : 'Mettre à jour'}
+              {installing ? (installer.queueBackgroundUpdate ? 'Lancement…' : `Téléchargement… ${Math.round(progress * 100)} %`) : 'Mettre à jour'}
             </Text>
           </Pressable>
           {(!release.required || installing) ? (
