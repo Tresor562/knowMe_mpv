@@ -21,7 +21,7 @@ test('Reels shows only active video and keeps actions tied to the original post'
     let body:unknown={};
     if(path.endsWith('/users/me'))body={id:'me',username:'me',displayName:'Moi'};
     else if(path.endsWith('/posts/feed'))body=posts;
-    else if(path.endsWith('/posts/post-1/like')){likes++;body={liked:likes%2===1};}
+    else if(path.endsWith('/reels/post-1/like')){likes++;body={liked:likes%2===1,count:likes%2===1?2:1};}
     else if(path.endsWith('/appearance'))body={preference:{effectiveThemeKey:'system'},themes:[]};
     else if(path.endsWith('/i18n/preferences'))body={locale:'fr',direction:'ltr'};
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});

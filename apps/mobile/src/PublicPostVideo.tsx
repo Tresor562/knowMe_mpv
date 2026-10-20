@@ -6,14 +6,16 @@ import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
-import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent} from './video-time';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent,reelProgressMode} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
 import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
-export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false}:{
-  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean
+export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false,
+  offlineRequest=0,onOfflineStatus}:{
+  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean;
+  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void
 }){
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -42,6 +44,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [pulse,setPulse]=useState(false);
   const pulseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  // Reels use transient controls; shared feed previews keep their normal controls.
+  const [reelControlsVisible,setReelControlsVisible]=useState(false);
+  const [lastControlInteraction,setLastControlInteraction]=useState(0);
+  const controlsTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const previousOfflineRequest=useRef(offlineRequest);
   useEffect(()=>{
     alive.current=true;
     return()=>{
@@ -49,6 +56,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       if(activeDownload.current)void activeDownload.current.pauseAsync().catch(()=>undefined);
       if(singleTapTimer.current!==null)clearTimeout(singleTapTimer.current);
       if(pulseTimer.current!==null)clearTimeout(pulseTimer.current);
+      if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);
       const last=playback.current;
       if(last.durationMs>0)void savePublicVideoResume(url,last.positionMs,last.durationMs).catch(()=>undefined);
     };
@@ -101,6 +109,18 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     }
   }
 
+  useEffect(()=>{
+    if(previousOfflineRequest.current===offlineRequest)return;
+    previousOfflineRequest.current=offlineRequest;
+    if(onDoubleTap)void manageOfflineCopy();
+  // The request changes only after an explicit press in the Reels side rail.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[offlineRequest]);
+  useEffect(()=>{onOfflineStatus?.(Boolean(saved));
+  // The state transition is authoritative; callback identity is not a trigger.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[saved]);
+
   async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
     // HTTP ranges from the public, scanner-verified KnowMe post endpoint.
@@ -146,7 +166,23 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     }
     setPaused(value=>videoTapIntent(false,value)==='pause');
   }
+  function revealReelControls(){
+    if(onDoubleTap){
+      setReelControlsVisible(true);
+      // A second tap while controls are already visible resets inactivity timeout.
+      setLastControlInteraction(value=>value+1);
+    }
+  }
+  useEffect(()=>{
+    if(!onDoubleTap)return;
+    if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);
+    if(reelControlsVisible&&!paused&&scrubMs===null&&!timeDialogOpen&&!ended){
+      controlsTimer.current=setTimeout(()=>setReelControlsVisible(false),3000);
+    }
+    return()=>{if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);};
+  },[onDoubleTap,reelControlsVisible,paused,scrubMs,timeDialogOpen,ended,lastControlInteraction]);
   function tapVideo(){
+    revealReelControls();
     if (!onDoubleTap) {
       togglePlayback();
       return;
@@ -185,6 +221,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setTimeDialogOpen(false);
     setTimeError(false);
   }
+  const progressMode=reelProgressMode(durationMs,paused||timeDialogOpen,
+    reelControlsVisible,scrubMs!==null);
   const displayMs=scrubMs??positionMs;
   const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
   function dragSeek(offsetX:number){
@@ -244,16 +282,31 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {pulse?<View style={styles.likeIndicator} pointerEvents="none">
           <KnowMeIcon name="heart" size={65} color="#ff5776"/>
         </View>:null}
-        {paused&&!pulse&&!ended?<View style={styles.pausedIndicator}>
+        {paused&&!pulse&&!ended&&!onDoubleTap?<View style={styles.pausedIndicator}>
           <KnowMeIcon name="play" size={32} color="#fff"/>
         </View>:null}
       </Pressable>
+      {onDoubleTap&&(reelControlsVisible||paused)&&!ended&&<View style={styles.reelCenterControls}>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Back ten seconds':'Reculer de 10 secondes'}
+          style={styles.reelCircleSmall} onPress={()=>{seek(positionMs-10000);revealReelControls();}}>
+          <Text style={styles.reelSkipLabel}>↶10</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={paused?(en?'Play':'Lecture'):(en?'Pause':'Pause')}
+          style={styles.reelCircleMain} onPress={()=>{togglePlayback();revealReelControls();}}>
+          <KnowMeIcon name={paused?'play':'pause'} size={30} color="#fff"/>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Forward ten seconds':'Avancer de 10 secondes'}
+          style={styles.reelCircleSmall} onPress={()=>{seek(positionMs+10000);revealReelControls();}}>
+          <Text style={styles.reelSkipLabel}>10↷</Text>
+        </Pressable>
+      </View>}
       {ended&&<Pressable accessibilityRole="button"
         accessibilityLabel={en?'Watch the video again':'Revoir la vidéo depuis le début'}
         onPress={replayFromBeginning} style={styles.replayButton}>
         <KnowMeIcon name="refresh" size={21} color="#072e2a"/>
         <Text style={styles.replayText}>{en?'Watch again':'Revoir'}</Text>
       </Pressable>}
+      {(!onDoubleTap||progressMode==='expanded')&&
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
@@ -299,7 +352,13 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>+10</Text>
         </Pressable>
-      </View>
+      </View>}
+      {Boolean(onDoubleTap)&&progressMode==='thin'&&
+        <Pressable style={styles.reelThinTrack} accessibilityRole="button"
+          accessibilityLabel={en?'Show video progress':'Afficher la progression'}
+          onPress={revealReelControls}>
+          <View pointerEvents="none" style={[styles.reelThinFill,{width:`${displayPercent}%` as `${number}%`}]}/>
+        </Pressable>}
       {resumeMs!==null&&durationMs>0&&positionMs<12000&&
         <View style={[styles.resumeBox,onDoubleTap?styles.resumeReel:null]}>
           <Pressable accessibilityRole="button" style={styles.resumeButton}
@@ -329,7 +388,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {error||'Lire la vidéo'}
       </Text>
     </Pressable>}
-    <View style={styles.offlineSaveBox}>
+    {!onDoubleTap&&<View style={styles.offlineSaveBox}>
       <Pressable accessibilityRole="button"
         accessibilityLabel={saving?'Enregistrement de la vidéo en cours':saved?'Supprimer la vidéo enregistrée':'Enregistrer la vidéo hors ligne'}
         disabled={saving} onPress={()=>void manageOfflineCopy()}
@@ -342,7 +401,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       {Boolean(saveNotice)&&<Text accessibilityRole="text" style={styles.offlineNotice}>
         {saveNotice}
       </Text>}
-    </View>
+    </View>}
     <Modal visible={timeDialogOpen} transparent animationType="fade"
       onRequestClose={()=>setTimeDialogOpen(false)} statusBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={styles.timeModalFull}>
@@ -390,7 +449,17 @@ const styles=StyleSheet.create({
     minHeight:50,paddingHorizontal:8,borderRadius:16,
     backgroundColor:'rgba(0,0,0,.68)',flexDirection:'row',
     alignItems:'center',gap:10},
-  reelSeek:{bottom:205},
+  reelSeek:{bottom:80,left:16,right:16,backgroundColor:'rgba(0,0,0,.47)'},
+  reelThinTrack:{position:'absolute',left:18,right:18,bottom:91,height:12,
+    borderRadius:6,backgroundColor:'rgba(255,255,255,.18)',justifyContent:'center'},
+  reelThinFill:{height:3,backgroundColor:'#53ede1',borderRadius:2},
+  reelCenterControls:{position:'absolute',top:'43%',left:0,right:0,alignItems:'center',
+    justifyContent:'center',flexDirection:'row',gap:16},
+  reelCircleMain:{width:68,height:68,borderRadius:34,backgroundColor:'rgba(0,0,0,.6)',
+    alignItems:'center',justifyContent:'center'},
+  reelCircleSmall:{width:50,height:50,borderRadius:25,backgroundColor:'rgba(0,0,0,.54)',
+    alignItems:'center',justifyContent:'center'},
+  reelSkipLabel:{fontSize:17,fontWeight:'700',color:'#fff'},
   resumeBox:{position:'absolute',bottom:71,alignSelf:'center',flexDirection:'row',
     backgroundColor:'rgba(4,20,24,.9)',borderRadius:16,padding:4,alignItems:'center',gap:4},
   resumeReel:{bottom:262},

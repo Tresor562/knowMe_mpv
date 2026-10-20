@@ -1,6 +1,6 @@
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
-import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent} from './video-time.ts';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent,reelProgressMode} from './video-time.ts';
 
 test('video clock never wraps after 59m59s, including five-hour videos',()=>{
   assert.equal(videoTime(0),'0:00');
@@ -89,4 +89,15 @@ test('native video completion rewinds on tap rather than toggling stale pause',(
   assert.equal(videoTapIntent(true,false),'replay');
   assert.equal(videoTapIntent(false,true),'play');
   assert.equal(videoTapIntent(false,false),'pause');
+});
+
+test('Reels show a thin timeline at exactly three minutes, expanded on interaction',()=>{
+  assert.equal(reelProgressMode(0,false,false,false),'hidden');
+  assert.equal(reelProgressMode(179_999,false,false,false),'hidden');
+  assert.equal(reelProgressMode(180_000,false,false,false),'thin');
+  assert.equal(reelProgressMode(18_000_000,false,false,false),'thin');
+  assert.equal(reelProgressMode(24_000,false,true,false),'expanded');
+  assert.equal(reelProgressMode(24_000,true,false,false),'expanded');
+  assert.equal(reelProgressMode(18_000_000,false,false,true),'expanded');
+  assert.equal(reelProgressMode(Number.NaN,false,false,false),'hidden');
 });

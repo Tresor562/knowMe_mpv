@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import './reel-playback-immersive.css';
 
 function showTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -16,8 +17,8 @@ function showTime(seconds: number) {
  * A single mounted Reel at a time. An inactive clip has no video element,
  * so neighboring clips cannot play audio or download their full bodies.
  */
-export function ReelPlayback({ src, onDoubleTap, en }: {
-  src: string; onDoubleTap: () => void; en: boolean;
+export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
+  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,8 +30,25 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   const [speed,setSpeed] = useState(1);
   const [error,setError] = useState('');
   const [heart,setHeart] = useState(false);
+  const [controlsVisible,setControlsVisible] = useState(false);
+  const [interactionTick,setInteractionTick] = useState(0);
+  const [scrubbing,setScrubbing] = useState(false);
+  const [hoverTime,setHoverTime] = useState<number|null>(null);
   const heartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeAfterVisibility=useRef(false);
+  const resumeAfterShare=useRef(false);
+  const isLong=duration>=180;
+  const controlsExpanded=controlsVisible||!playing||scrubbing;
+  const compactVisible=isLong&&!controlsExpanded;
+  function revealControls(){
+    setControlsVisible(true);
+    setInteractionTick(tick=>tick+1);
+  }
+  useEffect(()=>{
+    if(!controlsVisible||!playing||scrubbing)return;
+    const timer=setTimeout(()=>setControlsVisible(false),3000);
+    return ()=>clearTimeout(timer);
+  },[controlsVisible,playing,scrubbing,interactionTick]);
 
   useEffect(() => {
     const video=videoRef.current;
@@ -64,7 +82,20 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
     };
   }, [src]);
 
+  useEffect(()=>{
+    const video=videoRef.current;
+    if(!video)return;
+    if(pausedExternally){
+      resumeAfterShare.current=!video.paused;
+      video.pause();
+    }else if(resumeAfterShare.current){
+      resumeAfterShare.current=false;
+      if(!document.hidden)video.play().catch(()=>setPlaying(false));
+    }
+  },[pausedExternally]);
+
   async function toggle() {
+    revealControls();
     const video = videoRef.current;
     if (!video) return;
     setError('');
@@ -77,6 +108,7 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   }
 
   function onTap() {
+    revealControls();
     const now=Date.now();
     if (now-lastTap.current<330) {
       if (clickTimer.current) clearTimeout(clickTimer.current);
@@ -94,6 +126,7 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   }
 
   function seek(value: number) {
+    revealControls();
     const video=videoRef.current;
     if (!video||!Number.isFinite(value)||duration<=0) return;
     const clamped=Math.max(0,Math.min(duration,value));
@@ -103,6 +136,7 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   function skip(delta:number){seek(position+delta);}
 
   function switchMute(){
+    revealControls();
     const video=videoRef.current;
     if(!video) return;
     video.muted=!video.muted;
@@ -110,6 +144,7 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
   }
 
   function switchSpeed() {
+    revealControls();
     const rates=[1,1.25,1.5,2];
     const next=rates[(rates.indexOf(speed)+1)%rates.length]!;
     if(videoRef.current)videoRef.current.playbackRate=next;
@@ -172,13 +207,37 @@ export function ReelPlayback({ src, onDoubleTap, en }: {
             strokeWidth="1.3"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.7a5.4 5.4 0 0 0 0-7.7Z"/></svg>
         </span>}
       </button>
-      <div className="km-reel-player-controls">
+      {controlsExpanded&&<div className="km-reel-center-transport" role="group"
+        aria-label={en?'Playback controls':'Commandes de lecture'}>
+        <button type="button" onClick={()=>skip(-10)} aria-label={en?'Back 10 seconds':'Reculer de 10 secondes'}>↶10</button>
+        <button type="button" onClick={()=>void toggle()} aria-label={playing?(en?'Pause video':'Mettre en pause'):(en?'Play video':'Reprendre la lecture')}>
+          {playing?'Ⅱ':'▶'}
+        </button>
+        <button type="button" onClick={()=>skip(10)} aria-label={en?'Forward 10 seconds':'Avancer de 10 secondes'}>10↷</button>
+      </div>}
+      {compactVisible&&<button className="km-reel-minimal-timeline" type="button"
+        aria-label={en?'Show video progress':'Afficher la progression de la vidéo'}
+        onClick={revealControls}>
+        <span style={{width:(duration>0?Math.min(100,position/duration*100):0)+'%'}}/>
+      </button>}
+      <div className={'km-reel-player-controls'+(controlsExpanded?' km-reel-player-controls--expanded':' km-reel-player-controls--hidden')}>
         <div className="km-reel-player-progress">
           <input type="range" min={0} max={duration||1} step={0.1}
             value={Math.min(position,duration||1)} disabled={!duration}
+            onPointerDown={()=>{revealControls();setScrubbing(true);}}
+            onPointerUp={()=>setScrubbing(false)}
+            onPointerCancel={()=>setScrubbing(false)}
+            onPointerMove={event=>{
+              if(duration<=0)return;
+              const rect=event.currentTarget.getBoundingClientRect();
+              const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+              setHoverTime(duration*ratio);
+            }}
+            onPointerLeave={()=>setHoverTime(null)}
             onChange={event=>seek(Number(event.target.value))}
+            title={showTime(hoverTime??position)}
             aria-label={en?'Video progress':'Position dans la vidéo'}/>
-          <span>{showTime(position)} / {showTime(duration)}</span>
+          <span>{hoverTime!==null&&scrubbing?showTime(hoverTime)+' → ':''}{showTime(position)} / {showTime(duration)}</span>
         </div>
         <div className="km-reel-player-buttons">
           <button type="button" onClick={()=>void toggle()}

@@ -52,3 +52,11 @@ export function videoTapIntent(ended:boolean,paused:boolean):'replay'|'play'|'pa
   if(ended)return 'replay';
   return paused?'play':'pause';
 }
+
+/** Player contract: short clips hide idle progress; long clips keep a thin rail. */
+export function reelProgressMode(
+  durationMs:number, paused:boolean, visible:boolean, scrubbing:boolean
+):'hidden'|'thin'|'expanded'{
+  if(paused||visible||scrubbing)return 'expanded';
+  return Number.isFinite(durationMs)&&durationMs>=180_000?'thin':'hidden';
+}
