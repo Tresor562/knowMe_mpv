@@ -120,9 +120,12 @@ export class PostsService {
    * first. This avoids forcing the Reels feed to scan unrelated text/photo
    * posts, and keeps cursor semantics identical to the main post feed.
    */
-  async videos(cursor?: string) {
+  async videos(cursor?: string, followedAuthorIds?: string[]) {
     const posts = await this.prisma.post.findMany({
-      where: { media: { some: { mimeType: 'video/mp4' } } },
+      where: {
+        media: { some: { mimeType: 'video/mp4' } },
+        ...(followedAuthorIds ? { authorId: { in: followedAuthorIds } } : {})
+      },
       take: 20,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -144,6 +147,16 @@ export class PostsService {
         position: item.position
       }))
     }));
+  }
+
+  /** Authenticated Reels subscribed feed. Filter on the server before pagination. */
+  async videosFromFollowing(viewerId: string, cursor?: string) {
+    const follows = await this.prisma.creatorFollow.findMany({
+      where: { followerId: viewerId }, select: { creatorId: true }
+    });
+    // No subscriptions must mean no videos, never a public-feed fallback.
+    if (follows.length === 0) return [];
+    return this.videos(cursor, follows.map(item => item.creatorId));
   }
 
   async getById(postId: string) {
