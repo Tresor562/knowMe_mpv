@@ -1181,6 +1181,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [selectedReel,setSelectedReel]=useState<{postId:string;position:number}|null>(null);
   const [profileSubscreenActive, setProfileSubscreenActive] = useState(false);
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
@@ -1470,7 +1471,10 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
               avatarUrl: user.avatarUrl
             }}
             onOpenDiscover={() => setScreen('discover')}
-            onOpenReels={() => setScreen('reels')}
+            onOpenReels={(postId?:string,position?:number) => {
+              setSelectedReel(postId!==undefined&&position!==undefined?{postId,position}:null);
+              setScreen('reels');
+            }}
             onOpenProfile={openUserProfile}
             storyComposerRequest={storyComposerRequest}
             initialStoryId={linkedStoryId}
@@ -1499,7 +1503,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'reels' ? (
           <ReelsExperience
-            onBack={() => setScreen('home')}
+            initialSelection={selectedReel}
+            onBack={() => { setSelectedReel(null);setScreen('home'); }}
             onOpenPost={(id) => {
               setLinkedPostId(id);
               setLinkedCommentId(null);
