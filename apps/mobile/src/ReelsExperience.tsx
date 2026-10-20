@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, Share, StyleSheet,
+  ActivityIndicator, FlatList, Pressable, StyleSheet,
   Text, TextInput, View
 } from 'react-native';
-import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { API_URL, apiFetch } from './api';
 import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
+import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { Avatar, KnowMeIcon } from './ui/KnowMeUI';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
@@ -61,7 +61,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
-  const [sharing,setSharing]=useState(false);
+  const [sharingClip,setSharingClip]=useState<Clip|null>(null);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
   const requestEpoch=useRef(0);
@@ -260,15 +260,6 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     }finally{pending.current=false;}
   }
 
-  async function sharePost(postId:string){
-    setSharing(true);
-    try{
-      await Share.share({message:buildKnowMePublicLink({kind:'post',id:postId})});
-    }catch{
-      setFailure(en?'Sharing unavailable.':'Partage indisponible.');
-    }finally{setSharing(false);}
-  }
-
 
   function renderClip({item}:{item:Clip}){
     const post=item.post;
@@ -278,7 +269,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown?<PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen||sharing}
+        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen||Boolean(sharingClip)}
         onDoubleTap={()=>{void ensureLike(post);}}
         offlineRequest={offlineRequests[item.id]??0}
         onOfflineStatus={saved=>setOfflineStatus(old=>
@@ -339,7 +330,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           <Text style={styles.actionCount}>{shortCount(post._count.comments)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Share video':'Partager le réel'}
-          onPress={()=>void sharePost(post.id)} style={styles.action}>
+          onPress={()=>setSharingClip(item)} style={styles.action}>
           <KnowMeIcon name="arrow" size={32} color="#fff" strokeWidth={1.85}/>
         </Pressable>
         <Pressable accessibilityRole="button"
@@ -458,6 +449,24 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
       onProfile={onOpenProfile}/>
+    {sharingClip&&<ReelShareSheet post={sharingClip.post} videoUrl={sharingClip.media.url} en={en}
+      onClose={()=>setSharingClip(null)}
+      onOpenPost={()=>{
+        const id=sharingClip.post.id;
+        setSharingClip(null);
+        onOpenPost(id);
+      }}
+      onOpenDownloads={()=>{
+        setSharingClip(null);
+        setOfflineLibraryOpen(true);
+      }}
+      onHide={()=>{
+        const id=sharingClip.post.id;
+        setSharingClip(null);
+        setPosts(current=>current.filter(item=>item.id!==id));
+        setActive(null);
+        listRef.current?.scrollToOffset({offset:0,animated:false});
+      }}/>}
     {Boolean(failure)&&emptyMode!=='failed'&&
       <View style={styles.error} accessibilityLiveRegion="polite">
         <Text style={styles.errorText}>{failure}</Text>
