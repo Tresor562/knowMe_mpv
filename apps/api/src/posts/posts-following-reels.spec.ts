@@ -34,4 +34,29 @@ describe('Reels subscribed video feed', () => {
       cursor: { id: 'previous-video' }
     }));
   });
+
+  it('returns only viewer-scoped like states, capped and validated', async () => {
+    const prisma = {
+      postLike: { findMany: jest.fn().mockResolvedValue([{ postId: 'p1' }]) }
+    };
+    const reels = new ReelsFeedService(prisma as never, {} as never);
+    const result = await reels.likeStates('viewer', 'p1,p2,p1,not?valid');
+    expect(result).toEqual({ likedPostIds: ['p1'] });
+    expect(prisma.postLike.findMany).toHaveBeenCalledWith({
+      where: { userId: 'viewer', postId: { in: ['p1', 'p2'] } },
+      select: { postId: true }
+    });
+  });
+
+  it('uses a server count after toggling a reaction', async () => {
+    const prisma = { postLike: { count: jest.fn().mockResolvedValue(42) } };
+    const posts = { toggleLike: jest.fn().mockResolvedValue({ liked: false }) };
+    const reels = new ReelsFeedService(prisma as never, posts as never);
+    await expect(reels.toggleLike('viewer', 'p1')).resolves.toEqual({
+      liked: false, count: 42
+    });
+    expect(posts.toggleLike).toHaveBeenCalledWith('viewer', 'p1');
+    expect(prisma.postLike.count).toHaveBeenCalledWith({ where: { postId: 'p1' } });
+  });
+
 });
