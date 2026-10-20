@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { API_URL, apiFetch } from './api';
 import { useI18n } from './I18nProvider';
+import { consumeReelSelectionIntent } from './reel-selection-intent';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
@@ -38,15 +39,15 @@ type VideoPost={
 };
 type Clip={id:string;post:VideoPost;media:Media};
 
-export function ReelsExperience({onBack,onOpenPost,onOpenProfile,initialSelection}:{
+export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   onBack:()=>void;
   onOpenPost:(id:string)=>void;
   onOpenProfile:(username:string)=>void;
-  initialSelection?:{postId:string;position:number}|null;
 }){
   const {locale}=useI18n();
   const en=locale==='en';
   const [posts,setPosts]=useState<VideoPost[]>([]);
+  const [initialSelection]=useState(()=>consumeReelSelectionIntent());
   const [feed,setFeed]=useState<ReelFeed>('all');
   const [viewer,setViewer]=useState<{username:string;displayName:string;avatarUrl?:string|null}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);
