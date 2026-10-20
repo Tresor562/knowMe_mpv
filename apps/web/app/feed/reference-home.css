@@ -1,0 +1,125 @@
+/* Reference home: the user-selected theme and existing navigation system remain authoritative.
+   Scoped to /feed; other KnowMe pages do not inherit these proportions. */
+.km-feed-reference-header {
+  position:relative;
+  z-index:22;
+  min-height:62px;
+  padding:5px 2px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.km-feed-reference-brand {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  text-decoration:none;
+  color:var(--text);
+}
+.km-feed-reference-brand img {
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  border-radius:12px;
+  object-fit:contain;
+}
+.km-feed-reference-brand strong {
+  font-size:clamp(21px,6vw,27px);
+  font-weight:800;
+  letter-spacing:-.035em;
+  line-height:1;
+}
+.km-feed-reference-actions {
+  display:flex;
+  gap:11px;
+  align-items:center;
+  flex-shrink:0;
+}
+.km-feed-reference-icon {
+  width:46px;
+  height:46px;
+  padding:0;
+  flex:0 0 46px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--soft-border);
+  border-radius:50%;
+  background:var(--surface-2);
+  color:var(--text);
+  text-decoration:none;
+  cursor:pointer;
+  transition:transform var(--km-motion-fast,140ms) ease,background var(--km-motion-fast,140ms) ease;
+}
+.km-feed-reference-icon:active { transform:scale(.94); }
+.km-feed-reference-icon:focus-visible,
+.km-feed-reference-menu :is(a,button):focus-visible {
+  outline:2px solid var(--mint);
+  outline-offset:2px;
+}
+.km-feed-reference-menu-anchor { position:relative; }
+.km-feed-reference-scrim {
+  position:fixed;
+  z-index:30;
+  inset:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:default;
+}
+.km-feed-reference-menu {
+  position:absolute;
+  z-index:31;
+  top:calc(100% + 9px);
+  right:0;
+  width:min(250px,calc(100vw - 26px));
+  padding:8px;
+  display:grid;
+  gap:2px;
+  border:1px solid var(--soft-border);
+  border-radius:19px;
+  background:var(--surface);
+  box-shadow:0 12px 36px rgba(0,0,0,.19);
+}
+.km-feed-reference-menu > :is(a,button) {
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  text-align:left;
+  padding:10px 14px;
+  border:0;
+  border-radius:12px;
+  background:transparent;
+  color:var(--text);
+  text-decoration:none;
+  font:inherit;
+  font-size:14px;
+  cursor:pointer;
+}
+.km-feed-reference-menu > :is(a,button):hover { background:var(--surface-2); }
+.km-feed-page .km-feed-quick-compose {
+  gap:11px;
+  padding:9px 3px 12px;
+  border-bottom:1px solid var(--soft-border);
+}
+.km-feed-page .km-feed-quick-compose-open {
+  min-height:50px;
+  padding:13px 17px;
+  border-radius:999px;
+  font-size:14px;
+}
+.km-feed-page .km-stories-heading { display:none; }
+.km-feed-page .km-stories { margin-top:10px; }
+.km-feed-page .km-story-card-rail { gap:9px; }
+.km-feed-page .km-feed-post { padding:14px 1px 16px; }
+.km-feed-page .km-post-actions { border-top:1px solid var(--soft-border); }
+@media(max-width:420px){
+  .km-feed-reference-brand strong {font-size:24px}
+  .km-feed-reference-actions{gap:8px}
+  .km-feed-reference-icon{width:44px;height:44px;flex-basis:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  .km-feed-reference-icon {transition:none}
+}
+:root[data-animations='false'] .km-feed-reference-icon{transition:none}
