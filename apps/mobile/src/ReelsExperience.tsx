@@ -8,6 +8,7 @@ import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
+import { ReelQuickCommentSheet } from './ReelQuickCommentSheet';
 import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { Avatar, KnowMeIcon } from './ui/KnowMeUI';
@@ -60,6 +61,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [failure,setFailure]=useState('');
   const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
+  const [commentPost,setCommentPost]=useState<VideoPost|null>(null);
+  const [commentCounts,setCommentCounts]=useState<Record<string,number>>({});
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [sharingClip,setSharingClip]=useState<Clip|null>(null);
   const [viewportHeight,setViewportHeight]=useState(600);
@@ -269,7 +272,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown?<PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen||Boolean(sharingClip)}
+        autoPlay externallyPaused={Boolean(captionClip)||Boolean(commentPost)||refreshing||searchOpen||Boolean(sharingClip)}
         onDoubleTap={()=>{void ensureLike(post);}}
         offlineRequest={offlineRequests[item.id]??0}
         onOfflineStatus={saved=>setOfflineStatus(old=>
@@ -327,7 +330,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Comments':'Commentaires'}
           onPress={()=>onOpenPost(post.id)} style={styles.action}>
           <KnowMeIcon name="messages" size={32} color="#fff" strokeWidth={1.85}/>
-          <Text style={styles.actionCount}>{shortCount(post._count.comments)}</Text>
+          <Text style={styles.actionCount}>{shortCount(commentCounts[post.id]??post._count.comments)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Share video':'Partager le réel'}
           onPress={()=>setSharingClip(item)} style={styles.action}>
@@ -346,7 +349,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         </Pressable>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={en?'Add comment':'Ajouter un commentaire'}
-        style={styles.commentComposer} onPress={()=>onOpenPost(post.id)}>
+        style={styles.commentComposer} onPress={()=>setCommentPost(post)}>
         <Avatar name={viewer?.displayName??'KnowMe'} uri={avatarUri(viewer?.avatarUrl)} size={30}/>
         <Text style={styles.commentPlaceholder} numberOfLines={1}>
           {en?'Add a comment…':'Ajouter un commentaire…'}
@@ -449,6 +452,22 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
       onProfile={onOpenProfile}/>
+    {commentPost&&<ReelQuickCommentSheet key={commentPost.id}
+      postId={commentPost.id} en={en}
+      viewer={{name:viewer?.displayName??'KnowMe',avatarUrl:avatarUri(viewer?.avatarUrl)}}
+      onClose={()=>setCommentPost(null)}
+      onSent={()=>{
+        const id=commentPost.id;
+        setCommentCounts(current=>({
+          ...current,[id]:(current[id]??commentPost._count.comments)+1
+        }));
+        setCommentPost(null);
+      }}
+      onViewComments={()=>{
+        const id=commentPost.id;
+        setCommentPost(null);
+        onOpenPost(id);
+      }}/>}
     {sharingClip&&<ReelShareSheet post={sharingClip.post} videoUrl={sharingClip.media.url} en={en}
       onClose={()=>setSharingClip(null)}
       onOpenPost={()=>{
