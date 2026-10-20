@@ -16,8 +16,8 @@ function showTime(seconds: number) {
  * A single mounted Reel at a time. An inactive clip has no video element,
  * so neighboring clips cannot play audio or download their full bodies.
  */
-export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
-  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean;
+export function ReelPlayback({ src, onDoubleTap, en }: {
+  src: string; onDoubleTap: () => void; en: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,7 +31,6 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   const [heart,setHeart] = useState(false);
   const heartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeAfterVisibility=useRef(false);
-  const resumeAfterShare=useRef(false);
 
   useEffect(() => {
     const video=videoRef.current;
@@ -64,18 +63,6 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
       if (heartTimer.current) clearTimeout(heartTimer.current);
     };
   }, [src]);
-
-  useEffect(()=>{
-    const video=videoRef.current;
-    if(!video)return;
-    if(pausedExternally){
-      resumeAfterShare.current=!video.paused;
-      video.pause();
-    }else if(resumeAfterShare.current){
-      resumeAfterShare.current=false;
-      if(!document.hidden)video.play().catch(()=>setPlaying(false));
-    }
-  },[pausedExternally]);
 
   async function toggle() {
     const video = videoRef.current;
