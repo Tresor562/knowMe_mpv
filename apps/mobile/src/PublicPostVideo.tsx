@@ -42,6 +42,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [pulse,setPulse]=useState(false);
   const pulseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  // Reels use transient controls; shared feed previews keep their normal controls.
+  const [reelControlsVisible,setReelControlsVisible]=useState(false);
+  const controlsTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   useEffect(()=>{
     alive.current=true;
     return()=>{
@@ -49,6 +52,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       if(activeDownload.current)void activeDownload.current.pauseAsync().catch(()=>undefined);
       if(singleTapTimer.current!==null)clearTimeout(singleTapTimer.current);
       if(pulseTimer.current!==null)clearTimeout(pulseTimer.current);
+      if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);
       const last=playback.current;
       if(last.durationMs>0)void savePublicVideoResume(url,last.positionMs,last.durationMs).catch(()=>undefined);
     };
@@ -146,7 +150,19 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     }
     setPaused(value=>videoTapIntent(false,value)==='pause');
   }
+  function revealReelControls(){
+    if(onDoubleTap)setReelControlsVisible(true);
+  }
+  useEffect(()=>{
+    if(!onDoubleTap)return;
+    if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);
+    if(reelControlsVisible&&!paused&&scrubMs===null&&!timeDialogOpen&&!ended){
+      controlsTimer.current=setTimeout(()=>setReelControlsVisible(false),3000);
+    }
+    return()=>{if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);};
+  },[onDoubleTap,reelControlsVisible,paused,scrubMs,timeDialogOpen,ended]);
   function tapVideo(){
+    revealReelControls();
     if (!onDoubleTap) {
       togglePlayback();
       return;
@@ -244,16 +260,31 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {pulse?<View style={styles.likeIndicator} pointerEvents="none">
           <KnowMeIcon name="heart" size={65} color="#ff5776"/>
         </View>:null}
-        {paused&&!pulse&&!ended?<View style={styles.pausedIndicator}>
+        {paused&&!pulse&&!ended&&!onDoubleTap?<View style={styles.pausedIndicator}>
           <KnowMeIcon name="play" size={32} color="#fff"/>
         </View>:null}
       </Pressable>
+      {onDoubleTap&&(reelControlsVisible||paused)&&!ended&&<View style={styles.reelCenterControls}>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Back ten seconds':'Reculer de 10 secondes'}
+          style={styles.reelCircleSmall} onPress={()=>{seek(positionMs-10000);revealReelControls();}}>
+          <Text style={styles.reelSkipLabel}>↶10</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={paused?(en?'Play':'Lecture'):(en?'Pause':'Pause')}
+          style={styles.reelCircleMain} onPress={()=>{togglePlayback();revealReelControls();}}>
+          <KnowMeIcon name={paused?'play':'pause'} size={30} color="#fff"/>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Forward ten seconds':'Avancer de 10 secondes'}
+          style={styles.reelCircleSmall} onPress={()=>{seek(positionMs+10000);revealReelControls();}}>
+          <Text style={styles.reelSkipLabel}>10↷</Text>
+        </Pressable>
+      </View>}
       {ended&&<Pressable accessibilityRole="button"
         accessibilityLabel={en?'Watch the video again':'Revoir la vidéo depuis le début'}
         onPress={replayFromBeginning} style={styles.replayButton}>
         <KnowMeIcon name="refresh" size={21} color="#072e2a"/>
         <Text style={styles.replayText}>{en?'Watch again':'Revoir'}</Text>
       </Pressable>}
+      {(!onDoubleTap||reelControlsVisible||paused||scrubMs!==null||timeDialogOpen)&&
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
@@ -299,7 +330,13 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>+10</Text>
         </Pressable>
-      </View>
+      </View>}
+      {Boolean(onDoubleTap)&&durationMs>=180000&&!reelControlsVisible&&!paused&&scrubMs===null&&
+        <Pressable style={styles.reelThinTrack} accessibilityRole="button"
+          accessibilityLabel={en?'Show video progress':'Afficher la progression'}
+          onPress={revealReelControls}>
+          <View pointerEvents="none" style={[styles.reelThinFill,{width:`${displayPercent}%` as `${number}%`}]}/>
+        </Pressable>}
       {resumeMs!==null&&durationMs>0&&positionMs<12000&&
         <View style={[styles.resumeBox,onDoubleTap?styles.resumeReel:null]}>
           <Pressable accessibilityRole="button" style={styles.resumeButton}
@@ -390,7 +427,17 @@ const styles=StyleSheet.create({
     minHeight:50,paddingHorizontal:8,borderRadius:16,
     backgroundColor:'rgba(0,0,0,.68)',flexDirection:'row',
     alignItems:'center',gap:10},
-  reelSeek:{bottom:205},
+  reelSeek:{bottom:139,left:16,right:16,backgroundColor:'rgba(0,0,0,.47)'},
+  reelThinTrack:{position:'absolute',left:18,right:18,bottom:154,height:12,
+    borderRadius:6,backgroundColor:'rgba(255,255,255,.18)',justifyContent:'center'},
+  reelThinFill:{height:3,backgroundColor:'#53ede1',borderRadius:2},
+  reelCenterControls:{position:'absolute',top:'43%',left:0,right:0,alignItems:'center',
+    justifyContent:'center',flexDirection:'row',gap:16},
+  reelCircleMain:{width:68,height:68,borderRadius:34,backgroundColor:'rgba(0,0,0,.6)',
+    alignItems:'center',justifyContent:'center'},
+  reelCircleSmall:{width:50,height:50,borderRadius:25,backgroundColor:'rgba(0,0,0,.54)',
+    alignItems:'center',justifyContent:'center'},
+  reelSkipLabel:{fontSize:17,fontWeight:'700',color:'#fff'},
   resumeBox:{position:'absolute',bottom:71,alignSelf:'center',flexDirection:'row',
     backgroundColor:'rgba(4,20,24,.9)',borderRadius:16,padding:4,alignItems:'center',gap:4},
   resumeReel:{bottom:262},
