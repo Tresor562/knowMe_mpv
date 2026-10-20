@@ -9,7 +9,7 @@ import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-op
 import { PostEditSheet } from '../../components/post-edit-sheet';
 import '../../components/post-options-sheet.css';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
-import { Fragment, FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { saveOfflineFeed, loadOfflineFeed } from '../../lib/offline-feed';
 import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
@@ -638,7 +638,7 @@ export default function FeedPage() {
         )}
 
         {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map((post, index) => (
-          <Fragment key={post.id}>
+          <div key={post.id} className="km-feed-stream-block">
           <article className="km-feed-post">
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
@@ -688,7 +688,7 @@ export default function FeedPage() {
             </footer>
           </article>
           {index+1 === reelsAfterPost && authorityFresh && <ReelSuggestionsRail en={en}/>}
-          </Fragment>
+          </div>
         ))}
       </section>
 
