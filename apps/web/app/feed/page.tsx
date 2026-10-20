@@ -55,6 +55,7 @@ export default function FeedPage() {
   const [feedMenuOpen, setFeedMenuOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [reelsAfterPost, setReelsAfterPost] = useState<number | null>(null);
+  const feedVisitSlot=useRef(Math.floor(Date.now()/3600000));
   const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
   const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
   const likesInFlight = useRef(new Set<string>());
@@ -174,8 +175,8 @@ export default function FeedPage() {
   // Choose a bounded insertion point once per mounted feed: new pages never shift the strip.
   useEffect(() => {
     if (!user?.id || !posts.length || reelsAfterPost !== null) return;
-    const seed = [...user.id].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
-    setReelsAfterPost(Math.min(posts.length,1+(seed%4)));
+    const seed = [...(user.id+':'+feedVisitSlot.current)].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%6)));
   }, [user?.id,posts.length,reelsAfterPost]);
 
   const [authorityFresh, setAuthorityFresh] = useState(false);
