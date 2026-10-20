@@ -61,6 +61,9 @@
 }
 .km-reel-creator{display:flex;align-items:center;min-width:0;gap:8px;max-width:100%}
 .km-reel-creator a{flex-shrink:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-reels-page .km-reel-creator > a:not(.km-reel-avatar){
+  color:#fff;font-size:15px;font-weight:800;white-space:nowrap;min-width:0
+}
 .km-reels-page .km-reel-info .km-reel-avatar{
   flex-shrink:0;width:52px;height:52px;display:grid;place-items:center;
   border-radius:50%;border:3px solid #4ef3e3;overflow:hidden;
