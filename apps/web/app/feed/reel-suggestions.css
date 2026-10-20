@@ -16,3 +16,5 @@
 .km-feed-reel-card-link:active .km-feed-reel-play{transform:translate(-50%,-50%) scale(.93)}
 @media(max-width:380px){.km-feed-reel-card{flex-basis:112px;width:112px}}
 @media(prefers-reduced-motion:reduce){.km-feed-reel-card-link:active .km-feed-reel-play{transform:translate(-50%,-50%)}}
+
+.km-feed-stream-block{display:contents}
