@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {
-  ActivityIndicator,Alert,KeyboardAvoidingView,Modal,Platform,Pressable,
+  ActivityIndicator,Alert,Image,KeyboardAvoidingView,Modal,Platform,Pressable,
   ScrollView,Share,StyleSheet,Text,TextInput,View
 } from 'react-native';
 import {buildKnowMePublicLink} from '@knowme/link-contract';
@@ -16,10 +16,11 @@ type ReelSharePost={
 type ShareConversation={
   id:string;
   title?:string|null;
+  avatarUrl?:string|null;
   isGroup?:boolean;
   members?:Array<{
     userId:string;
-    user?:{id:string;displayName?:string|null;username?:string|null}|null
+    user?:{id:string;displayName?:string|null;username?:string|null;avatarUrl?:string|null}|null
   }>;
 };
 
@@ -229,13 +230,16 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
                 {visible.map(chat=>{
                   const name=conversationName(chat,en);
                   const selected=selectedId===chat.id;
+                  const photo=chat.avatarUrl||(chat.members??[]).map(member=>member.user?.avatarUrl).find(Boolean);
+                  const safePhoto=photo&&/^https:\/\//i.test(photo)?photo:null;
                   return <Pressable key={chat.id} accessibilityRole="button"
                     accessibilityState={{selected,disabled:busy}}
                     accessibilityLabel={name} disabled={busy}
                     onPress={()=>setSelectedId(current=>current===chat.id?'':chat.id)}
                     style={styles.recipient}>
                     <View style={[styles.avatar,selected&&styles.selectedAvatar]}>
-                      <Text style={styles.avatarInitial}>{initialFor(name)}</Text>
+                      {safePhoto?<Image source={{uri:safePhoto}} style={styles.avatarPhoto} accessibilityLabel={name}/>
+                        :<Text style={styles.avatarInitial}>{initialFor(name)}</Text>}
                       {selected?<View style={styles.checkBadge}>
                         <KnowMeIcon name="check" size={13} color="#072e28"/>
                       </View>:null}
@@ -329,6 +333,7 @@ const styles=StyleSheet.create({
     alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:'transparent'},
   selectedAvatar:{borderColor:'#85e9df',backgroundColor:'#314a53'},
   avatarInitial:{fontSize:24,fontWeight:'800',color:'#fff'},
+  avatarPhoto:{width:58,height:58,borderRadius:29},
   checkBadge:{position:'absolute',bottom:-3,right:-2,width:21,height:21,
     borderRadius:11,backgroundColor:'#85e9df',alignItems:'center',justifyContent:'center'},
   recipientName:{color:'#fff',fontSize:12,textAlign:'center'},
