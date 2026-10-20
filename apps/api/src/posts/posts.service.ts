@@ -120,12 +120,9 @@ export class PostsService {
    * first. This avoids forcing the Reels feed to scan unrelated text/photo
    * posts, and keeps cursor semantics identical to the main post feed.
    */
-  async videos(cursor?: string, followedAuthorIds?: string[]) {
+  async videos(cursor?: string) {
     const posts = await this.prisma.post.findMany({
-      where: {
-        media: { some: { mimeType: 'video/mp4' } },
-        ...(followedAuthorIds ? { authorId: { in: followedAuthorIds } } : {})
-      },
+      where: { media: { some: { mimeType: 'video/mp4' } } },
       take: 20,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -147,16 +144,6 @@ export class PostsService {
         position: item.position
       }))
     }));
-  }
-
-  /** Authenticated Reels subscribed feed. Filter on the server before pagination. */
-  async videosFromFollowing(viewerId: string, cursor?: string) {
-    const follows = await this.prisma.creatorFollow.findMany({
-      where: { followerId: viewerId }, select: { creatorId: true }
-    });
-    // No subscriptions must mean no videos, never a public-feed fallback.
-    if (follows.length === 0) return [];
-    return this.videos(cursor, follows.map(item => item.creatorId));
   }
 
   async getById(postId: string) {
@@ -304,17 +291,6 @@ export class PostsService {
   }
 
   /** Idempotent like for double-taps: never unlikes an already-liked post. */
-  /** Hydrate visible Reels hearts from the authenticated viewer's saved state. */
-  async likeStates(userId: string, postIds: string[]) {
-    const safeIds = [...new Set(postIds)].filter(id => /^[a-zA-Z0-9_-]{1,100}$/.test(id)).slice(0, 30);
-    if (!safeIds.length) return { likedPostIds: [] };
-    const rows = await this.prisma.postLike.findMany({
-      where: { userId, postId: { in: safeIds } },
-      select: { postId: true }
-    });
-    return { likedPostIds: rows.map(item => item.postId) };
-  }
-
   async ensureLike(userId: string, postId: string) {
     const [post, actor] = await Promise.all([
       this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true } }),
@@ -370,8 +346,7 @@ export class PostsService {
 
     if (existing) {
       await this.prisma.postLike.delete({ where: { id: existing.id } });
-      const count = await this.prisma.postLike.count({ where: { postId } });
-      return { liked: false, count };
+      return { liked: false };
     }
 
     await this.prisma.postLike.create({ data: { postId, userId } });
@@ -391,8 +366,7 @@ export class PostsService {
       });
     }
 
-    const count = await this.prisma.postLike.count({ where: { postId } });
-    return { liked: true, count };
+    return { liked: true };
   }
 
   async comment(userId: string, postId: string, dto: CreateCommentDto) {
