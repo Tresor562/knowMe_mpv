@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import './reel-suggestions.css';
 
@@ -33,6 +33,27 @@ function reelsFromPosts(posts:VideoPost[]):ReelPreview[]{
   return result.slice(0,12);
 }
 
+function ReelThumbnail({url}:{url:string}){
+  const video=useRef<HTMLVideoElement>(null);
+  const [nearby,setNearby]=useState(false);
+  useEffect(()=>{
+    const node=video.current;
+    if(!node)return;
+    if(typeof IntersectionObserver==='undefined'){setNearby(true);return;}
+    const root=node.closest('.km-feed-reel-rail');
+    const observer=new IntersectionObserver(entries=>{
+      if(entries.some(entry=>entry.isIntersecting)){
+        setNearby(true);
+        observer.disconnect();
+      }
+    },{root,rootMargin:'0px 120px 0px 120px'});
+    observer.observe(node);
+    return()=>observer.disconnect();
+  },[]);
+  return <video ref={video} muted playsInline preload="metadata"
+    src={nearby?url:undefined} aria-hidden="true" tabIndex={-1}/>;
+}
+
 /** Independent recommendation unit. The host feed decides where it appears. */
 export function ReelSuggestionsRail({en}:{en:boolean}){
   const [items,setItems]=useState<ReelPreview[]>([]);
@@ -60,8 +81,7 @@ export function ReelSuggestionsRail({en}:{en:boolean}){
             <Link className="km-feed-reel-card-link"
               href={`/reels?post=${encodeURIComponent(item.postId)}&position=${encodeURIComponent(item.position)}`}
               aria-label={(en?'Watch Reel by ':'Regarder le réel de ')+item.creator}>
-              <video muted playsInline preload="metadata" src={item.url}
-                aria-hidden="true" tabIndex={-1} />
+              <ReelThumbnail url={item.url}/>
               <span className="km-feed-reel-play" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
                   <path d="M8 5a1 1 0 0 1 1.5-.85l10 6.5a1.6 1.6 0 0 1 0 2.7l-10 6.5A1 1 0 0 1 8 19z"/>
