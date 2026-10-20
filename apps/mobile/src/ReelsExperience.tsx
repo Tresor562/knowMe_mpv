@@ -60,6 +60,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
+  const [sharing,setSharing]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
   const requestEpoch=useRef(0);
@@ -251,11 +252,12 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   }
 
   async function sharePost(postId:string){
+    setSharing(true);
     try{
       await Share.share({message:buildKnowMePublicLink({kind:'post',id:postId})});
     }catch{
-      setFailure('Partage indisponible.');
-    }
+      setFailure(en?'Sharing unavailable.':'Partage indisponible.');
+    }finally{setSharing(false);}
   }
 
 
@@ -267,7 +269,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown?<PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen}
+        autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen||sharing}
         onDoubleTap={()=>{void ensureLike(post);}}
         offlineRequest={offlineRequests[item.id]??0}
         onOfflineStatus={saved=>setOfflineStatus(old=>
