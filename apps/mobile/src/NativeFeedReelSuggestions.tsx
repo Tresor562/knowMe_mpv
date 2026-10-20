@@ -65,8 +65,10 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
             accessibilityLabel={'Voir le réel de '+item.creator}
             onPress={()=>onOpenReels(item.postId,item.position)}
             style={[styles.card,{backgroundColor:colors.surface}]}>
-            <NativeStoryVideo sourceUri={API_URL+item.url} paused
-              seekToMs={100} style={styles.video}/>
+            <View pointerEvents="none" style={styles.video}>
+              <NativeStoryVideo sourceUri={API_URL+item.url} paused
+                seekToMs={100} style={styles.videoContent}/>
+            </View>
             <View pointerEvents="none" style={styles.play}>
               <KnowMeIcon name="play" size={23} color="#fff"/>
             </View>
@@ -88,6 +90,7 @@ const styles=StyleSheet.create({
   rail:{gap:10,paddingHorizontal:2,paddingBottom:4},
   card:{width:118,height:196,borderRadius:15,overflow:'hidden',justifyContent:'center'},
   video:{position:'absolute',left:0,right:0,top:0,bottom:0,width:'100%',height:'100%'},
+  videoContent:{width:'100%',height:'100%'},
   play:{alignSelf:'center',width:46,height:46,borderRadius:23,borderWidth:1.5,
     borderColor:'rgba(255,255,255,.9)',backgroundColor:'rgba(0,0,0,.4)',
     alignItems:'center',justifyContent:'center'},
