@@ -1,18 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Pressable, Share, StyleSheet,
-  Text, View
+  Text, TextInput, View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import { apiFetch } from './api';
+import { API_URL, apiFetch } from './api';
 import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
-import { KnowMeIcon } from './ui/KnowMeUI';
+import { Avatar, KnowMeIcon } from './ui/KnowMeUI';
+import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
+import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 
-type Author={id:string;username:string;displayName:string};
+type Author={id:string;username:string;displayName:string;avatarUrl?:string|null;
+  verification?:{isVerified:true;label:string}|null;
+  staff?:{isTeamMember:true;shield:string;label:string}|null};
+type FollowState={following:boolean;isOwner:boolean};
+type ReelFeed='all'|'following';
+function avatarUri(value?:string|null){
+  if(!value)return null;
+  if(value.startsWith('/media/public/'))return API_URL+value;
+  return /^https:\/\//.test(value)?value:null;
+}
+function shortCount(value:number){
+  if(value<1000)return String(value);
+  const compact=value>=1000000?(value/1000000).toFixed(1)+'M':(value/1000).toFixed(1)+'K';
+  return compact.replace('.0','');
+}
 type Media={url:string;mimeType:string;position:number};
 type VideoPost={
   id:string;content:string;author:Author;
@@ -28,6 +44,11 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const {locale}=useI18n();
   const en=locale==='en';
   const [posts,setPosts]=useState<VideoPost[]>([]);
+  const [feed,setFeed]=useState<ReelFeed>('all');
+  const [searchOpen,setSearchOpen]=useState(false);
+  const [filter,setFilter]=useState('');
+  const [following,setFollowing]=useState<Record<string,FollowState|null>>({});
+  const [busyFollow,setBusyFollow]=useState<string|null>(null);
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
@@ -39,6 +60,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
+  const requestEpoch=useRef(0);
   const pending=useRef(false);
   const fetching=useRef(false);
   const endReached=useRef(false);
@@ -54,7 +76,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   ),[posts]);
 
   const load=useCallback(async(append:boolean,silent=false)=>{
-    if(fetching.current||append&&!hasMore)return;
+    if(append&&(fetching.current||!hasMore))return;
+    const epoch=++requestEpoch.current;
     fetching.current=true;
     if(append)setMore(true);
     else if(silent)setRefreshing(true);
@@ -63,18 +86,20 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     try{
       const cursor=append?cursorRef.current:null;
       const suffix=cursor?'?cursor='+encodeURIComponent(cursor):'';
+      const endpoint=feed==='following'?'/posts/videos/following':'/posts/videos';
       let data:VideoPost[];
       try{
-        const response=await apiFetch<VideoPost[]>('/posts/videos'+suffix);
+        const response=await apiFetch<VideoPost[]>(endpoint+suffix);
         if(!Array.isArray(response))throw new Error('REELS_LEGACY_API');
         data=response;
       }catch(cause){
-        if((cause as {status?:number})?.status!==404 &&
+        if(feed==='following'||(cause as {status?:number})?.status!==404 &&
           !(cause instanceof Error&&cause.message==='REELS_LEGACY_API'))throw cause;
         const fallback=await apiFetch<VideoPost[]>('/posts/feed'+suffix);
         if(!Array.isArray(fallback))throw new Error('Fil vidéo indisponible.');
         data=fallback;
       }
+      if(epoch!==requestEpoch.current)return;
       const nextCursor=data[data.length-1]?.id??null;
       // A broken/repeated cursor must not trap the Reels feed in an endless loop.
       cursorRef.current=nextCursor??cursorRef.current;
@@ -90,25 +115,58 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         endReached.current=false;
         listRef.current?.scrollToOffset({offset:0,animated:false});
       }
+      const ids=[...new Set(data.map(post=>post.id))].slice(0,30);
+      if(ids.length)void apiFetch<{likedPostIds:string[]}>(
+        '/posts/likes?ids='+ids.map(encodeURIComponent).join(',')
+      ).then(snapshot=>{
+        if(epoch!==requestEpoch.current)return;
+        const yes=new Set(snapshot.likedPostIds);
+        setLikes(current=>{
+          const next={...current};
+          for(const item of data)next[item.id]={
+            count:current[item.id]?.count??item._count.likes,
+            liked:yes.has(item.id)
+          };
+          return next;
+        });
+      }).catch(()=>undefined);
     }catch(cause){
+      if(epoch!==requestEpoch.current)return;
       setFeedError(true);
       setFailure(cause instanceof Error?cause.message:'Impossible de charger les vidéos.');
     }finally{
-      fetching.current=false;
-      setLoading(false);
-      setMore(false);
-      setRefreshing(false);
+      if(epoch===requestEpoch.current){
+        fetching.current=false;
+        setLoading(false);
+        setMore(false);
+        setRefreshing(false);
+      }
     }
-  },[hasMore]);
-
-  useEffect(()=>{void load(false);},[]);
+  },[hasMore,feed]);
 
   useEffect(()=>{
-    const selected=chooseVisibleReel(clips.map(clip=>clip.id),active);
-    if(selected!==active)setActive(selected);
-  },[clips,active]);
+    cursorRef.current=null;
+    setHasMore(true);
+    setPosts([]);
+    setActive(null);
+    void load(false);
+    return()=>{requestEpoch.current++;};
+  // Switching tabs is a new feed request, not a continuation of old pagination.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[feed]);
 
-  const emptyMode=reelsFeedState({clips:clips.length,posts:posts.length,loading,failed:feedError,hasMore});
+  const visibleClips=useMemo(()=>{
+    const q=filter.trim().toLocaleLowerCase();
+    return q?clips.filter(clip=>(clip.post.author.username+' '+clip.post.content)
+      .toLocaleLowerCase().includes(q)):clips;
+  },[clips,filter]);
+
+  useEffect(()=>{
+    const selected=chooseVisibleReel(visibleClips.map(clip=>clip.id),active);
+    if(selected!==active)setActive(selected);
+  },[visibleClips,active]);
+
+  const emptyMode=reelsFeedState({clips:visibleClips.length,posts:posts.length,loading,failed:feedError,hasMore});
 
   const onViewableItemsChanged=useRef(
     ({viewableItems}:{viewableItems:Array<{item:Clip;isViewable?:boolean}>})=>{
