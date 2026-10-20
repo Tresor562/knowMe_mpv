@@ -847,10 +847,11 @@ export function FeedExperience({
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
   const [reelsAfterPost,setReelsAfterPost]=useState<number|null>(null);
+  const feedVisitSlot=useRef(Math.floor(Date.now()/3600000));
   useEffect(()=>{
     if(mode!=='home'||!posts.length||reelsAfterPost!==null)return;
-    const seed=[...userId].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
-    setReelsAfterPost(Math.min(posts.length,1+(seed%4)));
+    const seed=[...(userId+':'+feedVisitSlot.current)].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%6)));
   },[mode,userId,posts.length,reelsAfterPost]);
   const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
   const [likePending,setLikePending] = useState<string[]>([]);
