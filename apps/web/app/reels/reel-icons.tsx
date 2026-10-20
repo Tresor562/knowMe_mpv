@@ -1,9 +1,8 @@
-import type {ReactNode} from 'react';
 type Name='heart'|'comment'|'share'|'bookmark'|'search'|'profile'|'back'|'smile';
 export function ReelIcon({name,filled=false,size=28}:{
   name:Name;filled?:boolean;size?:number;
 }){
-  let body:ReactNode;
+  let body=<path/>;
   switch(name){
     case 'heart':body=<path d="M20.7 4.5a5.4 5.4 0 0 0-7.65 0L12 5.55l-1.05-1.05a5.4 5.4 0 0 0-7.65 7.65L12 20.8l8.7-8.65a5.4 5.4 0 0 0 0-7.65Z"/>;break;
     case 'comment':body=<path d="M20.5 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-3.5-.7L3 21l1.8-5.2A8.5 8.5 0 1 1 20.5 11.5Z"/>;
