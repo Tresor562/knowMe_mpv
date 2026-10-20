@@ -46,6 +46,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   const pulseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   // Reels use transient controls; shared feed previews keep their normal controls.
   const [reelControlsVisible,setReelControlsVisible]=useState(false);
+  const [lastControlInteraction,setLastControlInteraction]=useState(0);
   const controlsTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const previousOfflineRequest=useRef(offlineRequest);
   useEffect(()=>{
@@ -166,7 +167,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setPaused(value=>videoTapIntent(false,value)==='pause');
   }
   function revealReelControls(){
-    if(onDoubleTap)setReelControlsVisible(true);
+    if(onDoubleTap){
+      setReelControlsVisible(true);
+      // A second tap while controls are already visible resets inactivity timeout.
+      setLastControlInteraction(value=>value+1);
+    }
   }
   useEffect(()=>{
     if(!onDoubleTap)return;
@@ -175,7 +180,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       controlsTimer.current=setTimeout(()=>setReelControlsVisible(false),3000);
     }
     return()=>{if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);};
-  },[onDoubleTap,reelControlsVisible,paused,scrubMs,timeDialogOpen,ended]);
+  },[onDoubleTap,reelControlsVisible,paused,scrubMs,timeDialogOpen,ended,lastControlInteraction]);
   function tapVideo(){
     revealReelControls();
     if (!onDoubleTap) {
