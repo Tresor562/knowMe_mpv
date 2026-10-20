@@ -21,7 +21,7 @@ await page.route('**/api/knowme/**',async route=>{
   await expect(header.locator('img[src="/brand/knowme-logo.svg"]')).toBeVisible();
   await expect(header.getByRole('link',{name:'Rechercher sur KnowMe'})).toHaveAttribute('href','/discover');
   await expect(page.locator('.km-feed-quick-add')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Créer une publication'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Ouvrir l’éditeur'})).toBeVisible();
 
   await header.getByRole('button',{name:'Plus d’options'}).click();
   await expect(header.getByRole('navigation',{name:'Menu du fil'})).toBeVisible();
