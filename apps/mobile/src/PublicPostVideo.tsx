@@ -12,8 +12,10 @@ import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
-export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false}:{
-  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean
+export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false,
+  offlineRequest=0,onOfflineStatus}:{
+  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean;
+  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void
 }){
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -45,6 +47,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   // Reels use transient controls; shared feed previews keep their normal controls.
   const [reelControlsVisible,setReelControlsVisible]=useState(false);
   const controlsTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const previousOfflineRequest=useRef(offlineRequest);
   useEffect(()=>{
     alive.current=true;
     return()=>{
@@ -104,6 +107,18 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       if(alive.current)setSaving(false);
     }
   }
+
+  useEffect(()=>{
+    if(previousOfflineRequest.current===offlineRequest)return;
+    previousOfflineRequest.current=offlineRequest;
+    if(onDoubleTap)void manageOfflineCopy();
+  // The request changes only after an explicit press in the Reels side rail.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[offlineRequest]);
+  useEffect(()=>{onOfflineStatus?.(Boolean(saved));
+  // The state transition is authoritative; callback identity is not a trigger.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[saved]);
 
   async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
@@ -366,7 +381,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         {error||'Lire la vidéo'}
       </Text>
     </Pressable>}
-    <View style={styles.offlineSaveBox}>
+    {!onDoubleTap&&<View style={styles.offlineSaveBox}>
       <Pressable accessibilityRole="button"
         accessibilityLabel={saving?'Enregistrement de la vidéo en cours':saved?'Supprimer la vidéo enregistrée':'Enregistrer la vidéo hors ligne'}
         disabled={saving} onPress={()=>void manageOfflineCopy()}
@@ -379,7 +394,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       {Boolean(saveNotice)&&<Text accessibilityRole="text" style={styles.offlineNotice}>
         {saveNotice}
       </Text>}
-    </View>
+    </View>}
     <Modal visible={timeDialogOpen} transparent animationType="fade"
       onRequestClose={()=>setTimeDialogOpen(false)} statusBarTranslucent>
       <KeyboardAvoidingView behavior="padding" style={styles.timeModalFull}>
