@@ -8,6 +8,7 @@ import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
+import { ReelCaptionPreview } from './ReelCaptionPreview';
 import { ReelQuickCommentSheet } from './ReelQuickCommentSheet';
 import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
@@ -306,12 +307,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
               </Text>
             </Pressable>}
         </View>
-        {Boolean(post.content)&&<Pressable accessibilityRole="button"
-          accessibilityLabel={en?'Read full description':'Voir toute la description'}
-          onPress={()=>setCaptionClip(post)} style={styles.captionContainer}>
-          <Text style={styles.caption} numberOfLines={2}>{post.content}</Text>
-          {post.content.length>110&&<Text style={styles.moreText}>{en?'more':'…plus'}</Text>}
-        </Pressable>}
+        <ReelCaptionPreview content={post.content} en={en}
+          onExpand={()=>setCaptionClip(post)}/>
         {tags.length>0&&<View style={styles.hashtags}>
           {tags.map(tag=><Pressable key={tag} accessibilityRole="button"
             onPress={()=>{setFilter(tag);setSearchOpen(true);}}>
