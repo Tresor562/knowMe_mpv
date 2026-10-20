@@ -263,8 +263,6 @@ export function ReelShareSheet({post,viewerId,en,onClose,onHide}:{
         </div>}
         <div className="km-reel-share-divider"/>
         <h3>{en?'Reel options':'Options du Reel'}</h3>
-        <Link className="km-reel-share-option" href={'/feed/'+encodeURIComponent(post.id)}
-          onClick={onClose}><Glyph name="post"/>{en?'View original post':'Voir la publication'}</Link>
         <button className="km-reel-share-option" type="button" disabled={busy}
           onClick={onHide}><Glyph name="hide"/>{en?'Hide this Reel here':'Masquer ce Reel ici'}</button>
         <button className="km-reel-share-option" type="button" disabled={busy}
