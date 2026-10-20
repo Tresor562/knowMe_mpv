@@ -7,9 +7,13 @@ import { useSession } from '../../lib/use-session';
 import { useI18n } from '../../components/i18n-provider';
 import { ReelPlayback } from './reel-playback';
 import { ReelShareSheet } from './reel-share-sheet';
+import { ReelFollowButton, ReelCommentSheet } from './reel-social-interactions';
+import './reels-reference-shell.css';
 import './reels.css';
 
-type Author = { id: string; username: string; displayName: string };
+type Author = { id: string; username: string; displayName: string; avatarUrl?:string|null;
+  verification?:{isVerified:boolean;label:string}|null;
+  staff?:{isTeamMember:boolean;shield:string;label:string}|null };
 type PostMedia = {url: string;mimeType: string;position: number};
 type Post = {
   id:string;content:string;createdAt:string;author:Author;
@@ -30,6 +34,11 @@ export default function ReelsPage() {
   const { locale } = useI18n();
   const en = locale === 'en';
   const [posts,setPosts]=useState<Post[]>([]);
+  const [feed,setFeed]=useState<'all'|'following'>('all');
+  const [searchOpen,setSearchOpen]=useState(false);
+  const [query,setQuery]=useState('');
+  const [commentPost,setCommentPost]=useState<Post|null>(null);
+  const [commentCounts,setCommentCounts]=useState<Record<string,number>>({});
   const [loading,setLoading]=useState(true);
   const [loadingMore,setLoadingMore]=useState(false);
   const [hasMore,setHasMore]=useState(false);
@@ -43,7 +52,7 @@ export default function ReelsPage() {
   const [liked,setLiked]=useState<Record<string,boolean>>({});
   const [pendingLike,setPendingLike]=useState<string|null>(null);
   const reelRoot=useRef<HTMLDivElement>(null);
-  const initialLoad=useRef(false);
+  const requestEpoch=useRef(0);
 
   const clips=useMemo<Clip[]>(() => posts.flatMap(post =>
     (post.media??[]).filter(media => media.mimeType === 'video/mp4' && mediaUrl(media.url))
@@ -53,54 +62,76 @@ export default function ReelsPage() {
 
   const load=useCallback(async(more:boolean)=>{
     if(more&&(!hasMore||loadingMore)) return;
+    const epoch=++requestEpoch.current;
     more?setLoadingMore(true):setLoading(true);
     setError('');
     try{
       const cursor=more?posts[posts.length-1]?.id:undefined;
       const suffix=cursor?'?cursor='+encodeURIComponent(cursor):'';
+      const endpoint=feed==='following'?'/reels/following':'/posts/videos';
       let page: Post[];
       try {
         // Use the video-only endpoint when the API has been upgraded.
-        const response=await apiFetch<Post[]>('/posts/videos'+suffix);
+        const response=await apiFetch<Post[]>(endpoint+suffix);
         if(!Array.isArray(response))throw new Error('LEGACY_REELS_RESPONSE');
         page=response;
       }catch(cause){
         const status=(cause as {status?:number})?.status;
-        if(status!==404 && !(cause instanceof Error && cause.message==='LEGACY_REELS_RESPONSE'))throw cause;
+        if(feed==='following'||status!==404 && !(cause instanceof Error && cause.message==='LEGACY_REELS_RESPONSE'))throw cause;
         // During staged Web/VPS rollouts, the old feed stays functional.
         const legacy=await apiFetch<Post[]>('/posts/feed'+suffix);
         if(!Array.isArray(legacy))throw new Error('Réponse du fil indisponible.');
         page=legacy;
       }
+      if(epoch!==requestEpoch.current)return;
       setPosts(current=>{
         if(!more) return page;
         const known=new Set(current.map(post=>post.id));
         return [...current,...page.filter(post=>!known.has(post.id))];
       });
       setHasMore(page.length===20);
+      const ids=[...new Set(page.map(post=>post.id))].slice(0,30);
+      if(ids.length)void apiFetch<{likedPostIds:string[]}>(
+        '/reels/likes?ids='+ids.map(encodeURIComponent).join(',')
+      ).then(snapshot=>{
+        if(epoch!==requestEpoch.current||!Array.isArray(snapshot.likedPostIds))return;
+        const set=new Set(snapshot.likedPostIds);
+        setLiked(prev=>{
+          const next={...prev};
+          for(const post of page)next[post.id]=set.has(post.id);
+          return next;
+        });
+      }).catch(()=>undefined);
     }catch(cause){
-      setError(cause instanceof Error?cause.message:(en?'Videos unavailable.':'Vidéos indisponibles.'));
+      if(epoch===requestEpoch.current)
+        setError(cause instanceof Error?cause.message:(en?'Videos unavailable.':'Vidéos indisponibles.'));
     }finally{
-      setLoading(false);
-      setLoadingMore(false);
+      if(epoch===requestEpoch.current){setLoading(false);setLoadingMore(false);}
     }
-  },[en,hasMore,loadingMore,posts]);
+  },[en,hasMore,loadingMore,posts,feed]);
 
-  // One initial page is enough to mount the immersive viewer. Further pages
-  // are requested explicitly so that scrolling never downloads all videos.
+  // Start an isolated server feed on each tab; don't reuse the public cursor.
   useEffect(()=>{
-    if(sessionLoading||!user||initialLoad.current)return;
-    initialLoad.current=true;
+    if(sessionLoading||!user)return;
+    setActiveId(null);
+    setPosts([]);
     void load(false);
-  },[sessionLoading,user,load]);
+    return()=>{requestEpoch.current++;};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[sessionLoading,user?.id,feed]);
 
+  const visibleClips=useMemo(()=>{
+    const q=query.trim().toLocaleLowerCase();
+    return q?clips.filter(clip=>(clip.post.content+' '+clip.post.author.username)
+      .toLocaleLowerCase().includes(q)):clips;
+  },[clips,query]);
   useEffect(()=>{
-    if(!activeId&&clips[0])setActiveId(clips[0].id);
-  },[activeId,clips]);
+    if(!activeId&&visibleClips[0])setActiveId(visibleClips[0].id);
+  },[activeId,visibleClips]);
 
   useEffect(()=>{
     const root=reelRoot.current;
-    if(!root||!clips.length||typeof IntersectionObserver==='undefined')return;
+    if(!root||!visibleClips.length||typeof IntersectionObserver==='undefined')return;
     const observer=new IntersectionObserver(entries=>{
       const visible=entries.filter(entry=>entry.isIntersecting&&entry.intersectionRatio>=0.55)
         .sort((a,b)=>b.intersectionRatio-a.intersectionRatio);
@@ -112,7 +143,7 @@ export default function ReelsPage() {
     for(const card of root.querySelectorAll<HTMLElement>('[data-video-id]'))
       observer.observe(card);
     return ()=>observer.disconnect();
-  },[clips]);
+  },[visibleClips]);
 
   function openDescription(clip:Clip){
     const video=reelRoot.current?.querySelector<HTMLVideoElement>('video');
@@ -138,11 +169,11 @@ export default function ReelsPage() {
   },[descriptionClip]);
 
   function go(delta:number){
-    const index=clips.findIndex(clip=>clip.id===activeId);
-    const next=clips[Math.min(clips.length-1,Math.max(0,(index<0?0:index)+delta))];
+    const index=visibleClips.findIndex(clip=>clip.id===activeId);
+    const next=visibleClips[Math.min(visibleClips.length-1,Math.max(0,(index<0?0:index)+delta))];
     if(!next)return;
     setActiveId(next.id);
-    reelRoot.current?.querySelectorAll<HTMLElement>('[data-video-id]')[clips.indexOf(next)]
+    reelRoot.current?.querySelectorAll<HTMLElement>('[data-video-id]')[visibleClips.indexOf(next)]
       ?.scrollIntoView({block:'center',behavior:'smooth'});
   }
 
