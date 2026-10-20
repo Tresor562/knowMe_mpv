@@ -202,15 +202,14 @@ export default function ReelsPage() {
     if(pendingLike)return;
     setPendingLike(post.id);
     try{
-      const res=await apiFetch<{liked:boolean}>('/posts/'+encodeURIComponent(post.id)+'/like',{method:'POST'});
-      const had=liked[post.id];
+      // Real server counts avoid guessing the previous viewer reaction or
+      // other users' concurrent likes and unlikes.
+      const res=await apiFetch<{liked:boolean;count:number}>(
+        '/reels/'+encodeURIComponent(post.id)+'/like',{method:'POST'});
+      if(typeof res.liked!=='boolean'||!Number.isFinite(res.count))
+        throw new Error(en?'Reaction state unavailable.':'État de la réaction indisponible.');
       setLiked(current=>({...current,[post.id]:res.liked}));
-      setCounts(current=>{
-        const prior=current[post.id]??post._count.likes;
-        const next=had===res.liked ? prior
-          : res.liked ? prior+1 : Math.max(0,prior-1);
-        return {...current,[post.id]:next};
-      });
+      setCounts(current=>({...current,[post.id]:Math.max(0,res.count)}));
     }catch(cause){
       setFeedback(cause instanceof Error?cause.message:(en?'Reaction unavailable.':'Réaction impossible.'));
     }finally{setPendingLike(null);}
