@@ -45,6 +45,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const en=locale==='en';
   const [posts,setPosts]=useState<VideoPost[]>([]);
   const [feed,setFeed]=useState<ReelFeed>('all');
+  const [viewer,setViewer]=useState<{username:string;displayName:string;avatarUrl?:string|null}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);
   const [filter,setFilter]=useState('');
   const [following,setFollowing]=useState<Record<string,FollowState|null>>({});
@@ -70,6 +71,14 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const cursorRef=useRef<string|null>(null);
   const listRef=useRef<FlatList<Clip>|null>(null);
   const viewability=useRef({itemVisiblePercentThreshold:72}).current;
+
+  useEffect(()=>{
+    let live=true;
+    void apiFetch<{username:string;displayName:string;avatarUrl?:string|null}>('/users/me')
+      .then(me=>{if(live)setViewer(me);})
+      .catch(()=>undefined);
+    return()=>{live=false;};
+  },[]);
 
   const clips=useMemo<Clip[]>(()=>posts.flatMap(post=>
     (post.media??[]).filter(media=>media.mimeType==='video/mp4'&&
@@ -208,7 +217,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
   async function openOwnProfile(){
     try{
-      const me=await apiFetch<{username:string}>('/users/me');
+      const me=viewer??await apiFetch<{username:string;displayName:string}>('/users/me');
       if(!me.username)throw new Error(en?'Profile unavailable.':'Profil indisponible.');
       onOpenProfile(me.username);
     }catch(cause){setFailure(cause instanceof Error?cause.message:'Profil indisponible.');}
@@ -347,7 +356,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={en?'Add comment':'Ajouter un commentaire'}
         style={styles.commentComposer} onPress={()=>onOpenPost(post.id)}>
-        <Avatar name={post.author.displayName} uri={avatarUri(post.author.avatarUrl)} size={30}/>
+        <Avatar name={viewer?.displayName??'KnowMe'} uri={avatarUri(viewer?.avatarUrl)} size={30}/>
         <Text style={styles.commentPlaceholder} numberOfLines={1}>
           {en?'Add a comment…':'Ajouter un commentaire…'}
         </Text>
