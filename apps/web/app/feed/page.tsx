@@ -473,6 +473,7 @@ export default function FeedPage() {
       <RuntimeExperienceModules />
       <div className="km-header-nav-group">
       <header className="km-feed-header km-feed-reference-header">
+        <h1 className="km-feed-semantic-title">{en ? 'Feed' : 'Fil d’actualité'}</h1>
         <Link href="/feed" className="km-feed-reference-brand" aria-label="KnowMe — Accueil">
           <img src="/brand/knowme-logo.svg" alt="" width="44" height="44" />
           <strong>KnowMe</strong>
