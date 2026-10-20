@@ -8,7 +8,7 @@ describe('Reels subscribed video feed', () => {
       ) },
       post: { findMany: jest.fn().mockResolvedValue([]) }
     };
-    const service = new ReelsFeedService(prisma as never, {} as never);
+    const service = new ReelsFeedService(prisma as never, {} as never, {} as never);
     return { prisma, service };
   };
 
@@ -39,7 +39,7 @@ describe('Reels subscribed video feed', () => {
     const prisma = {
       postLike: { findMany: jest.fn().mockResolvedValue([{ postId: 'p1' }]) }
     };
-    const reels = new ReelsFeedService(prisma as never, {} as never);
+    const reels = new ReelsFeedService(prisma as never, {} as never, {} as never);
     const result = await reels.likeStates('viewer', 'p1,p2,p1,not?valid');
     expect(result).toEqual({ likedPostIds: ['p1'] });
     expect(prisma.postLike.findMany).toHaveBeenCalledWith({
@@ -51,12 +51,33 @@ describe('Reels subscribed video feed', () => {
   it('uses a server count after toggling a reaction', async () => {
     const prisma = { postLike: { count: jest.fn().mockResolvedValue(42) } };
     const posts = { toggleLike: jest.fn().mockResolvedValue({ liked: false }) };
-    const reels = new ReelsFeedService(prisma as never, posts as never);
+    const reels = new ReelsFeedService(prisma as never, posts as never, {} as never);
     await expect(reels.toggleLike('viewer', 'p1')).resolves.toEqual({
       liked: false, count: 42
     });
     expect(posts.toggleLike).toHaveBeenCalledWith('viewer', 'p1');
     expect(prisma.postLike.count).toHaveBeenCalledWith({ where: { postId: 'p1' } });
+  });
+
+
+  it('resolves subscriptions from the author ID, not their username', async () => {
+    const prisma = { creatorProfile: { findUnique: jest.fn().mockResolvedValue({ slug:'real-creator-slug' }) } };
+    const creators = {
+      followStatus: jest.fn().mockResolvedValue({ following:true, isOwner:false }),
+      follow: jest.fn().mockResolvedValue({ following:true, replayed:false })
+    };
+    const reels = new ReelsFeedService(prisma as never, {} as never, creators as never);
+    await expect(reels.creatorFollowStatus('viewer', 'author-id')).resolves.toEqual({
+      following:true, isOwner:false
+    });
+    await expect(reels.creatorFollow('viewer', 'author-id', true)).resolves.toEqual({
+      following:true, replayed:false
+    });
+    expect(prisma.creatorProfile.findUnique).toHaveBeenCalledWith({
+      where:{userId:'author-id'}, select:{slug:true}
+    });
+    expect(creators.followStatus).toHaveBeenCalledWith('viewer', 'real-creator-slug');
+    expect(creators.follow).toHaveBeenCalledWith('viewer', 'real-creator-slug');
   });
 
 });
