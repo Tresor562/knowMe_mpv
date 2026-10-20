@@ -1,0 +1,76 @@
+/* Reels-only player overlay. No edits to the shared page CSS owned by PR #692. */
+.km-reel-player-controls--hidden{display:none}
+.km-reel-player-controls--expanded{
+  bottom:0;
+  padding:10px 12px max(10px,env(safe-area-inset-bottom,0px));
+  background:linear-gradient(0deg,rgba(0,0,0,.82),rgba(0,0,0,.28) 72%,transparent)
+}
+.km-reel-minimal-timeline{
+  position:absolute;
+  z-index:6;
+  left:15px;
+  right:15px;
+  bottom:max(62px,calc(52px + env(safe-area-inset-bottom,0px)));
+  height:12px;
+  padding:0;
+  border:0;
+  border-radius:999px;
+  cursor:pointer;
+  background:linear-gradient(180deg,transparent 4px,rgba(255,255,255,.30) 4px,
+    rgba(255,255,255,.30) 7px,transparent 7px);
+  overflow:hidden
+}
+.km-reel-minimal-timeline span{
+  position:absolute;
+  left:0;
+  top:4px;
+  height:3px;
+  max-width:100%;
+  border-radius:3px;
+  background:#53ede1;
+  transition:width .15s linear
+}
+.km-reel-center-transport{
+  position:absolute;
+  z-index:6;
+  top:42%;
+  left:0;
+  right:0;
+  transform:translateY(-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  pointer-events:none
+}
+.km-reel-center-transport button{
+  pointer-events:auto;
+  width:52px;
+  height:52px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:50%;
+  background:rgba(0,0,0,.60);
+  color:#fff;
+  font-size:17px;
+  font-weight:750;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  transition:transform .16s ease,background .16s ease
+}
+.km-reel-center-transport button:nth-child(2){
+  width:70px;
+  height:70px;
+  font-size:30px
+}
+.km-reel-center-transport button:active{transform:scale(.93)}
+.km-reel-center-transport button:focus-visible,
+.km-reel-minimal-timeline:focus-visible{outline:2px solid #53ede1;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){
+  .km-reel-minimal-timeline span,.km-reel-center-transport button{transition:none}
+}
+@media(prefers-reduced-transparency:reduce){
+  .km-reel-center-transport button{backdrop-filter:none;-webkit-backdrop-filter:none;background:#1b2229}
+}
