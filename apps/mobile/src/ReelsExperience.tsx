@@ -36,7 +36,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [failure,setFailure]=useState('');
   const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
-  const [sharingPost,setSharingPost]=useState<VideoPost|null>(null);
+  const [sharingClip,setSharingClip]=useState<Clip|null>(null);
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
@@ -163,7 +163,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||Boolean(sharingPost)||refreshing}
+        autoPlay externallyPaused={Boolean(captionClip)||Boolean(sharingClip)||refreshing}
         onDoubleTap={()=>{void ensureLike(post);}}/>
         : <View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
@@ -201,7 +201,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
             <Text style={styles.actionCount}>{post._count.comments}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Partager la vidéo"
-            onPress={()=>setSharingPost(post)} style={styles.action}>
+            onPress={()=>setSharingClip(item)} style={styles.action}>
             <KnowMeIcon name="arrow" size={25} color="#fff"/>
           </Pressable>
         </View>
@@ -271,20 +271,20 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
       onProfile={onOpenProfile}/>
-    {sharingPost&&<ReelShareSheet post={sharingPost} en={en}
-      onClose={()=>setSharingPost(null)}
+    {sharingClip&&<ReelShareSheet post={sharingClip.post} videoUrl={sharingClip.media.url} en={en}
+      onClose={()=>setSharingClip(null)}
       onOpenPost={()=>{
-        const id=sharingPost.id;
-        setSharingPost(null);
+        const id=sharingClip.post.id;
+        setSharingClip(null);
         onOpenPost(id);
       }}
       onOpenDownloads={()=>{
-        setSharingPost(null);
+        setSharingClip(null);
         setOfflineLibraryOpen(true);
       }}
       onHide={()=>{
-        const id=sharingPost.id;
-        setSharingPost(null);
+        const id=sharingClip.post.id;
+        setSharingClip(null);
         setPosts(current=>current.filter(post=>post.id!==id));
         setActive(null);
         listRef.current?.scrollToOffset({offset:0,animated:false});
