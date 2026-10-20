@@ -11,7 +11,7 @@
 .km-reel-video{display:block;height:100%;width:100%;object-fit:contain;background:#05070c}
 .km-reel-placeholder{height:100%;width:100%;background:linear-gradient(160deg,#152d3a,#0c1017);display:grid;place-items:center}
 .km-reel-placeholder span{color:rgba(255,255,255,.3);font-size:68px}
-.km-reel-overlay{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:end;gap:8px;padding:60px 15px max(82px,calc(54px + env(safe-area-inset-bottom,0px)));background:linear-gradient(0deg,rgba(0,0,0,.72),transparent 95%);pointer-events:none}
+.km-reel-overlay{position:absolute;left:0;right:0;bottom:0;z-index:8;display:flex;align-items:end;gap:8px;padding:60px 15px max(112px,calc(96px + env(safe-area-inset-bottom,0px)));background:linear-gradient(0deg,rgba(0,0,0,.72),transparent 95%);pointer-events:none}
 .km-reel-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:13px}
 .km-reel-info a{width:fit-content;color:#fff;text-decoration:none;font-size:14px;font-weight:750;pointer-events:auto}
 .km-reel-info a:last-child{font-size:12px;font-weight:550;text-decoration:underline;text-underline-offset:3px}
@@ -31,7 +31,7 @@
 .km-reels-empty p{margin:0}
 .km-reels-notice,.km-reels-error{position:absolute;z-index:70;left:50%;transform:translateX(-50%);top:75px;width:min(90%,420px);background:#182d38;padding:13px;border-radius:13px;font-size:13px;text-align:center}
 .km-reels-error{top:auto;bottom:25px;background:#521e20}
-@media(max-width:660px){.km-reels-steps{right:5px;top:40%}.km-reels-steps button{width:34px;height:34px}.km-reel-overlay{padding-left:12px;padding-right:10px;padding-bottom:95px}}
+@media(max-width:660px){.km-reels-steps{right:5px;top:40%}.km-reels-steps button{width:34px;height:34px}.km-reel-overlay{padding-left:12px;padding-right:10px;padding-bottom:125px}}
 @media(prefers-reduced-motion:reduce){.km-reels-viewport{scroll-behavior:auto}}
 
 /* Only the focused Reel mounts the video player. Controls remain readable
@@ -52,3 +52,35 @@
 .km-reel-player-buttons button:is(:hover,:focus-visible){background:#ffffff40;outline:2px solid #a5efe9}
 .km-reel-player-error{display:block;padding:6px 10px;border-radius:10px;background:#501d24;font-size:12px;text-align:center;pointer-events:auto}
 @media(prefers-reduced-motion:reduce){.km-reel-heart{animation:none;opacity:1}}
+
+/* Expanded Reels captions: preserve the video position, never cut a long post. */
+.km-reel-read-description{
+  pointer-events:auto;align-self:flex-start;min-height:38px;
+  padding:5px 8px;border:0;border-radius:10px;background:#274847db;
+  color:#baffed;font:inherit;font-weight:750;cursor:pointer
+}
+.km-reel-read-description:focus-visible{outline:2px solid #a5efe9}
+.km-reel-caption-backdrop{
+  position:absolute;inset:0;z-index:85;display:flex;align-items:flex-end;
+  justify-content:center;background:rgba(0,0,0,.72);padding:0
+}
+.km-reel-caption-dialog{
+  box-sizing:border-box;width:min(100%,620px);max-height:85dvh;min-height:270px;
+  display:flex;flex-direction:column;gap:10px;padding:19px 20px max(20px,env(safe-area-inset-bottom));
+  border-radius:27px 27px 0 0;border:1px solid #3a4c58;
+  background:#141e2b;color:#eff8fb;box-shadow:0 -12px 35px #0007
+}
+.km-reel-caption-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.km-reel-caption-top h2{font-size:18px;margin:0}
+.km-reel-caption-top button{
+  width:44px;height:44px;border:0;border-radius:50%;font-size:26px;
+  color:#fff;background:#35424f;cursor:pointer
+}
+.km-reel-caption-top button:focus-visible{outline:2px solid #a5efe9}
+.km-reel-caption-author{color:#b5fff2;font-weight:750;font-size:14px;align-self:flex-start}
+.km-reel-caption-body{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;
+  white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+.km-reel-caption-body p{font-size:15px;line-height:1.6;margin:6px 0;user-select:text}
+.km-reel-caption-dialog small{color:#b0bec9;font-size:12px}
+
+/* Actions sit above the player timeline without hiding or intercepting its slider. */
