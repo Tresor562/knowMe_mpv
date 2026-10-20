@@ -66,3 +66,38 @@ test('no Firebase or GitHub dependency remains in the Android update path', () =
   assert.match(ui, /getRealtimeSocket\(\)/);
   assert.match(worker, /knowme-api\/mobile-updates\/android/);
 });
+
+
+test('Android background update delegates transfer to the system, never silently installs', () => {
+  const {readFileSync} = require('node:fs');
+  const {join} = require('node:path');
+  const root = join(__dirname, 'native/android');
+  const native = readFileSync(join(root, 'KnowMeInstallerModule.java'), 'utf8');
+  const receiver = readFileSync(join(root, 'KnowMeUpdateDownloadReceiver.java'), 'utf8');
+  const plugin = readFileSync(join(__dirname, 'withKnowMeInstaller.js'), 'utf8');
+  assert.match(native, /queueBackgroundUpdate\\(/);
+  assert.match(native, /downloadManager\\(\\)\\.enqueue\\(request\\)/);
+  assert.match(native, /Request\\.VISIBILITY_VISIBLE/);
+  assert.match(native, /getBackgroundUpdateStatus\\(/);
+  assert.match(native, /installBackgroundUpdate\\(/);
+  assert.match(native, /installApk\\(Uri\\.fromFile\\(local\\)/);
+  assert.match(native, /DIGEST_MISMATCH/);
+  assert.match(native, /INCOMPATIBLE_APK/);
+  assert.match(receiver, /DownloadManager\\.ACTION_DOWNLOAD_COMPLETE/);
+  assert.match(receiver, /setContentIntent\\(tap\\)/);
+  assert.doesNotMatch(receiver, /ACTION_INSTALL_PACKAGE|installApk\\(|PackageInstaller\\.Session/);
+  assert.match(plugin, /KnowMeUpdateDownloadReceiver\\.java/);
+  assert.match(plugin, /android\\.intent\\.action\\.DOWNLOAD_COMPLETE/);
+});
+
+test('the update dialog can close while the system handles the download', () => {
+  const {readFileSync} = require('node:fs');
+  const {join} = require('node:path');
+  const ui = readFileSync(join(__dirname, '../src/updates/MobileUpdateNotice.tsx'), 'utf8');
+  assert.match(ui, /await installer\\.queueBackgroundUpdate\\(current\\.url, current\\.sha256, current\\.versionCode\\)/);
+  assert.match(ui, /dismissedVersion\\.current = current\\.versionCode;\\s*setRelease\\(null\\)/);
+  assert.match(ui, /installer\\.getBackgroundUpdateStatus/);
+  assert.match(ui, /installer\\.installBackgroundUpdate/);
+  assert.match(ui, /downloaded update must remain installable even if/);
+  assert.match(ui, /closing the dialog must not cancel|Closing the dialog must not cancel/);
+});
