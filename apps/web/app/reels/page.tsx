@@ -8,6 +8,7 @@ import { useI18n } from '../../components/i18n-provider';
 import { ReelPlayback } from './reel-playback';
 import { ReelShareSheet } from './reel-share-sheet';
 import { ReelFollowButton, ReelCommentSheet } from './reel-social-interactions';
+import { ReelIcon } from './reel-icons';
 import './reels-reference-shell.css';
 import './reels.css';
 
@@ -218,10 +219,41 @@ export default function ReelsPage() {
   return (
     <main className="km-reels-page" aria-label={en?'KnowMe videos':'Vidéos KnowMe'}>
       <header className="km-reels-header">
-        <Link href="/feed" aria-label={en?'Back to feed':'Retour au fil'}>‹</Link>
-        <div><strong>KnowMe</strong><span>{en?'Videos':'Reels · Vidéos'}</span></div>
-        <Link href="/feed#compose" className="km-reels-create">{en?'Create':'Créer'}</Link>
+        <Link href="/feed" aria-label={en?'Back to feed':'Retour au fil'}
+          className="km-reel-header-icon"><ReelIcon name="back" size={28}/></Link>
+        <strong className="km-reel-header-title">KnowMe · Reels</strong>
+        <div className="km-reel-header-actions">
+          <button type="button" className="km-reel-header-icon"
+            aria-expanded={searchOpen}
+            aria-label={en?'Search loaded Reels':'Rechercher parmi les Réels chargés'}
+            onClick={()=>setSearchOpen(value=>!value)}><ReelIcon name="search" size={28}/></button>
+          <Link href={'/profile/'+encodeURIComponent(user.username)}
+            className="km-reel-header-icon" aria-label={en?'My profile':'Mon profil'}>
+            <ReelIcon name="profile" size={29}/>
+          </Link>
+        </div>
       </header>
+      <div className="km-reels-top-tabs" role="tablist"
+        aria-label={en?'Reels feed':'Fil Reels'}>
+        <button type="button" role="tab" aria-selected={feed==='all'}
+          className={feed==='all'?'km-reel-tab-active':''}
+          onClick={()=>{if(feed!=='all'){setQuery('');setActiveId(null);setPosts([]);setFeed('all');}}}>
+          {en?'For you':'Pour toi'}
+        </button>
+        <button type="button" role="tab" aria-selected={feed==='following'}
+          className={feed==='following'?'km-reel-tab-active':''}
+          onClick={()=>{if(feed!=='following'){setQuery('');setActiveId(null);setPosts([]);setFeed('following');}}}>
+          {en?'Following':'Abonnements'}
+        </button>
+      </div>
+      {searchOpen&&<div className="km-reel-search-field">
+        <ReelIcon name="search" size={20}/>
+        <input value={query} onChange={event=>setQuery(event.currentTarget.value)}
+          aria-label={en?'Search loaded videos':'Rechercher parmi les vidéos chargées'}
+          placeholder={en?'Search loaded videos':'Rechercher parmi les vidéos chargées'}/>
+        <button type="button" onClick={()=>{setQuery('');setSearchOpen(false);}}
+          aria-label={en?'Close search':'Fermer la recherche'}>×</button>
+      </div>}
       {feedback&&<div role="status" className="km-reels-notice"
         onClick={()=>setFeedback('')}>{feedback}</div>}
       <div className="km-reels-viewport" ref={reelRoot}
@@ -232,26 +264,42 @@ export default function ReelsPage() {
           if(event.key==='ArrowUp'){event.preventDefault();go(-1);}
         }}>
         {loading&&<p className="km-reels-empty">{en?'Loading videos…':'Chargement des vidéos…'}</p>}
-        {!loading&&!clips.length&&
+        {!loading&&!visibleClips.length&&
           <div className="km-reels-empty">
-            <h2>{en?'No videos on your feed yet':'Aucune vidéo dans ton fil pour le moment'}</h2>
+            <h2>{query.trim()?(en?'No matching loaded videos':'Aucune vidéo chargée correspondante')
+              :feed==='following'?(en?'No videos from followed creators':'Aucune vidéo de tes abonnements')
+              :(en?'No videos on your feed yet':'Aucune vidéo dans ton fil pour le moment')}</h2>
             <p>{en?'Explore or publish a video from KnowMe.':'Découvre des publications ou publie une vidéo sur KnowMe.'}</p>
             <Link href="/feed">{en?'Return to feed':'Retour au fil'}</Link>
           </div>}
-        {clips.map(clip=>{
+        {visibleClips.map(clip=>{
           const active=clip.id===activeId;
           const post=clip.post;
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
             {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
-              en={en} pausedExternally={Boolean(sharingPost)}
+              en={en} pausedExternally={Boolean(sharingPost)||Boolean(commentPost)}
               onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
             <div className="km-reel-overlay">
               <div className="km-reel-info">
-                <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
-                  @{post.author.username}
-                </Link>
+                <div className="km-reel-creator">
+                  <Link href={'/profile/'+encodeURIComponent(post.author.username)}
+                    className="km-reel-avatar" aria-label={en?'Creator profile':'Profil du créateur'}>
+                    {post.author.avatarUrl&&mediaUrl(post.author.avatarUrl)?
+                      <img alt="" src={mediaUrl(post.author.avatarUrl)}/>:
+                      <span>{post.author.displayName.slice(0,1).toUpperCase()}</span>}
+                  </Link>
+                  <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
+                    @{post.author.username}
+                  </Link>
+                  {post.author.verification?.isVerified&&
+                    <span className="km-reel-certified" title={post.author.verification.label}>✓</span>}
+                  {post.author.staff?.shield==='GOLD'&&
+                    <span className="km-reel-certified km-reel-certified-gold" title={post.author.staff.label}>✓</span>}
+                  <ReelFollowButton authorId={post.author.id} username={post.author.username}
+                    viewerId={user.id} en={en}/>
+                </div>
                 {post.content&&<>
                   <p>{post.content}</p>
                   <button className="km-reel-read-description" type="button"
@@ -263,23 +311,37 @@ export default function ReelsPage() {
                 <Link href={'/feed/'+encodeURIComponent(post.id)}>
                   {en?'View publication':'Voir la publication'}
                 </Link>
+                {Boolean(post.content.match(/#[\p{L}\p{N}_]+/gu)?.length)&&
+                  <div className="km-reel-hashtags">
+                    {[...new Set(post.content.match(/#[\p{L}\p{N}_]+/gu)??[])].slice(0,5).map(tag=>
+                      <button key={tag} type="button" onClick={()=>{
+                        setQuery(tag);setSearchOpen(true);
+                      }}>{tag}</button>)}
+                  </div>}
               </div>
               <div className="km-reel-actions">
                 <button type="button" disabled={pendingLike===post.id}
                   onClick={()=>void like(post)} aria-label={en?'React to publication':'Réagir à la publication'}>
-                  <span aria-hidden="true">{liked[post.id]?'♥':'♡'}</span>
+                  <ReelIcon name="heart" filled={liked[post.id]} size={34}/>
                   {counts[post.id]??post._count.likes}
                 </button>
                 <Link href={'/feed/'+encodeURIComponent(post.id)+'#km-post-comments'}
                   aria-label={en?'Open comments':'Ouvrir les commentaires'}>
-                  <span aria-hidden="true">▤</span>{post._count.comments}
+                  <ReelIcon name="comment" size={32}/>{commentCounts[post.id]??post._count.comments}
                 </Link>
                 <button type="button" onClick={()=>setSharingPost(post)}
                   aria-label={en?'Share video':'Partager la vidéo'}>
-                  <span aria-hidden="true">↗</span>
+                  <ReelIcon name="share" size={32}/>
                 </button>
               </div>
             </div>
+            <button type="button" className="km-reel-compose"
+              onClick={()=>setCommentPost(post)}
+              aria-label={en?'Add a comment':'Ajouter un commentaire'}>
+              <span className="km-reel-compose-avatar">{user.displayName?.slice(0,1)?.toUpperCase()||'K'}</span>
+              <span className="km-reel-compose-placeholder">{en?'Add a comment…':'Ajouter un commentaire…'}</span>
+              <strong>@</strong><ReelIcon name="smile" size={24}/>
+            </button>
           </section>;
         })}
         {!loading&&hasMore&&
@@ -312,6 +374,20 @@ export default function ReelsPage() {
           <small>{en?'Text can be selected and copied.':'Le texte peut être sélectionné et copié.'}</small>
         </section>
       </div>}
+      {commentPost&&<ReelCommentSheet key={commentPost.id} postId={commentPost.id}
+        en={en} onClose={()=>setCommentPost(null)}
+        onSent={()=>{
+          const post=commentPost;
+          setCommentCounts(current=>({...current,
+            [post.id]:(current[post.id]??post._count.comments)+1
+          }));
+          setCommentPost(null);
+        }}
+        onViewAll={()=>{
+          const id=commentPost.id;
+          setCommentPost(null);
+          window.location.assign('/feed/'+encodeURIComponent(id)+'#km-post-comments');
+        }}/>}
       {sharingPost&&<ReelShareSheet post={sharingPost} viewerId={user.id} en={en}
         onClose={()=>setSharingPost(null)}
         onHide={()=>{
@@ -321,10 +397,10 @@ export default function ReelsPage() {
           setActiveId(null);
           reelRoot.current?.scrollTo({top:0,behavior:'auto'});
         }}/>} 
-      {!!clips.length&&<div className="km-reels-steps">
-        <button type="button" onClick={()=>go(-1)} disabled={activeId===clips[0]?.id}
+      {!!visibleClips.length&&<div className="km-reels-steps">
+        <button type="button" onClick={()=>go(-1)} disabled={activeId===visibleClips[0]?.id}
           aria-label={en?'Previous video':'Vidéo précédente'}>↑</button>
-        <button type="button" onClick={()=>go(1)} disabled={activeId===clips[clips.length-1]?.id}
+        <button type="button" onClick={()=>go(1)} disabled={activeId===visibleClips[visibleClips.length-1]?.id}
           aria-label={en?'Next video':'Vidéo suivante'}>↓</button>
       </div>}
     </main>
