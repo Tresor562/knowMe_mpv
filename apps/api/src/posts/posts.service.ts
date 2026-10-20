@@ -304,6 +304,17 @@ export class PostsService {
   }
 
   /** Idempotent like for double-taps: never unlikes an already-liked post. */
+  /** Hydrate visible Reels hearts from the authenticated viewer's saved state. */
+  async likeStates(userId: string, postIds: string[]) {
+    const safeIds = [...new Set(postIds)].filter(id => /^[a-zA-Z0-9_-]{1,100}$/.test(id)).slice(0, 30);
+    if (!safeIds.length) return { likedPostIds: [] };
+    const rows = await this.prisma.postLike.findMany({
+      where: { userId, postId: { in: safeIds } },
+      select: { postId: true }
+    });
+    return { likedPostIds: rows.map(item => item.postId) };
+  }
+
   async ensureLike(userId: string, postId: string) {
     const [post, actor] = await Promise.all([
       this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true } }),
@@ -359,7 +370,8 @@ export class PostsService {
 
     if (existing) {
       await this.prisma.postLike.delete({ where: { id: existing.id } });
-      return { liked: false };
+      const count = await this.prisma.postLike.count({ where: { postId } });
+      return { liked: false, count };
     }
 
     await this.prisma.postLike.create({ data: { postId, userId } });
@@ -379,7 +391,8 @@ export class PostsService {
       });
     }
 
-    return { liked: true };
+    const count = await this.prisma.postLike.count({ where: { postId } });
+    return { liked: true, count };
   }
 
   async comment(userId: string, postId: string, dto: CreateCommentDto) {
