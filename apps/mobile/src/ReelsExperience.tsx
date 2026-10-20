@@ -88,7 +88,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     try{
       const cursor=append?cursorRef.current:null;
       const suffix=cursor?'?cursor='+encodeURIComponent(cursor):'';
-      const endpoint=feed==='following'?'/posts/videos/following':'/posts/videos';
+      const endpoint=feed==='following'?'/reels/following':'/posts/videos';
       let data:VideoPost[];
       try{
         const response=await apiFetch<VideoPost[]>(endpoint+suffix);
@@ -119,7 +119,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       }
       const ids=[...new Set(data.map(post=>post.id))].slice(0,30);
       if(ids.length)void apiFetch<{likedPostIds:string[]}>(
-        '/posts/likes?ids='+ids.map(encodeURIComponent).join(',')
+        '/reels/likes?ids='+ids.map(encodeURIComponent).join(',')
       ).then(snapshot=>{
         if(epoch!==requestEpoch.current)return;
         const yes=new Set(snapshot.likedPostIds);
@@ -217,7 +217,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     if(pending.current)return;
     pending.current=true;
     try{
-      const response=await apiFetch<{liked:boolean;count:number}>(`/posts/${encodeURIComponent(post.id)}/like`,{
+      const response=await apiFetch<{liked:boolean;count:number}>(`/reels/${encodeURIComponent(post.id)}/like`,{
         method:'POST'
       });
       setLikes(current=>{
