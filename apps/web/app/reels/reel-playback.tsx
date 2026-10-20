@@ -38,7 +38,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   const resumeAfterVisibility=useRef(false);
   const resumeAfterShare=useRef(false);
   const isLong=duration>=180;
-  const controlsExpanded=controlsVisible||!playing||scrubbing;
+  const controlsExpanded=controlsVisible||scrubbing;
   const compactVisible=isLong&&!controlsExpanded;
   function revealControls(){
     setControlsVisible(true);

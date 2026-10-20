@@ -52,8 +52,36 @@ export default function ReelsPage() {
   const [counts,setCounts]=useState<Record<string,number>>({});
   const [liked,setLiked]=useState<Record<string,boolean>>({});
   const [pendingLike,setPendingLike]=useState<string|null>(null);
+  const [favorites,setFavorites]=useState<Record<string,boolean>>({});
+  const [truncatedDescriptions,setTruncatedDescriptions]=useState<Record<string,boolean>>({});
   const reelRoot=useRef<HTMLDivElement>(null);
   const requestEpoch=useRef(0);
+
+  useEffect(()=>{
+    try { const saved=JSON.parse(localStorage.getItem('knowme-reel-favorites')||'{}');
+      if(saved&&typeof saved==='object'&&!Array.isArray(saved))setFavorites(saved);
+    }catch{/* Storage may be unavailable. */}
+  },[]);
+  function toggleFavorite(id:string){
+    setFavorites(current=>{
+      const next={...current,[id]:!current[id]};
+      try{localStorage.setItem('knowme-reel-favorites',JSON.stringify(next));}catch{/* Session-only fallback. */}
+      return next;
+    });
+  }
+
+  const descriptionNodes=useRef<Record<string,HTMLParagraphElement|null>>({});
+  useEffect(()=>{
+    const measure=()=>{
+      const next:Record<string,boolean>={};
+      for(const [id,node] of Object.entries(descriptionNodes.current))if(node)
+        next[id]=node.scrollHeight>node.clientHeight+2;
+      setTruncatedDescriptions(next);
+    };
+    const frame=requestAnimationFrame(measure);
+    window.addEventListener('resize',measure);
+    return()=>{cancelAnimationFrame(frame);window.removeEventListener('resize',measure);};
+  },[posts,activeId]);
 
   const clips=useMemo<Clip[]>(() => posts.flatMap(post =>
     (post.media??[]).filter(media => media.mimeType === 'video/mp4' && mediaUrl(media.url))
@@ -294,23 +322,21 @@ export default function ReelsPage() {
                     @{post.author.username}
                   </Link>
                   {post.author.verification?.isVerified&&
-                    <span className="km-reel-certified" title={post.author.verification.label}>✓</span>}
+                    <span className="km-reel-certified" title={post.author.verification.label} aria-label={post.author.verification.label}><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="#168bff" d="M12 1.5 15 3l3.3.1 1.5 3 2.7 2-.6 3.4.6 3.4-2.7 2-1.5 3-3.3.1-3 1.5-3-1.5-3.3-.1-1.5-3-2.7-2 .6-3.4-.6-3.4 2.7-2 1.5-3L9 3z"/><path d="m7.4 12 3.1 3.1 6.1-6.2" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
                   {post.author.staff?.shield==='GOLD'&&
                     <span className="km-reel-certified km-reel-certified-gold" title={post.author.staff.label}>✓</span>}
                   <ReelFollowButton authorId={post.author.id} username={post.author.username}
                     viewerId={user.id} en={en}/>
                 </div>
                 {post.content&&<>
-                  <p>{post.content}</p>
-                  <button className="km-reel-read-description" type="button"
+                  <p ref={node=>{descriptionNodes.current[clip.id]=node;}}>{post.content}</p>
+                  {truncatedDescriptions[clip.id]&&<button className="km-reel-read-description" type="button"
                     onClick={()=>openDescription(clip)}
                     aria-label={en?'Read the complete video description':'Lire toute la description du Reel'}>
                     {en?'Read full description':'Voir toute la description'}
-                  </button>
+                  </button>}
                 </>}
-                <Link href={'/feed/'+encodeURIComponent(post.id)}>
-                  {en?'View publication':'Voir la publication'}
-                </Link>
+
                 {Boolean(post.content.match(/#[\p{L}\p{N}_]+/gu)?.length)&&
                   <div className="km-reel-hashtags">
                     {[...new Set(post.content.match(/#[\p{L}\p{N}_]+/gu)??[])].slice(0,5).map(tag=>
@@ -330,6 +356,11 @@ export default function ReelsPage() {
                   aria-label={en?'Open comments':'Ouvrir les commentaires'}>
                   <ReelIcon name="comment" size={32}/>{commentCounts[post.id]??post._count.comments}
                 </Link>
+                <button type="button" aria-pressed={Boolean(favorites[post.id])}
+                  onClick={()=>toggleFavorite(post.id)}
+                  aria-label={favorites[post.id]?(en?'Remove from favorites':'Retirer des favoris'):(en?'Add to favorites':'Ajouter aux favoris')}>
+                  <ReelIcon name="bookmark" filled={favorites[post.id]} size={30}/>
+                </button>
                 <button type="button" onClick={()=>setSharingPost(post)}
                   aria-label={en?'Share video':'Partager la vidéo'}>
                   <ReelIcon name="share" size={32}/>

@@ -57,6 +57,8 @@ test('Reels shows only active video and keeps actions tied to the original post'
   await expect(viewport.locator('video')).toHaveCount(1);
   await expect(viewport.locator('video')).toHaveAttribute('src',/\/second$/);
   await expect(viewport.getByRole('link',{name:'@author1'})).toHaveAttribute('href','/profile/author1');
-  await expect(viewport.getByRole('link',{name:'Voir la publication'}).last())
-    .toHaveAttribute('href','/feed/post-2');
+  // The reference UI intentionally omits a redundant "Voir la publication" link.
+  await expect(viewport.getByRole('link',{name:'Voir la publication'})).toHaveCount(0);
+  await expect(viewport.getByRole('link',{name:'Ouvrir les commentaires'}).last())
+    .toHaveAttribute('href','/feed/post-2#km-post-comments');
 });

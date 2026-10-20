@@ -27,7 +27,8 @@ test('Reels pause when tab is hidden and persist speed; keyboard avoids stealing
     v.play=async()=>{isPaused=false;v.dataset.played=String(Number(v.dataset.played||0)+1);v.dispatchEvent(new Event('play'));};
     v.pause=()=>{isPaused=true;v.dataset.paused=String(Number(v.dataset.paused||0)+1);v.dispatchEvent(new Event('pause'));};
   });
-  await page.getByRole('button',{name:'Lecture',exact:true}).click();
+  // Immersive Reels hide transport controls until the viewer taps the video.
+  await page.locator('.km-reel-tap-zone').click();
   await expect(video).toHaveAttribute('data-played','1');
   await page.evaluate(()=>{
     Object.defineProperty(document,'hidden',{configurable:true,value:true});
@@ -44,6 +45,9 @@ test('Reels pause when tab is hidden and persist speed; keyboard avoids stealing
   await expect(page.getByRole('button',{name:'Vitesse de lecture'})).toContainText('1.25×');
   await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('knowme-reel-playback-speed'))).toBe('1.25');
   await page.reload();
+  await expect(page.locator('.km-reel-video')).toHaveCount(1);
+  // Reveal native-like transient controls to inspect the restored speed.
+  await page.locator('.km-reel-tap-zone').click();
   await expect(page.getByRole('button',{name:'Vitesse de lecture'})).toContainText('1.25×');
 
   await page.locator('.km-reels-viewport').focus();

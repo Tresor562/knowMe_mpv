@@ -8,6 +8,7 @@ import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
+import { ReelCaptionPreview } from './ReelCaptionPreview';
 import { ReelQuickCommentSheet } from './ReelQuickCommentSheet';
 import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
@@ -306,12 +307,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
               </Text>
             </Pressable>}
         </View>
-        {Boolean(post.content)&&<Pressable accessibilityRole="button"
-          accessibilityLabel={en?'Read full description':'Voir toute la description'}
-          onPress={()=>setCaptionClip(post)} style={styles.captionContainer}>
-          <Text style={styles.caption} numberOfLines={2}>{post.content}</Text>
-          <Text style={styles.moreText}>{en?'more':'…plus'}</Text>
-        </Pressable>}
+        <ReelCaptionPreview content={post.content} en={en}
+          onExpand={()=>setCaptionClip(post)}/>
         {tags.length>0&&<View style={styles.hashtags}>
           {tags.map(tag=><Pressable key={tag} accessibilityRole="button"
             onPress={()=>{setFilter(tag);setSearchOpen(true);}}>
@@ -510,10 +507,10 @@ const styles=StyleSheet.create({
   inactive:{flex:1,width:'100%',alignItems:'center',justifyContent:'center'},
   bottomScrim:{position:'absolute',left:0,right:0,bottom:0,height:335,
     backgroundColor:'rgba(0,0,0,.17)'},
-  information:{position:'absolute',left:0,right:80,bottom:177,paddingHorizontal:14,
+  information:{position:'absolute',left:0,right:80,bottom:112,paddingHorizontal:14,
     gap:9,alignItems:'flex-start'},
   creatorLine:{flexDirection:'row',alignItems:'center',gap:7,maxWidth:'100%'},
-  creatorAvatar:{width:51,height:51,borderWidth:2,borderColor:'#4cf4e7',borderRadius:26,
+  creatorAvatar:{width:51,height:51,borderWidth:2,borderColor:'transparent',borderRadius:26,
     justifyContent:'center',alignItems:'center'},
   creator:{color:'#fff',fontSize:16,fontWeight:'800',flexShrink:1,textShadowColor:'#000b',
     textShadowRadius:5},
@@ -526,7 +523,7 @@ const styles=StyleSheet.create({
   moreText:{color:'#c9d8dc',fontSize:12},
   hashtags:{flexDirection:'row',flexWrap:'wrap',gap:11,maxWidth:'100%'},
   hashtag:{color:'#c9d5e2',fontSize:12,fontWeight:'500'},
-  actions:{position:'absolute',right:7,bottom:186,gap:9,alignItems:'center',width:70},
+  actions:{position:'absolute',right:7,bottom:132,gap:9,alignItems:'center',width:70},
   action:{width:64,minHeight:59,alignItems:'center',justifyContent:'center',gap:3},
   redHeart:{fontSize:39,lineHeight:42,color:'#ff3b57',includeFontPadding:false},
   actionCount:{color:'#fff',fontSize:12,fontWeight:'700',textShadowColor:'#000b',
@@ -545,14 +542,13 @@ const styles=StyleSheet.create({
     color:'#fff',fontWeight:'800'},
   headerActions:{flexDirection:'row',alignItems:'center',gap:2},
   tabs:{position:'absolute',top:59,left:0,right:0,flexDirection:'row',
-    justifyContent:'center',alignItems:'center',gap:5},
-  tab:{height:44,minWidth:117,paddingHorizontal:15,alignItems:'center',
-    justifyContent:'center',borderRadius:999},
-  selectedTab:{backgroundColor:'rgba(255,255,255,.13)',
-    borderWidth:1,borderColor:'rgba(255,255,255,.33)'},
+    justifyContent:'center',alignItems:'center',gap:18},
+  tab:{height:44,minWidth:0,paddingHorizontal:8,alignItems:'center',
+    justifyContent:'center'},
+  selectedTab:{},
   tabText:{fontSize:15,color:'#d0d7dd',fontWeight:'500'},
   tabSelectedText:{color:'#fff',fontWeight:'800'},
-  tabUnderline:{position:'absolute',bottom:-5,width:34,height:4,borderRadius:3,
+  tabUnderline:{position:'absolute',bottom:0,width:34,height:3,borderRadius:3,
     backgroundColor:'#49ede2'},
   searchPanel:{position:'absolute',top:110,left:14,right:14,height:52,borderRadius:22,
     backgroundColor:'rgba(18,29,38,.95)',flexDirection:'row',alignItems:'center',
