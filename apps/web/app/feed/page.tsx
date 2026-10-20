@@ -523,6 +523,7 @@ export default function FeedPage() {
       <section className="km-feed-quick-compose" aria-label={en?'Create a post':'Créer une publication'}>
         <span className="km-post-avatar"><KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} /></span>
         <button type="button" className="km-feed-quick-compose-open"
+          aria-label={en?'Open editor':'Ouvrir l’éditeur'}
           onClick={()=>setComposeOpen(true)}>
           {draftContent || (en?'What would you like to share?':'Qu’as-tu envie de partager ?')}
         </button>
