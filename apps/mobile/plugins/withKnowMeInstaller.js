@@ -50,6 +50,20 @@ function withKnowMeInstaller(config) {
     }
     const app = manifest.application?.[0];
     if (!app) throw new Error('KnowMe installer: Android application missing.');
+    app.receiver ||= [];
+    if (!app.receiver.some(value => value.$?.['android:name'] ===
+        'com.knowme.app.updates.KnowMeUpdateDownloadReceiver')) {
+      app.receiver.push({
+        $: {
+          'android:name': 'com.knowme.app.updates.KnowMeUpdateDownloadReceiver',
+          'android:exported': 'true',
+          'android:permission': 'android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS'
+        },
+        'intent-filter': [{
+          action: [{ $: { 'android:name': 'android.intent.action.DOWNLOAD_COMPLETE' } }]
+        }]
+      });
+    }
     app.provider ||= [];
     const authority = '${applicationId}.knowme.updates';
     if (!app.provider.some((value) => value.$?.['android:authorities'] === authority)) {
@@ -95,6 +109,8 @@ function withKnowMeInstaller(config) {
       path.join(javaTarget, 'KnowMeInstallerPackage.java'));
     await fs.copyFile(path.join(root, 'KnowMeUpdateWorker.java'),
       path.join(javaTarget, 'KnowMeUpdateWorker.java'));
+    await fs.copyFile(path.join(root, 'KnowMeUpdateDownloadReceiver.java'),
+      path.join(javaTarget, 'KnowMeUpdateDownloadReceiver.java'));
     await fs.copyFile(path.join(root, 'knowme_update_paths.xml'),
       path.join(resources, 'knowme_update_paths.xml'));
     return mod;

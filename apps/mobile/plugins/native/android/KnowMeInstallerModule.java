@@ -1,27 +1,66 @@
 package com.knowme.app.updates;
 
 import android.Manifest;
+import android.app.DownloadManager;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.security.MessageDigest;
 import java.util.Locale;
 
 public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
   private final ReactApplicationContext context;
+  private static final String BACKGROUND_PREFS = "knowme_background_apk";
+  private static final String TRUSTED_APK =
+    "https://31-56-85-53\\.sslip\\.io/knowme-api/mobile-updates/android/apk/" +
+    "KnowMe-[0-9]+\\.[0-9]+\\.[0-9]+-preview\\.apk";
+
+  private SharedPreferences backgroundPrefs() {
+    return context.getSharedPreferences(BACKGROUND_PREFS, Context.MODE_PRIVATE);
+  }
+
+  private DownloadManager downloadManager() {
+    return (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+  }
+
+  private int downloadState(long id) {
+    if (id < 1) return -1;
+    try (Cursor cursor = downloadManager().query(
+      new DownloadManager.Query().setFilterById(id))) {
+      if (cursor == null || !cursor.moveToFirst()) return -1;
+      return cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+    } catch (Exception error) {
+      return -1;
+    }
+  }
+
+  private File backgroundFile(long target, String digest) {
+    File downloads = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+    if (downloads == null) throw new IllegalStateException("Stockage Android inaccessible.");
+    return new File(downloads, "knowme-update-" + target + "-" +
+      digest.substring(0, 12).toLowerCase(Locale.ROOT) + ".apk");
+  }
 
   public KnowMeInstallerModule(ReactApplicationContext context) {
     super(context);
@@ -70,6 +109,132 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
       promise.resolve((double) versionCode(info));
     } catch (Exception error) {
       promise.reject("VERSION_UNAVAILABLE", "Impossible de lire la version installée.", error);
+    }
+  }
+
+
+  // DownloadManager is owned by Android, so the APK transfer survives dismissing
+  // the React modal, backgrounding the app and even process termination.
+  @ReactMethod
+  public void queueBackgroundUpdate(String url, String sha256, double targetVersion, Promise promise) {
+    try {
+      if (url == null || !url.matches(TRUSTED_APK) ||
+          sha256 == null || !sha256.matches("(?i)[a-f0-9]{64}") ||
+          !Double.isFinite(targetVersion) || targetVersion < 1 ||
+          targetVersion != Math.floor(targetVersion)) {
+        promise.reject("INVALID_RELEASE", "Métadonnées de mise à jour non fiables.");
+        return;
+      }
+      long version = (long) targetVersion;
+      PackageInfo installed = context.getPackageManager()
+        .getPackageInfo(context.getPackageName(), 0);
+      if (version <= versionCode(installed)) {
+        promise.reject("INVALID_VERSION", "Cette version est déjà installée.");
+        return;
+      }
+      SharedPreferences prefs = backgroundPrefs();
+      long oldId = prefs.getLong("id", -1);
+      int existing = downloadState(oldId);
+      if (prefs.getLong("version", -1) == version &&
+          sha256.equalsIgnoreCase(prefs.getString("sha256", "")) &&
+          (existing == DownloadManager.STATUS_PENDING ||
+           existing == DownloadManager.STATUS_RUNNING ||
+           existing == DownloadManager.STATUS_PAUSED ||
+           existing == DownloadManager.STATUS_SUCCESSFUL)) {
+        promise.resolve(true);
+        return;
+      }
+      if (oldId > 0) downloadManager().remove(oldId);
+      File destination = backgroundFile(version, sha256);
+      if (destination.exists() && !destination.delete()) {
+        promise.reject("CACHE_UNAVAILABLE", "Impossible de remplacer l'ancien APK.");
+        return;
+      }
+      DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+      request.setTitle("Mise à jour KnowMe");
+      request.setDescription("Téléchargement de KnowMe en arrière-plan");
+      request.setMimeType("application/vnd.android.package-archive");
+      request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
+      request.setAllowedOverMetered(true);
+      request.setAllowedOverRoaming(false);
+      request.setDestinationInExternalFilesDir(
+        context, Environment.DIRECTORY_DOWNLOADS, destination.getName());
+      long id = downloadManager().enqueue(request);
+      prefs.edit().putLong("id", id).putLong("version", version)
+        .putString("sha256", sha256.toLowerCase(Locale.ROOT))
+        .putString("url", url).apply();
+      promise.resolve(true);
+    } catch (Exception error) {
+      promise.reject("DOWNLOAD_START_FAILED", "Impossible de lancer le téléchargement Android.", error);
+    }
+  }
+
+  @ReactMethod
+  public void getBackgroundUpdateStatus(Promise promise) {
+    try {
+      WritableMap state = Arguments.createMap();
+      SharedPreferences prefs = backgroundPrefs();
+      long id = prefs.getLong("id", -1);
+      long version = prefs.getLong("version", -1);
+      String digest = prefs.getString("sha256", "");
+      state.putDouble("versionCode", (double) version);
+      PackageInfo installed = context.getPackageManager()
+        .getPackageInfo(context.getPackageName(), 0);
+      if (id < 1 || version <= versionCode(installed) ||
+          !digest.matches("(?i)[a-f0-9]{64}")) {
+        state.putString("status", "none");
+        promise.resolve(state);
+        return;
+      }
+      int status = downloadState(id);
+      if (status == DownloadManager.STATUS_SUCCESSFUL) {
+        File file = backgroundFile(version, digest);
+        state.putString("status", file.isFile() && file.length() >= 1_000_000L
+          && file.length() <= 500_000_000L ? "ready" : "failed");
+      } else if (status == DownloadManager.STATUS_PENDING ||
+                 status == DownloadManager.STATUS_RUNNING ||
+                 status == DownloadManager.STATUS_PAUSED) {
+        state.putString("status", "downloading");
+      } else {
+        state.putString("status", "failed");
+      }
+      promise.resolve(state);
+    } catch (Exception error) {
+      promise.reject("DOWNLOAD_STATUS_FAILED", "Statut du téléchargement indisponible.", error);
+    }
+  }
+
+  @ReactMethod
+  public void installBackgroundUpdate(Promise promise) {
+    try {
+      SharedPreferences prefs = backgroundPrefs();
+      long id = prefs.getLong("id", -1);
+      long version = prefs.getLong("version", -1);
+      String digest = prefs.getString("sha256", "");
+      if (downloadState(id) != DownloadManager.STATUS_SUCCESSFUL ||
+          !digest.matches("(?i)[a-f0-9]{64}") || version < 1) {
+        promise.reject("DOWNLOAD_NOT_READY", "Le téléchargement n'est pas terminé.");
+        return;
+      }
+      File source = backgroundFile(version, digest).getCanonicalFile();
+      File external = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getCanonicalFile();
+      if (!source.getParentFile().equals(external) || !source.isFile() ||
+          source.length() < 1_000_000L || source.length() > 500_000_000L) {
+        promise.reject("INVALID_PATH", "Fichier APK absent du stockage privé.");
+        return;
+      }
+      // The existing installer accepts only cache://file paths. Copy on a
+      // deliberate user action, then let it verify SHA-256, package and version.
+      File local = new File(context.getCacheDir(), "knowme-update-" + version + ".apk");
+      try (FileInputStream in = new FileInputStream(source);
+           FileOutputStream out = new FileOutputStream(local)) {
+        byte[] buffer = new byte[64 * 1024];
+        int n;
+        while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+      }
+      installApk(Uri.fromFile(local).toString(), digest, (double) version, promise);
+    } catch (Exception error) {
+      promise.reject("INSTALL_PREP_FAILED", "Impossible de préparer l'installation Android.", error);
     }
   }
 

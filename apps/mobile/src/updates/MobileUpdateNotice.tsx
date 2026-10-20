@@ -18,6 +18,9 @@ import { useAppearance } from '../AppearanceProvider';
 type ApkInstaller = {
   startUpdateWatcher?: () => Promise<boolean>;
   getInstalledVersionCode(): Promise<number>;
+  queueBackgroundUpdate?: (url: string, sha256: string, versionCode: number) => Promise<boolean>;
+  getBackgroundUpdateStatus?: () => Promise<{status: 'none' | 'downloading' | 'ready' | 'failed'; versionCode: number}>;
+  installBackgroundUpdate?: () => Promise<boolean>;
   installApk(uri: string, sha256: string, versionCode: number): Promise<boolean>;
 };
 
@@ -62,17 +65,15 @@ function trustedKnowMeApk(release: AndroidReleaseNotice | null): boolean {
   return release.url === expected;
 }
 
-function formatDownloadProgress(value: number) {
-  return `Téléchargement… ${Math.round(value * 100)} %`;
-}
-
 export function MobileUpdateNotice() {
   const { colors } = useAppearance();
   const [release, setRelease] = useState<AndroidReleaseNotice | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [readyVersion, setReadyVersion] = useState(0);
   const [progress, setProgress] = useState(0);
   const downloaded = useRef<{ uri: string; versionCode: number } | null>(null);
   const dismissedVersion = useRef(0);
+  const dismissedReadyVersion = useRef(0);
   const lastCheckAt = useRef(0);
   const requestInProgress = useRef(false);
 
@@ -91,15 +92,33 @@ export function MobileUpdateNotice() {
       if (!manual && !immediate && Date.now() - lastCheckAt.current < 60_000) {
         return 'current';
       }
-      if (manual) dismissedVersion.current = 0;
+      if (manual) { dismissedVersion.current = 0; dismissedReadyVersion.current = 0; }
       lastCheckAt.current = Date.now();
       requestInProgress.current = true;
       try {
         // The public self-hosted API is available before authentication.
-        const [feed, installedVersion] = await Promise.all([
-          apiFetch<AndroidReleaseFeed>('/mobile-updates/android'),
-          installer.getInstalledVersionCode()
+        // An already downloaded update must remain installable even if the
+        // update API is temporarily offline after the Android transfer.
+        const [installedVersion, background] = await Promise.all([
+          installer.getInstalledVersionCode(),
+          installer.getBackgroundUpdateStatus?.().catch(() => null) ?? Promise.resolve(null)
         ]);
+        if (!active) return 'unavailable';
+        if (background?.versionCode && background.versionCode > installedVersion) {
+          if (background.status === 'ready') {
+            setReadyVersion(background.versionCode === dismissedReadyVersion.current
+              ? 0 : background.versionCode);
+            setRelease(null);
+            return 'available';
+          }
+          if (background.status === 'downloading') {
+            setReadyVersion(0);
+            setRelease(null);
+            return 'available';
+          }
+        }
+        setReadyVersion(0);
+        const feed = await apiFetch<AndroidReleaseFeed>('/mobile-updates/android');
         const next = feed.release;
         if (!active) return 'unavailable';
         if (
@@ -141,7 +160,7 @@ export function MobileUpdateNotice() {
     const foreground = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         connectSignals();
-        void check();
+        void check(false, true);
       }
     });
     // While the app is open, check occasionally even without a session
@@ -156,19 +175,52 @@ export function MobileUpdateNotice() {
     };
   }, []);
 
-  if (Platform.OS !== 'android' || !installer || !release) return null;
+  if (Platform.OS !== 'android' || !installer || (!release && !readyVersion)) return null;
 
   const dismiss = () => {
-    if (release.required || installing) return;
+    if (readyVersion) {
+      dismissedReadyVersion.current = readyVersion;
+      setReadyVersion(0);
+      return;
+    }
+    if (!release || (release.required && !installing)) return;
+    // Closing the dialog must not cancel an already approved transfer.
     dismissedVersion.current = release.versionCode;
     setRelease(null);
+  };
+
+  const installReady = async () => {
+    if (installing || !installer.installBackgroundUpdate) return;
+    setInstalling(true);
+    try {
+      await installer.installBackgroundUpdate();
+    } catch (failure) {
+      const code = failure instanceof Error
+        ? (failure as Error & { code?: string }).code : undefined;
+      Alert.alert('Mise à jour KnowMe', code === 'INSTALL_PERMISSION_REQUIRED'
+        ? 'Autorise les installations KnowMe dans les paramètres Android, puis réessaie.'
+        : code === 'DIGEST_MISMATCH' || code === 'INCOMPATIBLE_APK'
+          ? 'APK refusée : contrôle de sécurité ou version non conforme.'
+          : 'Impossible de préparer l’installation. Réessaie depuis KnowMe.');
+    } finally {
+      setInstalling(false);
+    }
   };
 
   const install = async () => {
     if (installing) return;
     const current = release;
+    if (!current) return;
     setInstalling(true);
     try {
+      if (installer.queueBackgroundUpdate) {
+        await installer.queueBackgroundUpdate(current.url, current.sha256, current.versionCode);
+        dismissedVersion.current = current.versionCode;
+        setRelease(null);
+        return;
+      }
+      // Older APK: the JS download continues after modal close while RN runs,
+      // but Android can suspend it if the app process is stopped.
       let uri = downloaded.current?.versionCode === current.versionCode
         ? downloaded.current.uri : null;
       if (uri) {
@@ -219,6 +271,44 @@ export function MobileUpdateNotice() {
     }
   };
 
+  if (readyVersion) {
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={dismiss}
+        statusBarTranslucent>
+        <View style={styles.scrim}>
+          <View style={[styles.sheet, { backgroundColor: colors.surface,
+            borderColor: colors.border }]}>
+            <Text style={[styles.eyebrow, { color: colors.accent }]}>
+              KNOWME · MISE À JOUR
+            </Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Mise à jour téléchargée
+            </Text>
+            <Text style={[styles.details, { color: colors.muted }]}>
+              L’APK est prête. Appuie sur Installer pour vérifier son intégrité,
+              puis confirme l’installation dans Android.
+            </Text>
+            <Pressable accessibilityRole="button" disabled={installing}
+              onPress={() => void installReady()}
+              style={[styles.primary, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.primaryText, { color: colors.accentText }]}>
+                {installing ? 'Préparation…' : 'Installer'}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={dismiss}
+              style={styles.secondary}>
+              <Text style={[styles.secondaryText, { color: colors.text }]}>
+                Plus tard
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  if (!release) return null;
+
   return (
     <Modal
       visible
@@ -241,10 +331,10 @@ export function MobileUpdateNotice() {
             {release.notes}
           </Text>
           <Text style={[styles.caption, { color: colors.muted }]}>
-            La mise à jour se télécharge dans KnowMe, sans fichier dans tes
-            téléchargements. Android demandera ton accord pour l’installation.
-            Si la signature ne correspond pas, l’installation est refusée et
-            tes données existantes restent en place.
+            Après confirmation, le téléchargement continue en arrière-plan.
+            Tu peux fermer cette fenêtre et utiliser KnowMe normalement.
+            Android t'avertira lorsque l’APK pourra être vérifiée et installée.
+            L'installation exigera ton autorisation.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -253,18 +343,17 @@ export function MobileUpdateNotice() {
             style={[styles.primary, { backgroundColor: colors.accent }]}
           >
             <Text style={[styles.primaryText, { color: colors.accentText }]}>
-              {installing ? formatDownloadProgress(progress) : 'Mettre à jour'}
+              {installing ? (installer.queueBackgroundUpdate ? 'Lancement…' : `Téléchargement… ${Math.round(progress * 100)} %`) : 'Mettre à jour'}
             </Text>
           </Pressable>
-          {!release.required ? (
+          {(!release.required || installing) ? (
             <Pressable
               accessibilityRole="button"
-              disabled={installing}
               onPress={dismiss}
               style={styles.secondary}
             >
               <Text style={[styles.secondaryText, { color: colors.text }]}>
-                Plus tard
+                {installing ? 'Fermer' : 'Plus tard'}
               </Text>
             </Pressable>
           ) : null}
