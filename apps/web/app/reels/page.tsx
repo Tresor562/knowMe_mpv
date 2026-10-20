@@ -6,7 +6,6 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { useI18n } from '../../components/i18n-provider';
 import { ReelPlayback } from './reel-playback';
-import { ReelShareSheet } from './reel-share-sheet';
 import './reels.css';
 
 type Author = { id: string; username: string; displayName: string };
@@ -35,7 +34,6 @@ export default function ReelsPage() {
   const [hasMore,setHasMore]=useState(false);
   const [activeId,setActiveId]=useState<string|null>(null);
   const [feedback,setFeedback]=useState('');
-  const [sharingPost,setSharingPost]=useState<Post|null>(null);
   const [error,setError]=useState('');
   const [counts,setCounts]=useState<Record<string,number>>({});
   const [liked,setLiked]=useState<Record<string,boolean>>({});
@@ -158,6 +156,19 @@ export default function ReelsPage() {
     }finally{setPendingLike(null);}
   }
 
+  async function share(post:Post){
+    const url=window.location.origin+'/feed/'+encodeURIComponent(post.id);
+    try{
+      if(navigator.share)await navigator.share({title:'KnowMe',url});
+      else {
+        await navigator.clipboard.writeText(url);
+        setFeedback(en?'Link copied.':'Lien copié.');
+      }
+    }catch(cause){
+      if((cause as Error)?.name!=='AbortError')setFeedback(en?'Sharing unavailable.':'Partage indisponible.');
+    }
+  }
+
   if(sessionLoading||!user)return <main className="km-reels-page"><p>Chargement…</p></main>;
   return (
     <main className="km-reels-page" aria-label={en?'KnowMe videos':'Vidéos KnowMe'}>
@@ -188,8 +199,7 @@ export default function ReelsPage() {
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
             {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
-              en={en} pausedExternally={Boolean(sharingPost)}
-              onDoubleTap={() => { void ensureLike(post); }} />
+              en={en} onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
             <div className="km-reel-overlay">
               <div className="km-reel-info">
@@ -211,7 +221,7 @@ export default function ReelsPage() {
                   aria-label={en?'Open comments':'Ouvrir les commentaires'}>
                   <span aria-hidden="true">▤</span>{post._count.comments}
                 </Link>
-                <button type="button" onClick={()=>setSharingPost(post)}
+                <button type="button" onClick={()=>void share(post)}
                   aria-label={en?'Share video':'Partager la vidéo'}>
                   <span aria-hidden="true">↗</span>
                 </button>
@@ -227,15 +237,6 @@ export default function ReelsPage() {
           </div>}
         {error&&<p role="alert" className="km-reels-error">{error}</p>}
       </div>
-      {sharingPost&&<ReelShareSheet post={sharingPost} viewerId={user.id} en={en}
-        onClose={()=>setSharingPost(null)}
-        onHide={()=>{
-          const id=sharingPost.id;
-          setSharingPost(null);
-          setPosts(previous=>previous.filter(item=>item.id!==id));
-          setActiveId(null);
-          reelRoot.current?.scrollTo({top:0,behavior:'instant'});
-        }}/>} 
       {!!clips.length&&<div className="km-reels-steps">
         <button type="button" onClick={()=>go(-1)} disabled={activeId===clips[0]?.id}
           aria-label={en?'Previous video':'Vidéo précédente'}>↑</button>
