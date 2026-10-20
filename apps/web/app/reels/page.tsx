@@ -6,6 +6,7 @@ import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 import { useI18n } from '../../components/i18n-provider';
 import { ReelPlayback } from './reel-playback';
+import { ReelShareSheet } from './reel-share-sheet';
 import './reels.css';
 
 type Author = { id: string; username: string; displayName: string };
@@ -34,6 +35,9 @@ export default function ReelsPage() {
   const [hasMore,setHasMore]=useState(false);
   const [activeId,setActiveId]=useState<string|null>(null);
   const [feedback,setFeedback]=useState('');
+  const [descriptionClip,setDescriptionClip]=useState<Clip|null>(null);
+  const [sharingPost,setSharingPost]=useState<Post|null>(null);
+  const resumeAfterDescription=useRef(false);
   const [error,setError]=useState('');
   const [counts,setCounts]=useState<Record<string,number>>({});
   const [liked,setLiked]=useState<Record<string,boolean>>({});
@@ -110,6 +114,29 @@ export default function ReelsPage() {
     return ()=>observer.disconnect();
   },[clips]);
 
+  function openDescription(clip:Clip){
+    const video=reelRoot.current?.querySelector<HTMLVideoElement>('video');
+    resumeAfterDescription.current=Boolean(video&&!video.paused);
+    video?.pause();
+    setDescriptionClip(clip);
+  }
+  function closeDescription(){
+    setDescriptionClip(null);
+    if(resumeAfterDescription.current&&!document.hidden){
+      void reelRoot.current?.querySelector<HTMLVideoElement>('video')
+        ?.play().catch(()=>undefined);
+    }
+    resumeAfterDescription.current=false;
+  }
+  useEffect(()=>{
+    if(!descriptionClip)return;
+    const keyDown=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();closeDescription();}
+    };
+    document.addEventListener('keydown',keyDown);
+    return()=>document.removeEventListener('keydown',keyDown);
+  },[descriptionClip]);
+
   function go(delta:number){
     const index=clips.findIndex(clip=>clip.id===activeId);
     const next=clips[Math.min(clips.length-1,Math.max(0,(index<0?0:index)+delta))];
@@ -156,19 +183,6 @@ export default function ReelsPage() {
     }finally{setPendingLike(null);}
   }
 
-  async function share(post:Post){
-    const url=window.location.origin+'/feed/'+encodeURIComponent(post.id);
-    try{
-      if(navigator.share)await navigator.share({title:'KnowMe',url});
-      else {
-        await navigator.clipboard.writeText(url);
-        setFeedback(en?'Link copied.':'Lien copié.');
-      }
-    }catch(cause){
-      if((cause as Error)?.name!=='AbortError')setFeedback(en?'Sharing unavailable.':'Partage indisponible.');
-    }
-  }
-
   if(sessionLoading||!user)return <main className="km-reels-page"><p>Chargement…</p></main>;
   return (
     <main className="km-reels-page" aria-label={en?'KnowMe videos':'Vidéos KnowMe'}>
@@ -199,14 +213,22 @@ export default function ReelsPage() {
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
             {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
-              en={en} onDoubleTap={() => { void ensureLike(post); }} />
+              en={en} pausedExternally={Boolean(sharingPost)}
+              onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
             <div className="km-reel-overlay">
               <div className="km-reel-info">
                 <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
                   @{post.author.username}
                 </Link>
-                {post.content&&<p>{post.content}</p>}
+                {post.content&&<>
+                  <p>{post.content}</p>
+                  <button className="km-reel-read-description" type="button"
+                    onClick={()=>openDescription(clip)}
+                    aria-label={en?'Read the complete video description':'Lire toute la description du Reel'}>
+                    {en?'Read full description':'Voir toute la description'}
+                  </button>
+                </>}
                 <Link href={'/feed/'+encodeURIComponent(post.id)}>
                   {en?'View publication':'Voir la publication'}
                 </Link>
@@ -221,7 +243,7 @@ export default function ReelsPage() {
                   aria-label={en?'Open comments':'Ouvrir les commentaires'}>
                   <span aria-hidden="true">▤</span>{post._count.comments}
                 </Link>
-                <button type="button" onClick={()=>void share(post)}
+                <button type="button" onClick={()=>setSharingPost(post)}
                   aria-label={en?'Share video':'Partager la vidéo'}>
                   <span aria-hidden="true">↗</span>
                 </button>
@@ -237,6 +259,37 @@ export default function ReelsPage() {
           </div>}
         {error&&<p role="alert" className="km-reels-error">{error}</p>}
       </div>
+      {descriptionClip&&<div className="km-reel-caption-backdrop"
+        role="presentation"
+        onMouseDown={event=>{
+          if(event.target===event.currentTarget)closeDescription();
+        }}>
+        <section className="km-reel-caption-dialog" role="dialog" aria-modal="true"
+          aria-label={en?'Full Reel description':'Description complète du Reel'}>
+          <div className="km-reel-caption-top">
+            <h2>{en?'Video description':'Description du Reel'}</h2>
+            <button type="button" autoFocus onClick={closeDescription}
+              aria-label={en?'Close description':'Fermer la description'}>×</button>
+          </div>
+          <Link href={'/profile/'+encodeURIComponent(descriptionClip.post.author.username)}
+            onClick={closeDescription} className="km-reel-caption-author">
+            @{descriptionClip.post.author.username}
+          </Link>
+          <div className="km-reel-caption-body">
+            <p>{descriptionClip.post.content}</p>
+          </div>
+          <small>{en?'Text can be selected and copied.':'Le texte peut être sélectionné et copié.'}</small>
+        </section>
+      </div>}
+      {sharingPost&&<ReelShareSheet post={sharingPost} viewerId={user.id} en={en}
+        onClose={()=>setSharingPost(null)}
+        onHide={()=>{
+          const id=sharingPost.id;
+          setSharingPost(null);
+          setPosts(current=>current.filter(post=>post.id!==id));
+          setActiveId(null);
+          reelRoot.current?.scrollTo({top:0,behavior:'auto'});
+        }}/>} 
       {!!clips.length&&<div className="km-reels-steps">
         <button type="button" onClick={()=>go(-1)} disabled={activeId===clips[0]?.id}
           aria-label={en?'Previous video':'Vidéo précédente'}>↑</button>
