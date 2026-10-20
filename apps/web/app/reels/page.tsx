@@ -34,6 +34,8 @@ export default function ReelsPage() {
   const [hasMore,setHasMore]=useState(false);
   const [activeId,setActiveId]=useState<string|null>(null);
   const [feedback,setFeedback]=useState('');
+  const [descriptionClip,setDescriptionClip]=useState<Clip|null>(null);
+  const resumeAfterDescription=useRef(false);
   const [error,setError]=useState('');
   const [counts,setCounts]=useState<Record<string,number>>({});
   const [liked,setLiked]=useState<Record<string,boolean>>({});
@@ -109,6 +111,29 @@ export default function ReelsPage() {
       observer.observe(card);
     return ()=>observer.disconnect();
   },[clips]);
+
+  function openDescription(clip:Clip){
+    const video=reelRoot.current?.querySelector<HTMLVideoElement>('video');
+    resumeAfterDescription.current=Boolean(video&&!video.paused);
+    video?.pause();
+    setDescriptionClip(clip);
+  }
+  function closeDescription(){
+    setDescriptionClip(null);
+    if(resumeAfterDescription.current&&!document.hidden){
+      void reelRoot.current?.querySelector<HTMLVideoElement>('video')
+        ?.play().catch(()=>undefined);
+    }
+    resumeAfterDescription.current=false;
+  }
+  useEffect(()=>{
+    if(!descriptionClip)return;
+    const keyDown=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();closeDescription();}
+    };
+    document.addEventListener('keydown',keyDown);
+    return()=>document.removeEventListener('keydown',keyDown);
+  },[descriptionClip]);
 
   function go(delta:number){
     const index=clips.findIndex(clip=>clip.id===activeId);
@@ -206,7 +231,14 @@ export default function ReelsPage() {
                 <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
                   @{post.author.username}
                 </Link>
-                {post.content&&<p>{post.content}</p>}
+                {post.content&&<>
+                  <p>{post.content}</p>
+                  <button className="km-reel-read-description" type="button"
+                    onClick={()=>openDescription(clip)}
+                    aria-label={en?'Read the complete video description':'Lire toute la description du Reel'}>
+                    {en?'Read full description':'Voir toute la description'}
+                  </button>
+                </>}
                 <Link href={'/feed/'+encodeURIComponent(post.id)}>
                   {en?'View publication':'Voir la publication'}
                 </Link>
@@ -237,6 +269,28 @@ export default function ReelsPage() {
           </div>}
         {error&&<p role="alert" className="km-reels-error">{error}</p>}
       </div>
+      {descriptionClip&&<div className="km-reel-caption-backdrop"
+        role="presentation"
+        onMouseDown={event=>{
+          if(event.target===event.currentTarget)closeDescription();
+        }}>
+        <section className="km-reel-caption-dialog" role="dialog" aria-modal="true"
+          aria-label={en?'Full Reel description':'Description complète du Reel'}>
+          <div className="km-reel-caption-top">
+            <h2>{en?'Video description':'Description du Reel'}</h2>
+            <button type="button" autoFocus onClick={closeDescription}
+              aria-label={en?'Close description':'Fermer la description'}>×</button>
+          </div>
+          <Link href={'/profile/'+encodeURIComponent(descriptionClip.post.author.username)}
+            onClick={closeDescription} className="km-reel-caption-author">
+            @{descriptionClip.post.author.username}
+          </Link>
+          <div className="km-reel-caption-body">
+            <p>{descriptionClip.post.content}</p>
+          </div>
+          <small>{en?'Text can be selected and copied.':'Le texte peut être sélectionné et copié.'}</small>
+        </section>
+      </div>}
       {!!clips.length&&<div className="km-reels-steps">
         <button type="button" onClick={()=>go(-1)} disabled={activeId===clips[0]?.id}
           aria-label={en?'Previous video':'Vidéo précédente'}>↑</button>
