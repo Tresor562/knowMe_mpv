@@ -28,7 +28,7 @@ function previews(posts:VideoPost[]):Preview[]{
 /** Only true, published MP4s from the video API; never placeholder people or counters.
  * Horizontal virtualization caps the number of prepared native video surfaces. */
 export function NativeFeedReelSuggestions({onOpenReels}:{
-  onOpenReels:()=>void;
+  onOpenReels:(postId?:string,position?:number)=>void;
 }){
   const {colors}=useAppearance();
   const [items,setItems]=useState<Preview[]>([]);
@@ -42,7 +42,7 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
   if(!items.length)return null;
   return (
     <View style={[styles.container,{borderBottomColor:colors.border}]}>
-      <Pressable accessibilityRole="button" onPress={onOpenReels}
+      <Pressable accessibilityRole="button" onPress={()=>onOpenReels()}
         style={styles.heading}>
         <View style={styles.titleRow}>
           <KnowMeIcon name="play" size={21} color={colors.text}/>
@@ -63,7 +63,7 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
         renderItem={({item})=>(
           <Pressable accessibilityRole="button"
             accessibilityLabel={'Voir le réel de '+item.creator}
-            onPress={onOpenReels}
+            onPress={()=>onOpenReels(item.postId,item.position)}
             style={[styles.card,{backgroundColor:colors.surface}]}>
             <NativeStoryVideo sourceUri={API_URL+item.url} paused
               seekToMs={100} style={styles.video}/>
