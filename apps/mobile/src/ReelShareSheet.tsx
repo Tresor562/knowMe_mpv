@@ -67,6 +67,8 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
   const [notice,setNotice]=useState('');
   const [downloadPct,setDownloadPct]=useState(0);
   const [downloading,setDownloading]=useState(false);
+  const [reportOpen,setReportOpen]=useState(false);
+  const [reportReason,setReportReason]=useState('');
   const [busy,setBusy]=useState(false);
   const inflight=useRef(false);
   const link=useMemo(()=>buildKnowMePublicLink({kind:'post',id:post.id}),[post.id]);
@@ -179,6 +181,23 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
     }catch(cause){
       setError(cause instanceof Error?cause.message:
         (en?'Story could not be published.':'Partage dans la Story impossible.'));
+    }finally{inflight.current=false;setBusy(false);}
+  }
+
+  async function submitReport(){
+    const reason=reportReason.trim();
+    if(inflight.current||reason.length<5||reason.length>500)return;
+    inflight.current=true;setBusy(true);setError('');setNotice('');
+    try{
+      await apiFetch('/reports',{method:'POST',body:JSON.stringify({
+        targetType:'POST',targetId:post.id,reason
+      })});
+      setReportOpen(false);
+      setReportReason('');
+      setNotice(en?'Your report was submitted.':'Signalement envoyé.');
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:
+        (en?'Could not report this Reel.':'Signalement impossible.'));
     }finally{inflight.current=false;setBusy(false);}
   }
 
@@ -299,6 +318,31 @@ export function ReelShareSheet({post,videoUrl,en,onClose,onOpenPost,onHide,onOpe
             <KnowMeIcon name="close" size={23} color="#eee"/>
             <Text style={styles.optionLabel}>{en?'Hide this Reel here':'Masquer ce Reel ici'}</Text>
           </Pressable>
+          <Pressable style={styles.option} accessibilityRole="button" disabled={busy}
+            accessibilityState={{expanded:reportOpen}}
+            onPress={()=>{setReportOpen(value=>!value);setError('');}}>
+            <KnowMeIcon name="settings" size={23} color="#eee"/>
+            <Text style={styles.optionLabel}>{en?'Report this Reel':'Signaler ce Reel'}</Text>
+          </Pressable>
+          {reportOpen&&<View style={styles.reportPanel}>
+            <Text style={styles.reportTitle}>{en?'Why are you reporting it?':'Quel est le motif du signalement ?'}</Text>
+            {(en?['Spam or scam','Harassment or threats','Violent or dangerous content']:
+              ['Spam ou arnaque','Harcèlement ou menaces','Contenu violent ou dangereux']).map(reason=>
+              <Pressable key={reason} accessibilityRole="button"
+                accessibilityState={{selected:reportReason===reason}}
+                disabled={busy} onPress={()=>setReportReason(reason)}
+                style={[styles.reportReason,reportReason===reason&&styles.reportSelected]}>
+                <Text style={styles.reportReasonText}>{reason}</Text>
+              </Pressable>)}
+            <TextInput multiline maxLength={500} value={reportReason}
+              onChangeText={setReportReason} placeholder={en?'Describe the issue (5–500 characters)':'Décrire le problème (5 à 500 caractères)'}
+              placeholderTextColor="#aaa" style={styles.reportInput}/>
+            <Pressable accessibilityRole="button" onPress={()=>{void submitReport();}}
+              accessibilityState={{disabled:busy||reportReason.trim().length<5}}
+              disabled={busy||reportReason.trim().length<5} style={styles.reportSubmit}>
+              <Text style={styles.reportSubmitText}>{en?'Submit report':'Envoyer le signalement'}</Text>
+            </Pressable>
+          </View>}
           <Text style={styles.finePrint}>
             {en?'For direct link copying, use the copy option in Android’s system share menu.':
               'Pour copier le lien, utilise l’option de copie du menu de partage Android.'}
@@ -359,6 +403,17 @@ const styles=StyleSheet.create({
   option:{minHeight:50,flexDirection:'row',alignItems:'center',gap:16,
     paddingHorizontal:10,borderRadius:13},
   optionLabel:{color:'#fff',fontSize:15,fontWeight:'600'},
+  reportPanel:{padding:12,backgroundColor:'#313134',borderRadius:15,gap:8},
+  reportTitle:{fontSize:14,color:'#fff',fontWeight:'700'},
+  reportReason:{minHeight:44,justifyContent:'center',borderRadius:12,paddingHorizontal:12,
+    backgroundColor:'#3d3d40'},
+  reportSelected:{borderWidth:1,borderColor:'#91efe3'},
+  reportReasonText:{fontSize:13,color:'#fff'},
+  reportInput:{fontSize:13,color:'#fff',borderRadius:11,padding:10,
+    backgroundColor:'#444448',minHeight:70,maxHeight:140,textAlignVertical:'top'},
+  reportSubmit:{minHeight:46,borderRadius:12,backgroundColor:'#91efe3',
+    alignItems:'center',justifyContent:'center'},
+  reportSubmitText:{fontSize:14,fontWeight:'800',color:'#07302d'},
   finePrint:{fontSize:11,lineHeight:17,color:'#a6a6aa',paddingHorizontal:5},
   error:{fontSize:13,color:'#ffb5b7',lineHeight:19},
   success:{fontSize:13,color:'#a4f5e9',lineHeight:19}
