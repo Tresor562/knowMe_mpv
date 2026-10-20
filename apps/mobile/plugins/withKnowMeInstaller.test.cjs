@@ -88,6 +88,7 @@ test('Android background update delegates transfer to the system, never silently
   assert.doesNotMatch(receiver, /ACTION_INSTALL_PACKAGE|installApk\(|PackageInstaller\.Session/);
   assert.match(plugin, /KnowMeUpdateDownloadReceiver\.java/);
   assert.match(plugin, /android\.intent\.action\.DOWNLOAD_COMPLETE/);
+  assert.match(plugin, /android\.permission\.SEND_DOWNLOAD_COMPLETED_INTENTS/);
 });
 
 test('the update dialog can close while the system handles the download', () => {
