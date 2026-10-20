@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReelsFeedService } from './reels-feed.service';
 
@@ -14,6 +14,30 @@ export class ReelsFeedController {
     @Query('cursor') cursor?: string
   ) {
     return this.reels.following(req.user.userId, cursor);
+  }
+
+  @Get('creators/:authorId/follow-status')
+  followStatus(
+    @Req() req: { user: { userId: string } },
+    @Param('authorId') authorId: string
+  ) {
+    return this.reels.creatorFollowStatus(req.user.userId, authorId);
+  }
+
+  @Put('creators/:authorId/follow')
+  follow(
+    @Req() req: { user: { userId: string } },
+    @Param('authorId') authorId: string
+  ) {
+    return this.reels.creatorFollow(req.user.userId, authorId, true);
+  }
+
+  @Delete('creators/:authorId/follow')
+  unfollow(
+    @Req() req: { user: { userId: string } },
+    @Param('authorId') authorId: string
+  ) {
+    return this.reels.creatorFollow(req.user.userId, authorId, false);
   }
 
   @Get('likes')
