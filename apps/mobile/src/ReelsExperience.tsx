@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, StyleSheet,
+  ActivityIndicator, FlatList, Pressable, Share, StyleSheet,
   Text, View
 } from 'react-native';
+import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
 import { useI18n } from './I18nProvider';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
-import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { KnowMeIcon } from './ui/KnowMeUI';
 
@@ -36,7 +36,6 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [failure,setFailure]=useState('');
   const [feedError,setFeedError]=useState(false);
   const [captionClip,setCaptionClip]=useState<VideoPost|null>(null);
-  const [sharingClip,setSharingClip]=useState<Clip|null>(null);
   const [offlineLibraryOpen,setOfflineLibraryOpen]=useState(false);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
@@ -155,6 +154,14 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     }finally{pending.current=false;}
   }
 
+  async function sharePost(postId:string){
+    try{
+      await Share.share({message:buildKnowMePublicLink({kind:'post',id:postId})});
+    }catch{
+      setFailure('Partage indisponible.');
+    }
+  }
+
   function renderClip({item}: {item:Clip}){
     const post=item.post;
     // Unmount the active Reel while the local library is open. Otherwise
@@ -163,7 +170,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const liked=likes[post.id];
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown ? <PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||Boolean(sharingClip)||refreshing}
+        autoPlay externallyPaused={Boolean(captionClip)||refreshing}
         onDoubleTap={()=>{void ensureLike(post);}}/>
         : <View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={48} color="#b7d5da"/>
@@ -201,7 +208,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
             <Text style={styles.actionCount}>{post._count.comments}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Partager la vidéo"
-            onPress={()=>setSharingClip(item)} style={styles.action}>
+            onPress={()=>void sharePost(post.id)} style={styles.action}>
             <KnowMeIcon name="arrow" size={25} color="#fff"/>
           </Pressable>
         </View>
@@ -271,24 +278,6 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
       onProfile={onOpenProfile}/>
-    {sharingClip&&<ReelShareSheet post={sharingClip.post} videoUrl={sharingClip.media.url} en={en}
-      onClose={()=>setSharingClip(null)}
-      onOpenPost={()=>{
-        const id=sharingClip.post.id;
-        setSharingClip(null);
-        onOpenPost(id);
-      }}
-      onOpenDownloads={()=>{
-        setSharingClip(null);
-        setOfflineLibraryOpen(true);
-      }}
-      onHide={()=>{
-        const id=sharingClip.post.id;
-        setSharingClip(null);
-        setPosts(current=>current.filter(post=>post.id!==id));
-        setActive(null);
-        listRef.current?.scrollToOffset({offset:0,animated:false});
-      }}/>}
     {Boolean(failure)&&emptyMode!=='failed'&&
       <View style={styles.error} accessibilityLiveRegion="polite">
         <Text style={styles.errorText}>{failure}</Text>
