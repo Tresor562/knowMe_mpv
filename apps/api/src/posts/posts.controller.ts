@@ -65,6 +65,15 @@ export class PostsController {
     return this.posts.videos(cursor);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('videos/following')
+  followingVideos(
+    @Req() req: { user: { userId: string } },
+    @Query('cursor') cursor?: string
+  ) {
+    return this.posts.videosFromFollowing(req.user.userId, cursor);
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.posts.getById(id);
