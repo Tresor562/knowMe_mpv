@@ -53,6 +53,7 @@ export default function ReelsPage() {
   const [liked,setLiked]=useState<Record<string,boolean>>({});
   const [pendingLike,setPendingLike]=useState<string|null>(null);
   const [favorites,setFavorites]=useState<Record<string,boolean>>({});
+  const [truncatedDescriptions,setTruncatedDescriptions]=useState<Record<string,boolean>>({});
   const reelRoot=useRef<HTMLDivElement>(null);
   const requestEpoch=useRef(0);
 
@@ -68,6 +69,19 @@ export default function ReelsPage() {
       return next;
     });
   }
+
+  const descriptionNodes=useRef<Record<string,HTMLParagraphElement|null>>({});
+  useEffect(()=>{
+    const measure=()=>{
+      const next:Record<string,boolean>={};
+      for(const [id,node] of Object.entries(descriptionNodes.current))if(node)
+        next[id]=node.scrollHeight>node.clientHeight+2;
+      setTruncatedDescriptions(next);
+    };
+    const frame=requestAnimationFrame(measure);
+    window.addEventListener('resize',measure);
+    return()=>{cancelAnimationFrame(frame);window.removeEventListener('resize',measure);};
+  },[posts,activeId]);
 
   const clips=useMemo<Clip[]>(() => posts.flatMap(post =>
     (post.media??[]).filter(media => media.mimeType === 'video/mp4' && mediaUrl(media.url))
@@ -315,8 +329,8 @@ export default function ReelsPage() {
                     viewerId={user.id} en={en}/>
                 </div>
                 {post.content&&<>
-                  <p>{post.content}</p>
-                  {post.content.length>110&&<button className="km-reel-read-description" type="button"
+                  <p ref={node=>{descriptionNodes.current[clip.id]=node;}}>{post.content}</p>
+                  {truncatedDescriptions[clip.id]&&<button className="km-reel-read-description" type="button"
                     onClick={()=>openDescription(clip)}
                     aria-label={en?'Read the complete video description':'Lire toute la description du Reel'}>
                     {en?'Read full description':'Voir toute la description'}
