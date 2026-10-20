@@ -264,7 +264,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const shown=item.id===active&&!offlineLibraryOpen;
     const like=likes[post.id];
     const follow=following[post.author.username];
-    const tags=(post.content.match(/#[\\p{L}\\p{N}_]+/gu)??[]).slice(0,4);
+    const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {shown?<PublicPostVideo key={item.id} url={item.media.url}
         autoPlay externallyPaused={Boolean(captionClip)||refreshing||searchOpen}
@@ -337,7 +337,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
             :(en?'Save video offline':'Enregistrer hors ligne')}
           accessibilityState={{selected:Boolean(offlineStatus[item.id])}}
           onPress={()=>setOfflineRequests(old=>({...old,[item.id]:(old[item.id]??0)+1}))}
-          style={styles.action}>
+          onLongPress={()=>setOfflineLibraryOpen(true)} style={styles.action}>
           <KnowMeIcon name={offlineStatus[item.id]?'check':'download'} size={29}
             color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
           <Text style={styles.actionCount}>{en?'Offline':'Hors ligne'}</Text>
@@ -359,7 +359,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const height=event.nativeEvent.layout.height;
     if(height>0&&Math.abs(height-viewportHeight)>1)setViewportHeight(height);
   }}>
-    <FlatList ref={listRef} data={clips} keyExtractor={item=>item.id}
+    <FlatList ref={listRef} data={visibleClips} keyExtractor={item=>item.id}
       renderItem={renderClip} style={styles.list}
       refreshing={refreshing} onRefresh={()=>void load(false,true)}
       progressViewOffset={58}
@@ -376,7 +376,9 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           <View style={styles.emptyContent}>
             <KnowMeIcon name={emptyMode==='failed'?'refresh':'video-call'} size={48} color="#83e9de"/>
             <Text style={styles.emptyText}>
-              {emptyMode==='failed'
+              {filter.trim()&&!visibleClips.length
+                ?en?'No matching video in loaded clips.':'Aucune vidéo correspondante parmi les vidéos chargées.'
+                :emptyMode==='failed'
                 ?en?'Videos could not be loaded. Check your connection.':'Impossible de charger les vidéos. Vérifie ta connexion.'
                 :emptyMode==='browse'
                   ?en?'Searching for playable Reels in older posts.':'Parcourir les publications précédentes pour trouver des Réels.'
@@ -393,26 +395,54 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           </View>}
       </View>}
       ListFooterComponent={more?<ActivityIndicator color="#88e9e3" style={{padding:16}}/>:null}/>
+
     <View style={styles.header} pointerEvents="box-none">
-      <Pressable accessibilityRole="button" accessibilityLabel="Retour à l'accueil"
-        onPress={onBack} style={styles.back}>
-        <KnowMeIcon name="back" size={23} color="#fff"/>
+      <Pressable accessibilityRole="button" accessibilityLabel={en?'Back':'Retour'}
+        onPress={onBack} style={styles.headerButton}>
+        <KnowMeIcon name="back" size={29} color="#fff"/>
       </Pressable>
-      <Text style={styles.title}>KnowMe · Reels</Text>
+      <Text style={styles.title} numberOfLines={1}>KnowMe · Reels</Text>
       <View style={styles.headerActions}>
-        <Pressable accessibilityRole="button" style={styles.back}
-          accessibilityLabel={en?'Refresh Reels':'Actualiser les Réels'}
-          accessibilityState={{disabled:refreshing||loading||more}}
-          disabled={refreshing||loading||more}
-          onPress={()=>void load(false,true)}>
-          <KnowMeIcon name="refresh" size={21} color="#fff"/>
+        <Pressable accessibilityRole="button" style={styles.headerButton}
+          accessibilityLabel={en?'Search loaded Reels':'Rechercher dans les Réels chargés'}
+          onPress={()=>setSearchOpen(open=>!open)}>
+          <KnowMeIcon name="search" size={27} color="#fff"/>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={en?'Saved videos':'Mes vidéos enregistrées'}
-          onPress={()=>setOfflineLibraryOpen(true)} style={styles.back}>
-          <KnowMeIcon name="download" size={22} color="#fff"/>
+        <Pressable accessibilityRole="button" style={styles.headerButton}
+          accessibilityLabel={en?'My profile':'Mon profil'} onPress={()=>void openOwnProfile()}>
+          <KnowMeIcon name="profile" size={27} color="#fff"/>
         </Pressable>
       </View>
     </View>
+    <View style={styles.tabs} pointerEvents="box-none">
+      <Pressable accessibilityRole="tab" accessibilityState={{selected:feed==='all'}}
+        onPress={()=>{if(feed!=='all'){setFilter('');setFeed('all');}}}
+        style={[styles.tab,feed==='all'&&styles.selectedTab]}>
+        <Text style={[styles.tabText,feed==='all'&&styles.tabSelectedText]}>
+          {en?'For you':'Pour toi'}
+        </Text>
+        {feed==='all'&&<View style={styles.tabUnderline}/>}
+      </Pressable>
+      <Pressable accessibilityRole="tab" accessibilityState={{selected:feed==='following'}}
+        onPress={()=>{if(feed!=='following'){setFilter('');setFeed('following');}}}
+        style={[styles.tab,feed==='following'&&styles.selectedTab]}>
+        <Text style={[styles.tabText,feed==='following'&&styles.tabSelectedText]}>
+          {en?'Following':'Abonnements'}
+        </Text>
+        {feed==='following'&&<View style={styles.tabUnderline}/>}
+      </Pressable>
+    </View>
+    {searchOpen&&<View style={styles.searchPanel}>
+      <KnowMeIcon name="search" size={20} color="#e8fff9"/>
+      <TextInput style={styles.searchInput} value={filter} onChangeText={setFilter}
+        placeholder={en?'Search loaded videos':'Rechercher dans les vidéos chargées'}
+        placeholderTextColor="#a8b9be" autoCapitalize="none" autoCorrect={false}
+        accessibilityLabel={en?'Video search':'Rechercher un réel'}/>
+      <Pressable accessibilityRole="button" accessibilityLabel={en?'Close search':'Fermer la recherche'}
+        onPress={()=>{setFilter('');setSearchOpen(false);}} style={styles.searchClose}>
+        <KnowMeIcon name="close" size={20} color="#fff"/>
+      </Pressable>
+    </View>}
     <OfflineVideosLibrary visible={offlineLibraryOpen}
       onClose={()=>setOfflineLibraryOpen(false)}/>
     <ReelCaptionSheet clip={captionClip} onClose={()=>setCaptionClip(null)}
@@ -433,44 +463,70 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   </View>;
 }
 
+
 const styles=StyleSheet.create({
   root:{flex:1,backgroundColor:'#03060b'},
   list:{flex:1},
-  slide:{width:'100%',justifyContent:'center',alignItems:'center',
-    backgroundColor:'#080c14'},
+  slide:{width:'100%',height:'100%',justifyContent:'center',alignItems:'center',backgroundColor:'#030609'},
   inactive:{flex:1,width:'100%',alignItems:'center',justifyContent:'center'},
-  information:{position:'absolute',left:0,right:0,bottom:0,
-    paddingHorizontal:13,paddingBottom:23,paddingTop:25,
-    flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between',
-    backgroundColor:'rgba(0,0,0,.48)'},
-  description:{flex:1,minWidth:0,gap:8,marginRight:9},
-  creator:{color:'#fff',fontSize:15,fontWeight:'800'},
-  caption:{color:'#fff',fontSize:13,lineHeight:18},
-  readMore:{minHeight:44,flexDirection:'row',alignItems:'center',gap:8,
-    borderRadius:12,paddingHorizontal:6,alignSelf:'flex-start'},
-  readMoreText:{color:'#c5fff4',fontSize:12,fontWeight:'800'},
-  postLink:{alignSelf:'flex-start',minHeight:40,justifyContent:'center',
-    borderRadius:11,backgroundColor:'rgba(24,74,80,.65)',paddingHorizontal:12},
-  postLinkText:{color:'#b5fff1',fontSize:12,fontWeight:'700'},
-  actions:{gap:10,alignItems:'center'},
-  action:{width:51,minHeight:51,alignItems:'center',justifyContent:'center',
-    gap:2,borderRadius:14,backgroundColor:'rgba(0,0,0,.38)'},
-  actionCount:{color:'#fff',fontSize:12,fontWeight:'700'},
-  header:{position:'absolute',top:0,left:0,right:0,
-    paddingHorizontal:13,paddingTop:8,paddingBottom:15,
-    flexDirection:'row',alignItems:'center',justifyContent:'space-between',
-    backgroundColor:'rgba(0,0,0,.38)'},
-  back:{width:44,height:44,justifyContent:'center',alignItems:'center',
-    backgroundColor:'rgba(255,255,255,.12)',borderRadius:17},
-  title:{fontSize:16,color:'#fff',fontWeight:'800',flexShrink:1},
-  headerActions:{flexDirection:'row',alignItems:'center',gap:6},
+  bottomScrim:{position:'absolute',left:0,right:0,bottom:0,height:335,
+    backgroundColor:'rgba(0,0,0,.17)'},
+  information:{position:'absolute',left:0,right:80,bottom:177,paddingHorizontal:14,
+    gap:9,alignItems:'flex-start'},
+  creatorLine:{flexDirection:'row',alignItems:'center',gap:7,maxWidth:'100%'},
+  creatorAvatar:{width:51,height:51,borderWidth:2,borderColor:'#4cf4e7',borderRadius:26,
+    justifyContent:'center',alignItems:'center'},
+  creator:{color:'#fff',fontSize:16,fontWeight:'800',flexShrink:1,textShadowColor:'#000b',
+    textShadowRadius:5},
+  followButton:{minHeight:42,borderWidth:1.3,borderColor:'#fff',
+    borderRadius:16,alignItems:'center',justifyContent:'center',paddingHorizontal:13,
+    backgroundColor:'rgba(0,0,0,.22)'},
+  followText:{fontSize:12,fontWeight:'700',color:'#fff'},
+  captionContainer:{alignItems:'flex-start',gap:1,maxWidth:'100%'},
+  caption:{color:'#fff',fontSize:15,lineHeight:21,textShadowColor:'#000c',textShadowRadius:4},
+  moreText:{color:'#c9d8dc',fontSize:12},
+  hashtags:{flexDirection:'row',flexWrap:'wrap',gap:11,maxWidth:'100%'},
+  hashtag:{color:'#c9d5e2',fontSize:12,fontWeight:'500'},
+  actions:{position:'absolute',right:7,bottom:186,gap:9,alignItems:'center',width:70},
+  action:{width:64,minHeight:59,alignItems:'center',justifyContent:'center',gap:3},
+  redHeart:{fontSize:39,lineHeight:42,color:'#ff3b57',includeFontPadding:false},
+  actionCount:{color:'#fff',fontSize:12,fontWeight:'700',textShadowColor:'#000b',
+    textShadowRadius:4},
+  commentComposer:{position:'absolute',left:12,right:12,bottom:13,height:51,
+    flexDirection:'row',alignItems:'center',gap:13,paddingHorizontal:9,
+    borderRadius:28,borderWidth:1,borderColor:'rgba(255,255,255,.27)',
+    backgroundColor:'rgba(25,29,36,.7)'},
+  commentPlaceholder:{color:'#bbc3ca',fontSize:14,flex:1},
+  mentionIcon:{color:'#fff',fontSize:28,fontWeight:'800',lineHeight:34},
+  header:{position:'absolute',top:0,left:0,right:0,paddingHorizontal:10,
+    height:56,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
+    backgroundColor:'rgba(0,0,0,.17)'},
+  headerButton:{width:48,height:48,justifyContent:'center',alignItems:'center'},
+  title:{position:'absolute',left:62,right:111,fontSize:20,textAlign:'center',
+    color:'#fff',fontWeight:'800'},
+  headerActions:{flexDirection:'row',alignItems:'center',gap:2},
+  tabs:{position:'absolute',top:59,left:0,right:0,flexDirection:'row',
+    justifyContent:'center',alignItems:'center',gap:5},
+  tab:{height:44,minWidth:117,paddingHorizontal:15,alignItems:'center',
+    justifyContent:'center',borderRadius:999},
+  selectedTab:{backgroundColor:'rgba(255,255,255,.13)',
+    borderWidth:1,borderColor:'rgba(255,255,255,.33)'},
+  tabText:{fontSize:15,color:'#d0d7dd',fontWeight:'500'},
+  tabSelectedText:{color:'#fff',fontWeight:'800'},
+  tabUnderline:{position:'absolute',bottom:-5,width:34,height:4,borderRadius:3,
+    backgroundColor:'#49ede2'},
+  searchPanel:{position:'absolute',top:110,left:14,right:14,height:52,borderRadius:22,
+    backgroundColor:'rgba(18,29,38,.95)',flexDirection:'row',alignItems:'center',
+    paddingHorizontal:12,gap:8},
+  searchInput:{flex:1,height:47,color:'#fff',fontSize:14,paddingVertical:0},
+  searchClose:{width:38,height:44,alignItems:'center',justifyContent:'center'},
   empty:{alignItems:'center',justifyContent:'center',paddingHorizontal:24},
   emptyText:{color:'#bcd3d5',fontSize:14,textAlign:'center',lineHeight:21},
   emptyContent:{maxWidth:300,alignItems:'center',gap:18},
   retry:{minHeight:48,borderRadius:16,paddingHorizontal:22,alignItems:'center',
     justifyContent:'center',backgroundColor:'#83e9de'},
   retryText:{fontSize:14,fontWeight:'700',color:'#06332e'},
-  error:{position:'absolute',top:65,left:20,right:20,borderRadius:13,
+  error:{position:'absolute',top:169,left:20,right:20,borderRadius:13,
     padding:12,backgroundColor:'#55272b',flexDirection:'row',alignItems:'center',gap:8},
   errorText:{color:'#fff',fontSize:12,flex:1},
   errorAction:{minHeight:44,justifyContent:'center',paddingHorizontal:7},
