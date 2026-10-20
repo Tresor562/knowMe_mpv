@@ -6,7 +6,7 @@ import {NativeStoryVideo} from './NativeStoryVideo';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
-import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent} from './video-time';
+import {videoTime,seekTimeFromTrack,clampVideoSeek,parseVideoTimestamp,videoTapIntent,reelProgressMode} from './video-time';
 import {publicPostVideoId} from './offline-public-video-model';
 import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
@@ -221,6 +221,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
     setTimeDialogOpen(false);
     setTimeError(false);
   }
+  const progressMode=reelProgressMode(durationMs,paused||timeDialogOpen,
+    reelControlsVisible,scrubMs!==null);
   const displayMs=scrubMs??positionMs;
   const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
   function dragSeek(offsetX:number){
@@ -304,7 +306,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         <KnowMeIcon name="refresh" size={21} color="#072e2a"/>
         <Text style={styles.replayText}>{en?'Watch again':'Revoir'}</Text>
       </Pressable>}
-      {(!onDoubleTap||reelControlsVisible||paused||scrubMs!==null||timeDialogOpen)&&
+      {(!onDoubleTap||progressMode==='expanded')&&
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
@@ -351,7 +353,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
           <Text style={styles.skipText}>+10</Text>
         </Pressable>
       </View>}
-      {Boolean(onDoubleTap)&&durationMs>=180000&&!reelControlsVisible&&!paused&&scrubMs===null&&
+      {Boolean(onDoubleTap)&&progressMode==='thin'&&
         <Pressable style={styles.reelThinTrack} accessibilityRole="button"
           accessibilityLabel={en?'Show video progress':'Afficher la progression'}
           onPress={revealReelControls}>
