@@ -17,7 +17,12 @@ export function ReelFollowButton({authorId,username,viewerId,en}:{
     let active=true;
     setFollowing(null);setError(false);
     void apiFetch<FollowSnapshot>('/reels/creators/'+encodeURIComponent(authorId)+'/follow-status')
-      .then(res=>{if(active)setFollowing(res.isOwner?null:res.following);})
+      .then(res=>{if(active){
+        if(typeof res?.following!=='boolean'||typeof res?.isOwner!=='boolean'){
+          setError(true);return;
+        }
+        setFollowing(res.isOwner?null:res.following);
+      }})
       .catch(()=>{if(active)setError(true);});
     return()=>{active=false;};
   },[authorId,viewerId]);
