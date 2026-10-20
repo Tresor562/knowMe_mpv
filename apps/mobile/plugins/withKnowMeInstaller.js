@@ -56,7 +56,8 @@ function withKnowMeInstaller(config) {
       app.receiver.push({
         $: {
           'android:name': 'com.knowme.app.updates.KnowMeUpdateDownloadReceiver',
-          'android:exported': 'false'
+          'android:exported': 'true',
+          'android:permission': 'android.permission.SEND_DOWNLOAD_COMPLETED_INTENTS'
         },
         'intent-filter': [{
           action: [{ $: { 'android:name': 'android.intent.action.DOWNLOAD_COMPLETE' } }]
