@@ -29,6 +29,7 @@ import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
+import { NativeFeedReelSuggestions } from './NativeFeedReelSuggestions';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
 import {CommentReportSheet} from './CommentReportSheet';
@@ -845,6 +846,12 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [reelsAfterPost,setReelsAfterPost]=useState<number|null>(null);
+  useEffect(()=>{
+    if(mode!=='home'||!posts.length||reelsAfterPost!==null)return;
+    const seed=[...userId].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%4)));
+  },[mode,userId,posts.length,reelsAfterPost]);
   const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
   const [likePending,setLikePending] = useState<string[]>([]);
   const likeLock = useRef(new Set<string>());
@@ -1166,19 +1173,6 @@ export function FeedExperience({
               </Text>
             </View>
           </Pressable>
-          {mode === 'home' && onOpenReels ? (
-            <Pressable accessibilityRole="button"
-              accessibilityLabel="Voir les Reels et vidéos"
-              onPress={onOpenReels}
-              style={{alignSelf:'flex-start',marginHorizontal:14,marginVertical:8,
-                flexDirection:'row',alignItems:'center',gap:9,minHeight:45,
-                paddingHorizontal:16,borderRadius:16,
-                backgroundColor:colors.backgroundAccent,
-                borderWidth:1,borderColor:colors.border}}>
-              <KnowMeIcon name="video-call" size={21} color={colors.accent}/>
-              <Text style={{color:colors.text,fontWeight:'700',fontSize:13}}>Reels · Vidéos</Text>
-            </Pressable>
-          ) : null}
           {mode === 'home' && currentUser ? (
             <StoriesRail
               currentUser={currentUser}
@@ -1192,7 +1186,8 @@ export function FeedExperience({
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
       ListFooterComponent={hasMore ? <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus de publications'} disabled={loadingMore} onPress={() => void loadMore()} /> : null}
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
+        <View>
         <Pressable
           onPress={() => {if(feedFresh && !offline)setSelectedPostId(item.id);}}
           style={[
@@ -1221,6 +1216,9 @@ export function FeedExperience({
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
+        {mode==='home'&&onOpenReels&&feedFresh&&index+1===reelsAfterPost
+          ? <NativeFeedReelSuggestions onOpenReels={onOpenReels}/> : null}
+        </View>
       )}
     />
     <Modal visible={feedMenuOpen} transparent animationType="fade"
