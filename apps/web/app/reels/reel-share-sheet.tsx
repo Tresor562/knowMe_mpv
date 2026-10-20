@@ -19,7 +19,7 @@ type Chat={
     id:string;displayName?:string|null;username?:string|null;avatarUrl?:string|null
   }|null}>;
 };
-type IconName='repost'|'story'|'copy'|'apps'|'close'|'search'|'hide'|'post'|'send';
+type IconName='repost'|'story'|'copy'|'apps'|'close'|'search'|'hide'|'post'|'send'|'flag';
 
 function Glyph({name}:{name:IconName}){
   const base={width:24,height:24,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',
@@ -32,6 +32,7 @@ function Glyph({name}:{name:IconName}){
   if(name==='close')return <svg {...base}><path d="M5 5l14 14M19 5 5 19"/></svg>;
   if(name==='hide')return <svg {...base}><path d="M3 3 21 21M10.6 5.1a10 10 0 0 1 11 6.9s-3.7 7-9.6 7c-2.1 0-4-.7-5.6-2"/><path d="M2.4 12S6 5 12 5m-1.1 5.9a2 2 0 0 0 2.2 2.2"/></svg>;
   if(name==='post')return <svg {...base}><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>;
+  if(name==='flag')return <svg {...base}><path d="M4 21V4m0 1c6-4 10 4 16 0v12c-6 4-10-4-16 0"/></svg>;
   return <svg {...base}><path d="m21 3-9.5 18-2.3-7.2L2 11.5 21 3Z"/><path d="M9.2 13.8 21 3"/></svg>;
 }
 
@@ -65,6 +66,8 @@ export function ReelShareSheet({post,viewerId,en,onClose,onHide}:{
   const [notice,setNotice]=useState('');
   const [chooseStory,setChooseStory]=useState(false);
   const [confirmRepost,setConfirmRepost]=useState(false);
+  const [reportOpen,setReportOpen]=useState(false);
+  const [reportReason,setReportReason]=useState('');
   const inflight=useRef(false);
   const closeRef=useRef(onClose);
   closeRef.current=onClose;
@@ -153,6 +156,21 @@ export function ReelShareSheet({post,viewerId,en,onClose,onHide}:{
     }catch(cause){
       setError(cause instanceof Error?cause.message:
         (en?'Publication failed.':'Publication impossible.'));
+    }finally{inflight.current=false;setBusy(false);}
+  }
+
+  async function submitReport(){
+    const reason=reportReason.trim();
+    if(inflight.current||reason.length<5||reason.length>500)return;
+    inflight.current=true;setBusy(true);setError('');setNotice('');
+    try{
+      await apiFetch('/reports',{method:'POST',body:JSON.stringify({
+        targetType:'POST',targetId:post.id,reason
+      })});
+      setReportReason('');setReportOpen(false);
+      setNotice(en?'Your report was submitted.':'Signalement envoyé.');
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:(en?'Could not submit report.':'Signalement impossible.'));
     }finally{inflight.current=false;setBusy(false);}
   }
 
@@ -249,6 +267,27 @@ export function ReelShareSheet({post,viewerId,en,onClose,onHide}:{
           onClick={onClose}><Glyph name="post"/>{en?'View original post':'Voir la publication'}</Link>
         <button className="km-reel-share-option" type="button" disabled={busy}
           onClick={onHide}><Glyph name="hide"/>{en?'Hide this Reel here':'Masquer ce Reel ici'}</button>
+        <button className="km-reel-share-option" type="button" disabled={busy}
+          aria-expanded={reportOpen} onClick={()=>{setReportOpen(value=>!value);setError('');}}>
+          <Glyph name="flag"/>{en?'Report this Reel':'Signaler ce Reel'}
+        </button>
+        {reportOpen&&<form className="km-reel-share-report" onSubmit={event=>{
+          event.preventDefault();void submitReport();
+        }}>
+          <p>{en?'Why are you reporting it?':'Quel est le motif du signalement ?'}</p>
+          {(en?['Spam or scam','Harassment or threats','Violent or dangerous content']:
+            ['Spam ou arnaque','Harcèlement ou menaces','Contenu violent ou dangereux']).map(reason=>
+              <button key={reason} type="button" disabled={busy}
+                aria-pressed={reportReason===reason}
+                onClick={()=>setReportReason(reason)}>{reason}</button>)}
+          <textarea maxLength={500} value={reportReason} onChange={event=>setReportReason(event.target.value)}
+            placeholder={en?'Describe the issue (5–500 characters)':'Décris le problème (5 à 500 caractères)'}
+            aria-label={en?'Report reason':'Motif du signalement'}/>
+          <button className="km-reel-share-report-send" type="submit"
+            disabled={busy||reportReason.trim().length<5}>
+            {en?'Submit report':'Envoyer le signalement'}
+          </button>
+        </form>}
         <p className="km-reel-share-muted">
           {en?'Hiding applies only to this loaded feed, not recommendations.':
             'Le masquage concerne uniquement ce fil chargé, pas les recommandations.'}
