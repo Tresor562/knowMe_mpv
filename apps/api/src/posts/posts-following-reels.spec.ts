@@ -1,4 +1,4 @@
-import { PostsService } from './posts.service';
+import { ReelsFeedService } from './reels-feed.service';
 
 describe('Reels subscribed video feed', () => {
   const setup = (subscriptions: string[]) => {
@@ -8,13 +8,13 @@ describe('Reels subscribed video feed', () => {
       ) },
       post: { findMany: jest.fn().mockResolvedValue([]) }
     };
-    const service = new PostsService(prisma as never, {} as never, {} as never);
+    const service = new ReelsFeedService(prisma as never, {} as never);
     return { prisma, service };
   };
 
   it('returns no public videos when a viewer has no creator subscriptions', async () => {
     const { prisma, service } = setup([]);
-    await expect(service.videosFromFollowing('viewer')).resolves.toEqual([]);
+    await expect(service.following('viewer')).resolves.toEqual([]);
     expect(prisma.creatorFollow.findMany).toHaveBeenCalledWith({
       where: { followerId: 'viewer' }, select: { creatorId: true }
     });
@@ -23,7 +23,7 @@ describe('Reels subscribed video feed', () => {
 
   it('filters creators before applying its video pagination cursor', async () => {
     const { prisma, service } = setup(['one', 'two']);
-    await service.videosFromFollowing('viewer', 'previous-video');
+    await service.following('viewer', 'previous-video');
     expect(prisma.post.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         media: { some: { mimeType: 'video/mp4' } },
