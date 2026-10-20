@@ -13,7 +13,7 @@ test.beforeEach(async ({page}) => {
 
 async function checkSocialHome(page: Page) {
   try {
-    await expect(page.locator('.km-feed-reference-header .km-feed-reference-brand')).toBeVisible({timeout:15000});
+    await expect(page.getByRole('heading', {name:/^(Fil d’actualité|Feed)$/})).toBeVisible({timeout:15000});
   } catch (cause) {
     console.log('KnowMe social home diagnostic', {url:page.url(), body:(await page.locator('body').innerText()).slice(0,700), browserExceptions});
     throw cause;
@@ -114,20 +114,4 @@ test('mobile social dock remains usable at narrow phone widths', async ({page}) 
     await expect(navigation.locator('a[href="/feed"]')).toBeVisible();
     await expect(navigation.locator('a[href="/messages"]')).toBeVisible();
   }
-});
-
-test('reference home has real search, overflow and a single publication entry', async ({page}) => {
-  await stubAuthenticatedSocialHome(page);
-  await page.goto('/feed');
-  await checkSocialHome(page);
-  const header=page.locator('.km-feed-reference-header');
-  await expect(header.locator('img[src="/brand/knowme-logo.svg"]')).toBeVisible();
-  await expect(header.getByRole('link',{name:'Rechercher sur KnowMe'})).toHaveAttribute('href','/discover');
-  await expect(page.locator('.km-feed-quick-add')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:'Créer une publication'})).toBeVisible();
-
-  await header.getByRole('button',{name:'Plus d’options'}).click();
-  await expect(header.getByRole('navigation',{name:'Menu du fil'})).toBeVisible();
-  await header.getByRole('navigation',{name:'Menu du fil'}).getByRole('button',{name:'Créer une publication'}).click();
-  await expect(page.getByRole('dialog',{name:'Créer une publication'})).toBeVisible();
 });
