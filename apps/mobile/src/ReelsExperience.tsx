@@ -68,7 +68,6 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [sharingClip,setSharingClip]=useState<Clip|null>(null);
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
-  const [truncatedCaptions,setTruncatedCaptions]=useState<Record<string,boolean>>({});
   const requestEpoch=useRef(0);
   const pending=useRef(false);
   const fetching=useRef(false);
