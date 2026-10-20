@@ -33,7 +33,7 @@
 .km-reel-center-transport{
   position:absolute;
   z-index:6;
-  top:44%;
+  top:42%;
   left:0;
   right:0;
   transform:translateY(-50%);
