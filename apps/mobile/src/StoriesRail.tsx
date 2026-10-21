@@ -72,8 +72,8 @@ type StoryCreateResult = {
   id: string;
 };
 
-/** Small authenticated poster for VIDEO stories only. Never fetch the full MP4
- * when rendering the horizontal story rail. */
+/** Use an authenticated photo or video poster for Stories, while text stories
+ * show their own caption. A full private MP4 is never fetched for the rail. */
 function StoryRailBackdrop({story,visible,avatarUrl,name}:{
   story?:Story|null;
   visible:boolean;
@@ -85,16 +85,18 @@ function StoryRailBackdrop({story,visible,avatarUrl,name}:{
     let cancelled=false;
     let downloaded:string|null=null;
     setPoster(null);
-    if(!visible || story?.type!=='VIDEO' || !story.thumbnailAssetId || !FileSystem.cacheDirectory)
-      return;
+    const photo=story?.type==='PHOTO'&&Boolean(story.assetId);
+    const video=story?.type==='VIDEO'&&Boolean(story.thumbnailAssetId);
+    if(!visible || (!photo&&!video) || !FileSystem.cacheDirectory || !story)return;
+    const endpoint=photo?'media':'thumbnail';
     const filename=FileSystem.cacheDirectory + 'knowme-rail-poster-' +
-      encodeURIComponent(story.id) + '.webp';
+      encodeURIComponent(story.id) + '-' + endpoint + '.webp';
     void (async()=>{
       try{
         const headers=await authenticatedMediaHeaders();
         if(cancelled)return;
         const result=await FileSystem.downloadAsync(
-          API_URL+'/stories/'+encodeURIComponent(story.id)+'/thumbnail',
+          API_URL+'/stories/'+encodeURIComponent(story.id)+'/'+endpoint,
           filename,{headers}
         );
         downloaded=result.uri;
@@ -115,7 +117,12 @@ function StoryRailBackdrop({story,visible,avatarUrl,name}:{
       cancelled=true;
       if(downloaded)void FileSystem.deleteAsync(downloaded,{idempotent:true}).catch(()=>undefined);
     };
-  },[visible,story?.id,story?.type,story?.thumbnailAssetId]);
+  },[visible,story?.id,story?.type,story?.assetId,story?.thumbnailAssetId]);
+  if(story?.type==='TEXT'&&story.caption?.trim())return (
+    <View style={styles.storyTextCover}>
+      <Text style={styles.storyTextContent} numberOfLines={6}>{story.caption.trim()}</Text>
+    </View>
+  );
   if(poster)return <Image source={{uri:poster}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
   if(avatarUrl)return <Image source={{uri:avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
   return <View style={[styles.storyCardBackdrop,{justifyContent:'center',alignItems:'center'}]}>
@@ -838,6 +845,10 @@ const styles = StyleSheet.create({
   },
   storyCardTap: { width: 124, height: 190, position: 'relative' },
   storyCardBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
+  storyTextCover: {position:'absolute',top:0,bottom:0,left:0,right:0,
+    justifyContent:'center',alignItems:'center',paddingHorizontal:12,paddingBottom:22,
+    backgroundColor:'#344d79'},
+  storyTextContent: {color:'#fff',textAlign:'center',fontSize:14,fontWeight:'700',lineHeight:19},
   storyCardShade: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor:'rgba(0,0,0,.35)' },
   storyCardLabel: { position: 'absolute', bottom: 9, left: 10, right: 8,
