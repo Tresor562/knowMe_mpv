@@ -7,7 +7,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.MediaController;
 import android.widget.VideoView;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
@@ -115,9 +114,9 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.MATCH_PARENT));
       player.setKeepScreenOn(false);
-      MediaController controller = new MediaController(context);
-      controller.setAnchorView(player);
-      player.setMediaController(controller);
+      // KnowMe renders its own accessible controls: never attach the Android
+      // MediaController, which leaks transport overlays onto feed thumbnails.
+      player.setMediaController(null);
       player.setOnPreparedListener(media -> {
         ready=true;
         media.setLooping(false);
