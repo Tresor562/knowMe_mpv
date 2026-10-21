@@ -29,6 +29,7 @@ import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
 import { useRuntimeModules } from './RuntimeExperienceProvider';
 import { StoriesRail } from './StoriesRail';
+import { NativeFeedReelSuggestions } from './NativeFeedReelSuggestions';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
 import {CommentReportSheet} from './CommentReportSheet';
@@ -831,7 +832,7 @@ export function FeedExperience({
   mode?: 'home' | 'discover';
   currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   onOpenDiscover?: () => void;
-  onOpenReels?: () => void;
+  onOpenReels?: (postId?:string,position?:number) => void;
   onOpenProfile?: (username: string) => void;
   storyComposerRequest?: boolean;
   initialStoryId?: string | null;
@@ -845,6 +846,13 @@ export function FeedExperience({
   const { colors } = useAppearance();
   const runtimeModules = useRuntimeModules();
   const [posts, setPosts] = useState<PostSummary[]>([]);
+  const [reelsAfterPost,setReelsAfterPost]=useState<number|null>(null);
+  const feedVisitSlot=useRef(Math.floor(Date.now()/3600000));
+  useEffect(()=>{
+    if(mode!=='home'||!posts.length||reelsAfterPost!==null)return;
+    const seed=[...(userId+':'+feedVisitSlot.current)].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%6)));
+  },[mode,userId,posts.length,reelsAfterPost]);
   const [myLikes,setMyLikes] = useState<Record<string,boolean>>({});
   const [likePending,setLikePending] = useState<string[]>([]);
   const likeLock = useRef(new Set<string>());
@@ -854,6 +862,7 @@ export function FeedExperience({
   const feedRequest=useRef(0);
   const [content, setContent] = useState('');
   const [composerOpen,setComposerOpen] = useState(false);
+  const [feedMenuOpen,setFeedMenuOpen] = useState(false);
   const [draftOwner,setDraftOwner] = useState('');
   const [draftNotice,setDraftNotice] = useState('');
   const [offline,setOffline] = useState(false);
@@ -1099,22 +1108,45 @@ export function FeedExperience({
       contentContainerStyle={styles.content}
       ListHeaderComponent={(
         <View style={styles.headerBlock}>
-          <GlassSurface strength="soft" borderRadius={topNavigation ? 26 : 28}
-            style={topNavigation ? styles.joinedHeader : styles.discoverHeader}>
-            <View style={topNavigation ? styles.discoverHeader : styles.inlineHeader}>
+          {mode === 'home' ? (
+            <View style={[styles.referenceHeader,{borderBottomColor:colors.border}]}>
               <View style={styles.discoverBrand}>
-                <BrandMark size={30} />
-                <View>
-                  <Text style={[styles.heading, { color: colors.text }]}>{mode === "home" ? "KnowMe" : "Discover"}</Text>
-                  <Text style={[styles.discoverSub, { color: colors.muted }]}>{mode === "home" ? "Fil d’actualité" : "Découvre de nouveaux contenus."}</Text>
-                </View>
+                <BrandMark size={40}/>
+                <Text style={[styles.referenceHeading,{color:colors.text}]}>KnowMe</Text>
               </View>
-              <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
-                <KnowMeIcon name="discover" size={22} color={colors.accent} />
-              </GlassSurface>
+              <View style={styles.referenceActions}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Rechercher sur KnowMe"
+                  disabled={!onOpenDiscover} onPress={onOpenDiscover}
+                  style={[styles.referenceIcon,{backgroundColor:colors.surface}]}>
+                  <KnowMeIcon name="search" size={24} color={colors.text}/>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Plus d’options"
+                  accessibilityState={{expanded:feedMenuOpen}}
+                  onPress={()=>setFeedMenuOpen(true)}
+                  style={[styles.referenceIcon,{backgroundColor:colors.surface}]}>
+                  <Text style={{fontSize:26,lineHeight:29,color:colors.text}}>•••</Text>
+                </Pressable>
+              </View>
             </View>
-            {topNavigation}
-          </GlassSurface>
+          ) : (
+            <GlassSurface strength="soft" borderRadius={topNavigation ? 26 : 28}
+              style={topNavigation ? styles.joinedHeader : styles.discoverHeader}>
+              <View style={topNavigation ? styles.discoverHeader : styles.inlineHeader}>
+                <View style={styles.discoverBrand}>
+                  <BrandMark size={30} />
+                  <View>
+                    <Text style={[styles.heading,{color:colors.text}]}>Discover</Text>
+                    <Text style={[styles.discoverSub,{color:colors.muted}]}>Découvre de nouveaux contenus.</Text>
+                  </View>
+                </View>
+                <GlassSurface strength="soft" borderRadius={21} style={styles.discoverIcon}>
+                  <KnowMeIcon name="discover" size={22} color={colors.accent}/>
+                </GlassSurface>
+              </View>
+              {topNavigation}
+            </GlassSurface>
+          )}
+          {mode === 'home' ? topNavigation : null}
           {runtimeModules.map(module => (
             <Pressable key={module.key} accessibilityRole={module.href?'link':'text'}
               disabled={!module.href} onPress={() => {
@@ -1141,21 +1173,7 @@ export function FeedExperience({
                 {content.trim() || 'Qu’as-tu envie de partager ?'}
               </Text>
             </View>
-            <KnowMeIcon name="create" size={23} color={colors.accent}/>
           </Pressable>
-          {mode === 'home' && onOpenReels ? (
-            <Pressable accessibilityRole="button"
-              accessibilityLabel="Voir les Reels et vidéos"
-              onPress={onOpenReels}
-              style={{alignSelf:'flex-start',marginHorizontal:14,marginVertical:8,
-                flexDirection:'row',alignItems:'center',gap:9,minHeight:45,
-                paddingHorizontal:16,borderRadius:16,
-                backgroundColor:colors.backgroundAccent,
-                borderWidth:1,borderColor:colors.border}}>
-              <KnowMeIcon name="video-call" size={21} color={colors.accent}/>
-              <Text style={{color:colors.text,fontWeight:'700',fontSize:13}}>Reels · Vidéos</Text>
-            </Pressable>
-          ) : null}
           {mode === 'home' && currentUser ? (
             <StoriesRail
               currentUser={currentUser}
@@ -1169,7 +1187,8 @@ export function FeedExperience({
       )}
       ListEmptyComponent={<View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.title, { color: colors.text }]}>Le fil est calme</Text><Text style={[styles.muted, { color: colors.muted }]}>Sois la première personne à partager quelque chose.</Text></View>}
       ListFooterComponent={hasMore ? <ActionButton title={loadingMore ? 'Chargement…' : 'Afficher plus de publications'} disabled={loadingMore} onPress={() => void loadMore()} /> : null}
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
+        <View>
         <Pressable
           onPress={() => {if(feedFresh && !offline)setSelectedPostId(item.id);}}
           style={[
@@ -1198,8 +1217,33 @@ export function FeedExperience({
             <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
           </View>
         </Pressable>
+        {mode==='home'&&onOpenReels&&feedFresh&&index+1===reelsAfterPost
+          ? <NativeFeedReelSuggestions onOpenReels={onOpenReels}/> : null}
+        </View>
       )}
     />
+    <Modal visible={feedMenuOpen} transparent animationType="fade"
+      onRequestClose={()=>setFeedMenuOpen(false)}>
+      <View style={styles.referenceMenuRoot}>
+        <Pressable style={styles.sheetScrim} accessibilityLabel="Fermer le menu"
+          onPress={()=>setFeedMenuOpen(false)}/>
+        <View style={[styles.referenceMenu,{backgroundColor:colors.surface,borderColor:colors.border}]}>
+          <Text style={[styles.sheetHeading,{color:colors.text}]}>KnowMe</Text>
+          <Pressable style={styles.referenceMenuItem}
+            onPress={()=>{setFeedMenuOpen(false);setComposerOpen(true);}}>
+            <Text style={{color:colors.text,fontSize:15}}>Créer une publication</Text>
+          </Pressable>
+          {onOpenReels ? <Pressable style={styles.referenceMenuItem}
+            onPress={()=>{setFeedMenuOpen(false);onOpenReels();}}>
+            <Text style={{color:colors.text,fontSize:15}}>Reels · Vidéos</Text>
+          </Pressable> : null}
+          {currentUser&&onOpenProfile ? <Pressable style={styles.referenceMenuItem}
+            onPress={()=>{setFeedMenuOpen(false);onOpenProfile(currentUser.username);}}>
+            <Text style={{color:colors.text,fontSize:15}}>Mon profil</Text>
+          </Pressable> : null}
+        </View>
+      </View>
+    </Modal>
     <PostEditSheet post={editFeedPost?{
       id:editFeedPost.id,content:editFeedPost.content,
       hasMedia:Boolean(editFeedPost.media?.length||editFeedPost.imageUrl)
@@ -1280,10 +1324,17 @@ const styles = StyleSheet.create({
   sheetActionLabel: { fontSize: 15, fontWeight: '600' },
 
   headerBlock: { gap: 10, marginBottom: 2 },
+  referenceHeader:{minHeight:58,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:3,paddingBottom:5},
+  referenceHeading:{fontSize:24,fontWeight:'800',letterSpacing:-0.6},
+  referenceActions:{flexDirection:'row',alignItems:'center',gap:10},
+  referenceIcon:{width:46,height:46,borderRadius:23,alignItems:'center',justifyContent:'center'},
+  referenceMenuRoot:{flex:1,justifyContent:'flex-start',alignItems:'flex-end',paddingTop:74,paddingHorizontal:16},
+  referenceMenu:{width:238,borderRadius:20,borderWidth:StyleSheet.hairlineWidth,padding:14,elevation:8},
+  referenceMenuItem:{minHeight:47,justifyContent:'center',paddingHorizontal:10},
   joinedHeader: { overflow: 'hidden', padding: 0 },
   inlineHeader: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  quickComposer:{minHeight:60,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,paddingHorizontal:6,paddingVertical:8},
-  quickPrompt:{flex:1,minHeight:42,borderRadius:21,justifyContent:'center',paddingHorizontal:14},
+  quickComposer:{minHeight:68,flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:StyleSheet.hairlineWidth,paddingHorizontal:3,paddingVertical:8},
+  quickPrompt:{flex:1,minHeight:49,borderRadius:25,justifyContent:'center',paddingHorizontal:16},
   postMenu:{position:'absolute',right:0,top:9,minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:21,zIndex:2},
   discoverHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 0 },
   discoverBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },

@@ -15,7 +15,9 @@ import { saveOfflineFeed, loadOfflineFeed } from '../../lib/offline-feed';
 import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
+import { ReelSuggestionsRail } from './ReelSuggestionsRail';
 import './multi-media-composer.css';
+import './reference-home.css';
 import { useI18n } from '../../components/i18n-provider';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AccountBadges } from '../../components/AccountBadges';
@@ -50,7 +52,10 @@ export default function FeedPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const { locale } = useI18n();
   const en = locale === 'en';
+  const [feedMenuOpen, setFeedMenuOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [reelsAfterPost, setReelsAfterPost] = useState<number | null>(null);
+  const feedVisitSlot=useRef(Math.floor(Date.now()/3600000));
   const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
   const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
   const likesInFlight = useRef(new Set<string>());
@@ -167,6 +172,13 @@ export default function FeedPage() {
       window.removeEventListener('knowme:open-post-composer', openFromMainNavigation);
     };
   }, []);
+  // Choose a bounded insertion point once per mounted feed: new pages never shift the strip.
+  useEffect(() => {
+    if (!user?.id || !posts.length || reelsAfterPost !== null) return;
+    const seed = [...(user.id+':'+feedVisitSlot.current)].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%6)));
+  }, [user?.id,posts.length,reelsAfterPost]);
+
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const [showingCache,setShowingCache] = useState(false);
   const loadGeneration = useRef(0);
@@ -470,13 +482,40 @@ export default function FeedPage() {
     <main className="shell km-feed-page">
       <RuntimeExperienceModules />
       <div className="km-header-nav-group">
-      <header className="km-feed-header">
-        <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
-        <div className="km-feed-header-media-actions">
-          <Link className="km-feed-story-cta" href="/reels" aria-label={en?'Open reels':'Voir les Reels'}>
-            ▶ <span>Reels</span>
+      <header className="km-feed-header km-feed-reference-header">
+        <h1 className="km-feed-semantic-title">{en ? 'Feed' : 'Fil d’actualité'}</h1>
+        <Link href="/feed" className="km-feed-reference-brand" aria-label="KnowMe — Accueil">
+          <img src="/brand/knowme-logo.svg" alt="" width="44" height="44" />
+          <strong>KnowMe</strong>
+        </Link>
+        <div className="km-feed-reference-actions">
+          <Link className="km-feed-reference-icon" href="/discover"
+            aria-label={en ? 'Search KnowMe' : 'Rechercher sur KnowMe'}>
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16.3 16.3 5 5"/></svg>
           </Link>
-          <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+          <div className="km-feed-reference-menu-anchor">
+            <button type="button" className="km-feed-reference-icon"
+              aria-label={en ? 'More options' : 'Plus d’options'}
+              aria-expanded={feedMenuOpen} aria-haspopup="menu"
+              onClick={() => setFeedMenuOpen(open => !open)}>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"
+                aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            </button>
+            {feedMenuOpen && <>
+              <button type="button" className="km-feed-reference-scrim"
+                aria-label={en ? 'Close menu' : 'Fermer le menu'}
+                onClick={() => setFeedMenuOpen(false)} />
+              <nav className="km-feed-reference-menu" aria-label={en ? 'Feed menu' : 'Menu du fil'}>
+                <button type="button" onClick={() => { setFeedMenuOpen(false); setComposeOpen(true); }}>
+                  {en ? 'Create a post' : 'Créer une publication'}
+                </button>
+                <Link href="/reels" onClick={() => setFeedMenuOpen(false)}>Reels · Vidéos</Link>
+                <Link href="/profile" onClick={() => setFeedMenuOpen(false)}>{en ? 'My profile' : 'Mon profil'}</Link>
+              </nav>
+            </>}
+          </div>
         </div>
       </header>
       <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
@@ -484,11 +523,10 @@ export default function FeedPage() {
       <section className="km-feed-quick-compose" aria-label={en?'Create a post':'Créer une publication'}>
         <span className="km-post-avatar"><KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} /></span>
         <button type="button" className="km-feed-quick-compose-open"
+          aria-label={en?'Open editor':'Ouvrir l’éditeur'}
           onClick={()=>setComposeOpen(true)}>
           {draftContent || (en?'What would you like to share?':'Qu’as-tu envie de partager ?')}
         </button>
-        <button type="button" className="km-feed-quick-add" aria-label={en?'Open post editor':'Ouvrir l’éditeur'}
-          onClick={()=>setComposeOpen(true)}>+</button>
       </section>
       <StoriesRail />
       {composeOpen && <div className="km-feed-editor-overlay" role="presentation" onMouseDown={event=>{
@@ -601,8 +639,9 @@ export default function FeedPage() {
           </div>
         )}
 
-        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
-          <article className="km-feed-post" key={post.id}>
+        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map((post, index) => (
+          <div key={post.id} className="km-feed-stream-block">
+          <article className="km-feed-post">
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
                 <span className="km-post-avatar">
@@ -650,6 +689,8 @@ export default function FeedPage() {
               </button>
             </footer>
           </article>
+          {index+1 === reelsAfterPost && authorityFresh && <ReelSuggestionsRail en={en}/>}
+          </div>
         ))}
       </section>
 

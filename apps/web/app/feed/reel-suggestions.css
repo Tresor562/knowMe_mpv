@@ -1,0 +1,20 @@
+/* Feed-only recommendation strip. Never the actual Reel player. */
+.km-feed-reel-recommendations{min-width:0;max-width:100%;overflow:hidden;padding:10px 0 15px;border-bottom:1px solid var(--soft-border)}
+.km-feed-reel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 1px 11px}
+.km-feed-reel-heading h2{display:flex;align-items:center;gap:9px;margin:0;color:var(--text);font-size:19px;font-weight:780;line-height:1.2}
+.km-feed-reel-heading>a{color:var(--muted);font-size:13px;text-decoration:none;white-space:nowrap}
+.km-feed-reel-heading>a span{font-size:22px;vertical-align:-1px;padding-left:6px}
+.km-feed-reel-rail{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none;padding:0 2px 4px;-webkit-overflow-scrolling:touch}
+.km-feed-reel-rail::-webkit-scrollbar{display:none}
+.km-feed-reel-card{position:relative;flex:0 0 120px;width:120px;aspect-ratio:9/15;overflow:hidden;scroll-snap-align:start;border-radius:15px;background:var(--surface-2)}
+.km-feed-reel-card-link{position:absolute;inset:0;display:block;text-decoration:none;color:#fff;background:linear-gradient(180deg,#252525,#090909)}
+.km-feed-reel-card-link video{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.km-feed-reel-card-link::after{position:absolute;inset:0;content:"";background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72) 100%);pointer-events:none}
+.km-feed-reel-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;border:1.5px solid rgba(255,255,255,.95);border-radius:50%;background:rgba(0,0,0,.36);display:grid;place-items:center;z-index:1}
+.km-feed-reel-author{position:absolute;z-index:1;bottom:11px;left:9px;right:9px;color:#fff;font-weight:700;font-size:12px;line-height:1.25;text-shadow:0 1px 3px #000;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
+.km-feed-reel-card-link:focus-visible{outline:3px solid var(--mint);outline-offset:-3px}
+.km-feed-reel-card-link:active .km-feed-reel-play{transform:translate(-50%,-50%) scale(.93)}
+@media(max-width:380px){.km-feed-reel-card{flex-basis:112px;width:112px}}
+@media(prefers-reduced-motion:reduce){.km-feed-reel-card-link:active .km-feed-reel-play{transform:translate(-50%,-50%)}}
+
+.km-feed-stream-block{display:contents}
