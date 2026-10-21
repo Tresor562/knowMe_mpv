@@ -502,6 +502,8 @@ export function StoriesRail({
       setCaption('');
       setStoryMedia([]);
       setStoryType('TEXT');
+      setColorIndex(current=>(current+1+Math.floor(Math.random()*(STORY_TEXT_COLORS.length-1)))%
+        STORY_TEXT_COLORS.length);
       setCreateOpen(false);
     }catch(cause){
       const error=cause as {code?:string;message?:string};
@@ -645,9 +647,7 @@ export function StoriesRail({
               <View>
                 <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
                 <Text style={[styles.viewerName, { color: '#fff' }]}>
-                  {selected?.viewer.own
-                    ? currentUser.displayName
-                    : selected?.author?.displayName ?? 'KnowMe'}
+                  {selected?.viewer.own ? 'Ma story' : selected?.author?.displayName ?? 'KnowMe'}
                 </Text>
                 {selected?.author?.verification?.isVerified?<BlueVerifiedBadge size={18} label={selected.author.verification.label}/>:null}
                 </View>
