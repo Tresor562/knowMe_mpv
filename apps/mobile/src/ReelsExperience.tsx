@@ -393,6 +393,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     </View>;
   }
 
+  // Keep native video surfaces attached between swipes so five successors
+  // can warm their HTTP ranges without playing. Only nearby clips mount media.
   return <View style={styles.root} onLayout={event=>{
     const height=event.nativeEvent.layout.height;
     if(height>0&&Math.abs(height-viewportHeight)>1)setViewportHeight(height);
@@ -408,10 +410,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       }} onMomentumScrollBegin={()=>{endReached.current=false;}}
       onEndReachedThreshold={0.4}
       getItemLayout={(_data,index)=>({length:viewportHeight,offset:index*viewportHeight,index})}
-      // Keep five upcoming native video surfaces attached between swipes.
-       // The platform buffers HTTPS ranges; none of the neighbors plays.
-       initialNumToRender={7} windowSize={13} maxToRenderPerBatch={7}
-       removeClippedSubviews={false}
+      initialNumToRender={7} windowSize={13} maxToRenderPerBatch={7}
+      removeClippedSubviews={false}
       ListEmptyComponent={<View style={[styles.empty,{height:viewportHeight}]}>
         {emptyMode==='loading'?<ActivityIndicator color="#88e9e3"/>:
           <View style={styles.emptyContent}>
