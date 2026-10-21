@@ -1,84 +1,99 @@
 import {ForbiddenException} from '@nestjs/common';
-import {MessagingService} from './messaging.service';
+import {StoryReplyDirectService} from './story-reply-direct.service';
 
-describe('MessagingService StoryReply direct delivery',()=>{
-  function make() {
+describe('StoryReplyDirectService',()=>{
+  const reply={
+    senderId:'viewer',authorId:'author',storyId:'story-123',
+    replyId:'reply-123',content:'Très belle story !'
+  };
+  const createdAt=new Date('2026-10-21T12:00:00Z');
+  const sample={
+    id:'storyreply_reply-123',conversationId:'direct-conversation',
+    content:'↪ Story · /stories/story-123\nTrès belle story !',
+    senderId:'viewer',sender:{id:'viewer',username:'viewer',displayName:'Viewer',avatarUrl:null},
+    createdAt
+  };
+  function setup(){
+    const tx={
+      message:{create:jest.fn().mockResolvedValue(sample)},
+      conversation:{update:jest.fn().mockResolvedValue({})},
+      conversationMember:{update:jest.fn().mockResolvedValue({})}
+    };
     const prisma={
       friendship:{findFirst:jest.fn().mockResolvedValue(null)},
       message:{findUnique:jest.fn().mockResolvedValue(null)},
       conversation:{
         findFirst:jest.fn().mockResolvedValue({id:'direct-conversation'}),
-        upsert:jest.fn()
-      }
+        upsert:jest.fn().mockResolvedValue({id:'stable'})
+      },
+      $transaction:jest.fn(async(fn:(tx:typeof tx)=>Promise<unknown>)=>fn(tx))
     };
-    const service=new MessagingService(prisma as any,{} as any,{} as any,{
-      resolve:jest.fn().mockReturnValue(null)
-    } as any);
-    return {prisma,service};
+    const notifications={createMany:jest.fn().mockResolvedValue([])};
+    const realtime={
+      emitMessageCreated:jest.fn().mockResolvedValue(undefined),
+      emitConversationRead:jest.fn().mockResolvedValue(undefined)
+    };
+    const service=new StoryReplyDirectService(prisma as any,notifications as any,realtime as any);
+    return {service,prisma,tx,notifications,realtime};
   }
-  const reply={
-    senderId:'viewer',authorId:'author',storyId:'story-123',
-    replyId:'reply-123',content:'Très belle story !'
-  };
-
-  it('uses an existing private conversation, stable message ID and Story reference',async()=>{
-    const {service,prisma}=make();
-    const deliver=jest.spyOn(service as any,'sendAuthorized').mockResolvedValue({id:'storyreply_reply-123'});
-    await service.sendStoryReplyMessage(reply);
-    expect(prisma.conversation.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where:expect.objectContaining({isGroup:false}),
-      select:{id:true}
+  it('delivers a real message into an existing two-person conversation with Story reference',async()=>{
+    const {service,prisma,tx,notifications,realtime}=setup();
+    const result=await service.deliver(reply);
+    expect(result.presentation).toEqual({kind:'TEXT',text:sample.content});
+    expect(tx.message.create).toHaveBeenCalledWith(expect.objectContaining({
+      data:{
+        id:'storyreply_reply-123',senderId:'viewer',conversationId:'direct-conversation',
+        content:sample.content
+      }
     }));
+    expect(notifications.createMany).toHaveBeenCalledWith([
+      expect.objectContaining({userId:'author',type:'MESSAGE',data:expect.objectContaining({
+        entityId:'direct-conversation',messageId:'storyreply_reply-123',storyId:'story-123'
+      })})
+    ]);
+    expect(realtime.emitMessageCreated).toHaveBeenCalledTimes(1);
     expect(prisma.conversation.upsert).not.toHaveBeenCalled();
-    expect(deliver).toHaveBeenCalledWith(
-      'viewer','direct-conversation',
-      '↪ Story · /stories/story-123\nTrès belle story !',
-      undefined,'storyreply_reply-123'
-    );
   });
-
-  it('rejects deliveries when either side blocked the other',async()=>{
-    const {service,prisma}=make();
-    prisma.friendship.findFirst.mockResolvedValue({id:'blocked'});
-    await expect(service.sendStoryReplyMessage(reply)).rejects.toBeInstanceOf(ForbiddenException);
+  it('refuses a blocked direct conversation',async()=>{
+    const {service,prisma}=setup();
+    prisma.friendship.findFirst.mockResolvedValue({id:'block'});
+    await expect(service.deliver(reply)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.conversation.findFirst).not.toHaveBeenCalled();
   });
-
-  it('never duplicates an already persisted Story message',async()=>{
-    const {service,prisma}=make();
-    prisma.message.findUnique.mockResolvedValue({
-      id:'storyreply_reply-123',conversationId:'direct-conversation',
-      content:'↪ Story',senderId:'viewer'
-    });
-    const deliver=jest.spyOn(service as any,'sendAuthorized');
-    const result=await service.sendStoryReplyMessage(reply);
-    expect(result.id).toBe('storyreply_reply-123');
-    expect(deliver).not.toHaveBeenCalled();
+  it('does not send notifications or duplicate an already-delivered reply',async()=>{
+    const {service,prisma,notifications,realtime}=setup();
+    prisma.message.findUnique.mockResolvedValue(sample);
+    const result=await service.deliver(reply);
+    expect(result.id).toBe(sample.id);
     expect(prisma.conversation.findFirst).not.toHaveBeenCalled();
+    expect(notifications.createMany).not.toHaveBeenCalled();
+    expect(realtime.emitMessageCreated).not.toHaveBeenCalled();
   });
-
-  it('uses one deterministic two-person conversation across retries',async()=>{
-    const {service,prisma}=make();
+  it('constructs a deterministic two-person conversation if none exists',async()=>{
+    const {service,prisma}=setup();
     prisma.conversation.findFirst.mockResolvedValue(null);
-    prisma.conversation.upsert.mockResolvedValue({id:'stable'});
-    jest.spyOn(service as any,'sendAuthorized').mockResolvedValue({id:'ok'});
-    await service.sendStoryReplyMessage(reply);
+    await service.deliver(reply);
     expect(prisma.conversation.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where:{id:expect.stringMatching(/^storydm_[a-f0-9]{32}$/)},
-      create:expect.objectContaining({
-        isGroup:false,members:{create:[
-          {userId:'author',role:'MEMBER'},
-          {userId:'viewer',role:'MEMBER'}
-        ]}
-      })
+      create:expect.objectContaining({isGroup:false,members:{create:[
+        {userId:'author',role:'MEMBER'},{userId:'viewer',role:'MEMBER'}
+      ]}})
     }));
   });
-
-  it('rejects self replies and invalid delivery identifiers',async()=>{
-    const {service}=make();
-    await expect(service.sendStoryReplyMessage({...reply,authorId:'viewer'}))
+  it('handles a duplicate Message ID race by returning the committed message',async()=>{
+    const {service,prisma,notifications}=setup();
+    prisma.$transaction.mockRejectedValue({code:'P2002'});
+    prisma.message.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(sample);
+    const result=await service.deliver(reply);
+    expect(result.id).toBe(sample.id);
+    expect(notifications.createMany).not.toHaveBeenCalled();
+  });
+  it('rejects self replies and invalid IDs before touching the database',async()=>{
+    const {service,prisma}=setup();
+    await expect(service.deliver({...reply,authorId:'viewer'}))
       .rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.sendStoryReplyMessage({...reply,replyId:'../../danger'}))
+    await expect(service.deliver({...reply,replyId:'../../bad'}))
       .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.friendship.findFirst).not.toHaveBeenCalled();
   });
 });
