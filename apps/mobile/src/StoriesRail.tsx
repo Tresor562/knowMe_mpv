@@ -19,6 +19,7 @@ import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaL
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
 import { storyCompletionBps, storyProgressCheckpoint } from './story-view-progress-model';
+import { storySequence, storySegments, storyStep, storyTextColor, STORY_TEXT_COLORS } from './story-sequence-model';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -36,6 +37,9 @@ type Story = {
   id: string;
   type: string;
   caption?: string | null;
+  background?: {preset?:string;color?:string}|null;
+  allowReplies?:boolean;
+  allowReactions?:boolean;
   assetId?: string | null;
   thumbnailAssetId?: string | null;
   createdAt?: string;
@@ -55,6 +59,10 @@ type StoryFeedResponse = {
 
 type StoryGroup = { story: Story; count: number };
 type StoryRailResponse = { groups: StoryGroup[]; nextOffset: number | null };
+type StoryViewer = {viewerUserId:string;lastViewedAt:string;viewCount:number;
+  reaction?:{reaction:string}|null;
+  user?:{username:string;displayName:string;avatarUrl?:string|null}|null;};
+type StoryViewersPage = {uniqueViewers:number;viewers:StoryViewer[];nextCursor?:string|null};
 
 function groupLegacyStories(stories: Story[]): StoryGroup[] {
   const index = new Map<string, StoryGroup>();
@@ -155,6 +163,20 @@ export function StoriesRail({
   const loadingNext = useRef(false);
   const [selected, setSelected] = useState<Story | null>(null);
   const [storyProgress,setStoryProgress]=useState(0);
+  const [playbackSequence,setPlaybackSequence]=useState<Story[]>([]);
+  const playbackRef=useRef<Story[]>([]);
+  const sequenceRequest=useRef(0);
+  const sequenceLoading=useRef(false);
+  const pendingStep=useRef<-1|1|null>(null);
+  const textElapsed=useRef(0);
+  const [insightsOpen,setInsightsOpen]=useState(false);
+  const [viewerPage,setViewerPage]=useState<StoryViewersPage|null>(null);
+  const [viewersBusy,setViewersBusy]=useState(false);
+  const [viewerError,setViewerError]=useState(false);
+  const [replyText,setReplyText]=useState('');
+  const [sendingReply,setSendingReply]=useState(false);
+  const [colorIndex,setColorIndex]=useState(() => Math.floor(Math.random()*STORY_TEXT_COLORS.length));
+  const [storyPaused,setStoryPaused]=useState(false);
   const activeStoryId=useRef<string|null>(null);
   const lastProgressMilestone=useRef(0);
   const receiptQueue=useRef<Promise<void>>(Promise.resolve());
@@ -285,9 +307,72 @@ export function StoriesRail({
     return receiptQueue.current;
   }
 
+  useEffect(()=>{if(!selected)activeStoryId.current=null;},[selected]);
+
   useEffect(()=>{
-    if(!selected)activeStoryId.current=null;
-  },[selected]);
+    if(!selected?.viewer.own){setViewerPage(null);return;}
+    let live=true;
+    setViewersBusy(true);setViewerError(false);setViewerPage(null);
+    void apiFetch<StoryViewersPage>('/stories/'+encodeURIComponent(selected.id)+'/viewers')
+      .then(page=>{if(live)setViewerPage(page);})
+      .catch(()=>{if(live)setViewerError(true);})
+      .finally(()=>{if(live)setViewersBusy(false);});
+    return()=>{live=false;};
+  },[selected?.id,selected?.viewer.own]);
+
+  function closeViewer(){
+    sequenceRequest.current++;
+    sequenceLoading.current=false;
+    pendingStep.current=null;
+    playbackRef.current=[];setPlaybackSequence([]);
+    setInsightsOpen(false);setSelected(null);
+  }
+
+  async function prepareSequence(opened:Story) {
+    const request=++sequenceRequest.current;
+    sequenceLoading.current=true;
+    const collected:Story[]=[];
+    let cursor:string|null=null;
+    const visited=new Set<string>();
+    try{
+      for(let page=0;page<15;page++){
+        const query=cursor?'?cursor='+encodeURIComponent(cursor):'';
+        const feed=await apiFetch<StoryFeedResponse>('/stories/feed'+query);
+        if(!Array.isArray(feed.stories))break;
+        collected.push(...feed.stories);
+        const next=feed.nextCursor;
+        if(!next||visited.has(next))break;
+        visited.add(next);cursor=next;
+      }
+    }catch{
+      // A failed page never creates fabricated progress segments.
+    }finally{
+      if(request!==sequenceRequest.current)return;
+      const authors=groups.map(group=>group.story.author?.id).filter((v):v is string=>Boolean(v));
+      const sequence=storySequence(collected,authors,opened);
+      playbackRef.current=sequence.length?sequence:[opened];
+      setPlaybackSequence(playbackRef.current);
+      sequenceLoading.current=false;
+      if(pendingStep.current!==null){
+        const direction=pendingStep.current;pendingStep.current=null;
+        navigateStep(direction);
+      }
+    }
+  }
+
+  function navigateStep(direction:-1|1){
+    if(!selected)return;
+    const i=storyStep(playbackRef.current,selected.id,direction);
+    if(i<0){
+      if(sequenceLoading.current){pendingStep.current=direction;return;}
+      closeViewer();return;
+    }
+    void openStory(playbackRef.current[i]!,false);
+  }
+
+  const authorSegments=selected?storySegments(playbackSequence,selected):[];
+  const segments=authorSegments.length?authorSegments:selected?[selected]:[];
+  const segmentIndex=selected?Math.max(0,segments.findIndex(item=>item.id===selected.id)):0;
 
   function reportStoryProgress(story:Story,completionBps:number){
     if(story.viewer.own||activeStoryId.current!==story.id)return;
@@ -297,35 +382,49 @@ export function StoriesRail({
     void enqueueStoryReceipt(story.id,checkpoint);
   }
 
-  // Text and photo stories use an actual five-second display timeline. The
-  // timer pauses in the background; failed photos never appear as completed.
+  // PHOTO and TEXT consume five seconds of visible, foreground time.
   useEffect(()=>{
     if(!selected||selected.type==='VIDEO'||selected.type==='PHOTO'&&!selectedPhotoUri||mediaError)return;
     const story=selected;
-    let elapsed=0;
     const tick=setInterval(()=>{
-      if(activeStoryId.current!==story.id||AppState.currentState!=='active')return;
-      elapsed=Math.min(5000,elapsed+100);
-      const bps=storyCompletionBps(elapsed,5000);
+      if(activeStoryId.current!==story.id||AppState.currentState!=='active'||insightsOpen||storyPaused)return;
+      textElapsed.current=Math.min(5000,textElapsed.current+100);
+      const bps=storyCompletionBps(textElapsed.current,5000);
       setStoryProgress(bps);
       reportStoryProgress(story,bps);
-      if(elapsed>=5000)clearInterval(tick);
+      if(textElapsed.current>=5000){clearInterval(tick);navigateStep(1);}
     },100);
     return()=>clearInterval(tick);
-  },[selected?.id,selected?.type,selectedPhotoUri,mediaError]);
+  },[selected?.id,selected?.type,selectedPhotoUri,mediaError,insightsOpen,storyPaused]);
 
-  async function openStory(story: Story) {
+  async function openStory(story: Story, buildSequence=true) {
     activeStoryId.current=story.id;
     lastProgressMilestone.current=0;
+    textElapsed.current=0;
     setStoryProgress(0);
-    setSelectedPhotoUri(null);
-    setSelectedVideoUri(null);
-    setMediaError('');
+    setSelectedPhotoUri(null);setSelectedVideoUri(null);setMediaError('');
+    setInsightsOpen(false);setStoryPaused(false);setReplyText('');
     setSelected(story);
+    if(buildSequence){
+      playbackRef.current=[story];setPlaybackSequence([story]);
+      void prepareSequence(story);
+    }
     if(story.viewer.own)return;
-    // Opening is exactly one view, not a declaration of 100% completion.
-    // Follow-up progress milestones are serialized after this opening.
     await enqueueStoryReceipt(story.id,0);
+  }
+
+  async function sendStoryReply(){
+    if(!selected||selected.viewer.own||!selected.allowReplies||sendingReply||!replyText.trim())return;
+    setSendingReply(true);
+    try{
+      await apiFetch('/stories/'+encodeURIComponent(selected.id)+'/replies',{
+        method:'POST',body:JSON.stringify({content:replyText.trim()})
+      });
+      setReplyText('');
+      Alert.alert('Réponse enregistrée','Ta réponse à cette story a été reçue.');
+    }catch(error){
+      Alert.alert('Envoi impossible',error instanceof Error?error.message:'Réessaie.');
+    }finally{setSendingReply(false);}
   }
 
   async function react(reaction: string) {
