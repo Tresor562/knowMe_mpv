@@ -28,6 +28,12 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22.23.2
+      # The release parity gate re-exports canonical icon paths using the
+      # pinned TypeScript parser. Checking without dependencies falsely fails.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Install TypeScript for source geometry parity
+        if: github.event_name != 'pull_request'
+        run: pnpm install --frozen-lockfile
       - name: Test immutable release lineage and downgrade prevention
         run: node --test scripts/check-knowme-native-vector-release-parity.test.mjs
       # On pull requests, never expose a repo token to code from an unmerged
