@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { API_URL, apiFetch } from './api';
 import { useI18n } from './I18nProvider';
+import { consumeReelSelectionIntent } from './reel-selection-intent';
 import { chooseVisibleReel, reelsFeedState } from './reels-feed-state';
 import { PublicPostVideo } from './PublicPostVideo';
 import { ReelCaptionSheet } from './ReelCaptionSheet';
@@ -46,6 +47,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const {locale}=useI18n();
   const en=locale==='en';
   const [posts,setPosts]=useState<VideoPost[]>([]);
+  const [initialSelection]=useState(()=>consumeReelSelectionIntent());
   const [feed,setFeed]=useState<ReelFeed>('all');
   const [viewer,setViewer]=useState<{username:string;displayName:string;avatarUrl?:string|null}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);
@@ -69,6 +71,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [viewportHeight,setViewportHeight]=useState(600);
   const [likes,setLikes]=useState<Record<string,{count:number;liked:boolean}>>({});
   const requestEpoch=useRef(0);
+  const attemptedSelection=useRef<string|null>(null);
+  const positionedSelection=useRef<string|null>(null);
   const pending=useRef(false);
   const fetching=useRef(false);
   const endReached=useRef(false);
@@ -171,6 +175,25 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[feed]);
 
+  // Resolve the exact video with existing authorization when it isn't in the first page.
+  useEffect(()=>{
+    if(!initialSelection||feed!=='all'||loading)return;
+    const key=initialSelection.postId+':'+initialSelection.position;
+    if(posts.some(post=>post.id===initialSelection.postId))return;
+    if(attemptedSelection.current===key)return;
+    attemptedSelection.current=key;
+    let alive=true;
+    void apiFetch<VideoPost>('/posts/'+encodeURIComponent(initialSelection.postId))
+      .then(post=>{
+        if(!alive||post.id!==initialSelection.postId||
+          !(post.media??[]).some(media=>media.position===initialSelection.position
+            &&media.mimeType==='video/mp4'&&
+            new RegExp('^/media/public/post/[A-Za-z0-9_-]+$').test(media.url)))return;
+        setPosts(previous=>previous.some(value=>value.id===post.id)?previous:[post,...previous]);
+      }).catch(()=>undefined);
+    return()=>{alive=false;};
+  },[initialSelection,loading,posts,feed]);
+
   const visibleClips=useMemo(()=>{
     const q=filter.trim().toLocaleLowerCase();
     return q?clips.filter(clip=>(clip.post.author.username+' '+clip.post.content)
@@ -181,6 +204,17 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const selected=chooseVisibleReel(visibleClips.map(clip=>clip.id),active);
     if(selected!==active)setActive(selected);
   },[visibleClips,active]);
+
+  useEffect(()=>{
+    if(!initialSelection||feed!=='all'||loading)return;
+    const key=initialSelection.postId+':'+initialSelection.position;
+    if(positionedSelection.current===key)return;
+    const index=visibleClips.findIndex(clip=>clip.id===key);
+    if(index<0)return;
+    positionedSelection.current=key;
+    setActive(key);
+    listRef.current?.scrollToIndex({index,animated:false});
+  },[initialSelection,visibleClips,loading,feed]);
 
   const emptyMode=reelsFeedState({clips:visibleClips.length,posts:posts.length,loading,failed:feedError,hasMore});
 

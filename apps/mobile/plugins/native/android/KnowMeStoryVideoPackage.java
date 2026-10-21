@@ -51,6 +51,8 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     @ReactProp(name="paused", defaultBoolean=false)
     public void setPaused(StoryContainer view, boolean paused) {
       view.paused = paused;
+      // A paused preview must not indefinitely keep the whole device awake.
+      view.player.setKeepScreenOn(!paused && view.ready);
       if (view.ready) {
         if (paused) view.player.pause();
         else view.player.start();
@@ -112,18 +114,20 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player = new VideoView(context);
       player.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.MATCH_PARENT));
-      player.setKeepScreenOn(true);
+      player.setKeepScreenOn(false);
       MediaController controller = new MediaController(context);
       controller.setAnchorView(player);
       player.setMediaController(controller);
       player.setOnPreparedListener(media -> {
         ready=true;
         media.setLooping(false);
+        player.setKeepScreenOn(!paused);
         applySeek();
         if (!paused) player.start();
         emitProgress();
       });
       player.setOnCompletionListener(media -> {
+        player.setKeepScreenOn(false);
         if(getId()>0 && getContext() instanceof ThemedReactContext){
           WritableMap event=Arguments.createMap();
           event.putDouble("durationMs",Math.max(0,player.getDuration()));
@@ -133,6 +137,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       });
       player.setOnErrorListener((media,what,extra)->{
         ready=false;
+        player.setKeepScreenOn(false);
         if(getId()>0 && getContext() instanceof ThemedReactContext){
           WritableMap event=Arguments.createMap();
           event.putString("message","Lecture de la vidéo indisponible.");
@@ -192,6 +197,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     void release() {
       handler.removeCallbacks(ticker);
       ready=false;
+      player.setKeepScreenOn(false);
       player.stopPlayback();
     }
     @Override protected void onDetachedFromWindow() {

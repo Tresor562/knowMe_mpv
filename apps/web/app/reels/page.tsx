@@ -56,6 +56,20 @@ export default function ReelsPage() {
   const [truncatedDescriptions,setTruncatedDescriptions]=useState<Record<string,boolean>>({});
   const reelRoot=useRef<HTMLDivElement>(null);
   const requestEpoch=useRef(0);
+  const [requestedVideo,setRequestedVideo]=useState<{postId:string;position:number}|null>(null);
+  const attemptedTarget=useRef<string|null>(null);
+  const positionedTarget=useRef<string|null>(null);
+
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const postId=params.get('post')??'';
+    const positionValue=params.get('position')??'';
+    const position=Number(positionValue);
+    if(/^[A-Za-z0-9_-]{1,128}$/.test(postId) && /^[0-9]{1,3}$/.test(positionValue)
+      && Number.isSafeInteger(position) && position>=0 && position<=100){
+      setRequestedVideo({postId,position});
+    }
+  },[]);
 
   useEffect(()=>{
     try { const saved=JSON.parse(localStorage.getItem('knowme-reel-favorites')||'{}');
@@ -149,6 +163,25 @@ export default function ReelsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sessionLoading,user?.id,feed]);
 
+  // A Reel recommendation must open the exact authorized video, even if it was
+  // outside the first server page. Keep the regular discovery list unchanged.
+  useEffect(()=>{
+    if(!requestedVideo || !user || sessionLoading || loading || feed!=='all')return;
+    const key=requestedVideo.postId+':'+requestedVideo.position;
+    if(posts.some(post=>post.id===requestedVideo.postId))return;
+    if(attemptedTarget.current===key)return;
+    attemptedTarget.current=key;
+    let active=true;
+    void apiFetch<Post>('/posts/'+encodeURIComponent(requestedVideo.postId))
+      .then(post=>{
+        if(!active||post.id!==requestedVideo.postId ||
+          !(post.media??[]).some(media=>media.position===requestedVideo.position &&
+          media.mimeType==='video/mp4'&&mediaUrl(media.url)))return;
+        setPosts(current=>current.some(item=>item.id===post.id)?current:[post,...current]);
+      }).catch(()=>undefined); // Authorization and unavailable media stay authoritative.
+    return()=>{active=false;};
+  },[requestedVideo,user?.id,sessionLoading,loading,feed,posts]);
+
   const visibleClips=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase();
     return q?clips.filter(clip=>(clip.post.content+' '+clip.post.author.username)
@@ -158,6 +191,21 @@ export default function ReelsPage() {
     if(!visibleClips.some(clip=>clip.id===activeId))
       setActiveId(visibleClips[0]?.id??null);
   },[activeId,visibleClips]);
+
+  // Position once only. Subsequent manual scrolling must not snap back.
+  useEffect(()=>{
+    if(!requestedVideo||feed!=='all')return;
+    const key=requestedVideo.postId+':'+requestedVideo.position;
+    if(positionedTarget.current===key)return;
+    const index=visibleClips.findIndex(clip=>clip.id===key);
+    if(index<0)return;
+    const root=reelRoot.current;
+    const target=root?.querySelectorAll<HTMLElement>('[data-video-id]')[index];
+    if(!target)return;
+    positionedTarget.current=key;
+    setActiveId(key);
+    target.scrollIntoView({block:'center',behavior:'instant'});
+  },[requestedVideo,visibleClips,feed]);
 
   useEffect(()=>{
     const root=reelRoot.current;
