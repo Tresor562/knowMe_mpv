@@ -64,6 +64,7 @@ type StoryViewer = {viewerUserId:string;lastViewedAt:string;viewCount:number;
   reaction?:{reaction:string}|null;
   user?:{username:string;displayName:string;avatarUrl?:string|null}|null;};
 type StoryViewersPage = {uniqueViewers:number;viewers:StoryViewer[];nextCursor?:string|null};
+const reactionGlyph=(value:string)=>({LIKE:'❤️',SPARK:'✨',LOVE:'❤️',FIRE:'🔥',WOW:'😮',HAHA:'😂'} as Record<string,string>)[value]??value;
 type AudienceCandidate = {id:string;username:string;displayName:string;avatarUrl?:string|null};
 
 function groupLegacyStories(stories: Story[]): StoryGroup[] {
@@ -866,7 +867,7 @@ export function StoriesRail({
                       </Text>
                     </View>
                     {person.reaction?.reaction?<Text style={styles.viewerReaction}>
-                      {person.reaction.reaction}</Text>:null}
+                      {reactionGlyph(person.reaction.reaction)}</Text>:null}
                   </Pressable>)}
                   {viewerPage?.nextCursor?<Pressable onPress={()=>void loadMoreViewers()}
                     disabled={viewerLoadMore} accessibilityRole="button"
