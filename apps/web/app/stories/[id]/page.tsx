@@ -15,6 +15,7 @@ import { useI18n } from '../../../components/i18n-provider';
 type Story = {
   id: string;
   type: string;
+  createdAt?: string;
   caption?: string | null;
   assetId?: string | null;
   linkUrl?: string | null;
@@ -63,6 +64,7 @@ export default function StoryViewerPage() {
   const [progress, setProgress] = useState(0);
   const [paused,setPaused] = useState(false);
   const [insightsOpen,setInsightsOpen] = useState(false);
+  const [optionsOpen,setOptionsOpen] = useState(false);
   const [insights,setInsights] = useState<StoryViewersPage|null>(null);
   const [insightsLoading,setInsightsLoading] = useState(false);
   const [insightsError,setInsightsError] = useState('');
@@ -170,6 +172,7 @@ export default function StoryViewerPage() {
     setProgress(0);
     setPaused(false);
     setInsightsOpen(false);
+    setOptionsOpen(false);
   }, [story?.id]);
 
   useEffect(() => {
@@ -372,7 +375,9 @@ export default function StoryViewerPage() {
             </div>)}
           </div>
 
-          <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
+          <header className="km-story-status-header" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
+            <button type="button" aria-label={en?'Back':'Retour'} onClick={leaveViewer}
+              className="km-story-header-back">‹</button>
             {story.author?.username ? (
               <Link href={`/profile/${encodeURIComponent(story.author.username)}`}
                 aria-label={`Voir le profil de ${story.author.displayName}`}
@@ -382,18 +387,32 @@ export default function StoryViewerPage() {
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <strong style={{display:'inline-flex',alignItems:'center',gap:5}}>{story.author.displayName}<AccountBadges username={story.author.username} verification={story.author.verification} compact/></strong>
-                  <div style={{ fontSize: 12, opacity: .75 }}>@{story.author.username}</div>
+                  <div style={{ fontSize: 12, opacity: .75 }}>
+                    {story.createdAt?relativeViewTime(story.createdAt):'@'+story.author.username}
+                  </div>
                 </div>
               </Link>
             ) : <strong>KnowMe</strong>}
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
-            <button type="button" className="km-story-pause" aria-label={paused?(en?'Resume story':'Reprendre la story'):(en?'Pause story':'Mettre la story en pause')}
-              onClick={()=>setPlaybackPaused(!paused)}>
-              {paused?<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7 4 14 8-14 8z"/></svg>
-                :<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>}
-            </button>
-            <button type="button" onClick={leaveViewer} className="km-story-viewer-close" aria-label={ui.close}>×</button>
+            <button type="button" className="km-story-header-menu-trigger"
+              aria-expanded={optionsOpen} aria-label={en?'Story options':'Options de la story'}
+              onClick={()=>setOptionsOpen(value=>!value)}>⋮</button>
           </header>
+          {optionsOpen&&<div className="km-story-header-menu" role="group"
+            aria-label={en?'Story options':'Options de la story'}>
+            <button type="button" onClick={()=>{setOptionsOpen(false);setPlaybackPaused(!paused);}}>
+              {paused?(en?'Resume':'Reprendre'):(en?'Pause':'Pause')}
+            </button>
+            {story.viewer.own&&<button type="button" onClick={()=>{
+              setOptionsOpen(false);setInsightsOpen(true);videoRef.current?.pause();
+            }}>{en?'Viewers':'Spectateurs'}</button>}
+            {story.allowSharing&&<button type="button" onClick={()=>{
+              setOptionsOpen(false);
+              void navigator.clipboard.writeText(buildKnowMePublicLink({kind:'story',id:story.id}))
+                .catch(()=>setMessage(en?'Copy unavailable':'Copie indisponible'));
+            }}>{en?'Copy story link':'Copier le lien'}</button>}
+            <button type="button" onClick={leaveViewer}>{en?'Close':'Fermer'}</button>
+          </div>
 
           <div style={{ flex: 1, position: 'relative', display: 'grid', placeItems: 'center', padding: 28, color: '#fff' }}>
             {mediaLoading && <div style={{ width: 46, height: 46, border: '3px solid rgba(255,255,255,.25)', borderTopColor: '#fff', borderRadius: '50%' }} />}
