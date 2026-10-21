@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeNativeVectorIcon } from './ui/KnowMeNativeVectorIcon';
 import { apiFetch } from './api';
 import { useEffect } from 'react';
 import { FAVORITE_POST_REACTIONS, isValidPostEmojiReaction } from './post-reaction-selection-model';
@@ -33,17 +34,6 @@ function isPostSavingAvailable() {
   return savingCapability;
 }
 type RemoteSave={postId:string;userId:string;saved:boolean};
-
-function BookmarkIcon({color, filled}: {color: string; filled: boolean}) {
-  return <View style={{width:21,height:23,alignItems:'center',justifyContent:'flex-start'}}>
-    <View style={{width:17,height:17,borderTopWidth:1.8,borderLeftWidth:1.8,
-      borderRightWidth:1.8,borderColor:color,borderTopLeftRadius:3,
-      borderTopRightRadius:3,backgroundColor:filled?color:'transparent'}}/>
-    <View style={{position:'absolute',top:12,width:12,height:12,borderLeftWidth:1.8,
-      borderTopWidth:1.8,borderColor:color,transform:[{rotate:'45deg'}],
-      backgroundColor:filled?color:'transparent'}}/>
-  </View>;
-}
 
 export function PostActionBar({
   postId, userId, en = false, likeCount, commentCount, selectedReaction = null,
@@ -177,7 +167,8 @@ export function PostActionBar({
         accessibilityState={{selected:displayedSaved,disabled:busy||!online||!saveAction}}
         disabled={busy||!online||!saveAction} onPress={event=>{event.stopPropagation();if(saveAction)void action(saveAction);}}
         style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-        <BookmarkIcon color={displayedSaved?colors.accent:colors.muted} filled={displayedSaved}/>
+        <KnowMeNativeVectorIcon name="bookmark" size={22}
+          color={displayedSaved?colors.accent:colors.muted} selected={displayedSaved}/>
         <Text numberOfLines={1} style={[styles.label,{color:displayedSaved?colors.accent:colors.muted}]}>
           {displayedSaved?(en?'Saved':'Enregistré'):(en?'Save':'Enregistrer')}
         </Text>
