@@ -51,7 +51,8 @@ export class StoriesController {
     ]);
     const story = await this.stories.create(req.user.userId, dto);
     if (dto.mentionUserIds?.length) {
-      await this.notifier.mentions(story.id, req.user.userId, dto.mentionUserIds);
+      await this.notifier.mentions(story.id, req.user.userId,
+        dto.mentionUserIds.filter(id => !(dto.excludeUserIds ?? []).includes(id)));
     }
     return story;
   }
@@ -76,7 +77,8 @@ export class StoriesController {
     for (let index = 0; index < result.stories.length; index += 1) {
       const mentions = dto.stories[index]?.mentionUserIds;
       if (mentions?.length) {
-        await this.notifier.mentions(result.stories[index].id, req.user.userId, mentions);
+        await this.notifier.mentions(result.stories[index].id, req.user.userId,
+          mentions.filter(id => !(dto.stories[index]?.excludeUserIds ?? []).includes(id)));
       }
     }
     return result;
