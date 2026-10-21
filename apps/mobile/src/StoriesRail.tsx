@@ -20,7 +20,7 @@ import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaL
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
 import { storyCompletionBps, storyProgressCheckpoint } from './story-view-progress-model';
-import { storySequence, storySegments, storyStep, storyTextColor, STORY_TEXT_COLORS } from './story-sequence-model';
+import { storySequence, storySegments, storyStep, storyTextColor, storyAgeLabel, STORY_TEXT_COLORS } from './story-sequence-model';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -179,6 +179,7 @@ export function StoriesRail({
   const [sendingReply,setSendingReply]=useState(false);
   const [colorIndex,setColorIndex]=useState(() => Math.floor(Math.random()*STORY_TEXT_COLORS.length));
   const [storyPaused,setStoryPaused]=useState(false);
+  const [viewerMenuOpen,setViewerMenuOpen]=useState(false);
   const activeStoryId=useRef<string|null>(null);
   const lastProgressMilestone=useRef(0);
   const receiptQueue=useRef<Promise<void>>(Promise.resolve());
@@ -346,7 +347,7 @@ export function StoriesRail({
     sequenceLoading.current=false;
     pendingStep.current=null;
     playbackRef.current=[];setPlaybackSequence([]);
-    setInsightsOpen(false);setSelected(null);
+    setInsightsOpen(false);setViewerMenuOpen(false);setSelected(null);
   }
 
   async function prepareSequence(opened:Story) {
@@ -424,7 +425,7 @@ export function StoriesRail({
     textElapsed.current=0;
     setStoryProgress(0);
     setSelectedPhotoUri(null);setSelectedVideoUri(null);setMediaError('');
-    setInsightsOpen(false);setStoryPaused(false);setReplyText('');
+    setInsightsOpen(false);setViewerMenuOpen(false);setStoryPaused(false);setReplyText('');
     setSelected(story);
     if(buildSequence){
       playbackRef.current=[story];setPlaybackSequence([story]);
@@ -621,6 +622,10 @@ export function StoriesRail({
           </View>
 
           <View style={styles.viewerHeader}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retour à KnowMe"
+              onPress={closeViewer} style={styles.viewerBack}>
+              <KnowMeIcon name="back" size={25} color="#fff"/>
+            </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Voir le profil de l'auteur"
               onPress={() => {
                 const username = selected?.viewer.own ? currentUser.username : selected?.author?.username;
@@ -643,37 +648,32 @@ export function StoriesRail({
                 </Text>
                 {selected?.author?.verification?.isVerified?<BlueVerifiedBadge size={18} label={selected.author.verification.label}/>:null}
                 </View>
-                <Text style={[styles.viewerHandle, { color: colors.muted }]}>
-                  @{selected?.viewer.own
-                    ? currentUser.username
-                    : selected?.author?.username ?? 'knowme'}
+                <Text style={[styles.viewerHandle, { color: '#dde2e6' }]}>
+                  {storyAgeLabel(selected?.createdAt)}
                 </Text>
               </View>
             </Pressable>
-            {selected?.allowSharing ? (
-              <PressScale accessibilityRole="button" accessibilityLabel="Partager la Story"
-                onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'story',id:selected.id})}); }}
-                style={[styles.closeButton,{backgroundColor:colors.surfaceGlass,borderColor:colors.border,borderRadius:visual.controlRadius}]}>
-                <Text style={{color:colors.text,fontSize:18}}>↗</Text>
-              </PressScale>
-            ) : null}
-            <PressScale
-              accessibilityRole="button"
-              accessibilityLabel="Fermer la Story"
-              onPress={closeViewer}
-              style={[
-                styles.closeButton,
-                {
-                  backgroundColor: colors.surfaceGlass,
-                  borderColor: colors.border,
-                  borderRadius: visual.controlRadius
-                }
-              ]}
-            >
-              <KnowMeIcon name="close" size={19} color={colors.text} />
-            </PressScale>
+            <Pressable accessibilityRole="button" accessibilityLabel="Options de la story"
+              onPress={()=>setViewerMenuOpen(open=>!open)} style={styles.viewerBack}>
+              <Text style={{color:'#fff',fontSize:28,fontWeight:'900'}}>⋮</Text>
+            </Pressable>
           </View>
 
+          {viewerMenuOpen?(
+            <View style={styles.viewerMenu}>
+              {selected?.allowSharing?<Pressable style={styles.viewerMenuAction}
+                onPress={()=>{setViewerMenuOpen(false);void Share.share({
+                  message:buildKnowMePublicLink({kind:'story',id:selected.id})
+                });}}><Text style={styles.viewerMenuText}>Partager la story</Text></Pressable>:null}
+              {selected?.viewer.own?<Pressable style={styles.viewerMenuAction}
+                onPress={()=>{setViewerMenuOpen(false);setInsightsOpen(true);}}>
+                <Text style={styles.viewerMenuText}>Voir les spectateurs</Text>
+              </Pressable>:null}
+              <Pressable style={styles.viewerMenuAction} onPress={closeViewer}>
+                <Text style={styles.viewerMenuText}>Fermer</Text>
+              </Pressable>
+            </View>
+          ):null}
           <View
             style={[
               styles.storyCanvas,
@@ -822,7 +822,7 @@ export function StoriesRail({
                     <View style={{flex:1}}>
                       <Text style={styles.viewerPersonName}>{person.user?.displayName??'Compte indisponible'}</Text>
                       <Text style={styles.viewerPersonTime}>
-                        {new Date(person.lastViewedAt).toLocaleString('fr-FR')}
+                        {storyAgeLabel(person.lastViewedAt)}
                       </Text>
                     </View>
                     {person.reaction?.reaction?<Text style={styles.viewerReaction}>
@@ -1125,6 +1125,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%'
   },
+  viewerBack:{minWidth:36,minHeight:44,alignItems:'center',justifyContent:'center'},
+  viewerMenu:{position:'absolute',right:12,top:100,zIndex:15,minWidth:178,
+    backgroundColor:'#171d24',borderRadius:15,paddingVertical:8,
+    borderWidth:1,borderColor:'#343a42'},
+  viewerMenuAction:{minHeight:44,justifyContent:'center',paddingHorizontal:15},
+  viewerMenuText:{fontSize:13,color:'#fff',fontWeight:'700'},
   viewerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
