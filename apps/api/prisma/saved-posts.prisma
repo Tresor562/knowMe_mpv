@@ -1,0 +1,12 @@
+/// Account-private bookmarks. Kept in its own Prisma schema file to avoid
+/// collisions with parallel workstreams editing schema.prisma.
+/// Prisma v6.12 accepts a schema *directory* (see --schema prisma).
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt, id])
+}
