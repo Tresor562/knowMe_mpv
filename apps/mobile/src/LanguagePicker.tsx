@@ -17,6 +17,8 @@ import {
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './ui/KnowMeNativeAnimatedIcon';
+import { KnowMeNativeIconButton } from './ui/KnowMeNativeIconButton';
 
 export function LanguagePicker({
   value,
@@ -28,7 +30,7 @@ export function LanguagePicker({
   compact?: boolean;
 }) {
   const { colors, visual } = useAppearance();
-  const { t } = useI18n();
+  const { t, locale: interfaceLocale } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -100,16 +102,13 @@ export function LanguagePicker({
                 {t('common.chooseLanguage')}
               </Text>
               <Text style={[styles.count, { color: colors.muted }]}>
-                {SUPPORTED_LOCALES.length} langues / scripts
+                {SUPPORTED_LOCALES.length} {interfaceLocale === 'en' ? 'languages / scripts' : 'langues / écritures'}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
+            <KnowMeNativeIconButton name="close" size={20} label={interfaceLocale === 'en' ? 'Close language selection' : 'Fermer le choix de langue'}
               onPress={() => setOpen(false)}
               style={[styles.close, { backgroundColor: colors.surfaceRaised, borderRadius: visual.controlRadius }]}
-            >
-              <Text style={[styles.closeText, { color: colors.text }]}>×</Text>
-            </Pressable>
+              color={colors.text} />
           </View>
 
           <TextInput
@@ -141,6 +140,9 @@ export function LanguagePicker({
               const selected = item.locale === value;
               return (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.nativeName} · ${item.locale}`}
+                  accessibilityState={{ selected }}
                   onPress={() => {
                     void onChange(item.locale);
                     setOpen(false);
@@ -165,7 +167,8 @@ export function LanguagePicker({
                   </View>
                   {selected ? (
                     <View style={[styles.check, { backgroundColor: colors.backgroundAccent }]}>
-                      <KnowMeIcon name="check" size={17} color={colors.accent} strokeWidth={2} />
+                      <KnowMeNativeAnimatedIcon name="check" size={17} color={colors.accent}
+                        state="selected" strokeWidth={2} />
                     </View>
                   ) : null}
                 </Pressable>
@@ -190,7 +193,7 @@ const styles = StyleSheet.create({
     gap: 12
   },
   compactButton: {
-    minHeight: 38,
+    minHeight: 48,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 14,
     paddingHorizontal: 11,
@@ -223,13 +226,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800' },
   count: { fontSize: 12, marginTop: 2 },
   close: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  closeText: { fontSize: 26, lineHeight: 28 },
   search: {
     margin: 14,
     marginBottom: 7,
