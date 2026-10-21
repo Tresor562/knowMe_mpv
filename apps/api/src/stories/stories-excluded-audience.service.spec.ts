@@ -15,7 +15,7 @@ describe('Stories excluded audience and viewer reactions', () => {
     };
     const prisma = {
       user: {
-        count: jest.fn().mockResolvedValue(2),
+        count: jest.fn().mockImplementation(async ({where}: {where: {id: {in: string[]}}}) => where.id.in.length),
         findMany: jest.fn().mockResolvedValue([])
       },
       story: {
