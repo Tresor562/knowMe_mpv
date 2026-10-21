@@ -1,4 +1,6 @@
--- KnowMe private bookmarks; only the authenticated user's records are addressable by the API.
+-- Private bookmarks; schema model lives in saved-posts.prisma.
+-- No Prisma relation fields: that avoids conflicts with parallel edits of User/Post.
+-- PostgreSQL triggers provide cascading cleanup without leaking bookmarks.
 CREATE TABLE "SavedPost" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
@@ -8,7 +10,21 @@ CREATE TABLE "SavedPost" (
 );
 CREATE UNIQUE INDEX "SavedPost_userId_postId_key" ON "SavedPost"("userId","postId");
 CREATE INDEX "SavedPost_userId_createdAt_id_idx" ON "SavedPost"("userId","createdAt","id");
-ALTER TABLE "SavedPost" ADD CONSTRAINT "SavedPost_userId_fkey"
-  FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "SavedPost" ADD CONSTRAINT "SavedPost_postId_fkey"
-  FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE FUNCTION knowme_saved_post_user_cleanup() RETURNS TRIGGER AS $$
+BEGIN
+  DELETE FROM "SavedPost" WHERE "userId" = OLD."id";
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER knowme_saved_post_user_cleanup
+AFTER DELETE ON "User" FOR EACH ROW EXECUTE FUNCTION knowme_saved_post_user_cleanup();
+
+CREATE FUNCTION knowme_saved_post_post_cleanup() RETURNS TRIGGER AS $$
+BEGIN
+  DELETE FROM "SavedPost" WHERE "postId" = OLD."id";
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER knowme_saved_post_post_cleanup
+AFTER DELETE ON "Post" FOR EACH ROW EXECUTE FUNCTION knowme_saved_post_post_cleanup();
