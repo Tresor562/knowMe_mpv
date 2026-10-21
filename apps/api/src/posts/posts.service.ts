@@ -174,50 +174,6 @@ export class PostsService {
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))};
   }
 
-  /** Idempotent bookmark; only the authenticated caller owns the record. */
-  async save(userId: string, postId: string) {
-    const post=await this.prisma.post.findUnique({
-      where:{id:postId},select:{id:true}
-    });
-    if(!post)throw new NotFoundException('Publication introuvable.');
-    await this.prisma.savedPost.createMany({
-      data:[{userId,postId}],skipDuplicates:true
-    });
-    return {saved:true};
-  }
-
-  async unsave(userId: string,postId: string) {
-    await this.prisma.savedPost.deleteMany({where:{userId,postId}});
-    return {saved:false};
-  }
-
-  async isSaved(userId: string,postId: string) {
-    const row=await this.prisma.savedPost.findUnique({
-      where:{userId_postId:{userId,postId}},select:{id:true}
-    });
-    return {saved:Boolean(row)};
-  }
-
-  /** Saved library data is private to the account and presents public post fields only. */
-  async saved(userId: string) {
-    const rows=await this.prisma.savedPost.findMany({
-      where:{userId},take:40,
-      orderBy:[{createdAt:'desc'},{id:'desc'}],
-      include:{post:{include:{
-        author:{select:publicAuthorSelect},
-        _count:{select:{likes:true,comments:true}},
-        media:{orderBy:{position:'asc'}}
-      }}}
-    });
-    return rows.map(row=>({...row,post:{
-      ...row.post,author:publicAuthor(row.post.author),
-      media:row.post.media.map(item=>({
-        url:`/media/public/post/${item.assetId}`,
-        mimeType:item.mimeType,position:item.position
-      }))
-    }}));
-  }
-
   async comments(postId: string, cursor?: string, rootsOnly = false) {
     const exists = await this.prisma.post.findUnique({
       where: { id: postId },
