@@ -1,59 +1,49 @@
 import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { MediaService } from '../media/media.service';
-import { PostsService } from './posts.service';
+import { SavedPostsService } from './saved-posts.service';
 
-describe('SavedPost private account operations', () => {
-  const prisma={
-    post:{findUnique:jest.fn()},
-    savedPost:{createMany:jest.fn(),deleteMany:jest.fn(),findUnique:jest.fn(),findMany:jest.fn()}
+describe('saved posts: authenticated and idempotent', () => {
+  const db = {
+    post: { findUnique: jest.fn() },
+    $queryRaw: jest.fn(), $executeRaw: jest.fn()
   };
-  const service=new PostsService(prisma as unknown as PrismaService,
-    {} as NotificationsService,{} as MediaService);
-  beforeEach(()=>{
+  const service = new SavedPostsService(db as unknown as PrismaService);
+  beforeEach(() => {
     jest.resetAllMocks();
-    prisma.post.findUnique.mockResolvedValue({id:'p1'});
-    prisma.savedPost.createMany.mockResolvedValue({count:1});
-    prisma.savedPost.deleteMany.mockResolvedValue({count:1});
-    prisma.savedPost.findMany.mockResolvedValue([]);
+    db.post.findUnique.mockResolvedValue({ id: 'p1' });
+    db.$queryRaw.mockResolvedValue([]);
+    db.$executeRaw.mockResolvedValue(1);
   });
-  it('rejects nonexistent posts without writing bookmarks',async()=>{
-    prisma.post.findUnique.mockResolvedValue(null);
-    await expect(service.save('u1','unknown')).rejects.toBeInstanceOf(NotFoundException);
-    expect(prisma.savedPost.createMany).not.toHaveBeenCalled();
+  it('returns only the caller account collection, limited and ordered', async () => {
+    await expect(service.list('u1')).resolves.toEqual([]);
+    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+    const [fragments, value] = db.$queryRaw.mock.calls[0];
+    expect(fragments.join('?')).toContain('WHERE "userId" = ?');
+    expect(fragments.join('?')).toContain('LIMIT 40');
+    expect(value).toBe('u1');
   });
-  it('saves idempotently with uniqueness and user scope',async()=>{
-    await expect(service.save('u1','p1')).resolves.toEqual({saved:true});
-    expect(prisma.savedPost.createMany).toHaveBeenCalledWith({
-      data:[{userId:'u1',postId:'p1'}],skipDuplicates:true
-    });
+  it('checks a single account and publication pair, without inferring public state', async () => {
+    db.$queryRaw.mockResolvedValueOnce([{ saved: true }]).mockResolvedValueOnce([{ saved: false }]);
+    await expect(service.status('u1', 'p1')).resolves.toEqual({ saved: true });
+    await expect(service.status('u2', 'p1')).resolves.toEqual({ saved: false });
+    expect(db.$queryRaw.mock.calls[0].slice(1)).toEqual(['u1', 'p1']);
+    expect(db.$queryRaw.mock.calls[1].slice(1)).toEqual(['u2', 'p1']);
   });
-  it('removes only the caller bookmark, idempotently',async()=>{
-    await expect(service.unsave('u1','p1')).resolves.toEqual({saved:false});
-    expect(prisma.savedPost.deleteMany).toHaveBeenCalledWith({where:{userId:'u1',postId:'p1'}});
+  it('does not write when the target publication is absent', async () => {
+    db.post.findUnique.mockResolvedValue(null);
+    await expect(service.save('u1', 'missing')).rejects.toBeInstanceOf(NotFoundException);
+    expect(db.$executeRaw).not.toHaveBeenCalled();
   });
-  it('does not expose another account bookmark status',async()=>{
-    prisma.savedPost.findUnique.mockResolvedValueOnce({id:'bookmark'}).mockResolvedValueOnce(null);
-    await expect(service.isSaved('u1','p1')).resolves.toEqual({saved:true});
-    await expect(service.isSaved('u2','p1')).resolves.toEqual({saved:false});
-    expect(prisma.savedPost.findUnique).toHaveBeenNthCalledWith(1,{
-      where:{userId_postId:{userId:'u1',postId:'p1'}},select:{id:true}
-    });
-    expect(prisma.savedPost.findUnique).toHaveBeenNthCalledWith(2,{
-      where:{userId_postId:{userId:'u2',postId:'p1'}},select:{id:true}
-    });
+  it('uses idempotent insert scoped to actor and post', async () => {
+    await expect(service.save('u1', 'p1')).resolves.toEqual({ saved: true });
+    const [sql, id, userId, postId] = db.$executeRaw.mock.calls[0];
+    expect(sql.join('?')).toContain('ON CONFLICT ("userId", "postId") DO NOTHING');
+    expect(typeof id).toBe('string');
+    expect(userId).toBe('u1');
+    expect(postId).toBe('p1');
   });
-  it('lists only own bookmarks, bounded in deterministic order',async()=>{
-    await expect(service.saved('u2')).resolves.toEqual([]);
-    expect(prisma.savedPost.findMany).toHaveBeenCalledWith({
-      where:{userId:'u2'},take:40,
-      orderBy:[{createdAt:'desc'},{id:'desc'}],
-      include:{post:{include:{
-        author:{select:expect.any(Object)},
-        _count:{select:{likes:true,comments:true}},
-        media:{orderBy:{position:'asc'}}
-      }}}
-    });
+  it('deletes only the caller bookmark and is idempotent', async () => {
+    await expect(service.unsave('u2', 'p1')).resolves.toEqual({ saved: false });
+    expect(db.$executeRaw.mock.calls[0].slice(1)).toEqual(['u2', 'p1']);
   });
 });
