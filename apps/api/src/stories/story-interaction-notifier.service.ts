@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StoryReplyDirectService } from '../messaging/story-reply-direct.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,7 +31,7 @@ export class StoryInteractionNotifier {
       where:{id:storyId},select:{authorUserId:true}
     });
     if(!story || story.authorUserId===actorId) {
-      throw new Error('STORY_REPLY_NOT_ALLOWED');
+      throw new ForbiddenException('Réponse à cette Story interdite.');
     }
     await this.messaging.assertCanDeliver(actorId,story.authorUserId);
   }
