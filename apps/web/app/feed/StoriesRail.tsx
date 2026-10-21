@@ -195,7 +195,7 @@ export function StoriesRail() {
         <div className="km-story-card" data-story-owner="true">
           <StoryCover story={myGroup?.story} avatarUrl={user?.avatarUrl} name={user?.displayName ?? '?'} />
           <Link className="km-story-card-open"
-            href={myGroup ? `/stories/${myGroup.story.id}` : '/stories/new'}
+            href={myGroup ? `/stories/${myGroup.story.id}?sequence=start` : '/stories/new'}
             aria-label={myGroup ? `${ui.yourStory} (${myGroup.count})` : ui.createStory}>
             {myGroup && myGroup.count > 1 && <span className="km-story-card-count">{myGroup.count}</span>}
             <span className="km-story-card-label">{myGroup ? ui.yourStory : ui.createStory}</span>
@@ -211,7 +211,7 @@ export function StoriesRail() {
           <div className="km-story-card" key={story.author!.id}>
             <StoryCover story={story} avatarUrl={story.author?.avatarUrl}
               name={story.author?.displayName ?? 'KnowMe'}/>
-            <Link href={`/stories/${story.id}`} className="km-story-card-open"
+            <Link href={`/stories/${story.id}?sequence=start`} className="km-story-card-open"
               aria-label={`${story.author?.displayName ?? 'KnowMe'} · ${count} ${ui.stories}`}>
               {count > 1 && <span className="km-story-card-count">{count}</span>}
               <span className="km-story-card-label">
