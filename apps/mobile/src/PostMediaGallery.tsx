@@ -5,6 +5,7 @@ import {
 import { API_URL } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { PublicPostVideo } from './PublicPostVideo';
+import { NativeStoryVideo } from './NativeStoryVideo';
 import { KnowMeIcon } from './ui/KnowMeUI';
 
 type PostMedia = { url: string; mimeType: string; position: number };
@@ -18,7 +19,7 @@ function publicMediaUrl(url: string): string {
 
 /**
  * Every attached photo/video remains reachable, even when only five tiles are
- * shown in the feed. Videos load only on explicit user interaction.
+ * shown in the feed. Tile previews use paused native frames; full playback requires user interaction.
  */
 export function PostMediaGallery({ media, fallbackUrl, caption }: {
   media?: PostMedia[] | null;
@@ -63,9 +64,12 @@ export function PostMediaGallery({ media, fallbackUrl, caption }: {
                 pressed && { opacity: 0.86 }
               ]}>
               {isVideo ? (
-                <View style={styles.videoPlaceholder}>
-                  <Text style={{color:"#fff",fontSize:35}}>▶</Text>
-                  <Text style={styles.videoLabel}>Vidéo</Text>
+                <View pointerEvents="none" style={styles.videoPlaceholder}>
+                  <NativeStoryVideo sourceUri={publicMediaUrl(item.url)} paused nativeControls={false}
+                    seekToMs={120} style={styles.videoPoster} />
+                  <View style={styles.playOverlay}>
+                    <KnowMeIcon name="play" size={26} color="#fff"/>
+                  </View>
                 </View>
               ) : (
                 <Image style={styles.image} source={{ uri: publicMediaUrl(item.url) }}
@@ -133,8 +137,10 @@ const styles = StyleSheet.create({
   three: { width:'32%', height:130 },
   singleTile: { borderRadius: 17 },
   image: { width:'100%', height:'100%' },
-  videoPlaceholder: { flex:1,alignItems:'center',justifyContent:'center',gap:9,backgroundColor:'#192c46' },
-  videoLabel: { fontSize:12, color:'#fff',fontWeight:'600' },
+  videoPlaceholder: { flex:1,alignItems:'center',justifyContent:'center',backgroundColor:'#111923' },
+  videoPoster: {position:'absolute',top:0,bottom:0,left:0,right:0,width:'100%',height:'100%'},
+  playOverlay: {width:52,height:52,borderRadius:26,backgroundColor:'rgba(0,0,0,.5)',
+    borderColor:'rgba(255,255,255,.66)',borderWidth:1,alignItems:'center',justifyContent:'center'},
   more: { position:'absolute',top:0,bottom:0,left:0,right:0,
     justifyContent:'center',alignItems:'center',backgroundColor:'rgba(0,0,0,.68)' },
   moreText: { fontSize:32,fontWeight:'800',color:'#fff' },

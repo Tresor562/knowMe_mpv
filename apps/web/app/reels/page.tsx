@@ -9,6 +9,7 @@ import { ReelPlayback } from './reel-playback';
 import { ReelShareSheet } from './reel-share-sheet';
 import { ReelFollowButton, ReelCommentSheet } from './reel-social-interactions';
 import { ReelIcon } from './reel-icons';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import './reels.css';
 import './reels-reference-shell.css';
 
@@ -24,7 +25,8 @@ type Post = {
 type Clip = {id:string;post:Post;media:PostMedia};
 
 function mediaUrl(url: string): string {
-  if (url.startsWith('/media/public/post/')) return '/api/knowme' + url;
+  // Public profile photos and post media both belong to the API proxy.
+  if (url.startsWith('/media/public/')) return '/api/knowme' + url;
   if (url.startsWith('/') && !url.startsWith('//')) return url;
   if (url.startsWith('https://')) return url;
   return '';
@@ -224,7 +226,11 @@ export default function ReelsPage() {
   },[visibleClips]);
 
   function openDescription(clip:Clip){
-    const video=reelRoot.current?.querySelector<HTMLVideoElement>('video');
+    // Buffered neighboring <video> elements exist, but only the visible
+    // one may be paused or resumed when a caption sheet opens.
+    const video=reelRoot.current?.querySelector<HTMLVideoElement>(
+      '.km-reel-playback:not([aria-hidden="true"]) video'
+    );
     resumeAfterDescription.current=Boolean(video&&!video.paused);
     video?.pause();
     setDescriptionClip(clip);
@@ -232,8 +238,9 @@ export default function ReelsPage() {
   function closeDescription(){
     setDescriptionClip(null);
     if(resumeAfterDescription.current&&!document.hidden){
-      void reelRoot.current?.querySelector<HTMLVideoElement>('video')
-        ?.play().catch(()=>undefined);
+      void reelRoot.current?.querySelector<HTMLVideoElement>(
+        '.km-reel-playback:not([aria-hidden="true"]) video'
+      )?.play().catch(()=>undefined);
     }
     resumeAfterDescription.current=false;
   }
@@ -291,6 +298,9 @@ export default function ReelsPage() {
     }finally{setPendingLike(null);}
   }
 
+  // Keep the current Reel, one previous Reel and five successors mounted.
+  // Only the active one plays; lazy far-away clips retain cheap placeholders.
+  const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===activeId));
   if(sessionLoading||!user)return <main className="km-reels-page"><p>Chargement…</p></main>;
   return (
     <main className="km-reels-page" aria-label={en?'KnowMe videos':'Vidéos KnowMe'}>
@@ -348,12 +358,12 @@ export default function ReelsPage() {
             <p>{en?'Explore or publish a video from KnowMe.':'Découvre des publications ou publie une vidéo sur KnowMe.'}</p>
             <Link href="/feed">{en?'Return to feed':'Retour au fil'}</Link>
           </div>}
-        {visibleClips.map(clip=>{
+        {visibleClips.map((clip,index)=>{
           const active=clip.id===activeId;
           const post=clip.post;
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
-            {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
+            {index>=activeIndex-1&&index<=activeIndex+5 ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)} active={active}
               en={en} pausedExternally={Boolean(sharingPost)||Boolean(commentPost)}
               onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
@@ -362,9 +372,8 @@ export default function ReelsPage() {
                 <div className="km-reel-creator">
                   <Link href={'/profile/'+encodeURIComponent(post.author.username)}
                     className="km-reel-avatar" aria-label={en?'Creator profile':'Profil du créateur'}>
-                    {post.author.avatarUrl&&mediaUrl(post.author.avatarUrl)?
-                      <img alt="" src={mediaUrl(post.author.avatarUrl)}/>:
-                      <span>{post.author.displayName.slice(0,1).toUpperCase()}</span>}
+                    <KnowMeAvatarImage src={mediaUrl(post.author.avatarUrl??'')}
+                      name={post.author.displayName||post.author.username}/>
                   </Link>
                   <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
                     @{post.author.username}

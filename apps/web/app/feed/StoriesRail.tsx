@@ -92,9 +92,11 @@ function StoryCover({ story, avatarUrl, name }: {
 
   return (
     <div ref={element} className="km-story-card-cover" aria-hidden="true">
-      {previewUrl
-        ? <img src={previewUrl} alt="" loading="lazy" />
-        : <KnowMeAvatarImage src={avatarUrl} name={name}/>}
+      {story?.type === 'TEXT' && story.caption?.trim()
+        ? <span className="km-story-text-cover">{story.caption.trim()}</span>
+        : previewUrl
+          ? <img src={previewUrl} alt="" loading="lazy" />
+          : <KnowMeAvatarImage src={avatarUrl} name={name}/>}
     </div>
   );
 }

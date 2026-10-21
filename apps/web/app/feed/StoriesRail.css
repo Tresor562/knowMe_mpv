@@ -119,3 +119,12 @@
 }
 :root[data-animations='false'] .km-story-card-loading { animation: none; }
 :root[data-animations='false'] .km-story-card-add { transition: none; }
+
+/* Text stories preview their real text rather than a misleading avatar tile. */
+.km-story-card-cover > .km-story-text-cover {
+  box-sizing:border-box;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:6;overflow:hidden;overflow-wrap:anywhere;
+  padding:23px 11px 38px;text-align:center;
+  align-content:center;font-weight:700;font-size:14px;line-height:1.35;
+  color:#fff;background:linear-gradient(150deg,#274b77,#60477b 55%,#202e52);
+}

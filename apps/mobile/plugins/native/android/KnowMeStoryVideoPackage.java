@@ -59,6 +59,11 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       }
     }
 
+    @ReactProp(name="nativeControls", defaultBoolean=true)
+    public void nativeControls(StoryContainer view, boolean enabled) {
+      view.setNativeControls(enabled);
+    }
+
     @ReactProp(name="seekToMs", defaultDouble=-1)
     public void seekToMs(StoryContainer view, double millis) {
       if (Double.isNaN(millis) || Double.isInfinite(millis) || millis<0) return;
@@ -83,6 +88,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
 
   public static final class StoryContainer extends FrameLayout {
     final VideoView player;
+    MediaController storyControls;
     boolean ready = false;
     boolean paused = false;
     String currentUri = "";
@@ -102,6 +108,20 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
         .receiveEvent(getId(), "topProgress", event);
     }
+    void setNativeControls(boolean enabled) {
+      if (!enabled) {
+        if (storyControls != null) storyControls.hide();
+        player.setMediaController(null);
+        return;
+      }
+      // Stories still use their original Android transport. Custom Reels
+      // and in-feed previews opt out so this overlay never escapes a card.
+      if (storyControls == null) {
+        storyControls = new MediaController(getContext());
+        storyControls.setAnchorView(player);
+      }
+      player.setMediaController(storyControls);
+    }
     void applySeek() {
       if (!ready || seekToMs<0) return;
       int duration=player.getDuration();
@@ -115,9 +135,9 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.MATCH_PARENT));
       player.setKeepScreenOn(false);
-      MediaController controller = new MediaController(context);
-      controller.setAnchorView(player);
-      player.setMediaController(controller);
+      // KnowMe renders its own accessible controls: never attach the Android
+      // MediaController, which leaks transport overlays onto feed thumbnails.
+      player.setMediaController(null);
       player.setOnPreparedListener(media -> {
         ready=true;
         media.setLooping(false);

@@ -14,17 +14,20 @@ function showTime(seconds: number) {
 }
 
 /**
- * A single mounted Reel at a time. An inactive clip has no video element,
- * so neighboring clips cannot play audio or download their full bodies.
+ * Keep inactive neighbor videos mounted but paused: the browser can preload
+ * their initial ranges before a swipe, retaining the same media element when
+ * it becomes active. The platform controls the actual preload byte budget.
  */
-export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
-  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean;
+export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, active=true }: {
+  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean; active?:boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTap = useRef(0);
   const [playing,setPlaying] = useState(false);
   const [muted,setMuted] = useState(true);
+  const [ready,setReady] = useState(false);
+  const [retryVersion,setRetryVersion] = useState(0);
   const [position,setPosition] = useState(0);
   const [duration,setDuration] = useState(0);
   const [speed,setSpeed] = useState(1);
@@ -37,6 +40,8 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   const heartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeAfterVisibility=useRef(false);
   const resumeAfterShare=useRef(false);
+  const externalPauseRef=useRef(pausedExternally);
+  externalPauseRef.current=pausedExternally;
   const isLong=duration>=180;
   const controlsExpanded=controlsVisible||scrubbing;
   const compactVisible=isLong&&!controlsExpanded;
@@ -53,7 +58,17 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   useEffect(() => {
     const video=videoRef.current;
     if (!video) return;
-    video.muted = true;
+    if(!active){
+      // Preloaded neighbors are silent; the viewer's preference is preserved.
+      video.muted = true;
+      video.pause();
+      return; // Warm buffered neighbor: do not attach playback or visibility handlers.
+    }
+    let preferredMuted=true;
+    try { preferredMuted=sessionStorage.getItem('knowme-reels-muted')!=='false'; }
+    catch { /* Session storage can be disabled. */ }
+    video.muted=preferredMuted;
+    setMuted(preferredMuted);
     let restoredRate=1;
     try {
       const candidate=Number(sessionStorage.getItem('knowme-reel-playback-speed'));
@@ -61,12 +76,22 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
     }catch{/* Storage disabled: use default playback speed. */}
     video.playbackRate=restoredRate;
     setSpeed(restoredRate);
-    video.play().catch(() => setPlaying(false));
+    if(!document.hidden&&!externalPauseRef.current){
+      void video.play().catch(() => {
+        // Audible autoplay may be blocked by the browser after a swipe.
+        if(!video.muted){
+          video.muted=true;setMuted(true);
+          void video.play().catch(()=>setPlaying(false));
+        }else setPlaying(false);
+      });
+    }else if(externalPauseRef.current){
+      resumeAfterShare.current=true;
+    }
     const visibility=()=>{
       if(document.hidden){
         resumeAfterVisibility.current=!video.paused;
         video.pause();
-      }else if(resumeAfterVisibility.current){
+      }else if(resumeAfterVisibility.current&&!externalPauseRef.current){
         resumeAfterVisibility.current=false;
         video.play().catch(()=>setPlaying(false));
       }
@@ -80,19 +105,19 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
       if (clickTimer.current) clearTimeout(clickTimer.current);
       if (heartTimer.current) clearTimeout(heartTimer.current);
     };
-  }, [src]);
+  }, [src,active,retryVersion]);
 
   useEffect(()=>{
     const video=videoRef.current;
-    if(!video)return;
+    if(!video||!active)return;
     if(pausedExternally){
-      resumeAfterShare.current=!video.paused;
+      resumeAfterShare.current=resumeAfterShare.current||!video.paused;
       video.pause();
     }else if(resumeAfterShare.current){
       resumeAfterShare.current=false;
       if(!document.hidden)video.play().catch(()=>setPlaying(false));
     }
-  },[pausedExternally]);
+  },[pausedExternally,active]);
 
   async function toggle() {
     revealControls();
@@ -141,6 +166,8 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
     if(!video) return;
     video.muted=!video.muted;
     setMuted(video.muted);
+    try { sessionStorage.setItem('knowme-reels-muted',String(video.muted)); }
+    catch { /* In-memory selection still works. */ }
   }
 
   function switchSpeed() {
@@ -156,6 +183,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   // Attach listeners to the currently mounted clip only. The key handlers
   // never intercept typing, buttons, links or seek-range keyboard controls.
   useEffect(()=>{
+    if(!active)return;
     const keyDown=(event:KeyboardEvent)=>{
       if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat)return;
       const target=event.target;
@@ -179,10 +207,13 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   });
 
   return (
-    <div className="km-reel-playback">
-      <video ref={videoRef} className="km-reel-video" src={src} preload="metadata"
-        playsInline muted loop
-        onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
+    <div className="km-reel-playback" aria-hidden={!active}>
+      <video key={retryVersion} ref={videoRef} className="km-reel-video" src={src} preload="auto"
+        playsInline muted loop tabIndex={-1}
+        onPlay={()=>{setPlaying(true);setError('');}} onPause={()=>setPlaying(false)}
+        onLoadedData={()=>{setReady(true);setError('');}}
+        onEmptied={()=>setReady(false)}
+        onVolumeChange={event=>setMuted(event.currentTarget.muted || event.currentTarget.volume===0)}
         onTimeUpdate={event=>setPosition(event.currentTarget.currentTime||0)}
         onLoadedMetadata={event=>{
           const next=event.currentTarget.duration;
@@ -192,8 +223,17 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
           const next=event.currentTarget.duration;
           setDuration(Number.isFinite(next)?next:0);
         }}
-        onError={()=>setError(en?'Video unavailable.':'Vidéo indisponible.')}
+        onError={()=>{setReady(false);setError(en?'Video unavailable.':'Vidéo indisponible.');}}
         aria-label={en?'KnowMe reel':'Reel KnowMe'}/>
+      {active&&<>
+      {!ready&&!error&&<span className="km-reel-loading" role="status">{en?'Loading video…':'Chargement de la vidéo…'}</span>}
+      {error&&<div className="km-reel-recovery" role="alert">
+        <span>{error}</span>
+        <button type="button" onClick={()=>{
+          setError('');setReady(false);setPlaying(false);
+          setRetryVersion(value=>value+1);
+        }}>{en?'Retry video':'Réessayer la vidéo'}</button>
+      </div>}
       <button className="km-reel-tap-zone" type="button" onClick={onTap}
         aria-label={playing?(en?'Pause reel':'Mettre le Reel en pause')
           :(en?'Play reel':'Lire le Reel')}>
@@ -259,6 +299,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
         </div>
         {error&&<span role="alert" className="km-reel-player-error">{error}</span>}
       </div>
+      </>}
     </div>
   );
 }
