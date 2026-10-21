@@ -1,5 +1,5 @@
 import { createElement, type FunctionComponent } from 'react';
-import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
+import NativeSvg, { Circle, Ellipse, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 import { useAppearance } from '../AppearanceProvider';
 
 /**
@@ -20,6 +20,10 @@ type VectorGlyph = {
 };
 const COMPONENTS = { path: Path, circle: Circle, ellipse: Ellipse,
   rect: Rect, line: Line, polyline: Polyline, polygon: Polygon, g: G };
+
+// Normalize React type declarations without changing the react-native-svg runtime.
+// Preserve a genuine <Svg> tree so source parity checks reflect native drawing.
+const Svg = NativeSvg as unknown as FunctionComponent<Record<string, unknown>>;
 
 const contract = require('./knowme-native-vector-contract.json') as {
   viewBox: number[];
@@ -68,17 +72,14 @@ export function KnowMeNativeVectorIcon({
       ...((node.children ?? []).map(render)));
   };
 
-  // The native Svg class is runtime-compatible with React Native, but
-  // Expo Web and native may resolve different @types/react revisions. Avoid
-  // JSX-class type checking on that cross-package class, not vector rendering.
-  return createElement(
-    Svg as unknown as FunctionComponent<Record<string, unknown>>,
-    {
-      width: size, height: size, viewBox: '0 0 24 24',
-      fill: 'none', stroke: color, strokeWidth,
-      strokeLinecap: 'round', strokeLinejoin: 'round',
-      accessible: false, focusable: false
-    },
-    ...(selected ? glyph.active : glyph.inactive).map(render)
+  return (
+    <Svg
+      width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke={color} strokeWidth={strokeWidth}
+      strokeLinecap="round" strokeLinejoin="round"
+      accessible={false} focusable={false}
+    >
+      {(selected ? glyph.active : glyph.inactive).map(render)}
+    </Svg>
   );
 }
