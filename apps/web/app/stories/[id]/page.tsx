@@ -93,6 +93,39 @@ export default function StoryViewerPage() {
       // No fake segments: only visible pages actually returned by the API.
       const rows=[...feed.stories];
       if(!rows.some(item=>item.id===current.id))rows.unshift(current);
+      // A 50-item global feed can omit older Stories from this same author.
+      // Read the authenticated per-author paginated series instead; preserve
+      // the ordinary feed as fallback when the endpoint is temporarily down.
+      const authorId=current.author?.id;
+      const username=current.author?.username;
+      if(authorId&&username){
+        try{
+          const authorStories:Story[]=[];
+          const seen=new Set<string>();
+          let cursor:string|null=null;
+          for(let page=0;page<15;page++){
+            const result:Feed=await apiFetch<Feed>(
+              '/stories/users/'+encodeURIComponent(username)+'/visible'+
+              (cursor?'?cursor='+encodeURIComponent(cursor):'')
+            );
+            if(!Array.isArray(result.stories))break;
+            for(const item of result.stories){
+              if(!seen.has(item.id)&&item.author?.id===authorId){
+                seen.add(item.id);authorStories.push(item);
+              }
+            }
+            if(!result.nextCursor||result.nextCursor===cursor)break;
+            cursor=result.nextCursor;
+          }
+          if(authorStories.length){
+            const rest=rows.filter(item=>item.author?.id!==authorId);
+            rows.splice(0,rows.length,...authorStories,...rest);
+            if(!seen.has(current.id))rows.unshift(current);
+          }
+        }catch{
+          // A stale API must not make the existing Story unwatchable.
+        }
+      }
       const authors=[...new Set(rows.map(item=>item.author?.id??item.id))];
       setSequence(authors.flatMap(authorId=>rows.filter(item=>
         (item.author?.id??item.id)===authorId).reverse()));
