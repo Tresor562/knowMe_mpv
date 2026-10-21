@@ -4,6 +4,7 @@ import { knowMeConfirm } from '../../../components/knowme-feedback';
 import Link from 'next/link';
 import { KnowMeMentionText } from '../../../components/knowme-mention-text';
 import { PostMediaCollage, type PostMediaItem } from '../../../components/post-media-collage';
+import { PostActionBar } from '../../../components/PostActionBar';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -574,19 +575,16 @@ export default function PostDetailPage() {
         <p className="km-post-detail-text"><KnowMeMentionText text={post.content}/></p>
         <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
           caption={post.content}/>
-        <div className="km-post-actions">
-          <button type="button" onClick={() => void like()} disabled={likeBusy}
-            aria-label={myLike?'Retirer mon J’aime':'Réagir à la publication'} aria-pressed={myLike===true}
-            style={{color:myLike?'#e73d57':undefined}}>
-            <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"
-              fill={myLike?'currentColor':'none'} stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.8 4.9a5.4 5.4 0 0 0-7.7 0L12 6l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.4a5.4 5.4 0 0 0 0-7.7Z"/>
-            </svg> <span>{post._count.likes}</span>
-          </button>
-          <a href="#km-post-comments">♧ <span>{post._count.comments}</span></a>
-          <button type="button" onClick={() => void sharePost()}>↗ <span>Partager</span></button>
-        </div>
+        <PostActionBar postId={post.id} userId={user?.id} en={false}
+          likeCount={post._count.likes} commentCount={post._count.comments}
+          selectedReaction={myLike===true?'❤️':null}
+          online={myLike!==null&&!likeBusy}
+          onHeart={like}
+          onReact={async emoji=>{if(emoji==='❤️')await like();
+            else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
+          onComments={()=>document.getElementById('km-post-comments')?.scrollIntoView({behavior:'smooth',block:'start'})}
+          onShare={()=>{void sharePost();}}
+        />
       </article>
 
       <div className="km-post-comments-heading">
