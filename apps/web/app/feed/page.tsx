@@ -663,10 +663,10 @@ export default function FeedPage() {
             <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
               caption={post.content} en={en}/>
             <footer>
-              <PostActionBar postId={post.id} en={en}
+              <PostActionBar postId={post.id} userId={user?.id} en={en}
                 likeCount={post._count.likes} commentCount={post._count.comments}
                 selectedReaction={myLikes[post.id]===true?'❤️':null}
-                online={authorityFresh&&!offline&&myLikes[post.id]!==undefined&&!busyLikeIds.includes(post.id)}
+                online={authorityFresh&&!offline&&myLikes[post.id]!==undefined}
                 onHeart={()=>toggleLike(post.id)}
                 onReact={async emoji=>{if(emoji==='❤️')await toggleLike(post.id);
                   else throw new Error(en?'This reaction is not yet supported by the server.':'Cette réaction n’est pas encore disponible sur le serveur.');}}
