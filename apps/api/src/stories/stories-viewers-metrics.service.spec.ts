@@ -13,7 +13,7 @@ describe('StoriesService.viewers — complete private owner metrics', () => {
         aggregate: jest.fn(),
         count: jest.fn()
       },
-      storyReaction: { count: jest.fn() },
+      storyReaction: { count: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
       storyReply: { count: jest.fn() },
       user: { findMany: jest.fn() }
     };

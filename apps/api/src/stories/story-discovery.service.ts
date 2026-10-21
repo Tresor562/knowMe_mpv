@@ -38,7 +38,15 @@ export class StoryDiscoveryService {
     });
 
     const page = stories.slice(0, 30);
-    const authorIds = [...new Set(page.map((story) => story.authorUserId))];
+    // Public discovery is accessible without the viewer's identity. Never
+    // surface a Story with explicit exclusions through an anonymous listing.
+    const excluded = page.length ? await this.prisma.storyAudienceGrant.findMany({
+      where: { storyId: { in: page.map(story => story.id) }, allowed: false },
+      select: { storyId: true }
+    }) : [];
+    const hidden = new Set(excluded.map(item => item.storyId));
+    const safePage = page.filter(story => !hidden.has(story.id));
+    const authorIds = [...new Set(safePage.map((story) => story.authorUserId))];
     const authors = await this.prisma.user.findMany({
       where: { id: { in: authorIds } },
       select: { id: true, username: true, displayName: true, avatarUrl: true, verificationRequests:verificationRequestSelect }
@@ -47,7 +55,7 @@ export class StoryDiscoveryService {
 
     return {
       filters: { hashtag, location },
-      stories: page.map((story) => ({ ...story, author: authorMap.get(story.authorUserId) ?? null })),
+      stories: safePage.map((story) => ({ ...story, author: authorMap.get(story.authorUserId) ?? null })),
       nextCursor: stories.length > 30 ? page.at(-1)?.id ?? null : null
     };
   }

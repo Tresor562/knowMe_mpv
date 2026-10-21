@@ -138,6 +138,14 @@ export class CreateStoryDto {
   @ArrayMaxSize(200)
   audienceUserIds?: string[];
 
+  /** Account IDs denied even when the Story audience is public or friends. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  @MaxLength(128, { each: true })
+  excludeUserIds?: string[];
+
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)

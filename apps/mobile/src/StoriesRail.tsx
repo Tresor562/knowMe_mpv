@@ -64,6 +64,8 @@ type StoryViewer = {viewerUserId:string;lastViewedAt:string;viewCount:number;
   reaction?:{reaction:string}|null;
   user?:{username:string;displayName:string;avatarUrl?:string|null}|null;};
 type StoryViewersPage = {uniqueViewers:number;viewers:StoryViewer[];nextCursor?:string|null};
+const reactionGlyph=(value:string)=>({LIKE:'❤️',SPARK:'✨',LOVE:'❤️',FIRE:'🔥',WOW:'😮',HAHA:'😂'} as Record<string,string>)[value]??value;
+type AudienceCandidate = {id:string;username:string;displayName:string;avatarUrl?:string|null};
 
 function groupLegacyStories(stories: Story[]): StoryGroup[] {
   const index = new Map<string, StoryGroup>();
@@ -192,7 +194,40 @@ export function StoriesRail({
   const [selectedVideoUri,setSelectedVideoUri] = useState<string|null>(null);
   const [mediaError,setMediaError] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC' | 'PRIVATE'>('FRIENDS');
+  const [excludeQuery,setExcludeQuery]=useState('');
+  const [excludedAccounts,setExcludedAccounts]=useState<AudienceCandidate[]>([]);
+  const [audienceCandidates,setAudienceCandidates]=useState<AudienceCandidate[]>([]);
+  const [audienceSearchError,setAudienceSearchError]=useState(false);
   const [publishing, setPublishing] = useState(false);
+
+  useEffect(()=>{
+    const query=excludeQuery.trim();
+    if(!createOpen||audience==='PRIVATE'||query.length<2){
+      setAudienceCandidates([]);
+      setAudienceSearchError(false);
+      return;
+    }
+    let alive=true;
+    const timer=setTimeout(()=>{
+      void apiFetch<{users:AudienceCandidate[]}>(
+        '/stories/audience/candidates?q='+encodeURIComponent(query)
+      ).then(result=>{
+        if(alive){
+          setAudienceCandidates(Array.isArray(result.users)?result.users:[]);
+          setAudienceSearchError(false);
+        }
+      }).catch(()=>{
+        if(alive){setAudienceSearchError(true);setAudienceCandidates([]);}
+      });
+    },300);
+    return()=>{alive=false;clearTimeout(timer);};
+  },[createOpen,audience,excludeQuery]);
+
+  const toggleExcludedAccount=(person:AudienceCandidate)=>{
+    setExcludedAccounts(current=>current.some(x=>x.id===person.id)
+      ?current.filter(x=>x.id!==person.id)
+      :current.length>=200?current:[...current,person]);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -478,6 +513,7 @@ export function StoriesRail({
     let publishedId:string|null=null;
     try {
       const shared={audience,caption:value||undefined,durationHours:24,
+        excludeUserIds:audience==='PRIVATE'?[]:excludedAccounts.map(person=>person.id),
         allowReplies:true,allowReactions:true,allowSharing:true};
       if(storyType==='TEXT'){
         const story=await apiFetch<StoryCreateResult>('/stories',{
@@ -501,6 +537,8 @@ export function StoriesRail({
       }
       setCaption('');
       setStoryMedia([]);
+      setExcludedAccounts([]);
+      setExcludeQuery('');
       setStoryType('TEXT');
       setColorIndex(current=>(current+1+Math.floor(Math.random()*(STORY_TEXT_COLORS.length-1)))%
         STORY_TEXT_COLORS.length);
@@ -829,7 +867,7 @@ export function StoriesRail({
                       </Text>
                     </View>
                     {person.reaction?.reaction?<Text style={styles.viewerReaction}>
-                      {person.reaction.reaction}</Text>:null}
+                      {reactionGlyph(person.reaction.reaction)}</Text>:null}
                   </Pressable>)}
                   {viewerPage?.nextCursor?<Pressable onPress={()=>void loadMoreViewers()}
                     disabled={viewerLoadMore} accessibilityRole="button"
@@ -987,6 +1025,44 @@ export function StoriesRail({
                   );
                 })}
               </View>
+
+              {audience!=='PRIVATE'?<View style={styles.exclusions}>
+                <Text style={[styles.exclusionHeading,{color:colors.text}]}>
+                  Masquer cette story à certaines personnes
+                </Text>
+                <Text style={{color:colors.muted,fontSize:12}}>
+                  Les personnes exclues ne verront pas cette story, même avec un lien direct.
+                </Text>
+                <TextInput value={excludeQuery} onChangeText={setExcludeQuery}
+                  placeholder="Rechercher un compte ou @pseudo"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none" accessibilityLabel="Rechercher une personne à exclure"
+                  style={[styles.exclusionSearch,{color:colors.text,borderColor:colors.border,
+                    backgroundColor:colors.backgroundAccent}]}/>
+                {excludedAccounts.length?<View style={styles.exclusionCandidates}>
+                  {excludedAccounts.map(person=><Pressable key={person.id}
+                    accessibilityRole="button" accessibilityLabel={'Retirer '+person.displayName+' des exclusions'}
+                    onPress={()=>toggleExcludedAccount(person)}
+                    style={[styles.exclusionPerson,{borderColor:colors.accent}]}>
+                    <Text style={{color:colors.text}}>{person.displayName} ×</Text>
+                  </Pressable>)}
+                </View>:null}
+                {audienceSearchError?<Text style={{color:colors.danger,fontSize:12}}>
+                  Recherche impossible. Réessaie.
+                </Text>:null}
+                {excludeQuery.trim().length>=2?<View style={styles.exclusionCandidates}>
+                  {audienceCandidates.map(person=><Pressable key={person.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{checked:excludedAccounts.some(x=>x.id===person.id)}}
+                    onPress={()=>toggleExcludedAccount(person)}
+                    style={[styles.exclusionPerson,{borderColor:colors.border}]}>
+                    <Text style={{color:colors.text,fontSize:12}}>
+                      {excludedAccounts.some(x=>x.id===person.id)?'✓  ':'＋  '}
+                      {person.displayName}  @{person.username}
+                    </Text>
+                  </Pressable>)}
+                </View>:null}
+              </View>:null}
 
               <PressScale
                 disabled={publishing||(storyType==='TEXT'?!caption.trim():!storyMedia.length)}
@@ -1246,6 +1322,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700'
   },
+  exclusions:{gap:9,marginVertical:12},
+  exclusionHeading:{fontWeight:'800',fontSize:14},
+  exclusionSearch:{minHeight:44,borderWidth:1,borderRadius:12,paddingHorizontal:12,fontSize:14},
+  exclusionCandidates:{gap:7},
+  exclusionPerson:{borderWidth:1,borderRadius:12,paddingHorizontal:11,paddingVertical:12,
+    minHeight:44,justifyContent:'center'},
   storyColorPicker:{width:34,height:34,borderRadius:17,alignSelf:'flex-start',
     borderColor:'#fff',borderWidth:2,alignItems:'center',justifyContent:'center'},
   createBackdrop: {flex:1,justifyContent:'flex-start'},

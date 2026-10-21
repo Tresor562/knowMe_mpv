@@ -40,7 +40,20 @@ export class StoriesService {
       hasPremiumStories
     });
     const audience = dto.audience ?? 'FRIENDS';
-    if (audience === 'CUSTOM' && !dto.audienceUserIds?.length) {
+    const excluded = [...new Set(dto.excludeUserIds ?? [])];
+    if (excluded.includes(userId)) {
+      throw storyError('STORY_EXCLUDE_OWNER', 'You cannot exclude yourself.');
+    }
+    if (excluded.length) {
+      const count = await this.prisma.user.count({where: {id: {in: excluded}}});
+      if (count !== excluded.length) {
+        throw storyError('STORY_EXCLUDED_ACCOUNT_INVALID', 'An excluded account does not exist.');
+      }
+    }
+    // Explicit exclusions win over custom inclusion for every Story surface.
+    const customAllowed = [...new Set(dto.audienceUserIds ?? [])]
+      .filter(id => !excluded.includes(id));
+    if (audience === 'CUSTOM' && !customAllowed.length) {
       throw storyError('STORY_CUSTOM_AUDIENCE_REQUIRED', 'Select at least one person for a custom Story audience.');
     }
 
@@ -52,7 +65,8 @@ export class StoriesService {
     }
 
     const hashtags = [...new Set((dto.hashtags ?? []).map(normalizeStoryHashtag).filter(Boolean))];
-    const mentions = [...new Set(dto.mentionUserIds ?? [])];
+    const mentions = [...new Set(dto.mentionUserIds ?? [])]
+      .filter(targetUserId => !excluded.includes(targetUserId));
     if (mentions.length) {
       const validUsers = await this.prisma.user.count({ where: { id: { in: mentions } } });
       if (validUsers !== mentions.length) {
@@ -93,12 +107,18 @@ export class StoriesService {
         }
       });
 
-      if (audience === 'CUSTOM' && dto.audienceUserIds?.length) {
+      if (audience === 'CUSTOM' && customAllowed.length) {
         await tx.storyAudienceGrant.createMany({
-          data: [...new Set(dto.audienceUserIds)].map((targetUserId) => ({
-            storyId: created.id,
-            targetUserId,
-            allowed: true
+          data: customAllowed.map(targetUserId => ({
+            storyId: created.id, targetUserId, allowed: true
+          })),
+          skipDuplicates: true
+        });
+      }
+      if (excluded.length) {
+        await tx.storyAudienceGrant.createMany({
+          data: excluded.map(targetUserId => ({
+            storyId: created.id, targetUserId, allowed: false
           })),
           skipDuplicates: true
         });
@@ -179,6 +199,58 @@ export class StoriesService {
   }
 
 
+  /** Public account lookup for the native/web excluded-Story audience picker. */
+  async audienceCandidates(userId: string, query: string) {
+    const q = query.trim();
+    if (q.length < 2 || q.length > 48) return { users: [] };
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: userId },
+        OR: [
+          { username: { contains: q, mode: 'insensitive' } },
+          { displayName: { contains: q, mode: 'insensitive' } }
+        ]
+      },
+      select: { id: true, username: true, displayName: true, avatarUrl: true },
+      orderBy: { username: 'asc' },
+      take: 20
+    });
+    return { users };
+  }
+
+  /**
+   * Page only the current viewer's visible Stories from one creator.
+   * Reuses the feed ACL, so private/friends/custom audiences never leak.
+   */
+  async visibleByAuthor(viewerId:string,username:string,cursor?:string){
+    await this.expireDue();
+    const author=await this.prisma.user.findUnique({
+      where:{username},select:{id:true}
+    });
+    if(!author)throw new NotFoundException({
+      code:'STORY_PROFILE_NOT_FOUND',message:'Profile not found.'
+    });
+    const acl=await this.storyFeedWhere(viewerId,new Date());
+    const where:Prisma.StoryWhereInput={AND:[acl,{authorUserId:author.id}]};
+    if(cursor){
+      const permitted=await this.prisma.story.findFirst({
+        where:{AND:[where,{id:cursor}]},select:{id:true}
+      });
+      if(!permitted)throw new BadRequestException({
+        code:'STORY_SEQUENCE_CURSOR_INVALID',message:'Invalid Story cursor.'
+      });
+    }
+    const rows=await this.prisma.story.findMany({
+      where,orderBy:[{createdAt:'desc'},{id:'desc'}],take:21,
+      ...(cursor?{cursor:{id:cursor},skip:1}:{})
+    });
+    const page=rows.slice(0,20);
+    return {
+      stories:await Promise.all(page.map(story=>this.serialize(story,viewerId))),
+      nextCursor:rows.length>20?page[page.length-1]?.id??null:null
+    };
+  }
+
   /**
    * Story rail is paginated by author, not by Story. Counts include all
    * published, unexpired Stories visible to this viewer, including those
@@ -242,7 +314,7 @@ export class StoriesService {
   }
 
   private async storyFeedWhere(userId: string, now: Date): Promise<Prisma.StoryWhereInput> {
-    const [friendships, follows, grants] = await Promise.all([
+    const [friendships, follows, grants, exclusions] = await Promise.all([
       this.prisma.friendship.findMany({
         where: {
           status: 'ACCEPTED',
@@ -257,6 +329,10 @@ export class StoriesService {
       this.prisma.storyAudienceGrant.findMany({
         where: { targetUserId: userId, allowed: true },
         select: { storyId: true }
+      }),
+      this.prisma.storyAudienceGrant.findMany({
+        where: { targetUserId: userId, allowed: false },
+        select: { storyId: true }
       })
     ]);
     const friendIds = friendships.map((item) =>
@@ -264,6 +340,7 @@ export class StoriesService {
     );
     const followedIds = follows.map((item) => item.creatorId);
     const customStoryIds = grants.map((item) => item.storyId);
+    const excludedStoryIds = exclusions.map((item) => item.storyId);
     return {
       status: 'PUBLISHED',
       startsAt: { lte: now },
@@ -276,7 +353,7 @@ export class StoriesService {
           { audience: 'FOLLOWERS', authorUserId: { in: followedIds } },
           { audience: 'CUSTOM', id: { in: customStoryIds } }
         ]
-      }]
+      }, { id: { notIn: excludedStoryIds } }]
     };
   }
 
@@ -299,9 +376,17 @@ export class StoriesService {
       orderBy: [{ pinnedAt: 'desc' }, { createdAt: 'desc' }],
       take: 100
     });
+    // This public, unauthenticated profile endpoint cannot tell which viewer
+    // has been excluded. Hide excluded-audience Stories for everybody here;
+    // authenticated rails and direct reads continue to serve allowed viewers.
+    const denied = stories.length ? await this.prisma.storyAudienceGrant.findMany({
+      where: {storyId: {in: stories.map(story => story.id)}, allowed: false},
+      select: {storyId: true}
+    }) : [];
+    const hidden = new Set(denied.map(item => item.storyId));
     return {
       profile: { id:user.id, username:user.username, displayName:user.displayName, avatarUrl:user.avatarUrl, verification:toVerificationBadge(user.verificationRequests) },
-      stories: await Promise.all(stories.map((story) => this.serialize(story, null)))
+      stories: await Promise.all(stories.filter(story => !hidden.has(story.id)).map(story => this.serialize(story, null)))
     };
   }
 
@@ -460,6 +545,15 @@ export class StoriesService {
       })
       : [];
     const userMap = new Map(users.map((user) => [user.id, user]));
+    const viewerReactions = views.length
+      ? await this.prisma.storyReaction.findMany({
+          where: {storyId, userId: {in: views.map(view => view.viewerUserId)}},
+          select: {userId: true, reaction: true, customEmojiId: true}
+        })
+      : [];
+    const reactionByViewer = new Map(viewerReactions.map(item => [item.userId, {
+      reaction: item.reaction, customEmojiId: item.customEmojiId
+    }]));
     const uniqueViewers = totals._count._all;
     return {
       uniqueViewers,
@@ -476,6 +570,7 @@ export class StoriesService {
         const u = userMap.get(view.viewerUserId);
         return {
           ...view,
+          reaction: reactionByViewer.get(view.viewerUserId) ?? null,
           user: u
             ? {
               id: u.id, username: u.username, displayName: u.displayName,
@@ -569,6 +664,14 @@ export class StoriesService {
       throw new NotFoundException({ code: 'STORY_NOT_FOUND', message: 'Story not found.' });
     }
     if (story.authorUserId === viewerId) return story;
+    const grant = await this.prisma.storyAudienceGrant.findUnique({
+      where: { storyId_targetUserId: { storyId, targetUserId: viewerId } }
+    });
+    if (grant?.allowed === false) {
+      throw new ForbiddenException({
+        code: 'STORY_AUDIENCE_DENIED', message: 'This Story is not available to you.'
+      });
+    }
     const now = new Date();
     if (story.startsAt > now || (story.expiresAt && story.expiresAt <= now && !story.pinnedAt)) {
       throw new NotFoundException({ code: 'STORY_NOT_FOUND', message: 'Story not found.' });
@@ -576,9 +679,6 @@ export class StoriesService {
     if (story.audience === 'PUBLIC') return story;
     if (story.audience === 'PRIVATE') throw new ForbiddenException({ code: 'STORY_AUDIENCE_DENIED', message: 'This Story is private.' });
     if (story.audience === 'CUSTOM' || story.audience === 'BEST_FRIENDS') {
-      const grant = await this.prisma.storyAudienceGrant.findUnique({
-        where: { storyId_targetUserId: { storyId, targetUserId: viewerId } }
-      });
       if (grant?.allowed) return story;
       throw new ForbiddenException({ code: 'STORY_AUDIENCE_DENIED', message: 'This Story is not available to you.' });
     }
