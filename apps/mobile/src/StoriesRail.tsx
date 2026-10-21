@@ -247,7 +247,7 @@ export function StoriesRail({
     if (!initialStoryId) return;
     let active = true;
     void apiFetch<Story>(`/stories/${encodeURIComponent(initialStoryId)}`)
-      .then(story => { if (active) void openStory(story); })
+      .then(story => { if (active) void openStory(story,true,false); })
       .catch(() => { if (active) setMediaError('Story inaccessible ou expirée.'); });
     return () => { active = false; };
   }, [initialStoryId]);
@@ -347,10 +347,11 @@ export function StoriesRail({
     sequenceLoading.current=false;
     pendingStep.current=null;
     playbackRef.current=[];setPlaybackSequence([]);
+    activeStoryId.current=null;
     setInsightsOpen(false);setViewerMenuOpen(false);setSelected(null);
   }
 
-  async function prepareSequence(opened:Story) {
+  async function prepareSequence(opened:Story,fromFirst:boolean) {
     const request=++sequenceRequest.current;
     sequenceLoading.current=true;
     const collected:Story[]=[];
@@ -375,10 +376,8 @@ export function StoriesRail({
       playbackRef.current=sequence.length?sequence:[opened];
       setPlaybackSequence(playbackRef.current);
       sequenceLoading.current=false;
-      if(pendingStep.current!==null){
-        const direction=pendingStep.current;pendingStep.current=null;
-        navigateStep(direction);
-      }
+      const first=fromFirst?storySegments(playbackRef.current,opened)[0]??opened:opened;
+      void openStory(first,false);
     }
   }
 
@@ -419,7 +418,15 @@ export function StoriesRail({
     return()=>clearInterval(tick);
   },[selected?.id,selected?.type,selectedPhotoUri,mediaError,insightsOpen,storyPaused]);
 
-  async function openStory(story: Story, buildSequence=true) {
+  async function openStory(story: Story, buildSequence=true, fromFirst=true) {
+    if(buildSequence){
+      // Wait for the actual author's first visible Story before recording a view.
+      // Do not briefly open/mark the author's newest Story as seen by mistake.
+      closeViewer();
+      sequenceLoading.current=true;
+      void prepareSequence(story,fromFirst);
+      return;
+    }
     activeStoryId.current=story.id;
     lastProgressMilestone.current=0;
     textElapsed.current=0;
@@ -427,10 +434,6 @@ export function StoriesRail({
     setSelectedPhotoUri(null);setSelectedVideoUri(null);setMediaError('');
     setInsightsOpen(false);setViewerMenuOpen(false);setStoryPaused(false);setReplyText('');
     setSelected(story);
-    if(buildSequence){
-      playbackRef.current=[story];setPlaybackSequence([story]);
-      void prepareSequence(story);
-    }
     if(story.viewer.own)return;
     await enqueueStoryReceipt(story.id,0);
   }
@@ -511,7 +514,7 @@ export function StoriesRail({
     await load();
     try{
       const fresh=await apiFetch<Story>('/stories/'+publishedId);
-      void openStory(fresh);
+      void openStory(fresh,true,false);
     }catch{/* Already published; refresh may be temporarily unavailable. */}
   }
 
