@@ -1,0 +1,314 @@
+/*
+ * KnowMe expressive icon motion. Every family has semantic rules.
+ * CSS handles cheap transform/opacity; the caller supplies actual state.
+ */
+.km-state-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  isolation: isolate;
+  color: inherit;
+}
+.km-state-icon > svg:first-child {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform-origin: center;
+  transition: color 140ms ease, fill 140ms ease, transform 140ms ease;
+}
+.km-state-icon--heart[data-icon-state='selected'] { color: #ef3340; }
+/* The model replaces the open plus with a real close glyph. No transform
+   dependency: reduced-motion users still see the correct menu state. */
+.km-state-icon--heart[data-icon-state='idle'][data-icon-burst] > svg:first-child,
+.km-state-icon--heart[data-icon-state='unselected'][data-icon-burst] > svg:first-child {
+  animation: km-icon-heart-release 220ms ease-out both;
+}
+
+.km-state-icon--bookmark[data-icon-state='selected'] { color: var(--mint); }
+.km-state-icon[data-icon-state='error'] { color: var(--danger); }
+.km-state-icon[data-icon-state='success'] { color: var(--mint); }
+.km-state-icon-progress {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: stroke-dashoffset 140ms linear;
+}
+.km-state-icon[data-icon-burst] > svg:first-child {
+  /* Safe baseline for every glyph, including rarely used icon variants.
+     More specific semantic families below override this on real events. */
+  animation-name: km-icon-focus;
+  animation-duration: 290ms;
+  animation-timing-function: cubic-bezier(.16,.82,.22,1);
+  animation-iteration-count: 1;
+}
+/* Exhaustive 79-glyph semantic family. Specific glyph rules below win on
+   equal specificity, retaining heart, bell, media and network nuances.
+   These run ONLY on a real event token/state transition, never at rest. */
+[data-motion-role='navigation'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-direction;
+}
+[data-motion-role='communication'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-dialog-pop;
+}
+[data-motion-role='media'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+[data-motion-role='social'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-heart-pop;
+}
+[data-motion-role='transfer'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-stack;
+}
+[data-motion-role='security'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-focus;
+}
+[data-motion-role='reward'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gift-pop;
+}
+[data-motion-role='utility'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+.km-state-icon--heart[data-icon-state='selected'][data-icon-burst] > svg:first-child,
+.km-state-icon--bookmark[data-icon-state='selected'][data-icon-burst] > svg:first-child {
+  animation-name: km-icon-heart-pop;
+  animation-timing-function: cubic-bezier(.2,1.3,.35,1);
+}
+.km-state-icon--send[data-icon-burst] > svg:first-child,
+.km-state-icon--share[data-icon-burst] > svg:first-child,
+.km-state-icon--upload[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-flight;
+}
+.km-state-icon--comment[data-icon-burst] > svg:first-child,
+.km-state-icon--chats[data-icon-burst] > svg:first-child,
+.km-state-icon--create[data-icon-burst] > svg:first-child,
+.km-state-icon--story[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-dialog-pop;
+}
+.km-state-icon--settings[data-icon-burst] > svg:first-child,
+.km-state-icon--refresh[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gear-turn;
+}
+.km-state-icon--notifications[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-bell-ring;
+  transform-origin: 50% 18%;
+}
+.km-state-icon--search[data-icon-burst] > svg:first-child,
+.km-state-icon--home[data-icon-burst] > svg:first-child,
+.km-state-icon--profile[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+.km-state-icon--back[data-icon-burst] > svg:first-child,
+.km-state-icon--forward[data-icon-burst] > svg:first-child,
+.km-state-icon--rewind-10[data-icon-burst] > svg:first-child,
+.km-state-icon--forward-10[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-direction;
+}
+.km-state-icon--fullscreen[data-icon-burst] > svg:first-child,
+.km-state-icon--fullscreen-exit[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+.km-state-icon--play[data-icon-burst] > svg:first-child,
+.km-state-icon--pause[data-icon-burst] > svg:first-child,
+.km-state-icon--microphone[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+.km-state-icon--trash[data-icon-burst] > svg:first-child,
+.km-state-icon--close[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-exit;
+}
+.km-state-icon--wifi[data-icon-burst] > svg:first-child,
+.km-state-icon--wifi-off[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-network-change;
+}
+.km-state-icon--download[data-icon-burst] > svg:first-child,
+.km-state-icon--check[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-download-settle;
+}
+/* Domain-specific micro-feedback. No loop is enabled for an idle icon. */
+.km-state-icon--copy[data-icon-burst] > svg:first-child,
+.km-state-icon--archive[data-icon-burst] > svg:first-child,
+.km-state-icon--folder[data-icon-burst] > svg:first-child,
+.km-state-icon--file[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-stack;
+}
+.km-state-icon--reply[data-icon-burst] > svg:first-child,
+.km-state-icon--pin[data-icon-burst] > svg:first-child,
+.km-state-icon--logout[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-slide-return;
+}
+.km-state-icon--gift[data-icon-burst] > svg:first-child,
+.km-state-icon--star[data-icon-burst] > svg:first-child,
+.km-state-icon--verified[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-gift-pop;
+}
+.km-state-icon--shield[data-icon-burst] > svg:first-child,
+.km-state-icon--check-circle[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-confirm-focus;
+}
+.km-state-icon--volume[data-icon-burst] > svg:first-child,
+.km-state-icon--volume-off[data-icon-burst] > svg:first-child,
+.km-state-icon--headphones[data-icon-burst] > svg:first-child,
+.km-state-icon--music[data-icon-burst] > svg:first-child,
+.km-state-icon--stop[data-icon-burst] > svg:first-child,
+.km-state-icon--call-end[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-media-transition;
+}
+.km-state-icon--filter[data-icon-burst] > svg:first-child,
+.km-state-icon--sort[data-icon-burst] > svg:first-child,
+.km-state-icon--translate[data-icon-burst] > svg:first-child {
+  animation-name: km-icon-focus;
+}
+@keyframes km-icon-stack {
+  0%{transform:translateY(-2px) scale(.94);opacity:.75}
+  65%{transform:translateY(1px) scale(1.04)}
+  100%{transform:translateY(0) scale(1);opacity:1}
+}
+@keyframes km-icon-slide-return {
+  0%{transform:translateX(-3px);opacity:.66}
+  65%{transform:translateX(1px);opacity:1}
+  100%{transform:translateX(0)}
+}
+@keyframes km-icon-gift-pop {
+  0%{transform:scale(.82)}
+  55%{transform:scale(1.13)}
+  100%{transform:scale(1)}
+}
+@keyframes km-icon-confirm-focus {
+  0%{transform:scale(.95);opacity:.7}
+  100%{transform:scale(1);opacity:1}
+}
+
+/* Generic *active task* fallback for icons not mapped to a more specific
+   spinner. Low :where specificity preserves explicit refresh/gear movement. */
+:where(.km-state-icon[data-auto-motion='true'][data-icon-state='loading']) > svg:first-child,
+:where(.km-state-icon[data-auto-motion='true'][data-icon-state='syncing']) > svg:first-child {
+  animation: km-icon-pending 950ms ease-in-out infinite alternate;
+}
+
+/* Continuous animation is legal ONLY for an active task state. */
+.km-state-icon--refresh[data-icon-state='loading'] > svg:first-child,
+.km-state-icon--settings[data-icon-state='loading'] > svg:first-child {
+  animation: km-icon-spin 900ms linear infinite;
+}
+.km-state-icon--microphone[data-icon-state='recording'] > svg:first-child {
+  animation: km-icon-record-live 950ms ease-in-out infinite alternate;
+}
+.km-state-icon--play[data-icon-state='playing'] > svg:first-child,
+.km-state-icon--pause[data-icon-state='playing'] > svg:first-child {
+  animation: km-icon-audio-live 1100ms ease-in-out infinite alternate;
+}
+.km-state-icon--notifications[data-icon-state='incoming'] > svg:first-child {
+  animation: km-icon-bell-ring 350ms ease-in-out 2;
+}
+@keyframes km-icon-heart-release { 0%{transform:scale(1.13)} 60%{transform:scale(.88)} 100%{transform:scale(1)} }
+@keyframes km-icon-heart-pop { 0%{transform:scale(.85)} 55%{transform:scale(1.22)} 100%{transform:scale(1)} }
+@keyframes km-icon-flight { 0%{transform:translate(0,0) scale(.93);opacity:.76} 55%{transform:translate(2px,-2px) scale(1.07)} 100%{transform:translate(0,0) scale(1);opacity:1} }
+@keyframes km-icon-dialog-pop { 0%{transform:scale(.92)} 62%{transform:scale(1.09)} 100%{transform:scale(1)} }
+@keyframes km-icon-gear-turn { 0%{transform:rotate(-19deg)} 100%{transform:rotate(0)} }
+@keyframes km-icon-bell-ring { 0%,100%{transform:rotate(0)} 28%{transform:rotate(-16deg)} 65%{transform:rotate(11deg)} }
+@keyframes km-icon-focus { 0%{transform:scale(.93);opacity:.8} 100%{transform:scale(1);opacity:1} }
+@keyframes km-icon-direction { 0%{transform:translateX(-2px);opacity:.7} 100%{transform:translateX(0);opacity:1} }
+@keyframes km-icon-media-transition { 0%{transform:scale(.88)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
+@keyframes km-icon-confirm-exit { 0%{transform:scale(.93);opacity:.7} 100%{transform:scale(1);opacity:1} }
+@keyframes km-icon-download-settle { 0%{transform:translateY(-2px);opacity:.7} 100%{transform:translateY(0);opacity:1} }
+@keyframes km-icon-network-change { 0%{transform:translateY(2px) scale(.93);opacity:.55} 100%{transform:translateY(0) scale(1);opacity:1} }
+@keyframes km-icon-spin { to { transform:rotate(360deg) } }
+@keyframes km-icon-record-live { from{transform:scale(.94);opacity:.65} to{transform:scale(1.06);opacity:1} }
+@keyframes km-icon-audio-live { from{transform:scale(.98);opacity:.75} to{transform:scale(1.035);opacity:1} }
+
+/* Status-specific overlays live only while the backend/caller says so. */
+.km-state-icon-typing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.km-state-icon-typing circle {
+  fill: currentColor;
+  stroke: none;
+  animation: km-icon-typing-dot 850ms ease-in-out infinite alternate;
+}
+.km-state-icon-typing circle:nth-child(2) { animation-delay: 125ms; }
+.km-state-icon-typing circle:nth-child(3) { animation-delay: 250ms; }
+.km-state-icon-live-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  right: -1px;
+  top: -1px;
+  border-radius: 50%;
+  background: #f2404f;
+  border: 1px solid var(--surface);
+  animation: km-icon-live-status 1400ms ease-in-out infinite alternate;
+}
+.km-state-icon--refresh[data-icon-state='syncing'] > svg:first-child {
+  animation: km-icon-spin 1100ms linear infinite;
+}
+.km-state-icon--phone[data-icon-state='call-active'] > svg:first-child,
+.km-state-icon--video[data-icon-state='call-active'] > svg:first-child {
+  animation: km-icon-call-live 1150ms ease-in-out infinite alternate;
+}
+.km-state-icon--send[data-icon-state='sending'] > svg:first-child {
+  animation: km-icon-send-wait 1250ms ease-in-out infinite alternate;
+}
+/* The share sheet uses real request state for post/story, and the conversation
+   picker reflects the real GET loading state. No animation while idle. */
+.km-state-icon--home[data-icon-state='sending'] > svg:first-child,
+.km-state-icon--story[data-icon-state='sending'] > svg:first-child {
+  animation: km-icon-send-wait 1250ms ease-in-out infinite alternate;
+}
+.km-state-icon--chats[data-icon-state='loading'] > svg:first-child,
+.km-state-icon--group[data-icon-state='loading'] > svg:first-child {
+  animation: km-icon-pending 950ms ease-in-out infinite alternate;
+}
+@keyframes km-icon-pending {
+  from { opacity:.56; transform:scale(.965); }
+  to { opacity:1; transform:scale(1.03); }
+}
+
+@keyframes km-icon-typing-dot { from{opacity:.35;transform:translateY(1px)} to{opacity:1;transform:translateY(-1px)} }
+@keyframes km-icon-live-status { from{opacity:.58;transform:scale(.93)} to{opacity:1;transform:scale(1.15)} }
+@keyframes km-icon-call-live { from{opacity:.68;transform:scale(.97)} to{opacity:1;transform:scale(1.04)} }
+@keyframes km-icon-send-wait { from{opacity:.74;transform:translate(0,0)} to{opacity:1;transform:translate(1px,-1px)} }
+
+/* Data-driven animations are always optional, not a UI requirement to operate. */
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon svg { animation: none !important; transition: none !important; transform: none !important; }
+}
+:root[data-animations='false'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
+
+:root[data-animated-icons='false'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
+:root[data-effective-reduced-motion='true'] .km-state-icon svg {
+  animation: none !important; transition: none !important; transform: none !important;
+}
+
+/* Cover state-owned overlays as well as the SVG paths. */
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon-live-dot { animation: none !important; }
+}
+:root[data-animations='false'] .km-state-icon-live-dot,
+:root[data-animated-icons='false'] .km-state-icon-live-dot,
+:root[data-effective-reduced-motion='true'] .km-state-icon-live-dot {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .km-state-icon-typing circle { animation: none !important; }
+}
+:root[data-animated-icons='false'] .km-state-icon-typing circle,
+:root[data-effective-reduced-motion='true'] .km-state-icon-typing circle {
+  animation: none !important;
+}
+
+/* Prevent background-tab CPU/GPU motion. Resume only when visible again. */
+.km-state-icon[data-page-visible='false'] svg,
+.km-state-icon[data-page-visible='false'] .km-state-icon-live-dot {
+  animation: none !important;
+  transition: none !important;
+}
