@@ -26,7 +26,7 @@ describe('StoryReplyDirectService',()=>{
         findFirst:jest.fn().mockResolvedValue({id:'direct-conversation'}),
         upsert:jest.fn().mockResolvedValue({id:'stable'})
       },
-      $transaction:jest.fn(async(fn:(tx:typeof tx)=>Promise<unknown>)=>fn(tx))
+      $transaction:jest.fn(async(fn:(db:typeof tx)=>Promise<unknown>)=>fn(tx))
     };
     const notifications={createMany:jest.fn().mockResolvedValue([])};
     const realtime={
