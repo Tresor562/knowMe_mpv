@@ -49,7 +49,11 @@ describe('SavedPost private account operations', () => {
     expect(prisma.savedPost.findMany).toHaveBeenCalledWith({
       where:{userId:'u2'},take:40,
       orderBy:[{createdAt:'desc'},{id:'desc'}],
-      select:{postId:true,createdAt:true}
+      include:{post:{include:{
+        author:{select:expect.any(Object)},
+        _count:{select:{likes:true,comments:true}},
+        media:{orderBy:{position:'asc'}}
+      }}}
     });
   });
 });
