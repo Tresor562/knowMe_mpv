@@ -175,48 +175,49 @@ export function PostActionBar({
           ))}
         </div>
       )}
+      <div className="km-post-action-totals">
+        <span aria-label={en ? 'Total likes' : 'Total des mentions J’aime'}>❤️ {likeCount}</span>
+        <span>{commentCount} {en ? 'comments' : 'commentaires'}</span>
+      </div>
       <div className="km-post-action-bar" role="group"
         aria-label={en ? 'Publication actions' : 'Actions de la publication'}>
-        <div className="km-post-reaction-trigger">
-          <button type="button" className="km-post-action km-post-heart"
-            disabled={!online || busy || !canToggle} aria-pressed={heartActive}
-            aria-label={heartActive
-              ? (en ? 'Remove my reaction' : 'Retirer ma réaction')
-              : (en ? 'React to publication' : 'Réagir à la publication')}
-            onPointerDown={onHeartPointerDown} onPointerMove={onHeartPointerMove}
-            onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress}
-            onPointerUp={cancelLongPress}
-            onContextMenu={event => { event.preventDefault(); openPicker(); }}
-            onClick={heartTap}>
-            {selectedReaction && selectedReaction !== '❤️'
-              ? <span className="km-post-selected-emoji" aria-hidden="true">{selectedReaction}</span>
-              : <Icon name="heart" active={heartIsSelected}/>}
-            {!heartActive && <span className="km-post-action-label">{en ? 'React' : 'Réagir'}</span>}
-            <span className="km-post-action-count">{likeCount}</span>
-          </button>
-          <button type="button" ref={pickerButton} className="km-post-reaction-more"
-            disabled={!online || busy} onClick={openPicker}
-            aria-haspopup="dialog" aria-expanded={pickerOpen}
-            aria-label={en ? 'Choose reaction' : 'Choisir une réaction'}>
-            <Icon name="chevron"/>
-          </button>
-        </div>
+        <button type="button" className="km-post-action km-post-heart"
+          disabled={!online || busy || !canToggle} aria-pressed={heartActive}
+          aria-label={heartActive
+            ? (en ? 'Remove my reaction' : 'Retirer ma réaction')
+            : (en ? 'Like publication' : 'J’aime la publication')}
+          aria-haspopup="dialog"
+          onPointerDown={onHeartPointerDown} onPointerMove={onHeartPointerMove}
+          onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress}
+          onPointerUp={cancelLongPress}
+          onKeyDown={event => { if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') { event.preventDefault(); openPicker(); } }}
+          onContextMenu={event => { event.preventDefault(); openPicker(); }}
+          onClick={heartTap}>
+          {selectedReaction && selectedReaction !== '❤️'
+            ? <span className="km-post-selected-emoji" aria-hidden="true">{selectedReaction}</span>
+            : <Icon name="heart" active={heartIsSelected}/>}
+          <span className="km-post-action-label">{selectedReaction && selectedReaction !== '❤️'
+            ? selectedReaction : (en ? 'Like' : 'J’aime')}</span>
+        </button>
         <button type="button" className="km-post-action" onClick={onComments}
-          aria-label={en ? 'View comments' : 'Voir les commentaires'}>
-          <Icon name="comment"/><span className="km-post-action-count">{commentCount}</span>
+          aria-label={en ? 'View comments' : 'Commenter la publication'}>
+          <Icon name="comment"/><span className="km-post-action-label">{en ? 'Comment' : 'Commenter'}</span>
         </button>
         <button type="button" className="km-post-action" onClick={onShare}
           aria-label={en ? 'Share publication' : 'Partager la publication'}>
           <Icon name="share"/><span className="km-post-action-label">{en ? 'Share' : 'Partager'}</span>
         </button>
-        {onSave && (
-          <button type="button" className="km-post-action km-post-save" disabled={!online || busy}
-            aria-label={saved ? (en ? 'Remove from saved' : 'Retirer des favoris')
-              : (en ? 'Save publication' : 'Enregistrer la publication')}
-            aria-pressed={saved} onClick={() => void execute(onSave)}>
-            <Icon name="bookmark" active={saved}/>
-          </button>
-        )}
+        <button type="button" className="km-post-action km-post-save"
+          disabled={!onSave || !online || busy}
+          title={!onSave ? (en ? 'Saving is not available on the server yet' : 'Enregistrement indisponible sur le serveur pour le moment') : undefined}
+          aria-label={!onSave ? (en ? 'Saving is currently unavailable' : 'Enregistrement actuellement indisponible')
+            : saved ? (en ? 'Remove from saved' : 'Retirer des favoris')
+            : (en ? 'Save publication' : 'Enregistrer la publication')}
+          aria-pressed={saved} onClick={() => { if (onSave) void execute(onSave); }}>
+          <Icon name="bookmark" active={saved}/>
+          <span className="km-post-action-label">{saved ? (en ? 'Saved' : 'Enregistré')
+            : (en ? 'Save' : 'Enregistrer')}</span>
+        </button>
       </div>
       {error && !pickerOpen && <p role="alert" className="km-post-action-error">{error}</p>}
       {pickerOpen && (
