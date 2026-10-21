@@ -2,11 +2,14 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { apiFetch } from './api';
+import { useEffect } from 'react';
 import { FAVORITE_POST_REACTIONS, isValidPostEmojiReaction } from './post-reaction-selection-model';
 
 /** The API adapters are deliberately required. A reaction is never claimed saved locally. */
 export type NativePostActionBarProps = {
   postId: string;
+  userId?: string;
   en?: boolean;
   likeCount: number;
   commentCount: number;
@@ -24,6 +27,13 @@ export type NativePostActionBarProps = {
 };
 
 
+let savingCapability: Promise<boolean>|null=null;
+function isPostSavingAvailable() {
+  savingCapability ??= apiFetch<unknown>('/posts/saved').then(Array.isArray).catch(()=>false);
+  return savingCapability;
+}
+type RemoteSave={postId:string;userId:string;saved:boolean};
+
 function BookmarkIcon({color, filled}: {color: string; filled: boolean}) {
   return <View style={{width:21,height:23,alignItems:'center',justifyContent:'flex-start'}}>
     <View style={{width:17,height:17,borderTopWidth:1.8,borderLeftWidth:1.8,
@@ -36,7 +46,7 @@ function BookmarkIcon({color, filled}: {color: string; filled: boolean}) {
 }
 
 export function PostActionBar({
-  postId, en = false, likeCount, commentCount, selectedReaction = null,
+  postId, userId, en = false, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true, onHeart,
   onReact, onRemoveReaction, onComments, onShare, onSave
 }: NativePostActionBarProps) {
@@ -45,6 +55,31 @@ export function PostActionBar({
   const [more, setMore] = useState(false);
   const [custom, setCustom] = useState('');
   const [busy, setBusy] = useState(false);
+  const [remoteSave,setRemoteSave]=useState<RemoteSave|null>(null);
+  const actor=useRef(userId);
+  actor.current=userId;
+  useEffect(()=>{
+    let active=true;
+    setRemoteSave(null);
+    if(onSave||!userId||!online)return()=>{active=false;};
+    void isPostSavingAvailable().then(async supported=>{
+      if(!supported||!active)return;
+      const status=await apiFetch<{saved:boolean}>(`/posts/${encodeURIComponent(postId)}/saved`);
+      if(active&&typeof status.saved==='boolean')setRemoteSave({postId,userId,saved:status.saved});
+    }).catch(()=>{/* Offline/unsupported stays unknown and disabled. */});
+    return()=>{active=false;};
+  },[postId,userId,online,onSave]);
+  const remoteReady=!!userId&&remoteSave?.postId===postId&&remoteSave?.userId===userId;
+  const displayedSaved=onSave?saved:remoteReady&&remoteSave?.saved===true;
+  async function persistSave(){
+    if(!remoteReady||!remoteSave||!userId)throw new Error(en?'Saving unavailable.':'Enregistrement indisponible.');
+    const result=await apiFetch<{saved:boolean}>(`/posts/${encodeURIComponent(postId)}/save`,{
+      method:remoteSave.saved?'DELETE':'POST'
+    });
+    if(actor.current===userId&&typeof result.saved==='boolean')
+      setRemoteSave({postId,userId,saved:result.saved});
+  }
+  const saveAction=onSave??(remoteReady?persistSave:undefined);
   const [error, setError] = useState('');
   const wasLongPress = useRef(false);
   const inFlight = useRef(false);
@@ -135,15 +170,15 @@ export function PostActionBar({
         <Text numberOfLines={1} style={[styles.label,{color:colors.muted}]}>{en?'Share':'Partager'}</Text>
       </Pressable>
       <Pressable accessibilityRole="button"
-        accessibilityLabel={!onSave ? (en?'Saving currently unavailable':'Enregistrement actuellement indisponible')
-          : saved ? (en?'Remove from saved':'Retirer des favoris')
+        accessibilityLabel={!saveAction ? (en?'Saving currently unavailable':'Enregistrement actuellement indisponible')
+          : displayedSaved ? (en?'Remove from saved':'Retirer des favoris')
           : (en?'Save publication':'Enregistrer la publication')}
-        accessibilityState={{selected:saved,disabled:busy||!online||!onSave}}
-        disabled={busy||!online||!onSave} onPress={()=>{if(onSave)void action(onSave);}}
+        accessibilityState={{selected:displayedSaved,disabled:busy||!online||!saveAction}}
+        disabled={busy||!online||!saveAction} onPress={()=>{if(saveAction)void action(saveAction);}}
         style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-        <BookmarkIcon color={saved?colors.accent:colors.muted} filled={saved}/>
-        <Text numberOfLines={1} style={[styles.label,{color:saved?colors.accent:colors.muted}]}>
-          {saved?(en?'Saved':'Enregistré'):(en?'Save':'Enregistrer')}
+        <BookmarkIcon color={displayedSaved?colors.accent:colors.muted} filled={displayedSaved}/>
+        <Text numberOfLines={1} style={[styles.label,{color:displayedSaved?colors.accent:colors.muted}]}>
+          {displayedSaved?(en?'Saved':'Enregistré'):(en?'Save':'Enregistrer')}
         </Text>
       </Pressable>
     </View>
