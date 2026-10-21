@@ -357,11 +357,11 @@ export function StoriesRail({
     const visited=new Set<string>();
     try{
       for(let page=0;page<15;page++){
-        const query=cursor?'?cursor='+encodeURIComponent(cursor):'';
-        const feed=await apiFetch<StoryFeedResponse>('/stories/feed'+query);
+        const query:string=cursor?'?cursor='+encodeURIComponent(cursor):'';
+        const feed:StoryFeedResponse=await apiFetch<StoryFeedResponse>('/stories/feed'+query);
         if(!Array.isArray(feed.stories))break;
         collected.push(...feed.stories);
-        const next=feed.nextCursor;
+        const next:string|null=feed.nextCursor;
         if(!next||visited.has(next))break;
         visited.add(next);cursor=next;
       }
