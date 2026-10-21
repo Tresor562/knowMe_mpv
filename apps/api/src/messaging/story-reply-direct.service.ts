@@ -24,6 +24,17 @@ export class StoryReplyDirectService {
     private readonly realtime:RealtimeGateway
   ) {}
 
+  async assertCanDeliver(senderId:string,authorId:string){
+    if(senderId===authorId)throw new ForbiddenException('Réponse à la Story invalide.');
+    const blocked=await this.prisma.friendship.findFirst({
+      where:{status:'BLOCKED',OR:[
+        {requesterId:senderId,addresseeId:authorId},
+        {requesterId:authorId,addresseeId:senderId}
+      ]},select:{id:true}
+    });
+    if(blocked)throw new ForbiddenException('Cette conversation est bloquée.');
+  }
+
   async deliver(input:{
     senderId:string;authorId:string;storyId:string;
     replyId:string;content:string;
@@ -35,13 +46,7 @@ export class StoryReplyDirectService {
         !content.trim()) {
       throw new ForbiddenException('Réponse à la Story invalide.');
     }
-    const blocked=await this.prisma.friendship.findFirst({
-      where:{status:'BLOCKED',OR:[
-        {requesterId:senderId,addresseeId:authorId},
-        {requesterId:authorId,addresseeId:senderId}
-      ]},select:{id:true}
-    });
-    if (blocked) throw new ForbiddenException('Cette conversation est bloquée.');
+    await this.assertCanDeliver(senderId,authorId);
 
     const messageId='storyreply_'+replyId;
     const existing=await this.prisma.message.findUnique({
