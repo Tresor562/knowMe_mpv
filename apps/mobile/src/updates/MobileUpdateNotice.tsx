@@ -368,6 +368,40 @@ export function MobileUpdateNotice() {
     }
   };
 
+  // Do not claim success when the transfer ends or the installer opens.
+  // This receipt appears only when Android reports the installed version.
+  if (backgroundStatus?.status === 'installed') {
+    return (
+      <Modal visible transparent animationType="fade" statusBarTranslucent
+        onRequestClose={() => void acknowledgeInstalled()}>
+        <View style={styles.scrim}>
+          <View style={[styles.sheet, {
+            backgroundColor: colors.surface, borderColor: colors.border
+          }]}>
+            <Text style={[styles.eyebrow, { color: colors.accent }]}>
+              KNOWME · {en ? 'UPDATE' : 'MISE À JOUR'}
+            </Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {en ? 'Update successfully installed!' : 'Mise à jour installée !'}
+            </Text>
+            <Text style={[styles.details, { color: colors.muted }]}>
+              {en
+                ? `KnowMe version code ${backgroundStatus.versionCode} is now installed on this device.`
+                : `La version ${backgroundStatus.versionCode} de KnowMe est maintenant installée sur cet appareil.`}
+            </Text>
+            <Pressable accessibilityRole="button"
+              onPress={() => void acknowledgeInstalled()}
+              style={[styles.primary, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.primaryText, { color: colors.accentText }]}>
+                {en ? 'Continue' : 'Continuer'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   if (!readyVersion && backgroundStatus && backgroundStatus.status !== 'none') {
     const status = backgroundStatus;
     const downloading = status.status === 'downloading';
@@ -412,7 +446,7 @@ export function MobileUpdateNotice() {
               accessibilityValue={{ min: 0, max: 100, now: percent ?? 0 }}
               style={[styles.progressTrack, { backgroundColor: colors.backgroundAccent }]}>
               <View style={[styles.progressFill, {
-                backgroundColor: colors.accent, width: `${percent ?? 0}%`
+                backgroundColor: colors.accent, width: `${percent ?? 0}%` as `${number}%`
               }]} />
             </View>
           )}
