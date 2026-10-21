@@ -198,6 +198,25 @@ export class StoriesService {
   }
 
 
+  /** Public account lookup for the native/web excluded-Story audience picker. */
+  async audienceCandidates(userId: string, query: string) {
+    const q = query.trim();
+    if (q.length < 2 || q.length > 48) return { users: [] };
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: userId },
+        OR: [
+          { username: { contains: q, mode: 'insensitive' } },
+          { displayName: { contains: q, mode: 'insensitive' } }
+        ]
+      },
+      select: { id: true, username: true, displayName: true, avatarUrl: true },
+      orderBy: { username: 'asc' },
+      take: 20
+    });
+    return { users };
+  }
+
   /**
    * Page only the current viewer's visible Stories from one creator.
    * Reuses the feed ACL, so private/friends/custom audiences never leak.
