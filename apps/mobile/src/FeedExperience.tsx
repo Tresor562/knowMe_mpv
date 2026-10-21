@@ -593,13 +593,6 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
           onComments={()=>discussionScroll.current?.scrollTo({y:commentsStart.current,animated:true})}
           onShare={()=>{void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})});}}
         />
-          <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
-            onPress={() => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); }}
-            style={styles.metricInline}>
-            <KnowMeIcon name="arrow" size={18} color={colors.muted}/>
-            <Text style={[styles.metaText, { color: colors.muted }]}>Partager</Text>
-          </Pressable>
-        </View>
       </View>
 
       <View style={styles.commentsHeadingRow} onLayout={event => { commentsStart.current = event.nativeEvent.layout.y; }}>
