@@ -299,15 +299,17 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   }
 
 
-  function renderClip({item}:{item:Clip}){
+  const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===active));
+  function renderClip({item,index}:{item:Clip;index:number}){
     const post=item.post;
     const shown=item.id===active&&!offlineLibraryOpen;
+    const prepare=!offlineLibraryOpen&&index>=activeIndex-1&&index<=activeIndex+5;
     const like=likes[post.id];
     const follow=following[post.author.username];
     const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
-      {shown?<PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay externallyPaused={Boolean(captionClip)||Boolean(commentPost)||refreshing||searchOpen||Boolean(sharingClip)}
+      {prepare?<PublicPostVideo key={item.id} url={item.media.url}
+        autoPlay={shown} preloadPaused={!shown} externallyPaused={Boolean(captionClip)||Boolean(commentPost)||refreshing||searchOpen||Boolean(sharingClip)}
         onDoubleTap={()=>{void ensureLike(post);}}
         offlineRequest={offlineRequests[item.id]??0}
         onOfflineStatus={saved=>setOfflineStatus(old=>
@@ -406,7 +408,10 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       }} onMomentumScrollBegin={()=>{endReached.current=false;}}
       onEndReachedThreshold={0.4}
       getItemLayout={(_data,index)=>({length:viewportHeight,offset:index*viewportHeight,index})}
-      initialNumToRender={2} windowSize={3} maxToRenderPerBatch={2}
+      // Keep five upcoming native video surfaces attached between swipes.
+       // The platform buffers HTTPS ranges; none of the neighbors plays.
+       initialNumToRender={7} windowSize={13} maxToRenderPerBatch={7}
+       removeClippedSubviews={false}
       ListEmptyComponent={<View style={[styles.empty,{height:viewportHeight}]}>
         {emptyMode==='loading'?<ActivityIndicator color="#88e9e3"/>:
           <View style={styles.emptyContent}>
