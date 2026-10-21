@@ -26,6 +26,8 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
   const lastTap = useRef(0);
   const [playing,setPlaying] = useState(false);
   const [muted,setMuted] = useState(true);
+  const [ready,setReady] = useState(false);
+  const [retryVersion,setRetryVersion] = useState(0);
   const [position,setPosition] = useState(0);
   const [duration,setDuration] = useState(0);
   const [speed,setSpeed] = useState(1);
@@ -56,11 +58,17 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
   useEffect(() => {
     const video=videoRef.current;
     if (!video) return;
-    video.muted = true;
     if(!active){
+      // Preloaded neighbors are silent; the viewer's preference is preserved.
+      video.muted = true;
       video.pause();
       return; // Warm buffered neighbor: do not attach playback or visibility handlers.
     }
+    let preferredMuted=true;
+    try { preferredMuted=sessionStorage.getItem('knowme-reels-muted')!=='false'; }
+    catch { /* Session storage can be disabled. */ }
+    video.muted=preferredMuted;
+    setMuted(preferredMuted);
     let restoredRate=1;
     try {
       const candidate=Number(sessionStorage.getItem('knowme-reel-playback-speed'));
@@ -69,7 +77,13 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
     video.playbackRate=restoredRate;
     setSpeed(restoredRate);
     if(!document.hidden&&!externalPauseRef.current){
-      video.play().catch(() => setPlaying(false));
+      void video.play().catch(() => {
+        // Audible autoplay may be blocked by the browser after a swipe.
+        if(!video.muted){
+          video.muted=true;setMuted(true);
+          void video.play().catch(()=>setPlaying(false));
+        }else setPlaying(false);
+      });
     }else if(externalPauseRef.current){
       resumeAfterShare.current=true;
     }
@@ -91,7 +105,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
       if (clickTimer.current) clearTimeout(clickTimer.current);
       if (heartTimer.current) clearTimeout(heartTimer.current);
     };
-  }, [src,active]);
+  }, [src,active,retryVersion]);
 
   useEffect(()=>{
     const video=videoRef.current;
@@ -152,6 +166,8 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
     if(!video) return;
     video.muted=!video.muted;
     setMuted(video.muted);
+    try { sessionStorage.setItem('knowme-reels-muted',String(video.muted)); }
+    catch { /* In-memory selection still works. */ }
   }
 
   function switchSpeed() {
@@ -192,9 +208,12 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
 
   return (
     <div className="km-reel-playback" aria-hidden={!active}>
-      <video ref={videoRef} className="km-reel-video" src={src} preload="auto"
+      <video key={retryVersion} ref={videoRef} className="km-reel-video" src={src} preload="auto"
         playsInline muted loop tabIndex={-1}
-        onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
+        onPlay={()=>{setPlaying(true);setError('');}} onPause={()=>setPlaying(false)}
+        onLoadedData={()=>{setReady(true);setError('');}}
+        onEmptied={()=>setReady(false)}
+        onVolumeChange={event=>setMuted(event.currentTarget.muted || event.currentTarget.volume===0)}
         onTimeUpdate={event=>setPosition(event.currentTarget.currentTime||0)}
         onLoadedMetadata={event=>{
           const next=event.currentTarget.duration;
@@ -204,9 +223,17 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
           const next=event.currentTarget.duration;
           setDuration(Number.isFinite(next)?next:0);
         }}
-        onError={()=>{if(active)setError(en?'Video unavailable.':'Vidéo indisponible.');}}
+        onError={()=>{setReady(false);if(active)setError(en?'Video unavailable.':'Vidéo indisponible.');}}
         aria-label={en?'KnowMe reel':'Reel KnowMe'}/>
       {active&&<>
+      {!ready&&!error&&<span className="km-reel-loading" role="status">{en?'Loading video…':'Chargement de la vidéo…'}</span>}
+      {error&&<div className="km-reel-recovery" role="alert">
+        <span>{error}</span>
+        <button type="button" onClick={()=>{
+          setError('');setReady(false);setPlaying(false);
+          setRetryVersion(value=>value+1);
+        }}>{en?'Retry video':'Réessayer la vidéo'}</button>
+      </div>}
       <button className="km-reel-tap-zone" type="button" onClick={onTap}
         aria-label={playing?(en?'Pause reel':'Mettre le Reel en pause')
           :(en?'Play reel':'Lire le Reel')}>
