@@ -181,7 +181,7 @@ export function PostActionBar({
       </div>
       <div className="km-post-action-bar" role="group"
         aria-label={en ? 'Publication actions' : 'Actions de la publication'}>
-        <button type="button" className="km-post-action km-post-heart"
+        <button type="button" className="km-post-action km-post-heart" ref={pickerButton}
           disabled={!online || busy || !canToggle} aria-pressed={heartActive}
           aria-label={heartActive
             ? (en ? 'Remove my reaction' : 'Retirer ma réaction')
