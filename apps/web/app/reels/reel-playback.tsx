@@ -38,6 +38,8 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
   const heartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeAfterVisibility=useRef(false);
   const resumeAfterShare=useRef(false);
+  const externalPauseRef=useRef(pausedExternally);
+  externalPauseRef.current=pausedExternally;
   const isLong=duration>=180;
   const controlsExpanded=controlsVisible||scrubbing;
   const compactVisible=isLong&&!controlsExpanded;
@@ -66,12 +68,16 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
     }catch{/* Storage disabled: use default playback speed. */}
     video.playbackRate=restoredRate;
     setSpeed(restoredRate);
-    video.play().catch(() => setPlaying(false));
+    if(!document.hidden&&!externalPauseRef.current){
+      video.play().catch(() => setPlaying(false));
+    }else if(externalPauseRef.current){
+      resumeAfterShare.current=true;
+    }
     const visibility=()=>{
       if(document.hidden){
         resumeAfterVisibility.current=!video.paused;
         video.pause();
-      }else if(resumeAfterVisibility.current){
+      }else if(resumeAfterVisibility.current&&!externalPauseRef.current){
         resumeAfterVisibility.current=false;
         video.play().catch(()=>setPlaying(false));
       }
@@ -91,13 +97,13 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
     const video=videoRef.current;
     if(!video||!active)return;
     if(pausedExternally){
-      resumeAfterShare.current=!video.paused;
+      resumeAfterShare.current=resumeAfterShare.current||!video.paused;
       video.pause();
     }else if(resumeAfterShare.current){
       resumeAfterShare.current=false;
       if(!document.hidden)video.play().catch(()=>setPlaying(false));
     }
-  },[pausedExternally]);
+  },[pausedExternally,active]);
 
   async function toggle() {
     revealControls();
