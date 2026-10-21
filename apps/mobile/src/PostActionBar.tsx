@@ -108,6 +108,7 @@ export function PostActionBar({
         onAccessibilityAction={event=>{ if(event.nativeEvent.actionName==='longpress')showReactions(); }}
         accessibilityState={{selected:active,disabled:busy||!online||!canToggle}}
         disabled={busy||!online||!canToggle} delayLongPress={450}
+        onPressOut={()=>{setTimeout(()=>{wasLongPress.current=false;},250);}}
         onLongPress={()=>{wasLongPress.current=true;showReactions();}}
         onPress={()=>{
           if(wasLongPress.current){wasLongPress.current=false;return;}
