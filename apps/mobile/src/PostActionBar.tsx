@@ -94,59 +94,57 @@ export function PostActionBar({
         </Text>
       ))}
     </View>}
+    <View style={[styles.totals,{borderBottomColor:colors.border}]}>
+      <Text style={[styles.summaryText,{color:colors.muted}]}>❤️ {likeCount}</Text>
+      <Text style={[styles.summaryText,{color:colors.muted}]}>{commentCount} {en?'comments':'commentaires'}</Text>
+    </View>
     <View style={styles.actions}>
-      <View style={styles.likeGroup}>
-        <Pressable accessibilityRole="button"
-          accessibilityLabel={active
-            ? (en?'Remove my reaction':'Retirer ma réaction')
-            : (en?'React to publication':'Réagir à la publication')}
-          accessibilityState={{selected:active,disabled:busy||!online||!canToggle}}
-          disabled={busy||!online||!canToggle}
-          delayLongPress={450}
-          onPressOut={()=>setTimeout(()=>{wasLongPress.current=false;},0)}
-          onLongPress={()=>{wasLongPress.current=true;showReactions();}}
-          onPress={()=>{
-            if(wasLongPress.current){wasLongPress.current=false;return;}
-            if (selectedReaction && !heartSelected) {
-              if (onRemoveReaction) void action(onRemoveReaction);
-            } else {
-              void action(onHeart);
-            }
-          }} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-          {selectedReaction&&!heartSelected
-            ?<Text style={styles.emoji}>{selectedReaction}</Text>
-            :heartSelected
-              ?<Text style={styles.activeHeart} accessibilityLabel="">♥</Text>
-              :<KnowMeIcon name="heart" size={21} color={colors.muted}/>}
-          {!active && <Text style={[styles.label,{color:colors.muted}]}>{en?'React':'Réagir'}</Text>}
-          <Text style={[styles.count,{color:heartSelected?'#e73d57':active?colors.accent:colors.muted}]}>{likeCount}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={en?"Choose reaction":"Choisir une réaction"}
-          accessibilityState={{disabled:busy||!online}}
-          disabled={busy||!online} onPress={showReactions}
-          style={({pressed})=>[styles.pickerTrigger,pressed&&styles.pressed]}>
-          <KnowMeIcon name="chevron-down" size={16} color={colors.muted}/>
-        </Pressable>
-      </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={en?`Comments: ${commentCount}`:`Commentaires : ${commentCount}`}
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={active ? (en?'Remove my reaction':'Retirer ma réaction')
+          : (en?'Like publication':'J’aime la publication')}
+        accessibilityHint={en?'Long press to choose an emoji reaction':'Appui long pour choisir une réaction emoji'}
+        accessibilityActions={[{name:'activate',label:en?'Like':'J’aime'},
+          {name:'longpress',label:en?'Choose reaction':'Choisir une réaction'}]}
+        onAccessibilityAction={event=>{ if(event.nativeEvent.actionName==='longpress')showReactions(); }}
+        accessibilityState={{selected:active,disabled:busy||!online||!canToggle}}
+        disabled={busy||!online||!canToggle} delayLongPress={450}
+        onLongPress={()=>{wasLongPress.current=true;showReactions();}}
+        onPress={()=>{
+          if(wasLongPress.current){wasLongPress.current=false;return;}
+          if(selectedReaction&&!heartSelected) {if(onRemoveReaction)void action(onRemoveReaction);}
+          else void action(onHeart);
+        }} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
+        {selectedReaction&&!heartSelected
+          ? <Text style={styles.emoji}>{selectedReaction}</Text>
+          :heartSelected
+            ? <Text style={styles.activeHeart} accessibilityLabel="">♥</Text>
+            : <KnowMeIcon name="heart" size={21} color={colors.muted}/>}
+        <Text numberOfLines={1} style={[styles.label,{color:heartSelected?'#e73d57':colors.muted}]}>
+          {selectedReaction&&!heartSelected?selectedReaction:(en?'Like':'J’aime')}
+        </Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={en?"View comments":"Commenter la publication"}
         onPress={onComments} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
         <KnowMeIcon name="messages" size={21} color={colors.muted}/>
-        <Text style={[styles.count,{color:colors.muted}]}>{commentCount}</Text>
+        <Text numberOfLines={1} style={[styles.label,{color:colors.muted}]}>{en?'Comment':'Commenter'}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={en?"Share publication":"Partager la publication"}
         onPress={onShare} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-        <KnowMeIcon name="arrow" size={20} color={colors.muted}/>
-        <Text style={[styles.label,{color:colors.muted}]}>{en?"Share":"Partager"}</Text>
+        <KnowMeIcon name="arrow" size={21} color={colors.muted}/>
+        <Text numberOfLines={1} style={[styles.label,{color:colors.muted}]}>{en?'Share':'Partager'}</Text>
       </Pressable>
-      {onSave&&<Pressable accessibilityRole="button"
-        accessibilityLabel={saved
-          ? (en?'Remove from saved':'Retirer des favoris')
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={!onSave ? (en?'Saving currently unavailable':'Enregistrement actuellement indisponible')
+          : saved ? (en?'Remove from saved':'Retirer des favoris')
           : (en?'Save publication':'Enregistrer la publication')}
-        accessibilityState={{selected:saved,disabled:busy||!online}}
-        disabled={busy||!online} onPress={()=>void action(onSave)}
-        style={({pressed})=>[styles.action,styles.save,pressed&&styles.pressed]}>
+        accessibilityState={{selected:saved,disabled:busy||!online||!onSave}}
+        disabled={busy||!online||!onSave} onPress={()=>{if(onSave)void action(onSave);}}
+        style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
         <BookmarkIcon color={saved?colors.accent:colors.muted} filled={saved}/>
-      </Pressable>}
+        <Text numberOfLines={1} style={[styles.label,{color:saved?colors.accent:colors.muted}]}>
+          {saved?(en?'Saved':'Enregistré'):(en?'Save':'Enregistrer')}
+        </Text>
+      </Pressable>
     </View>
     {error&&!open&&<Text accessibilityRole="alert" style={[styles.error,{color:colors.danger}]}>{error}</Text>}
     <Modal visible={open} transparent animationType="slide" statusBarTranslucent
@@ -207,14 +205,15 @@ const styles=StyleSheet.create({
   root:{width:'100%',minWidth:0},
   reactionSummary:{flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:5,minHeight:25},
   summaryText:{fontSize:12},
-  actions:{flexDirection:'row',alignItems:'center',gap:3,marginTop:7},
+  totals:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:6,paddingBottom:6,borderBottomWidth:StyleSheet.hairlineWidth},
+  actions:{flexDirection:'row',alignItems:'center',gap:0,marginTop:5,width:'100%'},
   likeGroup:{flexDirection:'row',alignItems:'center'},
-  action:{minHeight:46,minWidth:44,paddingHorizontal:9,flexDirection:'row',
-    alignItems:'center',justifyContent:'center',gap:7,borderRadius:13},
+  action:{flex:1,minHeight:50,minWidth:0,paddingHorizontal:2,flexDirection:'column',
+    alignItems:'center',justifyContent:'center',gap:3,borderRadius:13},
   pickerTrigger:{minHeight:46,minWidth:44,justifyContent:'center',alignItems:'center'},
   save:{marginLeft:'auto'},
   count:{fontSize:12,fontWeight:'600'},
-  label:{fontSize:12,fontWeight:'600'},
+  label:{fontSize:11,fontWeight:'600',textAlign:'center'},
   emoji:{fontSize:24},
   activeHeart:{fontSize:27,lineHeight:30,color:'#e73d57',fontWeight:'700',textAlign:'center'},
   pressed:{opacity:0.65},
