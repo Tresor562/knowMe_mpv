@@ -144,7 +144,7 @@ export function PostActionBar({
         {selectedReaction&&!heartSelected
           ? <Text style={styles.emoji}>{selectedReaction}</Text>
           :heartSelected
-            ? <Text style={styles.activeHeart} accessibilityLabel="">♥</Text>
+            ? <KnowMeIcon name="heart" size={22} color="#e73d57" filled />
             : <KnowMeIcon name="heart" size={21} color={colors.muted}/>}
         <Text numberOfLines={1} style={[styles.label,{color:heartSelected?'#e73d57':colors.muted}]}>
           {selectedReaction&&!heartSelected?selectedReaction:(en?'Like':'J’aime')}
@@ -243,7 +243,6 @@ const styles=StyleSheet.create({
   count:{fontSize:12,fontWeight:'600'},
   label:{fontSize:11,fontWeight:'600',textAlign:'center'},
   emoji:{fontSize:24},
-  activeHeart:{fontSize:27,lineHeight:30,color:'#e73d57',fontWeight:'700',textAlign:'center'},
   pressed:{opacity:0.65},
   error:{fontSize:12,padding:8},
   overlay:{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,.56)'},
