@@ -14,11 +14,12 @@ function showTime(seconds: number) {
 }
 
 /**
- * A single mounted Reel at a time. An inactive clip has no video element,
- * so neighboring clips cannot play audio or download their full bodies.
+ * Keep inactive neighbor videos mounted but paused: the browser can preload
+ * their initial ranges before a swipe, retaining the same media element when
+ * it becomes active. The platform controls the actual preload byte budget.
  */
-export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
-  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean;
+export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, active=true }: {
+  src: string; onDoubleTap: () => void; en: boolean; pausedExternally?:boolean; active?:boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,6 +55,10 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
     const video=videoRef.current;
     if (!video) return;
     video.muted = true;
+    if(!active){
+      video.pause();
+      return; // Warm buffered neighbor: do not attach playback or visibility handlers.
+    }
     let restoredRate=1;
     try {
       const candidate=Number(sessionStorage.getItem('knowme-reel-playback-speed'));
@@ -80,11 +85,11 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
       if (clickTimer.current) clearTimeout(clickTimer.current);
       if (heartTimer.current) clearTimeout(heartTimer.current);
     };
-  }, [src]);
+  }, [src,active]);
 
   useEffect(()=>{
     const video=videoRef.current;
-    if(!video)return;
+    if(!video||!active)return;
     if(pausedExternally){
       resumeAfterShare.current=!video.paused;
       video.pause();
@@ -156,6 +161,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   // Attach listeners to the currently mounted clip only. The key handlers
   // never intercept typing, buttons, links or seek-range keyboard controls.
   useEffect(()=>{
+    if(!active)return;
     const keyDown=(event:KeyboardEvent)=>{
       if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.repeat)return;
       const target=event.target;
@@ -179,9 +185,9 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
   });
 
   return (
-    <div className="km-reel-playback">
-      <video ref={videoRef} className="km-reel-video" src={src} preload="metadata"
-        playsInline muted loop
+    <div className="km-reel-playback" aria-hidden={!active}>
+      <video ref={videoRef} className="km-reel-video" src={src} preload="auto"
+        playsInline muted loop tabIndex={-1}
         onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
         onTimeUpdate={event=>setPosition(event.currentTarget.currentTime||0)}
         onLoadedMetadata={event=>{
@@ -192,8 +198,9 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
           const next=event.currentTarget.duration;
           setDuration(Number.isFinite(next)?next:0);
         }}
-        onError={()=>setError(en?'Video unavailable.':'Vidéo indisponible.')}
+        onError={()=>{if(active)setError(en?'Video unavailable.':'Vidéo indisponible.');}}
         aria-label={en?'KnowMe reel':'Reel KnowMe'}/>
+      {active&&<>
       <button className="km-reel-tap-zone" type="button" onClick={onTap}
         aria-label={playing?(en?'Pause reel':'Mettre le Reel en pause')
           :(en?'Play reel':'Lire le Reel')}>
@@ -259,6 +266,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false }: {
         </div>
         {error&&<span role="alert" className="km-reel-player-error">{error}</span>}
       </div>
+      </>}
     </div>
   );
 }
