@@ -198,13 +198,24 @@ export class PostsService {
     return {saved:Boolean(row)};
   }
 
-  /** Results are private and bounded; never includes another account's saves. */
+  /** Saved library data is private to the account and presents public post fields only. */
   async saved(userId: string) {
-    return this.prisma.savedPost.findMany({
+    const rows=await this.prisma.savedPost.findMany({
       where:{userId},take:40,
       orderBy:[{createdAt:'desc'},{id:'desc'}],
-      select:{postId:true,createdAt:true}
+      include:{post:{include:{
+        author:{select:publicAuthorSelect},
+        _count:{select:{likes:true,comments:true}},
+        media:{orderBy:{position:'asc'}}
+      }}}
     });
+    return rows.map(row=>({...row,post:{
+      ...row.post,author:publicAuthor(row.post.author),
+      media:row.post.media.map(item=>({
+        url:`/media/public/post/${item.assetId}`,
+        mimeType:item.mimeType,position:item.position
+      }))
+    }}));
   }
 
   async comments(postId: string, cursor?: string, rootsOnly = false) {
