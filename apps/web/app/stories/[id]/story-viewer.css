@@ -85,3 +85,15 @@
 @media (prefers-reduced-motion: reduce) {
   .km-story-progress-value {transition:none;}
 }
+
+.km-story-status-header {position:relative;z-index:4;}
+.km-story-header-back,.km-story-header-menu-trigger {flex:none;min-width:38px;height:42px;
+  border:0;background:transparent;color:#fff;cursor:pointer;display:grid;place-items:center;}
+.km-story-header-back {font-size:37px;line-height:1;}
+.km-story-header-menu-trigger {font-size:29px;font-weight:800;}
+.km-story-header-menu {position:absolute;right:14px;top:105px;z-index:8;
+  min-width:195px;display:grid;gap:2px;padding:8px;background:#1c242c;
+  box-shadow:0 7px 25px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.16);border-radius:14px;}
+.km-story-header-menu button {min-height:42px;text-align:left;cursor:pointer;
+  color:#fff;background:transparent;border:0;padding:8px 12px;border-radius:9px;}
+.km-story-header-menu button:hover {background:rgba(255,255,255,.12);}
