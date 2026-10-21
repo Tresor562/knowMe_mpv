@@ -32,7 +32,7 @@ describe('MessagingService StoryReply direct delivery',()=>{
     expect(prisma.conversation.upsert).not.toHaveBeenCalled();
     expect(deliver).toHaveBeenCalledWith(
       'viewer','direct-conversation',
-      '↪ Story · /stories/story-123\\nTrès belle story !',
+      '↪ Story · /stories/story-123\nTrès belle story !',
       undefined,'storyreply_reply-123'
     );
   });
