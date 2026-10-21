@@ -174,6 +174,39 @@ export class PostsService {
       comments:post.comments.map(comment=>({...comment,author:publicAuthor(comment.author)}))};
   }
 
+  /** Idempotent bookmark; only the authenticated caller owns the record. */
+  async save(userId: string, postId: string) {
+    const post=await this.prisma.post.findUnique({
+      where:{id:postId},select:{id:true}
+    });
+    if(!post)throw new NotFoundException('Publication introuvable.');
+    await this.prisma.savedPost.createMany({
+      data:[{userId,postId}],skipDuplicates:true
+    });
+    return {saved:true};
+  }
+
+  async unsave(userId: string,postId: string) {
+    await this.prisma.savedPost.deleteMany({where:{userId,postId}});
+    return {saved:false};
+  }
+
+  async isSaved(userId: string,postId: string) {
+    const row=await this.prisma.savedPost.findUnique({
+      where:{userId_postId:{userId,postId}},select:{id:true}
+    });
+    return {saved:Boolean(row)};
+  }
+
+  /** Results are private and bounded; never includes another account's saves. */
+  async saved(userId: string) {
+    return this.prisma.savedPost.findMany({
+      where:{userId},take:40,
+      orderBy:[{createdAt:'desc'},{id:'desc'}],
+      select:{postId:true,createdAt:true}
+    });
+  }
+
   async comments(postId: string, cursor?: string, rootsOnly = false) {
     const exists = await this.prisma.post.findUnique({
       where: { id: postId },
