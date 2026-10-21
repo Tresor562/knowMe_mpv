@@ -412,7 +412,7 @@ export default function StoryViewerPage() {
                 .catch(()=>setMessage(en?'Copy unavailable':'Copie indisponible'));
             }}>{en?'Copy story link':'Copier le lien'}</button>}
             <button type="button" onClick={leaveViewer}>{en?'Close':'Fermer'}</button>
-          </div>
+          </div>}
 
           <div style={{ flex: 1, position: 'relative', display: 'grid', placeItems: 'center', padding: 28, color: '#fff' }}>
             {mediaLoading && <div style={{ width: 46, height: 46, border: '3px solid rgba(255,255,255,.25)', borderTopColor: '#fff', borderRadius: '50%' }} />}
