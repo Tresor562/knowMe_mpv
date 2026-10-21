@@ -32,7 +32,11 @@ test('reel suggestions use real MP4 posts and remain outside publication markup'
   await expect(page.locator('article .km-feed-reel-recommendations')).toHaveCount(0);
   await expect(rail.getByRole('link',{name:'Regarder le réel de Auteur'}))
     .toHaveAttribute('href','/reels?post=reel2&position=0');
-  await expect(rail.locator('video')).toHaveAttribute('src','/api/knowme/media/public/post/reelasset');
+  // A recommendation is always a still thumbnail: native/HTML transport
+  // widgets must never bleed across horizontally-scrolled cards.
+  await expect(rail.locator('.km-feed-reel-still')).toHaveCount(1);
+  await expect(rail.locator('video')).toHaveCount(0);
+  await expect(rail.locator('button')).toHaveCount(0);
 });
 
 test('no real videos means no Reel recommendation strip or invented view counters',async({page})=>{
