@@ -1,4 +1,4 @@
-import {ForbiddenException, Injectable} from '@nestjs/common';
+import {ForbiddenException, Injectable, Logger} from '@nestjs/common';
 import {ConversationRole} from '@prisma/client';
 import {createHash} from 'node:crypto';
 import {PrismaService} from '../prisma/prisma.service';
@@ -17,6 +17,7 @@ const senderSelect = {
  */
 @Injectable()
 export class StoryReplyDirectService {
+  private readonly logger=new Logger(StoryReplyDirectService.name);
   constructor(
     private readonly prisma:PrismaService,
     private readonly notifications:NotificationsService,
@@ -94,7 +95,7 @@ export class StoryReplyDirectService {
       });
       const presented=this.present(created);
       // Reuse the standard MESSAGE notification, not a duplicate Story alert.
-      await Promise.all([
+      const settled=await Promise.allSettled([
         this.notifications.createMany([{
           userId:authorId,type:'MESSAGE',
           title:'Nouvelle réponse à ta Story',
@@ -111,6 +112,11 @@ export class StoryReplyDirectService {
           userId:senderId,lastReadAt:created.createdAt
         })
       ]);
+      if(settled.some(result=>result.status==='rejected')){
+        // The Message is already committed. A temporary push/notification
+        // failure must not pretend the reply was never saved.
+        this.logger.warn('Story reply saved; auxiliary notification delivery failed.');
+      }
       return presented;
     }catch(error){
       // Concurrent retry: uniqueness of Message.id prevents double delivery.
