@@ -1,0 +1,59 @@
+/* KnowMe compact accessible Web icon button: 44px target, 22px drawing. */
+.km-icon-action {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.km-icon-action:hover:not(:disabled) { background: var(--surface-2); }
+.km-icon-action:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.km-icon-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.km-icon-action[aria-pressed='true'] { color: var(--mint); }
+.km-icon-action:active:not(:disabled) { background: var(--surface-2); }
+@media (prefers-reduced-motion: reduce) {
+  .km-icon-action { transition: none !important; }
+}
+
+/* Physical tactile response is immediate on press, never a fake server state.
+   The stateful SVG inside can still render a real success or pending status. */
+.km-icon-action > .km-state-icon {
+  transform: translateZ(0) scale(1);
+  transform-origin: center;
+  transition: transform 165ms cubic-bezier(.18, .85, .24, 1.25);
+}
+.km-icon-action:active:not(:disabled) > .km-state-icon {
+  transform: translateZ(0) scale(.89);
+}
+.km-icon-action[aria-pressed='true']:not(:active) > .km-state-icon {
+  transform: translateZ(0) scale(1.035);
+}
+@media (prefers-reduced-motion: reduce) {
+  .km-icon-action > .km-state-icon { transform: none !important; transition: none !important; }
+}
+:root[data-animations='false'] .km-icon-action > .km-state-icon,
+:root[data-animated-icons='false'] .km-icon-action > .km-state-icon,
+:root[data-effective-reduced-motion='true'] .km-icon-action > .km-state-icon {
+  transform: none !important;
+  transition: none !important;
+}
