@@ -62,13 +62,14 @@ export function VideoStill({ src }: { src: string }) {
         if (!cancelled && poster.startsWith('data:image/jpeg')) {
           remember(src, poster);
           setStill(poster);
-          cleanup();
         }
       } catch { /* Canvas can be blocked by CORS/codec; leave honest fallback. */ }
     };
     const onData = () => {
       // The first decoded frame is a genuine cover, even without seeking support.
-      capture();
+      // Always close the offscreen player: some codecs or cross-origin sources
+      // cannot produce canvas pixels, but must not keep downloading a 5h MP4.
+      try { capture(); } finally { cleanup(); }
     };
     const cleanup = () => {
       video.onloadeddata = null;
