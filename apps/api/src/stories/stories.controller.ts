@@ -51,7 +51,8 @@ export class StoriesController {
     ]);
     const story = await this.stories.create(req.user.userId, dto);
     if (dto.mentionUserIds?.length) {
-      await this.notifier.mentions(story.id, req.user.userId, dto.mentionUserIds);
+      await this.notifier.mentions(story.id, req.user.userId,
+        dto.mentionUserIds.filter(id => !(dto.excludeUserIds ?? []).includes(id)));
     }
     return story;
   }
@@ -76,7 +77,8 @@ export class StoriesController {
     for (let index = 0; index < result.stories.length; index += 1) {
       const mentions = dto.stories[index]?.mentionUserIds;
       if (mentions?.length) {
-        await this.notifier.mentions(result.stories[index].id, req.user.userId, mentions);
+        await this.notifier.mentions(result.stories[index].id, req.user.userId,
+          mentions.filter(id => !(dto.stories[index]?.excludeUserIds ?? []).includes(id)));
       }
     }
     return result;
@@ -92,6 +94,15 @@ export class StoriesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('audience/candidates')
+  audienceCandidates(
+    @Req() req: { user: { userId: string } },
+    @Query('q') q = ''
+  ) {
+    return this.stories.audienceCandidates(req.user.userId, q);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('rail')
   rail(
     @Req() req: { user: { userId: string } },
@@ -101,6 +112,21 @@ export class StoriesController {
       throw new BadRequestException({ code: 'STORY_RAIL_OFFSET_INVALID', message: 'Invalid Story rail page.' });
     }
     return this.stories.rail(req.user.userId, offset ? Number(offset) : 0);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users/:username/visible')
+  visibleByAuthor(
+    @Req() req: { user: { userId: string } },
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string
+  ){
+    if(cursor!==undefined&&!/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)){
+      throw new BadRequestException({
+        code:'STORY_SEQUENCE_CURSOR_INVALID',message:'Invalid Story cursor.'
+      });
+    }
+    return this.stories.visibleByAuthor(req.user.userId,username,cursor);
   }
 
   @Get('users/:username')
