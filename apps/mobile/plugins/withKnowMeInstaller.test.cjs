@@ -102,3 +102,29 @@ test('the update dialog can close while the system handles the download', () => 
   assert.match(ui, /downloaded update must remain installable even if/);
   assert.match(ui, /closing the dialog must not cancel|Closing the dialog must not cancel/);
 });
+
+test('background updater exposes real byte progress and confirms installation only after the Android version changes', () => {
+  const {readFileSync} = require('node:fs');
+  const {join} = require('node:path');
+  const native = readFileSync(join(__dirname, 'native/android/KnowMeInstallerModule.java'), 'utf8');
+  const ui = readFileSync(join(__dirname, '../src/updates/MobileUpdateNotice.tsx'), 'utf8');
+
+  assert.match(native, /DownloadManager\\.COLUMN_BYTES_DOWNLOADED_SO_FAR/);
+  assert.match(native, /DownloadManager\\.COLUMN_TOTAL_SIZE_BYTES/);
+  assert.match(native, /DownloadManager\\.COLUMN_REASON/);
+  assert.match(native, /state\\.putString\\("status", "failed"\\)/);
+  assert.match(native, /version <= versionCode\\(installed\\)/);
+  assert.match(native, /"installed" : "none"/);
+  assert.match(native, /public void acknowledgeInstalledUpdate\\(Promise promise\\)/);
+  assert.match(native, /prefs\\.getBoolean\\("installationRequested", false\\)/);
+  assert.match(native, /prefs\\.edit\\(\\)\\.putBoolean\\("installationRequested", true\\)\\.commit\\(\\)/);
+  assert.match(ui, /const progressPoll = setInterval/);
+  assert.match(ui, /installer\\.getBackgroundUpdateStatus/);
+  assert.match(ui, /Number\\.isFinite\\(total\\) && total > 0/);
+  assert.match(ui, /Math\\.min\\(99, Math\\.floor/);
+  assert.match(ui, /installer\\.acknowledgeInstalledUpdate/);
+  assert.match(ui, /backgroundStatus\\?\\.status === 'installed'/);
+  assert.match(ui, /retryBackground\\(\\)/);
+  assert.match(ui, /installReady\\(\\)/);
+  assert.doesNotMatch(ui, /setTimeout\\(.*status: 'installed'/);
+});
