@@ -68,14 +68,17 @@ export function KnowMeNativeVectorIcon({
       ...((node.children ?? []).map(render)));
   };
 
-  return (
-    <Svg
-      width={size} height={size} viewBox="0 0 24 24"
-      fill="none" stroke={color} strokeWidth={strokeWidth}
-      strokeLinecap="round" strokeLinejoin="round"
-      accessible={false} focusable={false}
-    >
-      {(selected ? glyph.active : glyph.inactive).map(render)}
-    </Svg>
+  // The native Svg class is runtime-compatible with React Native, but
+  // Expo Web and native may resolve different @types/react revisions. Avoid
+  // JSX-class type checking on that cross-package class, not vector rendering.
+  return createElement(
+    Svg as unknown as Parameters<typeof createElement>[0],
+    {
+      width: size, height: size, viewBox: '0 0 24 24',
+      fill: 'none', stroke: color, strokeWidth,
+      strokeLinecap: 'round', strokeLinejoin: 'round',
+      accessible: false, focusable: false
+    },
+    ...(selected ? glyph.active : glyph.inactive).map(render)
   );
 }
