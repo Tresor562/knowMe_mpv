@@ -582,7 +582,7 @@ export function StoriesRail({
       <Modal
         visible={Boolean(selected)}
         animationType="fade"
-        onRequestClose={() => setSelected(null)}
+        onRequestClose={() => {if(insightsOpen)setInsightsOpen(false);else closeViewer();}}
       >
         <View
           style={[
@@ -590,14 +590,13 @@ export function StoriesRail({
             { backgroundColor: colors.background }
           ]}
         >
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressValue,
-                { backgroundColor: colors.text,
-                  width: `${storyProgress/100}%` as `${number}%` }
-              ]}
-            />
+          <View style={styles.progressSegments} accessibilityLabel={`${segments.length} stories`}>
+            {segments.map((segment,i)=><View key={segment.id} style={styles.progressTrack}>
+              <View style={[styles.progressValue,{
+                width: `${i<segmentIndex?100:i>segmentIndex?0:storyProgress/100}%` as `${number}%`,
+                backgroundColor:'#fff'
+              }]}/>
+            </View>)}
           </View>
 
           <View style={styles.viewerHeader}>
@@ -605,7 +604,7 @@ export function StoriesRail({
               onPress={() => {
                 const username = selected?.viewer.own ? currentUser.username : selected?.author?.username;
                 if (username) {
-                  setSelected(null);
+                  closeViewer();
                   openProfile?.(username);
                 }
               }} style={styles.viewerIdentity}>
@@ -640,7 +639,7 @@ export function StoriesRail({
             <PressScale
               accessibilityRole="button"
               accessibilityLabel="Fermer la Story"
-              onPress={() => setSelected(null)}
+              onPress={closeViewer}
               style={[
                 styles.closeButton,
                 {
@@ -1014,12 +1013,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 18
   },
+  progressSegments:{flexDirection:'row',gap:4,marginBottom:13,width:'100%'},
   progressTrack: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    overflow: 'hidden',
-    marginBottom: 13
+    height:3,flex:1,borderRadius:2,backgroundColor:'rgba(255,255,255,0.33)',
+    overflow:'hidden'
   },
   progressValue: {
     width: '100%',
