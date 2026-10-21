@@ -657,7 +657,7 @@ export function StoriesRail({
             style={[
               styles.storyCanvas,
               {
-                backgroundColor: colors.backgroundAccent,
+                backgroundColor: selected?.type==='TEXT'?storyTextColor(selected.background,selected.id):'#050609',
                 borderColor: colors.border,
                 borderRadius: visual.cardRadius
               }
@@ -666,22 +666,23 @@ export function StoriesRail({
             <View
               style={[
                 styles.storyGlowOne,
-                { backgroundColor: colors.accent }
+                { backgroundColor: colors.accent,opacity:selected?.type==='TEXT'?0:0.18 }
               ]}
             />
             <View
               style={[
                 styles.storyGlowTwo,
-                { backgroundColor: colors.secondary }
+                { backgroundColor: colors.secondary,opacity:selected?.type==='TEXT'?0:0.12 }
               ]}
             />
-            <View style={[styles.storyMark, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
+            {selected?.type==='TEXT'?null:<View style={[styles.storyMark, { backgroundColor: colors.surfaceGlass, borderColor: colors.border }]}>
               <KnowMeIcon name="spark" size={20} color={colors.accent} />
-            </View>
+            </View>}
             {selected?.type==='PHOTO'&&selectedPhotoUri?<Image source={{uri:selectedPhotoUri}}
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
+              paused={insightsOpen||storyPaused}
               onProgress={event=>{
                 if(activeStoryId.current!==selected.id)return;
                 const {positionMs,durationMs}=event.nativeEvent;
@@ -693,6 +694,7 @@ export function StoriesRail({
                 if(activeStoryId.current!==selected.id)return;
                 setStoryProgress(10_000);
                 reportStoryProgress(selected,10_000);
+                navigateStep(1);
               }}
               onPlaybackError={event=>{
                 setSelectedVideoUri(null);
@@ -703,9 +705,17 @@ export function StoriesRail({
               {mediaError}
             </Text>:null}
             {(selected?.type!=='VIDEO'||!selectedVideoUri)&&!mediaError?<Text
-              style={[styles.storyCaption,{color:colors.text}]}>
+              style={[styles.storyCaption,{color:selected?.type==='TEXT'?'#fff':colors.text}]}>
               {selected?.caption?.trim()||(selected?.type==='VIDEO'?'Chargement de la vidéo…':'Story')}
             </Text>:null}
+            <View style={styles.storyTapZones} pointerEvents="box-none">
+              <Pressable accessibilityRole="button" accessibilityLabel="Story précédente"
+                onPress={()=>navigateStep(-1)} onLongPress={()=>setStoryPaused(true)}
+                onPressOut={()=>setStoryPaused(false)} style={styles.storyTapZone}/>
+              <Pressable accessibilityRole="button" accessibilityLabel="Story suivante"
+                onPress={()=>navigateStep(1)} onLongPress={()=>setStoryPaused(true)}
+                onPressOut={()=>setStoryPaused(false)} style={styles.storyTapZone}/>
+            </View>
           </View>
 
           {!selected?.viewer.own ? (
@@ -1091,6 +1101,8 @@ const styles = StyleSheet.create({
     lineHeight: 33,
     textAlign: 'center'
   },
+  storyTapZones:{position:'absolute',left:0,right:0,top:0,bottom:0,flexDirection:'row'},
+  storyTapZone:{flex:1},
   reactions: {
     flexDirection: 'row',
     gap: 10,
