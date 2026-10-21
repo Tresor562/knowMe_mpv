@@ -47,7 +47,6 @@ model User {
   memberships              ConversationMember[]
   posts                    Post[]
   postLikes                PostLike[]
-  savedPosts               SavedPost[]
   postComments             PostComment[]
   postCommentReactions     PostCommentReaction[]
   notifications            Notification[]
@@ -228,7 +227,6 @@ model Post {
   likes    PostLike[]
   comments PostComment[]
   media    PostMedia[]
-  savedBy  SavedPost[]
 
   @@index([createdAt])
 }
@@ -246,20 +244,6 @@ model PostMedia {
   @@unique([postId, position])
   @@unique([postId, assetId])
   @@index([assetId])
-}
-
-// Private account-owned saved publications. Never exposed as public post metrics.
-model SavedPost {
-  id        String   @id @default(cuid())
-  userId    String
-  postId    String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, postId])
-  @@index([userId, createdAt, id])
 }
 
 model PostLike {
