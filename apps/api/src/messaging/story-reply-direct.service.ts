@@ -73,19 +73,20 @@ export class StoryReplyDirectService {
       });
     }
 
+    const conversationId=direct.id;
     const quote='↪ Story · /stories/'+storyId+'\n'+content.trim();
     try {
       const created=await this.prisma.$transaction(async tx=>{
         const message=await tx.message.create({
-          data:{id:messageId,senderId,conversationId:direct.id,content:quote},
+          data:{id:messageId,senderId,conversationId,content:quote},
           include:{sender:{select:senderSelect}}
         });
         await Promise.all([
           tx.conversation.update({
-            where:{id:direct.id},data:{updatedAt:message.createdAt}
+            where:{id:conversationId},data:{updatedAt:message.createdAt}
           }),
           tx.conversationMember.update({
-            where:{conversationId_userId:{conversationId:direct.id,userId:senderId}},
+            where:{conversationId_userId:{conversationId,userId:senderId}},
             data:{lastReadAt:message.createdAt}
           })
         ]);
@@ -99,14 +100,14 @@ export class StoryReplyDirectService {
           title:'Nouvelle réponse à ta Story',
           body:content.length>120?content.slice(0,117)+'…':content,
           data:{
-            route:'/messages/'+direct.id,
+            route:'/messages/'+conversationId,
             entityType:'CONVERSATION',entityId:direct.id,
             messageId:messageId,actorId:senderId,messageKind:'TEXT',
             storyId
           }
         }]),
-        this.realtime.emitMessageCreated(direct.id,presented),
-        this.realtime.emitConversationRead(direct.id,{
+        this.realtime.emitMessageCreated(conversationId,presented),
+        this.realtime.emitConversationRead(conversationId,{
           userId:senderId,lastReadAt:created.createdAt
         })
       ]);
