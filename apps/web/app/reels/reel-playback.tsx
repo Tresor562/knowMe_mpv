@@ -223,7 +223,7 @@ export function ReelPlayback({ src, onDoubleTap, en, pausedExternally=false, act
           const next=event.currentTarget.duration;
           setDuration(Number.isFinite(next)?next:0);
         }}
-        onError={()=>{setReady(false);if(active)setError(en?'Video unavailable.':'Vidéo indisponible.');}}
+        onError={()=>{setReady(false);setError(en?'Video unavailable.':'Vidéo indisponible.');}}
         aria-label={en?'KnowMe reel':'Reel KnowMe'}/>
       {active&&<>
       {!ready&&!error&&<span className="km-reel-loading" role="status">{en?'Loading video…':'Chargement de la vidéo…'}</span>}
