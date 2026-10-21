@@ -14,12 +14,23 @@ import {
 import { apiFetch } from '../api';
 import { getRealtimeSocket } from '../realtime';
 import { useAppearance } from '../AppearanceProvider';
+import { useI18n } from '../I18nProvider';
+
+type BackgroundUpdateStatus = {
+  status: 'none' | 'downloading' | 'ready' | 'failed' | 'installed';
+  versionCode: number;
+  bytesDownloaded?: number;
+  totalBytes?: number;
+  failureReason?: number;
+  installationRequested?: boolean;
+};
 
 type ApkInstaller = {
   startUpdateWatcher?: () => Promise<boolean>;
   getInstalledVersionCode(): Promise<number>;
   queueBackgroundUpdate?: (url: string, sha256: string, versionCode: number) => Promise<boolean>;
-  getBackgroundUpdateStatus?: () => Promise<{status: 'none' | 'downloading' | 'ready' | 'failed'; versionCode: number}>;
+  getBackgroundUpdateStatus?: () => Promise<BackgroundUpdateStatus>;
+  acknowledgeInstalledUpdate?: () => Promise<boolean>;
   installBackgroundUpdate?: () => Promise<boolean>;
   installApk(uri: string, sha256: string, versionCode: number): Promise<boolean>;
 };
@@ -67,6 +78,9 @@ function trustedKnowMeApk(release: AndroidReleaseNotice | null): boolean {
 
 export function MobileUpdateNotice() {
   const { colors } = useAppearance();
+  const { locale } = useI18n();
+  const en = locale === 'en';
+  const [backgroundStatus, setBackgroundStatus] = useState<BackgroundUpdateStatus | null>(null);
   const [release, setRelease] = useState<AndroidReleaseNotice | null>(null);
   const [installing, setInstalling] = useState(false);
   const [readyVersion, setReadyVersion] = useState(0);
@@ -86,6 +100,23 @@ export function MobileUpdateNotice() {
     // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
 
+    const refreshBackground = async () => {
+      try {
+        const status = await installer.getBackgroundUpdateStatus?.();
+        if (!active || !status) return;
+        setBackgroundStatus(status.status === 'none' ? null : status);
+        if (status.status === 'ready' &&
+            status.versionCode !== dismissedReadyVersion.current) {
+          setReadyVersion(status.versionCode);
+          setRelease(null);
+        } else if (status.status === 'installed' || status.status === 'failed') {
+          setReadyVersion(0);
+          setRelease(null);
+        }
+      } catch {
+        // The native transfer continues independently if the UI cannot poll.
+      }
+    };
 
     const check = async (manual = false, immediate = false): Promise<MobileUpdateCheckResult> => {
       if (requestInProgress.current) return 'unavailable';
@@ -104,7 +135,20 @@ export function MobileUpdateNotice() {
           installer.getBackgroundUpdateStatus?.().catch(() => null) ?? Promise.resolve(null)
         ]);
         if (!active) return 'unavailable';
+        if (background && background.status !== 'none') {
+          setBackgroundStatus(background);
+        }
+        if (background?.status === 'installed') {
+          setReadyVersion(0);
+          setRelease(null);
+          return 'current';
+        }
         if (background?.versionCode && background.versionCode > installedVersion) {
+          if (background.status === 'failed') {
+            setReadyVersion(0);
+            setRelease(null);
+            return 'unavailable';
+          }
           if (background.status === 'ready') {
             setReadyVersion(background.versionCode === dismissedReadyVersion.current
               ? 0 : background.versionCode);
@@ -144,6 +188,7 @@ export function MobileUpdateNotice() {
 
     checkFromSettings = () => check(true);
     void check();
+    void refreshBackground();
     // Live release signals travel through KnowMe's existing authenticated
     // Socket.IO connection. No Google/Firebase token or provider required.
     let subscribedSocket: Awaited<ReturnType<typeof getRealtimeSocket>> = null;
@@ -161,21 +206,29 @@ export function MobileUpdateNotice() {
       if (state === 'active') {
         connectSignals();
         void check(false, true);
+        void refreshBackground();
       }
     });
     // While the app is open, check occasionally even without a session
     // (guests have no authenticated Socket.IO connection).
     const interval = setInterval(() => { connectSignals(); void check(); }, 2 * 60_000);
+    // Android DownloadManager owns the transfer even if the modal is dismissed.
+    // Poll its persisted byte counts while visible; do not invent percentages.
+    const progressPoll = setInterval(() => {
+      if (AppState.currentState === 'active') void refreshBackground();
+    }, 2_000);
     return () => {
       active = false;
       checkFromSettings = null;
       subscribedSocket?.off('update:available', onUpdateAvailable);
       foreground.remove();
       clearInterval(interval);
+      clearInterval(progressPoll);
     };
   }, []);
 
-  if (Platform.OS !== 'android' || !installer || (!release && !readyVersion)) return null;
+  if (Platform.OS !== 'android' || !installer ||
+      (!release && !readyVersion && !backgroundStatus)) return null;
 
   const dismiss = () => {
     if (readyVersion) {
@@ -193,7 +246,10 @@ export function MobileUpdateNotice() {
     if (installing || !installer.installBackgroundUpdate) return;
     setInstalling(true);
     try {
-      await installer.installBackgroundUpdate();
+      const launched = await installer.installBackgroundUpdate();
+      if (!launched) throw new Error('INSTALL_NOT_STARTED');
+      setBackgroundStatus((current) => current
+        ? { ...current, installationRequested: true } : current);
     } catch (failure) {
       const code = failure instanceof Error
         ? (failure as Error & { code?: string }).code : undefined;
@@ -214,7 +270,10 @@ export function MobileUpdateNotice() {
     setInstalling(true);
     try {
       if (installer.queueBackgroundUpdate) {
-        await installer.queueBackgroundUpdate(current.url, current.sha256, current.versionCode);
+        const queued = await installer.queueBackgroundUpdate(
+          current.url, current.sha256, current.versionCode);
+        if (!queued) throw new Error('DOWNLOAD_START_FAILED');
+        setBackgroundStatus({ status: 'downloading', versionCode: current.versionCode });
         dismissedVersion.current = current.versionCode;
         setRelease(null);
         return;
@@ -270,6 +329,110 @@ export function MobileUpdateNotice() {
       setInstalling(false);
     }
   };
+
+  const retryBackground = async () => {
+    if (installing || !installer.queueBackgroundUpdate) return;
+    setInstalling(true);
+    try {
+      const [feed, installedVersion] = await Promise.all([
+        apiFetch<AndroidReleaseFeed>('/mobile-updates/android'),
+        installer.getInstalledVersionCode()
+      ]);
+      const next = feed.release;
+      if (!trustedKnowMeApk(next) || !next || next.versionCode <= installedVersion) {
+        throw new Error('NO_TRUSTED_UPDATE');
+      }
+      const queued = await installer.queueBackgroundUpdate(
+        next.url, next.sha256, next.versionCode);
+      if (!queued) throw new Error('DOWNLOAD_START_FAILED');
+      setBackgroundStatus({ status: 'downloading', versionCode: next.versionCode });
+      setRelease(null);
+    } catch {
+      Alert.alert(en ? 'KnowMe update' : 'Mise à jour KnowMe',
+        en ? 'Download could not restart. Check your connection and try again.'
+          : 'Le téléchargement n’a pas pu reprendre. Vérifie ta connexion et réessaie.');
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const acknowledgeInstalled = async () => {
+    if (!installer.acknowledgeInstalledUpdate) return;
+    try {
+      const acknowledged = await installer.acknowledgeInstalledUpdate();
+      if (acknowledged) setBackgroundStatus(null);
+    } catch {
+      Alert.alert(en ? 'KnowMe update' : 'Mise à jour KnowMe',
+        en ? 'The installed version could not be confirmed yet.'
+          : 'Impossible de confirmer la version installée pour le moment.');
+    }
+  };
+
+  if (!readyVersion && backgroundStatus && backgroundStatus.status !== 'none') {
+    const status = backgroundStatus;
+    const downloading = status.status === 'downloading';
+    const ready = status.status === 'ready';
+    const failed = status.status === 'failed';
+    const installed = status.status === 'installed';
+    const total = status.totalBytes ?? -1;
+    const transferred = Math.max(0, status.bytesDownloaded ?? 0);
+    const knownProgress = downloading && Number.isFinite(total) && total > 0;
+    const percent = knownProgress
+      ? Math.min(99, Math.floor(transferred / total * 100)) : null;
+    const title = installed
+      ? (en ? 'KnowMe updated' : 'KnowMe est à jour')
+      : ready
+        ? (status.installationRequested
+          ? (en ? 'Finish installation in Android' : 'Confirme l’installation dans Android')
+          : (en ? 'Download complete' : 'Téléchargement terminé'))
+        : failed
+          ? (en ? 'Update download failed' : 'Échec du téléchargement')
+          : (en ? 'Downloading KnowMe update' : 'Téléchargement de KnowMe');
+    const subtitle = installed
+      ? (en ? 'The new version is installed and verified.'
+        : 'La nouvelle version est réellement installée et vérifiée.')
+      : ready
+        ? (en ? 'Your APK is ready. Android must authorize its installation.'
+          : 'L’APK est prête. Android doit autoriser son installation.')
+        : failed
+          ? (en ? 'Your current version remains usable. Retry when ready.'
+            : 'Ta version actuelle reste utilisable. Tu peux réessayer.')
+          : percent !== null
+            ? `${percent} % · ${(transferred / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} Mo`
+            : (en ? 'Download running in the background (size unavailable).'
+              : 'Téléchargement en arrière-plan (taille inconnue).');
+    return (
+      <View pointerEvents="box-none" style={styles.statusOverlay}>
+        <View accessibilityLiveRegion="polite"
+          style={[styles.statusTray, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.statusTitle, { color: colors.text }]}>{title}</Text>
+          <Text style={[styles.statusSubtitle, { color: colors.muted }]}>{subtitle}</Text>
+          {knownProgress && (
+            <View accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: percent ?? 0 }}
+              style={[styles.progressTrack, { backgroundColor: colors.backgroundAccent }]}>
+              <View style={[styles.progressFill, {
+                backgroundColor: colors.accent, width: `${percent ?? 0}%`
+              }]} />
+            </View>
+          )}
+          {(ready || failed || installed) && (
+            <Pressable accessibilityRole="button" disabled={installing}
+              onPress={ready ? () => void installReady()
+                : failed ? () => void retryBackground() : () => void acknowledgeInstalled()}
+              style={[styles.statusAction, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.statusActionText, { color: colors.accentText }]}>
+                {installing ? (en ? 'Please wait…' : 'Patiente…')
+                  : ready ? (en ? 'Install / resume' : 'Installer / reprendre')
+                    : failed ? (en ? 'Retry download' : 'Réessayer')
+                      : (en ? 'Close' : 'Fermer')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   if (readyVersion) {
     return (
@@ -390,5 +553,19 @@ const styles = StyleSheet.create({
   },
   primaryText: { fontWeight: '800', fontSize: 15 },
   secondary: { minHeight: 42, justifyContent: 'center', alignItems: 'center' },
-  secondaryText: { fontSize: 13, fontWeight: '700' }
+  secondaryText: { fontSize: 13, fontWeight: '700' },
+  statusOverlay: { position: 'absolute', top: 54, left: 14, right: 14 },
+  statusTray: {
+    padding: 14, gap: 8, borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth, elevation: 7
+  },
+  statusTitle: { fontSize: 15, fontWeight: '800' },
+  statusSubtitle: { fontSize: 12, lineHeight: 18 },
+  progressTrack: { height: 5, borderRadius: 8, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 8 },
+  statusAction: {
+    alignSelf: 'flex-start', borderRadius: 14, paddingHorizontal: 16,
+    minHeight: 42, justifyContent: 'center', marginTop: 3
+  },
+  statusActionText: { fontWeight: '800', fontSize: 13 }
 });
