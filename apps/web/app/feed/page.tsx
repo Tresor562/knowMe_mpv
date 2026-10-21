@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { PostShareSheet } from '../../components/post-share-sheet';
 import { PostMediaCollage, type PostMediaItem } from '../../components/post-media-collage';
+import { PostActionBar } from '../../components/PostActionBar';
 import '../../components/post-share-sheet.css';
 import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-options-sheet';
 import { PostEditSheet } from '../../components/post-edit-sheet';
@@ -15,7 +16,9 @@ import { saveOfflineFeed, loadOfflineFeed } from '../../lib/offline-feed';
 import { loadPostDraft, savePostDraft, clearPostDraft } from '../../lib/offline-post-draft';
 import { useSession } from '../../lib/use-session';
 import { StoriesRail } from './StoriesRail';
+import { ReelSuggestionsRail } from './ReelSuggestionsRail';
 import './multi-media-composer.css';
+import './reference-home.css';
 import { useI18n } from '../../components/i18n-provider';
 import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import { AccountBadges } from '../../components/AccountBadges';
@@ -36,21 +39,18 @@ type Post = {
 
 const FEED_PAGE_SIZE = 20;
 
-function FeedIcon({ name }: { name: 'heart' | 'comment' | 'share' }) {
-  const paths = {
-    heart: <path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.7a5.4 5.4 0 0 0 0-7.7Z" />,
-    comment: <path d="M20.5 11.4a8.5 8.5 0 0 1-8.5 8.5 9.5 9.5 0 0 1-3.6-.8L3 21l1.8-5.3a8.5 8.5 0 1 1 15.7-4.3Z" />,
-    share: <><path d="M12 16V3m0 0L7.7 7.3M12 3l4.3 4.3" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>,
-  };
-  return <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
-}
-
 export default function FeedPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
   const { locale } = useI18n();
   const en = locale === 'en';
+  const [feedMenuOpen, setFeedMenuOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [reelsAfterPost, setReelsAfterPost] = useState<number | null>(null);
+  const feedVisitSlot=useRef(Math.floor(Date.now()/3600000));
+  const [myLikes, setMyLikes] = useState<Record<string, boolean>>({});
+  const [busyLikeIds, setBusyLikeIds] = useState<string[]>([]);
+  const likesInFlight = useRef(new Set<string>());
+  const likesRevision = useRef(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -163,6 +163,13 @@ export default function FeedPage() {
       window.removeEventListener('knowme:open-post-composer', openFromMainNavigation);
     };
   }, []);
+  // Choose a bounded insertion point once per mounted feed: new pages never shift the strip.
+  useEffect(() => {
+    if (!user?.id || !posts.length || reelsAfterPost !== null) return;
+    const seed = [...(user.id+':'+feedVisitSlot.current)].reduce((value,char)=>((value*31)+char.charCodeAt(0))>>>0,0);
+    setReelsAfterPost(Math.min(posts.length,1+(seed%6)));
+  }, [user?.id,posts.length,reelsAfterPost]);
+
   const [authorityFresh, setAuthorityFresh] = useState(false);
   const [showingCache,setShowingCache] = useState(false);
   const loadGeneration = useRef(0);
@@ -389,16 +396,47 @@ export default function FeedPage() {
     }
   }
 
+  // Re-read the authenticated user's own reaction state for every newly loaded
+  // post page. A public likes count never tells us whether *I* have liked it.
+  const visiblePostIds = posts.map(post => post.id).join(',');
+  useEffect(() => {
+    let active = true;
+    const revision=likesRevision.current;
+    setMyLikes({});
+    if (!user?.id || !authorityFresh || !visiblePostIds) return () => {active = false;};
+    const ids = visiblePostIds.split(',');
+    void Promise.all(Array.from({length:Math.ceil(ids.length/50)}, (_,index) => {
+      const batch = ids.slice(index*50,index*50+50);
+      return apiFetch<Record<string,boolean>>(`/post-like-status?ids=${encodeURIComponent(batch.join(','))}`);
+    })).then(pages => {
+      if (active && revision===likesRevision.current) setMyLikes(Object.assign({},...pages));
+    }).catch(() => {
+      // Unknown is not "unliked": never cache an invented personal reaction.
+    });
+    return () => {active = false;};
+  },[user?.id,authorityFresh,visiblePostIds]);
+
   async function toggleLike(postId: string) {
-    if (!authorityFresh) return;
+    if (!authorityFresh || !user?.id || likesInFlight.current.has(postId)) return;
+    likesInFlight.current.add(postId);
+    setBusyLikeIds(current => [...current,postId]);
+    const accountId = user.id;
+    const generation = loadGeneration.current;
     try {
-      const result = await apiFetch<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' });
-      setPosts((current) => current.map((post) => post.id === postId
-        ? { ...post, _count: { ...post._count, likes: Math.max(0, post._count.likes + (result.liked ? 1 : -1)) } }
+      const result = await apiFetch<{ liked: boolean }>(`/posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
+      if (generation!==loadGeneration.current || accountId!==user?.id) return;
+      likesRevision.current+=1;
+      setMyLikes(current=>({...current,[postId]:result.liked}));
+      setPosts(current=>current.map(post=>post.id===postId
+        ? {...post,_count:{...post._count,likes:Math.max(0,post._count.likes+(result.liked?1:-1))}}
         : post));
     } catch (cause) {
-      invalidateFeedAuthority();
-      setMessage(cause instanceof Error ? cause.message : 'Action impossible.');
+      if(generation===loadGeneration.current) {
+        setMessage(cause instanceof Error?cause.message:'Réaction non confirmée.');
+      }
+    } finally {
+      likesInFlight.current.delete(postId);
+      setBusyLikeIds(current=>current.filter(id=>id!==postId));
     }
   }
 
@@ -435,13 +473,40 @@ export default function FeedPage() {
     <main className="shell km-feed-page">
       <RuntimeExperienceModules />
       <div className="km-header-nav-group">
-      <header className="km-feed-header">
-        <div><p className="km-profile-eyebrow">@{user.username}</p><h1>{en ? 'Feed' : 'Fil d’actualité'}</h1></div>
-        <div className="km-feed-header-media-actions">
-          <Link className="km-feed-story-cta" href="/reels" aria-label={en?'Open reels':'Voir les Reels'}>
-            ▶ <span>Reels</span>
+      <header className="km-feed-header km-feed-reference-header">
+        <h1 className="km-feed-semantic-title">{en ? 'Feed' : 'Fil d’actualité'}</h1>
+        <Link href="/feed" className="km-feed-reference-brand" aria-label="KnowMe — Accueil">
+          <img src="/brand/knowme-logo.svg" alt="" width="44" height="44" />
+          <strong>KnowMe</strong>
+        </Link>
+        <div className="km-feed-reference-actions">
+          <Link className="km-feed-reference-icon" href="/discover"
+            aria-label={en ? 'Search KnowMe' : 'Rechercher sur KnowMe'}>
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16.3 16.3 5 5"/></svg>
           </Link>
-          <Link className="km-feed-story-cta" href="/stories/new">+ {en?'Story':'Story'}</Link>
+          <div className="km-feed-reference-menu-anchor">
+            <button type="button" className="km-feed-reference-icon"
+              aria-label={en ? 'More options' : 'Plus d’options'}
+              aria-expanded={feedMenuOpen} aria-haspopup="menu"
+              onClick={() => setFeedMenuOpen(open => !open)}>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"
+                aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            </button>
+            {feedMenuOpen && <>
+              <button type="button" className="km-feed-reference-scrim"
+                aria-label={en ? 'Close menu' : 'Fermer le menu'}
+                onClick={() => setFeedMenuOpen(false)} />
+              <nav className="km-feed-reference-menu" aria-label={en ? 'Feed menu' : 'Menu du fil'}>
+                <button type="button" onClick={() => { setFeedMenuOpen(false); setComposeOpen(true); }}>
+                  {en ? 'Create a post' : 'Créer une publication'}
+                </button>
+                <Link href="/reels" onClick={() => setFeedMenuOpen(false)}>Reels · Vidéos</Link>
+                <Link href="/profile" onClick={() => setFeedMenuOpen(false)}>{en ? 'My profile' : 'Mon profil'}</Link>
+              </nav>
+            </>}
+          </div>
         </div>
       </header>
       <div className="km-joined-nav-slot" data-knowme-header-nav-slot="true" />
@@ -449,11 +514,10 @@ export default function FeedPage() {
       <section className="km-feed-quick-compose" aria-label={en?'Create a post':'Créer une publication'}>
         <span className="km-post-avatar"><KnowMeAvatarImage src={user.avatarUrl} name={user.displayName} /></span>
         <button type="button" className="km-feed-quick-compose-open"
+          aria-label={en?'Open editor':'Ouvrir l’éditeur'}
           onClick={()=>setComposeOpen(true)}>
           {draftContent || (en?'What would you like to share?':'Qu’as-tu envie de partager ?')}
         </button>
-        <button type="button" className="km-feed-quick-add" aria-label={en?'Open post editor':'Ouvrir l’éditeur'}
-          onClick={()=>setComposeOpen(true)}>+</button>
       </section>
       <StoriesRail />
       {composeOpen && <div className="km-feed-editor-overlay" role="presentation" onMouseDown={event=>{
@@ -566,8 +630,9 @@ export default function FeedPage() {
           </div>
         )}
 
-        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map(post => (
-          <article className="km-feed-post" key={post.id}>
+        {(authorityFresh || showingCache) && posts.filter(post => !hiddenPostIds.has(post.id)).map((post, index) => (
+          <div key={post.id} className="km-feed-stream-block">
+          <article className="km-feed-post">
             <header className="km-post-header">
               <Link className="km-post-author" href={`/profile/${encodeURIComponent(post.author.username)}`}>
                 <span className="km-post-avatar">
@@ -597,20 +662,21 @@ export default function FeedPage() {
             </div>}
             <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
               caption={post.content} en={en}/>
-            <footer className="km-post-actions">
-              <button type="button" onClick={() => void toggleLike(post.id)} disabled={!authorityFresh}
-                aria-label={en?'React to post':'Réagir à la publication'}>
-                <FeedIcon name="heart"/><span>{post._count.likes}</span>
-              </button>
-              {authorityFresh ? <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
-                <FeedIcon name="comment"/><span>{post._count.comments}</span>
-              </Link> : <span aria-label={en?'Comments unavailable offline':'Commentaires indisponibles hors ligne'}><FeedIcon name="comment"/><span>{post._count.comments}</span></span>}
-              <button type="button" onClick={() => void sharePost(post)}
-                aria-label={en?'Share post':'Partager la publication'}>
-                <FeedIcon name="share"/><span>{en?'Share':'Partager'}</span>
-              </button>
+            <footer>
+              <PostActionBar postId={post.id} en={en}
+                likeCount={post._count.likes} commentCount={post._count.comments}
+                selectedReaction={myLikes[post.id]===true?'❤️':null}
+                online={authorityFresh&&!offline&&myLikes[post.id]!==undefined&&!busyLikeIds.includes(post.id)}
+                onHeart={()=>toggleLike(post.id)}
+                onReact={async emoji=>{if(emoji==='❤️')await toggleLike(post.id);
+                  else throw new Error(en?'This reaction is not yet supported by the server.':'Cette réaction n’est pas encore disponible sur le serveur.');}}
+                onComments={()=>{if(authorityFresh)window.location.assign(`/feed/${encodeURIComponent(post.id)}#km-post-comments`);}}
+                onShare={()=>sharePost(post)}
+              />
             </footer>
           </article>
+          {index+1 === reelsAfterPost && authorityFresh && <ReelSuggestionsRail en={en}/>}
+          </div>
         ))}
       </section>
 
