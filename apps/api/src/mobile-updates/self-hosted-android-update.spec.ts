@@ -1,3 +1,5 @@
+import { NotFoundException } from '@nestjs/common';
+import { MobileUpdatesController } from './mobile-updates.controller';
 import { mkdtempSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -53,6 +55,24 @@ describe('KnowMe first-party Android APK distribution', () => {
     expect(readHostedAndroidRelease()).toBeNull();
     writeFileSync(join(directory, filename), 'tiny');
     expect(readHostedAndroidRelease()).toBeNull();
+  });
+
+  it('offers a permanent recovery download URL only for a verified VPS APK', () => {
+    const response = { setHeader: jest.fn() };
+    const controller = new MobileUpdatesController();
+    expect(() => controller.downloadLatestHostedApk(response)).toThrow(NotFoundException);
+
+    // The client never supplies a filename or a third-party URL. The server
+    // resolves the most recent signed-preview manifest and checks local bytes.
+    writeFileSync(join(directory, filename), '');
+    truncateSync(join(directory, filename), base.size);
+    writeFileSync(join(directory, 'android-preview.json'), JSON.stringify(base));
+    const download = controller.downloadLatestHostedApk(response);
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Length', String(base.size));
+    expect(download.getHeaders().disposition)
+      .toBe('attachment; filename="KnowMe-1.1.8-preview.apk"');
+    expect(download.getHeaders().type).toBe('application/vnd.android.package-archive');
+    download.getStream().destroy();
   });
 
   it('serves only the exact advertised immutable artifact', async () => {
