@@ -92,6 +92,15 @@ export class StoriesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('audience/candidates')
+  audienceCandidates(
+    @Req() req: { user: { userId: string } },
+    @Query('q') q = ''
+  ) {
+    return this.stories.audienceCandidates(req.user.userId, q);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('rail')
   rail(
     @Req() req: { user: { userId: string } },
@@ -101,6 +110,21 @@ export class StoriesController {
       throw new BadRequestException({ code: 'STORY_RAIL_OFFSET_INVALID', message: 'Invalid Story rail page.' });
     }
     return this.stories.rail(req.user.userId, offset ? Number(offset) : 0);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('users/:username/visible')
+  visibleByAuthor(
+    @Req() req: { user: { userId: string } },
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string
+  ){
+    if(cursor!==undefined&&!/^[a-zA-Z0-9_-]{1,128}$/.test(cursor)){
+      throw new BadRequestException({
+        code:'STORY_SEQUENCE_CURSOR_INVALID',message:'Invalid Story cursor.'
+      });
+    }
+    return this.stories.visibleByAuthor(req.user.userId,username,cursor);
   }
 
   @Get('users/:username')
