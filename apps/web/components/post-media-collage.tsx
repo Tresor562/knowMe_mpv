@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { PostVideoPlayer } from './post-video-player';
+import { VideoStill } from './video-still';
 import './post-media-collage.css';
 
 export type PostMediaItem = {
@@ -73,13 +74,11 @@ export function PostMediaCollage({ media, fallbackUrl, caption = '', en = false 
             onClick={() => setActiveIndex(index)}>
             {video ? (
               <span className="km-post-collage-video">
-                <svg viewBox="0 0 24 24" width="38" height="38" aria-hidden="true"
-                  fill="none" stroke="currentColor" strokeWidth="1.8"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="4"/>
-                  <path d="m10 9 5 3-5 3z"/>
-                </svg>
-                <span>{en ? 'Video' : 'Vidéo'}</span>
+                <VideoStill src={item.url} />
+                <span className="km-post-collage-video-play" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="29" height="29"
+                    fill="currentColor"><path d="M8 5.5a1 1 0 0 1 1.5-.85l10 6.5a1.6 1.6 0 0 1 0 2.7l-10 6.5A1 1 0 0 1 8 19z"/></svg>
+                </span>
               </span>
             ) : <img src={item.url} loading="lazy"
                 alt={en ? `Post photo ${index + 1}` : `Photo ${index + 1} de la publication`}/>}
