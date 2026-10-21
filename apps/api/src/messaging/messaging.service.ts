@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { ConversationRole } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -309,6 +310,81 @@ export class MessagingService {
     return this.sendAuthorized(userId, conversationId, content);
   }
 
+  /**
+   * Deliver a persisted StoryReply into a real one-to-one conversation.
+   * Its deterministic Message ID ensures that retrying the notifier does not
+   * create duplicate messages or notifications.
+   */
+  async sendStoryReplyMessage(input: {
+    senderId: string; authorId: string; storyId: string;
+    replyId: string; content: string;
+  }) {
+    const {senderId,authorId,storyId,replyId,content} = input;
+    if (senderId === authorId || !/^[A-Za-z0-9_-]{1,90}$/.test(replyId)) {
+      throw new ForbiddenException('Réponse de Story invalide.');
+    }
+    const blocked = await this.prisma.friendship.findFirst({
+      where: {status: 'BLOCKED', OR: [
+        {requesterId:senderId,addresseeId:authorId},
+        {requesterId:authorId,addresseeId:senderId}
+      ]},
+      select: {id:true}
+    });
+    if (blocked) throw new ForbiddenException('Cette conversation est bloquée.');
+
+    const messageId = 'storyreply_' + replyId;
+    const existing = await this.prisma.message.findUnique({
+      where: {id:messageId},
+      include: {
+        sender: {select: publicSenderSelect},
+        mediaAsset: {select:{id:true,detectedMime:true,originalName:true,size:true,status:true,deletedAt:true}}
+      }
+    });
+    if (existing) return this.presentMessage(existing);
+
+    const pair = [senderId,authorId].sort();
+    let conversation = await this.prisma.conversation.findFirst({
+      where: {
+        isGroup:false,
+        AND: [
+          {members:{some:{userId:senderId}}},
+          {members:{some:{userId:authorId}}},
+          {members:{every:{userId:{in:pair}}}}
+        ]
+      },
+      select:{id:true},
+      orderBy:{createdAt:'asc'}
+    });
+    if (!conversation) {
+      const id='storydm_' + createHash('sha256')
+        .update(JSON.stringify(pair)).digest('hex').slice(0,32);
+      conversation=await this.prisma.conversation.upsert({
+        where:{id},
+        create:{id,isGroup:false,members:{create:pair.map(userId=>({
+          userId,role:ConversationRole.MEMBER
+        }))}},
+        update:{},
+        select:{id:true}
+      });
+    }
+    const quote = '↪ Story · /stories/' + storyId + '\n' + content.trim();
+    try {
+      return await this.sendAuthorized(senderId,conversation.id,quote,undefined,messageId);
+    } catch (error) {
+      // A concurrent retry may win the unique Message ID. Never send twice.
+      if ((error as {code?:string})?.code !== 'P2002') throw error;
+      const delivered=await this.prisma.message.findUnique({
+        where:{id:messageId},
+        include:{
+          sender:{select:publicSenderSelect},
+          mediaAsset:{select:{id:true,detectedMime:true,originalName:true,size:true,status:true,deletedAt:true}}
+        }
+      });
+      if (!delivered) throw error;
+      return this.presentMessage(delivered);
+    }
+  }
+
   async sendMediaMessage(
     userId: string, conversationId: string, assetId: string,
     kind: 'GIF' | 'STICKER_IMAGE' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT'
@@ -349,11 +425,12 @@ export class MessagingService {
     userId: string,
     conversationId: string,
     content: string,
-    mediaAssetId?: string
+    mediaAssetId?: string,
+    fixedMessageId?: string
   ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
-        data: { conversationId, senderId: userId, content, mediaAssetId: mediaAssetId ?? null },
+        data: { ...(fixedMessageId ? {id:fixedMessageId} : {}), conversationId, senderId: userId, content, mediaAssetId: mediaAssetId ?? null },
         include: {
           sender: {
             select: publicSenderSelect
