@@ -12,6 +12,14 @@
   background:var(--surface-2);
 }
 .km-post-collage[data-count="1"]{aspect-ratio:auto;grid-auto-rows:auto;}
+/* A single video uses an absolutely positioned decoded still. Give the grid
+   an actual height; otherwise its auto row collapses to 0 and the whole
+   published video becomes invisible and impossible to open. */
+.km-post-collage[data-count="1"][data-single-video="true"]{
+  aspect-ratio:4/5;
+  grid-auto-rows:minmax(0,1fr);
+  max-height:490px;
+}
 .km-post-collage[data-count="2"]{aspect-ratio:1.65;}
 .km-post-collage[data-count="3"]{aspect-ratio:1.36;}
 .km-post-collage-tile {
