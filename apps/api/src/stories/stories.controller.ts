@@ -209,6 +209,9 @@ export class StoriesController {
       content: dto.content,
       targetId: id
     });
+    // Refuse blocked conversations before persisting a StoryReply that
+    // could never reach the Story owner as a private message.
+    await this.notifier.assertReplyAllowed(id, req.user.userId);
     const result = await this.stories.reply(req.user.userId, id, dto);
     await this.notifier.reply(id, req.user.userId, result.id);
     return result;
