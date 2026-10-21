@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.MediaController;
 import android.widget.VideoView;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
@@ -58,6 +59,11 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       }
     }
 
+    @ReactProp(name="nativeControls", defaultBoolean=true)
+    public void nativeControls(StoryContainer view, boolean enabled) {
+      view.setNativeControls(enabled);
+    }
+
     @ReactProp(name="seekToMs", defaultDouble=-1)
     public void seekToMs(StoryContainer view, double millis) {
       if (Double.isNaN(millis) || Double.isInfinite(millis) || millis<0) return;
@@ -82,6 +88,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
 
   public static final class StoryContainer extends FrameLayout {
     final VideoView player;
+    MediaController storyControls;
     boolean ready = false;
     boolean paused = false;
     String currentUri = "";
@@ -100,6 +107,20 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       event.putDouble("durationMs", Math.max(0, player.getDuration()));
       ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
         .receiveEvent(getId(), "topProgress", event);
+    }
+    void setNativeControls(boolean enabled) {
+      if (!enabled) {
+        if (storyControls != null) storyControls.hide();
+        player.setMediaController(null);
+        return;
+      }
+      // Stories still use their original Android transport. Custom Reels
+      // and in-feed previews opt out so this overlay never escapes a card.
+      if (storyControls == null) {
+        storyControls = new MediaController(getContext());
+        storyControls.setAnchorView(player);
+      }
+      player.setMediaController(storyControls);
     }
     void applySeek() {
       if (!ready || seekToMs<0) return;
