@@ -247,7 +247,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
+      <NativeStoryVideo sourceUri={local} nativeControls={false} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
