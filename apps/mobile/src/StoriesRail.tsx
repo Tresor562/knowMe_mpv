@@ -478,7 +478,7 @@ export function StoriesRail({
       if(storyType==='TEXT'){
         const story=await apiFetch<StoryCreateResult>('/stories',{
           method:'POST',body:JSON.stringify({...shared,type:'TEXT',
-            background:{preset:'knowme-gradient',alignment:'center'}})
+            background:{preset:'solid',color:STORY_TEXT_COLORS[colorIndex]}})
         });
         publishedId=story.id;
       }else{
@@ -510,7 +510,7 @@ export function StoriesRail({
     await load();
     try{
       const fresh=await apiFetch<Story>('/stories/'+publishedId);
-      setSelected(fresh);
+      void openStory(fresh);
     }catch{/* Already published; refresh may be temporarily unavailable. */}
   }
 
@@ -912,11 +912,17 @@ export function StoriesRail({
                   </PressScale>
                 </View>
               ) : null}
+              {storyType==='TEXT'?<Pressable accessibilityRole="button"
+                accessibilityLabel="Changer la couleur de fond de la story"
+                onPress={()=>setColorIndex((colorIndex+1)%STORY_TEXT_COLORS.length)}
+                style={[styles.storyColorPicker,{backgroundColor:STORY_TEXT_COLORS[colorIndex]}]}>
+                <Text style={{color:'#fff',fontSize:11}}>●</Text>
+              </Pressable>:null}
               <View
                 style={[
                   styles.preview,
                   {
-                    backgroundColor: colors.surfaceGlass,
+                    backgroundColor:storyType==='TEXT'?STORY_TEXT_COLORS[colorIndex]:colors.surfaceGlass,
                     borderColor: colors.border
                   }
                 ]}
@@ -1231,6 +1237,8 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700'
   },
+  storyColorPicker:{width:34,height:34,borderRadius:17,alignSelf:'flex-start',
+    borderColor:'#fff',borderWidth:2,alignItems:'center',justifyContent:'center'},
   createBackdrop: {flex:1,justifyContent:'flex-start'},
   createWrap: {flex:1},
   createContent:{flexGrow:1,paddingBottom:24},
