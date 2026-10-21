@@ -7,7 +7,8 @@ describe('StoriesService.view — counting actual openings rather than progress'
         id: 'story-1', authorUserId, status: 'PUBLISHED', startsAt: new Date(0),
         expiresAt: new Date('2099-01-01'), pinnedAt: null, audience: 'PUBLIC'
       }) },
-      storyView: { upsert: jest.fn().mockResolvedValue({ id:'view-1' }) }
+      storyView: { upsert: jest.fn().mockResolvedValue({ id:'view-1' }) },
+      storyAudienceGrant: {findUnique: jest.fn().mockResolvedValue(null)}
     };
     return { prisma, service:new StoriesService(prisma as any, {} as any, {} as any) };
   };
