@@ -17,9 +17,11 @@ describe('StoriesService.visibleByAuthor', () => {
       storyAudienceGrant: { findMany: jest.fn().mockResolvedValue([]) }
     };
     const service=new StoriesService(prisma as any,{} as any,{} as any);
-    jest.spyOn(service as any,'serialize').mockImplementation(async (story:any,viewer:string)=>({
-      ...story,viewer:{own:viewer===story.authorUserId}
-    }));
+    jest.spyOn(service as any,'serialize').mockImplementation(async (...args:unknown[])=>{
+      const story=args[0] as {authorUserId:string};
+      const viewer=args[1] as string;
+      return {...story,viewer:{own:viewer===story.authorUserId}};
+    });
     return {prisma,service};
   }
 
