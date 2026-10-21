@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, type FunctionComponent } from 'react';
 import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 import { useAppearance } from '../AppearanceProvider';
 
@@ -72,7 +72,7 @@ export function KnowMeNativeVectorIcon({
   // Expo Web and native may resolve different @types/react revisions. Avoid
   // JSX-class type checking on that cross-package class, not vector rendering.
   return createElement(
-    Svg as unknown as Parameters<typeof createElement>[0],
+    Svg as unknown as FunctionComponent<Record<string, unknown>>,
     {
       width: size, height: size, viewBox: '0 0 24 24',
       fill: 'none', stroke: color, strokeWidth,
