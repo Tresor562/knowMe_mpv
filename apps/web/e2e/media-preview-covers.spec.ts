@@ -73,6 +73,11 @@ test('video publications keep a tappable real-frame preview slot instead of a ge
   await expect(tile.locator('.km-post-collage-poster')).toHaveCount(1);
   await expect(tile.locator('.km-post-collage-video-play')).toHaveCount(1);
   await expect(tile.locator('video')).toHaveCount(0);
+  // A cover rendered with absolute positioning must still reserve real
+  // portrait space in the feed; a zero-height grid cannot receive taps.
+  await expect(tile).toBeVisible();
+  const box=await tile.boundingBox();
+  expect(box?.height??0).toBeGreaterThan(150);
   await tile.click();
   await expect(page.getByRole('dialog',{name:'Galerie de la publication'})).toBeVisible();
 });
