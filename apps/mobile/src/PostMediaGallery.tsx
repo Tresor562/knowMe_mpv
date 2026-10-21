@@ -19,7 +19,7 @@ function publicMediaUrl(url: string): string {
 
 /**
  * Every attached photo/video remains reachable, even when only five tiles are
- * shown in the feed. Videos load only on explicit user interaction.
+ * shown in the feed. Tile previews use paused native frames; full playback requires user interaction.
  */
 export function PostMediaGallery({ media, fallbackUrl, caption }: {
   media?: PostMedia[] | null;
@@ -65,7 +65,7 @@ export function PostMediaGallery({ media, fallbackUrl, caption }: {
               ]}>
               {isVideo ? (
                 <View pointerEvents="none" style={styles.videoPlaceholder}>
-                  <NativeStoryVideo sourceUri={publicMediaUrl(item.url)} paused
+                  <NativeStoryVideo sourceUri={publicMediaUrl(item.url)} paused nativeControls={false}
                     seekToMs={120} style={styles.videoPoster} />
                   <View style={styles.playOverlay}>
                     <KnowMeIcon name="play" size={26} color="#fff"/>
