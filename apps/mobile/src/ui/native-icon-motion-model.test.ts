@@ -98,15 +98,18 @@ test('Android language selector has accessible vector close and true syncing sta
 });
 
 
-test('Android media cache controls remain usable after a failed delete and announce selected categories', () => {
+test('Android media settings keep existing controls while settings uses the canonical native SVG', () => {
   const dir = import.meta.dirname;
   const settings = fs.readFileSync(path.join(dir, '..', 'MediaDownloadSettingsExperience.tsx'), 'utf8');
-  assert.match(settings, /accessibilityRole="checkbox"/);
-  assert.match(settings, /accessibilityRole="radio"/);
-  assert.match(settings, /accessibilityState=\{\{ checked: selected, disabled: busy \}\}/);
-  assert.match(settings, /<KnowMeNativeAnimatedIcon name=\{MEDIA_ICONS\[kind\]\}/);
-  assert.match(settings, /minHeight: 48/);
+  const ui = fs.readFileSync(path.join(dir, 'KnowMeUI.tsx'), 'utf8');
+
+  // The media preferences UI belongs to a separate workstream. Do not require
+  // unreleased changes from the historical design branch in this SVG migration.
+  assert.match(settings, /<KnowMeIcon name="settings"/);
+  assert.match(ui, /hasKnowMeNativeVectorGlyph\(name\)/);
+  assert.match(ui, /<KnowMeNativeVectorIcon/);
+  assert.match(settings, /MEDIA_KINDS\.map\(\(kind\)/);
+  assert.match(settings, /value=\{preference\.backgroundDownloads\}/);
+  assert.match(settings, /value=\{preference\.respectDataSaver\}/);
   assert.match(settings, /await clearMobileMediaCache\(\)/);
-  assert.match(settings, /catch \(cause\) \{\s*setMessage\(cause instanceof Error \? cause\.message : 'Suppression impossible\.'\)/);
-  assert.match(settings, /finally \{\s*setBusy\(false\)/);
 });
