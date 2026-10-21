@@ -65,6 +65,10 @@ jobs:
           [[ "$apk" -ge 1 ]] && echo 'run_apk=false' >> "$GITHUB_OUTPUT" || echo 'run_apk=true' >> "$GITHUB_OUTPUT"
           echo "Exact main $current: quality=$quality android-apk=$apk"
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Validate native SVG release source and non-regression model
+        run: |
+          node --test scripts/check-knowme-native-vector-release-parity.test.mjs
+          node --input-type=module -e 'import {inspectCurrentVectorSource} from "./scripts/check-knowme-native-vector-release-parity.mjs"; if (!inspectCurrentVectorSource().installed) process.exit(1);'
       - name: Reject a cloned CI job that has drifted from the canonical CI
         shell: bash
         run: |
