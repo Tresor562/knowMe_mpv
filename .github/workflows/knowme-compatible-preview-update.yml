@@ -33,6 +33,16 @@ jobs:
           persist-credentials: false
           ref: main
 
+      # SVG parity re-generates the shared glyph contract with the TypeScript
+      # compiler. Run this only after the pinned workspace install; otherwise
+      # the publisher fails before qualifying a valid native-vector APK.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.23.2
+      - name: Install dependencies for native SVG parity qualification
+        run: pnpm install --frozen-lockfile
+
       - name: Qualify the exact latest tested source commit
         id: source
         shell: bash
