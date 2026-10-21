@@ -55,6 +55,31 @@ export class PostsController {
     return this.posts.editPost(req.user.userId,id,dto.content);
   }
 
+  /** Account-private saved publications. Public feed cannot enumerate this data. */
+  @UseGuards(JwtAuthGuard)
+  @Get('saved')
+  saved(@Req() req: { user: { userId: string } }) {
+    return this.posts.saved(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/saved')
+  isSaved(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.posts.isSaved(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/save')
+  save(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.posts.save(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/save')
+  unsave(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.posts.unsave(req.user.userId, id);
+  }
+
   @Get('feed')
   feed(@Query('cursor') cursor?: string) {
     return this.posts.feed(cursor);
