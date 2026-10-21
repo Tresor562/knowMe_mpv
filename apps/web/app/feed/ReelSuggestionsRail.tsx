@@ -34,10 +34,11 @@ function reelsFromPosts(posts:VideoPost[]):ReelPreview[]{
 }
 
 function ReelThumbnail({url}:{url:string}){
-  const video=useRef<HTMLVideoElement>(null);
+  const holder=useRef<HTMLDivElement>(null);
   const [nearby,setNearby]=useState(false);
+  const [poster,setPoster]=useState<string|null>(null);
   useEffect(()=>{
-    const node=video.current;
+    const node=holder.current;
     if(!node)return;
     if(typeof IntersectionObserver==='undefined'){setNearby(true);return;}
     const root=node.closest('.km-feed-reel-rail');
@@ -50,8 +51,48 @@ function ReelThumbnail({url}:{url:string}){
     observer.observe(node);
     return()=>observer.disconnect();
   },[]);
-  return <video ref={video} muted playsInline preload="metadata"
-    src={nearby?url:undefined} aria-hidden="true" tabIndex={-1}/>;
+  useEffect(()=>{
+    if(!nearby)return;
+    // Generate a *still image*, not an embedded Android/HTML video player.
+    // The temporary video never enters the DOM, so native media controllers
+    // cannot escape the card or remain visible after the user scrolls.
+    let cancelled=false;
+    const source=document.createElement('video');
+    source.muted=true;
+    source.playsInline=true;
+    source.preload='auto';
+    const dispose=()=>{
+      source.onloadeddata=null;
+      source.onerror=null;
+      source.pause();
+      source.removeAttribute('src');
+      source.load();
+    };
+    source.onloadeddata=()=>{
+      if(cancelled)return;
+      try{
+        if(source.videoWidth>0&&source.videoHeight>0){
+          const canvas=document.createElement('canvas');
+          canvas.width=240;canvas.height=400;
+          const ctx=canvas.getContext('2d');
+          if(ctx){
+            const scale=Math.max(canvas.width/source.videoWidth,canvas.height/source.videoHeight);
+            const width=source.videoWidth*scale;
+            const height=source.videoHeight*scale;
+            ctx.drawImage(source,(canvas.width-width)/2,(canvas.height-height)/2,width,height);
+            if(!cancelled)setPoster(canvas.toDataURL('image/jpeg',0.76));
+          }
+        }
+      }catch{/* Some devices cannot export decoded frames: keep the dark poster. */}
+      dispose();
+    };
+    source.onerror=dispose;
+    source.src=url;
+    return()=>{cancelled=true;dispose();};
+  },[nearby,url]);
+  return <div ref={holder} className="km-feed-reel-still" aria-hidden="true">
+    {poster&&<img src={poster} alt="" draggable={false}/>}
+  </div>;
 }
 
 /** Independent recommendation unit. The host feed decides where it appears. */
