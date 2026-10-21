@@ -14,6 +14,7 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
+import Svg, { Ellipse, Circle } from 'react-native-svg';
 import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
@@ -172,6 +173,7 @@ export function StoriesRail({
   const [insightsOpen,setInsightsOpen]=useState(false);
   const [viewerPage,setViewerPage]=useState<StoryViewersPage|null>(null);
   const [viewersBusy,setViewersBusy]=useState(false);
+  const [viewerLoadMore,setViewerLoadMore]=useState(false);
   const [viewerError,setViewerError]=useState(false);
   const [replyText,setReplyText]=useState('');
   const [sendingReply,setSendingReply]=useState(false);
@@ -319,6 +321,25 @@ export function StoriesRail({
       .finally(()=>{if(live)setViewersBusy(false);});
     return()=>{live=false;};
   },[selected?.id,selected?.viewer.own]);
+
+  async function loadMoreViewers(){
+    if(!selected?.viewer.own||!viewerPage?.nextCursor||viewerLoadMore)return;
+    const storyId=selected.id;
+    const cursor=viewerPage.nextCursor;
+    setViewerLoadMore(true);
+    try{
+      const page=await apiFetch<StoryViewersPage>(
+        '/stories/'+encodeURIComponent(storyId)+'/viewers?cursor='+encodeURIComponent(cursor));
+      if(activeStoryId.current!==storyId)return;
+      setViewerPage(old=>{
+        if(!old||old.nextCursor!==cursor)return old;
+        const seen=new Set(old.viewers.map(viewer=>viewer.viewerUserId));
+        return {...page,viewers:[...old.viewers,
+          ...page.viewers.filter(viewer=>!seen.has(viewer.viewerUserId))]};
+      });
+    }catch{setViewerError(true);}
+    finally{setViewerLoadMore(false);}
+  }
 
   function closeViewer(){
     sequenceRequest.current++;
@@ -718,6 +739,17 @@ export function StoriesRail({
             </View>
           </View>
 
+          {selected?.viewer.own ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Afficher les spectateurs de cette story"
+              onPress={()=>setInsightsOpen(true)} style={styles.viewersButton}>
+              <Svg width={23} height={23} viewBox="0 0 24 24">
+                <Ellipse cx={12} cy={12} rx={10} ry={6.7}
+                  stroke="#fff" strokeWidth={2} fill="none"/>
+                <Circle cx={12} cy={12} r={3.2} fill="#fff"/>
+              </Svg>
+              <Text style={styles.viewersCount}>{viewerPage?.uniqueViewers??(viewersBusy?'…':'—')}</Text>
+            </Pressable>
+          ) : null}
           {!selected?.viewer.own ? (
             <View style={styles.reactions}>
               <PressScale
@@ -752,6 +784,61 @@ export function StoriesRail({
               </PressScale>
             </View>
           ) : null}
+          {selected&&!selected.viewer.own&&selected.allowReplies!==false?(
+            <View style={styles.replyRow}>
+              <TextInput placeholder="Répondre à la story…" placeholderTextColor="#a8afba"
+                value={replyText} onChangeText={setReplyText} maxLength={4000}
+                multiline style={styles.replyInput}/>
+              <Pressable accessibilityRole="button" accessibilityLabel="Envoyer la réponse"
+                disabled={!replyText.trim()||sendingReply} onPress={()=>void sendStoryReply()}
+                style={styles.replySend}>
+                <KnowMeIcon name="arrow" size={20} color="#fff"/>
+              </Pressable>
+            </View>
+          ):null}
+          {insightsOpen&&selected?.viewer.own?(
+            <View style={styles.insightsOverlay}>
+              <Pressable onPress={()=>setInsightsOpen(false)} style={{flex:1}}
+                accessibilityLabel="Fermer les spectateurs"/>
+              <View style={styles.insightsPanel}>
+                <View style={styles.insightsHeader}>
+                  <Text style={styles.insightsTitle}>Vu par {viewerPage?.uniqueViewers??0}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Fermer"
+                    onPress={()=>setInsightsOpen(false)}>
+                    <KnowMeIcon name="close" color="#fff" size={21}/>
+                  </Pressable>
+                </View>
+                <ScrollView style={{maxHeight:330}}>
+                  {viewersBusy?<Text style={styles.insightsEmpty}>Chargement des vues…</Text>:null}
+                  {viewerError?<Text style={styles.insightsEmpty}>Impossible de charger certains spectateurs.</Text>:null}
+                  {!viewersBusy&&!viewerError&&!viewerPage?.viewers.length?
+                    <Text style={styles.insightsEmpty}>Aucune vue pour le moment</Text>:null}
+                  {viewerPage?.viewers.map(person=><Pressable key={person.viewerUserId}
+                    accessibilityRole="button"
+                    onPress={()=>{if(person.user?.username){closeViewer();openProfile?.(person.user.username);}}}
+                    style={styles.viewerPerson}>
+                    <Avatar uri={person.user?.avatarUrl}
+                      name={person.user?.displayName??'KnowMe'} size={38}/>
+                    <View style={{flex:1}}>
+                      <Text style={styles.viewerPersonName}>{person.user?.displayName??'Compte indisponible'}</Text>
+                      <Text style={styles.viewerPersonTime}>
+                        {new Date(person.lastViewedAt).toLocaleString('fr-FR')}
+                      </Text>
+                    </View>
+                    {person.reaction?.reaction?<Text style={styles.viewerReaction}>
+                      {person.reaction.reaction}</Text>:null}
+                  </Pressable>)}
+                  {viewerPage?.nextCursor?<Pressable onPress={()=>void loadMoreViewers()}
+                    disabled={viewerLoadMore} accessibilityRole="button"
+                    style={styles.moreViewers}>
+                    <Text style={styles.moreViewersText}>
+                      {viewerLoadMore?'Chargement…':'Afficher plus de spectateurs'}
+                    </Text>
+                  </Pressable>:null}
+                </ScrollView>
+              </View>
+            </View>
+          ):null}
         </View>
       </Modal>
 
@@ -1103,6 +1190,28 @@ const styles = StyleSheet.create({
   },
   storyTapZones:{position:'absolute',left:0,right:0,top:0,bottom:0,flexDirection:'row'},
   storyTapZone:{flex:1},
+  viewersButton:{alignSelf:'flex-start',marginTop:12,minHeight:46,minWidth:106,
+    paddingHorizontal:18,borderRadius:25,backgroundColor:'rgba(29,37,43,.94)',
+    flexDirection:'row',alignItems:'center',justifyContent:'center',gap:14},
+  viewersCount:{fontSize:15,fontWeight:'800',color:'#fff'},
+  replyRow:{flexDirection:'row',alignItems:'center',gap:10,marginTop:12},
+  replyInput:{flex:1,minHeight:44,maxHeight:110,borderWidth:1,borderColor:'#61717b',
+    borderRadius:24,color:'#fff',paddingHorizontal:16,paddingVertical:10},
+  replySend:{height:44,width:44,borderRadius:22,backgroundColor:'#4b69bf',
+    alignItems:'center',justifyContent:'center'},
+  insightsOverlay:{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:9,
+    backgroundColor:'rgba(0,0,0,.22)',justifyContent:'flex-end'},
+  insightsPanel:{borderTopLeftRadius:22,borderTopRightRadius:22,backgroundColor:'#10151a',
+    minHeight:240,padding:18,gap:12},
+  insightsHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  insightsTitle:{color:'#fff',fontSize:21,fontWeight:'800'},
+  insightsEmpty:{color:'#929da5',fontSize:14,textAlign:'center',marginVertical:22},
+  viewerPerson:{flexDirection:'row',alignItems:'center',gap:12,minHeight:58},
+  viewerPersonName:{fontSize:14,color:'#fff',fontWeight:'700'},
+  viewerPersonTime:{fontSize:12,color:'#b5c0c9',marginTop:4},
+  viewerReaction:{color:'#fff',fontSize:19},
+  moreViewers:{minHeight:44,alignItems:'center',justifyContent:'center'},
+  moreViewersText:{fontSize:13,color:'#aabff9',fontWeight:'700'},
   reactions: {
     flexDirection: 'row',
     gap: 10,
