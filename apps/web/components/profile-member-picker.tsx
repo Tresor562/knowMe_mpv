@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { KnowMeGlyph } from './knowme-glyph';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import './profile-member-picker.css';
 
 export type ProfileMemberOption = {
   id: string;
@@ -94,7 +97,7 @@ export function ProfileMemberPicker(props: {
   }
 
   return (
-    <div className="grid">
+    <div className="grid km-member-picker">
       <label htmlFor="member-search">
         {props.label ?? 'Rechercher des personnes par pseudo ou nom'}
       </label>
@@ -112,22 +115,25 @@ export function ProfileMemberPicker(props: {
       </small>
 
       {props.selected.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="km-member-selected">
           {props.selected.map((member) => (
             <button
               type="button"
-              className="btn"
+              className="km-member-chip"
               key={member.id}
               onClick={() => remove(member.id)}
-              title="Retirer de la sélection"
+              aria-label={`Retirer ${member.displayName} de la sélection`}
             >
-              {member.displayName} · @{member.username} ×
+              <span>{member.displayName} · @{member.username}</span>
+              <KnowMeGlyph name="close" size={16}/>
             </button>
           ))}
         </div>
       )}
 
-      {loading && <small>Recherche…</small>}
+      {loading && <small role="status" className="km-member-loading">
+        <KnowMeAnimatedIcon name="search" size={17} state="loading"/>Recherche…
+      </small>}
       {message && <small style={{ color: 'var(--muted)' }}>{message}</small>}
 
       {results.length > 0 && (
@@ -143,32 +149,16 @@ export function ProfileMemberPicker(props: {
             return (
               <button
                 type="button"
-                className="card"
+                className="km-member-result"
                 key={member.id}
                 disabled={unavailable}
                 onClick={() => add(member)}
-                style={{
-                  padding: 14,
-                  textAlign: 'left',
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'center'
-                }}
+
               >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    display: 'grid',
-                    placeItems: 'center',
-                    background: 'var(--surface-2)',
-                    fontWeight: 900
-                  }}
-                >
+                <div className="km-member-avatar" aria-hidden="true">
                   {member.displayName[0]?.toUpperCase()}
                 </div>
-                <div style={{ flex: 1 }}>
+                <div className="km-member-details">
                   <strong>{member.displayName}</strong>
                   <div style={{ color: 'var(--muted)' }}>@{member.username}</div>
                   <small>
@@ -179,7 +169,10 @@ export function ProfileMemberPicker(props: {
                         : 'Profil KnowMe'}
                   </small>
                 </div>
-                <span>{selected ? 'Sélectionné' : unavailable ? 'Indisponible' : 'Ajouter'}</span>
+                <span className="km-member-add-state">
+                  <KnowMeGlyph name={selected ? 'check' : unavailable ? 'lock' : 'user-plus'} size={19}/>
+                  <span>{selected ? 'Sélectionné' : unavailable ? 'Indisponible' : 'Ajouter'}</span>
+                </span>
               </button>
             );
           })}

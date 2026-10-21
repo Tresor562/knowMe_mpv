@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { KnowMeGlyph } from './knowme-glyph';
+import './secret-profile-entry.css';
 
 type PublicSecretSummary = {
   slug: string;
@@ -32,28 +34,19 @@ export function SecretProfileEntry({ username }: { username: string }) {
   if (!secret) return null;
 
   return (
-    <section
-      id="knowme-secret"
-      className="card"
-      style={{
-        padding: 22,
-        marginTop: 22,
-        border: '1px solid var(--mint)',
-        background: 'linear-gradient(135deg,rgba(69,230,189,.08),rgba(255,138,61,.06))'
-      }}
-    >
-      <small style={{ color: 'var(--mint)' }}>🕵️ KNOWME SECRET ACTIVÉ</small>
-      <h2>Dis-lui quelque chose anonymement</h2>
-      <p style={{ color: 'var(--muted)' }}>{secret.presentation}</p>
-      <Link
-        className="btn btn-primary"
-        href={`/secret/${encodeURIComponent(secret.slug)}?entry=PUBLIC_PROFILE_CTA`}
-      >
-        Envoyer un message anonyme
+    <section id="knowme-secret" className="km-secret-entry" aria-labelledby="km-secret-entry-title">
+      <div className="km-secret-entry-icon" aria-hidden="true"><KnowMeGlyph name="shield" size={23}/></div>
+      <div className="km-secret-entry-content">
+        <small className="km-secret-entry-eyebrow">KNOWME SECRET ACTIVÉ</small>
+        <h2 id="km-secret-entry-title">Dis-lui quelque chose anonymement</h2>
+        <p>{secret.presentation}</p>
+        <small className="km-secret-entry-privacy">Ton identité ne sera pas affichée au destinataire. Les abus peuvent être bloqués et signalés.</small>
+      </div>
+      <Link className="km-secret-entry-action"
+        href={`/secret/${encodeURIComponent(secret.slug)}?entry=PUBLIC_PROFILE_CTA`}>
+        <KnowMeGlyph name="send" size={18}/>
+        <span>Envoyer anonymement</span>
       </Link>
-      <small style={{ display: 'block', color: 'var(--muted)', marginTop: 10 }}>
-        Ton identité ne sera pas affichée au destinataire. Les abus peuvent être bloqués et signalés.
-      </small>
     </section>
   );
 }

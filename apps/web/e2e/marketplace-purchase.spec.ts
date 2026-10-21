@@ -87,7 +87,10 @@ test('retry after a failed response reuses the original idempotency key', async 
   await page.getByRole('button', { name: /Voir les détails de Halo bleu/ }).click();
   await page.getByRole('button', { name: 'Continuer vers l’achat' }).click();
   await page.getByRole('button', { name: 'Confirmer et payer' }).click();
-  await expect(page.getByRole('alert')).toBeVisible();
+  // Scope the error to the checkout dialog: Next.js also maintains a
+  // separate route-announcer with role="alert", which is not a purchase error.
+  await expect(page.getByRole('dialog').getByRole('alert'))
+    .toContainText('Réponse temporairement indisponible.');
   expect(requests).toHaveLength(1);
   await page.getByRole('button', { name: 'Confirmer et payer' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Halo bleu ajouté' })).toBeVisible();
