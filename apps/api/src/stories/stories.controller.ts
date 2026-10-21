@@ -184,7 +184,7 @@ export class StoriesController {
       targetId: id
     });
     const result = await this.stories.reply(req.user.userId, id, dto);
-    await this.notifier.reply(id, req.user.userId);
+    await this.notifier.reply(id, req.user.userId, result.id);
     return result;
   }
 
