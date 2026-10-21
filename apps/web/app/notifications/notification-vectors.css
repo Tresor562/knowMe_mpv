@@ -1,0 +1,69 @@
+/* Shared KnowMe pictograms replace system emoji in the notification centre.
+ * Read and critical states come from API data, not from visual optimism. */
+.km-notification-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.km-notification-category svg[data-knowme-icon] {
+  flex: 0 0 18px;
+  color: var(--mint);
+}
+.km-notification-category input:disabled + svg {
+  color: var(--muted);
+}
+.km-notification-row {
+  padding: 12px 13px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.km-notification-type-icon {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--soft-border);
+  border-radius: 15px;
+  color: var(--mint);
+}
+.km-notification-type-icon svg[data-knowme-icon] {
+  width: 23px;
+  height: 23px;
+}
+.km-notification-row .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.km-notification-row .btn > svg[data-knowme-icon] {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+}
+.km-notification-row .btn:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+.km-notification-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  color: var(--muted);
+}
+@media(max-width: 380px) {
+  .km-notification-row { padding: 10px 9px; gap: 8px; }
+  .km-notification-row .btn { padding-inline: 9px; }
+}

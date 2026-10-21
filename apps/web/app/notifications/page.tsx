@@ -12,6 +12,9 @@ import { apiFetch } from '../../lib/api';
 import { KnowMeMentionText } from '../../components/knowme-mention-text';
 import { getRealtimeSocket } from '../../lib/realtime';
 import { useSession } from '../../lib/use-session';
+import { KnowMeGlyph, type KnowMeGlyphName } from '../../components/knowme-glyph';
+import { KnowMeAnimatedIcon } from '../../components/knowme-animated-icon';
+import './notification-vectors.css';
 
 type Category =
   | 'SOCIAL'
@@ -92,15 +95,15 @@ type CenterResponse = {
   };
 };
 
-const CATEGORIES: Array<{ key: Category; label: string; icon: string }> = [
-  { key: 'SOCIAL', label: 'Social', icon: '👥' },
-  { key: 'MESSAGING', label: 'Messages et appels', icon: '💬' },
-  { key: 'CHALLENGES', label: 'Défis, jeux et quiz', icon: '🎯' },
-  { key: 'GIFTS', label: 'Cadeaux et récompenses', icon: '🎁' },
-  { key: 'SECRET', label: 'KnowMe Secret', icon: '🕵️' },
-  { key: 'CIRCLES', label: 'Duos, équipes et guildes', icon: '⭐' },
-  { key: 'SECURITY', label: 'Sécurité', icon: '🛡️' },
-  { key: 'SYSTEM', label: 'Système et compte', icon: '⚙️' }
+const CATEGORIES: Array<{ key: Category; label: string; icon: KnowMeGlyphName }> = [
+  { key: 'SOCIAL', label: 'Social', icon: 'group' },
+  { key: 'MESSAGING', label: 'Messages et appels', icon: 'chats' },
+  { key: 'CHALLENGES', label: 'Défis, jeux et quiz', icon: 'star' },
+  { key: 'GIFTS', label: 'Cadeaux et récompenses', icon: 'gift' },
+  { key: 'SECRET', label: 'KnowMe Secret', icon: 'shield' },
+  { key: 'CIRCLES', label: 'Duos, équipes et guildes', icon: 'group' },
+  { key: 'SECURITY', label: 'Sécurité', icon: 'shield' },
+  { key: 'SYSTEM', label: 'Système et compte', icon: 'settings' }
 ];
 
 const VIEWS: Array<{ key: CenterView; label: string }> = [
@@ -110,17 +113,17 @@ const VIEWS: Array<{ key: CenterView; label: string }> = [
   { key: 'DISMISSED', label: 'Masquées' }
 ];
 
-const ICONS: Record<string, string> = {
-  FRIEND_REQUEST: '👥',
-  FRIEND_ACCEPTED: '🤝',
-  MESSAGE: '💬',
-  POST_LIKE: '♥',
-  POST_COMMENT: '💬',
-  CHALLENGE_JOIN: '🎯',
-  CIRCLE_INVITATION: '⭐',
-  CIRCLE_DAILY_DIGEST: '🗞️',
-  NOTIFICATION_DIGEST: '🗞️',
-  SECURITY_LOGIN_ALERT: '🛡️'
+const ICONS: Record<string, KnowMeGlyphName> = {
+  FRIEND_REQUEST: 'user-plus',
+  FRIEND_ACCEPTED: 'check-circle',
+  MESSAGE: 'chats',
+  POST_LIKE: 'heart',
+  POST_COMMENT: 'comment',
+  CHALLENGE_JOIN: 'star',
+  CIRCLE_INVITATION: 'group',
+  CIRCLE_DAILY_DIGEST: 'notifications',
+  NOTIFICATION_DIGEST: 'notifications',
+  SECURITY_LOGIN_ALERT: 'shield'
 };
 
 function minuteToTime(value: number) {
@@ -566,7 +569,7 @@ export default function NotificationsPage() {
               const locked =
                 category.key === 'SECURITY' || category.key === 'SYSTEM';
               return (
-                <label className="card" style={{ padding: 14 }} key={category.key}>
+                <label className="card km-notification-category" key={category.key}>
                   <input
                     type="checkbox"
                     name={`category:${category.key}`}
@@ -575,7 +578,7 @@ export default function NotificationsPage() {
                     }
                     disabled={locked}
                   />{' '}
-                  {category.icon} {category.label}
+                  <KnowMeGlyph name={category.icon} size={18}/> {category.label}
                   {locked ? ' · essentiel' : ''}
                 </label>
               );
@@ -587,7 +590,10 @@ export default function NotificationsPage() {
         </form>
       )}
 
-      {loading && <p>Chargement des notifications…</p>}
+      {loading && <p className="km-notification-loading" role="status">
+        <KnowMeAnimatedIcon name="refresh" state="loading" size={20}/>
+        Chargement des notifications…
+      </p>}
       {!loading && center?.groups.length === 0 && (
         <section className="card" style={{ padding: 30, textAlign: 'center' }}>
           <h2>Aucune notification dans cette vue</h2>
@@ -604,13 +610,9 @@ export default function NotificationsPage() {
             group.route ?? notification.data?.route ?? notification.data?.link;
           return (
             <article
-              className="card"
+              className="card km-notification-row"
               key={group.groupKey}
               style={{
-                padding: 18,
-                display: 'grid',
-                gridTemplateColumns: '54px minmax(0,1fr)',
-                gap: 14,
                 borderColor: notification.critical
                   ? 'rgba(255,143,91,.55)'
                   : undefined,
@@ -620,10 +622,10 @@ export default function NotificationsPage() {
                     : undefined
               }}
             >
-              <div style={{ fontSize: 30 }}>
-                {ICONS[notification.type] ??
+              <div className="km-notification-type-icon" aria-hidden="true">
+                <KnowMeGlyph name={ICONS[notification.type] ??
                   CATEGORIES.find((item) => item.key === group.category)?.icon ??
-                  '🔔'}
+                  'notifications'} size={23} active={group.unreadCount > 0}/>
               </div>
               <div style={{ minWidth: 0 }}>
                 <div
@@ -684,6 +686,8 @@ export default function NotificationsPage() {
                       disabled={busy}
                       onClick={() => void openGroup(group)}
                     >
+                      <KnowMeGlyph name="forward" size={17}/>
+
                       Ouvrir
                     </button>
                   )}
@@ -701,6 +705,8 @@ export default function NotificationsPage() {
                         }
                       }}
                     >
+                      <KnowMeGlyph name="check-double" size={17}/>
+
                       Marquer comme lu
                     </button>
                   )}
@@ -711,6 +717,8 @@ export default function NotificationsPage() {
                         disabled={busy}
                         onClick={() => void stateGroup(group, 'SNOOZE', 60)}
                       >
+                        <KnowMeGlyph name="clock" size={17}/>
+
                         Reporter 1 h
                       </button>
                       <button
@@ -718,6 +726,8 @@ export default function NotificationsPage() {
                         disabled={busy}
                         onClick={() => void stateGroup(group, 'ARCHIVE')}
                       >
+                        <KnowMeGlyph name="archive" size={17}/>
+
                         Archiver
                       </button>
                       <button
@@ -725,6 +735,8 @@ export default function NotificationsPage() {
                         disabled={busy}
                         onClick={() => void stateGroup(group, 'DISMISS')}
                       >
+                        <KnowMeGlyph name="eye-off" size={17}/>
+
                         Masquer
                       </button>
                     </>
@@ -735,6 +747,8 @@ export default function NotificationsPage() {
                       disabled={busy}
                       onClick={() => void stateGroup(group, 'RESTORE')}
                     >
+                      <KnowMeGlyph name="refresh" size={17}/>
+
                       Restaurer
                     </button>
                   )}
