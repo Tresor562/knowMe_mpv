@@ -575,10 +575,10 @@ export default function PostDetailPage() {
         <p className="km-post-detail-text"><KnowMeMentionText text={post.content}/></p>
         <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
           caption={post.content}/>
-        <PostActionBar postId={post.id} en={false}
+        <PostActionBar postId={post.id} userId={user?.id} en={false}
           likeCount={post._count.likes} commentCount={post._count.comments}
           selectedReaction={myLike===true?'❤️':null}
-          online={myLike!==null&&!likeBusy}
+          online={myLike!==null}
           onHeart={like}
           onReact={async emoji=>{if(emoji==='❤️')await like();
             else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
