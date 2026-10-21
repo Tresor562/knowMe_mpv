@@ -612,7 +612,7 @@ export function StoriesRail({
         <View
           style={[
             styles.viewer,
-            { backgroundColor: colors.background }
+            { backgroundColor: '#000' }
           ]}
         >
           <View style={styles.progressSegments} accessibilityLabel={`${segments.length} stories`}>
@@ -644,7 +644,7 @@ export function StoriesRail({
               />
               <View>
                 <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
-                <Text style={[styles.viewerName, { color: colors.text }]}>
+                <Text style={[styles.viewerName, { color: '#fff' }]}>
                   {selected?.viewer.own
                     ? currentUser.displayName
                     : selected?.author?.displayName ?? 'KnowMe'}
@@ -682,8 +682,8 @@ export function StoriesRail({
               styles.storyCanvas,
               {
                 backgroundColor: selected?.type==='TEXT'?storyTextColor(selected.background,selected.id):'#050609',
-                borderColor: colors.border,
-                borderRadius: visual.cardRadius
+                borderColor: '#000',
+                borderRadius: 0
               }
             ]}
           >
@@ -703,7 +703,7 @@ export function StoriesRail({
               <KnowMeIcon name="spark" size={20} color={colors.accent} />
             </View>}
             {selected?.type==='PHOTO'&&selectedPhotoUri?<Image source={{uri:selectedPhotoUri}}
-              resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
+              resizeMode="contain" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
               paused={insightsOpen||viewerMenuOpen||storyPaused}
