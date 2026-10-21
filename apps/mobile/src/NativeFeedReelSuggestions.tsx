@@ -4,6 +4,7 @@ import {apiFetch,API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {useAppearance} from './AppearanceProvider';
+import {queueReelSelectionIntent} from './reel-selection-intent';
 
 type Media={url:string;mimeType:string;position:number};
 type VideoPost={id:string;author?:{displayName?:string;username?:string};media?:Media[]};
@@ -63,7 +64,11 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
         renderItem={({item})=>(
           <Pressable accessibilityRole="button"
             accessibilityLabel={'Voir le réel de '+item.creator}
-            onPress={()=>onOpenReels(item.postId,item.position)}
+            onPress={()=>{
+              if(queueReelSelectionIntent({postId:item.postId,position:item.position})){
+                onOpenReels();
+              }
+            }}
             style={[styles.card,{backgroundColor:colors.surface}]}>
             <View pointerEvents="none" style={styles.video}>
               <NativeStoryVideo sourceUri={API_URL+item.url} paused
