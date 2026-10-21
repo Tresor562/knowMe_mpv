@@ -220,8 +220,8 @@ export function PostActionBar({
         <button type="button" className="km-post-action km-post-heart" ref={pickerButton}
           disabled={!online || busy || !canToggle} aria-pressed={heartActive}
           aria-label={heartActive
-            ? (en ? 'Remove my reaction' : 'Retirer ma réaction')
-            : (en ? 'Like publication' : 'J’aime la publication')}
+            ? (en ? 'Remove my like' : 'Retirer mon J’aime')
+            : (en ? 'React to publication' : 'Réagir à la publication')}
           aria-haspopup="dialog"
           onPointerDown={onHeartPointerDown} onPointerMove={onHeartPointerMove}
           onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress}
