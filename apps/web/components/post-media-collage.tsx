@@ -65,6 +65,7 @@ export function PostMediaCollage({ media, fallbackUrl, caption = '', en = false 
   return (
     <>
       <div className="km-post-collage" data-count={Math.min(5,total)}
+        data-single-video={total===1&&items[0]?.mimeType.startsWith('video/')?'true':'false'}
         aria-label={en ? `Post with ${total} media files` : `Publication contenant ${total} médias`}>
         {visible.map((item, index) => {
           const video = item.mimeType.startsWith('video/');
