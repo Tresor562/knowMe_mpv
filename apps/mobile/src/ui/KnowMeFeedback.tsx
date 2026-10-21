@@ -2,6 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View, type AlertButton, type AlertOptions } from 'react-native';
 import { useAppearance } from '../AppearanceProvider';
 import { GlassSurface, KnowMeIcon, PressScale } from './KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './KnowMeNativeAnimatedIcon';
+import { KnowMeNativeIconButton } from './KnowMeNativeIconButton';
+import { useKnowMeAppForeground } from './knowme-app-foreground';
 
 type Dialog = { kind: 'dialog'; title: string; message?: string; buttons?: AlertButton[]; options?: AlertOptions };
 type Toast = { kind: 'toast'; message: string; tone: 'info' | 'success' | 'error' };
@@ -25,13 +28,15 @@ export const KnowMeToast = {
 
 export function KnowMeFeedbackProvider({ children }: { children: ReactNode }) {
   const { colors } = useAppearance();
+  const foreground = useKnowMeAppForeground();
   const [dialogs, setDialogs] = useState<Dialog[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [toastEvent, setToastEvent] = useState(0);
   const current = dialogs[0] ?? null;
   useEffect(() => {
     const accept = (item: Request) => {
       if (item.kind === 'dialog') setDialogs(previous => [...previous, item]);
-      else setToast(item);
+      else { setToast(item); setToastEvent(n => n + 1); }
     };
     receiver = accept;
     const earlier = queued;
@@ -40,10 +45,13 @@ export function KnowMeFeedbackProvider({ children }: { children: ReactNode }) {
     return () => { if (receiver === accept) receiver = null; };
   }, []);
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 3500);
+    if (!toast || !foreground) return;
+    // Errors require time to read and fix. Keep the status visible while
+    // Android has moved to the background instead of silently consuming it.
+    const durationMs = toast.tone === 'error' ? 8000 : 5000;
+    const timer = setTimeout(() => setToast(null), durationMs);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast, foreground]);
   const pop = () => setDialogs(previous => previous.slice(1));
   const cancel = () => {
     if (!current || current.options?.cancelable === false) return;
@@ -59,12 +67,14 @@ export function KnowMeFeedbackProvider({ children }: { children: ReactNode }) {
       {toast ? (
         <View pointerEvents="box-none" style={styles.toastLayer}>
           <GlassSurface strength="medium" borderRadius={22} style={styles.toast}>
-            <KnowMeIcon name={toast.tone === 'error' ? 'close' : 'check'} size={19}
+            <KnowMeNativeAnimatedIcon
+              name={toast.tone === 'error' ? 'close' : toast.tone === 'success' ? 'check' : 'spark'}
+              state={toast.tone === 'error' ? 'error' : toast.tone === 'success' ? 'success' : 'incoming'}
+              eventToken={toastEvent} size={20}
               color={toast.tone === 'error' ? colors.danger : colors.accent} />
             <Text accessibilityRole="alert" style={[styles.toastText, { color: colors.text }]}>{toast.message}</Text>
-            <Pressable accessibilityLabel="Fermer le message" onPress={() => setToast(null)}>
-              <KnowMeIcon name="close" size={18} color={colors.muted} />
-            </Pressable>
+            <KnowMeNativeIconButton name="close" size={18} color={colors.muted}
+              label="Fermer le message" onPress={() => setToast(null)} />
           </GlassSurface>
         </View>
       ) : null}

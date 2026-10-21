@@ -1,0 +1,10 @@
+/* Low-density media settings pictograms: each label stays clickable. */
+.km-media-vector-summary { display: inline-flex; align-items: center; gap: 8px; }
+.km-media-vector-summary svg { color: var(--mint); flex: 0 0 auto; }
+.km-media-vector-network { display: inline-flex; align-items: center; gap: 6px; }
+.km-media-vector-network > svg { color: var(--mint); vertical-align: middle; margin-right: 6px; }
+.km-settings-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; }
+.km-settings-chip > svg { flex: 0 0 16px; color: var(--muted); }
+.km-media-vector-loading { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.km-settings-link-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; }
+.km-settings-link-button:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }

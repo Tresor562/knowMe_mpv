@@ -9,7 +9,8 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { apiFetch, type ApiError } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { clearMobileMediaCache, mobileMediaCacheStats } from './media-cache';
-import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GlassSurface } from './ui/KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './ui/KnowMeNativeAnimatedIcon';
 
 type ServerPreference = MediaDownloadPreference & {
   version: number;
@@ -19,6 +20,9 @@ type ServerPreference = MediaDownloadPreference & {
 const LABELS: Record<MediaKind, string> = {
   IMAGE: 'Photos', VIDEO: 'Vidéos', AUDIO: 'Audio', FILE: 'Fichiers'
 };
+const MEDIA_ICONS = {
+  IMAGE: 'camera', VIDEO: 'video-call', AUDIO: 'microphone', FILE: 'download'
+} as const;
 
 export function MediaDownloadSettingsExperience() {
   const { colors, visual } = useAppearance();
@@ -73,7 +77,8 @@ export function MediaDownloadSettingsExperience() {
     <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-          <KnowMeIcon name="settings" size={20} color={colors.accent} />
+          <KnowMeNativeAnimatedIcon name="settings" size={20} color={colors.accent}
+            state={busy ? "loading" : message === "Préférences synchronisées." ? "success" : "idle"} />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: colors.text }]}>Téléchargements & stockage</Text>
@@ -89,7 +94,13 @@ export function MediaDownloadSettingsExperience() {
             {MEDIA_KINDS.map((kind) => {
               const selected = preference[network].includes(kind);
               return (
-                <Pressable key={kind} disabled={busy} onPress={() => toggle(network, kind)} style={[styles.pill, { borderColor: colors.border, backgroundColor: selected ? colors.accent : colors.surfaceRaised }]}>
+                <Pressable key={kind} disabled={busy} onPress={() => toggle(network, kind)}
+                  accessibilityRole="checkbox" accessibilityState={{ checked: selected, disabled: busy }}
+                  accessibilityLabel={`${LABELS[kind]} — ${network === 'wifiKinds' ? 'Wi‑Fi' : network === 'cellularKinds' ? 'données mobiles' : 'itinérance'}`}
+                  style={[styles.pill, { borderColor: colors.border, backgroundColor: selected ? colors.accent : colors.surfaceRaised }]}>
+                  <KnowMeNativeAnimatedIcon name={MEDIA_ICONS[kind]} size={16}
+                    color={selected ? colors.accentText : colors.text}
+                    state={selected ? 'selected' : 'idle'}/>
                   <Text style={{ color: selected ? colors.accentText : colors.text, fontWeight: '800' }}>{LABELS[kind]}</Text>
                 </Pressable>
               );
@@ -113,8 +124,35 @@ export function MediaDownloadSettingsExperience() {
           <Text style={[styles.cacheLabel, { color: colors.muted }]}>limite</Text>
         </View>
       </View>
-      <View style={styles.wrap}>{[128, 512, 1024, 2048].map((value) => <Pressable key={value} disabled={busy} onPress={() => void save({ ...preference, maxCacheMb: value })} style={[styles.pill, { borderColor: colors.border, backgroundColor: preference.maxCacheMb === value ? colors.accent : colors.surfaceRaised }]}><Text style={{ color: preference.maxCacheMb === value ? colors.accentText : colors.text }}>{value} Mo</Text></Pressable>)}</View>
-      <Pressable disabled={busy || count === 0} onPress={() => void (async () => { setBusy(true); await clearMobileMediaCache(); setBytes(0); setCount(0); setBusy(false); setMessage('Copies locales supprimées.'); })()} style={[styles.clear, { borderColor: colors.danger, borderRadius: visual.controlRadius }]}><Text style={{ color: colors.danger, fontWeight: '900' }}>Supprimer les copies locales</Text></Pressable>
+      <View style={styles.wrap}>{[128, 512, 1024, 2048].map((value) => <Pressable key={value} disabled={busy}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: preference.maxCacheMb === value, disabled: busy }}
+        accessibilityLabel={`Limite de cache : ${value} Mo`}
+        onPress={() => void save({ ...preference, maxCacheMb: value })}
+        style={[styles.pill, { borderColor: colors.border, backgroundColor: preference.maxCacheMb === value ? colors.accent : colors.surfaceRaised }]}>
+        <Text style={{ color: preference.maxCacheMb === value ? colors.accentText : colors.text }}>{value} Mo</Text>
+      </Pressable>)}</View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Supprimer les copies locales"
+        accessibilityState={{ disabled: busy || count === 0, busy }}
+        disabled={busy || count === 0}
+        onPress={() => void (async () => {
+          setBusy(true);
+          try {
+            await clearMobileMediaCache();
+            setBytes(0);
+            setCount(0);
+            setMessage('Copies locales supprimées.');
+          } catch (cause) {
+            setMessage(cause instanceof Error ? cause.message : 'Suppression impossible.');
+          } finally {
+            setBusy(false);
+          }
+        })()}
+        style={[styles.clear, { borderColor: colors.danger, borderRadius: visual.controlRadius }]}>
+        <KnowMeNativeAnimatedIcon name={busy ? "refresh" : "download"} size={18}
+          color={colors.danger} state={busy ? "loading" : "idle"} />
+        <Text style={{ color: colors.danger, fontWeight: '900' }}>Supprimer les copies locales</Text>
+      </Pressable>
       {message ? <Text style={{ color: colors.secondary }}>{message}</Text> : null}
     </GlassSurface>
   );
@@ -130,10 +168,10 @@ const styles = StyleSheet.create({
   group: { gap: 7 },
   label: { fontSize: 13, fontWeight: '800' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 },
+  pill: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 42 },
   cacheSummary: { minHeight: 66, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   cacheValue: { fontSize: 13.5, fontWeight: '800', textAlign: 'center' },
   cacheLabel: { fontSize: 9.5, marginTop: 1, textAlign: 'center' },
-  clear: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 10, alignItems: 'center', justifyContent: 'center' }
+  clear: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 }
 });

@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "repository": "Tresor562/knowMe_mpv",
+  "asOf": "2026-10-18",
+  "linkedIssue": 699,
+  "pr": 760,
+  "statusLegend": {
+    "uninspected": "Aucun contrôle individuel de l'ensemble des glyphes",
+    "partial": "Socle ajouté, revue exhaustive non acquise",
+    "blocked": "Nécessite une PR d'un autre domaine ou une livraison native",
+    "verified": "Tracés, gestes, states, tests navigateur et Android observés"
+  },
+  "surfaces": [
+    {
+      "id": "global-navigation",
+      "title": "Accueil et navigation globale",
+      "owner": 699,
+      "areas": [
+        "apps/web/components/bottom-navigation.tsx",
+        "apps/mobile/App.tsx"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web: bottom-navigation uses KnowMeAnimatedIcon with selected state",
+        "Shared 44px icon action and route icon feedback"
+      ],
+      "unresolved": [
+        "Native dock variants and all screen-specific navigation controls not exhaustively inspected"
+      ]
+    },
+    {
+      "id": "feed",
+      "title": "Publications et actions",
+      "owner": 694,
+      "areas": [
+        "apps/web/app/feed",
+        "apps/mobile/src/FeedExperience.tsx"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared post video toolbar: 79-glyph catalog, play/pause, seek, volume, fullscreen",
+        "Shared post share and edit sheet vectors"
+      ],
+      "unresolved": [
+        "Feed reactions/comments and mobile feed visuals coordinated with Social #694"
+      ]
+    },
+    {
+      "id": "post-comments",
+      "title": "Commentaires et réponses",
+      "owner": 694,
+      "areas": [
+        "apps/web/app/feed",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared comment report sheet uses close/send vector statuses"
+      ],
+      "unresolved": [
+        "Comment reactions, share and reply interface owned by #694"
+      ]
+    },
+    {
+      "id": "reactions",
+      "title": "Cœur rouge et emojis persistants",
+      "owner": 694,
+      "areas": [
+        "apps/web/components",
+        "apps/mobile/src"
+      ],
+      "status": "blocked"
+    },
+    {
+      "id": "messages",
+      "title": "Messagerie privée, lecteur vocal, états",
+      "owner": 693,
+      "areas": [
+        "apps/web/app/messages",
+        "apps/mobile/src/RealtimeMessagesPanel.tsx"
+      ],
+      "status": "blocked"
+    },
+    {
+      "id": "groups-channels",
+      "title": "Groupes, chaînes et commandes",
+      "owner": 693,
+      "areas": [
+        "apps/web/app/channels",
+        "apps/mobile/src"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "profiles",
+      "title": "Profils, amis, couverture, personnalisation",
+      "owner": 696,
+      "areas": [
+        "apps/web/app/profile",
+        "apps/web/components/avatar-quick-actions.tsx"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Avatar action popup viewport placement, keyboard navigation, image viewer focus",
+        "Compact secret profile CTA with shield/send glyphs",
+        "Creator follow action displays confirmed follow state",
+        "Creator follow action shows server-confirmed follow/unfollow plus compact shield/send Secret CTA"
+      ],
+      "unresolved": [
+        "Other profile screens and certification badges owned by Profiles #696"
+      ]
+    },
+    {
+      "id": "preferences",
+      "title": "Paramètres, thèmes, sécurité",
+      "owner": 696,
+      "areas": [
+        "apps/web/app/settings",
+        "apps/mobile/src/ui/KnowMeUI.tsx"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web media/download preference labels and networks use matching vector family",
+        "Android language picker 48dp accessible close and genuine sync indicator",
+        "Android language picker 48dp icon close and true synchronization indicator; Web media downloads have network and media glyphs"
+      ],
+      "unresolved": [
+        "Other app preferences and theme pack variants require QA"
+      ]
+    },
+    {
+      "id": "stories",
+      "title": "Stories et créateur",
+      "owner": 695,
+      "areas": [
+        "apps/web/app/stories",
+        "apps/mobile/src/StoriesRail.tsx"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "reels",
+      "title": "Réels et lecteur longue durée",
+      "owner": 695,
+      "areas": [
+        "apps/web/app/reels",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Original rewind-10, forward-10, fullscreen vector symbols available for Reels owners"
+      ],
+      "unresolved": [
+        "Actual Reels and Stories UI owned by #695 still requires integration"
+      ]
+    },
+    {
+      "id": "marketplace",
+      "title": "Marketplace, cadeaux, APK",
+      "owner": 697,
+      "areas": [
+        "apps/web/app/marketplace",
+        "apps/mobile/src/MarketplaceExperience.tsx"
+      ],
+      "status": "blocked"
+    },
+    {
+      "id": "search",
+      "title": "Recherche, suggestions, filtres",
+      "owner": 699,
+      "areas": [
+        "apps/web/app/discover",
+        "apps/web/app/search",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Shared member picker: loading search vector, compact results, add/selected/unavailable glyphs"
+      ],
+      "unresolved": [
+        "Global search results, discovery rankings and Android search pages uninspected"
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "Notifications système et dans l'app",
+      "owner": 699,
+      "areas": [
+        "apps/web/app/notifications",
+        "apps/web/components/in-app-notifications.tsx",
+        "apps/mobile/src/NotificationCenterExperience.tsx"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web feedback/toast icons now follow warning/info/success kind",
+        "Android in-app toast events and 48dp dismissal",
+        "Android toasts remain readable 8s for errors and 5s for other statuses; pause dismissal in background"
+      ],
+      "unresolved": [
+        "Android full notification center overlaps its own Messaging/Design PR; see #743"
+      ]
+    },
+    {
+      "id": "stickers-emoji-gif",
+      "title": "Stickers, GIF, emoji, packs",
+      "owner": 693,
+      "areas": [
+        "apps/web/app/messages",
+        "apps/mobile/src/KnowMeStickerPicker.tsx"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "media-gallery",
+      "title": "Sélecteurs galerie, médias, mosaïques",
+      "owner": 693,
+      "areas": [
+        "apps/web/components/post-media-collage.tsx",
+        "apps/mobile/src"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "media-audio-video",
+      "title": "Contrôles de lecture, pause, progression",
+      "owner": 693,
+      "areas": [
+        "apps/web/app/messages",
+        "apps/web/app/reels",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web post video controls use actual playback/mute/fullscreen states",
+        "Viewport-intersection pause for animated icons",
+        "Rewind/forward SVG 10-second numbers are drawn with paths rather than embedded font text"
+      ],
+      "unresolved": [
+        "Message audio bars, multi-hour Reels transport and Android video/voice controls belong to #693/#695"
+      ]
+    },
+    {
+      "id": "calls",
+      "title": "Appels vocaux et vidéo",
+      "owner": 693,
+      "areas": [
+        "apps/web/app",
+        "apps/mobile/src"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "authentication",
+      "title": "Connexion, confirmation et récupération",
+      "owner": 696,
+      "areas": [
+        "apps/web/app/login",
+        "apps/web/app/register",
+        "apps/mobile/src"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "files-downloads",
+      "title": "Fichiers, transferts, téléchargements",
+      "owner": 693,
+      "areas": [
+        "apps/web/app/messages",
+        "apps/web/app/marketplace",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web media download settings: photos, video, audio, files and network category icons",
+        "Web media download preferences show real wifi/cellular/roaming/category icons with compact 44px targets"
+      ],
+      "unresolved": [
+        "Messages file gallery and transfer list; native SVG dependency not installed"
+      ]
+    },
+    {
+      "id": "menus-modals",
+      "title": "Menus contextuels, fenêtres, dialogues",
+      "owner": 699,
+      "areas": [
+        "apps/web/components",
+        "apps/mobile/src/ui"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Avatar portal, keyboard menu, photo modal, shared share-sheet focus trap",
+        "Compact report/edit modal close vectors and accessible touch targets",
+        "Every vector has an event-bound animation fallback; active loading/syncing icons move without idle loops"
+      ],
+      "unresolved": [
+        "Other context menus and native sheets not exhaustively migrated"
+      ]
+    },
+    {
+      "id": "errors-offline",
+      "title": "Connexion, chargements, erreurs, hors ligne",
+      "owner": 699,
+      "areas": [
+        "apps/web/components/network-connectivity-notice.tsx",
+        "apps/mobile/src"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Web connectivity notice wifi-off/wifi icon states",
+        "Web/Android toast severity vectors and event-driven feedback"
+      ],
+      "unresolved": [
+        "Additional on-device offline/retry surfaces remain"
+      ]
+    },
+    {
+      "id": "admin",
+      "title": "Administration et modération",
+      "owner": 698,
+      "areas": [
+        "apps/web/app",
+        "apps/mobile/src"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "miniapps",
+      "title": "Mini-applications intégrées",
+      "owner": 693,
+      "areas": [
+        "apps/web",
+        "apps/mobile"
+      ],
+      "status": "uninspected"
+    },
+    {
+      "id": "brand-illustrations",
+      "title": "Logo, motif conversation et illustrations",
+      "owner": 699,
+      "areas": [
+        "apps/web/public/brand/knowme-logo.svg",
+        "apps/web/public/chat-pattern.svg",
+        "apps/mobile/assets"
+      ],
+      "status": "partial",
+      "completedOrImplemented": [
+        "Decorative SVG motif labeled as non-interactive"
+      ],
+      "unresolved": [
+        "Logo illustrations and native sources need device-by-device visual review"
+      ]
+    }
+  ],
+  "vectorSourceCounts": {
+    "webGlyphNames": 79,
+    "androidGenuineSvgGlyphsConfirmed": 0,
+    "androidReactNativeSvgDependencyInstalled": false,
+    "inventoryIncludesSource": "scripts/audit-knowme-svg.mjs",
+    "inventoryWarning": "Count is not equivalent to full runtime/device visual coverage"
+  },
+  "releaseGate": {
+    "webDeploymentVerified": false,
+    "androidSignedReleaseVerified": false,
+    "androidDeviceVisualQA": false,
+    "prMergeBlockedByConcurrentPRs": true,
+    "codeBranch": "chat/design/vector-icons-tactile-web-android"
+  },
+  "iconMotion": {
+    "eventBoundFallbackForEveryWebGlyph": true,
+    "continuousOnlyForRealActiveStates": true,
+    "offscreenPause": true,
+    "reduceMotionSupported": true
+  }
+}

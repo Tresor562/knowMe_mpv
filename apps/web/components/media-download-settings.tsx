@@ -10,6 +10,9 @@ import { useEffect, useState } from 'react';
 import { useI18n } from './i18n-provider';
 import { apiFetch, type ApiError } from '../lib/api';
 import { clearMediaCache, mediaCacheStats } from '../lib/media-cache';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeGlyph, type KnowMeGlyphName } from './knowme-glyph';
+import './media-download-vector.css';
 
 type ServerPreference = MediaDownloadPreference & {
   version: number;
@@ -17,6 +20,12 @@ type ServerPreference = MediaDownloadPreference & {
   updatedAt: string | null;
 };
 
+const MEDIA_GLYPHS: Record<MediaKind, KnowMeGlyphName> = {
+  IMAGE: 'image', VIDEO: 'video', AUDIO: 'headphones', FILE: 'file'
+};
+const NETWORK_GLYPHS: Record<'wifiKinds' | 'cellularKinds' | 'roamingKinds', KnowMeGlyphName> = {
+  wifiKinds: 'wifi', cellularKinds: 'phone', roamingKinds: 'map-pin'
+};
 const LABELS: Record<'fr' | 'en', Record<MediaKind, string>> = {
   fr: { IMAGE: 'Photos', VIDEO: 'Vidéos', AUDIO: 'Audio', FILE: 'Fichiers' },
   en: { IMAGE: 'Photos', VIDEO: 'Videos', AUDIO: 'Audio', FILE: 'Files' }
@@ -87,7 +96,10 @@ export function MediaDownloadSettings() {
     }
   }
 
-  if (!preference) return <p className="km-settings-hint">{en ? 'Loading download settings…' : 'Chargement des téléchargements…'}</p>;
+  if (!preference) return <p className="km-settings-hint km-media-vector-loading" role="status">
+    <KnowMeAnimatedIcon name="refresh" size={18} state="loading"/>
+    {en ? 'Loading download settings…' : 'Chargement des téléchargements…'}
+  </p>;
 
   const networks = [
     ['wifiKinds', 'Wi-Fi'],
@@ -98,18 +110,25 @@ export function MediaDownloadSettings() {
   return (
     <details className="km-settings-disclosure">
       <summary>
-        <span>{en ? 'Media & downloads' : 'Médias et téléchargements'}</span>
+        <span className="km-media-vector-summary">
+          <KnowMeGlyph name="download" size={20}/>
+          {en ? 'Media & downloads' : 'Médias et téléchargements'}
+        </span>
         <small>{en ? 'Network, storage and cache' : 'Réseau, stockage et cache'}</small>
       </summary>
       <div className="km-settings-disclosure-body">
         {networks.map(([network, heading]) => (
           <fieldset key={network} disabled={busy} className="km-settings-network">
-            <legend>{heading}</legend>
+            <legend className="km-media-vector-network">
+              <KnowMeGlyph name={NETWORK_GLYPHS[network]} size={17}/>
+              {heading}
+            </legend>
             <div className="km-settings-chips">
               {MEDIA_KINDS.map(kind => (
                 <label key={kind} className="km-settings-chip">
                   <input type="checkbox" checked={preference[network].includes(kind)}
                     onChange={() => toggle(network, kind)} />
+                  <KnowMeGlyph name={MEDIA_GLYPHS[kind]} size={16}/>
                   {LABELS[en ? 'en' : 'fr'][kind]}
                 </label>
               ))}
@@ -131,7 +150,11 @@ export function MediaDownloadSettings() {
         </label>
         <p className="km-settings-hint">{count} {en ? 'local copies' : 'copies locales'} · {(bytes / 1024 / 1024).toFixed(1)} MB</p>
         <button type="button" className="km-settings-link-button" disabled={busy || count === 0}
-          onClick={() => void clear()}>{en ? 'Clear local copies' : 'Supprimer les copies locales'}</button>
+          onClick={() => void clear()}>
+          <KnowMeAnimatedIcon name={busy ? 'refresh' : 'trash'}
+            state={busy ? 'loading' : 'idle'} size={18}/>
+          {en ? 'Clear local copies' : 'Supprimer les copies locales'}
+        </button>
         {message && <p role="status" className="km-settings-hint">{message}</p>}
       </div>
     </details>

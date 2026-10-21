@@ -2,16 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { KnowMeAnimatedIcon, type KnowMeIconState } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
-function ShareGlyph({ name }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat' }) {
-  const common = { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor',
-    strokeWidth:2, strokeLinecap:'round' as const, strokeLinejoin:'round' as const,
-    width:23, height:23, 'aria-hidden':true as const };
-  if (name === 'feed') return <svg {...common}><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/><path d="M9 20v-6h6v6"/></svg>;
-  if (name === 'story') return <svg {...common}><circle cx="12" cy="12" r="9" strokeDasharray="3 2"/><path d="M12 8v8m-4-4h8"/></svg>;
-  if (name === 'chat') return <svg {...common}><path d="M20.5 11.5c0 4.7-4 8.5-9 8.5a10 10 0 0 1-3.7-.7L3 21l1.7-4.3A8 8 0 0 1 2.5 11.5c0-4.7 4-8.5 9-8.5s9 3.8 9 8.5Z"/><path d="M8 11.5h7"/></svg>;
-  if (name === 'apps') return <svg {...common}><path d="M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6"/></svg>;
-  return <svg {...common}><path d="M10 13a5 5 0 0 0 7.5.2l2-2a5 5 0 0 0-7.1-7.1l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.2l-2 2a5 5 0 0 0 7.1 7.1l1.5-1.5"/></svg>;
+function ShareGlyph({ name, state = 'idle' }: { name: 'feed' | 'story' | 'apps' | 'link' | 'chat'; state?: KnowMeIconState }) {
+  const icons = { feed: 'home', story: 'story', apps: 'upload', link: 'copy', chat: 'chats' } as const;
+  return <span className="km-share-action-icon" aria-hidden="true"><KnowMeAnimatedIcon name={icons[name]} size={22} state={state}/></span>;
 }
 
 type ShareConversation = {
@@ -45,6 +41,8 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [caption, setCaption] = useState('');
   const [audience, setAudience] = useState<'FRIENDS' | 'PUBLIC'>('FRIENDS');
   const [busy, setBusy] = useState(false);
+  const [busyOperation, setBusyOperation] = useState<'feed' | 'story' | 'message' | null>(null);
+  const [copied, setCopied] = useState(false);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState('');
   const [showConversations, setShowConversations] = useState(false);
@@ -53,6 +51,9 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
   const [selectedConversationId, setSelectedConversationId] = useState('');
   const [recipientQuery, setRecipientQuery] = useState('');
   const previousFocus = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   const url = typeof window === 'undefined' ? '' :
     `${window.location.origin}/feed/${encodeURIComponent(post.id)}`;
 
@@ -60,20 +61,45 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const initialFocus = window.requestAnimationFrame(() => {
+      dialogRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
+    });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        // Do not let a dismissed sheet pretend a pending network write stopped.
+        if (!submitting.current) { event.preventDefault(); closeRef.current(); }
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusables = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? [])].filter(node => node.getClientRects().length > 0);
+      if (!focusables.length) { event.preventDefault(); return; }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
+        event.preventDefault();
+        first?.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => {
+      window.cancelAnimationFrame(initialFocus);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
       previousFocus.current?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   async function copyLink() {
+    setCopied(false);
     try {
       await navigator.clipboard.writeText(url);
+      setCopied(true);
       setFeedback(en ? 'Link copied.' : 'Lien copié.');
     } catch {
       setFeedback(en ? 'Copy unavailable on this device.' : 'Copie indisponible sur cet appareil.');
@@ -124,6 +150,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     }
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("message");
     setFeedback('');
     try {
       // Membership and permission checks stay enforced by the Messaging API.
@@ -141,6 +168,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
@@ -148,6 +176,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     if (submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("feed");
     setFeedback('');
     try {
       const text = [
@@ -165,6 +194,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
@@ -172,6 +202,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     if (submitting.current) return;
     submitting.current = true;
     setBusy(true);
+    setBusyOperation("story");
     setFeedback('');
     try {
       await apiFetch('/stories', { method: 'POST', body: JSON.stringify({
@@ -186,19 +217,20 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
     } finally {
       submitting.current = false;
       setBusy(false);
+      setBusyOperation(null);
     }
   }
 
   return (
     <div className="km-share-overlay" role="presentation"
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <section className="km-share-sheet" role="dialog" aria-modal="true"
+      <section ref={dialogRef} className="km-share-sheet" role="dialog" aria-modal="true"
         aria-label={en ? 'Share publication' : 'Partager la publication'}>
         <div className="km-share-handle" aria-hidden="true"/>
         <header className="km-share-header">
           <h2>{en ? 'Share post' : 'Partager la publication'}</h2>
-          <button type="button" className="km-share-close" onClick={onClose} disabled={busy}
-            aria-label={en ? 'Close' : 'Fermer'}>×</button>
+          <KnowMeIconButton name="close" size={21} className="km-share-close"
+            onClick={onClose} disabled={busy} label={en ? 'Close' : 'Fermer'} />
         </header>
         <div className="km-share-source">
           <strong>{post.author.displayName}</strong>
@@ -224,20 +256,20 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
         </div>
         <div className="km-share-actions">
           <button type="button" disabled={busy} onClick={() => void shareToFeed()}>
-            <ShareGlyph name="feed"/>{en ? 'To my feed' : 'Sur mon profil'}
+            <ShareGlyph name="feed" state={busyOperation === "feed" ? "sending" : "idle"}/>{en ? 'To my feed' : 'Sur mon profil'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareToStory()}>
-            <ShareGlyph name="story"/>{en ? 'To my Story' : 'Dans ma story'}
+            <ShareGlyph name="story" state={busyOperation === "story" ? "sending" : "idle"}/>{en ? 'To my Story' : 'Dans ma story'}
           </button>
           <button type="button" disabled={busy || loadingConversations} aria-expanded={showConversations}
             onClick={() => void showConversationPicker()}>
-            <ShareGlyph name="chat"/>{en ? 'Messages & groups' : 'Messages et groupes'}
+            <ShareGlyph name="chat" state={loadingConversations ? "loading" : showConversations ? "open" : "closed"}/>{en ? 'Messages & groups' : 'Messages et groupes'}
           </button>
           <button type="button" disabled={busy} onClick={() => void shareOutside()}>
             <ShareGlyph name="apps"/>{en ? 'Other apps' : 'Autres applis'}
           </button>
           <button type="button" disabled={busy} onClick={() => void copyLink()}>
-            <ShareGlyph name="link"/>{en ? 'Copy link' : 'Copier le lien'}
+            <ShareGlyph name="link" state={copied ? "success" : "idle"}/>{copied ? (en ? 'Link copied' : 'Lien copié') : (en ? 'Copy link' : 'Copier le lien')}
           </button>
         </div>
         {showConversations && (
@@ -265,6 +297,7 @@ export function PostShareSheet({ post, onClose, onPublished, en }: {
             </div>
             <button type="button" className="km-share-send-message" disabled={busy || !selectedConversationId}
               onClick={() => void sendToConversation()}>
+              <KnowMeAnimatedIcon name="send" size={20} state={busyOperation === "message" ? "sending" : "idle"}/>
               {en ? 'Send to selected conversation' : 'Envoyer dans cette conversation'}
             </button>
           </section>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="KnowMe — prototype du logo en véritables tracés vectoriels">
+<defs>
+<linearGradient id="frame" x1="0%" y1="0%" x2="100%" y2="100%"><stop stop-color="#431380"/><stop offset=".31" stop-color="#1c073c"/><stop offset=".72" stop-color="#0a0a20"/><stop offset="1" stop-color="#080916"/></linearGradient>
+<radialGradient id="background" cx=".52" cy=".05" r=".89"><stop stop-color="#250a4b"/><stop offset=".64" stop-color="#120727"/><stop offset="1" stop-color="#050919"/></radialGradient>
+<linearGradient id="leftStroke" gradientUnits="userSpaceOnUse" x1="56" y1="42" x2="101" y2="228"><stop stop-color="#00dce4"/><stop offset=".3" stop-color="#0098f8"/><stop offset=".66" stop-color="#622aff"/><stop offset="1" stop-color="#a32cfb"/></linearGradient>
+<linearGradient id="rightStroke" gradientUnits="userSpaceOnUse" x1="209" y1="39" x2="102" y2="132"><stop stop-color="#ffaf49"/><stop offset=".29" stop-color="#ff625d"/><stop offset=".59" stop-color="#fa249d"/><stop offset="1" stop-color="#8124d7"/></linearGradient>
+<linearGradient id="bottomStroke" gradientUnits="userSpaceOnUse" x1="148" y1="155" x2="213" y2="232"><stop stop-color="#ff8a74"/><stop offset=".41" stop-color="#ff348c"/><stop offset="1" stop-color="#ee14a6"/></linearGradient>
+<radialGradient id="blueBall" cx="30%" cy="18%" r="80%"><stop stop-color="#b9feff"/><stop offset=".35" stop-color="#58bafa"/><stop offset=".77" stop-color="#5c4efd"/><stop offset="1" stop-color="#4929b6"/></radialGradient>
+<radialGradient id="peachBall" cx="27%" cy="16%" r="85%"><stop stop-color="#ffd2a3"/><stop offset=".36" stop-color="#ff8676"/><stop offset=".7" stop-color="#fb427a"/><stop offset="1" stop-color="#bb227c"/></radialGradient>
+<linearGradient id="heart" x1="0%" y1="0%" x2="70%" y2="100%"><stop stop-color="#ff4bbb"/><stop offset="1" stop-color="#da159b"/></linearGradient>
+<linearGradient id="specular" x1="0%" y1="0%" x2="0%" y2="100%"><stop stop-color="#fff" stop-opacity=".26"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<filter id="depth" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+<filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+</defs>
+<rect x=".8" y=".8" width="254.4" height="254.4" rx="58" fill="url(#frame)" stroke="#7b32bf" stroke-width="1.3"/>
+<rect x="3.5" y="3.5" width="249" height="249" rx="55" fill="url(#background)"/>
+<path d="M53 6 Q127 -4 202 7 Q247 14 250 63 L250 89 Q231 30 198 17 Q122 3 53 6Z" fill="url(#specular)" opacity=".15"/>
+<g opacity=".55" filter="url(#softGlow)"><path d="M73 56V207" stroke="#1153ed" stroke-width="46" stroke-linecap="round"/><path d="m119 122 71-67" stroke="#c52ca8" stroke-width="47" stroke-linecap="round"/></g>
+<path d="M72.3 55 V207" fill="none" stroke="#000" stroke-width="52" stroke-linecap="round" opacity=".38" transform="translate(2 3)" filter="url(#depth)"/>
+<path d="M72.3 55 V207" fill="none" stroke="url(#leftStroke)" stroke-width="48" stroke-linecap="round"/>
+<path d="m112 128 79-71" fill="none" stroke="#000" stroke-width="53" stroke-linecap="round" opacity=".35" transform="translate(2 3)" filter="url(#depth)"/>
+<path d="m112 128 79-71" fill="none" stroke="url(#rightStroke)" stroke-width="49" stroke-linecap="round"/>
+<path d="m170 177 21 29" fill="none" stroke="#000" stroke-width="55" stroke-linecap="round" opacity=".35" transform="translate(2 3)" filter="url(#depth)"/>
+<path d="m170 177 21 29" fill="none" stroke="url(#bottomStroke)" stroke-width="48" stroke-linecap="round"/>
+<circle cx="89" cy="148" r="19" fill="#080e32" opacity=".45" transform="translate(2 3)"/>
+<circle cx="89" cy="148" r="18.5" fill="url(#blueBall)"/>
+<circle cx="83.5" cy="141.5" r="7.5" fill="#fff" opacity=".15" filter="url(#softGlow)"/>
+<circle cx="170.5" cy="149.5" r="20" fill="#080e32" opacity=".42" transform="translate(2 3)"/>
+<circle cx="170.5" cy="149.5" r="19" fill="url(#peachBall)"/>
+<circle cx="164.5" cy="143" r="7.5" fill="#fff" opacity=".12" filter="url(#softGlow)"/>
+<path d="M128 138 C122 129 112 132 115 141 C117 147 123 151 128 154 C134 150 141 144 141 139 C141 129 132 129 128 138Z" fill="url(#heart)"/>
+<path d="M120 136c2-3 5-2 7 0" fill="none" stroke="#fff" stroke-opacity=".26" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M53 65V130" stroke="#b7fcff" stroke-width="1.6" stroke-opacity=".25" stroke-linecap="round"/>
+</svg>
