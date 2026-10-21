@@ -224,7 +224,11 @@ export default function ReelsPage() {
   },[visibleClips]);
 
   function openDescription(clip:Clip){
-    const video=reelRoot.current?.querySelector<HTMLVideoElement>('video');
+    // Buffered neighboring <video> elements exist, but only the visible
+    // one may be paused or resumed when a caption sheet opens.
+    const video=reelRoot.current?.querySelector<HTMLVideoElement>(
+      '.km-reel-playback:not([aria-hidden="true"]) video'
+    );
     resumeAfterDescription.current=Boolean(video&&!video.paused);
     video?.pause();
     setDescriptionClip(clip);
@@ -232,8 +236,9 @@ export default function ReelsPage() {
   function closeDescription(){
     setDescriptionClip(null);
     if(resumeAfterDescription.current&&!document.hidden){
-      void reelRoot.current?.querySelector<HTMLVideoElement>('video')
-        ?.play().catch(()=>undefined);
+      void reelRoot.current?.querySelector<HTMLVideoElement>(
+        '.km-reel-playback:not([aria-hidden="true"]) video'
+      )?.play().catch(()=>undefined);
     }
     resumeAfterDescription.current=false;
   }
