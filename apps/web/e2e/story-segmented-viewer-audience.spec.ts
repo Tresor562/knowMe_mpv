@@ -61,13 +61,14 @@ test('editor publishes a true text color and explicit excluded account IDs',asyn
     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
   });
   await page.goto('/stories/new');
-  await page.getByRole('searchbox',{name:'Rechercher un nom ou @pseudo'}).fill('lea');
+  await page.getByPlaceholder('Rechercher un nom ou @pseudo').fill('lea');
   await page.getByRole('checkbox',{name:/Léa/}).check();
   await page.getByRole('button',{name:'Changer la couleur de fond de la story'}).click();
   await page.locator('textarea[name="caption"]').fill('Story privée pour certains comptes');
   await page.locator('.km-story-bottom-submit').click();
   await expect.poll(()=>payload).not.toBeNull();
-  expect(payload?.excludeUserIds).toEqual(['person-1']);
-  expect((payload?.background as Record<string,string>).preset).toBe('solid');
-  expect((payload?.background as Record<string,string>).color).toMatch(/^#[0-9a-f]{6}$/i);
+  const published=payload as Record<string,unknown>|null;
+  expect(published?.excludeUserIds).toEqual(['person-1']);
+  expect((published?.background as Record<string,string>).preset).toBe('solid');
+  expect((published?.background as Record<string,string>).color).toMatch(/^#[0-9a-f]{6}$/i);
 });
