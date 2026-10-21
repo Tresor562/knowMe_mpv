@@ -152,10 +152,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // Unlike full offline saves, VideoView buffers only its needed HTTPS ranges.
   // Promotion to active does NOT replace that prepared native media instance.
   useEffect(()=>{
-    if(!preloadPaused||autoPlay||local||!publicPostVideoId(url)||
+    if(!preloadPaused||autoPlay||local||error||!publicPostVideoId(url)||
       API_URL!=='https://31-56-85-53.sslip.io/knowme-api')return;
     setLocal(API_URL+url);
-  },[preloadPaused,autoPlay,local,url]);
+  },[preloadPaused,autoPlay,local,url,error]);
   // Autoplay only when the caller explicitly marks a single active Reel.
   // Feed previews and the offline-library thumbnail remain tap-to-play.
   useEffect(()=>{
