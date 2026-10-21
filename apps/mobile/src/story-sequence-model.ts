@@ -58,3 +58,16 @@ export function storyTextColor(background: unknown, seed: string): string {
   for (const c of seed) hash = ((hash * 31) + c.charCodeAt(0)) >>> 0;
   return STORY_TEXT_COLORS[hash % STORY_TEXT_COLORS.length]!;
 }
+
+export function storyAgeLabel(value?: string | null, now = Date.now()): string {
+  const then = Date.parse(value ?? '');
+  if(!Number.isFinite(then))return 'À l’instant';
+  const seconds = Math.max(0, Math.floor((now-then)/1000));
+  if(seconds<60)return 'À l’instant';
+  const minutes=Math.floor(seconds/60);
+  if(minutes<60)return `Il y a ${minutes} min`;
+  const hours=Math.floor(minutes/60);
+  if(hours<24)return `Il y a ${hours} h`;
+  const days=Math.floor(hours/24);
+  return `Il y a ${days} j`;
+}
