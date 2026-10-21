@@ -291,6 +291,9 @@ export default function ReelsPage() {
     }finally{setPendingLike(null);}
   }
 
+  // Keep the current Reel, one previous Reel and five successors mounted.
+  // Only the active one plays; lazy far-away clips retain cheap placeholders.
+  const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===activeId));
   if(sessionLoading||!user)return <main className="km-reels-page"><p>Chargement…</p></main>;
   return (
     <main className="km-reels-page" aria-label={en?'KnowMe videos':'Vidéos KnowMe'}>
@@ -348,12 +351,12 @@ export default function ReelsPage() {
             <p>{en?'Explore or publish a video from KnowMe.':'Découvre des publications ou publie une vidéo sur KnowMe.'}</p>
             <Link href="/feed">{en?'Return to feed':'Retour au fil'}</Link>
           </div>}
-        {visibleClips.map(clip=>{
+        {visibleClips.map((clip,index)=>{
           const active=clip.id===activeId;
           const post=clip.post;
           return <section className="km-reel-frame" data-video-id={clip.id}
             key={clip.id} aria-label={en?'Video from '+post.author.displayName:'Vidéo de '+post.author.displayName}>
-            {active ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)}
+            {index>=activeIndex-1&&index<=activeIndex+5 ? <ReelPlayback key={clip.id} src={mediaUrl(clip.media.url)} active={active}
               en={en} pausedExternally={Boolean(sharingPost)||Boolean(commentPost)}
               onDoubleTap={() => { void ensureLike(post); }} />
             : <div className="km-reel-placeholder" aria-hidden="true"><span>▶</span></div>}
