@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EntitlementsModule } from '../entitlements/entitlements.module';
 import { MediaModule } from '../media/media.module';
+import { MessagingModule } from '../messaging/messaging.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ObservabilityModule } from '../observability/observability.module';
@@ -23,6 +24,7 @@ import { StoriesService } from './stories.service';
     PrismaModule,
     EntitlementsModule,
     MediaModule,
+    MessagingModule,
     ModerationModule,
     NotificationsModule,
     ObservabilityModule
