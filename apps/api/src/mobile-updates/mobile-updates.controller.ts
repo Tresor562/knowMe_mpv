@@ -164,6 +164,27 @@ async function discoverPublishedAndroidRelease(): Promise<AndroidReleaseNotice |
 
 @Controller('mobile-updates')
 export class MobileUpdatesController {
+  // Stable, browser-friendly recovery route for users whose older native
+  // updater cannot complete. Only stream the APK already qualified by the
+  // VPS mirror (signed preview certificate, validated manifest and filesize).
+  // This URL never points to an arbitrary client-supplied download address.
+  @Get('android/download')
+  @Header('Cache-Control', 'no-store, max-age=0')
+  @Header('X-Content-Type-Options', 'nosniff')
+  downloadLatestHostedApk(@Res({ passthrough: true }) response: ApkResponse) {
+    const release = readHostedAndroidRelease();
+    if (!release) throw new NotFoundException('Mise à jour Android officielle indisponible.');
+    // Recheck the underlying binary immediately before opening the stream.
+    const apk = openHostedAndroidApk(release.filename);
+    if (!apk) throw new NotFoundException('APK KnowMe indisponible.');
+    response.setHeader('Content-Length', String(apk.size));
+    return new StreamableFile(apk.stream, {
+      type: 'application/vnd.android.package-archive',
+      disposition: 'attachment; filename="' + apk.filename + '"',
+      length: apk.size
+    });
+  }
+
   @Get('android/apk/:filename')
   @Header('Cache-Control', 'public, max-age=3600, immutable')
   getHostedApk(
