@@ -31,6 +31,42 @@ Seule l'APK exactement mentionnée dans le manifeste est publiquement servie.
 L'identité du certificat attendu pour les préversions est vérifiée par le
 publisher du VPS ; le client Android revérifie digest, version et package.
 
+## Reprise collective des anciennes APK bloquées
+
+Le correctif natif de progression exige une nouvelle APK : le flux de mise à
+jour d'une ancienne installation peut donc rester bloqué sur « Lancement… ».
+La solution de transition **ne demande aucune désinstallation** et ne tente
+pas d'installer silencieusement une application Android.
+
+Après déploiement de cette route sur l'API VPS, communiquer aux utilisateurs du
+**canal preview** l'URL fixe (à ouvrir dans Chrome ou un autre navigateur) :
+
+```text
+https://31-56-85-53.sslip.io/knowme-api/mobile-updates/android/download
+```
+
+Cette adresse renvoie directement l'APK **actuellement validée et servie par le
+VPS**, avec son nom de fichier officiel. Elle ne redirige pas vers une URL
+externe ni ne repose sur le bouton de téléchargement défaillant des anciennes
+APK. Le serveur vérifie un manifeste local, le certificat preview attendu, le
+package prévu par la procédure de publication et la taille de l'APK avant de
+l'exposer ; SHA-256 et signature sont validés par le publisher, puis Android
+vérifie lui-même la compatibilité de signature lors de l'installation.
+
+1. Ouvrir le lien officiel dans le navigateur, puis le fichier téléchargé.
+2. Choisir « Mettre à jour » / « Installer » et confirmer dans Android.
+3. **Ne pas désinstaller** KnowMe pour contourner une erreur : cela peut effacer
+   les données locales. Une incompatibilité de signature (autre canal d'APK),
+   de version installée ou une politique de sécurité Android exige un parcours
+   de migration distinct, pas une installation forcée.
+4. Tester sur un téléphone avec l'ancienne APK avant une annonce à tous.
+
+Cette voie ne peut pas être injectée automatiquement dans un ancien module natif
+cassé. Expo OTA est lui-même désactivé tant que sa chaîne de signature vérifiée
+n'est pas configurée ; ne jamais autoriser d'OTA non signée pour forcer la
+migration. Si la route VPS n'est pas encore déployée, le lien immuable vers
+l'APK de la dernière release GitHub qualifiée reste l'alternative de transition.
+
 ## 1 — Déployer le code API sur le VPS
 
 Vérifier les sauvegardes PostgreSQL. Depuis une copie Git de ce dépôt à jour
