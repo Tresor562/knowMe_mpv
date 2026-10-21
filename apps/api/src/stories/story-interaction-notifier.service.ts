@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
-import { MessagingService } from '../messaging/messaging.service';
+import { StoryReplyDirectService } from '../messaging/story-reply-direct.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +8,7 @@ export class StoryInteractionNotifier {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly messaging: MessagingService
+    private readonly messaging: StoryReplyDirectService
   ) {}
 
   async reaction(storyId: string, actorId: string, reaction: string) {
@@ -38,7 +38,7 @@ export class StoryInteractionNotifier {
     if (!reply) throw new Error('STORY_REPLY_NOT_FOUND');
     // The normal Message pipeline emits realtime updates, unread state and
     // the recipient's chat notification: no redundant STORY_REPLY alert.
-    return this.messaging.sendStoryReplyMessage({
+    return this.messaging.deliver({
       senderId:actorId,authorId:context.story.authorUserId,
       storyId,replyId:reply.id,content:reply.content
     });
