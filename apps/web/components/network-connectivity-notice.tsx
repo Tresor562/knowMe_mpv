@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from './i18n-provider';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 type ConnectivityState = 'online' | 'offline' | 'restored';
 
@@ -67,15 +69,12 @@ export function NetworkConnectivityNotice() {
     <aside className="km-network-notice" role="status" aria-live="polite"
       data-offline={offline ? 'true' : 'false'}>
       <span className="km-network-notice-icon" aria-hidden="true">
-        {offline
-          ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m3 3 18 18M16.8 12.1A7 7 0 0 0 12 10.3M8.2 10.9A9.5 9.5 0 0 1 12 10.1M4 8.8A14 14 0 0 1 12 6c3.7 0 7 1.4 9 3.8M9.2 14.4a4.5 4.5 0 0 1 5.6 0M12 18.8h.01"/>
-            </svg>
-          : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12.7 9.3 18 20 6"/>
-            </svg>}
+        <KnowMeAnimatedIcon
+          name={offline ? 'wifi-off' : 'wifi'}
+          state={offline ? 'offline' : 'success'}
+          eventToken={state}
+          size={24}
+        />
       </span>
       <span className="km-network-notice-copy">
         <strong>{offline
@@ -85,14 +84,10 @@ export function NetworkConnectivityNotice() {
           ? (en ? 'Some features require Internet. Previously available offline content may remain accessible.' : 'Certaines fonctions nécessitent Internet. Les contenus déjà disponibles hors ligne peuvent rester accessibles.')
           : (en ? 'KnowMe can reconnect to its services.' : 'KnowMe peut se reconnecter à ses services.')}</span>
       </span>
-      <button type="button" className="km-network-notice-dismiss"
+      <KnowMeIconButton name="close" size={20}
+        className="km-network-notice-dismiss"
         onClick={() => setVisible(false)}
-        aria-label={en ? 'Dismiss connection notice' : 'Masquer le message de connexion'}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M6 6 18 18M18 6 6 18"/>
-        </svg>
-      </button>
+        label={en ? 'Dismiss connection notice' : 'Masquer le message de connexion'}/>
     </aside>
   );
 }

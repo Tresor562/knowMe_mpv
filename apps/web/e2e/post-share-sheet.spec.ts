@@ -43,6 +43,15 @@ test('post share sheet really creates a Story and a repost on the feed', async (
   await openShare.click();
   const dialog = page.getByRole('dialog',{name:'Partager la publication'});
   await expect(dialog).toBeVisible();
+  const close = dialog.getByRole('button',{name:'Fermer'});
+  await expect(close).toBeFocused();
+  // The modal must keep keyboard focus inside, including reverse navigation.
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('button',{name:'Copier le lien'})).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
+  const bounds = await close.boundingBox();
+  expect(bounds && bounds.width >= 44 && bounds.height >= 44).toBeTruthy();
   await dialog.getByLabel('Ajouter un commentaire au partage…').fill('À voir absolument');
   await dialog.getByLabel('Audience de la story').selectOption('PUBLIC');
   await dialog.getByRole('button',{name:'Dans ma story'}).click();

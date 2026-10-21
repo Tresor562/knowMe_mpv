@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './post-video-player.css';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeGlyph } from './knowme-glyph';
 
 type PlaybackRate = 1 | 1.25 | 1.5 | 2;
 const RATES: PlaybackRate[] = [1, 1.25, 1.5, 2];
@@ -33,6 +35,7 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
   const [error, setError] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
+  const [seekEvents, setSeekEvents] = useState({ back: 0, forward: 0 });
 
   const syncTime = useCallback(() => {
     const el = videoRef.current;
@@ -73,10 +76,14 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
     const max = Number.isFinite(video.duration) ? video.duration : 0;
     if (!max) return;
     video.currentTime = Math.max(0, Math.min(max, video.currentTime + delta));
+    const direction = delta < 0 ? 'back' : 'forward';
+    setSeekEvents(previous => ({ ...previous, [direction]: previous[direction] + 1 }));
     syncTime();
   }, [syncTime]);
 
   function onSurfaceClick(event: React.MouseEvent<HTMLButtonElement>) {
+    // Synthetic keyboard activation is an independent action, not a double tap.
+    if (event.detail === 0) { void toggle(); return; }
     const now = Date.now();
     const previous = lastTap.current;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -153,7 +160,9 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
         aria-label={playing ? (en ? 'Pause video' : 'Mettre la vidéo en pause')
           : (en ? 'Play video' : 'Lire la vidéo')}
         onClick={onSurfaceClick}>
-        {!playing && <span className="km-post-video-play" aria-hidden="true">▶</span>}
+        {!playing && <span className="km-post-video-play" aria-hidden="true">
+          <KnowMeGlyph name="play" size={31}/>
+        </span>}
       </button>
       <div className="km-post-video-controls">
         <div className="km-post-video-progress">
@@ -172,13 +181,31 @@ export function PostVideoPlayer({ src, en = false }: { src: string; en?: boolean
           </span>
         </div>
         <div className="km-post-video-toolbar">
-          <button type="button" onClick={() => void toggle()} aria-label={playing
-            ? (en ? 'Pause' : 'Pause') : (en ? 'Play' : 'Lecture')}>{playing ? 'Ⅱ' : '▶'}</button>
-          <button type="button" onClick={() => seekBy(-10)} aria-label={en ? 'Rewind 10 seconds' : 'Reculer de 10 secondes'}>↶10</button>
-          <button type="button" onClick={() => seekBy(10)} aria-label={en ? 'Forward 10 seconds' : 'Avancer de 10 secondes'}>10↷</button>
-          <button type="button" onClick={toggleMute} aria-label={muted ? (en ? 'Unmute' : 'Activer le son') : (en ? 'Mute' : 'Couper le son')}>{muted ? '🔇' : '🔊'}</button>
-          <button type="button" onClick={switchRate} aria-label={en ? 'Playback speed' : 'Vitesse de lecture'}>{rate}×</button>
-          <button type="button" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? (en ? 'Exit fullscreen' : 'Quitter le plein écran') : (en ? 'Fullscreen' : 'Plein écran')}>⛶</button>
+          <button type="button" onClick={() => void toggle()}
+            aria-label={playing ? (en ? 'Pause' : 'Pause') : (en ? 'Play' : 'Lecture')}
+            aria-pressed={playing}>
+            <KnowMeAnimatedIcon name="play" state={playing ? 'playing' : 'paused'} size={21}/>
+          </button>
+          <button type="button" onClick={() => seekBy(-10)}
+            aria-label={en ? 'Rewind 10 seconds' : 'Reculer de 10 secondes'}>
+            <KnowMeAnimatedIcon name="rewind-10" size={20} eventToken={seekEvents.back}/>
+          </button>
+          <button type="button" onClick={() => seekBy(10)}
+            aria-label={en ? 'Forward 10 seconds' : 'Avancer de 10 secondes'}>
+            <KnowMeAnimatedIcon name="forward-10" size={20} eventToken={seekEvents.forward}/>
+          </button>
+          <button type="button" onClick={toggleMute}
+            aria-label={muted ? (en ? 'Unmute' : 'Activer le son') : (en ? 'Mute' : 'Couper le son')}
+            aria-pressed={muted}>
+            <KnowMeAnimatedIcon name={muted ? 'volume-off' : 'volume'} size={21}/>
+          </button>
+          <button type="button" onClick={switchRate}
+            aria-label={en ? 'Playback speed' : 'Vitesse de lecture'}>{rate}×</button>
+          <button type="button" onClick={() => void toggleFullscreen()}
+            aria-label={fullscreen ? (en ? 'Exit fullscreen' : 'Quitter le plein écran') : (en ? 'Fullscreen' : 'Plein écran')}
+            aria-pressed={fullscreen}>
+            <KnowMeAnimatedIcon name={fullscreen ? 'fullscreen-exit' : 'fullscreen'} size={20}/>
+          </button>
         </div>
         {error && <p role="alert" className="km-post-video-error">{error}</p>}
       </div>
