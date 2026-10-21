@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import './creator-follow-control.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from './i18n-provider';
 import { apiFetch, getAccessToken } from '../lib/api';
@@ -109,23 +111,29 @@ export function CreatorFollowControl({
           : (total === 1 ? 'abonné' : 'abonnés')}
       </p>
       {action === 'login' ? (
-        <Link className="btn btn-primary" href="/login">
+        <Link className="btn btn-primary km-follow-action" href="/login">
+          <KnowMeAnimatedIcon name="lock" size={18}/>
           {tr('Se connecter pour suivre', 'Sign in to follow')}
         </Link>
       ) : action === 'owner' ? (
-        <Link className="btn" href="/settings/creator">
+        <Link className="btn km-follow-action" href="/settings/creator">
+          <KnowMeAnimatedIcon name="edit" size={18}/>
           {tr('Modifier ma page', 'Edit my page')}
         </Link>
       ) : action === 'refresh' ? (
-        <button type="button" className="btn" disabled={busy || loading}
-          onClick={() => void retry()}>
+        <button type="button" className="btn km-follow-action" disabled={busy || loading}
+          onClick={() => void retry()} aria-busy={busy || loading}>
+          <KnowMeAnimatedIcon name="refresh" state={busy || loading ? 'loading' : 'idle'} size={18}/>
           {loading || busy ? tr('Vérification…', 'Checking…')
             : tr('Vérifier mon abonnement', 'Check subscription')}
         </button>
       ) : (
-        <button type="button" className={action === 'unfollow' ? 'btn' : 'btn btn-primary'}
+        <button type="button" className={action === 'unfollow'
+          ? 'btn km-follow-action' : 'btn btn-primary km-follow-action'}
           onClick={() => void change()} disabled={busy}
-          aria-pressed={action === 'unfollow'}>
+          aria-pressed={action === 'unfollow'} aria-busy={busy}>
+          <KnowMeAnimatedIcon name={busy ? 'refresh' : action === 'unfollow' ? 'check' : 'user-plus'}
+            state={busy ? 'loading' : action === 'unfollow' ? 'selected' : 'idle'} size={19}/>
           {busy ? tr('Enregistrement…', 'Saving…') :
             action === 'unfollow' ? tr('Ne plus suivre', 'Unfollow') : tr('Suivre', 'Follow')}
         </button>

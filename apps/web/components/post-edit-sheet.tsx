@@ -2,6 +2,8 @@
 
 import {useEffect,useRef,useState} from 'react';
 import {apiFetch} from '../lib/api';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 export function PostEditSheet({post,en,onClose,onSaved}:{
   post:{id:string;content:string;hasMedia:boolean};
@@ -49,8 +51,9 @@ export function PostEditSheet({post,en,onClose,onSaved}:{
       <div className="km-post-options-handle" aria-hidden="true"/>
       <header>
         <h2>{en?'Edit publication':'Modifier la publication'}</h2>
-        <button type="button" disabled={busy} onClick={onClose}
-          aria-label={en?'Cancel edit':'Annuler la modification'}>×</button>
+        <KnowMeIconButton name="close" size={20}
+          disabled={busy} onClick={onClose}
+          label={en?'Cancel edit':'Annuler la modification'}/>
       </header>
       <p>{en?'Existing photos and videos stay attached.':'Les photos et vidéos déjà publiées restent jointes.'}</p>
       <label htmlFor="knowme-edit-post-text">{en?'Text of the post':'Texte de la publication'}</label>
@@ -61,6 +64,8 @@ export function PostEditSheet({post,en,onClose,onSaved}:{
       <div className="km-post-edit-actions">
         <button type="button" disabled={busy} onClick={onClose}>{en?'Cancel':'Annuler'}</button>
         <button type="submit" disabled={!valid||busy}>
+          <KnowMeAnimatedIcon name={busy ? 'refresh' : 'check'}
+            state={busy ? 'loading' : 'idle'} size={19}/>
           {busy?(en?'Saving…':'Enregistrement…'):(en?'Save':'Enregistrer')}
         </button>
       </div>

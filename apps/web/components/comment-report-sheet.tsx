@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { KnowMeAnimatedIcon } from './knowme-animated-icon';
+import { KnowMeIconButton } from './knowme-icon-button';
 
 type ReportReason = 'SPAM' | 'HARASSMENT' | 'SCAM' | 'INAPPROPRIATE' | 'OTHER';
 
@@ -70,8 +72,8 @@ export function CommentReportSheet({ comment, onClose, onReported }: {
         <div className="km-comment-report-handle" aria-hidden="true"/>
         <header>
           <h2>Signaler le commentaire</h2>
-          <button type="button" disabled={busy} onClick={onClose}
-            aria-label="Fermer le signalement">×</button>
+          <KnowMeIconButton name="close" size={20} disabled={busy}
+            onClick={onClose} label="Fermer le signalement"/>
         </header>
         <p className="km-comment-report-author">Commentaire de {comment.author.displayName}</p>
         <p className="km-comment-report-preview">{comment.content}</p>
@@ -92,6 +94,7 @@ export function CommentReportSheet({ comment, onClose, onReported }: {
         </label>
         {error && <p role="alert" className="km-comment-report-error">{error}</p>}
         <button className="km-comment-report-submit" type="submit" disabled={busy || !reason}>
+          <KnowMeAnimatedIcon name="send" state={busy ? 'sending' : 'idle'} size={19} />
           {busy ? 'Envoi…' : 'Envoyer le signalement'}
         </button>
       </form>
