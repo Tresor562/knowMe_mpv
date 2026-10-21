@@ -2,6 +2,7 @@ import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as FileSystem from 'expo-file-system';
 import {
+  AppState,
   Image,
   Modal,
   Pressable,
@@ -17,6 +18,7 @@ import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
 import { NativeStoryVideo } from './NativeStoryVideo';
+import { storyCompletionBps, storyProgressCheckpoint } from './story-view-progress-model';
 import { useAppearance } from './AppearanceProvider';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
@@ -70,8 +72,8 @@ type StoryCreateResult = {
   id: string;
 };
 
-/** Small authenticated poster for VIDEO stories only. Never fetch the full MP4
- * when rendering the horizontal story rail. */
+/** Use an authenticated photo or video poster for Stories, while text stories
+ * show their own caption. A full private MP4 is never fetched for the rail. */
 function StoryRailBackdrop({story,visible,avatarUrl,name}:{
   story?:Story|null;
   visible:boolean;
@@ -83,16 +85,18 @@ function StoryRailBackdrop({story,visible,avatarUrl,name}:{
     let cancelled=false;
     let downloaded:string|null=null;
     setPoster(null);
-    if(!visible || story?.type!=='VIDEO' || !story.thumbnailAssetId || !FileSystem.cacheDirectory)
-      return;
+    const photo=story?.type==='PHOTO'&&Boolean(story.assetId);
+    const video=story?.type==='VIDEO'&&Boolean(story.thumbnailAssetId);
+    if(!visible || (!photo&&!video) || !FileSystem.cacheDirectory || !story)return;
+    const endpoint=photo?'media':'thumbnail';
     const filename=FileSystem.cacheDirectory + 'knowme-rail-poster-' +
-      encodeURIComponent(story.id) + '.webp';
+      encodeURIComponent(story.id) + '-' + endpoint + '.webp';
     void (async()=>{
       try{
         const headers=await authenticatedMediaHeaders();
         if(cancelled)return;
         const result=await FileSystem.downloadAsync(
-          API_URL+'/stories/'+encodeURIComponent(story.id)+'/thumbnail',
+          API_URL+'/stories/'+encodeURIComponent(story.id)+'/'+endpoint,
           filename,{headers}
         );
         downloaded=result.uri;
@@ -113,7 +117,12 @@ function StoryRailBackdrop({story,visible,avatarUrl,name}:{
       cancelled=true;
       if(downloaded)void FileSystem.deleteAsync(downloaded,{idempotent:true}).catch(()=>undefined);
     };
-  },[visible,story?.id,story?.type,story?.thumbnailAssetId]);
+  },[visible,story?.id,story?.type,story?.assetId,story?.thumbnailAssetId]);
+  if(story?.type==='TEXT'&&story.caption?.trim())return (
+    <View style={styles.storyTextCover}>
+      <Text style={styles.storyTextContent} numberOfLines={6}>{story.caption.trim()}</Text>
+    </View>
+  );
   if(poster)return <Image source={{uri:poster}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
   if(avatarUrl)return <Image source={{uri:avatarUrl}} style={styles.storyCardBackdrop} resizeMode="cover"/>;
   return <View style={[styles.storyCardBackdrop,{justifyContent:'center',alignItems:'center'}]}>
@@ -145,6 +154,10 @@ export function StoriesRail({
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const loadingNext = useRef(false);
   const [selected, setSelected] = useState<Story | null>(null);
+  const [storyProgress,setStoryProgress]=useState(0);
+  const activeStoryId=useRef<string|null>(null);
+  const lastProgressMilestone=useRef(0);
+  const receiptQueue=useRef<Promise<void>>(Promise.resolve());
   const [createOpen, setCreateOpen] = useState(false);
   const [caption, setCaption] = useState('');
   const [storyType, setStoryType] = useState<'TEXT'|'PHOTO'|'VIDEO'>('TEXT');
@@ -260,16 +273,59 @@ export function StoriesRail({
     };
   },[selected?.id,selected?.assetId,selected?.type]);
 
-  async function openStory(story: Story) {
-    setSelected(story);
-    try {
-      await apiFetch('/stories/' + story.id + '/view', {
-        method: 'POST',
-        body: JSON.stringify({ completionBps: 10000 })
+  function enqueueStoryReceipt(storyId:string,completionBps:number):Promise<void>{
+    // Opening must reach the API before a completion milestone. A queued
+    // request also avoids out-of-order updates when the network is slow.
+    const pending=receiptQueue.current.catch(()=>undefined).then(async()=>{
+      await apiFetch('/stories/'+encodeURIComponent(storyId)+'/view',{
+        method:'POST',body:JSON.stringify({completionBps})
       });
-    } catch {
-      // Viewing remains available even if the receipt cannot be recorded.
-    }
+    });
+    receiptQueue.current=pending.catch(()=>undefined);
+    return receiptQueue.current;
+  }
+
+  useEffect(()=>{
+    if(!selected)activeStoryId.current=null;
+  },[selected]);
+
+  function reportStoryProgress(story:Story,completionBps:number){
+    if(story.viewer.own||activeStoryId.current!==story.id)return;
+    const checkpoint=storyProgressCheckpoint(completionBps,lastProgressMilestone.current);
+    if(checkpoint===null)return;
+    lastProgressMilestone.current=checkpoint;
+    void enqueueStoryReceipt(story.id,checkpoint);
+  }
+
+  // Text and photo stories use an actual five-second display timeline. The
+  // timer pauses in the background; failed photos never appear as completed.
+  useEffect(()=>{
+    if(!selected||selected.type==='VIDEO'||selected.type==='PHOTO'&&!selectedPhotoUri||mediaError)return;
+    const story=selected;
+    let elapsed=0;
+    const tick=setInterval(()=>{
+      if(activeStoryId.current!==story.id||AppState.currentState!=='active')return;
+      elapsed=Math.min(5000,elapsed+100);
+      const bps=storyCompletionBps(elapsed,5000);
+      setStoryProgress(bps);
+      reportStoryProgress(story,bps);
+      if(elapsed>=5000)clearInterval(tick);
+    },100);
+    return()=>clearInterval(tick);
+  },[selected?.id,selected?.type,selectedPhotoUri,mediaError]);
+
+  async function openStory(story: Story) {
+    activeStoryId.current=story.id;
+    lastProgressMilestone.current=0;
+    setStoryProgress(0);
+    setSelectedPhotoUri(null);
+    setSelectedVideoUri(null);
+    setMediaError('');
+    setSelected(story);
+    if(story.viewer.own)return;
+    // Opening is exactly one view, not a declaration of 100% completion.
+    // Follow-up progress milestones are serialized after this opening.
+    await enqueueStoryReceipt(story.id,0);
   }
 
   async function react(reaction: string) {
@@ -439,7 +495,8 @@ export function StoriesRail({
             <View
               style={[
                 styles.progressValue,
-                { backgroundColor: colors.text }
+                { backgroundColor: colors.text,
+                  width: `${storyProgress/100}%` as `${number}%` }
               ]}
             />
           </View>
@@ -527,6 +584,18 @@ export function StoriesRail({
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
+              onProgress={event=>{
+                if(activeStoryId.current!==selected.id)return;
+                const {positionMs,durationMs}=event.nativeEvent;
+                const bps=storyCompletionBps(positionMs,durationMs);
+                setStoryProgress(bps);
+                reportStoryProgress(selected,bps);
+              }}
+              onPlaybackComplete={()=>{
+                if(activeStoryId.current!==selected.id)return;
+                setStoryProgress(10_000);
+                reportStoryProgress(selected,10_000);
+              }}
               onPlaybackError={event=>{
                 setSelectedVideoUri(null);
                 setMediaError(event.nativeEvent.message||'Vidéo indisponible.');
@@ -776,6 +845,10 @@ const styles = StyleSheet.create({
   },
   storyCardTap: { width: 124, height: 190, position: 'relative' },
   storyCardBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, width: '100%', height: '100%' },
+  storyTextCover: {position:'absolute',top:0,bottom:0,left:0,right:0,
+    justifyContent:'center',alignItems:'center',paddingHorizontal:12,paddingBottom:22,
+    backgroundColor:'#344d79'},
+  storyTextContent: {color:'#fff',textAlign:'center',fontSize:14,fontWeight:'700',lineHeight:19},
   storyCardShade: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor:'rgba(0,0,0,.35)' },
   storyCardLabel: { position: 'absolute', bottom: 9, left: 10, right: 8,

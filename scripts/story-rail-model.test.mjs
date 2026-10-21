@@ -30,3 +30,26 @@ test('an inaccessible/unknown author cannot create a stranger tile', () => {
   const result = groupStoriesByAuthor([s('hidden', null), s('me', null, true)]);
   assert.deepEqual(result.map(g => [g.story.id, g.count]), [['me', 1]]);
 });
+
+import { storyCompletionBps, storyProgressCheckpoint } from '../apps/mobile/src/story-view-progress-model.ts';
+
+test('Story progress is based on the actual player position, not opening the Story',()=>{
+  assert.equal(storyCompletionBps(0,30_000),0);
+  assert.equal(storyCompletionBps(15_000,30_000),5_000);
+  assert.equal(storyCompletionBps(29_999,30_000),9_999);
+  assert.equal(storyCompletionBps(30_000,30_000),10_000);
+  assert.equal(storyCompletionBps(12_000,0),0);
+  assert.equal(storyCompletionBps(NaN,30_000),0);
+  assert.equal(storyCompletionBps(9_999_999,30_000),10_000);
+});
+
+test('Story analytics emit only new progress milestones, not repeated views',()=>{
+  assert.equal(storyProgressCheckpoint(0,0),null);
+  assert.equal(storyProgressCheckpoint(2499,0),null);
+  assert.equal(storyProgressCheckpoint(2500,0),2500);
+  assert.equal(storyProgressCheckpoint(4900,2500),null);
+  assert.equal(storyProgressCheckpoint(7800,2500),7500);
+  assert.equal(storyProgressCheckpoint(10_000,7500),10_000);
+  assert.equal(storyProgressCheckpoint(10_000,10_000),null);
+  assert.equal(storyProgressCheckpoint(Infinity,0),null);
+});
