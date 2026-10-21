@@ -583,10 +583,10 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         <PostMediaGallery media={post.media} fallbackUrl={post.imageUrl} caption={post.content}/>
-        <PostActionBar postId={post.id}
+        <PostActionBar postId={post.id} userId={userId}
           likeCount={post._count.likes} commentCount={post._count.comments}
           selectedReaction={myLike===true?'❤️':null}
-          online={myLike!==null&&!postLikeBusy}
+          online={myLike!==null}
           onHeart={toggleLike}
           onReact={async emoji=>{if(emoji==='❤️')await toggleLike();
             else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
@@ -1166,10 +1166,10 @@ export function FeedExperience({
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
-          <PostActionBar postId={item.id}
+          <PostActionBar postId={item.id} userId={userId}
             likeCount={item._count.likes} commentCount={item._count.comments}
             selectedReaction={myLikes[item.id]===true?'❤️':null}
-            online={feedFresh&&!offline&&myLikes[item.id]!==undefined&&!likePending.includes(item.id)}
+            online={feedFresh&&!offline&&myLikes[item.id]!==undefined}
             onHeart={()=>like(item.id)}
             onReact={async emoji=>{if(emoji==='❤️')await like(item.id);
               else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
