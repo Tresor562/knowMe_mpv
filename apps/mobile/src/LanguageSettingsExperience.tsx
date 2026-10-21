@@ -4,7 +4,8 @@ import type { SupportedLocale } from '@knowme/i18n-contract';
 import { useAppearance } from './AppearanceProvider';
 import { useI18n } from './I18nProvider';
 import { LanguagePicker } from './LanguagePicker';
-import { GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { GlassSurface } from './ui/KnowMeUI';
+import { KnowMeNativeAnimatedIcon } from './ui/KnowMeNativeAnimatedIcon';
 
 export function LanguageSettingsExperience() {
   const { colors, visual } = useAppearance();
@@ -30,7 +31,8 @@ export function LanguageSettingsExperience() {
     <GlassSurface strength="soft" borderRadius={visual.cardRadius} style={styles.card}>
       <View style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: colors.backgroundAccent }]}>
-          <KnowMeIcon name="discover" size={20} color={colors.accent} />
+          <KnowMeNativeAnimatedIcon name={busy ? 'refresh' : 'discover'}
+            state={busy ? 'syncing' : 'idle'} size={20} color={colors.accent} />
         </View>
         <View style={styles.headerCopy}>
           <Text style={[styles.title, { color: colors.text }]}>{t('settings.languageTitle')}</Text>
@@ -42,7 +44,9 @@ export function LanguageSettingsExperience() {
         onChange={(nextLocale) => change(nextLocale)}
       />
       <Text style={[styles.meta, { color: colors.muted }]}>
-        {t('settings.languageFallback')}{persisted ? ' · synchronisée' : ' · cet appareil'}
+        {t('settings.languageFallback')}{persisted
+          ? locale === 'en' ? ' · synced' : ' · synchronisée'
+          : locale === 'en' ? ' · this device' : ' · cet appareil'}
       </Text>
       {message ? <Text style={[styles.message, { color: colors.secondary }]}>{message}</Text> : null}
     </GlassSurface>
