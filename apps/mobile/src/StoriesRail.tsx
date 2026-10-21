@@ -408,7 +408,7 @@ export function StoriesRail({
     if(!selected||selected.type==='VIDEO'||selected.type==='PHOTO'&&!selectedPhotoUri||mediaError)return;
     const story=selected;
     const tick=setInterval(()=>{
-      if(activeStoryId.current!==story.id||AppState.currentState!=='active'||insightsOpen||storyPaused)return;
+      if(activeStoryId.current!==story.id||AppState.currentState!=='active'||insightsOpen||viewerMenuOpen||storyPaused)return;
       textElapsed.current=Math.min(5000,textElapsed.current+100);
       const bps=storyCompletionBps(textElapsed.current,5000);
       setStoryProgress(bps);
@@ -706,7 +706,7 @@ export function StoriesRail({
               resizeMode="cover" style={StyleSheet.absoluteFillObject} accessibilityLabel="Photo de la story"/>:null}
             {selected?.type==='VIDEO'&&selectedVideoUri?<NativeStoryVideo
               key={selected.id} sourceUri={selectedVideoUri}
-              paused={insightsOpen||storyPaused}
+              paused={insightsOpen||viewerMenuOpen||storyPaused}
               onProgress={event=>{
                 if(activeStoryId.current!==selected.id)return;
                 const {positionMs,durationMs}=event.nativeEvent;
@@ -753,7 +753,7 @@ export function StoriesRail({
               <Text style={styles.viewersCount}>{viewerPage?.uniqueViewers??(viewersBusy?'…':'—')}</Text>
             </Pressable>
           ) : null}
-          {!selected?.viewer.own ? (
+          {!selected?.viewer.own&&selected?.allowReactions!==false ? (
             <View style={styles.reactions}>
               <PressScale
                 onPress={() => void react('LIKE')}
