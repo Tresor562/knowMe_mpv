@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import './post-action-bar.css';
+import { apiFetch } from '../lib/api';
 
 /** Explicit action contract: the parent must persist any mutation on the server. */
 export type PostActionBarProps = {
   postId: string;
+  userId?: string;
   en: boolean;
   likeCount: number;
   commentCount: number;
@@ -21,6 +23,14 @@ export type PostActionBarProps = {
   onShare: () => void;
   onSave?: () => Promise<void>;
 };
+
+// Probe only once per loaded Web application. A 404 must not produce fake saved state.
+let savingCapability: Promise<boolean> | null = null;
+function isPostSavingAvailable() {
+  savingCapability ??= apiFetch<unknown>('/posts/saved').then(Array.isArray).catch(() => false);
+  return savingCapability;
+}
+type RemoteSave = { postId: string; userId: string; saved: boolean };
 
 const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '😡'] as const;
 
@@ -55,7 +65,7 @@ function validCustomReaction(value: string) {
  * Never changes counts or "saved" locally before a server-confirmed callback.
  */
 export function PostActionBar({
-  postId, en, likeCount, commentCount, selectedReaction = null,
+  postId, userId, en, likeCount, commentCount, selectedReaction = null,
   reactionCounts = [], saved = false, online = true,
   onHeart, onRemoveReaction, onReact, onComments, onShare, onSave
 }: PostActionBarProps) {
@@ -63,6 +73,32 @@ export function PostActionBar({
   const [allEmojiOpen, setAllEmojiOpen] = useState(false);
   const [customEmoji, setCustomEmoji] = useState('');
   const [busy, setBusy] = useState(false);
+  const [remoteSave, setRemoteSave] = useState<RemoteSave | null>(null);
+  const actor = useRef(userId);
+  actor.current = userId;
+  useEffect(() => {
+    let active = true;
+    setRemoteSave(null);
+    if (onSave || !userId || !online) return () => { active = false; };
+    void isPostSavingAvailable().then(async supported => {
+      if (!supported || !active) return;
+      const status = await apiFetch<{saved: boolean}>(`/posts/${encodeURIComponent(postId)}/saved`);
+      if (active && typeof status.saved === 'boolean')
+        setRemoteSave({postId,userId,saved:status.saved});
+    }).catch(() => {/* Unknown must remain disabled, never silently unsaved. */});
+    return () => { active = false; };
+  }, [postId, userId, online, onSave]);
+  const remoteReady = !!userId && remoteSave?.postId === postId && remoteSave?.userId === userId;
+  const displayedSaved = onSave ? saved : remoteReady && remoteSave?.saved === true;
+  async function persistSave() {
+    if (!remoteReady || !remoteSave || !userId) throw new Error(en?'Saving is unavailable.':'Enregistrement indisponible.');
+    const result = await apiFetch<{saved:boolean}>(`/posts/${encodeURIComponent(postId)}/save`, {
+      method: remoteSave.saved ? 'DELETE' : 'POST'
+    });
+    if (actor.current === userId && typeof result.saved === 'boolean')
+      setRemoteSave({postId,userId,saved:result.saved});
+  }
+  const saveAction = onSave ?? (remoteReady ? persistSave : undefined);
   const [error, setError] = useState('');
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef(false);
@@ -208,14 +244,14 @@ export function PostActionBar({
           <Icon name="share"/><span className="km-post-action-label">{en ? 'Share' : 'Partager'}</span>
         </button>
         <button type="button" className="km-post-action km-post-save"
-          disabled={!onSave || !online || busy}
-          title={!onSave ? (en ? 'Saving is not available on the server yet' : 'Enregistrement indisponible sur le serveur pour le moment') : undefined}
-          aria-label={!onSave ? (en ? 'Saving is currently unavailable' : 'Enregistrement actuellement indisponible')
-            : saved ? (en ? 'Remove from saved' : 'Retirer des favoris')
+          disabled={!saveAction || !online || busy}
+          title={!saveAction ? (en ? 'Saving is not available on the server yet' : 'Enregistrement indisponible sur le serveur pour le moment') : undefined}
+          aria-label={!saveAction ? (en ? 'Saving is currently unavailable' : 'Enregistrement actuellement indisponible')
+            : displayedSaved ? (en ? 'Remove from saved' : 'Retirer des favoris')
             : (en ? 'Save publication' : 'Enregistrer la publication')}
-          aria-pressed={saved} onClick={() => { if (onSave) void execute(onSave); }}>
-          <Icon name="bookmark" active={saved}/>
-          <span className="km-post-action-label">{saved ? (en ? 'Saved' : 'Enregistré')
+          aria-pressed={displayedSaved} onClick={() => { if (saveAction) void execute(saveAction); }}>
+          <Icon name="bookmark" active={displayedSaved}/>
+          <span className="km-post-action-label">{displayedSaved ? (en ? 'Saved' : 'Enregistré')
             : (en ? 'Save' : 'Enregistrer')}</span>
         </button>
       </div>
