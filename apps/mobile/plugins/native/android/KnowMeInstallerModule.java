@@ -162,7 +162,7 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
       long id = downloadManager().enqueue(request);
       prefs.edit().putLong("id", id).putLong("version", version)
         .putString("sha256", sha256.toLowerCase(Locale.ROOT))
-        .putString("url", url).apply();
+        .putString("url", url).putBoolean("installationRequested", false).apply();
       promise.resolve(true);
     } catch (Exception error) {
       promise.reject("DOWNLOAD_START_FAILED", "Impossible de lancer le téléchargement Android.", error);
@@ -178,29 +178,81 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
       long version = prefs.getLong("version", -1);
       String digest = prefs.getString("sha256", "");
       state.putDouble("versionCode", (double) version);
+      state.putBoolean("installationRequested",
+        prefs.getBoolean("installationRequested", false));
       PackageInfo installed = context.getPackageManager()
         .getPackageInfo(context.getPackageName(), 0);
-      if (id < 1 || version <= versionCode(installed) ||
-          !digest.matches("(?i)[a-f0-9]{64}")) {
+      if (id < 1 || version < 1 || !digest.matches("(?i)[a-f0-9]{64}")) {
         state.putString("status", "none");
         promise.resolve(state);
         return;
       }
-      int status = downloadState(id);
-      if (status == DownloadManager.STATUS_SUCCESSFUL) {
-        File file = backgroundFile(version, digest);
-        state.putString("status", file.isFile() && file.length() >= 1_000_000L
-          && file.length() <= 500_000_000L ? "ready" : "failed");
-      } else if (status == DownloadManager.STATUS_PENDING ||
-                 status == DownloadManager.STATUS_RUNNING ||
-                 status == DownloadManager.STATUS_PAUSED) {
-        state.putString("status", "downloading");
-      } else {
-        state.putString("status", "failed");
+      // A successful installation is proved only by Android's installed version,
+      // never by DownloadManager finishing or by opening the installer.
+      if (version <= versionCode(installed)) {
+        state.putString("status", prefs.getBoolean("installationRequested", false)
+          ? "installed" : "none");
+        promise.resolve(state);
+        return;
+      }
+      try (Cursor cursor = downloadManager().query(
+          new DownloadManager.Query().setFilterById(id))) {
+        if (cursor == null || !cursor.moveToFirst()) {
+          state.putString("status", "failed");
+          promise.resolve(state);
+          return;
+        }
+        int status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+        long bytes = cursor.getLong(cursor.getColumnIndexOrThrow(
+          DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+        long total = cursor.getLong(cursor.getColumnIndexOrThrow(
+          DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+        state.putDouble("bytesDownloaded", (double) Math.max(0, bytes));
+        // -1 = the server did not supply Content-Length. Never fabricate a percentage.
+        state.putDouble("totalBytes", (double) total);
+        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+          File file = backgroundFile(version, digest);
+          state.putString("status", file.isFile() && file.length() >= 1_000_000L
+            && file.length() <= 500_000_000L ? "ready" : "failed");
+        } else if (status == DownloadManager.STATUS_PENDING ||
+                   status == DownloadManager.STATUS_RUNNING ||
+                   status == DownloadManager.STATUS_PAUSED) {
+          state.putString("status", "downloading");
+        } else {
+          state.putString("status", "failed");
+          state.putDouble("failureReason", (double) cursor.getInt(
+            cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)));
+        }
       }
       promise.resolve(state);
     } catch (Exception error) {
       promise.reject("DOWNLOAD_STATUS_FAILED", "Statut du téléchargement indisponible.", error);
+    }
+  }
+
+  @ReactMethod
+  public void acknowledgeInstalledUpdate(Promise promise) {
+    try {
+      SharedPreferences prefs = backgroundPrefs();
+      long version = prefs.getLong("version", -1);
+      PackageInfo installed = context.getPackageManager()
+        .getPackageInfo(context.getPackageName(), 0);
+      if (version < 1 || version > versionCode(installed) ||
+          !prefs.getBoolean("installationRequested", false)) {
+        promise.reject("INSTALL_NOT_CONFIRMED", "La nouvelle version n'est pas installée.");
+        return;
+      }
+      long id = prefs.getLong("id", -1);
+      String digest = prefs.getString("sha256", "");
+      if (id > 0) downloadManager().remove(id);
+      if (digest.matches("(?i)[a-f0-9]{64}")) {
+        File oldApk = backgroundFile(version, digest);
+        if (oldApk.isFile()) oldApk.delete();
+      }
+      prefs.edit().clear().commit();
+      promise.resolve(true);
+    } catch (Exception error) {
+      promise.reject("INSTALL_ACK_FAILED", "Impossible de confirmer la mise à jour.", error);
     }
   }
 
@@ -309,6 +361,13 @@ public final class KnowMeInstallerModule extends ReactContextBaseJavaModule {
       install.setDataAndType(contentUri, "application/vnd.android.package-archive");
       install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
       context.startActivity(install);
+      SharedPreferences prefs = backgroundPrefs();
+      if (prefs.getLong("version", -1) == (long) targetVersion &&
+          downloadState(prefs.getLong("id", -1)) == DownloadManager.STATUS_SUCCESSFUL) {
+        // Keep this receipt across app replacement; a new APK confirms completion
+        // only after Android reports that the version has actually changed.
+        prefs.edit().putBoolean("installationRequested", true).commit();
+      }
       promise.resolve(true);
     } catch (Exception error) {
       promise.reject("INSTALL_FAILED", "Impossible de lancer l'installation Android.", error);
