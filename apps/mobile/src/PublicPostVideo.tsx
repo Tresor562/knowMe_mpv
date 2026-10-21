@@ -12,9 +12,9 @@ import {getPublicVideoResume,savePublicVideoResume} from './video-resume-store';
 import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from './offline-public-video';
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
-export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused=false,
+export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=false,externallyPaused=false,
   offlineRequest=0,onOfflineStatus}:{
-  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;externallyPaused?:boolean;
+  url:string;onDoubleTap?:()=>void;autoPlay?:boolean;preloadPaused?:boolean;externallyPaused?:boolean;
   offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void
 }){
   const {colors}=useAppearance();
@@ -148,6 +148,14 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
       setLocal(offline??API_URL+url);
     }
   }
+  // Prepare the next five native Reel surfaces in a strictly paused state.
+  // Unlike full offline saves, VideoView buffers only its needed HTTPS ranges.
+  // Promotion to active does NOT replace that prepared native media instance.
+  useEffect(()=>{
+    if(!preloadPaused||autoPlay||local||!publicPostVideoId(url)||
+      API_URL!=='https://31-56-85-53.sslip.io/knowme-api')return;
+    setLocal(API_URL+url);
+  },[preloadPaused,autoPlay,local,url]);
   // Autoplay only when the caller explicitly marks a single active Reel.
   // Feed previews and the offline-library thumbnail remain tap-to-play.
   useEffect(()=>{
@@ -239,7 +247,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
   }
   return <View style={styles.container}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen} style={styles.video}
+      <NativeStoryVideo sourceUri={local} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
@@ -256,6 +264,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,externallyPaused
         }}
         seekToMs={seekToMs}
         onProgress={event=>{
+          if(preloadPaused&&!autoPlay)return; // No timeline writes from a passive buffer.
           const duration=event.nativeEvent.durationMs;
           const position=event.nativeEvent.positionMs;
           if(Number.isFinite(duration)&&duration>0)setDurationMs(duration);
