@@ -57,7 +57,7 @@ describe('KnowMe first-party Android APK distribution', () => {
     expect(readHostedAndroidRelease()).toBeNull();
   });
 
-  it('offers a permanent recovery download URL only for a verified VPS APK', () => {
+  it('offers a permanent recovery download URL only for a verified VPS APK', async () => {
     const response = { setHeader: jest.fn() };
     const controller = new MobileUpdatesController();
     expect(() => controller.downloadLatestHostedApk(response)).toThrow(NotFoundException);
@@ -72,7 +72,12 @@ describe('KnowMe first-party Android APK distribution', () => {
     expect(download.getHeaders().disposition)
       .toBe('attachment; filename="KnowMe-1.1.8-preview.apk"');
     expect(download.getHeaders().type).toBe('application/vnd.android.package-archive');
-    download.getStream().destroy();
+    await new Promise<void>((resolve, reject) => {
+      const stream = download.getStream();
+      stream.once('error', reject);
+      stream.once('end', resolve);
+      stream.resume();
+    });
   });
 
   it('serves only the exact advertised immutable artifact', async () => {
