@@ -65,7 +65,8 @@ export class StoriesService {
     }
 
     const hashtags = [...new Set((dto.hashtags ?? []).map(normalizeStoryHashtag).filter(Boolean))];
-    const mentions = [...new Set(dto.mentionUserIds ?? [])];
+    const mentions = [...new Set(dto.mentionUserIds ?? [])]
+      .filter(targetUserId => !excluded.includes(targetUserId));
     if (mentions.length) {
       const validUsers = await this.prisma.user.count({ where: { id: { in: mentions } } });
       if (validUsers !== mentions.length) {
