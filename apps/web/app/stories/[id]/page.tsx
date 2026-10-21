@@ -47,6 +47,7 @@ type StoryViewer = {
 type StoryViewersPage = {uniqueViewers:number;viewers:StoryViewer[];nextCursor?:string|null};
 
 const REACTIONS = ['❤', '😂', '🔥', '👏', '😮', '💯'];
+const reactionGlyph=(value:string)=>({LIKE:'❤️',SPARK:'✨',LOVE:'❤️',FIRE:'🔥',WOW:'😮',HAHA:'😂'} as Record<string,string>)[value]??value;
 
 export default function StoryViewerPage() {
   const { locale } = useI18n();
@@ -492,7 +493,7 @@ export default function StoryViewerPage() {
                       <small>{relativeViewTime(person.lastViewedAt)}</small>
                     </span>
                     {person.reaction?.reaction&&<span className="km-story-viewer-person-reaction">
-                      {person.reaction.reaction}
+                      {reactionGlyph(person.reaction.reaction)}
                     </span>}
                   </Link>:<span>{en?'Unavailable account':'Compte indisponible'}</span>}
                 </li>)}
