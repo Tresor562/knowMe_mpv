@@ -182,6 +182,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     }
   }
   useEffect(()=>{
+    // A warmed Reel must not expose stale controls or intercept vertical swipes.
+    if(preloadPaused)setReelControlsVisible(false);
+  },[preloadPaused]);
+  useEffect(()=>{
     if(!onDoubleTap)return;
     if(controlsTimer.current!==null)clearTimeout(controlsTimer.current);
     if(reelControlsVisible&&!paused&&scrubMs===null&&!timeDialogOpen&&!ended){
@@ -245,7 +249,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setScrubMs(null);
     seek(target);
   }
-  return <View style={styles.container}>
+  return <View style={styles.container}
+    pointerEvents={preloadPaused&&!autoPlay?'none':'auto'}
+    importantForAccessibility={preloadPaused&&!autoPlay?'no-hide-descendants':'auto'}>
     {local?<View style={styles.playback}>
       <NativeStoryVideo sourceUri={local} nativeControls={false} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
         onPlaybackError={event=>{
