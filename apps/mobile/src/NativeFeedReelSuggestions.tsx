@@ -71,7 +71,7 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
             }}
             style={[styles.card,{backgroundColor:colors.surface}]}>
             <View pointerEvents="none" style={styles.video}>
-              <NativeStoryVideo sourceUri={API_URL+item.url} paused
+              <NativeStoryVideo sourceUri={API_URL+item.url} paused nativeControls={false}
                 seekToMs={100} style={styles.videoContent}/>
             </View>
             <View pointerEvents="none" style={styles.play}>
