@@ -127,8 +127,20 @@ export default function StoryViewerPage() {
         }
       }
       const authors=[...new Set(rows.map(item=>item.author?.id??item.id))];
-      setSequence(authors.flatMap(authorId=>rows.filter(item=>
-        (item.author?.id??item.id)===authorId).reverse()));
+      const ordered=authors.flatMap(authorId=>rows.filter(item=>
+        (item.author?.id??item.id)===authorId).reverse());
+      // Feed rail opens the author's chronological series. A direct link to
+      // an individual Story remains exact and never forces this redirect.
+      const firstFromRail=typeof window!=='undefined' &&
+        new URLSearchParams(window.location.search).get('sequence')==='start';
+      if(firstFromRail&&current.author?.id){
+        const first=ordered.find(item=>item.author?.id===current.author?.id);
+        if(first&&first.id!==current.id){
+          router.replace('/stories/'+encodeURIComponent(first.id));
+          return;
+        }
+      }
+      setSequence(ordered);
       await apiFetch(`/stories/${storyId}/view`, {
         method: 'POST',
         body: JSON.stringify({ completionBps: 0 })
@@ -140,7 +152,7 @@ export default function StoryViewerPage() {
     } finally {
       setLoading(false);
     }
-  }, [storyId, ui.unavailable]);
+  }, [storyId, ui.unavailable, router]);
 
   useEffect(() => {
     if (!sessionLoading && user) void load();
