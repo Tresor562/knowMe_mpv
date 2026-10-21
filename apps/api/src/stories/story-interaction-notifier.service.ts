@@ -26,6 +26,16 @@ export class StoryInteractionNotifier {
     });
   }
 
+  async assertReplyAllowed(storyId:string,actorId:string){
+    const story=await this.prisma.story.findUnique({
+      where:{id:storyId},select:{authorUserId:true}
+    });
+    if(!story || story.authorUserId===actorId) {
+      throw new Error('STORY_REPLY_NOT_ALLOWED');
+    }
+    await this.messaging.assertCanDeliver(actorId,story.authorUserId);
+  }
+
   async reply(storyId: string, actorId: string, replyId: string) {
     const context = await this.context(storyId, actorId);
     if (!context || context.story.authorUserId === actorId) return;
