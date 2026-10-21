@@ -92,6 +92,15 @@ export class StoriesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('audience/candidates')
+  audienceCandidates(
+    @Req() req: { user: { userId: string } },
+    @Query('q') q = ''
+  ) {
+    return this.stories.audienceCandidates(req.user.userId, q);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('rail')
   rail(
     @Req() req: { user: { userId: string } },
