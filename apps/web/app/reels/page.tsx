@@ -9,6 +9,7 @@ import { ReelPlayback } from './reel-playback';
 import { ReelShareSheet } from './reel-share-sheet';
 import { ReelFollowButton, ReelCommentSheet } from './reel-social-interactions';
 import { ReelIcon } from './reel-icons';
+import { KnowMeAvatarImage } from '../../components/knowme-avatar-image';
 import './reels.css';
 import './reels-reference-shell.css';
 
@@ -24,7 +25,8 @@ type Post = {
 type Clip = {id:string;post:Post;media:PostMedia};
 
 function mediaUrl(url: string): string {
-  if (url.startsWith('/media/public/post/')) return '/api/knowme' + url;
+  // Public profile photos and post media both belong to the API proxy.
+  if (url.startsWith('/media/public/')) return '/api/knowme' + url;
   if (url.startsWith('/') && !url.startsWith('//')) return url;
   if (url.startsWith('https://')) return url;
   return '';
@@ -370,9 +372,8 @@ export default function ReelsPage() {
                 <div className="km-reel-creator">
                   <Link href={'/profile/'+encodeURIComponent(post.author.username)}
                     className="km-reel-avatar" aria-label={en?'Creator profile':'Profil du créateur'}>
-                    {post.author.avatarUrl&&mediaUrl(post.author.avatarUrl)?
-                      <img alt="" src={mediaUrl(post.author.avatarUrl)}/>:
-                      <span>{post.author.displayName.slice(0,1).toUpperCase()}</span>}
+                    <KnowMeAvatarImage src={mediaUrl(post.author.avatarUrl??'')}
+                      name={post.author.displayName||post.author.username}/>
                   </Link>
                   <Link href={'/profile/'+encodeURIComponent(post.author.username)}>
                     @{post.author.username}
