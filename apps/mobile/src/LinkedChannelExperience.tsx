@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { apiFetch } from './api';
+import { KnowMeShareIcon } from './ui/KnowMeShareIcon';
 import { useAppearance } from './AppearanceProvider';
 import { GlassSurface } from './ui/KnowMeUI';
 
@@ -117,8 +118,9 @@ export function LinkedChannelExperience({channelId,postId,onBack}:{
         <Text style={{color:colors.text,fontWeight:'800',fontSize:22}}>{channel.name}</Text>
         <Text style={{color:colors.muted}}> {channel.username?`@${channel.username}`:channel.visibility==='PRIVATE'?'Chaîne privée':'Chaîne publique'}</Text>
         {channel.description?<Text style={{color:colors.text}}>{channel.description}</Text>:null}
-        <Pressable onPress={()=>share('channel',channel.id)} accessibilityRole="button" style={styles.action}>
-          <Text style={{color:colors.accent}}>↗ Partager la chaîne</Text>
+        <Pressable onPress={()=>share('channel',channel.id)} accessibilityRole="button" style={[styles.action,styles.shareAction]}>
+          <KnowMeShareIcon size={18} color={colors.accent}/>
+          <Text style={{color:colors.accent}}>Partager la chaîne</Text>
         </Pressable>
       </GlassSurface>}
       ListEmptyComponent={<Text style={{color:colors.muted,padding:12}}>Aucune publication.</Text>}
@@ -128,8 +130,9 @@ export function LinkedChannelExperience({channelId,postId,onBack}:{
         <Text style={{color:colors.text,fontSize:15,lineHeight:23}}>{item.content}</Text>
         <Text style={{color:colors.muted,fontSize:12}}>{new Date(item.createdAt).toLocaleString()}</Text>
         <Pressable onPress={()=>share('channel-post',item.id)} accessibilityRole="button"
-          accessibilityLabel="Partager cette publication" style={styles.action}>
-          <Text style={{color:colors.accent}}>↗ Lien de la publication</Text>
+          accessibilityLabel="Partager cette publication" style={[styles.action,styles.shareAction]}>
+          <KnowMeShareIcon size={18} color={colors.accent}/>
+          <Text style={{color:colors.accent}}>Lien de la publication</Text>
         </Pressable>
       </GlassSurface>}
       ListFooterComponent={cursor?<Pressable onPress={()=>void loadMore()} disabled={loadingOlder} style={styles.action}>
@@ -141,5 +144,6 @@ export function LinkedChannelExperience({channelId,postId,onBack}:{
 const styles=StyleSheet.create({
  toolbar:{flexDirection:'row',justifyContent:'space-between',paddingVertical:12},
  card:{padding:16,gap:10},
- action:{paddingVertical:9,paddingHorizontal:12,alignSelf:'flex-start'}
+ action:{paddingVertical:9,paddingHorizontal:12,alignSelf:'flex-start'},
+ shareAction:{flexDirection:'row',alignItems:'center',gap:7}
 });
