@@ -168,14 +168,18 @@ describe('KMD-378 derived media authority download fence (e2e)', () => {
     await removalReady.promise;
 
     let issuanceSettled = false;
+    // Consume the rejection immediately. A database trigger rejects the
+    // waiting insert as soon as membership removal commits; rethrowing here
+    // temporarily created an unhandled rejection before Jest attached its
+    // .rejects expectation, making this security race test flaky in CI.
     const issuance = createDownload(asset.id, guest.id, 'remove-first-race').then(
       (value) => {
         issuanceSettled = true;
-        return value;
+        return { accepted: true as const, value };
       },
-      (error) => {
+      (error: unknown) => {
         issuanceSettled = true;
-        throw error;
+        return { accepted: false as const, error };
       }
     );
 
@@ -184,7 +188,10 @@ describe('KMD-378 derived media authority download fence (e2e)', () => {
 
     releaseRemoval.resolve();
     await removal;
-    await expect(issuance).rejects.toThrow();
+    const outcome = await issuance;
+    expect(outcome.accepted).toBe(false);
+    if (outcome.accepted) throw new Error('Removed member unexpectedly received a download token.');
+    expect(outcome.error).toBeInstanceOf(Error);
     expect(await prisma.mediaDownloadGrant.count({ where: { assetId: asset.id, userId: guest.id } })).toBe(0);
   });
 
