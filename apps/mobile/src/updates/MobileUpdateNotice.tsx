@@ -1,5 +1,6 @@
 import { KnowMeAlert as Alert } from '../ui/KnowMeFeedback';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import {
   AppState,
@@ -15,6 +16,10 @@ import { apiFetch } from '../api';
 import { getRealtimeSocket } from '../realtime';
 import { useAppearance } from '../AppearanceProvider';
 import { useI18n } from '../I18nProvider';
+import {
+  installedUpdateNoticeStorageKey,
+  shouldHideInstalledUpdateNotice
+} from './installed-receipt-model';
 
 type BackgroundUpdateStatus = {
   status: 'none' | 'downloading' | 'ready' | 'failed' | 'installed';
@@ -88,6 +93,7 @@ export function MobileUpdateNotice() {
   const downloaded = useRef<{ uri: string; versionCode: number } | null>(null);
   const dismissedVersion = useRef(0);
   const dismissedReadyVersion = useRef(0);
+  const dismissedInstalledVersion = useRef(0);
   const lastCheckAt = useRef(0);
   const requestInProgress = useRef(false);
 
@@ -100,11 +106,27 @@ export function MobileUpdateNotice() {
     // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
 
+    // Persisted per-version receipt lets users reach KnowMe even when an APK
+    // has an older/missing native acknowledgement method. Polling must not
+    // reopen a receipt that the user has already dismissed.
+    const isInstalledNoticeHidden = async (status: BackgroundUpdateStatus) => {
+      if (status.status !== 'installed') return false;
+      const hidden = await shouldHideInstalledUpdateNotice(
+        status.versionCode, dismissedInstalledVersion.current,
+        (key) => AsyncStorage.getItem(key)
+      );
+      if (hidden) dismissedInstalledVersion.current = status.versionCode;
+      // The user may have dismissed it while the persisted read was in flight.
+      return dismissedInstalledVersion.current === status.versionCode;
+    };
+
     const refreshBackground = async () => {
       try {
         const status = await installer.getBackgroundUpdateStatus?.();
         if (!active || !status) return;
-        setBackgroundStatus(status.status === 'none' ? null : status);
+        const hidden = await isInstalledNoticeHidden(status);
+        if (!active) return;
+        setBackgroundStatus(status.status === 'none' || hidden ? null : status);
         if (status.status === 'ready' &&
             status.versionCode !== dismissedReadyVersion.current) {
           setReadyVersion(status.versionCode);
@@ -135,8 +157,10 @@ export function MobileUpdateNotice() {
           installer.getBackgroundUpdateStatus?.().catch(() => null) ?? Promise.resolve(null)
         ]);
         if (!active) return 'unavailable';
+        const hidden = background ? await isInstalledNoticeHidden(background) : false;
+        if (!active) return 'unavailable';
         if (background && background.status !== 'none') {
-          setBackgroundStatus(background);
+          setBackgroundStatus(hidden ? null : background);
         }
         if (background?.status === 'installed') {
           setReadyVersion(0);
@@ -356,15 +380,17 @@ export function MobileUpdateNotice() {
     }
   };
 
-  const acknowledgeInstalled = async () => {
-    if (!installer.acknowledgeInstalledUpdate) return;
-    try {
-      const acknowledged = await installer.acknowledgeInstalledUpdate();
-      if (acknowledged) setBackgroundStatus(null);
-    } catch {
-      Alert.alert(en ? 'KnowMe update' : 'Mise à jour KnowMe',
-        en ? 'The installed version could not be confirmed yet.'
-          : 'Impossible de confirmer la version installée pour le moment.');
+  const acknowledgeInstalled = () => {
+    if (backgroundStatus?.status !== 'installed') return;
+    // The native status has already verified this version through Android.
+    // Dismiss immediately: optional cleanup must never hold the app hostage.
+    const version = backgroundStatus.versionCode;
+    dismissedInstalledVersion.current = version;
+    setBackgroundStatus(null);
+    void AsyncStorage.setItem(installedUpdateNoticeStorageKey(version), '1')
+      .catch(() => undefined);
+    if (installer?.acknowledgeInstalledUpdate) {
+      void installer.acknowledgeInstalledUpdate().catch(() => undefined);
     }
   };
 
