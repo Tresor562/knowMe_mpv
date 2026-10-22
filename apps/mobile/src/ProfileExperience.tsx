@@ -22,6 +22,8 @@ import { CreatorSettingsExperience } from './CreatorSettingsExperience';
 import { GamePlatformExperience } from './GamePlatformExperience';
 import { LanguageSettingsExperience } from './LanguageSettingsExperience';
 import { MediaDownloadSettingsExperience } from './MediaDownloadSettingsExperience';
+import { SavedPostsExperience } from './SavedPostsExperience';
+import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { MobileAvatarQuickActions } from './MobileAvatarQuickActions';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
@@ -78,6 +80,7 @@ type ProfilePanel =
   | 'appearance'
   | 'language'
   | 'downloads'
+  | 'saved-posts'
   | 'creator'
   | 'avatar'
   | 'payments'
@@ -245,6 +248,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+  const [offlineLibraryOpen, setOfflineLibraryOpen] = useState(false);
 
   useEffect(() => {
     onSubscreenChange?.(panel !== 'main');
@@ -367,6 +371,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
       appearance: 'Apparence',
       language: 'Langue et région',
       downloads: 'Téléchargements & stockage',
+      'saved-posts': 'Publications enregistrées',
       creator: 'Mode créateur',
       avatar: 'Avatar Studio',
       payments: 'KnowCoins & paiements',
@@ -445,6 +450,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         ) : null}
         {panel === 'language' ? <LanguageSettingsExperience /> : null}
         {panel === 'downloads' ? <MediaDownloadSettingsExperience /> : null}
+        {panel === 'saved-posts' ? <SavedPostsExperience /> : null}
         {panel === 'creator' ? <CreatorSettingsExperience /> : null}
         {panel === 'avatar' ? <AvatarStudioExperience /> : null}
         {panel === 'payments' ? <PaymentsExperience /> : null}
@@ -881,6 +887,18 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
             description="Médias, données mobiles et cache local."
             icon="settings"
             onPress={() => setPanel('downloads')}
+          />
+          <ProfileMenuRow
+            title="Publications enregistrées"
+            description="Retrouve tes favoris privés synchronisés."
+            icon="heart"
+            onPress={() => setPanel('saved-posts')}
+          />
+          <ProfileMenuRow
+            title="Vidéos hors ligne"
+            description="Lis tes vidéos téléchargées sur cet appareil."
+            icon="download"
+            onPress={() => setOfflineLibraryOpen(true)}
             last
           />
         </ProfileMenuGroup>
@@ -1006,6 +1024,8 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
           </Pressable>
         </Pressable>
       </Modal>
+      <OfflineVideosLibrary visible={offlineLibraryOpen}
+        onClose={() => setOfflineLibraryOpen(false)} />
       <AndroidMediaLibraryPicker
         visible={coverPickerOpen}
         purpose="cover"
