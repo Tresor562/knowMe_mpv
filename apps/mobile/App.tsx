@@ -1240,6 +1240,8 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         setProfileBackRequest((current) => current + 1);
         return true;
       }
+      // Children own their immersive chat/folder BackHandler. Let them unwind first.
+      if (screen === 'social' && socialImmersive) return false;
       if (screen !== 'home') {
         const previous = screenHistory.current.pop() ?? 'home';
         applyingSystemBack.current = true;
@@ -1253,7 +1255,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
       return true;
     });
     return () => listener.remove();
-  }, [user?.id, loading, keyboardVisible, createOpen, screen, postDetailOpen, profileSubscreenActive]);
+  }, [user?.id, loading, keyboardVisible, createOpen, screen, postDetailOpen, profileSubscreenActive, socialImmersive]);
 
   useEffect(() => {
     let alive=true;
