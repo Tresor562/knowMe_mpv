@@ -4,7 +4,6 @@ import {
   Animated,
   Image,
   StyleSheet,
-  Text,
   View,
   useColorScheme
 } from 'react-native';
