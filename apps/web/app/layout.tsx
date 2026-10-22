@@ -10,6 +10,7 @@ import '../components/network-connectivity-notice.css';
 import { KnowMeDialogHost } from '../components/knowme-feedback';
 import { NetworkConnectivityNotice } from '../components/network-connectivity-notice';
 import { BottomNavigation } from '../components/bottom-navigation';
+import { SecondaryPageBack } from '../components/secondary-page-back';
 import { I18nRuntime } from '../components/i18n-provider';
 import { ServiceWorkerRegistration } from '../components/service-worker-registration';
 import { ThemeRuntime } from '../components/theme-runtime';
@@ -169,6 +170,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NetworkConnectivityNotice />
           {children}
           <BottomNavigation />
+          <SecondaryPageBack />
         </RuntimeExperienceProvider>
       </body>
     </html>

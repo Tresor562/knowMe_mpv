@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import './post-action-bar.css';
 import { apiFetch } from '../lib/api';
+import { KNOWME_SHARE_PATH } from './KnowMeShareIcon';
 
 /** Explicit action contract: the parent must persist any mutation on the server. */
 export type PostActionBarProps = {
@@ -39,7 +40,7 @@ function Icon({ name, active = false }: { name: IconName; active?: boolean }) {
   const paths = {
     heart: <path d="M20.8 4.9a5.4 5.4 0 0 0-7.7 0L12 6l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.4a5.4 5.4 0 0 0 0-7.7Z" />,
     comment: <path d="M20.5 11.4a8.5 8.5 0 0 1-8.5 8.5 9.5 9.5 0 0 1-3.6-.8L3 21l1.8-5.3a8.5 8.5 0 1 1 15.7-4.3Z" />,
-    share: <><path d="M12 16V3m0 0L7.7 7.3M12 3l4.3 4.3" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>,
+    share: <path d={KNOWME_SHARE_PATH} fill="currentColor" stroke="none" />,
     bookmark: <path d="M6 3.6h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.6a1 1 0 0 1 1-1Z" />,
     chevron: <path d="m7 10 5 5 5-5" />
   };

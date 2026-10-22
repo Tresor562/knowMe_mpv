@@ -4,6 +4,7 @@ import { buildKnowMePublicLink } from '@knowme/link-contract';
 import { API_URL, apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
 import { Avatar, GlassSurface, KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeShareIcon } from './ui/KnowMeShareIcon';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { RemoteCosmeticBadges } from './ui/RemoteCosmeticBadges';
@@ -308,7 +309,7 @@ export function LinkedProfileExperience({ username, onBack, onOpenConversation }
                   });
                 }}>
                 <Text style={{ color: colors.accent, fontWeight: '700' }}>Partager le profil</Text>
-                <KnowMeIcon name="arrow" size={16} color={colors.accent} />
+                <KnowMeShareIcon size={18} color={colors.accent} />
               </Pressable>
             </View>
           </View>

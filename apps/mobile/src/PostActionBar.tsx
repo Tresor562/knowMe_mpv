@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAppearance } from './AppearanceProvider';
 import { KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeShareIcon } from './ui/KnowMeShareIcon';
 import { KnowMeNativeVectorIcon } from './ui/KnowMeNativeVectorIcon';
 import { apiFetch } from './api';
 import { useEffect } from 'react';
@@ -157,7 +158,7 @@ export function PostActionBar({
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={en?"Share publication":"Partager la publication"}
         onPress={event=>{event.stopPropagation();onShare();}} style={({pressed})=>[styles.action,pressed&&styles.pressed]}>
-        <KnowMeIcon name="arrow" size={21} color={colors.muted}/>
+        <KnowMeShareIcon size={21} color={colors.muted}/>
         <Text numberOfLines={1} style={[styles.label,{color:colors.muted}]}>{en?'Share':'Partager'}</Text>
       </Pressable>
       <Pressable accessibilityRole="button"
