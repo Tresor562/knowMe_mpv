@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { KnowMeShareIcon } from './KnowMeShareIcon';
 
 export type PostOption = {
   id: string;
@@ -30,7 +29,7 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
         <button type="button" aria-label={en?'Close':'Fermer'} onClick={onClose}>×</button>
       </header>
       <button type="button" onClick={onShare}>
-        <KnowMeShareIcon size={20}/>{en?'Share':'Partager'}
+        <span aria-hidden="true">↗</span>{en?'Share':'Partager'}
       </button>
       <button type="button" onClick={onCopy}>
         <span aria-hidden="true">⛓</span>{en?'Copy link':'Copier le lien'}
