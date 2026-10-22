@@ -783,6 +783,7 @@ export function FeedExperience({
   onComposerOpened,
   onContentScroll,
   onDetailChange,
+  systemBackRequest = 0,
   topNavigation
 }: {
   userId: string;
@@ -800,6 +801,7 @@ export function FeedExperience({
   onComposerOpened?: () => void;
   onContentScroll?: (offset: number) => void;
   onDetailChange?: (open: boolean) => void;
+  systemBackRequest?: number;
   topNavigation?: ReactNode;
 }) {
   const { colors } = useAppearance();
@@ -883,6 +885,7 @@ export function FeedExperience({
     return () => clearTimeout(timer);
   }, [userId, draftOwner, content, selectedPhotos, publishing]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(initialPostId ?? null);
+  useEffect(() => { if (systemBackRequest > 0) setSelectedPostId(null); }, [systemBackRequest]);
   const [menuPost, setMenuPost] = useState<PostSummary | null>(null);
   const [editFeedPost,setEditFeedPost] = useState<PostSummary|null>(null);
   useEffect(() => { if(initialPostId) setSelectedPostId(initialPostId); }, [initialPostId]);

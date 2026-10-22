@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   Animated,
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -1181,6 +1182,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const previousScreen = useRef<Screen>('home');
+  const screenHistory = useRef<Screen[]>([]);
+  const applyingSystemBack = useRef(false);
+  const [feedBackRequest, setFeedBackRequest] = useState(0);
+  const [profileBackRequest, setProfileBackRequest] = useState(0);
   const [profileSubscreenActive, setProfileSubscreenActive] = useState(false);
   const [pendingLink, setPendingLink] = useState<ParsedKnowMeDeepLink | null>(null);
   const [linkedPostId, setLinkedPostId] = useState<string | null>(null);
@@ -1206,6 +1212,50 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [postDetailOpen,setPostDetailOpen] = useState(false);
   const [socialImmersive,setSocialImmersive] = useState(false);
   const dockScroll=useRef({...INITIAL_DOCK_SCROLL});
+
+  // Android back belongs to KnowMe navigation, not the activity default.
+  // A direct/deep link falls back to Home if no valid screen history exists.
+  useEffect(() => {
+    if (screen === previousScreen.current) return;
+    if (applyingSystemBack.current) {
+      applyingSystemBack.current = false;
+    } else if (screen === 'home') {
+      screenHistory.current = [];
+    } else {
+      screenHistory.current = [...screenHistory.current, previousScreen.current].slice(-24);
+    }
+    previousScreen.current = screen;
+  }, [screen]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !user?.id || loading) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (keyboardVisible) { Keyboard.dismiss(); return true; }
+      if (createOpen) { setCreateOpen(false); return true; }
+      if (screen === 'home' && postDetailOpen) {
+        setFeedBackRequest((current) => current + 1);
+        return true;
+      }
+      if (screen === 'profile' && profileSubscreenActive) {
+        setProfileBackRequest((current) => current + 1);
+        return true;
+      }
+      // Children own their immersive chat/folder BackHandler. Let them unwind first.
+      if (screen === 'social' && socialImmersive) return false;
+      if (screen !== 'home') {
+        const previous = screenHistory.current.pop() ?? 'home';
+        applyingSystemBack.current = true;
+        setScreen(previous === screen ? 'home' : previous);
+        return true;
+      }
+      Alert.alert('Quitter KnowMe ?', 'Fermer l’application ?', [
+        { text: 'Rester', style: 'cancel' },
+        { text: 'Quitter', onPress: () => BackHandler.exitApp() }
+      ]);
+      return true;
+    });
+    return () => listener.remove();
+  }, [user?.id, loading, keyboardVisible, createOpen, screen, postDetailOpen, profileSubscreenActive, socialImmersive]);
 
   useEffect(() => {
     let alive=true;
@@ -1282,6 +1332,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }, [screen, user?.id]);
 
   useEffect(() => {
+    previousScreen.current = 'home';
+    screenHistory.current = [];
+    applyingSystemBack.current = false;
     setScreen('home');
   }, [user?.id]);
 
@@ -1481,6 +1534,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             initialCommentId={linkedCommentId}
             onContentScroll={onFeedScroll}
             onDetailChange={setPostDetailOpen}
+            systemBackRequest={feedBackRequest}
             topNavigation={topNavigation}
           />
         ) : null}
@@ -1577,6 +1631,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
             onSubscreenChange={setProfileSubscreenActive}
+            systemBackRequest={profileBackRequest}
             dockPreferences={dockPreferences}
             onDockPreferencesChange={updateDockPreferences}
             topNavigation={topNavigation}
