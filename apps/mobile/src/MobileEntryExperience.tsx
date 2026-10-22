@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -121,12 +123,13 @@ function EntryContent() {
   const { colors } = useAppearance();
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<MobileEntryMode>('choice');
+  const [hasAccountSession, setHasAccountSession] = useState(false);
 
   useEffect(() => {
     let active = true;
     void hasSession()
       .then((present) => {
-        if (active) setMode(resolveInitialMobileEntry(present));
+        if (active) { setHasAccountSession(present); setMode(resolveInitialMobileEntry(present)); }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -138,9 +141,22 @@ function EntryContent() {
 
   useEffect(() => {
     return subscribeToSessionPresence((present) => {
+      setHasAccountSession(present);
       setMode((current) => reconcileMobileEntrySession(current, present));
     });
   }, []);
+
+  // Route Android back to the entry screen for guest/recovery and unsigned-in authentication.
+  // Signed-in app navigation is owned by AppContent; do not steal its modal/back events here.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || loading || mode === 'choice' ||
+      (mode === 'account' && hasAccountSession)) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setMode((current) => selectMobileEntry(current, 'choice'));
+      return true;
+    });
+    return () => subscription.remove();
+  }, [loading, mode, hasAccountSession]);
 
   if (loading) {
     return (
