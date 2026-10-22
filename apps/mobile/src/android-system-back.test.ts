@@ -33,3 +33,12 @@ test('Android navigation history has a bounded stack and never leaks past direct
   assert.match(app, /const previous = screenHistory\.current\.pop\(\) \?\? 'home'/);
   assert.match(app, /applyingSystemBack\.current = true/);
 });
+
+
+test('Android root yields immersive conversation and folder Back to their local owners', () => {
+  const app = repoFile('App.tsx');
+  const rootYield=app.indexOf("if (screen === 'social' && socialImmersive) return false;");
+  const tabPop=app.indexOf("const previous = screenHistory.current.pop() ?? 'home';");
+  assert.ok(rootYield > 0 && tabPop > rootYield);
+  assert.match(app,/profileSubscreenActive, socialImmersive\]/);
+});
