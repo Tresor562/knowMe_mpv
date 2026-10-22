@@ -34,7 +34,7 @@ test('refresh preserves a known clip and selects first when the old Reel disappe
 
 
 test('paused Android video cards prime only a silent first frame and never keep playing', () => {
-  const java = readFileSync(new URL('../plugins/native/android/KnowMeStoryVideoPackage.java', import.meta.url), 'utf8');
+  const java = readFileSync(decodeURIComponent(new URL('../plugins/native/android/KnowMeStoryVideoPackage.java', import.meta.url).pathname), 'utf8');
   assert.match(java, /setMutedForPreview\(paused\)/);
   assert.match(java, /MEDIA_INFO_VIDEO_RENDERING_START/);
   assert.match(java, /preparedMedia == source && paused/);
