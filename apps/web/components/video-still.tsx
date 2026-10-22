@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-/** Bounded, in-memory thumbnails: never store a user's videos in localStorage. */
+/** Bounded, in-memory genuine video stills; never store user media in localStorage. */
 const cache = new Map<string, string>();
 const CACHE_LIMIT = 24;
 
@@ -12,15 +12,28 @@ function remember(src: string, poster: string) {
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value!);
 }
 
+type CaptureState = 'pending' | 'decoded' | 'failed';
+
 /**
- * Creates a still from the actual published video, near the viewport only.
- * The temporary media element never enters the document or shows native controls.
- * If decoding is unavailable, show the play affordance without a false image.
+ * Prefer a decoded canvas still. Cross-origin MP4s can play but cannot be read by
+ * canvas (tainted bitmap); for that case show a muted, paused native video surface
+ * with NO browser transport controls. Never pretend a blank block is a thumbnail.
+ * Failed codecs retain the play affordance and are handled by the real player.
  */
-export function VideoStill({ src }: { src: string }) {
+export function VideoStill({ src, className = 'km-post-collage-poster' }: {
+  src: string;
+  className?: string;
+}) {
   const root = useRef<HTMLSpanElement>(null);
   const [near, setNear] = useState(false);
   const [still, setStill] = useState<string | null>(() => cache.get(src) ?? null);
+  const [captureState, setCaptureState] = useState<CaptureState>('pending');
+
+  useEffect(() => {
+    setStill(cache.get(src) ?? null);
+    setCaptureState('pending');
+    setNear(false);
+  }, [src]);
 
   useEffect(() => {
     const node = root.current;
@@ -37,10 +50,6 @@ export function VideoStill({ src }: { src: string }) {
   }, [src, still]);
 
   useEffect(() => {
-    setStill(cache.get(src) ?? null);
-  }, [src]);
-
-  useEffect(() => {
     if (!near || !src || cache.has(src)) return;
     let cancelled = false;
     const video = document.createElement('video');
@@ -48,29 +57,6 @@ export function VideoStill({ src }: { src: string }) {
     video.playsInline = true;
     video.preload = 'auto';
 
-    const capture = () => {
-      if (cancelled || video.videoWidth <= 0 || video.videoHeight <= 0) return;
-      try {
-        const canvas = document.createElement('canvas');
-        const ratio = Math.min(1, 480 / video.videoWidth, 480 / video.videoHeight);
-        canvas.width = Math.max(1, Math.round(video.videoWidth * ratio));
-        canvas.height = Math.max(1, Math.round(video.videoHeight * ratio));
-        const context = canvas.getContext('2d');
-        if (!context) return;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const poster = canvas.toDataURL('image/jpeg', 0.7);
-        if (!cancelled && poster.startsWith('data:image/jpeg')) {
-          remember(src, poster);
-          setStill(poster);
-        }
-      } catch { /* Canvas can be blocked by CORS/codec; leave honest fallback. */ }
-    };
-    const onData = () => {
-      // The first decoded frame is a genuine cover, even without seeking support.
-      // Always close the offscreen player: some codecs or cross-origin sources
-      // cannot produce canvas pixels, but must not keep downloading a 5h MP4.
-      try { capture(); } finally { cleanup(); }
-    };
     const cleanup = () => {
       video.onloadeddata = null;
       video.onerror = null;
@@ -78,14 +64,50 @@ export function VideoStill({ src }: { src: string }) {
       video.removeAttribute('src');
       video.load();
     };
-    video.onloadeddata = onData;
-    video.onerror = cleanup;
+    video.onloadeddata = () => {
+      if (cancelled) return;
+      let captured = false;
+      try {
+        if (video.videoWidth && video.videoHeight) {
+          const canvas = document.createElement('canvas');
+          const ratio = Math.min(1, 480 / video.videoWidth, 480 / video.videoHeight);
+          canvas.width = Math.max(1, Math.round(video.videoWidth * ratio));
+          canvas.height = Math.max(1, Math.round(video.videoHeight * ratio));
+          const context = canvas.getContext('2d');
+          if (context) {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const poster = canvas.toDataURL('image/jpeg', 0.7);
+            if (poster.startsWith('data:image/jpeg')) {
+              remember(src, poster);
+              setStill(poster);
+              captured = true;
+            }
+          }
+        }
+      } catch {
+        // Canvas export often fails under browser cross-origin restrictions,
+        // even for an MP4 that is otherwise fully playable.
+      } finally {
+        if (!cancelled) setCaptureState(captured ? 'decoded' : 'failed');
+        cleanup();
+      }
+    };
+    video.onerror = () => {
+      if (!cancelled) setCaptureState('failed');
+      cleanup();
+    };
     video.src = src;
     video.load();
     return () => { cancelled = true; cleanup(); };
   }, [near, src]);
 
-  return <span ref={root} className="km-post-collage-poster" aria-hidden="true">
-    {still && <img src={still} alt="" draggable={false} />}
+  return <span ref={root} className={className} aria-hidden="true">
+    {still
+      ? <img src={still} alt="" draggable={false} />
+      : near && captureState === 'failed'
+        ? <video src={src} preload="auto" muted playsInline disablePictureInPicture
+            controls={false} tabIndex={-1} draggable={false}
+            onLoadedData={event => event.currentTarget.pause()} />
+        : null}
   </span>;
 }
