@@ -38,6 +38,52 @@ test('login renders as a usable public entrypoint without browser errors', async
   expect(failures).toEqual([]);
 });
 
+test('login uses a clear translated message and hides backend support references for bad passwords', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('knowme-locale', 'en'));
+  await page.route('**/api/knowme/auth/login', async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      headers: { 'x-request-id': 'auth-internal-trace-123' },
+      body: JSON.stringify({
+        code: 'UNAUTHORIZED',
+        message: 'Sign in to continue.',
+        requestId: 'auth-internal-trace-123'
+      })
+    });
+  });
+
+  await page.goto('/login');
+  await page.getByPlaceholder('Votre identifiant').fill('tester');
+  await page.getByPlaceholder('Votre mot de passe').fill('wrong-password');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText(
+    'Incorrect email, username or password. Try again.'
+  );
+  await expect(page.getByRole('alert')).not.toContainText('auth-internal-trace-123');
+  await expect(page.getByRole('alert')).not.toContainText('Support reference');
+});
+
+test('login rate limiting has a human-friendly message in French', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('knowme-locale', 'fr'));
+  await page.route('**/api/knowme/auth/login', async (route) => {
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'RATE_LIMITED', requestId: 'hidden-rate-limit-id' })
+    });
+  });
+
+  await page.goto('/login');
+  await page.getByPlaceholder('Votre identifiant').fill('tester');
+  await page.getByPlaceholder('Votre mot de passe').fill('wrong-password');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page.getByRole('alert')).toHaveText(
+    'Trop de tentatives. Réessaie dans quelques minutes.'
+  );
+});
+
 test('registration renders as a usable public entrypoint and links back to login', async ({ page }) => {
   const failures = collectPageFailures(page);
 

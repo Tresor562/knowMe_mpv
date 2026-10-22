@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import {
   apiFetch,
+  type ApiError,
   clearSession,
   getTrustedDeviceToken,
   hasSession,
@@ -43,6 +44,7 @@ import { LinkedProfileExperience } from './src/LinkedProfileExperience';
 import { ProfileNavigationProvider } from './src/profile-navigation';
 import { resolveIncomingKnowMeLink } from './src/deep-links';
 import type { ParsedKnowMeDeepLink } from '@knowme/link-contract';
+import { translateLoginFailure } from '@knowme/i18n-contract';
 import { useI18n } from './src/I18nProvider';
 import { LanguagePicker } from './src/LanguagePicker';
 import { INITIAL_DOCK_SCROLL, nextDockScroll, shouldShowDock, navigationDockLayout, type DockPosition } from './src/navigation-dock-model';
@@ -213,7 +215,12 @@ function AuthScreen({
       }
       await onAuthenticated();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('auth.failed'));
+      const failure = cause as ApiError;
+      setError(
+        mode === 'login'
+          ? translateLoginFailure(locale, failure?.status, failure?.code)
+          : cause instanceof Error ? cause.message : t('auth.failed')
+      );
     } finally {
       setBusy(false);
     }
@@ -241,7 +248,14 @@ function AuthScreen({
       resetChallenge();
       await onAuthenticated();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('auth.invalidSecurityCode'));
+      const failure = cause as ApiError;
+      setError(
+        failure?.status === 401
+          ? t('auth.invalidSecurityCode')
+          : failure?.status === 429
+            ? t('auth.tooManyAttempts')
+            : t('auth.failed')
+      );
     } finally {
       setBusy(false);
     }

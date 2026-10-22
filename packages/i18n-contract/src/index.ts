@@ -90,6 +90,11 @@ const FR_MESSAGES = {
   'auth.twoFactorPrompt':
     'Entre le code de ton application d’authentification ou un code de récupération.',
   'auth.failed': 'Authentification impossible.',
+  'auth.invalidCredentials': 'Identifiant ou mot de passe incorrect. Réessaie.',
+  'auth.invalidLoginFields': 'Vérifie ton identifiant et ton mot de passe.',
+  'auth.tooManyAttempts': 'Trop de tentatives. Réessaie dans quelques minutes.',
+  'auth.networkUnavailable': 'Impossible de joindre KnowMe. Vérifie ta connexion Internet.',
+  'auth.serviceUnavailable': 'Connexion momentanément indisponible. Réessaie plus tard.',
   'auth.invalidSecurityCode': 'Code de sécurité invalide.',
   'settings.title': 'Paramètres',
   'settings.languageTitle': 'Langue et région',
@@ -175,6 +180,11 @@ const EN_MESSAGES: Record<MessageKey, string> = {
   'auth.twoFactorPrompt':
     'Enter the code from your authenticator app or a recovery code.',
   'auth.failed': 'Authentication failed.',
+  'auth.invalidCredentials': 'Incorrect email, username or password. Try again.',
+  'auth.invalidLoginFields': 'Check your email or username and password.',
+  'auth.tooManyAttempts': 'Too many attempts. Try again in a few minutes.',
+  'auth.networkUnavailable': 'Unable to reach KnowMe. Check your internet connection.',
+  'auth.serviceUnavailable': 'Sign-in is temporarily unavailable. Try again later.',
   'auth.invalidSecurityCode': 'Invalid security code.',
   'settings.title': 'Settings',
   'settings.languageTitle': 'Language and region',
@@ -434,6 +444,24 @@ export function translateApiError(
     return catalog[code as KnownApiErrorCode];
   }
   return fallback?.trim() || catalog.INTERNAL_ERROR;
+}
+
+/**
+ * Credential entry has its own user-facing error boundary.
+ * Do not expose generic UNAUTHORIZED copy, API internals or request IDs here.
+ * A 401 intentionally stays ambiguous about account existence.
+ */
+export function translateLoginFailure(
+  locale: string | null | undefined,
+  status?: number,
+  code?: string | null
+): string {
+  if (status === 401) return translate(locale, 'auth.invalidCredentials');
+  if (status === 429) return translate(locale, 'auth.tooManyAttempts');
+  if (status === 400 || status === 422) return translate(locale, 'auth.invalidLoginFields');
+  if (code === 'KNOWME_NETWORK_UNAVAILABLE') return translate(locale, 'auth.networkUnavailable');
+  if (status !== undefined && status >= 500) return translate(locale, 'auth.serviceUnavailable');
+  return translate(locale, 'auth.failed');
 }
 
 export function withSupportReference(

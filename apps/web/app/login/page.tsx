@@ -2,6 +2,8 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { KnowMeBrand } from '../../components/knowme-brand';
+import { translate, translateLoginFailure } from '@knowme/i18n-contract';
+import { getRuntimeLocale } from '../../lib/i18n-runtime';
 import { apiFetch, getTrustedDeviceToken, saveSession, saveTrustedDeviceToken, type ApiError } from '../../lib/api';
 
 type SessionResult = { accessToken: string; refreshToken?: string; trustedDeviceToken?: string };
@@ -59,13 +61,7 @@ export default function LoginPage() {
       window.location.replace(safeAfterLoginPath());
     }catch(cause){
       const error = cause as ApiError;
-      if (error.status === 401) {
-        setMessage('Identifiant ou mot de passe incorrect. Si vous avez oublié votre mot de passe, utilisez la récupération de compte.');
-      } else if (error.status === 429) {
-        setMessage('Trop de tentatives. Attendez quelques minutes avant de réessayer.');
-      } else {
-        setMessage(cause instanceof Error ? cause.message : 'Impossible de se connecter pour le moment.');
-      }
+      setMessage(translateLoginFailure(getRuntimeLocale(), error?.status, error?.code));
     }finally{setSubmitting(false);}
   }
 
@@ -80,7 +76,12 @@ export default function LoginPage() {
       if(data.trustedDeviceToken)saveTrustedDeviceToken(data.trustedDeviceToken);
       window.location.replace(safeAfterLoginPath());
     }catch(cause){
-      setMessage(cause instanceof Error ? cause.message : 'Code de sécurité invalide.');
+      const error = cause as ApiError;
+      setMessage(error?.status === 429
+        ? translateLoginFailure(getRuntimeLocale(), 429)
+        : error?.status === 401
+          ? translate(getRuntimeLocale(), 'auth.invalidSecurityCode')
+          : translateLoginFailure(getRuntimeLocale(), error?.status, error?.code));
     }finally{setSubmitting(false);}
   }
 
