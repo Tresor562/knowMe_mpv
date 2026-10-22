@@ -228,14 +228,13 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onOpenSavedPost, onSubscreenChange, dockPreferences, onDockPreferencesChange, topNavigation }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, dockPreferences, onDockPreferencesChange, topNavigation }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
   onAccountDeleted: () => Promise<void>;
   onOpenVerification: () => void;
   onCreateStory: () => void;
-  onOpenSavedPost: (postId: string) => void;
   onSubscreenChange?: (active: boolean) => void;
   dockPreferences: DockPreferences;
   onDockPreferencesChange: (next: DockPreferences) => void;
@@ -451,7 +450,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
         ) : null}
         {panel === 'language' ? <LanguageSettingsExperience /> : null}
         {panel === 'downloads' ? <MediaDownloadSettingsExperience /> : null}
-        {panel === 'saved-posts' ? <SavedPostsExperience onOpenPost={onOpenSavedPost} /> : null}
+        {panel === 'saved-posts' ? <SavedPostsExperience /> : null}
         {panel === 'creator' ? <CreatorSettingsExperience /> : null}
         {panel === 'avatar' ? <AvatarStudioExperience /> : null}
         {panel === 'payments' ? <PaymentsExperience /> : null}
