@@ -1,8 +1,9 @@
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useMemo,useState} from 'react';
 import {ActivityIndicator,Alert,FlatList,Modal,Pressable,StyleSheet,Text,View} from 'react-native';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {offlineVideoLabels,offlineVideoSize} from './offline-video-labels';
+import {sortOfflineVideos,totalOfflineVideoBytes,type OfflineVideoSort} from './offline-video-library-model';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {PublicPostVideo} from './PublicPostVideo';
 import {deleteSavedPublicVideo,listSavedPublicVideos,type SavedPublicVideo} from './offline-public-video';
@@ -15,7 +16,10 @@ export function OfflineVideosLibrary({visible,onClose}:{
   const {locale}=useI18n();
   const t=offlineVideoLabels(locale);
   const [items,setItems]=useState<SavedPublicVideo[]>([]);
-  const storedBytes=items.reduce((sum,item)=>sum+item.bytes,0);
+  const storedBytes=totalOfflineVideoBytes(items);
+  const [sort,setSort]=useState<OfflineVideoSort>('recent');
+  const [deleting,setDeleting]=useState(false);
+  const ordered=useMemo(()=>sortOfflineVideos(items,sort),[items,sort]);
   const [chosen,setChosen]=useState<SavedPublicVideo|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
@@ -40,6 +44,28 @@ export function OfflineVideosLibrary({visible,onClose}:{
       })().catch(()=>setError(t.deleteError));}}
     ]);
   }
+  async function clearAll(){
+    if(deleting||items.length===0)return;
+    setDeleting(true);
+    let failures=0;
+    try{
+      for(const item of items){
+        try{await deleteSavedPublicVideo(item.url);}
+        catch{failures++;}
+      }
+      setChosen(null);
+      await refresh();
+      if(failures>0)setError(t.clearError);
+    }finally{setDeleting(false);}
+  }
+  function confirmClearAll(){
+    if(deleting||items.length===0)return;
+    Alert.alert(t.clearTitle,t.clearDescription,[
+      {text:t.cancel,style:'cancel'},
+      {text:t.clearAll,style:'destructive',onPress:()=>void clearAll()}
+    ]);
+  }
+
   return <Modal visible={visible} animationType="slide" onRequestClose={()=>{
     if(chosen){setChosen(null);return;}
     onClose();
@@ -58,10 +84,16 @@ export function OfflineVideosLibrary({visible,onClose}:{
             {chosen?t.viewerSubtitle:t.available(items.length)+' · '+t.storage+' '+offlineVideoSize(storedBytes,locale)}
           </Text>
         </View>
-        {!chosen&&<Pressable accessibilityRole="button" accessibilityLabel={t.refresh}
-          onPress={()=>setRefreshId(n=>n+1)} style={styles.tap}>
-          <KnowMeIcon name="refresh" size={21} color={colors.text}/>
-        </Pressable>}
+        {!chosen&&<View style={styles.headerActions}>
+          {items.length>0&&<Pressable accessibilityRole="button" accessibilityLabel={t.clearAll}
+            onPress={confirmClearAll} disabled={deleting} style={styles.tap}>
+            <KnowMeIcon name="close" size={21} color={colors.danger}/>
+          </Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={t.refresh}
+            disabled={loading||deleting} onPress={()=>setRefreshId(n=>n+1)} style={styles.tap}>
+            <KnowMeIcon name="refresh" size={21} color={colors.text}/>
+          </Pressable>
+        </View>}
       </View>
       {chosen?
         <View style={styles.viewer}>
@@ -75,12 +107,27 @@ export function OfflineVideosLibrary({visible,onClose}:{
             </Pressable>
           </View>
         </View>
-      :<FlatList data={items} keyExtractor={item=>item.url}
+      :<FlatList data={ordered} keyExtractor={item=>item.url}
         refreshing={loading} onRefresh={()=>setRefreshId(n=>n+1)}
         contentContainerStyle={styles.list}
-        ListHeaderComponent={<Text style={{color:colors.muted,fontSize:13,lineHeight:19}}>
-          {t.privacy}
-        </Text>}
+        ListHeaderComponent={<View style={styles.listHeader}>
+          <Text style={{color:colors.muted,fontSize:13,lineHeight:19}}>{t.privacy}</Text>
+          {items.length>1&&<View style={styles.sortTabs} accessibilityRole="tablist">
+            {(['recent','oldest','largest'] as OfflineVideoSort[]).map(mode=>
+              <Pressable key={mode} accessibilityRole="tab"
+                accessibilityState={{selected:sort===mode}}
+                onPress={()=>setSort(mode)}
+                style={[styles.sortTab,sort===mode?{backgroundColor:colors.backgroundAccent}:null]}>
+                <Text style={{fontSize:12,fontWeight:'700',color:sort===mode?colors.text:colors.muted}}>
+                  {mode==='recent'?t.sortNewest:mode==='oldest'?t.sortOldest:t.sortLargest}
+                </Text>
+              </Pressable>
+            )}
+          </View>}
+          {deleting&&<Text style={{color:colors.muted}} accessibilityRole="text">
+            {t.clearing}
+          </Text>}
+        </View>}
         renderItem={({item,index})=><View style={[styles.entry,{backgroundColor:colors.surface,borderColor:colors.border}]}>
           <Pressable accessibilityRole="button"
             accessibilityLabel={t.play(index+1)}
@@ -95,7 +142,7 @@ export function OfflineVideosLibrary({visible,onClose}:{
           </Pressable>
           <Pressable accessibilityRole="button"
             accessibilityLabel={t.remove(index+1)}
-            onPress={()=>remove(item)} style={styles.tap}>
+            onPress={()=>remove(item)} disabled={deleting} style={styles.tap}>
             <KnowMeIcon name="close" size={19} color={colors.muted}/>
           </Pressable>
         </View>}
@@ -116,6 +163,10 @@ const styles=StyleSheet.create({
   header:{height:76,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:9,borderBottomWidth:1},
   tap:{width:44,height:44,alignItems:'center',justifyContent:'center'},
   title:{fontSize:18,fontWeight:'800'},
+  headerActions:{flexDirection:'row',alignItems:'center',gap:2},
+  listHeader:{gap:11,marginBottom:4},
+  sortTabs:{flexDirection:'row',gap:4,flexWrap:'wrap'},
+  sortTab:{minHeight:44,paddingHorizontal:11,borderRadius:14,justifyContent:'center',alignItems:'center'},
   list:{padding:16,gap:12,flexGrow:1},
   entry:{minHeight:84,borderRadius:18,borderWidth:1,
     padding:10,flexDirection:'row',alignItems:'center'},

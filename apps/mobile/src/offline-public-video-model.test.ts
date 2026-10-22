@@ -1,6 +1,7 @@
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
 import {publicPostVideoId,offlinePublicVideoFilename} from './offline-public-video-model.ts';
+import {sortOfflineVideos,totalOfflineVideoBytes} from './offline-video-library-model.ts';
 import {offlineVideoLabels,offlineVideoSize} from './offline-video-labels.ts';
 
 test('offline public video names cannot escape the app sandbox',()=>{
@@ -42,4 +43,25 @@ test('large offline videos show practical bilingual GB sizes with safe bounds',(
   assert.equal(offlineVideoSize(Number.NaN,'en'),'0.0 MB');
   assert.equal(offlineVideoLabels('en').storage,'Storage');
   assert.equal(offlineVideoLabels('fr').storage,'Stockage');
+});
+
+test('offline library local sorting never modifies the original copy list',()=>{
+  const values=[
+    {url:'/media/public/post/alpha',uri:'file://alpha',bytes:2_000_000,modifiedAt:200},
+    {url:'/media/public/post/beta',uri:'file://beta',bytes:5_000_000,modifiedAt:100},
+    {url:'/media/public/post/gamma',uri:'file://gamma',bytes:1_000_000,modifiedAt:300}
+  ];
+  assert.deepEqual(sortOfflineVideos(values,'recent').map(v=>v.url),
+    ['/media/public/post/gamma','/media/public/post/alpha','/media/public/post/beta']);
+  assert.deepEqual(sortOfflineVideos(values,'oldest').map(v=>v.url),
+    ['/media/public/post/beta','/media/public/post/alpha','/media/public/post/gamma']);
+  assert.deepEqual(sortOfflineVideos(values,'largest').map(v=>v.bytes),
+    [5_000_000,2_000_000,1_000_000]);
+  assert.equal(values[0]?.url,'/media/public/post/alpha');
+  assert.equal(totalOfflineVideoBytes(values),8_000_000);
+});
+
+test('offline storage summaries ignore bad file metadata',()=>{
+  assert.equal(totalOfflineVideoBytes([{url:'a',uri:'a',bytes:NaN,modifiedAt:0}]),0);
+  assert.equal(totalOfflineVideoBytes([{url:'a',uri:'a',bytes:-500,modifiedAt:0}]),0);
 });
