@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useState} from 'react';
-import {ActivityIndicator,Pressable,Text,View} from 'react-native';
+import {ActivityIndicator,Linking,Pressable,Text,View} from 'react-native';
+import {buildKnowMeDeepLink} from '@knowme/link-contract';
 import {apiFetch} from './api';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
@@ -8,7 +9,7 @@ import {KnowMeIcon} from './ui/KnowMeUI';
 type SavedPost={postId:string;createdAt:string};
 
 /** Authenticated, server-authoritative bookmarks; never fabricate a saved state. */
-export function SavedPostsExperience({onOpenPost}:{onOpenPost:(postId:string)=>void}){
+export function SavedPostsExperience(){
   const {colors}=useAppearance();
   const {locale}=useI18n();
   const en=locale==='en';
@@ -31,6 +32,14 @@ export function SavedPostsExperience({onOpenPost}:{onOpenPost:(postId:string)=>v
     }finally{setLoading(false);}
   },[en]);
   useEffect(()=>{void refresh();},[refresh]);
+
+  async function openPost(postId:string){
+    try{
+      await Linking.openURL(buildKnowMeDeepLink({kind:'post',id:postId}));
+    }catch{
+      setError(en?'Unable to open this post.':'Impossible d’ouvrir cette publication.');
+    }
+  }
 
   async function remove(postId:string){
     setRemoving(postId);setError('');
@@ -69,7 +78,7 @@ export function SavedPostsExperience({onOpenPost}:{onOpenPost:(postId:string)=>v
       </Text>
       <View style={{flexDirection:'row',gap:10,flexWrap:'wrap'}}>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Open saved post':'Ouvrir la publication'}
-          onPress={()=>onOpenPost(item.postId)} style={{backgroundColor:colors.backgroundAccent,
+          onPress={()=>void openPost(item.postId)} style={{backgroundColor:colors.backgroundAccent,
             paddingHorizontal:15,minHeight:44,justifyContent:'center',borderRadius:22}}>
           <Text style={{color:colors.accent,fontWeight:'700'}}>{en?'Open':'Ouvrir'}</Text>
         </Pressable>
