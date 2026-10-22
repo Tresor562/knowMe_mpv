@@ -3,6 +3,6 @@ const PUBLIC_ROUTES = /^\/(?:login|register|signup|auth|forgot-password|reset-pa
 
 /** Entry points and primary tabs must not have an extra floating back control. */
 export function isSecondaryKnowMeRoute(pathname: string) {
-  return pathname.startsWith('/') && pathname !== '/' && !MAIN_ROUTES.has(pathname) &&
+  return pathname.startsWith('/') && !pathname.startsWith('//') && pathname !== '/' && !MAIN_ROUTES.has(pathname) &&
     !PUBLIC_ROUTES.test(pathname);
 }
