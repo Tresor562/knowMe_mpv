@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 function source(pathname: string) {
-  return readFileSync(decodeURIComponent(new URL(pathname, import.meta.url).pathname), 'utf8');
+  return readFileSync(resolve(process.cwd(), 'e2e', pathname), 'utf8');
 }
 
 // Test the production route policy through the actual Next page on a deep link.
