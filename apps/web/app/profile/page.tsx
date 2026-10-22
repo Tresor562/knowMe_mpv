@@ -288,6 +288,9 @@ export default function ProfilePage() {
             <button type="button" className="btn km-profile-edit-direct" onClick={() => setEditing(true)}>
               {tr('Modifier mes informations', 'Edit my information')}
             </button>
+            <Link href="/saved-posts" className="btn" style={{alignSelf:'flex-start',marginTop:8}}>
+              {tr('Publications enregistrées','Saved posts')}
+            </Link>
             {user.bio?.trim()
               ? <div className="km-profile-bio-row">
                   <p className="km-profile-bio">{user.bio}</p>
