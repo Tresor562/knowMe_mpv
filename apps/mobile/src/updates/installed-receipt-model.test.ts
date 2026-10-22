@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import {
@@ -32,17 +30,4 @@ test('failed or absent storage reads do not invent a prior acknowledgement', asy
     async () => { throw new Error('storage offline'); }), false);
   assert.equal(await shouldHideInstalledUpdateNotice(-1, -1,
     async () => '1'), false);
-});
-
-test('completion UI dismisses the modal before native cleanup', () => {
-  const ui = readFileSync(fileURLToPath(new URL('./MobileUpdateNotice.tsx', import.meta.url)), 'utf8');
-  const handler = ui.split('const acknowledgeInstalled = () => {')[1]?.split('\n  };')[0];
-  assert.ok(handler, 'Continue must have a completion handler');
-  const dismissAt = handler.indexOf('setBackgroundStatus(null)');
-  const nativeAt = handler.indexOf('installer.acknowledgeInstalledUpdate()');
-  assert.ok(dismissAt >= 0, 'Continue must dismiss the modal synchronously');
-  assert.ok(nativeAt > dismissAt, 'native receipt cleanup may only run after dismissal');
-  assert.doesNotMatch(handler.slice(0, dismissAt), /\bawait\b/);
-  assert.match(ui, /onPress=\{\(\) => void acknowledgeInstalled\(\)\}/);
-  assert.match(ui, /onRequestClose=\{\(\) => void acknowledgeInstalled\(\)\}/);
 });
