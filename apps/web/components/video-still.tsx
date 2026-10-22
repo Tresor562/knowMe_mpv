@@ -39,12 +39,13 @@ export function VideoStill({ src, className = 'km-post-collage-poster' }: {
     const node = root.current;
     if (!node || still) return;
     if (typeof IntersectionObserver === 'undefined') { setNear(true); return; }
+    const rail = node.closest('.km-feed-reel-rail');
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
         setNear(true);
         observer.disconnect();
       }
-    }, { rootMargin: '280px 120px' });
+    }, { root: rail, rootMargin: rail ? '0px 120px 0px 120px' : '280px 120px' });
     observer.observe(node);
     return () => observer.disconnect();
   }, [src, still]);
