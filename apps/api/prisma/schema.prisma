@@ -175,6 +175,11 @@ model Conversation {
   title       String?
   description String?
   isGroup     Boolean  @default(false)
+  membersCanSendMessages Boolean @default(true)
+  membersCanSendMedia Boolean @default(true)
+  membersCanSendStickers Boolean @default(true)
+  membersCanEditInfo Boolean @default(false)
+  membersCanAddMembers Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -352,6 +352,27 @@ export class MessagingService {
     mediaAssetId?: string
   ) {
     const { message, recipients } = await this.prisma.$transaction(async (tx) => {
+      // Server-side enforcement prevents clients from bypassing hidden controls.
+      // Check membership and role in the same transaction that writes the message.
+      const member=await tx.conversationMember.findUnique({
+        where:{conversationId_userId:{conversationId,userId}},
+        select:{role:true,conversation:{select:{
+          isGroup:true,membersCanSendMessages:true,membersCanSendMedia:true,
+          membersCanSendStickers:true
+        }}}
+      });
+      if(!member)throw new ForbiddenException('CONVERSATION_NOT_MEMBER');
+      const group=member.conversation;
+      if(group.isGroup&&member.role===ConversationRole.MEMBER){
+        if(!group.membersCanSendMessages)
+          throw new ForbiddenException('GROUP_PERMISSION_SEND_MESSAGES');
+        const sticker=mediaAssetId?['STICKER_IMAGE','GIF'].includes(content):
+          Boolean(this.stickerTokens.resolve(content,{conversationId}));
+        if(sticker&&!group.membersCanSendStickers)
+          throw new ForbiddenException('GROUP_PERMISSION_SEND_STICKERS');
+        if(mediaAssetId&&!sticker&&!group.membersCanSendMedia)
+          throw new ForbiddenException('GROUP_PERMISSION_SEND_MEDIA');
+      }
       const created = await tx.message.create({
         data: { conversationId, senderId: userId, content, mediaAssetId: mediaAssetId ?? null },
         include: {

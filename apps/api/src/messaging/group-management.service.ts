@@ -7,7 +7,7 @@ import {
 import { ConversationRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
-import { UpdateGroupDto } from './group-management.dto';
+import { UpdateGroupDto,UpdateGroupPermissionsDto } from './group-management.dto';
 
 const memberUserSelect = {
   id: true,
@@ -64,7 +64,14 @@ export class GroupManagementService {
     return {
       id: chat.id, title: chat.title, description: chat.description,
       createdAt: chat.createdAt, viewerRole: role, isGroup: true,
-      members: chat.members, memberCount: chat.members.length
+      members: chat.members, memberCount: chat.members.length,
+      permissions:{
+        membersCanSendMessages:chat.membersCanSendMessages,
+        membersCanSendMedia:chat.membersCanSendMedia,
+        membersCanSendStickers:chat.membersCanSendStickers,
+        membersCanEditInfo:chat.membersCanEditInfo,
+        membersCanAddMembers:chat.membersCanAddMembers
+      }
     };
   }
 
@@ -75,7 +82,13 @@ export class GroupManagementService {
     const title = dto.title === undefined ? undefined : dto.title.trim();
     if (title !== undefined && !title) throw new BadRequestException('GROUP_TITLE_REQUIRED');
     return this.prisma.$transaction(async tx => {
-      await this.actor(tx, userId, conversationId, [ConversationRole.OWNER, ConversationRole.ADMIN]);
+      const role=await this.actor(tx,userId,conversationId,
+        [ConversationRole.OWNER,ConversationRole.ADMIN,ConversationRole.MEMBER]);
+      if(role===ConversationRole.MEMBER){
+        const record=await tx.conversation.findUnique({where:{id:conversationId},
+          select:{membersCanEditInfo:true}});
+        if(!record?.membersCanEditInfo)throw new ForbiddenException('GROUP_PERMISSION_DENIED');
+      }
       return tx.conversation.update({
         where: { id: conversationId },
         data: {
@@ -87,11 +100,35 @@ export class GroupManagementService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
+  /** Admin/owner-only changes, committed atomically with role verification. */
+  async updatePermissions(userId:string,conversationId:string,dto:UpdateGroupPermissionsDto){
+    const permitted=['membersCanSendMessages','membersCanSendMedia','membersCanSendStickers',
+      'membersCanEditInfo','membersCanAddMembers'] as const;
+    const changes=Object.fromEntries(permitted.filter(key=>dto[key]!==undefined)
+      .map(key=>[key,dto[key]])) as UpdateGroupPermissionsDto;
+    if(!Object.keys(changes).length)throw new BadRequestException('GROUP_NO_CHANGES');
+    return this.prisma.$transaction(async tx=>{
+      await this.actor(tx,userId,conversationId,[ConversationRole.OWNER,ConversationRole.ADMIN]);
+      const updated=await tx.conversation.update({where:{id:conversationId},
+        data:changes,select:{
+          membersCanSendMessages:true,membersCanSendMedia:true,membersCanSendStickers:true,
+          membersCanEditInfo:true,membersCanAddMembers:true
+        }});
+      return {permissions:updated};
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  }
+
   async addMembers(userId: string, conversationId: string, requested: string[]) {
     const ids = [...new Set(requested)].filter(id => id !== userId);
     if (!ids.length || ids.length > 20) throw new BadRequestException('GROUP_MEMBERS_INVALID');
     return this.prisma.$transaction(async tx => {
-      await this.actor(tx, userId, conversationId, [ConversationRole.OWNER, ConversationRole.ADMIN]);
+      const role=await this.actor(tx,userId,conversationId,
+        [ConversationRole.OWNER,ConversationRole.ADMIN,ConversationRole.MEMBER]);
+      if(role===ConversationRole.MEMBER){
+        const record=await tx.conversation.findUnique({where:{id:conversationId},
+          select:{membersCanAddMembers:true}});
+        if(!record?.membersCanAddMembers)throw new ForbiddenException('GROUP_PERMISSION_DENIED');
+      }
       const [existing, friendships] = await Promise.all([
         tx.conversationMember.findMany({
           where: { conversationId }, select: { userId: true }
