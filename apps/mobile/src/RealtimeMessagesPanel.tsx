@@ -1,10 +1,12 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   FlatList,
   Image,
   Keyboard,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -693,6 +695,19 @@ export function RealtimeMessagesPanel({
     setNexusPending(false);
     void load();
   }
+
+  // Android: nested chat controls get priority over the root tab history.
+  // Back closes the expression selector first, then the active conversation.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (panelOpen) { setPanelOpen(false); return true; }
+      if (active) { closeConversation(); return true; }
+      if (selectedFriend) { setSelectedFriend(null); return true; }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [panelOpen, active, selectedFriend]);
 
   if (active) {
     const others = active.members.filter(
