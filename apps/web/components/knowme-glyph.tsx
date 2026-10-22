@@ -3,8 +3,6 @@
  * Inspired by compact Telegram-like touch ergonomics, not copied assets.
  * Decorative only: put accessible names on the containing control.
  */
-import { KNOWME_SHARE_PATH } from './KnowMeShareIcon';
-
 export type KnowMeGlyphName =
   | 'home' | 'discover' | 'create' | 'notifications' | 'chats' | 'profile'
   | 'back' | 'forward' | 'close' | 'menu' | 'more' | 'search' | 'refresh'
@@ -106,7 +104,7 @@ export function KnowMeGlyph({ name, size = 22, active = false, className }: Prop
     'check-double': <><path d="m2.8 12.2 5.2 5 9.7-10.1M11 16.8l2.4 1.9L21.2 10"/></>,
     heart: <><path d="M20.6 5.8a5.1 5.1 0 0 0-7.2 0L12 7.2l-1.4-1.4a5.1 5.1 0 1 0-7.2 7.2L12 21l8.6-8a5.1 5.1 0 0 0 0-7.2Z" fill={active?'currentColor':'none'}/></>,
     comment: <><path d="M20.5 11.8a8.5 8.5 0 0 1-8.7 8.4c-1.2 0-2.3-.2-3.35-.65L3.2 21l1.3-4.65a8.6 8.6 0 1 1 16-4.55Z"/></>,
-    share: <path d={KNOWME_SHARE_PATH} fill="currentColor" stroke="none" />,
+    share: <path d="M14 4.8c0-.4.46-.61.76-.34l6.7 6.18c.72.66.72 1.79 0 2.45l-6.7 6.18c-.3.27-.76.06-.76-.34v-3.97c-2.39.07-4.35.67-5.95 1.85-1.76 1.29-3.1 3.21-4.2 5.91-.15.36-.68.25-.67-.14.06-3.02.62-5.62 1.77-7.77 1.93-3.61 5.08-5.62 9.05-5.85V4.8Z" fill="currentColor" stroke="none" />,
     bookmark: <><path d="M6.2 3.6h11.6a1 1 0 0 1 1 1v16.1l-6.8-4.5-6.8 4.5V4.6a1 1 0 0 1 1-1Z" fill={active?'currentColor':'none'}/></>,
     smile: <><circle cx="12" cy="12" r="9.1"/><circle cx="8.5" cy="10" r="1.05" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.05" fill="currentColor" stroke="none"/><path d="M7.7 14.2a4.9 4.9 0 0 0 8.6 0"/></>,
     sticker: <><path d="M5.8 3h8.8L21 9.4v8.3a3.3 3.3 0 0 1-3.3 3.3H6.3A3.3 3.3 0 0 1 3 17.7V5.8A2.8 2.8 0 0 1 5.8 3Z"/><path d="M14.6 3v6.4H21M7.9 13.1h.15m5.85 0h.15M8 16.2c1.3 1.35 4.6 1.35 6 0"/></>,
