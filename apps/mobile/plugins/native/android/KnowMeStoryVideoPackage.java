@@ -2,6 +2,7 @@ package com.knowme.app.video;
 
 import android.content.Context;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -51,6 +52,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     @ReactProp(name="paused", defaultBoolean=false)
     public void setPaused(StoryContainer view, boolean paused) {
       view.paused = paused;
+      view.setMutedForPreview(paused);
       // A paused preview must not indefinitely keep the whole device awake.
       view.player.setKeepScreenOn(!paused && view.ready);
       if (view.ready) {
@@ -91,6 +93,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     MediaController storyControls;
     boolean ready = false;
     boolean paused = false;
+    MediaPlayer preparedMedia;
     String currentUri = "";
     long seekToMs = -1;
     final Handler handler = new Handler(Looper.getMainLooper());
@@ -107,6 +110,14 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       event.putDouble("durationMs", Math.max(0, player.getDuration()));
       ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
         .receiveEvent(getId(), "topProgress", event);
+    }
+    // Native paused VideoViews can remain black because some decoders only
+    // render the first frame after start(). Briefly start a SILENT preview,
+    // then pause when the frame is rendered (with a bounded timeout).
+    void setMutedForPreview(boolean silent) {
+      if (preparedMedia == null) return;
+      try { preparedMedia.setVolume(silent ? 0f : 1f, silent ? 0f : 1f); }
+      catch (IllegalStateException ignored) { }
     }
     void setNativeControls(boolean enabled) {
       if (!enabled) {
@@ -140,10 +151,27 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setMediaController(null);
       player.setOnPreparedListener(media -> {
         ready=true;
+        preparedMedia=media;
         media.setLooping(false);
+        setMutedForPreview(paused);
         player.setKeepScreenOn(!paused);
         applySeek();
+        media.setOnInfoListener((source, what, extra) -> {
+          if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START &&
+              preparedMedia == source && paused) {
+            handler.post(() -> { if (preparedMedia == source && paused) player.pause(); });
+          }
+          return false;
+        });
         if (!paused) player.start();
+        else {
+          // Muted start primes the first frame for feed/reel thumbnails only.
+          // It must not silently play an entire clip while its card is idle.
+          player.start();
+          handler.postDelayed(() -> {
+            if (preparedMedia == media && paused && ready) player.pause();
+          }, 1100L);
+        }
         emitProgress();
       });
       player.setOnCompletionListener(media -> {
@@ -178,6 +206,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       if (uri == null || uri.equals(currentUri)) return;
       currentUri=uri;
       ready=false;
+      preparedMedia=null;
       seekToMs=-1;
       // Stream only known published KnowMe attachments over TLS. Never accept
       // arbitrary remote URLs or URL user-info/query/fragment from post data.
@@ -217,6 +246,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     void release() {
       handler.removeCallbacks(ticker);
       ready=false;
+      preparedMedia=null;
       player.setKeepScreenOn(false);
       player.stopPlayback();
     }
