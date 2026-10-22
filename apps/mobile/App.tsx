@@ -1576,6 +1576,12 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
             onAccountDeleted={resetLocalSession}
             onOpenVerification={() => setScreen('verification')}
             onCreateStory={() => {setStoryComposerRequest(true);setScreen('home');}}
+            onOpenSavedPost={(id) => {
+              setLinkedPostId(id);
+              setLinkedCommentId(null);
+              setLinkRevision(revision => revision + 1);
+              setScreen('home');
+            }}
             onSubscreenChange={setProfileSubscreenActive}
             dockPreferences={dockPreferences}
             onDockPreferencesChange={updateDockPreferences}
