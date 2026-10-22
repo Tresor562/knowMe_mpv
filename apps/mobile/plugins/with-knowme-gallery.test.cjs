@@ -67,3 +67,12 @@ test('KnowSticker labels remain safe and editable without changing WebP paths', 
     assert.throws(()=>normalizeKnowStickerLabel(bad));
   }
 });
+
+test('KnowSticker emoji aliases are unique and cannot contain arbitrary file paths',async()=>{
+  const {parseKnowStickerEmojiTags}=await import('../src/knowsticker-emoji-tags.ts');
+  assert.deepEqual(parseKnowStickerEmojiTags('🙂, 🔥 🙂 ⭐'),['🙂','🔥','⭐']);
+  assert.deepEqual(parseKnowStickerEmojiTags(''),[]);
+  assert.throws(()=>parseKnowStickerEmojiTags('nom'));
+  assert.throws(()=>parseKnowStickerEmojiTags('../secret'));
+  assert.throws(()=>parseKnowStickerEmojiTags('🔥 '.repeat(13)));
+});
