@@ -24,3 +24,12 @@ test('Android Back closes the current post/profile subscreen before navigating a
   assert.match(feed, /systemBackRequest > 0\) setSelectedPostId\(null\)/);
   assert.match(profile, /systemBackRequest > 0\) setPanel\('main'\)/);
 });
+
+
+test('Android navigation history has a bounded stack and never leaks past direct deep links', () => {
+  const app = repoFile('App.tsx');
+  assert.match(app, /screenHistory\.current = \[\.\.\.screenHistory\.current, previousScreen\.current\]\.slice\(-24\)/);
+  assert.match(app, /if \(screen === 'home'\) \{/);
+  assert.match(app, /const previous = screenHistory\.current\.pop\(\) \?\? 'home'/);
+  assert.match(app, /applyingSystemBack\.current = true/);
+});
