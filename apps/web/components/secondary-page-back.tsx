@@ -3,16 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { KnowMeGlyph } from './knowme-glyph';
+import { isSecondaryKnowMeRoute } from './secondary-page-back-model';
 import './secondary-page-back.css';
-
-const MAIN_ROUTES = new Set(['/dashboard', '/feed', '/discover', '/notifications', '/messages', '/profile']);
-const PUBLIC_ROUTES = /^\/(?:login|register|signup|auth|forgot-password|reset-password|recovery|privacy|terms|legal|download)(?:\/|$)/;
-
-/** Primary destinations own the floating dock; a deep-linked secondary page needs an escape route. */
-export function isSecondaryKnowMeRoute(pathname: string) {
-  return pathname.startsWith('/') && pathname !== '/' && !MAIN_ROUTES.has(pathname) &&
-    !PUBLIC_ROUTES.test(pathname);
-}
 
 const LOCAL_BACK = [
   'button[aria-label^="Retour"]:not([data-knowme-fallback-back])',
