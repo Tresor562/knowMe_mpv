@@ -42,9 +42,17 @@ const nativeSVGRendererLocked =
   lock.includes('  react-native-svg@15.11.2:') &&
   lock.includes('      react-native-svg:') &&
   lock.includes('        specifier: 15.11.2');
+// Accept the canonical JSX host and its equivalent React.createElement form.
+// The latter is required when Expo and Web dependencies expose different
+// React JSX-class typings; both must still create the real native Svg host.
+const nativeSvgHost =
+  renderer.includes('<Svg') ||
+  (renderer.includes('return createElement(') &&
+   renderer.includes('Svg as unknown as FunctionComponent') &&
+   renderer.includes("viewBox: '0 0 24 24'"));
 const nativeRendersSvgPaths =
   renderer.includes("from 'react-native-svg'") &&
-  renderer.includes('<Svg') &&
+  nativeSvgHost &&
   renderer.includes('createElement(Element');
 const wiredIntoExistingNativeScreens =
   native.includes('hasKnowMeNativeVectorGlyph(name)') &&

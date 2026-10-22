@@ -105,7 +105,9 @@ test('Android media settings keep existing controls while settings uses the cano
 
   // The media preferences UI belongs to a separate workstream. Do not require
   // unreleased changes from the historical design branch in this SVG migration.
-  assert.match(settings, /<KnowMeIcon name="settings"/);
+  assert.match(settings, /<KnowMeNativeAnimatedIcon name="settings"/);
+  assert.match(settings, /state=\{busy \? "loading" : message === "Préférences synchronisées\." \? "success" : "idle"\}/);
+  assert.match(settings, /<KnowMeNativeAnimatedIcon name=\{MEDIA_ICONS\[kind\]\}/);
   assert.match(ui, /hasKnowMeNativeVectorGlyph\(name\)/);
   assert.match(ui, /<KnowMeNativeVectorIcon/);
   assert.match(settings, /MEDIA_KINDS\.map\(\(kind\)/);

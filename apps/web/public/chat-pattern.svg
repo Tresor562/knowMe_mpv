@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="340" height="400" viewBox="0 0 340 400">
+<svg aria-hidden="true" focusable="false" role="presentation" xmlns="http://www.w3.org/2000/svg" width="340" height="400" viewBox="0 0 340 400">
 <g fill="none" stroke="#314047" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" opacity=".5">
   <g transform="translate(18 16) rotate(-16)"><rect width="34" height="25" rx="5"/><circle cx="17" cy="12" r="6"/><path d="M8 0 12 -4h9l4 4"/></g>
   <g transform="translate(95 10) rotate(20)"><rect width="47" height="30" rx="6"/><path d="M9 9h28M9 16h23M9 23h16"/></g>

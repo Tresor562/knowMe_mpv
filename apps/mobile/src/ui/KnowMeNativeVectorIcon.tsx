@@ -1,5 +1,5 @@
-import { createElement } from 'react';
-import Svg, { Circle, Ellipse, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
+import { createElement, type FunctionComponent } from 'react';
+import NativeSvg, { Circle, Ellipse, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 import { useAppearance } from '../AppearanceProvider';
 
 /**
@@ -20,6 +20,10 @@ type VectorGlyph = {
 };
 const COMPONENTS = { path: Path, circle: Circle, ellipse: Ellipse,
   rect: Rect, line: Line, polyline: Polyline, polygon: Polygon, g: G };
+
+// Normalize React type declarations without changing the react-native-svg runtime.
+// Preserve a genuine <Svg> tree so source parity checks reflect native drawing.
+const Svg = NativeSvg as unknown as FunctionComponent<Record<string, unknown>>;
 
 const contract = require('./knowme-native-vector-contract.json') as {
   viewBox: number[];
