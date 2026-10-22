@@ -1,5 +1,5 @@
 import { KnowMeAlert as Alert } from './ui/KnowMeFeedback';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -26,6 +26,7 @@ import {
   sendMobileSocialGift
 } from './social-gifts';
 import { useAppearance } from './AppearanceProvider';
+import { GiftSendAttemptRegistry } from './gift-send-attempts';
 import { useProfileNavigation } from './profile-navigation';
 import { Avatar, GlassSurface, KnowMeIcon, PressScale } from './ui/KnowMeUI';
 
@@ -56,6 +57,9 @@ export function SocialGiftsExperience() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyGiftKey, setBusyGiftKey] = useState<string | null>(null);
+  const sendLock = useRef(false);
+  // A lost response is not proof that KnowCoins were not debited.
+  const pendingSendIds = useRef(new GiftSendAttemptRegistry(mobileSocialGiftIdempotencyKey));
   const [busyInboxId, setBusyInboxId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
@@ -100,28 +104,50 @@ export function SocialGiftsExperience() {
     [friends, recipientId]
   );
 
-  async function send(gift: MobileSocialGiftDefinition) {
-    if (!recipientId || busyGiftKey) return;
+  function confirmSend(gift: MobileSocialGiftDefinition) {
+    if (!recipientId || !selectedFriend || busyGiftKey || sendLock.current ||
+      !gift.active || balance < gift.priceKnowCoins) return;
+    // Snapshot the recipient and optional message before showing confirmation.
+    const toId = recipientId;
+    const toName = selectedFriend.displayName;
+    const body = giftMessage.trim();
+    Alert.alert(
+      'Confirmer le cadeau',
+      'Offrir « ' + gift.name + ' » à ' + toName + ' (@' + selectedFriend.username +
+        ') pour ' + gift.priceKnowCoins.toLocaleString('fr-FR') + ' KnowCoins ?' +
+        (body ? '\nMessage : ' + body : ''),
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Confirmer et offrir', onPress: () => { void send(gift, toId, toName, body); } }
+      ]
+    );
+  }
+
+  async function send(gift: MobileSocialGiftDefinition, toId: string, toName: string, body: string) {
+    if (sendLock.current) return;
+    sendLock.current = true;
     setBusyGiftKey(gift.key);
     setStatus('');
+    const intent = { recipientId: toId, giftKey: gift.key, message: body };
+    const idempotencyKey = pendingSendIds.current.keyFor(intent);
     try {
       const result = await sendMobileSocialGift(
-        {
-          recipientId,
-          giftKey: gift.key,
-          message: giftMessage.trim() || undefined
-        },
-        mobileSocialGiftIdempotencyKey(recipientId, gift.key)
+        { recipientId: toId, giftKey: gift.key, message: body || undefined },
+        idempotencyKey
       );
+      pendingSendIds.current.acknowledge(intent);
       setBalance(result.senderBalance);
       setGiftMessage('');
       setStatus(
         result.replayed
           ? 'Ce cadeau avait déjà été enregistré. Aucun second débit.'
-          : `${gift.emoji} ${gift.name} envoyé à ${selectedFriend?.displayName ?? 'ton ami'}.`
+          : gift.emoji + ' ' + gift.name + ' envoyé à ' + toName + '.'
       );
-      const history = await getMobileSocialGiftSent(12);
-      setSent(history.items);
+      // Receipt has already succeeded: failure to refresh history must not
+      // invite a repeat purchase with a different idempotency key.
+      void getMobileSocialGiftSent(12)
+        .then(history => setSent(history.items))
+        .catch(() => {});
       Alert.alert(
         result.replayed ? 'Cadeau déjà enregistré' : 'Cadeau envoyé',
         result.replayed
@@ -129,10 +155,11 @@ export function SocialGiftsExperience() {
           : 'Le débit KnowCoins et le reçu ont été enregistrés atomiquement.'
       );
     } catch (cause) {
-      const text = message(cause, 'Envoi du cadeau impossible.');
+      const text = message(cause, 'Envoi indisponible. Réessayer conserve la même opération.');
       setStatus(text);
       Alert.alert('Cadeau impossible', text);
     } finally {
+      sendLock.current = false;
       setBusyGiftKey(null);
     }
   }
@@ -276,7 +303,7 @@ export function SocialGiftsExperience() {
                 </View>
                 <Pressable
                   disabled={disabled}
-                  onPress={() => void send(gift)}
+                  onPress={() => confirmSend(gift)}
                   style={({ pressed }) => [
                     styles.sendButton,
                     { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
