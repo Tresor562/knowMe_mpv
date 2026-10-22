@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { PostReportSheet } from './post-report-sheet';
+import './comment-report-sheet.css';
 
 export type PostOption = {
   id: string;
+  content: string;
   author: { id: string; username: string; displayName: string };
 };
 
@@ -12,11 +15,19 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
   post:PostOption; own:boolean; en:boolean;onClose:()=>void;
   onShare:()=>void;onCopy:()=>void;onEdit:()=>void;onDelete:()=>void;onDisinterest:()=>void;
 }) {
+  const [reportOpen, setReportOpen] = useState(false);
+  const reportTrigger = useRef<HTMLButtonElement>(null);
   useEffect(()=>{
-    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')onClose();};
+    const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape' && !reportOpen)onClose();};
     window.addEventListener('keydown',onKey);
     return ()=>window.removeEventListener('keydown',onKey);
-  },[onClose]);
+  },[onClose,reportOpen]);
+
+  if (reportOpen) return <PostReportSheet post={post} en={en}
+    onBack={() => {
+      setReportOpen(false);
+      window.requestAnimationFrame(() => reportTrigger.current?.focus());
+    }} onComplete={onClose} />;
 
   return <div className="km-post-options-overlay" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
@@ -40,6 +51,13 @@ export function PostOptionsSheet({post,own,en,onClose,onShare,onCopy,onEdit,onDe
       <Link href={`/profile/${encodeURIComponent(post.author.username)}`} onClick={onClose}>
         <span aria-hidden="true">◯</span>{en?'View profile':'Voir le profil'}
       </Link>
+      {!own && <button type="button" ref={reportTrigger}
+        onClick={() => setReportOpen(true)}>
+        <span aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"
+          fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5m0 3h.01"/>
+        </svg></span>{en ? 'Report publication' : 'Signaler la publication'}
+      </button>}
       {own && <button type="button" onClick={onEdit}>
         <span aria-hidden="true">✎</span>{en?'Edit publication':'Modifier la publication'}
       </button>}

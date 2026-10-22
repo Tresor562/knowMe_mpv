@@ -1,0 +1,20 @@
+.km-post-report-history-link {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 7px 12px;
+  color: var(--mint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+}
+.km-post-report-history-link:focus-visible {
+  border-radius: 10px;
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
