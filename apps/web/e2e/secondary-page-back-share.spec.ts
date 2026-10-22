@@ -14,9 +14,9 @@ test('secondary routes are reachable without a previous browser history entry', 
 });
 
 test('Web and native share icons use the exact approved filled arrow', () => {
-  const nativeSource = readFileSync(new URL('../../mobile/src/ui/KnowMeShareIcon.tsx', import.meta.url), 'utf8');
+  const nativeSource = readFileSync(decodeURIComponent(new URL('../../mobile/src/ui/KnowMeShareIcon.tsx', import.meta.url).pathname), 'utf8');
   expect(nativeSource).toContain(KNOWME_SHARE_PATH);
-  const webSource = readFileSync(new URL('../components/KnowMeShareIcon.tsx', import.meta.url), 'utf8');
+  const webSource = readFileSync(decodeURIComponent(new URL('../components/KnowMeShareIcon.tsx', import.meta.url).pathname), 'utf8');
   expect(webSource).toContain('fill="currentColor"');
   expect(webSource).toContain(KNOWME_SHARE_PATH);
 });
