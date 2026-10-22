@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import {
@@ -34,7 +35,7 @@ test('failed or absent storage reads do not invent a prior acknowledgement', asy
 });
 
 test('completion UI dismisses the modal before native cleanup', () => {
-  const ui = readFileSync(new URL('./MobileUpdateNotice.tsx', import.meta.url), 'utf8');
+  const ui = readFileSync(fileURLToPath(new URL('./MobileUpdateNotice.tsx', import.meta.url)), 'utf8');
   const handler = ui.split('const acknowledgeInstalled = () => {')[1]?.split('\n  };')[0];
   assert.ok(handler, 'Continue must have a completion handler');
   const dismissAt = handler.indexOf('setBackgroundStatus(null)');
