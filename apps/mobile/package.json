@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/sync-brand-assets.cjs && expo start",
     "build": "node scripts/sync-brand-assets.cjs && tsc --noEmit",
-    "test": "node ../../scripts/check-knowme-native-vector-contract.mjs && node ../../scripts/audit-knowme-icon-parity.mjs --require-parity && node --experimental-strip-types --test src/ui/native-icon-motion-model.test.ts src/account-recovery-model.test.ts src/game-center-model.test.ts src/guest-quick-math-model.test.ts src/guest-revocation-model.test.ts src/mobile-entry-model.test.ts src/gallery-selection-model.test.ts src/video-time.test.ts src/offline-public-video-model.test.ts src/video-lifecycle.test.ts src/navigation-dock-model.test.ts plugins/with-animated-chat-media.test.cjs plugins/with-knowme-gallery.test.cjs plugins/with-knowme-voice.test.cjs plugins/withKnowMeInstaller.test.cjs scripts/sync-brand-assets.test.cjs"
+    "test": "node ../../scripts/check-knowme-native-vector-contract.mjs && node ../../scripts/audit-knowme-icon-parity.mjs --require-parity && node --experimental-strip-types --test src/ui/native-icon-motion-model.test.ts src/account-recovery-model.test.ts src/game-center-model.test.ts src/guest-quick-math-model.test.ts src/guest-revocation-model.test.ts src/mobile-entry-model.test.ts src/gallery-selection-model.test.ts src/video-time.test.ts src/offline-public-video-model.test.ts src/video-lifecycle.test.ts src/navigation-dock-model.test.ts src/android-system-back.test.ts plugins/with-animated-chat-media.test.cjs plugins/with-knowme-gallery.test.cjs plugins/with-knowme-voice.test.cjs plugins/withKnowMeInstaller.test.cjs scripts/sync-brand-assets.test.cjs"
   },
   "dependencies": {
     "@knowme/animation-contract": "workspace:*",
