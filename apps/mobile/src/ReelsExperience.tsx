@@ -14,6 +14,7 @@ import { ReelQuickCommentSheet } from './ReelQuickCommentSheet';
 import { ReelShareSheet } from './ReelShareSheet';
 import { OfflineVideosLibrary } from './OfflineVideosLibrary';
 import { Avatar, KnowMeIcon } from './ui/KnowMeUI';
+import { KnowMeShareIcon } from './ui/KnowMeShareIcon';
 import { BlueVerifiedBadge } from './ui/BlueVerifiedBadge';
 import { GoldVerifiedBadge } from './ui/GoldVerifiedBadge';
 
@@ -367,7 +368,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Share video':'Partager le réel'}
           onPress={()=>setSharingClip(item)} style={styles.action}>
-          <KnowMeIcon name="arrow" size={32} color="#fff" strokeWidth={1.85}/>
+          <KnowMeShareIcon size={32} color="#fff"/>
         </Pressable>
         <Pressable accessibilityRole="button"
           accessibilityLabel={offlineStatus[item.id]
