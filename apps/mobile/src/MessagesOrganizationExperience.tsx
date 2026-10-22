@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -122,6 +124,18 @@ export function MessagesOrganizationExperience({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const authorityGeneration = useRef(0);
+
+  // Android Back first unwinds folder/detail overlays before leaving Messages.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (organizationConversationId) { setOrganizationConversationId(null); return true; }
+      if (organizationTool) { setOrganizationTool(null); return true; }
+      if (organizationOpen) { setOrganizationOpen(false); return true; }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [organizationConversationId, organizationTool, organizationOpen]);
 
   const loadOrganization = useCallback(async () => {
     const generation = ++authorityGeneration.current;
