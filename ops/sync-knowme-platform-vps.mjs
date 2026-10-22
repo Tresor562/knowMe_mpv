@@ -8,7 +8,8 @@
  */
 import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const repo = 'https://api.github.com/repos/Tresor562/knowMe_mpv';
 const local = '/var/lib/knowme-android-updates/android-preview.json';
@@ -16,8 +17,6 @@ const runtime = '/var/lib/nex/runtime/knowme-platform';
 const deployRoot = '/opt/nex/ops/knowme-platform/ops';
 const apiOrigin = 'https://31-56-85-53.sslip.io/knowme-api';
 const webOrigin = 'https://knowme.31-56-85-53.sslip.io';
-mkdirSync(runtime, { recursive: true, mode: 0o700 });
-
 async function json(url) {
   const response = await fetch(url, {
     headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'KnowMe-Platform-VPS-Release' },
@@ -48,7 +47,46 @@ async function verifyChecks(sha) {
     }
   }
 }
+const EXACT_SHA = /^[a-f0-9]{40}$/i;
+
+// Refuse branch-only APKs even if their PR CI and APK build passed.
+export function assertReleaseDescendsFromMain(sourceSha, mainSha, comparison) {
+  if (typeof sourceSha !== 'string' || !EXACT_SHA.test(sourceSha) ||
+      typeof mainSha !== 'string' || !EXACT_SHA.test(mainSha)) {
+    throw new Error('Release and main must provide exact Git commit SHAs');
+  }
+  const source = sourceSha.toLowerCase();
+  const main = mainSha.toLowerCase();
+  if (source === main) return { source, main, relationship: 'identical' };
+  if (comparison?.status !== 'ahead' ||
+      !Number.isSafeInteger(comparison?.ahead_by) || comparison.ahead_by < 1 ||
+      !Number.isSafeInteger(comparison?.behind_by) || comparison.behind_by !== 0 ||
+      comparison?.base_commit?.sha?.toLowerCase() !== source ||
+      comparison?.merge_base_commit?.sha?.toLowerCase() !== source) {
+    throw new Error('Refusing release whose commit is not an ancestor of main');
+  }
+  return { source, main, relationship: 'ancestor' };
+}
+
+async function verifyReleaseLineage(source) {
+  const branch = await json(repo + '/branches/main');
+  const mainSha = branch?.commit?.sha;
+  if (typeof mainSha !== 'string' || !EXACT_SHA.test(mainSha)) {
+    throw new Error('GitHub main release ancestry could not be established');
+  }
+  const comparison = source.toLowerCase() === mainSha.toLowerCase()
+    ? undefined
+    : await json(repo + '/compare/' + source + '...' + mainSha);
+  const proof = assertReleaseDescendsFromMain(source, mainSha, comparison);
+  // A concurrent force-push must fail closed; the next timer may retry.
+  const fresh = await json(repo + '/branches/main');
+  if (fresh?.commit?.sha?.toLowerCase() !== proof.main)
+    throw new Error('GitHub main advanced during release verification');
+  return proof;
+}
+
 async function main() {
+  mkdirSync(runtime, { recursive: true, mode: 0o700 });
   if (!existsSync(local)) {
     console.log(JSON.stringify({ ok: true, deployed: false, reason: 'no locally verified APK release' }));
     return;
@@ -70,6 +108,7 @@ async function main() {
   if (!release) throw new Error('Locally verified APK has no matching immutable GitHub release');
   const sha = release.target_commitish.toLowerCase();
   await verifyChecks(sha);
+  await verifyReleaseLineage(sha);
   const api = await deployed(apiOrigin + '/platform-sync/version');
   const web = await deployed(webOrigin + '/api/version');
   const apiCurrent = api?.commit === sha;
@@ -143,7 +182,9 @@ async function main() {
   renameSync(currentFile + '.tmp', currentFile);
   console.log(JSON.stringify({ ok: true, deployed: true, ...state }));
 }
-main().catch((error) => {
-  console.error('KnowMe release reconciliation blocked:', error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error('KnowMe release reconciliation blocked:', error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
