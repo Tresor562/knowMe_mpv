@@ -32,6 +32,7 @@ import { StoriesRail } from './StoriesRail';
 import { NativeFeedReelSuggestions } from './NativeFeedReelSuggestions';
 import { PostComposerExperience } from './PostComposerExperience';
 import {PostMediaGallery} from './PostMediaGallery';
+import { PostActionBar } from './PostActionBar';
 import {CommentReportSheet} from './CommentReportSheet';
 import {PostEditSheet} from './PostEditSheet';
 import {CommentEditSheet} from './CommentEditSheet';
@@ -110,38 +111,6 @@ function ActionButton({ title, onPress, disabled = false, danger = false }: {
       >
         {title}
       </Text>
-    </Pressable>
-  );
-}
-
-function MetricButton({
-  icon, count, label, onPress, selected = false, disabled = false
-}: {
-  icon: 'heart' | 'messages';
-  count: number;
-  label: string;
-  onPress?: () => void;
-  selected?: boolean;
-  disabled?: boolean;
-}) {
-  const { colors } = useAppearance();
-  return (
-    <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${selected ? 'Retirer mon J’aime' : label} : ${count}`}
-      accessibilityState={{selected,disabled:!onPress||disabled}}
-      onPress={onPress}
-      disabled={!onPress||disabled}
-      style={({ pressed }) => [
-        styles.metricAction,
-        { backgroundColor: colors.backgroundAccent },
-        pressed && onPress ? styles.metricPressed : null
-      ]}
-    >
-      {selected && icon==='heart'
-        ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
-        : <KnowMeIcon name={icon} size={18} color={colors.muted} strokeWidth={1.8} />}
-      <Text style={[styles.metricCount, { color: selected?'#e73d57':colors.muted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -614,26 +583,16 @@ function PostDiscussion({ postId, userId, onBack, onDeleted, targetCommentId, on
         </Pressable>
         <KnowMeMentionText text={post.content} style={[styles.postText, { color: colors.text }]}/>
         <PostMediaGallery media={post.media} fallbackUrl={post.imageUrl} caption={post.content}/>
-        <View style={styles.discussionMetrics}>
-          <Pressable accessibilityRole="button" accessibilityLabel={myLike?'Retirer mon J’aime':'Réagir à la publication'}
-            accessibilityState={{selected:myLike===true,disabled:postLikeBusy}}
-            disabled={postLikeBusy} onPress={() => void toggleLike()} style={styles.metricInline}>
-            {myLike
-              ? <Text style={{fontSize:25,lineHeight:29,color:'#e73d57',fontWeight:'700'}}>♥</Text>
-              : <KnowMeIcon name="heart" size={19} color={colors.muted}/>}
-            <Text style={[styles.metaText,{color:myLike?'#e73d57':colors.muted}]}>{post._count.likes}</Text>
-          </Pressable>
-          <View style={styles.metricInline}>
-            <KnowMeIcon name="messages" size={19} color={colors.muted}/>
-            <Text style={[styles.metaText, { color: colors.muted }]}>{post._count.comments}</Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Partager la publication"
-            onPress={() => { void Share.share({ message: buildKnowMePublicLink({ kind: 'post', id: post.id }) }); }}
-            style={styles.metricInline}>
-            <KnowMeIcon name="arrow" size={18} color={colors.muted}/>
-            <Text style={[styles.metaText, { color: colors.muted }]}>Partager</Text>
-          </Pressable>
-        </View>
+        <PostActionBar postId={post.id} userId={userId}
+          likeCount={post._count.likes} commentCount={post._count.comments}
+          selectedReaction={myLike===true?'❤️':null}
+          online={myLike!==null&&!postLikeBusy}
+          onHeart={toggleLike}
+          onReact={async emoji=>{if(emoji==='❤️')await toggleLike();
+            else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
+          onComments={()=>discussionScroll.current?.scrollTo({y:commentsStart.current,animated:true})}
+          onShare={()=>{void Share.share({message:buildKnowMePublicLink({kind:'post',id:post.id})});}}
+        />
       </View>
 
       <View style={styles.commentsHeadingRow} onLayout={event => { commentsStart.current = event.nativeEvent.layout.y; }}>
@@ -1207,15 +1166,16 @@ export function FeedExperience({
           </Pressable>
           <KnowMeMentionText text={item.content} style={[styles.postText, { color: colors.text }]}/>
           <PostMediaGallery media={item.media} fallbackUrl={item.imageUrl} caption={item.content}/>
-          <View style={styles.actionsRow}>
-            <MetricButton icon="heart" count={item._count.likes} label="J’aime"
-              selected={myLikes[item.id]===true} disabled={likePending.includes(item.id)}
-              onPress={feedFresh&&!offline?()=>void like(item.id):undefined} />
-            <ActionButton title="Partager" onPress={() => { void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})}); }} />
-            <MetricButton icon="messages" count={item._count.comments} label="Commentaires"
-              onPress={feedFresh&&!offline?()=>setSelectedPostId(item.id):undefined} />
-            <Text style={[styles.date, { color: colors.muted }]}>{formatPostDate(item.createdAt)}</Text>
-          </View>
+          <PostActionBar postId={item.id} userId={userId}
+            likeCount={item._count.likes} commentCount={item._count.comments}
+            selectedReaction={myLikes[item.id]===true?'❤️':null}
+            online={feedFresh&&!offline&&myLikes[item.id]!==undefined&&!likePending.includes(item.id)}
+            onHeart={()=>like(item.id)}
+            onReact={async emoji=>{if(emoji==='❤️')await like(item.id);
+              else throw new Error('Cette réaction n’est pas encore disponible sur le serveur.');}}
+            onComments={()=>{if(feedFresh&&!offline)setSelectedPostId(item.id);}}
+            onShare={()=>{void Share.share({message:buildKnowMePublicLink({kind:'post',id:item.id})});}}
+          />
         </Pressable>
         {mode==='home'&&onOpenReels&&feedFresh&&index+1===reelsAfterPost
           ? <NativeFeedReelSuggestions onOpenReels={onOpenReels}/> : null}

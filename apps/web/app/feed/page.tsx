@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { RuntimeExperienceModules } from '../../components/runtime-experience-modules';
 import { PostShareSheet } from '../../components/post-share-sheet';
 import { PostMediaCollage, type PostMediaItem } from '../../components/post-media-collage';
+import { PostActionBar } from '../../components/PostActionBar';
 import '../../components/post-share-sheet.css';
 import { PostOptionsSheet, PostDisinterestSheet } from '../../components/post-options-sheet';
 import { PostEditSheet } from '../../components/post-edit-sheet';
@@ -37,16 +38,6 @@ type Post = {
 };
 
 const FEED_PAGE_SIZE = 20;
-
-function FeedIcon({ name, filled = false }: { name: 'heart' | 'comment' | 'share'; filled?: boolean }) {
-  const paths = {
-    heart: <path d="M20.8 4.6a5.4 5.4 0 0 0-7.7 0L12 5.7l-1.1-1.1a5.4 5.4 0 0 0-7.7 7.7L12 21l8.8-8.7a5.4 5.4 0 0 0 0-7.7Z" />,
-    comment: <path d="M20.5 11.4a8.5 8.5 0 0 1-8.5 8.5 9.5 9.5 0 0 1-3.6-.8L3 21l1.8-5.3a8.5 8.5 0 1 1 15.7-4.3Z" />,
-    share: <><path d="M12 16V3m0 0L7.7 7.3M12 3l4.3 4.3" /><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></>,
-  };
-  return <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill={name === 'heart' && filled ? 'currentColor' : 'none'}
-    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
-}
 
 export default function FeedPage() {
   const { user, loading: sessionLoading } = useSession({ required: true });
@@ -671,22 +662,17 @@ export default function FeedPage() {
             </div>}
             <PostMediaCollage media={post.media} fallbackUrl={post.imageUrl}
               caption={post.content} en={en}/>
-            <footer className="km-post-actions">
-              <button type="button" onClick={() => void toggleLike(post.id)}
-                disabled={!authorityFresh || busyLikeIds.includes(post.id)}
-                aria-label={myLikes[post.id] ? (en?'Remove my like':'Retirer mon J’aime') : (en?'React to post':'Réagir à la publication')}
-                aria-pressed={myLikes[post.id]===true}
-                style={{color:myLikes[post.id]===true?'#e73d57':undefined}}>
-                <FeedIcon name="heart" filled={myLikes[post.id]===true}/>
-                <span>{post._count.likes}</span>
-              </button>
-              {authorityFresh ? <Link href={`/feed/${post.id}`} aria-label={en?'View comments':'Voir les commentaires'}>
-                <FeedIcon name="comment"/><span>{post._count.comments}</span>
-              </Link> : <span aria-label={en?'Comments unavailable offline':'Commentaires indisponibles hors ligne'}><FeedIcon name="comment"/><span>{post._count.comments}</span></span>}
-              <button type="button" onClick={() => void sharePost(post)}
-                aria-label={en?'Share post':'Partager la publication'}>
-                <FeedIcon name="share"/><span>{en?'Share':'Partager'}</span>
-              </button>
+            <footer>
+              <PostActionBar postId={post.id} userId={user.id} en={en}
+                likeCount={post._count.likes} commentCount={post._count.comments}
+                selectedReaction={myLikes[post.id]===true?'❤️':null}
+                online={authorityFresh&&!offline&&myLikes[post.id]!==undefined&&!busyLikeIds.includes(post.id)}
+                onHeart={()=>toggleLike(post.id)}
+                onReact={async emoji=>{if(emoji==='❤️')await toggleLike(post.id);
+                  else throw new Error(en?'This reaction is not yet supported by the server.':'Cette réaction n’est pas encore disponible sur le serveur.');}}
+                onComments={()=>{if(authorityFresh)window.location.assign(`/feed/${encodeURIComponent(post.id)}#km-post-comments`);}}
+                onShare={()=>sharePost(post)}
+              />
             </footer>
           </article>
           {index+1 === reelsAfterPost && authorityFresh && <ReelSuggestionsRail en={en}/>}
