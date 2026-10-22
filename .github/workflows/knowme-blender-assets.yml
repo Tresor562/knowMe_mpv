@@ -1,0 +1,106 @@
+name: KnowMe Blender Asset Factory
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/knowme-blender-assets.yml'
+      - 'tools/asset_factory/**'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/knowme-blender-assets.yml'
+      - 'tools/asset_factory/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowme-blender-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install Blender and FFmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender ffmpeg python3-numpy
+          blender --version | head -n 2
+          ffmpeg -version | head -n 1
+      - name: Validate generator syntax
+        run: python3 -m py_compile tools/asset_factory/build.py tools/asset_factory/hero.py tools/asset_factory/verify.py tools/asset_factory/create_preview.py
+      - name: Generate real skeletal mascot and physically shaded 3D crown
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/knowme-3d
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind mascot --out artifacts/knowme-3d --size 360 --frames 16
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind crown --out artifacts/knowme-3d --size 360 --frames 16
+          blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/build.py -- --kind hero --out artifacts/knowme-3d --size 420 --frames 16
+      - name: Verify actual GLB skeleton, animation clips and playable media
+        run: python3 tools/asset_factory/verify.py artifacts/knowme-3d
+      - name: Build interactive HTML preview from actual GLB geometry
+        run: python3 tools/asset_factory/create_preview.py artifacts/knowme-3d
+      - name: Checksum generated output
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd artifacts/knowme-3d && sha256sum *.blend *.glb *.png *.webm *.json > SHA256SUMS.txt)
+      - name: Upload real Blender assets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-rigged-3d-assets
+          path: artifacts/knowme-3d/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  artist-sculpted-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install Blender for original artist-authored PBR assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends blender ffmpeg python3-numpy python3-pil
+      - name: Compile and license provenance checks
+        run: |
+          python3 -m py_compile tools/asset_factory/download_authored.py tools/asset_factory/import_authored.py tools/asset_factory/verify_authored.py tools/asset_factory/create_authored_preview.py tools/asset_factory/verify_posters.py
+      - name: Download pinned CC BY and CC0 author-created meshes
+        run: python3 tools/asset_factory/download_authored.py "$RUNNER_TEMP/knowme-author-sources"
+      - name: Blender import real artist geometry, UV and materials (no procedural anatomy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in artist_hero gift_car; do
+            blender -b --factory-startup --python-exit-code 42 --python tools/asset_factory/import_authored.py -- --key "$key" --sources "$RUNNER_TEMP/knowme-author-sources" --out artifacts/knowme-authored --size 360 --frames 8
+          done
+      - name: Reject missing textures, UVs, skeleton or animations
+        run: python3 tools/asset_factory/verify_authored.py "$RUNNER_TEMP/knowme-author-sources" artifacts/knowme-authored
+      - name: Reject blank, offscreen, or tiny Blender preview renders
+        run: python3 tools/asset_factory/verify_posters.py artifacts/knowme-authored
+      - name: Generate credited interactive 3D GLB viewer
+        run: python3 tools/asset_factory/create_authored_preview.py "$RUNNER_TEMP/knowme-author-sources" artifacts/knowme-authored
+      - name: Capture artist attribution and file hashes
+        shell: bash
+        run: |
+          cp "$RUNNER_TEMP/knowme-author-sources/provenance.json" artifacts/knowme-authored/upstream_provenance.json
+          (cd artifacts/knowme-authored && sha256sum *.glb *.blend *.png *.json > SHA256SUMS.txt)
+      - name: Upload licensed artist model studies
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: knowme-artist-authored-3d-studies
+          path: artifacts/knowme-authored/
+          retention-days: 7
+          if-no-files-found: warn
