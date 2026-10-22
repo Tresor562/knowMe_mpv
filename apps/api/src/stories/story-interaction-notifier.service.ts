@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StoryReplyDirectService } from '../messaging/story-reply-direct.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class StoryInteractionNotifier {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly messaging: StoryReplyDirectService
   ) {}
 
   async reaction(storyId: string, actorId: string, reaction: string) {
@@ -24,18 +26,31 @@ export class StoryInteractionNotifier {
     });
   }
 
-  async reply(storyId: string, actorId: string) {
+  async assertReplyAllowed(storyId:string,actorId:string){
+    const story=await this.prisma.story.findUnique({
+      where:{id:storyId},select:{authorUserId:true}
+    });
+    if(!story || story.authorUserId===actorId) {
+      throw new ForbiddenException('Réponse à cette Story interdite.');
+    }
+    await this.messaging.assertCanDeliver(actorId,story.authorUserId);
+  }
+
+  async reply(storyId: string, actorId: string, replyId: string) {
     const context = await this.context(storyId, actorId);
     if (!context || context.story.authorUserId === actorId) return;
-    const locale = await this.locale(context.story.authorUserId);
-    await this.notifications.create({
-      userId: context.story.authorUserId,
-      type: 'STORY_REPLY',
-      title: locale === 'en' ? 'New Story reply' : 'Nouvelle réponse à ta Story',
-      body: locale === 'en'
-        ? `${context.actor.displayName} replied to your Story.`
-        : `${context.actor.displayName} a répondu à ta Story.`,
-      data: { route: `/stories/${storyId}`, storyId, actorId }
+    // Trust only the persisted, ownership-checked StoryReply, not arbitrary
+    // message text sent by the client or guessed reply identifiers.
+    const reply = await this.prisma.storyReply.findFirst({
+      where: {id:replyId,storyId,authorId:actorId,deletedAt:null},
+      select:{id:true,content:true}
+    });
+    if (!reply) throw new Error('STORY_REPLY_NOT_FOUND');
+    // The normal Message pipeline emits realtime updates, unread state and
+    // the recipient's chat notification: no redundant STORY_REPLY alert.
+    return this.messaging.deliver({
+      senderId:actorId,authorId:context.story.authorUserId,
+      storyId,replyId:reply.id,content:reply.content
     });
   }
 
