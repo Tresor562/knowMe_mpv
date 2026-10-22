@@ -31,6 +31,13 @@ type Wallet = {
   balance: number;
 };
 
+type GiftConfirmation = {
+  gift: SocialGiftDefinition;
+  recipientId: string;
+  recipientLabel: string;
+  message: string;
+};
+
 function errorMessage(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
@@ -81,6 +88,7 @@ export default function SocialGiftsPage() {
   const [inbox, setInbox] = useState<SocialGiftInboxItem[]>([]);
   const [inboxCursor,setInboxCursor] = useState<string|null>(null);
   const [targetGift,setTargetGift] = useState('');
+  const [preferredOfferKey,setPreferredOfferKey] = useState('');
   const [loadingOlderGifts,setLoadingOlderGifts] = useState(false);
   const seenGiftCursors=useRef(new Set<string>());
   const [sent, setSent] = useState<SocialGiftSentItem[]>([]);
@@ -88,6 +96,12 @@ export default function SocialGiftsPage() {
   const [recipientId, setRecipientId] = useState('');
   const [messageText, setMessageText] = useState('');
   const [busyGiftKey, setBusyGiftKey] = useState<string | null>(null);
+  const [pendingGift, setPendingGift] = useState<GiftConfirmation | null>(null);
+  const [sendError, setSendError] = useState('');
+  const confirmDialogRef = useRef<HTMLDialogElement>(null);
+  const confirmTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const sendingLock = useRef(false);
+  const sendAttempts = useRef(new Map<string, string>());
   const [busyInboxId, setBusyInboxId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('');
@@ -129,7 +143,9 @@ export default function SocialGiftsPage() {
   }, [load]);
 
   useEffect(() => {
-    setTargetGift(new URLSearchParams(window.location.search).get('gift')??'');
+    const params = new URLSearchParams(window.location.search);
+    setTargetGift(params.get('gift')??'');
+    setPreferredOfferKey(params.get('offer')??'');
     seenGiftCursors.current.clear();
   }, []);
 
@@ -150,6 +166,25 @@ export default function SocialGiftsPage() {
       .finally(() => setLoadingOlderGifts(false));
   },[targetGift,inbox,inboxCursor,loading,loadingOlderGifts]);
 
+  useEffect(() => {
+    if (!preferredOfferKey || loading || !catalog.some(gift => gift.key === preferredOfferKey)) return;
+    const node = document.getElementById('km-gift-offer-' + preferredOfferKey);
+    node?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, [preferredOfferKey, catalog, loading]);
+
+  useEffect(() => {
+    if (pendingGift) {
+      const dialog = confirmDialogRef.current;
+      if (dialog && !dialog.open) dialog.showModal();
+    } else {
+      confirmTriggerRef.current?.focus();
+    }
+    return () => {
+      const dialog = confirmDialogRef.current;
+      if (dialog?.open) dialog.close();
+    };
+  }, [pendingGift]);
+
   async function copyGiftLink(id:string){
     try {
       await navigator.clipboard.writeText(buildKnowMePublicLink({kind:'gift',id}));
@@ -162,31 +197,55 @@ export default function SocialGiftsPage() {
     [friends, recipientId]
   );
 
-  async function send(gift: SocialGiftDefinition) {
-    if (!recipientId || busyGiftKey) return;
-    setBusyGiftKey(gift.key);
-    setStatusMessage('');
+  function openGiftConfirmation(gift: SocialGiftDefinition, trigger: HTMLButtonElement) {
+    if (sendingLock.current || !recipientId || !gift.active || balance < gift.priceKnowCoins || !selectedFriend) return;
+    confirmTriggerRef.current = trigger;
+    setSendError('');
+    setPendingGift({
+      gift,
+      recipientId,
+      recipientLabel: selectedFriend.displayName + ' (@' + selectedFriend.username + ')',
+      message: messageText.trim()
+    });
+  }
+
+  function closeGiftConfirmation() {
+    if (sendingLock.current) return;
+    setPendingGift(null);
+    setSendError('');
+  }
+
+  async function confirmGiftSend() {
+    const choice = pendingGift;
+    if (!choice || sendingLock.current) return;
+    sendingLock.current = true;
+    setBusyGiftKey(choice.gift.key);
+    setSendError('');
+    const payload = { recipientId: choice.recipientId, giftKey: choice.gift.key, message: choice.message || undefined };
+    // The same intended purchase must retain its id across uncertain responses.
+    const identity = JSON.stringify([choice.recipientId, choice.gift.key, choice.message]);
+    let idempotencyKey = sendAttempts.current.get(identity);
+    if (!idempotencyKey) {
+      idempotencyKey = createSocialGiftIdempotencyKey(choice.recipientId, choice.gift.key);
+      sendAttempts.current.set(identity, idempotencyKey);
+    }
     try {
-      const result = await sendSocialGift(
-        {
-          recipientId,
-          giftKey: gift.key,
-          message: messageText.trim() || undefined
-        },
-        createSocialGiftIdempotencyKey(recipientId, gift.key)
-      );
+      const result = await sendSocialGift(payload, idempotencyKey);
+      sendAttempts.current.delete(identity);
       setBalance(result.senderBalance);
       setMessageText('');
-      setStatusMessage(
-        result.replayed
-          ? 'Ce cadeau avait déjà été envoyé. Aucun second débit n’a été effectué.'
-          : `${gift.emoji} ${gift.name} envoyé à ${selectedFriend?.displayName ?? 'ton ami'}.`
-      );
-      const history = await getSocialGiftSent(undefined, 30);
-      setSent(history.items);
+      setPendingGift(null);
+      setStatusMessage(result.replayed
+        ? 'Ce cadeau avait déjà été envoyé. Aucun second débit n’a été effectué.'
+        : choice.gift.emoji + ' ' + choice.gift.name + ' envoyé à ' + choice.recipientLabel + '.');
+      // Purchase succeeded even if history refresh is temporarily unavailable.
+      void getSocialGiftSent(undefined, 30)
+        .then(history => setSent(history.items))
+        .catch(() => {});
     } catch (cause) {
-      setStatusMessage(errorMessage(cause, 'Envoi du cadeau impossible.'));
+      setSendError(errorMessage(cause, 'Envoi indisponible. Tu peux réessayer sans second débit.'));
     } finally {
+      sendingLock.current = false;
       setBusyGiftKey(null);
     }
   }
@@ -304,8 +363,12 @@ export default function SocialGiftsPage() {
                 return (
                   <article
                     key={gift.key}
+                    id={'km-gift-offer-' + gift.key}
                     className="card"
-                    style={{ padding: 20, display: 'grid', gap: 14 }}
+                    style={{
+                      padding: 20, display: 'grid', gap: 14, scrollMarginTop: 90,
+                      borderColor: preferredOfferKey === gift.key ? 'var(--mint)' : undefined
+                    }}
                   >
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                       <GiftVisual gift={gift} large />
@@ -328,7 +391,7 @@ export default function SocialGiftsPage() {
                     <button
                       className="btn btn-primary"
                       disabled={disabled}
-                      onClick={() => void send(gift)}
+                      onClick={(event) => openGiftConfirmation(gift, event.currentTarget)}
                     >
                       {busyGiftKey === gift.key
                         ? 'Envoi atomique…'
@@ -435,6 +498,54 @@ export default function SocialGiftsPage() {
             </section>
           ) : null}
         </>
+      )}
+      {pendingGift && (
+        <dialog
+          ref={confirmDialogRef}
+          aria-labelledby="km-gift-confirm-title"
+          onCancel={(event) => { event.preventDefault(); closeGiftConfirmation(); }}
+          style={{
+            position: 'fixed', inset: 0, margin: 'auto', width: 'min(92vw, 460px)',
+            maxHeight: 'min(90dvh, 680px)', overflowY: 'auto',
+            border: '1px solid var(--border)', borderRadius: 26, padding: 22,
+            background: 'var(--surface)', color: 'var(--text)',
+            boxShadow: '0 18px 70px rgba(0,0,0,.24)'
+          }}
+        >
+          <h2 id="km-gift-confirm-title" style={{ marginTop: 0 }}>
+            Confirmer l’envoi du cadeau
+          </h2>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+            <GiftVisual gift={pendingGift.gift} large />
+            <div>
+              <strong>{pendingGift.gift.name}</strong>
+              <p style={{ margin: '4px 0', color: 'var(--muted)', fontSize: 13 }}>
+                {pendingGift.gift.priceKnowCoins.toLocaleString('fr-FR')} KnowCoins
+              </p>
+            </div>
+          </div>
+          <p style={{ fontSize: 14 }}>À : <strong>{pendingGift.recipientLabel}</strong></p>
+          {pendingGift.message ? (
+            <p style={{ fontSize: 13, color: 'var(--muted)', overflowWrap: 'anywhere' }}>
+              Message : {pendingGift.message}
+            </p>
+          ) : null}
+          <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+            Le montant sera débité de ton portefeuille KnowCoins uniquement après confirmation.
+            Vérifie le destinataire avant de continuer.
+          </p>
+          {sendError && <p role="alert" style={{ color: 'var(--danger, #dc5658)', fontSize: 13 }}>{sendError}</p>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+            <button className="btn" type="button" disabled={Boolean(busyGiftKey)}
+              onClick={closeGiftConfirmation} style={{ flex: 1, minHeight: 48 }}>
+              Annuler
+            </button>
+            <button className="btn btn-primary" type="button" disabled={Boolean(busyGiftKey)}
+              onClick={() => void confirmGiftSend()} style={{ flex: 1, minHeight: 48 }}>
+              {busyGiftKey ? 'Envoi…' : 'Confirmer et offrir'}
+            </button>
+          </div>
+        </dialog>
       )}
     </main>
   );
