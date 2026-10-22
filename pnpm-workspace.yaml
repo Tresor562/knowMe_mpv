@@ -1,3 +1,23 @@
 packages:
   - apps/*
   - packages/*
+
+# Pinned security overrides for the PNPM 10 workspace.
+# Root manifest retains legacy copy until the parallel PRs are reconciled.
+overrides:
+  'next': '15.5.28'
+  'sharp': '0.35.5'
+  'postcss': '>=8.5.18'
+  'deepmerge-ts': '>=8.0.0'
+  'image-size': 'npm:image-size-next@1.2.2'
+  'path-to-regexp': '8.4.2'
+  'lodash': '4.18.1'
+  'multer': '2.4.0'
+  'undici': '6.29.0'
+  'engine.io': '6.6.11'
+  'brace-expansion@1.1.18': '1.1.21'
+  'brace-expansion@2.1.4': '2.1.7'
+  'source-map-js': '1.2.2'
+  'proxy-addr': '2.0.8'
+  'compression': '1.8.2'
+  'shell-quote': '1.11.0'
