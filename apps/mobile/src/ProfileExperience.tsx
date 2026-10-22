@@ -228,7 +228,7 @@ function ProfileMenuGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, dockPreferences, onDockPreferencesChange, topNavigation }: {
+export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted, onOpenVerification, onCreateStory, onSubscreenChange, systemBackRequest = 0, dockPreferences, onDockPreferencesChange, topNavigation }: {
   user: MobileUser;
   onUpdated: () => Promise<void>;
   onLogout: () => Promise<void>;
@@ -236,6 +236,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   onOpenVerification: () => void;
   onCreateStory: () => void;
   onSubscreenChange?: (active: boolean) => void;
+  systemBackRequest?: number;
   dockPreferences: DockPreferences;
   onDockPreferencesChange: (next: DockPreferences) => void;
   topNavigation?: ReactNode;
@@ -248,6 +249,7 @@ export function ProfileExperience({ user, onUpdated, onLogout, onAccountDeleted,
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel>('main');
+  useEffect(() => { if (systemBackRequest > 0) setPanel('main'); }, [systemBackRequest]);
   const [offlineLibraryOpen, setOfflineLibraryOpen] = useState(false);
 
   useEffect(() => {
