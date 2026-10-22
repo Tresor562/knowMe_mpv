@@ -12,7 +12,7 @@ function remember(src: string, poster: string) {
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value!);
 }
 
-type CaptureState = 'pending' | 'decoded' | 'failed';
+type CaptureState = 'pending' | 'decoded' | 'fallback' | 'unavailable';
 
 /**
  * Prefer a decoded canvas still. Cross-origin MP4s can play but cannot be read by
@@ -88,12 +88,12 @@ export function VideoStill({ src, className = 'km-post-collage-poster' }: {
         // Canvas export often fails under browser cross-origin restrictions,
         // even for an MP4 that is otherwise fully playable.
       } finally {
-        if (!cancelled) setCaptureState(captured ? 'decoded' : 'failed');
+        if (!cancelled) setCaptureState(captured ? 'decoded' : 'fallback');
         cleanup();
       }
     };
     video.onerror = () => {
-      if (!cancelled) setCaptureState('failed');
+      if (!cancelled) setCaptureState('unavailable');
       cleanup();
     };
     video.src = src;
@@ -104,7 +104,7 @@ export function VideoStill({ src, className = 'km-post-collage-poster' }: {
   return <span ref={root} className={className} aria-hidden="true">
     {still
       ? <img src={still} alt="" draggable={false} />
-      : near && captureState === 'failed'
+      : near && captureState === 'fallback'
         ? <video src={src} preload="auto" muted playsInline disablePictureInPicture
             controls={false} tabIndex={-1} draggable={false}
             onLoadedData={event => event.currentTarget.pause()} />
