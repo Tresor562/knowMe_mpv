@@ -1,4 +1,4 @@
 import { registerRootComponent } from 'expo';
-import { MobileEntryExperience } from './src/MobileEntryExperience';
+import { KnowMeLaunchExperience } from './src/KnowMeLaunchExperience';
 
-registerRootComponent(MobileEntryExperience);
+registerRootComponent(KnowMeLaunchExperience);
