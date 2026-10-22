@@ -14,7 +14,7 @@ import {
   View
 } from 'react-native';
 import { buildKnowMePublicLink } from '@knowme/link-contract';
-import Svg, { Ellipse, Circle } from 'react-native-svg';
+import { NativeSvg as Svg, NativeEllipse as Ellipse, NativeCircle as Circle } from './ui/NativeSvgJsxCompat';
 import { apiFetch, API_URL, authenticatedMediaHeaders } from './api';
 import { AndroidMediaLibraryPicker, SelectedAndroidMedia } from './AndroidMediaLibraryPicker';
 import { uploadKnowMeMobileMedia } from './mobile-media-upload';
