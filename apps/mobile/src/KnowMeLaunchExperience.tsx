@@ -25,6 +25,7 @@ export function KnowMeLaunchExperience() {
     : { background: '#090e1c', text: '#f1f4ff', accent: '#92a9ff', glow: '#75dbbe' };
 
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
   const [coverVisible, setCoverVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -69,12 +70,14 @@ export function KnowMeLaunchExperience() {
         useNativeDriver: true
       })
     ]);
-    animation.start();
+    animation.start(({ finished }) => {
+      if (finished) setIntroComplete(true);
+    });
     return () => animation.stop();
   }, [coverVisible, logoProgress, nameProgress, reducedMotion]);
 
   useEffect(() => {
-    if (!sessionChecked || !coverVisible) return;
+    if (!sessionChecked || !introComplete || !coverVisible) return;
     const animation = Animated.timing(coverOpacity, {
       toValue: 0,
       duration: resolveLaunchMotion(reducedMotion).exitMs,
@@ -84,7 +87,7 @@ export function KnowMeLaunchExperience() {
       if (finished) setCoverVisible(false);
     });
     return () => animation.stop();
-  }, [coverOpacity, coverVisible, reducedMotion, sessionChecked]);
+  }, [coverOpacity, coverVisible, introComplete, reducedMotion, sessionChecked]);
 
   return (
     <View style={styles.root}>
