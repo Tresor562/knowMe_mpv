@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { INITIAL_DOCK_SCROLL, nextDockScroll, shouldShowDock, navigationDockLayout } from './navigation-dock-model.ts';
 
 function walk(points: number[]) {
@@ -60,4 +62,21 @@ test('small Android dock uses short labels and a wider floating surface', () => 
 test('invalid viewport safely chooses smallest supported six-column geometry', () => {
   assert.equal(navigationDockLayout(Number.NaN, 'bottom').cellWidth,
     navigationDockLayout(320, 'bottom').cellWidth);
+});
+
+
+test('Android chat Back first closes expressions and active conversations', () => {
+  const text=readFileSync(resolve(process.cwd(),'src/RealtimeMessagesPanel.tsx'),'utf8');
+  const panel=text.indexOf('if (panelOpen) { setPanelOpen(false); return true; }');
+  const conversation=text.indexOf('if (active) { closeConversation(); return true; }');
+  assert.ok(panel>0 && conversation>panel);
+  assert.match(text,/BackHandler\.addEventListener\('hardwareBackPress'/);
+});
+
+test('Android organization Back unwinds detail, tool, and sheet in that order', () => {
+  const text=readFileSync(resolve(process.cwd(),'src/MessagesOrganizationExperience.tsx'),'utf8');
+  const detail=text.indexOf('if (organizationConversationId) { setOrganizationConversationId(null); return true; }');
+  const tool=text.indexOf('if (organizationTool) { setOrganizationTool(null); return true; }');
+  const sheet=text.indexOf('if (organizationOpen) { setOrganizationOpen(false); return true; }');
+  assert.ok(detail>0 && tool>detail && sheet>tool);
 });
