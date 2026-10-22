@@ -279,6 +279,7 @@ export default function ProfilePage() {
                     {coverBusy ? tr('Envoi…','Uploading…') : tr('Changer la couverture','Change cover')}
                   </button>
                   <Link href="/profile-studio">{tr('Studio de profil','Profile studio')}</Link>
+                  <Link href="/saved-posts">{tr('Publications enregistrées','Saved posts')}</Link>
                   <Link href="/settings">{tr('Paramètres','Settings')}</Link>
                 </div>
               </details>
