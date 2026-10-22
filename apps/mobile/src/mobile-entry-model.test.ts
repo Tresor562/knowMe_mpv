@@ -1,3 +1,4 @@
+import { resolveLaunchMotion } from './launch-motion-model.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -41,4 +42,18 @@ test('session presence alone does not silently replace a user-selected mode', ()
   assert.equal(reconcileMobileEntrySession('guest', true), 'guest');
   assert.equal(reconcileMobileEntrySession('recovery', true), 'recovery');
   assert.equal(reconcileMobileEntrySession('account', true), 'account');
+});
+
+
+test('startup logo and name finish before the transition can fade out', () => {
+  const motion = resolveLaunchMotion(false);
+  assert.ok(motion.enterMs >= 180);
+  assert.ok(motion.nameDelayMs > 0);
+  assert.ok(motion.nameDelayMs + motion.enterMs + motion.exitMs < 2000);
+});
+
+test('KnowMe launch respects reduced motion without decorative delay', () => {
+  assert.deepEqual(resolveLaunchMotion(true), {
+    enterMs: 0, nameDelayMs: 0, exitMs: 0
+  });
 });
