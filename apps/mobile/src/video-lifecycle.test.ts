@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
 import {shouldSuspendVideo} from './video-lifecycle.ts';
@@ -29,4 +30,14 @@ test('refresh preserves a known clip and selects first when the old Reel disappe
   assert.equal(chooseVisibleReel(['clip-x','clip-y'],null),'clip-x');
   assert.equal(chooseVisibleReel([],null),null);
   assert.equal(chooseVisibleReel([],'clip-a'),null);
+});
+
+
+test('paused Android video cards prime only a silent first frame and never keep playing', () => {
+  const java = readFileSync(new URL('../plugins/native/android/KnowMeStoryVideoPackage.java', import.meta.url), 'utf8');
+  assert.match(java, /setMutedForPreview\(paused\)/);
+  assert.match(java, /MEDIA_INFO_VIDEO_RENDERING_START/);
+  assert.match(java, /preparedMedia == source && paused/);
+  assert.match(java, /handler\.postDelayed\(\(\) ->/);
+  assert.match(java, /if \(preparedMedia == media && paused && ready\) player\.pause\(\)/);
 });
