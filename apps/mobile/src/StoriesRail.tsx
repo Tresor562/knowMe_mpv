@@ -166,6 +166,7 @@ export function StoriesRail({
   const loadingNext = useRef(false);
   const [selected, setSelected] = useState<Story | null>(null);
   const [storyProgress,setStoryProgress]=useState(0);
+  const [relativeNow,setRelativeNow]=useState(()=>Date.now());
   const [playbackSequence,setPlaybackSequence]=useState<Story[]>([]);
   const playbackRef=useRef<Story[]>([]);
   const sequenceRequest=useRef(0);
@@ -346,6 +347,17 @@ export function StoriesRail({
   }
 
   useEffect(()=>{if(!selected)activeStoryId.current=null;},[selected]);
+
+  useEffect(()=>{
+    if(!selected)return;
+    const refresh=()=>setRelativeNow(Date.now());
+    refresh();
+    const timer=setInterval(refresh,60_000);
+    const subscription=AppState.addEventListener('change',state=>{
+      if(state==='active')refresh();
+    });
+    return()=>{clearInterval(timer);subscription.remove();};
+  },[selected?.id]);
 
   useEffect(()=>{
     if(!selected?.viewer.own){setViewerPage(null);return;}
@@ -592,7 +604,9 @@ export function StoriesRail({
             <Text numberOfLines={2} style={styles.storyCardLabel}>{myGroup ? 'Ta story' : 'Créer une story'}</Text>
           </PressScale>
           <PressScale onPress={() => setCreateOpen(true)} accessibilityRole="button"
-            accessibilityLabel="Ajouter une story" style={[styles.storyCardPlus,{backgroundColor:colors.accent,borderColor:colors.background}]}>
+            accessibilityLabel="Ajouter une autre story"
+             accessibilityHint="Ouvre l’éditeur pour publier une nouvelle story"
+             style={[styles.storyCardPlus,{backgroundColor:colors.accent,borderColor:colors.background}]}>
             <KnowMeIcon name="create" size={16} strokeWidth={2.2} color={colors.accentText}/>
           </PressScale>
         </View>
@@ -690,7 +704,7 @@ export function StoriesRail({
                 {selected?.author?.verification?.isVerified?<BlueVerifiedBadge size={18} label={selected.author.verification.label}/>:null}
                 </View>
                 <Text style={[styles.viewerHandle, { color: '#dde2e6' }]}>
-                  {storyAgeLabel(selected?.createdAt)}
+                  {storyAgeLabel(selected?.createdAt,relativeNow)}
                 </Text>
               </View>
             </Pressable>
@@ -863,7 +877,7 @@ export function StoriesRail({
                     <View style={{flex:1}}>
                       <Text style={styles.viewerPersonName}>{person.user?.displayName??'Compte indisponible'}</Text>
                       <Text style={styles.viewerPersonTime}>
-                        {storyAgeLabel(person.lastViewedAt)}
+                        {storyAgeLabel(person.lastViewedAt,relativeNow)}
                       </Text>
                     </View>
                     {person.reaction?.reaction?<Text style={styles.viewerReaction}>
@@ -1134,12 +1148,13 @@ const styles = StyleSheet.create({
   storyCardLabel: { position: 'absolute', bottom: 9, left: 10, right: 8,
     fontSize: 12, fontWeight:'700', color:'#fff', textShadowColor:'rgba(0,0,0,.85)',
     textShadowOffset:{width:0,height:1},textShadowRadius:3 },
-  storyCardCount: { position: 'absolute', top: 9, right: 9,
+  storyCardCount: { position: 'absolute', top: 9, left: 9,
     minWidth: 24, height: 24, paddingHorizontal:6, borderRadius:7,
     alignItems: 'center',justifyContent: 'center' },
   storyCardCountText: { fontSize: 12,fontWeight:'800' },
-  storyCardPlus: { position: 'absolute',top:8,left:8,borderRadius:18,
-    width:34,height:34,borderWidth:2,justifyContent:'center',alignItems:'center' },
+  storyCardPlus: { position: 'absolute',top:5,right:5,borderRadius:24,
+    width:48,height:48,borderWidth:2,justifyContent:'center',alignItems:'center',
+    zIndex:5,elevation:5 },
   storyCardProfileLink: { position:'absolute',top:8,left:8,width:34,height:34,
     borderRadius:17,backgroundColor:'rgba(0,0,0,.36)',
     alignItems:'center',justifyContent:'center' },
