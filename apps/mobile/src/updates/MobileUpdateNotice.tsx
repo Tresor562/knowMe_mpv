@@ -257,7 +257,10 @@ export function MobileUpdateNotice() {
     };
   }, []);
 
+  // An installed APK is already verified by Android. Never put any modal
+  // (including a stale "APK ready" dialog) over the newly opened application.
   if (Platform.OS !== 'android' || !installer ||
+      backgroundStatus?.status === 'installed' ||
       (!release && !readyVersion && !backgroundStatus)) return null;
 
   const dismiss = () => {
