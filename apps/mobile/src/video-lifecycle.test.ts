@@ -84,3 +84,23 @@ test('side rail shows confirmed offline state or active progress',()=>{
   assert.match(reels,/offlineStatus\[item\.id\]\?\(en\?'Saved':'Enregistrée'\)/);
   assert.match(video,/onOfflineProgress\?\./);
 });
+
+test('portrait Reels use crop only, while feed and Stories preserve aspect-fit',()=>{
+  const player=readReelSource('PublicPostVideo.tsx');
+  const native=readReelSource('NativeStoryVideo.tsx');
+  const java=readFileSync('plugins/native/android/KnowMeStoryVideoPackage.java','utf8');
+  assert.match(player,/resizeMode=\{onDoubleTap\?'cover':'contain'\}/);
+  assert.match(native,/resizeMode=\{resizeMode\}/);
+  assert.match(java,/@ReactProp\(name="resizeMode"\)/);
+  assert.match(java,/player\.setScaleX\(scale\)/);
+  assert.match(java,/player\.setScaleY\(scale\)/);
+  assert.match(java,/if \(!coverMode \|\| preparedMedia==null\)/);
+});
+
+test('failed offline saving is visibly retryable without faking successful saves',()=>{
+  const reels=readReelSource('ReelsExperience.tsx');
+  const player=readReelSource('PublicPostVideo.tsx');
+  assert.match(reels,/offlineProgress\[item\.id\]\?\.error\?\(en\?'Retry':'Réessayer'\)/);
+  assert.match(player,/setOfflineError\(true\)/);
+  assert.match(player,/onOfflineProgress\?\.\(\{saving,percent:savePercent,error:offlineError\}\)/);
+});
