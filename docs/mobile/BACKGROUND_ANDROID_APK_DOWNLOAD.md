@@ -10,7 +10,7 @@ Workstream: infra · issue #698.
 4. Dès que la fenêtre se ferme, un bandeau KnowMe lit le statut du DownloadManager toutes les deux secondes lorsque l'application est au premier plan. Il affiche les octets et le pourcentage uniquement si Android connaît la taille totale ; sinon, l'état de téléchargement sans pourcentage fictif. Le suivi est retrouvé au retour dans l'application.
 5. En fin de transfert, le récepteur Android affiche une notification pour rouvrir KnowMe. Sans permission de notifications, KnowMe détecte également l'APK prête et offre « Installer / reprendre ». En cas d'échec natif, le bandeau affiche l'erreur et propose de télécharger à nouveau depuis le manifeste officiel.
 6. Le bouton « Installer » effectue une copie en cache interne, puis le validateur natif vérifie la **SHA-256**, le **package** et le **versionCode** avant de lancer **l'interface officielle d'installation Android**. Aucune installation silencieuse. Le lancement de l'installateur n'est PAS une preuve de réussite.
-7. Après installation effective, au premier démarrage de la nouvelle APK, le module compare le numéro de version installé à celui de l'APK préparée et montre une fenêtre de confirmation. La confirmation de l'utilisateur acquitte l'état persistant et efface le fichier téléchargé. En cas de refus de l'installation Android, le fichier demeure prêt pour réessayer.
+7. Après installation effective, au premier démarrage de la nouvelle APK, le module compare le numéro de version installé à celui de l'APK préparée. **Aucune fenêtre de confirmation ni bouton « Continuer »** : KnowMe s'ouvre normalement, acquitte automatiquement l'état persistant et déclenche le nettoyage du fichier téléchargé sans bloquer l'interface. En cas de refus de l'installation Android, le fichier demeure prêt pour réessayer.
 8. Si le flux API est temporairement inaccessible après le téléchargement, l'APK déjà enregistrée reste détectable via le gestionnaire Android.
 
 ## Sécurité / contraintes
@@ -45,6 +45,6 @@ Workstream: infra · issue #698.
 - Taille inconnue : aucun pourcentage arbitraire, barre de progression cachée.
 - Téléchargement achevé : notification et bouton « Installer / reprendre » sans déclarer l'APK installée.
 - Installateur lancé puis refusé : possibilité de relancer l'installation, aucun faux message de réussite.
-- APK effectivement installée : confirmation à l'ouverture de la nouvelle version, une fois seulement après acquittement.
-- Réouverture de KnowMe sans Internet : progression et APK préparée toujours consultables par le module natif.
+- APK effectivement installée : aucune fenêtre de réussite après ouverture, acquittement et nettoyage en arrière-plan, y compris si AsyncStorage est indisponible.
+- Réouverture de KnowMe sans Internet : progression et APK préparée toujours consultables par le module natif. Une APK déjà installée ne doit pas ouvrir une fenêtre de réussite.
 - Ces fonctions nécessitent un **nouvel APK signé** contenant le module ; ni une PR ni une mise à jour OTA JavaScript ne réparent rétroactivement les anciennes APK.
