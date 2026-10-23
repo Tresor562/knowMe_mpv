@@ -176,9 +176,16 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       });
       player.setOnCompletionListener(media -> {
         player.setKeepScreenOn(false);
+        final int completedDuration=Math.max(0,player.getDuration());
+        // Android VideoView may clear its Surface at EOS. Keep the last decoded
+        // frame visible for the Reel's Replay state (also safe for Stories).
+        if (completedDuration>500 && ready) {
+          player.seekTo(completedDuration-250);
+          player.pause();
+        }
         if(getId()>0 && getContext() instanceof ThemedReactContext){
           WritableMap event=Arguments.createMap();
-          event.putDouble("durationMs",Math.max(0,player.getDuration()));
+          event.putDouble("durationMs",completedDuration);
           ((ThemedReactContext)getContext()).getJSModule(RCTEventEmitter.class)
             .receiveEvent(getId(),"topPlaybackComplete",event);
         }
