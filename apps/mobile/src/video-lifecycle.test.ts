@@ -55,7 +55,7 @@ test('Android Reel search is a separate opaque surface, not an overlay on video'
 
 test('opening IME cannot resize paging geometry or restart the video',()=>{
   const reels=readReelSource('ReelsExperience.tsx');
-  assert.match(reels,/if\(!keyboardVisible&&height>0/);
+  assert.match(reels,/if\(!searchOpen&&!commentPost&&!keyboardVisible&&height>0/);
   assert.match(reels,/const shown=item\.id===active&&!offlineLibraryOpen/);
   assert.match(reels,/externallyPaused=\{[^\n]*keyboardVisible/);
   assert.match(reels,/scrollEnabled=\{!keyboardVisible&&!searchOpen/);
