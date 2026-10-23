@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, BackHandler, FlatList, Keyboard, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View
 } from 'react-native';
 import { API_URL, apiFetch } from './api';
@@ -82,6 +82,15 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const cursorRef=useRef<string|null>(null);
   const listRef=useRef<FlatList<Clip>|null>(null);
   const viewability=useRef({itemVisiblePercentThreshold:72}).current;
+
+  // Hardware Back exits search first instead of abandoning the entire Reel.
+  useEffect(()=>{
+    if(!searchOpen)return;
+    const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
+      Keyboard.dismiss();setFilter('');setSearchOpen(false);return true;
+    });
+    return()=>sub.remove();
+  },[searchOpen]);
 
   // Keep paging geometry fixed when Android's IME changes the layout size.
   useEffect(()=>{
@@ -429,7 +438,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   // can warm their HTTP ranges without playing. Only nearby clips mount media.
   return <View style={styles.root} onLayout={event=>{
     const height=event.nativeEvent.layout.height;
-    if(!keyboardVisible&&height>0&&Math.abs(height-viewportHeight)>1)setViewportHeight(height);
+    if(!searchOpen&&!commentPost&&!keyboardVisible&&height>0&&Math.abs(height-viewportHeight)>1)
+      setViewportHeight(height);
   }}>
     <FlatList ref={listRef} data={visibleClips} keyExtractor={item=>item.id}
       renderItem={renderClip} style={styles.list}
@@ -476,7 +486,10 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
     <View style={styles.header} pointerEvents="box-none">
       <Pressable accessibilityRole="button" accessibilityLabel={en?'Back':'Retour'}
-        onPress={onBack} style={styles.headerButton}>
+        onPress={()=>{
+          if(searchOpen){Keyboard.dismiss();setFilter('');setSearchOpen(false);}
+          else onBack();
+        }} style={styles.headerButton}>
         <KnowMeIcon name="back" size={29} color="#fff"/>
       </Pressable>
       <Text style={styles.title} numberOfLines={1}>KnowMe · Reels</Text>
