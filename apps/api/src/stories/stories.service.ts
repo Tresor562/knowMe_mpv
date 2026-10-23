@@ -281,7 +281,7 @@ export class StoriesService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: {
           id: true, authorUserId: true, type: true, assetId: true,
-          thumbnailAssetId: true, caption: true, expiresAt: true
+          thumbnailAssetId: true, caption: true, createdAt: true, expiresAt: true
         }
       })
     ));

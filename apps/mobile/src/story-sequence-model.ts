@@ -12,7 +12,17 @@ export function storySequence<T extends SequenceStory>(
   stories: readonly T[], authorOrder: readonly string[], opened: T
 ): T[] {
   const unique = new Map<string, T>();
-  for (const item of [...stories, opened]) if (item?.id) unique.set(item.id, item);
+  for (const item of [...stories, opened]) {
+    if (!item?.id) continue;
+    const previous = unique.get(item.id);
+    // Rail DTOs are compact; preserve metadata from the full feed when absent
+    // on the opened card, especially the publication timestamp.
+    unique.set(item.id, previous ? {
+      ...previous, ...item,
+      createdAt: item.createdAt ?? previous.createdAt,
+      author: item.author ?? previous.author
+    } as T : item);
+  }
   const groups = new Map<string, T[]>();
   for (const item of unique.values()) {
     const author = item.author?.id ?? (item.id === opened.id ? opened.author?.id : undefined);
@@ -61,7 +71,7 @@ export function storyTextColor(background: unknown, seed: string): string {
 
 export function storyAgeLabel(value?: string | null, now = Date.now()): string {
   const then = Date.parse(value ?? '');
-  if(!Number.isFinite(then))return 'À l’instant';
+  if(!Number.isFinite(then) || then>now+60_000)return 'Date indisponible';
   const seconds = Math.max(0, Math.floor((now-then)/1000));
   if(seconds<60)return 'À l’instant';
   const minutes=Math.floor(seconds/60);

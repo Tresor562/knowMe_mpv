@@ -28,7 +28,8 @@ describe('StoriesService.rail', () => {
     ]);
     prisma.story.findFirst.mockImplementation(async ({ where }: any) => {
       const id = where.AND[1].authorUserId;
-      return { id: id + '-latest', authorUserId: id, type: 'PHOTO', assetId: null };
+      return { id: id + '-latest', authorUserId: id, type: 'PHOTO', assetId: null,
+        createdAt: new Date('2026-10-23T15:00:00.000Z') };
     });
     prisma.user.findMany.mockResolvedValue([
       { id: 'viewer', displayName: 'Me', username: 'me', avatarUrl: null, verificationRequests: [] },
@@ -40,6 +41,11 @@ describe('StoriesService.rail', () => {
       ['friend-latest', 76, false],
       ['viewer-latest', 2, true]
     ]);
+    // The opened Story must carry its actual publication time.
+    expect(prisma.story.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({ createdAt: true })
+    }));
+    expect(result.groups[1]?.story.createdAt).toEqual(new Date('2026-10-23T15:00:00.000Z'));
     const filter = prisma.story.groupBy.mock.calls[0][0].where;
     expect(filter.status).toBe('PUBLISHED');
     expect(filter.AND[0].OR).toEqual(expect.arrayContaining([
