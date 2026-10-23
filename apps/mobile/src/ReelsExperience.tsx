@@ -496,14 +496,11 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       </Pressable>
       <Text style={styles.title} numberOfLines={1}>KnowMe · Reels</Text>
       <View style={styles.headerActions}>
-        <Pressable accessibilityRole="button" style={styles.headerButton}
+        {!searchOpen&&<Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'Search loaded Reels':'Rechercher dans les Réels chargés'}
-          onPress={()=>{
-             if(searchOpen){Keyboard.dismiss();setFilter('');setSearchOpen(false);}
-             else setSearchOpen(true);
-           }}>
+          onPress={()=>setSearchOpen(true)}>
           <KnowMeIcon name="search" size={27} color="#fff"/>
-        </Pressable>
+        </Pressable>}
         <Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'My profile':'Mon profil'} onPress={()=>void openOwnProfile()}>
           <KnowMeIcon name="profile" size={27} color="#fff"/>
