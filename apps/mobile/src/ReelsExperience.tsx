@@ -324,7 +324,9 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===active));
   function renderClip({item,index}:{item:Clip;index:number}){
     const post=item.post;
-    const shown=item.id===active&&!offlineLibraryOpen&&!searchOpen&&!keyboardVisible;
+    // A modal may pause the video, but must never deactivate/remount it:
+    // autoPlay false->true would reopen at 0 on dismiss.
+    const shown=item.id===active&&!offlineLibraryOpen;
     const prepare=!offlineLibraryOpen&&index>=activeIndex-1&&index<=activeIndex+5;
     const like=likes[post.id];
     const follow=following[post.author.username];
@@ -386,7 +388,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           <Text style={styles.actionCount}>{shortCount(like?.count??post._count.likes)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Comments':'Commentaires'}
-          onPress={()=>onOpenPost(post.id)} style={styles.action}>
+          onPress={()=>setCommentPost(post)} style={styles.action}>
           <KnowMeIcon name="messages" size={32} color="#fff" strokeWidth={1.85}/>
           <Text style={styles.actionCount}>{shortCount(commentCounts[post.id]??post._count.comments)}</Text>
         </Pressable>
@@ -481,7 +483,10 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       <View style={styles.headerActions}>
         <Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'Search loaded Reels':'Rechercher dans les Réels chargés'}
-          onPress={()=>setSearchOpen(open=>!open)}>
+          onPress={()=>{
+             if(searchOpen){Keyboard.dismiss();setFilter('');setSearchOpen(false);}
+             else setSearchOpen(true);
+           }}>
           <KnowMeIcon name="search" size={27} color="#fff"/>
         </Pressable>
         <Pressable accessibilityRole="button" style={styles.headerButton}
@@ -618,7 +623,7 @@ const styles=StyleSheet.create({
   actions:{position:'absolute',right:5,bottom:112,gap:12,alignItems:'center',width:68},
   action:{width:62,minHeight:64,alignItems:'center',justifyContent:'center',gap:4},
   redHeart:{fontSize:35,lineHeight:39,color:'#ff3b57',includeFontPadding:false},
-  actionCount:{color:'#fff',fontSize:12,fontWeight:'700',textShadowColor:'#000b',
+  actionCount:{color:'#fff',fontSize:11,fontWeight:'700',textShadowColor:'#000b',
     textShadowRadius:4},
   commentComposer:{position:'absolute',left:12,right:12,bottom:13,height:51,
     flexDirection:'row',alignItems:'center',gap:13,paddingHorizontal:9,
