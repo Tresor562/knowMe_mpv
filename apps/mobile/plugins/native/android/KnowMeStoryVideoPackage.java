@@ -66,6 +66,11 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       view.setNativeControls(enabled);
     }
 
+    @ReactProp(name="resizeMode")
+    public void resizeMode(StoryContainer view, String mode) {
+      view.setCoverMode("cover".equals(mode));
+    }
+
     @ReactProp(name="seekToMs", defaultDouble=-1)
     public void seekToMs(StoryContainer view, double millis) {
       if (Double.isNaN(millis) || Double.isInfinite(millis) || millis<0) return;
@@ -94,6 +99,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     boolean ready = false;
     boolean paused = false;
     MediaPlayer preparedMedia;
+    boolean coverMode = false;
     String currentUri = "";
     long seekToMs = -1;
     final Handler handler = new Handler(Looper.getMainLooper());
@@ -119,6 +125,37 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       try { preparedMedia.setVolume(silent ? 0f : 1f, silent ? 0f : 1f); }
       catch (IllegalStateException ignored) { }
     }
+    void setCoverMode(boolean cover) {
+      coverMode=cover;
+      updateVideoScale();
+    }
+
+    // VideoView defaults to contain and leaves horizontal/vertical black bands.
+    // Scale only immersive Reels, preserving one aspect ratio (no stretching).
+    // Stories/feed keep their original contain behavior.
+    void updateVideoScale() {
+      if (!coverMode || preparedMedia==null) {
+        player.setScaleX(1f);
+        player.setScaleY(1f);
+        return;
+      }
+      int vw=getWidth(),vh=getHeight();
+      int videoW=preparedMedia.getVideoWidth(),videoH=preparedMedia.getVideoHeight();
+      if (vw<=0 || vh<=0 || videoW<=0 || videoH<=0) return;
+      double videoAspect=(double)videoW/videoH;
+      double containedW=Math.min(vw,vh*videoAspect);
+      double containedH=Math.min(vh,vw/videoAspect);
+      if (containedW<=0 || containedH<=0) return;
+      float scale=(float)Math.max((double)vw/containedW,(double)vh/containedH);
+      player.setScaleX(scale);
+      player.setScaleY(scale);
+    }
+
+    @Override protected void onSizeChanged(int w,int h,int oldw,int oldh) {
+      super.onSizeChanged(w,h,oldw,oldh);
+      updateVideoScale();
+    }
+
     void setNativeControls(boolean enabled) {
       if (!enabled) {
         if (storyControls != null) storyControls.hide();
@@ -146,6 +183,9 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.MATCH_PARENT));
       player.setKeepScreenOn(false);
+      setClipChildren(true);
+      player.addOnLayoutChangeListener((view,left,top,right,bottom,
+        oldLeft,oldTop,oldRight,oldBottom)->updateVideoScale());
       // KnowMe renders its own accessible controls: never attach the Android
       // MediaController, which leaks transport overlays onto feed thumbnails.
       player.setMediaController(null);
@@ -153,6 +193,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
         ready=true;
         preparedMedia=media;
         media.setLooping(false);
+        updateVideoScale();
         setMutedForPreview(paused);
         player.setKeepScreenOn(!paused);
         applySeek();
