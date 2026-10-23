@@ -104,3 +104,10 @@ test('failed offline saving is visibly retryable without faking successful saves
   assert.match(player,/setOfflineError\(true\)/);
   assert.match(player,/onOfflineProgress\?\.\(\{saving,percent:savePercent,error:offlineError\}\)/);
 });
+
+test('completion last-frame rewind does not corrupt displayed video end timestamp',()=>{
+  const player=readReelSource('PublicPostVideo.tsx');
+  assert.match(player,/endedRef\.current=true;\s*setEnded\(true\)/);
+  assert.match(player,/if\(preloadPaused&&!autoPlay\|\|endedRef\.current\)return/);
+  assert.match(player,/endedRef\.current=false/);
+});
