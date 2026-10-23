@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,KeyboardAvoidingView,Modal,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,KeyboardAvoidingView,Modal,Platform,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
@@ -13,9 +13,10 @@ import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
 export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=false,externallyPaused=false,
-  offlineRequest=0,onOfflineStatus}:{
+  offlineRequest=0,onOfflineStatus,onOfflineProgress}:{
   url:string;onDoubleTap?:()=>void;autoPlay?:boolean;preloadPaused?:boolean;externallyPaused?:boolean;
-  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void
+  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void;
+  onOfflineProgress?:(progress:{saving:boolean;percent:number})=>void
 }){
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -120,6 +121,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // The state transition is authoritative; callback identity is not a trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[saved]);
+  useEffect(()=>{onOfflineProgress?.({saving,percent:savePercent});
+  // Update parent indicators only for actual download state changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[saving,savePercent]);
 
   async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
@@ -233,8 +238,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setTimeDialogOpen(false);
     setTimeError(false);
   }
-  const progressMode=reelProgressMode(durationMs,paused||timeDialogOpen,
-    reelControlsVisible,scrubMs!==null);
+  // End screens only show Replay; an expanded timeline obscures the caption.
+  const progressMode=ended
+    ?(durationMs>=180_000?'thin':'hidden')
+    :reelProgressMode(durationMs,paused||timeDialogOpen,
+      reelControlsVisible,scrubMs!==null);
   const displayMs=scrubMs??positionMs;
   const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
   function dragSeek(offsetX:number){
@@ -260,7 +268,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
         }}
         onPlaybackComplete={event=>{
           const completedDuration=event.nativeEvent.durationMs||durationMs;
-          setSeekToMs(undefined);
+          // Keep the final decoded frame on Android instead of a black VideoView.
+          // The last 250ms avoids seeking to the EOS sentinel frame.
+          setSeekToMs(Math.max(0,completedDuration-250));
           setPositionMs(completedDuration);
           setEnded(true);
           setPaused(true);
@@ -323,11 +333,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
       </Pressable>}
       {(!onDoubleTap||progressMode==='expanded')&&
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
+        {!onDoubleTap&&<Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>-10</Text>
-        </Pressable>
+        </Pressable>}
         <View style={styles.seekMiddle}>
           <View style={styles.timeRow}>
             <Text style={styles.timeLabel}>{videoTime(displayMs)} / {videoTime(durationMs)}{scrubMs!==null?' · déplacer':''}</Text>
@@ -362,11 +372,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
             <View pointerEvents="none" style={[styles.seekThumb,{left:`${displayPercent}%` as `${number}%`}]}/>
           </View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
+        {!onDoubleTap&&<Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>+10</Text>
-        </Pressable>
+        </Pressable>}
       </View>}
       {Boolean(onDoubleTap)&&progressMode==='thin'&&
         <Pressable style={styles.reelThinTrack} accessibilityRole="button"
@@ -419,7 +429,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     </View>}
     <Modal visible={timeDialogOpen} transparent animationType="fade"
       onRequestClose={()=>setTimeDialogOpen(false)} statusBarTranslucent>
-      <KeyboardAvoidingView behavior="padding" style={styles.timeModalFull}>
+      <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={styles.timeModalFull}>
         <Pressable style={StyleSheet.absoluteFillObject}
           accessibilityRole="button" accessibilityLabel={en?'Close time entry':'Fermer la saisie du temps'}
           onPress={()=>setTimeDialogOpen(false)}/>
@@ -464,8 +474,10 @@ const styles=StyleSheet.create({
     minHeight:50,paddingHorizontal:8,borderRadius:16,
     backgroundColor:'rgba(0,0,0,.68)',flexDirection:'row',
     alignItems:'center',gap:10},
-  reelSeek:{bottom:80,left:16,right:16,backgroundColor:'rgba(0,0,0,.47)'},
-  reelThinTrack:{position:'absolute',left:18,right:18,bottom:91,height:12,
+  // Timeline sits below the tabs and ABOVE media; never over author/caption.
+  reelSeek:{top:119,bottom:undefined,left:15,right:15,
+    backgroundColor:'rgba(0,0,0,.76)'},
+  reelThinTrack:{position:'absolute',left:18,right:18,top:112,height:12,
     borderRadius:6,backgroundColor:'rgba(255,255,255,.18)',justifyContent:'center'},
   reelThinFill:{height:3,backgroundColor:'#53ede1',borderRadius:2},
   reelCenterControls:{position:'absolute',top:'43%',left:0,right:0,alignItems:'center',
@@ -477,7 +489,7 @@ const styles=StyleSheet.create({
   reelSkipLabel:{fontSize:17,fontWeight:'700',color:'#fff'},
   resumeBox:{position:'absolute',bottom:71,alignSelf:'center',flexDirection:'row',
     backgroundColor:'rgba(4,20,24,.9)',borderRadius:16,padding:4,alignItems:'center',gap:4},
-  resumeReel:{bottom:262},
+  resumeReel:{top:189,bottom:undefined},
   resumeButton:{minHeight:44,flexDirection:'row',alignItems:'center',paddingHorizontal:12,
     gap:7,backgroundColor:'#83e9de',borderRadius:12},
   resumeLabel:{fontSize:12,color:'#08312c',fontWeight:'800'},
