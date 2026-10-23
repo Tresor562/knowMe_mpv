@@ -15,6 +15,7 @@ import { useI18n } from '../../../components/i18n-provider';
 type Story = {
   id: string;
   type: string;
+  createdAt?: string;
   caption?: string | null;
   assetId?: string | null;
   linkUrl?: string | null;
@@ -39,8 +40,15 @@ type Story = {
 };
 
 type Feed = { stories: Story[]; nextCursor: string | null };
+type StoryViewer = {
+  viewerUserId: string; lastViewedAt: string; viewCount: number;
+  reaction?: {reaction:string;customEmojiId?:string|null}|null;
+  user?: {username:string;displayName:string;avatarUrl?:string|null}|null;
+};
+type StoryViewersPage = {uniqueViewers:number;viewers:StoryViewer[];nextCursor?:string|null};
 
 const REACTIONS = ['❤', '😂', '🔥', '👏', '😮', '💯'];
+const reactionGlyph=(value:string)=>({LIKE:'❤️',SPARK:'✨',LOVE:'❤️',FIRE:'🔥',WOW:'😮',HAHA:'😂'} as Record<string,string>)[value]??value;
 
 export default function StoryViewerPage() {
   const { locale } = useI18n();
@@ -55,7 +63,13 @@ export default function StoryViewerPage() {
   const [message, setMessage] = useState('');
   const [progress, setProgress] = useState(0);
   const [paused,setPaused] = useState(false);
-  const [mediaDurationMs,setMediaDurationMs] = useState(15000);
+  const [insightsOpen,setInsightsOpen] = useState(false);
+  const [optionsOpen,setOptionsOpen] = useState(false);
+  const [insights,setInsights] = useState<StoryViewersPage|null>(null);
+  const [insightsLoading,setInsightsLoading] = useState(false);
+  const [insightsError,setInsightsError] = useState('');
+  const [insightsMoreLoading,setInsightsMoreLoading] = useState(false);
+  const navigatedStories=useRef(0);
   const elapsedMs = useRef(0);
   const advancing = useRef(false);
   const pressTimer = useRef<number|null>(null);
@@ -75,7 +89,58 @@ export default function StoryViewerPage() {
         apiFetch<Feed>('/stories/feed')
       ]);
       setStory(current);
-      setSequence(feed.stories);
+      // Keep an author's stories next to each other and in publish order.
+      // No fake segments: only visible pages actually returned by the API.
+      const rows=[...feed.stories];
+      if(!rows.some(item=>item.id===current.id))rows.unshift(current);
+      // A 50-item global feed can omit older Stories from this same author.
+      // Read the authenticated per-author paginated series instead; preserve
+      // the ordinary feed as fallback when the endpoint is temporarily down.
+      const authorId=current.author?.id;
+      const username=current.author?.username;
+      if(authorId&&username){
+        try{
+          const authorStories:Story[]=[];
+          const seen=new Set<string>();
+          let cursor:string|null=null;
+          for(let page=0;page<15;page++){
+            const result:Feed=await apiFetch<Feed>(
+              '/stories/users/'+encodeURIComponent(username)+'/visible'+
+              (cursor?'?cursor='+encodeURIComponent(cursor):'')
+            );
+            if(!Array.isArray(result.stories))break;
+            for(const item of result.stories){
+              if(!seen.has(item.id)&&item.author?.id===authorId){
+                seen.add(item.id);authorStories.push(item);
+              }
+            }
+            if(!result.nextCursor||result.nextCursor===cursor)break;
+            cursor=result.nextCursor;
+          }
+          if(authorStories.length){
+            const rest=rows.filter(item=>item.author?.id!==authorId);
+            rows.splice(0,rows.length,...authorStories,...rest);
+            if(!seen.has(current.id))rows.unshift(current);
+          }
+        }catch{
+          // A stale API must not make the existing Story unwatchable.
+        }
+      }
+      const authors=[...new Set(rows.map(item=>item.author?.id??item.id))];
+      const ordered=authors.flatMap(authorId=>rows.filter(item=>
+        (item.author?.id??item.id)===authorId).reverse());
+      // Feed rail opens the author's chronological series. A direct link to
+      // an individual Story remains exact and never forces this redirect.
+      const firstFromRail=typeof window!=='undefined' &&
+        new URLSearchParams(window.location.search).get('sequence')==='start';
+      if(firstFromRail&&current.author?.id){
+        const first=ordered.find(item=>item.author?.id===current.author?.id);
+        if(first&&first.id!==current.id){
+          router.replace('/stories/'+encodeURIComponent(first.id));
+          return;
+        }
+      }
+      setSequence(ordered);
       await apiFetch(`/stories/${storyId}/view`, {
         method: 'POST',
         body: JSON.stringify({ completionBps: 0 })
@@ -87,7 +152,7 @@ export default function StoryViewerPage() {
     } finally {
       setLoading(false);
     }
-  }, [storyId, ui.unavailable]);
+  }, [storyId, ui.unavailable, router]);
 
   useEffect(() => {
     if (!sessionLoading && user) void load();
@@ -121,14 +186,21 @@ export default function StoryViewerPage() {
   const index = useMemo(() => sequence.findIndex((item) => item.id === storyId), [sequence, storyId]);
   const previousId = index > 0 ? sequence[index - 1]?.id : null;
   const nextId = index >= 0 && index < sequence.length - 1 ? sequence[index + 1]?.id : null;
+  const segments = sequence.filter(item=>(item.author?.id??item.id)===(story?.author?.id??story?.id));
+  const segmentIndex=Math.max(0,segments.findIndex(item=>item.id===storyId));
+  const leaveViewer=useCallback(()=>{
+    if(typeof window!=='undefined'&&window.history.length>navigatedStories.current+1){
+      window.history.go(-(navigatedStories.current+1));
+    }else router.replace('/feed');
+  },[router]);
 
   const goPrevious = useCallback(() => {
-    if (previousId) router.push(`/stories/${previousId}`);
+    if (previousId) {navigatedStories.current++;router.push(`/stories/${previousId}`);}
   }, [previousId, router]);
   const goNext = useCallback(() => {
-    if (nextId) router.push(`/stories/${nextId}`);
-    else router.push('/feed');
-  }, [nextId, router]);
+    if (nextId) {navigatedStories.current++;router.push(`/stories/${nextId}`);}
+    else leaveViewer();
+  }, [nextId, router, leaveViewer]);
 
   const completeAndAdvance = useCallback(() => {
     if (!story || advancing.current) return;
@@ -144,12 +216,14 @@ export default function StoryViewerPage() {
     elapsedMs.current = 0;
     setProgress(0);
     setPaused(false);
+    setInsightsOpen(false);
+    setOptionsOpen(false);
   }, [story?.id]);
 
   useEffect(() => {
-    if (!story || loading || mediaLoading || paused) return;
+    if (!story || loading || mediaLoading || paused || insightsOpen || story.type==='VIDEO') return;
     let lastTick = Date.now();
-    const duration = story.type === 'VIDEO' ? mediaDurationMs : 7000;
+    const duration = 5000;
     const timer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') { lastTick = Date.now(); return; }
       const now = Date.now();
@@ -163,7 +237,7 @@ export default function StoryViewerPage() {
       }
     }, 80);
     return () => window.clearInterval(timer);
-  }, [story?.id,loading,mediaLoading,paused,mediaDurationMs,completeAndAdvance]);
+  }, [story?.id,story?.type,loading,mediaLoading,paused,insightsOpen,completeAndAdvance]);
 
   function setPlaybackPaused(value:boolean) {
     setPaused(value);
@@ -193,11 +267,14 @@ export default function StoryViewerPage() {
     function keydown(event: KeyboardEvent) {
       if (event.key === 'ArrowLeft') goPrevious();
       if (event.key === 'ArrowRight') goNext();
-      if (event.key === 'Escape') router.push('/feed');
+      if (event.key === 'Escape') {
+        if(insightsOpen)setInsightsOpen(false);
+        else leaveViewer();
+      }
     }
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [goNext, goPrevious, router]);
+  }, [goNext, goPrevious, leaveViewer, insightsOpen]);
 
   function touchStart(x: number) {
     touchStartX.current = x;
@@ -212,6 +289,45 @@ export default function StoryViewerPage() {
     if (delta > 0) goPrevious();
     else goNext();
   }
+
+  useEffect(()=>{
+    if(!story?.viewer.own){setInsights(null);return;}
+    let live=true;
+    setInsightsLoading(true);
+    setInsightsError('');
+    void apiFetch<StoryViewersPage>('/stories/'+encodeURIComponent(story.id)+'/viewers')
+      .then(result=>{if(live)setInsights(result);})
+      .catch(()=>{if(live)setInsightsError(en?'Unable to load views.':'Impossible de charger les vues.');})
+      .finally(()=>{if(live)setInsightsLoading(false);});
+    return()=>{live=false;};
+  },[story?.id,story?.viewer.own,en]);
+
+  const loadMoreViewers=async()=>{
+    if(!story?.viewer.own||!insights?.nextCursor||insightsMoreLoading)return;
+    const cursor=insights.nextCursor;
+    setInsightsMoreLoading(true);
+    try{
+      const next=await apiFetch<StoryViewersPage>(
+        '/stories/'+encodeURIComponent(story.id)+'/viewers?cursor='+encodeURIComponent(cursor));
+      setInsights(current=>{
+        if(!current||current.nextCursor!==cursor)return current;
+        const known=new Set(current.viewers.map(viewer=>viewer.viewerUserId));
+        return {...next,viewers:[...current.viewers,
+          ...next.viewers.filter(person=>!known.has(person.viewerUserId))]};
+      });
+    }catch{setInsightsError(en?'Unable to load more viewers.':'Impossible de charger la suite.');}
+    finally{setInsightsMoreLoading(false);}
+  };
+
+  const relativeViewTime=(value:string)=>{
+    const diff=Math.max(0,Math.floor((Date.now()-Date.parse(value))/60000));
+    if(!Number.isFinite(diff))return '';
+    if(diff<1)return en?'Just now':'À l’instant';
+    if(diff<60)return en?`${diff} min ago`:`Il y a ${diff} min`;
+    const hours=Math.floor(diff/60);
+    if(hours<24)return en?`${hours} h ago`:`Il y a ${hours} h`;
+    return new Intl.DateTimeFormat(en?'en':'fr',{dateStyle:'medium'}).format(new Date(value));
+  };
 
   async function react(reaction: string) {
     if (!story) return;
@@ -280,19 +396,33 @@ export default function StoryViewerPage() {
         onTouchStart={(event) => touchStart(event.changedTouches[0]?.clientX ?? 0)}
         onTouchEnd={(event) => touchEnd(event.changedTouches[0]?.clientX ?? 0)}
         style={{ background: story.type === 'TEXT'
-          ? 'linear-gradient(145deg,#6d4aff,#177f87 55%,#10131c)' : '#10131c' }}
+          ? (typeof story.background?.color==='string'&&/^#[0-9a-fA-F]{6}$/.test(story.background.color)
+             ? story.background.color : 'linear-gradient(145deg,#6d4aff,#177f87 55%,#10131c)') : '#10131c' }}
       >
         {mediaUrl && story.type === 'PHOTO' && <img src={mediaUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#050609' }} />}
-        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline onLoadedMetadata={event=>{const seconds=event.currentTarget.duration;if(Number.isFinite(seconds))setMediaDurationMs(Math.min(300000,Math.max(1000,seconds*1000)));}} onEnded={completeAndAdvance} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#050609' }} />}
+        {mediaUrl && story.type === 'VIDEO' && <video ref={videoRef} src={mediaUrl} autoPlay muted playsInline
+          onTimeUpdate={event=>{
+            const video=event.currentTarget;
+            if(Number.isFinite(video.duration)&&video.duration>0){
+              setProgress(Math.max(0,Math.min(1,video.currentTime/video.duration)));
+            }
+          }}
+          onEnded={completeAndAdvance}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#050609' }} />}
 
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 2, background: story.type === 'TEXT' ? 'transparent' : 'linear-gradient(rgba(0,0,0,.22), transparent 35%, rgba(0,0,0,.45))' }}>
-          <div style={{ display: 'flex', gap: 5, padding: '12px 12px 0' }}>
-            <div style={{ height: 3, borderRadius: 4, background: 'rgba(255,255,255,.28)', flex: 1, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.round(progress * 100)}%`, background: '#fff', transition: 'width 80ms linear' }} />
-            </div>
+          <div className="km-story-progress-segments" role="group"
+            aria-label={en?`${segments.length} stories in this status`:`${segments.length} stories dans ce statut`}>
+            {segments.map((segment,i)=><div className="km-story-progress-track" key={segment.id}>
+              <div className="km-story-progress-value" style={{
+                width: `${i<segmentIndex?100:i>segmentIndex?0:Math.round(progress*100)}%`
+              }}/>
+            </div>)}
           </div>
 
-          <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
+          <header className="km-story-status-header" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, color: '#fff' }}>
+            <button type="button" aria-label={en?'Back':'Retour'} onClick={leaveViewer}
+              className="km-story-header-back">‹</button>
             {story.author?.username ? (
               <Link href={`/profile/${encodeURIComponent(story.author.username)}`}
                 aria-label={`Voir le profil de ${story.author.displayName}`}
@@ -302,18 +432,32 @@ export default function StoryViewerPage() {
                 </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <strong style={{display:'inline-flex',alignItems:'center',gap:5}}>{story.author.displayName}<AccountBadges username={story.author.username} verification={story.author.verification} compact/></strong>
-                  <div style={{ fontSize: 12, opacity: .75 }}>@{story.author.username}</div>
+                  <div style={{ fontSize: 12, opacity: .75 }}>
+                    {story.createdAt?relativeViewTime(story.createdAt):'@'+story.author.username}
+                  </div>
                 </div>
               </Link>
             ) : <strong>KnowMe</strong>}
             {story.locationLabel && <small style={{ opacity: .8 }}>{story.locationLabel}</small>}
-            <button type="button" className="km-story-pause" aria-label={paused?(en?'Resume story':'Reprendre la story'):(en?'Pause story':'Mettre la story en pause')}
-              onClick={()=>setPlaybackPaused(!paused)}>
-              {paused?<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m7 4 14 8-14 8z"/></svg>
-                :<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>}
-            </button>
-            <Link href="/feed" className="km-story-viewer-close" aria-label={ui.close}>×</Link>
+            <button type="button" className="km-story-header-menu-trigger"
+              aria-expanded={optionsOpen} aria-label={en?'Story options':'Options de la story'}
+              onClick={()=>setOptionsOpen(value=>!value)}>⋮</button>
           </header>
+          {optionsOpen&&<div className="km-story-header-menu" role="group"
+            aria-label={en?'Story options':'Options de la story'}>
+            <button type="button" onClick={()=>{setOptionsOpen(false);setPlaybackPaused(!paused);}}>
+              {paused?(en?'Resume':'Reprendre'):(en?'Pause':'Pause')}
+            </button>
+            {story.viewer.own&&<button type="button" onClick={()=>{
+              setOptionsOpen(false);setInsightsOpen(true);videoRef.current?.pause();
+            }}>{en?'Viewers':'Spectateurs'}</button>}
+            {story.allowSharing&&<button type="button" onClick={()=>{
+              setOptionsOpen(false);
+              void navigator.clipboard.writeText(buildKnowMePublicLink({kind:'story',id:story.id}))
+                .catch(()=>setMessage(en?'Copy unavailable':'Copie indisponible'));
+            }}>{en?'Copy story link':'Copier le lien'}</button>}
+            <button type="button" onClick={leaveViewer}>{en?'Close':'Fermer'}</button>
+          </div>}
 
           <div style={{ flex: 1, position: 'relative', display: 'grid', placeItems: 'center', padding: 28, color: '#fff' }}>
             {mediaLoading && <div style={{ width: 46, height: 46, border: '3px solid rgba(255,255,255,.25)', borderTopColor: '#fff', borderRadius: '50%' }} />}
@@ -369,7 +513,11 @@ export default function StoryViewerPage() {
 
             {story.viewer.own && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <Link className="btn" href={`/stories/${story.id}/viewers`}>{ui.views} · {story.metrics.reactions} {ui.reactions} · {story.metrics.replies} {ui.replies}</Link>
+                <button className="km-story-owner-views" type="button" onClick={()=>{
+                  setInsightsOpen(true);videoRef.current?.pause();
+                }} aria-label={en?'Show story viewers':'Voir les spectateurs de la story'}>
+                  <span aria-hidden="true">◉</span> {insights?.uniqueViewers??(insightsLoading?'…':'0')}
+                </button>
                 <button className="btn" onClick={() => void ownerAction(story.pinnedAt ? 'unpin' : 'pin')}>{story.pinnedAt ? ui.unpin : ui.pin}</button>
                 <button className="btn" onClick={() => void ownerAction('archive')}>{ui.archive}</button>
                 <button className="btn" onClick={() => void ownerAction('delete')}>{ui.delete}</button>
@@ -384,6 +532,42 @@ export default function StoryViewerPage() {
             )}
             {message && <small role="alert" style={{ display: 'block', color: '#ffb095', marginTop: 8 }}>{message}</small>}
           </footer>
+          {insightsOpen&&story.viewer.own&&<div className="km-story-viewers-overlay">
+            <button className="km-story-viewers-scrim" aria-label={ui.close} type="button"
+              onClick={()=>{setInsightsOpen(false);if(!paused)void videoRef.current?.play().catch(()=>undefined);}}/>
+            <section className="km-story-viewers-sheet" role="dialog" aria-modal="true"
+              aria-label={en?'Story viewers':'Spectateurs de la story'}>
+              <header>
+                <strong>{en?'Viewed by ':'Vu par '}{insights?.uniqueViewers??0}</strong>
+                <button type="button" aria-label={ui.close}
+                  onClick={()=>{setInsightsOpen(false);if(!paused)void videoRef.current?.play().catch(()=>undefined);}}>×</button>
+              </header>
+              {insightsError&&<p role="alert">{insightsError}</p>}
+              {insightsLoading&&<p>{ui.loading}</p>}
+              {!insightsLoading&&!insights?.viewers.length&&
+                <p className="km-story-viewers-empty">{en?'No views yet':'Aucune vue pour le moment'}</p>}
+              <ul className="km-story-viewers-list">
+                {insights?.viewers.map(person=><li key={person.viewerUserId}>
+                  {person.user?.username?<Link href={'/profile/'+encodeURIComponent(person.user.username)}
+                    className="km-story-viewer-person">
+                    {person.user.avatarUrl?<img src={person.user.avatarUrl} alt="" />:
+                    <span>{person.user.displayName?.charAt(0)??'?'}</span>}
+                    <span className="km-story-viewer-person-name">
+                      <strong>{person.user.displayName}</strong>
+                      <small>{relativeViewTime(person.lastViewedAt)}</small>
+                    </span>
+                    {person.reaction?.reaction&&<span className="km-story-viewer-person-reaction">
+                      {reactionGlyph(person.reaction.reaction)}
+                    </span>}
+                  </Link>:<span>{en?'Unavailable account':'Compte indisponible'}</span>}
+                </li>)}
+              </ul>
+              {insights?.nextCursor&&<button type="button" onClick={()=>void loadMoreViewers()}
+                disabled={insightsMoreLoading} className="km-story-viewer-more">
+                {insightsMoreLoading?(en?'Loading…':'Chargement…'):(en?'Show more':'Afficher plus')}
+              </button>}
+            </section>
+          </div>}
         </div>
       </section>
     </main>

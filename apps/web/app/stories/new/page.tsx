@@ -7,6 +7,7 @@ import { useI18n } from '../../../components/i18n-provider';
 import { apiFetch } from '../../../lib/api';
 import { useSession } from '../../../lib/use-session';
 import { storyUi } from '../story-i18n';
+import './story-audience.css';
 
 type StoryResponse = { id: string };
 type UploadSession = { id: string; uploadToken: string };
@@ -17,6 +18,8 @@ const PHOTO_MIMES = ['image/jpeg','image/png','image/webp','image/gif'];
 const VIDEO_MIMES = ['video/mp4'];
 const MAX_STORY_BYTES = 20 * 1024 * 1024;
 const DURATIONS = [6,12,24,48,72,168,336,720] as const;
+const STORY_COLORS = ['#243c78','#5e317e','#784958','#176965','#a55337','#40566b','#4e477f','#73345b'] as const;
+type AudienceCandidate = {id:string;username:string;displayName:string;avatarUrl?:string|null};
 
 export default function NewStoryPage() {
   const { locale } = useI18n();
@@ -38,11 +41,44 @@ export default function NewStoryPage() {
   const [message,setMessage] = useState('');
   const [file,setFile] = useState<File|null>(null);
   const [previewUrl,setPreviewUrl] = useState<string|null>(null);
+  const [colorIndex,setColorIndex]=useState(0);
+  const [excludeQuery,setExcludeQuery]=useState('');
+  const [excludedAccounts,setExcludedAccounts]=useState<AudienceCandidate[]>([]);
+  const [audienceCandidates,setAudienceCandidates]=useState<AudienceCandidate[]>([]);
+  const [searchFailed,setSearchFailed]=useState(false);
   const premium = Boolean(user?.premium);
 
   useEffect(() => {
     return () => { if(previewUrl) URL.revokeObjectURL(previewUrl); };
   },[previewUrl]);
+
+  useEffect(()=>setColorIndex(Math.floor(Math.random()*STORY_COLORS.length)),[]);
+
+  useEffect(()=>{
+    const query=excludeQuery.trim();
+    if(audience==='PRIVATE'||query.length<2){
+      setAudienceCandidates([]);
+      setSearchFailed(false);
+      return;
+    }
+    let alive=true;
+    const timeout=window.setTimeout(()=>{
+      void apiFetch<{users:AudienceCandidate[]}>(
+        '/stories/audience/candidates?q='+encodeURIComponent(query))
+        .then(result=>{
+          if(alive){setAudienceCandidates(Array.isArray(result.users)?result.users:[]);setSearchFailed(false);}
+        }).catch(()=>{
+          if(alive){setAudienceCandidates([]);setSearchFailed(true);}
+        });
+    },300);
+    return()=>{alive=false;window.clearTimeout(timeout);};
+  },[excludeQuery,audience]);
+
+  const toggleExclusion=(person:AudienceCandidate)=>{
+    setExcludedAccounts(current=>current.some(entry=>entry.id===person.id)
+      ?current.filter(entry=>entry.id!==person.id)
+      :current.length>=200?current:[...current,person]);
+  };
 
   function chooseType(next:StoryKind) {
     setMessage('');
@@ -104,11 +140,12 @@ export default function NewStoryPage() {
         method:'POST',
         body:JSON.stringify({
           type, audience,caption:caption||undefined,assetId,
+          excludeUserIds:audience==='PRIVATE'?[]:excludedAccounts.map(person=>person.id),
           linkUrl:type==='LINK'?linkUrl:undefined,
           hashtags,
           durationHours:permanent?undefined:durationHours,
           permanent, allowReplies,allowReactions,allowSharing,
-          background:type==='TEXT'?{preset:'knowme-gradient',alignment:'center'}:undefined
+          background:type==='TEXT'?{preset:'solid',color:STORY_COLORS[colorIndex]}:undefined
         })
       });
       router.replace(`/stories/${story.id}`);
@@ -155,7 +192,14 @@ export default function NewStoryPage() {
           <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><span>{en?'Video':'Vidéo'}</span>
         </button>
       </div>
-      <section className={`km-story-canvas km-story-canvas-${type.toLowerCase()}`} aria-label={en?'Story preview':'Aperçu de la story'}>
+      <section className={`km-story-canvas km-story-canvas-${type.toLowerCase()}`}
+        aria-label={en?'Story preview':'Aperçu de la story'}
+        style={type==='TEXT'?{background:STORY_COLORS[colorIndex]}:undefined}>
+        {type==='TEXT'&&<button type="button" className="km-story-color-dot"
+          aria-label={en?'Change story background color':'Changer la couleur de fond de la story'}
+          title={en?'Change color':'Changer la couleur'}
+          onClick={()=>setColorIndex((colorIndex+1)%STORY_COLORS.length)}
+          style={{background:STORY_COLORS[(colorIndex+1)%STORY_COLORS.length]}}/>}
         {previewUrl&&type==='PHOTO'&&<img src={previewUrl} className="km-story-preview-image" alt=""/>}
         {previewUrl&&type==='VIDEO'&&<video controls playsInline muted src={previewUrl} className="km-story-preview-image"/>}
         {(type==='PHOTO'||type==='VIDEO')&&<button type="button" className="km-story-change-media"
@@ -171,6 +215,31 @@ export default function NewStoryPage() {
         <select id="km-story-audience" value={audience} onChange={e=>setAudience(e.target.value)}>
           {audiences.map(([value,label])=><option key={value} value={value}>{label}</option>)}
         </select>
+        {audience!=='PRIVATE'&&<div className="km-story-exclusions">
+          <label htmlFor="km-story-exclude-search">
+            {en?'Hide this story from people':'Exclure des personnes de cette story'}
+          </label>
+          <p>{en?'Excluded people will not see it, even from a direct link.':
+            'Les personnes exclues ne pourront pas la voir, même avec un lien direct.'}</p>
+          <input id="km-story-exclude-search" type="search" autoComplete="off"
+            value={excludeQuery} onChange={event=>setExcludeQuery(event.target.value)}
+            placeholder={en?'Search name or @username':'Rechercher un nom ou @pseudo'}/>
+          {excludedAccounts.length>0&&<div className="km-story-exclusion-people" aria-label={en?'Excluded users':'Utilisateurs exclus'}>
+            {excludedAccounts.map(person=><button type="button" key={person.id}
+              onClick={()=>toggleExclusion(person)}
+              aria-label={(en?'Remove exclusion for ':'Retirer l’exclusion de ')+person.displayName}>
+              {person.displayName} ×
+            </button>)}
+          </div>}
+          {searchFailed&&<p role="alert">{en?'Search unavailable':'Recherche indisponible'}</p>}
+          {excludeQuery.trim().length>=2&&<div className="km-story-exclusion-results">
+            {audienceCandidates.map(person=><label key={person.id}>
+              <input type="checkbox" checked={excludedAccounts.some(x=>x.id===person.id)}
+                onChange={()=>toggleExclusion(person)}/>
+              <span>{person.displayName} · @{person.username}</span>
+            </label>)}
+          </div>}
+        </div>}
         <label htmlFor="km-story-duration">{ui.duration}</label>
         <select id="km-story-duration" value={permanent?'PERMANENT':String(durationHours)}
           onChange={e=>{setPermanent(e.target.value==='PERMANENT');if(e.target.value!=='PERMANENT')setDurationHours(Number(e.target.value));}}>
