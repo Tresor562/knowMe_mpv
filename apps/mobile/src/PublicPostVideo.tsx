@@ -24,6 +24,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
   const [ended,setEnded]=useState(false);
+  const endedRef=useRef(false);
   const [error,setError]=useState('');
   const [positionMs,setPositionMs]=useState(0);
   const [durationMs,setDurationMs]=useState(0);
@@ -143,6 +144,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setError('');
     setPaused(false);
     setEnded(false);
+    endedRef.current=false;
     setPositionMs(0);
     setDurationMs(0);
     setSeekToMs(undefined);
@@ -232,6 +234,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setSeekToMs(bounded);
     setPositionMs(bounded);
     setEnded(false);
+    endedRef.current=false;
     setResumeMs(null);
     playback.current.positionMs=bounded;
     if(playback.current.durationMs>0)void savePublicVideoResume(url,bounded,playback.current.durationMs).catch(()=>undefined);
@@ -279,6 +282,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
           // The last 250ms avoids seeking to the EOS sentinel frame.
           setSeekToMs(Math.max(0,completedDuration-250));
           setPositionMs(completedDuration);
+          endedRef.current=true;
           setEnded(true);
           setPaused(true);
           setResumeMs(null);
@@ -287,7 +291,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
         }}
         seekToMs={seekToMs}
         onProgress={event=>{
-          if(preloadPaused&&!autoPlay)return; // No timeline writes from a passive buffer.
+          if(preloadPaused&&!autoPlay||endedRef.current)return; // No timeline writes from a passive buffer.
           const duration=event.nativeEvent.durationMs;
           const position=event.nativeEvent.positionMs;
           if(Number.isFinite(duration)&&duration>0)setDurationMs(duration);
