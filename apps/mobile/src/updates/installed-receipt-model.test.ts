@@ -2,32 +2,36 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import {
   installedUpdateNoticeStorageKey,
-  shouldHideInstalledUpdateNotice
+  shouldAutoAcknowledgeInstalledUpdate,
+  shouldDisplayBackgroundUpdateStatus
 } from './installed-receipt-model.ts';
 
-test('Android installed receipt closes immediately after tapping Continue', async () => {
-  let storageCalled = false;
-  assert.equal(await shouldHideInstalledUpdateNotice(11654, 11654, async () => {
-    storageCalled = true;
-    throw new Error('storage unavailable');
-  }), true);
-  assert.equal(storageCalled, false, 'in-memory dismissal is synchronous');
+test('successful Android updates never display the confirmation overlay', () => {
+  assert.equal(shouldDisplayBackgroundUpdateStatus('installed', 0), false);
+  assert.equal(shouldDisplayBackgroundUpdateStatus('installed', 11654), false);
+  assert.equal(shouldDisplayBackgroundUpdateStatus('none', 0), false);
 });
 
-test('verified update notice stays dismissed after app relaunch', async () => {
-  const stored = new Map([[installedUpdateNoticeStorageKey(11654), '1']]);
-  assert.equal(await shouldHideInstalledUpdateNotice(11654, 0,
-    async (key) => stored.get(key) ?? null), true);
-  assert.equal(await shouldHideInstalledUpdateNotice(11655, 0,
-    async (key) => stored.get(key) ?? null), false,
-  'a new installed version must show its own notice');
+test('downloads and installation retries still show their nonblocking status', () => {
+  assert.equal(shouldDisplayBackgroundUpdateStatus('downloading', 0), true);
+  assert.equal(shouldDisplayBackgroundUpdateStatus('ready', 0), true);
+  assert.equal(shouldDisplayBackgroundUpdateStatus('failed', 0), true);
+  assert.equal(shouldDisplayBackgroundUpdateStatus('ready', 11655), false);
 });
 
-test('failed or absent storage reads do not invent a prior acknowledgement', async () => {
-  assert.equal(await shouldHideInstalledUpdateNotice(11654, 0,
-    async () => null), false);
-  assert.equal(await shouldHideInstalledUpdateNotice(11654, 0,
-    async () => { throw new Error('storage offline'); }), false);
-  assert.equal(await shouldHideInstalledUpdateNotice(-1, -1,
-    async () => '1'), false);
+test('verified installed version is acknowledged once per mounted session', () => {
+  assert.equal(shouldAutoAcknowledgeInstalledUpdate(11654, 0), true);
+  assert.equal(shouldAutoAcknowledgeInstalledUpdate(11654, 11654), false);
+  assert.equal(shouldAutoAcknowledgeInstalledUpdate(11655, 11654), true);
+});
+
+test('invalid Android update versions are never acknowledged', () => {
+  for (const value of [-1, 0, Number.NaN, Number.POSITIVE_INFINITY, 1.25]) {
+    assert.equal(shouldAutoAcknowledgeInstalledUpdate(value, 0), false);
+  }
+});
+
+test('legacy receipt storage key remains stable for compatibility', () => {
+  assert.equal(installedUpdateNoticeStorageKey(11654),
+    'knowme.android.installed-update-dismissed.v1.11654');
 });
