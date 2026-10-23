@@ -18,7 +18,8 @@ import { useAppearance } from '../AppearanceProvider';
 import { useI18n } from '../I18nProvider';
 import {
   installedUpdateNoticeStorageKey,
-  shouldAutoAcknowledgeInstalledUpdate
+  shouldAutoAcknowledgeInstalledUpdate,
+  shouldDisplayBackgroundUpdateStatus
 } from './installed-receipt-model';
 
 type BackgroundUpdateStatus = {
@@ -385,8 +386,8 @@ export function MobileUpdateNotice() {
     }
   };
 
-  if (!readyVersion && backgroundStatus &&
-      backgroundStatus.status !== 'none' && backgroundStatus.status !== 'installed') {
+  if (backgroundStatus &&
+      shouldDisplayBackgroundUpdateStatus(backgroundStatus.status, readyVersion)) {
     const status = backgroundStatus;
     const downloading = status.status === 'downloading';
     const ready = status.status === 'ready';
