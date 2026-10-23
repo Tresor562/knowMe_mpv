@@ -18,7 +18,7 @@ import { useAppearance } from '../AppearanceProvider';
 import { useI18n } from '../I18nProvider';
 import {
   installedUpdateNoticeStorageKey,
-  shouldHideInstalledUpdateNotice
+  shouldAutoAcknowledgeInstalledUpdate
 } from './installed-receipt-model';
 
 type BackgroundUpdateStatus = {
@@ -93,7 +93,7 @@ export function MobileUpdateNotice() {
   const downloaded = useRef<{ uri: string; versionCode: number } | null>(null);
   const dismissedVersion = useRef(0);
   const dismissedReadyVersion = useRef(0);
-  const dismissedInstalledVersion = useRef(0);
+  const autoAcknowledgedInstalledVersion = useRef(0);
   const lastCheckAt = useRef(0);
   const requestInProgress = useRef(false);
 
@@ -106,25 +106,30 @@ export function MobileUpdateNotice() {
     // and is always verified by the native installer.
     void installer.startUpdateWatcher?.().catch(() => undefined);
 
-    // Persisted per-version receipt lets users reach KnowMe even when an APK
-    // has an older/missing native acknowledgement method. Polling must not
-    // reopen a receipt that the user has already dismissed.
-    const isInstalledNoticeHidden = async (status: BackgroundUpdateStatus) => {
+    // Android has already verified the newly installed version. Never show
+    // a blocking success modal: acknowledge and clean up in the background.
+    // Guard duplicate foreground/poll events while remaining independent of
+    // storage or native cleanup failures.
+    const hideAndAcknowledgeInstalled = (status: BackgroundUpdateStatus) => {
       if (status.status !== 'installed') return false;
-      const hidden = await shouldHideInstalledUpdateNotice(
-        status.versionCode, dismissedInstalledVersion.current,
-        (key) => AsyncStorage.getItem(key)
-      );
-      if (hidden) dismissedInstalledVersion.current = status.versionCode;
-      // The user may have dismissed it while the persisted read was in flight.
-      return dismissedInstalledVersion.current === status.versionCode;
+      if (shouldAutoAcknowledgeInstalledUpdate(
+        status.versionCode, autoAcknowledgedInstalledVersion.current
+      )) {
+        autoAcknowledgedInstalledVersion.current = status.versionCode;
+        void AsyncStorage.setItem(installedUpdateNoticeStorageKey(status.versionCode), '1')
+          .catch(() => undefined);
+        if (installer.acknowledgeInstalledUpdate) {
+          void installer.acknowledgeInstalledUpdate().catch(() => undefined);
+        }
+      }
+      return true;
     };
 
     const refreshBackground = async () => {
       try {
         const status = await installer.getBackgroundUpdateStatus?.();
         if (!active || !status) return;
-        const hidden = await isInstalledNoticeHidden(status);
+        const hidden = hideAndAcknowledgeInstalled(status);
         if (!active) return;
         setBackgroundStatus(status.status === 'none' || hidden ? null : status);
         if (status.status === 'ready' &&
@@ -157,7 +162,7 @@ export function MobileUpdateNotice() {
           installer.getBackgroundUpdateStatus?.().catch(() => null) ?? Promise.resolve(null)
         ]);
         if (!active) return 'unavailable';
-        const hidden = background ? await isInstalledNoticeHidden(background) : false;
+        const hidden = background ? hideAndAcknowledgeInstalled(background) : false;
         if (!active) return 'unavailable';
         if (background && background.status !== 'none') {
           setBackgroundStatus(hidden ? null : background);
@@ -380,87 +385,34 @@ export function MobileUpdateNotice() {
     }
   };
 
-  const acknowledgeInstalled = () => {
-    if (backgroundStatus?.status !== 'installed') return;
-    // The native status has already verified this version through Android.
-    // Dismiss immediately: optional cleanup must never hold the app hostage.
-    const version = backgroundStatus.versionCode;
-    dismissedInstalledVersion.current = version;
-    setBackgroundStatus(null);
-    void AsyncStorage.setItem(installedUpdateNoticeStorageKey(version), '1')
-      .catch(() => undefined);
-    if (installer?.acknowledgeInstalledUpdate) {
-      void installer.acknowledgeInstalledUpdate().catch(() => undefined);
-    }
-  };
-
-  // Do not claim success when the transfer ends or the installer opens.
-  // This receipt appears only when Android reports the installed version.
-  if (backgroundStatus?.status === 'installed') {
-    return (
-      <Modal visible transparent animationType="fade" statusBarTranslucent
-        onRequestClose={() => void acknowledgeInstalled()}>
-        <View style={styles.scrim}>
-          <View style={[styles.sheet, {
-            backgroundColor: colors.surface, borderColor: colors.border
-          }]}>
-            <Text style={[styles.eyebrow, { color: colors.accent }]}>
-              KNOWME · {en ? 'UPDATE' : 'MISE À JOUR'}
-            </Text>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {en ? 'Update successfully installed!' : 'Mise à jour installée !'}
-            </Text>
-            <Text style={[styles.details, { color: colors.muted }]}>
-              {en
-                ? `KnowMe version code ${backgroundStatus.versionCode} is now installed on this device.`
-                : `La version ${backgroundStatus.versionCode} de KnowMe est maintenant installée sur cet appareil.`}
-            </Text>
-            <Pressable accessibilityRole="button"
-              onPress={() => void acknowledgeInstalled()}
-              style={[styles.primary, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.primaryText, { color: colors.accentText }]}>
-                {en ? 'Continue' : 'Continuer'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-
-  if (!readyVersion && backgroundStatus && backgroundStatus.status !== 'none') {
+  if (!readyVersion && backgroundStatus &&
+      backgroundStatus.status !== 'none' && backgroundStatus.status !== 'installed') {
     const status = backgroundStatus;
     const downloading = status.status === 'downloading';
     const ready = status.status === 'ready';
     const failed = status.status === 'failed';
-    const installed = status.status === 'installed';
     const total = status.totalBytes ?? -1;
     const transferred = Math.max(0, status.bytesDownloaded ?? 0);
     const knownProgress = downloading && Number.isFinite(total) && total > 0;
     const percent = knownProgress
       ? Math.min(99, Math.floor(transferred / total * 100)) : null;
-    const title = installed
-      ? (en ? 'KnowMe updated' : 'KnowMe est à jour')
-      : ready
-        ? (status.installationRequested
-          ? (en ? 'Finish installation in Android' : 'Confirme l’installation dans Android')
-          : (en ? 'Download complete' : 'Téléchargement terminé'))
-        : failed
-          ? (en ? 'Update download failed' : 'Échec du téléchargement')
-          : (en ? 'Downloading KnowMe update' : 'Téléchargement de KnowMe');
-    const subtitle = installed
-      ? (en ? 'The new version is installed and verified.'
-        : 'La nouvelle version est réellement installée et vérifiée.')
-      : ready
-        ? (en ? 'Your APK is ready. Android must authorize its installation.'
-          : 'L’APK est prête. Android doit autoriser son installation.')
-        : failed
-          ? (en ? 'Your current version remains usable. Retry when ready.'
-            : 'Ta version actuelle reste utilisable. Tu peux réessayer.')
-          : percent !== null
-            ? `${percent} % · ${(transferred / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} Mo`
-            : (en ? 'Download running in the background (size unavailable).'
-              : 'Téléchargement en arrière-plan (taille inconnue).');
+    const title = ready
+      ? (status.installationRequested
+        ? (en ? 'Finish installation in Android' : 'Confirme l’installation dans Android')
+        : (en ? 'Download complete' : 'Téléchargement terminé'))
+      : failed
+        ? (en ? 'Update download failed' : 'Échec du téléchargement')
+        : (en ? 'Downloading KnowMe update' : 'Téléchargement de KnowMe');
+    const subtitle = ready
+      ? (en ? 'Your APK is ready. Android must authorize its installation.'
+        : 'L’APK est prête. Android doit autoriser son installation.')
+      : failed
+        ? (en ? 'Your current version remains usable. Retry when ready.'
+          : 'Ta version actuelle reste utilisable. Tu peux réessayer.')
+        : percent !== null
+          ? `${percent} % · ${(transferred / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} Mo`
+          : (en ? 'Download running in the background (size unavailable).'
+            : 'Téléchargement en arrière-plan (taille inconnue).');
     return (
       <View pointerEvents="box-none" style={styles.statusOverlay}>
         <View accessibilityLiveRegion="polite"
@@ -476,16 +428,14 @@ export function MobileUpdateNotice() {
               }]} />
             </View>
           )}
-          {(ready || failed || installed) && (
+          {(ready || failed) && (
             <Pressable accessibilityRole="button" disabled={installing}
-              onPress={ready ? () => void installReady()
-                : failed ? () => void retryBackground() : () => void acknowledgeInstalled()}
+              onPress={ready ? () => void installReady() : () => void retryBackground()}
               style={[styles.statusAction, { backgroundColor: colors.accent }]}>
               <Text style={[styles.statusActionText, { color: colors.accentText }]}>
                 {installing ? (en ? 'Please wait…' : 'Patiente…')
                   : ready ? (en ? 'Install / resume' : 'Installer / reprendre')
-                    : failed ? (en ? 'Retry download' : 'Réessayer')
-                      : (en ? 'Close' : 'Fermer')}
+                    : (en ? 'Retry download' : 'Réessayer')}
               </Text>
             </Pressable>
           )}
