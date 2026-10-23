@@ -25,7 +25,7 @@ test('owner group is first, duplicates are removed and text colors cannot use ar
 test('the rail DTO cannot erase the creation date from the full feed', () => {
   const full={id:'story-1',author:{id:'self'},createdAt:'2026-10-23T12:00:00.000Z'};
   const rail={id:'story-1',author:{id:'self'}};
-  const combined=storySequence([full],['self'],rail);
+  const combined=storySequence<{id:string;author:{id:string};createdAt?:string}>([full],['self'],rail);
   assert.equal(combined.length,1);
   assert.equal(combined[0]?.createdAt,full.createdAt);
   assert.equal(storyAgeLabel(combined[0]?.createdAt,Date.parse('2026-10-23T15:00:00Z')),'Il y a 3 h');
