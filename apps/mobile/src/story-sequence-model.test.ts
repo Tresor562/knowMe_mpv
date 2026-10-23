@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-import { storySequence, storySegments, storyStep, storyTextColor, storyAgeLabel, STORY_TEXT_COLORS } from './story-sequence-model';
+import { storySequence, storySegments, storyStep, storyTextColor, storyAgeLabel, STORY_TEXT_COLORS } from './story-sequence-model.ts';
 
 test('multiple stories split into equal per-author segments and do not leak another author into the rail', () => {
   const a = [
