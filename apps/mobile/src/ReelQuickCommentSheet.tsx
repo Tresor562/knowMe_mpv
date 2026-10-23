@@ -1,12 +1,13 @@
-import {useRef,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {
-  ActivityIndicator,KeyboardAvoidingView,Modal,Platform,Pressable,StyleSheet,
+  ActivityIndicator,Keyboard,KeyboardAvoidingView,Modal,Platform,Pressable,ScrollView,StyleSheet,
   Text,TextInput,View
 } from 'react-native';
 import {apiFetch} from './api';
 import {Avatar,KnowMeIcon} from './ui/KnowMeUI';
 
 const EMOJI_CHOICES=['😂','❤️','🔥','😍','🥰','👏','😮','😭','💯','👍','✨','🎉'];
+type CommentPreview={id:string;content:string;author?:{displayName?:string|null;username?:string|null}};
 
 /**
  * An actual post comment composer, not a decorative field.
@@ -21,9 +22,27 @@ export function ReelQuickCommentSheet({postId,en,viewer,onClose,onSent,onViewCom
   const [emojisOpen,setEmojisOpen]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [keyboardVisible,setKeyboardVisible]=useState(false);
+  const [comments,setComments]=useState<CommentPreview[]>([]);
+  const [loadingComments,setLoadingComments]=useState(true);
   const sending=useRef(false);
   const input=useRef<TextInput|null>(null);
   const valid=text.trim().length>0&&text.trim().length<=500;
+
+  useEffect(()=>{
+    const shown=Keyboard.addListener('keyboardDidShow',()=>setKeyboardVisible(true));
+    const hidden=Keyboard.addListener('keyboardDidHide',()=>setKeyboardVisible(false));
+    return()=>{shown.remove();hidden.remove();};
+  },[]);
+
+  useEffect(()=>{
+    let live=true;
+    void apiFetch<CommentPreview[]>('/posts/'+encodeURIComponent(postId)+'/comments?roots=true')
+      .then(rows=>{if(live)setComments(Array.isArray(rows)?rows.slice(0,3):[]);})
+      .catch(()=>{if(live)setComments([]);})
+      .finally(()=>{if(live)setLoadingComments(false);});
+    return()=>{live=false;};
+  },[postId]);
   function insert(value:string){
     setText(current=>current+value);
     input.current?.focus();
@@ -66,9 +85,27 @@ export function ReelQuickCommentSheet({postId,en,viewer,onClose,onSent,onViewCom
             <KnowMeIcon name="close" color="#fff" size={23}/>
           </Pressable>
         </View>
+        {!keyboardVisible&&(loadingComments||comments.length>0)&&
+          <View style={styles.previewSection}>
+            <Text style={styles.previewHeading}>
+              {en?'Recent comments':'Commentaires récents'}
+            </Text>
+            {loadingComments?<ActivityIndicator color="#82e9dc"/>:
+              <ScrollView style={styles.previewList} nestedScrollEnabled
+                keyboardShouldPersistTaps="handled">
+                {comments.map(comment=><Pressable key={comment.id}
+                  accessibilityRole="button" onPress={onViewComments}
+                  style={styles.previewComment}>
+                  <Text style={styles.previewAuthor}>
+                    {comment.author?.displayName??comment.author?.username??'KnowMe'}
+                  </Text>
+                  <Text style={styles.previewBody} numberOfLines={2}>{comment.content}</Text>
+                </Pressable>)}
+              </ScrollView>}
+          </View>}
         <View style={styles.editor}>
           <Avatar name={viewer.name} uri={viewer.avatarUrl} size={36}/>
-          <TextInput ref={input} autoFocus multiline maxLength={500}
+          <TextInput ref={input} multiline maxLength={500}
             style={styles.input} value={text} onChangeText={setText}
             editable={!busy} autoCorrect
             placeholder={en?'Write a comment…':'Écris un commentaire…'}
@@ -121,18 +158,18 @@ const styles=StyleSheet.create({
   root:{flex:1,justifyContent:'flex-end'},
   scrim:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(0,0,0,.6)'},
   sheet:{backgroundColor:'#1c242b',borderTopLeftRadius:25,borderTopRightRadius:25,
-    paddingHorizontal:16,paddingTop:11,paddingBottom:24,gap:12,maxHeight:'72%'},
+    paddingHorizontal:16,paddingTop:10,paddingBottom:14,gap:9,maxHeight:'76%'},
   handle:{alignSelf:'center',width:46,height:5,borderRadius:4,backgroundColor:'#70818a'},
   header:{minHeight:47,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
   title:{fontSize:17,fontWeight:'800',color:'#fff'},
   close:{width:44,height:44,justifyContent:'center',alignItems:'center'},
   editor:{flexDirection:'row',gap:10,alignItems:'flex-start',
     padding:10,borderRadius:18,backgroundColor:'#2a353e'},
-  input:{flex:1,fontSize:15,color:'#fff',minHeight:80,maxHeight:166,
+  input:{flex:1,fontSize:15,color:'#fff',minHeight:40,maxHeight:112,
     textAlignVertical:'top',paddingTop:4,paddingBottom:3},
   toolbar:{flexDirection:'row',alignItems:'center',gap:4},
   toolbarButton:{height:44,width:44,alignItems:'center',justifyContent:'center'},
-  at:{color:'#fff',fontSize:27,fontWeight:'800'},
+  at:{color:'#fff',fontSize:24,fontWeight:'800'},
   count:{flex:1,color:'#a6b5be',fontSize:12,textAlign:'right',marginRight:7},
   send:{minHeight:44,minWidth:78,paddingHorizontal:12,borderRadius:16,
     backgroundColor:'#82e9dc',alignItems:'center',justifyContent:'center'},
@@ -142,6 +179,13 @@ const styles=StyleSheet.create({
   emojiButton:{width:'16.66%',height:44,alignItems:'center',justifyContent:'center'},
   emojiText:{fontSize:23},
   error:{color:'#ffc1c4',fontSize:12,lineHeight:18},
-  commentsLink:{height:45,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:8},
+  previewSection:{gap:5,maxHeight:177},
+  previewHeading:{color:'#b4c7cd',fontSize:12,fontWeight:'700'},
+  previewList:{maxHeight:150},
+  previewComment:{minHeight:46,paddingVertical:6,borderBottomWidth:StyleSheet.hairlineWidth,
+    borderBottomColor:'#455158'},
+  previewAuthor:{fontSize:13,color:'#fff',fontWeight:'700'},
+  previewBody:{fontSize:13,color:'#b7c6cf'},
+  commentsLink:{height:44,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:8},
   commentsLinkText:{color:'#a6f7ef',fontSize:13,fontWeight:'700'}
 });
