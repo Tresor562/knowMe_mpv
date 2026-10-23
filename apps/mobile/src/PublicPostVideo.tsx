@@ -16,7 +16,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   offlineRequest=0,onOfflineStatus,onOfflineProgress}:{
   url:string;onDoubleTap?:()=>void;autoPlay?:boolean;preloadPaused?:boolean;externallyPaused?:boolean;
   offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void;
-  onOfflineProgress?:(progress:{saving:boolean;percent:number})=>void
+  onOfflineProgress?:(progress:{saving:boolean;percent:number;error:boolean})=>void
 }){
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -40,6 +40,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   const [saving,setSaving]=useState(false);
   const [savePercent,setSavePercent]=useState(0);
   const [saveNotice,setSaveNotice]=useState('');
+  const [offlineError,setOfflineError]=useState(false);
   const activeDownload=useRef<FileSystem.DownloadResumable|null>(null);
   const alive=useRef(true);
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -84,15 +85,17 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
             if(local===saved)setLocal(null);
             setSaved(null);
             setSaveNotice('Vidéo supprimée de cet appareil.');
-          })().catch(()=>{if(alive.current)setSaveNotice('Suppression impossible.');});}
+            setOfflineError(false);
+          })().catch(()=>{if(alive.current){setSaveNotice('Suppression impossible.');setOfflineError(true);}});}
         }]);
       return;
     }
     if(!publicPostVideoId(url)){
       setSaveNotice('Seules les vidéos publiques KnowMe peuvent être enregistrées.');
+      setOfflineError(true);
       return;
     }
-    setSaving(true);setSavePercent(0);setSaveNotice('');
+    setSaving(true);setSavePercent(0);setSaveNotice('');setOfflineError(false);
     try{
       const uri=await downloadPublicVideoOffline(url,fraction=>{
         if(alive.current)setSavePercent(Math.round(fraction*100));
@@ -102,8 +105,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
         setSaveNotice('Vidéo enregistrée. Elle reste disponible hors connexion.');
       }
     }catch(error){
-      if(alive.current)setSaveNotice(error instanceof Error?error.message:
-        'Téléchargement interrompu.');
+      if(alive.current){
+        setOfflineError(true);
+        setSaveNotice(error instanceof Error?error.message:'Téléchargement interrompu.');
+      }
     }finally{
       activeDownload.current=null;
       if(alive.current)setSaving(false);
@@ -121,10 +126,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // The state transition is authoritative; callback identity is not a trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[saved]);
-  useEffect(()=>{onOfflineProgress?.({saving,percent:savePercent});
+  useEffect(()=>{onOfflineProgress?.({saving,percent:savePercent,error:offlineError});
   // Update parent indicators only for actual download state changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[saving,savePercent]);
+  },[saving,savePercent,offlineError]);
 
   async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
@@ -261,7 +266,9 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     pointerEvents={preloadPaused&&!autoPlay?'none':'auto'}
     importantForAccessibility={preloadPaused&&!autoPlay?'no-hide-descendants':'auto'}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} nativeControls={false} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
+      <NativeStoryVideo sourceUri={local} nativeControls={false}
+        resizeMode={onDoubleTap?'cover':'contain'}
+        paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
