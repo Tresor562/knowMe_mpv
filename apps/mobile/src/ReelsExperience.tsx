@@ -58,7 +58,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [busyFollow,setBusyFollow]=useState<string|null>(null);
   const [offlineRequests,setOfflineRequests]=useState<Record<string,number>>({});
   const [offlineStatus,setOfflineStatus]=useState<Record<string,boolean>>({});
-  const [offlineProgress,setOfflineProgress]=useState<Record<string,{saving:boolean;percent:number}>>({});
+  const [offlineProgress,setOfflineProgress]=useState<Record<string,{saving:boolean;percent:number;error:boolean}>>({});
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
@@ -348,7 +348,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         onOfflineStatus={saved=>setOfflineStatus(old=>
           old[item.id]===saved?old:{...old,[item.id]:saved})}
         onOfflineProgress={progress=>setOfflineProgress(old=>
-          old[item.id]?.saving===progress.saving&&old[item.id]?.percent===progress.percent
+          old[item.id]?.saving===progress.saving&&old[item.id]?.percent===progress.percent&&
+            old[item.id]?.error===progress.error
             ?old:{...old,[item.id]:progress})}/>
         :<View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={42} color="#b7d5da"/>
@@ -412,12 +413,13 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           accessibilityState={{selected:Boolean(offlineStatus[item.id])}}
           onPress={()=>setOfflineRequests(old=>({...old,[item.id]:(old[item.id]??0)+1}))}
           onLongPress={()=>setOfflineLibraryOpen(true)} style={styles.action}>
-          <KnowMeIcon name={offlineStatus[item.id]?'check':'download'} size={29}
-            color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
+          <KnowMeIcon name={offlineStatus[item.id]?'check':offlineProgress[item.id]?.error?'refresh':'download'}
+            size={29} color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
           <Text style={styles.actionCount} numberOfLines={1}>
             {offlineProgress[item.id]?.saving
               ?(en?'Saving ':'En cours ')+offlineProgress[item.id]!.percent+' %'
               :offlineStatus[item.id]?(en?'Saved':'Enregistrée')
+              :offlineProgress[item.id]?.error?(en?'Retry':'Réessayer')
               :(en?'Offline':'Hors ligne')}
           </Text>
         </Pressable>
