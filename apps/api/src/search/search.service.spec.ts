@@ -8,7 +8,9 @@ describe('SearchService', () => {
       message: { findMany: jest.fn().mockResolvedValue([]) },
       post: { findMany: jest.fn().mockResolvedValue([]) },
       challenge: { findMany: jest.fn().mockResolvedValue([]) },
-      conversation: { findMany: jest.fn().mockResolvedValue([]) }
+      conversation: { findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+      channel: { findMany: jest.fn().mockResolvedValue([]) }
     };
     return {
       prisma,
@@ -21,7 +23,7 @@ describe('SearchService', () => {
 
     await expect(service.search('user-1', ' a ')).resolves.toEqual({
       query: 'a',
-      kinds: ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION'],
+      kinds: ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION', 'PROFILE', 'CHANNEL'],
       items: [],
       nextCursor: null
     });
@@ -42,7 +44,7 @@ describe('SearchService', () => {
     );
     expect(prisma.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ authorId: 'user-1' })
+        where: expect.objectContaining({ content: expect.any(Object) })
       })
     );
     expect(prisma.challenge.findMany).toHaveBeenCalledWith(
@@ -57,6 +59,14 @@ describe('SearchService', () => {
         })
       })
     );
+    expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({isSuspended:false})
+    }));
+    expect(prisma.channel.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {AND: expect.arrayContaining([expect.objectContaining({OR:expect.arrayContaining([
+        {visibility:'PUBLIC'}, {ownerId:'user-1'}, {subscriptions:{some:{userId:'user-1'}}}
+      ])})])}
+    }));
   });
 
   it('merges authorized results deterministically and returns bounded snippets', async () => {
@@ -200,5 +210,23 @@ describe('SearchService', () => {
         'POST'
       )
     ).rejects.toThrow('SEARCH_CURSOR_INVALID');
+  });
+
+  it('returns users and authorized channels as clickable search suggestions', async () => {
+    const {service,prisma}=createService();
+    prisma.user.findMany.mockResolvedValue([{id:'u2',username:'hello_world',
+      displayName:'Hello User',bio:'Welcome',updatedAt:now}]);
+    prisma.channel.findMany.mockResolvedValue([{id:'ch1',name:'Hello channel',
+      username:'hello_news',description:'Updates',updatedAt:now}]);
+    const response=await service.search('user-1','hello');
+    expect(response.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({kind:'PROFILE',route:'/profile/hello_world'}),
+      expect.objectContaining({kind:'CHANNEL',route:'/channels/ch1'})
+    ]));
+    const channelFilter=prisma.channel.findMany.mock.calls[0][0].where;
+    expect(channelFilter.AND[1].OR).toEqual(expect.arrayContaining([
+      {visibility:'PUBLIC'}, {ownerId:'user-1'},
+      {subscriptions:{some:{userId:'user-1'}}}
+    ]));
   });
 });
