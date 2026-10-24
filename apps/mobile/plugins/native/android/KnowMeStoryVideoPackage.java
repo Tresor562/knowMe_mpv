@@ -1,6 +1,13 @@
 package com.knowme.app.video;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
+import android.util.LruCache;
+import android.widget.ImageView;
+import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -34,7 +41,77 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     return Collections.emptyList();
   }
   @Override public List<ViewManager> createViewManagers(ReactApplicationContext context) {
-    return Arrays.<ViewManager>asList(new StoryVideoManager());
+    return Arrays.<ViewManager>asList(new StoryVideoManager(), new StoryPreviewManager());
+  }
+
+  /**
+   * Real still frames for feed/Reel cards. Metadata extraction runs away from
+   * the UI thread and never downloads an entire video into the app's cache.
+   * Only public KnowMe MP4 URLs pass the exact same host/path allowlist.
+   */
+  public static final class StoryPreviewManager extends SimpleViewManager<ImageView> {
+    private static final ExecutorService queue=Executors.newFixedThreadPool(2);
+    private static final LruCache<String,Bitmap> cache=new LruCache<String,Bitmap>(12*1024) {
+      @Override protected int sizeOf(String key,Bitmap value) {
+        return value.getByteCount()/1024;
+      }
+    };
+    @Override public String getName() {return "KnowMePublicVideoStill";}
+    @Override protected ImageView createViewInstance(ThemedReactContext context) {
+      ImageView image=new ImageView(context);
+      image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+      image.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+      return image;
+    }
+    @ReactProp(name="sourceUri")
+    public void setSourceUri(ImageView view,String uri) {
+      view.setTag(uri);
+      view.setImageDrawable(null);
+      if (uri==null||!validPublicVideoUri(uri))return;
+      Bitmap cached;
+      synchronized(cache) {cached=cache.get(uri);}
+      if(cached!=null) {view.setImageBitmap(cached);return;}
+      queue.execute(()->{
+        MediaMetadataRetriever retriever=new MediaMetadataRetriever();
+        Bitmap frame=null;
+        try {
+          retriever.setDataSource(uri,new HashMap<String,String>());
+          frame=retriever.getFrameAtTime(350000,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+          if(frame==null)frame=retriever.getFrameAtTime(0,MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+          if(frame!=null){
+            // Cache a bounded 320px thumbnail, not the decoder's huge bitmap.
+            int w=frame.getWidth(),h=frame.getHeight();
+            if(w>0&&h>0&&Math.max(w,h)>320) {
+              float k=320f/Math.max(w,h);
+              Bitmap small=Bitmap.createScaledBitmap(frame,Math.max(1,Math.round(w*k)),
+                Math.max(1,Math.round(h*k)),true);
+              if(small!=frame){frame.recycle();frame=small;}
+            }
+          }
+        }catch(Exception ignored) {
+          // Underlying paused VideoView remains visible when a remote frame fails.
+        }finally {try{retriever.release();}catch(Exception ignored){}}
+        if(frame==null)return;
+        synchronized(cache) {cache.put(uri,frame);}
+        final Bitmap result=frame;
+        view.post(()->{if(uri.equals(view.getTag()))view.setImageBitmap(result);});
+      });
+    }
+  }
+
+  private static boolean validPublicVideoUri(String uri) {
+    try {
+      Uri parsed=Uri.parse(uri);
+      List<String> parts=parsed.getPathSegments();
+      return "https".equalsIgnoreCase(parsed.getScheme())
+        && "31-56-85-53.sslip.io".equalsIgnoreCase(parsed.getHost())
+        && parsed.getPort()==-1 && parsed.getUserInfo()==null
+        && parsed.getQuery()==null && parsed.getFragment()==null
+        && parts.size()==5 && "knowme-api".equals(parts.get(0))
+        && "media".equals(parts.get(1)) && "public".equals(parts.get(2))
+        && "post".equals(parts.get(3))
+        && parts.get(4).matches("[A-Za-z0-9_-]{1,128}");
+    }catch(Exception ignored){return false;}
   }
 
   public static final class StoryVideoManager extends SimpleViewManager<StoryContainer> {
