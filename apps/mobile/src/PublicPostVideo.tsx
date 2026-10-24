@@ -171,8 +171,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // Autoplay only when the caller explicitly marks a single active Reel.
   // Feed previews and the offline-library thumbnail remain tap-to-play.
   useEffect(()=>{
-    if(autoPlay)void open();
-  },[autoPlay,url]);
+    // Promoting one of the five paused, prepared VideoViews must only resume
+    // that same native decoder. Reopening here resets the time and re-enters
+    // asynchronous file lookup, throwing away the prebuffered lead.
+    if(autoPlay&&!local&&!error)void open();
+  },[autoPlay,url,local,error]);
 
   function replayFromBeginning(){
     if(durationMs<=0)return;
