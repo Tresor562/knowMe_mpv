@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { apiFetch } from './api';
 import { useAppearance } from './AppearanceProvider';
+import {useI18n} from './I18nProvider';
+import {KnowMeIcon} from './ui/KnowMeUI';
 
-type SearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION';
+type SearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION' | 'PROFILE' | 'CHANNEL';
 
 type SearchItem = {
   kind: SearchKind;
@@ -29,12 +31,14 @@ type SearchResponse = {
   nextCursor: string | null;
 };
 
-const SEARCH_KINDS: SearchKind[] = ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION'];
+const SEARCH_KINDS: SearchKind[] = ['PROFILE','CHANNEL','POST','CONVERSATION','MESSAGE','CHALLENGE'];
 const labels: Record<SearchKind, string> = {
   MESSAGE: 'Messages',
   POST: 'Publications',
   CHALLENGE: 'Défis',
-  CONVERSATION: 'Conversations'
+  CONVERSATION: 'Groupes et discussions',
+  PROFILE: 'Profils',
+  CHANNEL: 'Chaînes'
 };
 
 export function UniversalSearchExperience({
@@ -43,6 +47,9 @@ export function UniversalSearchExperience({
   onOpenResult?: (item: SearchItem) => void;
 }) {
   const { colors, visual } = useAppearance();
+  const {locale}=useI18n();
+  const en=locale==='en';
+  const requestEpoch=useRef(0);
   const [query, setQuery] = useState('');
   const [activeKinds, setActiveKinds] = useState<SearchKind[]>(SEARCH_KINDS);
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -53,45 +60,59 @@ export function UniversalSearchExperience({
   const [error, setError] = useState('');
 
   function toggleKind(kind: SearchKind) {
-    setActiveKinds((current) => {
-      const selected = current.includes(kind);
-      if (selected && current.length === 1) return current;
-      const next = selected
-        ? current.filter((value) => value !== kind)
-        : SEARCH_KINDS.filter((value) => current.includes(value) || value === kind);
+    setActiveKinds(current=>{
+      if(current.includes(kind)&&current.length===1)return current;
+      return current.includes(kind)
+        ?current.filter(value=>value!==kind)
+        :SEARCH_KINDS.filter(value=>current.includes(value)||value===kind);
+    });
+  }
+
+  // Debounced live results: the epoch guard stops old server responses from
+  // replacing a more recent query, even if the network finishes out of order.
+  useEffect(()=>{
+    requestEpoch.current++;
+    const normalized=query.trim();
+    if(normalized.length<2){
       setSubmittedQuery('');
       setItems([]);
       setNextCursor(null);
       setError('');
-      return next;
-    });
-  }
+      setBusy(false);
+      return;
+    }
+    const timer=setTimeout(()=>{void search(normalized,activeKinds);},270);
+    return()=>{clearTimeout(timer);requestEpoch.current++;};
+  // search is intentionally called only from the debounced closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[query,activeKinds]);
 
-  async function search() {
-    const normalized = query.trim();
-    if (normalized.length < 2 || busy) return;
-
+  async function search(normalized=query.trim(),kinds=activeKinds) {
+    if(normalized.length<2)return;
+    const epoch=++requestEpoch.current;
     setBusy(true);
     setError('');
     try {
-      const kinds = activeKinds.join(',');
-      const response = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds)}`
+      const response=await apiFetch<SearchResponse>(
+        `/search?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds.join(','))}`
       );
+      if(epoch!==requestEpoch.current)return;
       setSubmittedQuery(response.query);
       setSubmittedKinds(response.kinds);
       setItems(response.items);
       setNextCursor(response.nextCursor);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Recherche impossible.');
+    } catch(cause) {
+      if(epoch===requestEpoch.current)
+        setError(cause instanceof Error?cause.message:'Recherche impossible.');
     } finally {
-      setBusy(false);
+      if(epoch===requestEpoch.current)setBusy(false);
     }
   }
 
   async function loadMore() {
     if (!nextCursor || !submittedQuery || busy) return;
 
+    const epoch=requestEpoch.current;
     setBusy(true);
     setError('');
     try {
@@ -99,6 +120,7 @@ export function UniversalSearchExperience({
       const response = await apiFetch<SearchResponse>(
         `/search?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
       );
+      if(epoch!==requestEpoch.current)return;
       setItems((current) => {
         const seen = new Set(current.map((item) => `${item.kind}:${item.id}`));
         return [
@@ -108,9 +130,10 @@ export function UniversalSearchExperience({
       });
       setNextCursor(response.nextCursor);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
+      if(epoch===requestEpoch.current)
+        setError(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
-      setBusy(false);
+      if(epoch===requestEpoch.current)setBusy(false);
     }
   }
 
@@ -120,18 +143,18 @@ export function UniversalSearchExperience({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>RECHERCHE UNIVERSELLE</Text>
-      <Text style={[styles.heading, { color: colors.text }]}>Retrouve ton contenu</Text>
+      <Text style={[styles.eyebrow, { color: colors.accent }]}>{en?'UNIVERSAL SEARCH':'RECHERCHE UNIVERSELLE'}</Text>
+      <Text style={[styles.heading, { color: colors.text }]}>{en?'Search KnowMe':'Rechercher sur KnowMe'}</Text>
       <Text style={[styles.muted, { color: colors.muted }]}> 
-        Seuls les résultats déjà autorisés par le serveur KnowMe sont affichés.
+        {en?'Suggestions appear as you type. Private content remains protected.':'Suggestions au fur et à mesure de la saisie. Les contenus privés restent protégés.'}
       </Text>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          onSubmitEditing={() => void search()}
-          placeholder="Message, conversation, publication ou défi…"
+          onSubmitEditing={() => void search(query.trim(),activeKinds)}
+          placeholder={en?'Users, groups, channels, posts…':'Profil, groupe, chaîne, publication…'}
           placeholderTextColor={colors.muted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -168,17 +191,17 @@ export function UniversalSearchExperience({
             );
           })}
         </View>
-        <Text style={[styles.filterHelp, { color: colors.muted }]}>Changer un filtre réinitialise la pagination.</Text>
+        <Text style={[styles.filterHelp, { color: colors.muted }]}>{en?'Live suggestions from KnowMe.':'Résultats actualisés pendant la saisie.'}</Text>
         <Pressable
           disabled={busy || query.trim().length < 2}
-          onPress={() => void search()}
+          onPress={() => void search(query.trim(),activeKinds)}
           style={({ pressed }) => [
             styles.primaryButton,
             { backgroundColor: colors.accent, borderRadius: visual.controlRadius },
             (pressed || busy || query.trim().length < 2) && styles.disabled
           ]}
         >
-          <Text style={[styles.primaryText, { color: colors.accentText }]}>Rechercher</Text>
+          <Text style={[styles.primaryText, { color: colors.accentText }]}>{en?'Search':'Rechercher'}</Text>
         </Pressable>
       </View>
 
@@ -187,7 +210,7 @@ export function UniversalSearchExperience({
 
       {submittedQuery ? (
         <>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Résultats pour « {submittedQuery} »</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{en?'Suggestions for':'Suggestions pour'} « {submittedQuery} »</Text>
           <Text style={[styles.muted, { color: colors.muted }]}>
             {submittedKinds.map((kind) => labels[kind]).join(' · ')}
           </Text>
@@ -201,8 +224,9 @@ export function UniversalSearchExperience({
       {items.map((item) => (
         <Pressable
           key={`${item.kind}:${item.id}`}
-          disabled={!onOpenResult}
           onPress={() => onOpenResult?.(item)}
+          accessibilityRole="button"
+          accessibilityLabel={(item.title||labels[item.kind])+' · '+labels[item.kind]}
           style={({ pressed }) => [
             styles.result,
             { backgroundColor: colors.surface, borderColor: colors.border },
