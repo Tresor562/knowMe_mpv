@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {FlatList,Pressable,StyleSheet,Text,View} from 'react-native';
 import {apiFetch,API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
+import {NativePublicVideoStill} from './NativePublicVideoStill';
 import {KnowMeIcon} from './ui/KnowMeUI';
 import {useAppearance} from './AppearanceProvider';
 import {queueReelSelectionIntent} from './reel-selection-intent';
@@ -73,6 +74,7 @@ export function NativeFeedReelSuggestions({onOpenReels}:{
             <View pointerEvents="none" style={styles.video}>
               <NativeStoryVideo sourceUri={API_URL+item.url} paused nativeControls={false}
                 seekToMs={100} style={styles.videoContent}/>
+              <NativePublicVideoStill sourceUri={API_URL+item.url} style={styles.previewStill}/>
             </View>
             <View pointerEvents="none" style={styles.play}>
               <KnowMeIcon name="play" size={23} color="#fff"/>
@@ -96,6 +98,7 @@ const styles=StyleSheet.create({
   card:{width:118,height:196,borderRadius:15,overflow:'hidden',justifyContent:'center'},
   video:{position:'absolute',left:0,right:0,top:0,bottom:0,width:'100%',height:'100%'},
   videoContent:{width:'100%',height:'100%'},
+  previewStill:{position:'absolute',top:0,bottom:0,left:0,right:0,width:'100%',height:'100%'},
   play:{alignSelf:'center',width:46,height:46,borderRadius:23,borderWidth:1.5,
     borderColor:'rgba(255,255,255,.9)',backgroundColor:'rgba(0,0,0,.4)',
     alignItems:'center',justifyContent:'center'},
