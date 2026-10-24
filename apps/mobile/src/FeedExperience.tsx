@@ -774,6 +774,7 @@ export function FeedExperience({
   mode = 'discover',
   currentUser,
   onOpenDiscover,
+  onOpenSearch,
   onOpenReels,
   onOpenProfile,
   storyComposerRequest = false,
@@ -792,6 +793,7 @@ export function FeedExperience({
   mode?: 'home' | 'discover';
   currentUser?: { id: string; displayName: string; username: string; avatarUrl?: string | null };
   onOpenDiscover?: () => void;
+  onOpenSearch?: () => void;
   onOpenReels?: (postId?:string,position?:number) => void;
   onOpenProfile?: (username: string) => void;
   storyComposerRequest?: boolean;
@@ -1078,7 +1080,7 @@ export function FeedExperience({
               </View>
               <View style={styles.referenceActions}>
                 <Pressable accessibilityRole="button" accessibilityLabel="Rechercher sur KnowMe"
-                  disabled={!onOpenDiscover} onPress={onOpenDiscover}
+                  disabled={!onOpenSearch} onPress={onOpenSearch}
                   style={[styles.referenceIcon,{backgroundColor:colors.surface}]}>
                   <KnowMeIcon name="search" size={24} color={colors.text}/>
                 </Pressable>
