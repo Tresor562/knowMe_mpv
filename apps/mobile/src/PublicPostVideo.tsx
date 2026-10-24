@@ -3,6 +3,7 @@ import {Alert,KeyboardAvoidingView,Modal,Platform,Pressable,StyleSheet,Text,Text
 import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
+import {NativePublicVideoStill} from './NativePublicVideoStill';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
@@ -422,6 +423,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     </View>:<Pressable
       accessibilityRole="button" accessibilityLabel="Lire la vidéo"
       onPress={()=>void open()} style={[styles.open,{backgroundColor:colors.surface}]}>
+      {publicPostVideoId(url)&&<NativePublicVideoStill
+        sourceUri={API_URL+url} style={styles.feedStill}/>}
       <KnowMeIcon name="play" size={45} color={colors.text}/>
       <Text style={{color:colors.muted,fontSize:12,textAlign:'center'}}>
         {error||'Lire la vidéo'}
@@ -553,5 +556,6 @@ const styles=StyleSheet.create({
   timeCancel:{backgroundColor:'#324148'},timeConfirm:{backgroundColor:'#83e9de'},
   timeCancelText:{fontSize:14,fontWeight:'700',color:'#fff'},
   timeConfirmText:{fontSize:14,fontWeight:'800',color:'#082f2b'},
-  open:{flex:1,alignItems:'center',justifyContent:'center',gap:9}
+  open:{flex:1,alignItems:'center',justifyContent:'center',gap:9,overflow:'hidden'},
+  feedStill:{position:'absolute',top:0,bottom:0,left:0,right:0,width:'100%',height:'100%'}
 });
