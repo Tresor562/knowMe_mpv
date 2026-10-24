@@ -43,9 +43,13 @@ const labels: Record<SearchKind, string> = {
 
 export function UniversalSearchExperience({
   initialQuery = '',
+  onBack,
+  onQueryChange,
   onOpenResult
 }: {
   initialQuery?:string;
+  onBack?:()=>void;
+  onQueryChange?:(query:string)=>void;
   onOpenResult?: (item: SearchItem) => void;
 }) {
   const { colors, visual } = useAppearance();
@@ -145,7 +149,13 @@ export function UniversalSearchExperience({
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>{en?'UNIVERSAL SEARCH':'RECHERCHE UNIVERSELLE'}</Text>
+      <View style={styles.navigationRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel={en?'Back':'Retour'}
+          onPress={onBack} style={styles.backButton}>
+          <KnowMeIcon name="back" size={24} color={colors.text}/>
+        </Pressable>
+        <Text style={[styles.eyebrow, { color: colors.accent }]}>{en?'UNIVERSAL SEARCH':'RECHERCHE UNIVERSELLE'}</Text>
+      </View>
       <Text style={[styles.heading, { color: colors.text }]}>{en?'Search KnowMe':'Rechercher sur KnowMe'}</Text>
       <Text style={[styles.muted, { color: colors.muted }]}> 
         {en?'Suggestions appear as you type. Private content remains protected.':'Suggestions au fur et à mesure de la saisie. Les contenus privés restent protégés.'}
@@ -154,7 +164,7 @@ export function UniversalSearchExperience({
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: visual.cardRadius }]}>
         <TextInput
           value={query}
-          onChangeText={setQuery}
+          onChangeText={value=>{setQuery(value);onQueryChange?.(value);}}
           onSubmitEditing={() => void search(query.trim(),activeKinds)}
           placeholder={en?'Users, groups, channels, posts…':'Profil, groupe, chaîne, publication…'}
           placeholderTextColor={colors.muted}
@@ -266,7 +276,9 @@ export function UniversalSearchExperience({
 export type UniversalSearchResult = SearchItem;
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 44, gap: 12 },
+  content: { padding: 16, paddingBottom: 44, gap: 12 },
+  navigationRow:{flexDirection:'row',alignItems:'center',gap:8},
+  backButton:{height:44,width:44,justifyContent:'center',alignItems:'center'},
   eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
   heading: { fontSize: 30, fontWeight: '900' },
   muted: { fontSize: 14, lineHeight: 20 },
