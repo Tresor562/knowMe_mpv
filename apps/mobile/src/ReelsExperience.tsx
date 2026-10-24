@@ -40,10 +40,11 @@ type VideoPost={
 };
 type Clip={id:string;post:VideoPost;media:Media};
 
-export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
+export function ReelsExperience({onBack,onOpenPost,onOpenProfile,onOpenSearch}:{
   onBack:()=>void;
   onOpenPost:(id:string)=>void;
   onOpenProfile:(username:string)=>void;
+  onOpenSearch?:(initialQuery?:string)=>void;
 }){
   const {locale}=useI18n();
   const en=locale==='en';
@@ -384,7 +385,8 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           onExpand={()=>setCaptionClip(post)}/>
         {tags.length>0&&<View style={styles.hashtags}>
           {tags.map(tag=><Pressable key={tag} accessibilityRole="button"
-            onPress={()=>{setFilter(tag);setSearchOpen(true);}}>
+            onPress={()=>{if(onOpenSearch)onOpenSearch(tag);
+              else {setFilter(tag);setSearchOpen(true);}}}>
             <Text style={styles.hashtag}>{tag}</Text>
           </Pressable>)}
         </View>}
@@ -498,7 +500,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
       <View style={styles.headerActions}>
         {!searchOpen&&<Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'Search loaded Reels':'Rechercher dans les Réels chargés'}
-          onPress={()=>setSearchOpen(true)}>
+          onPress={()=>{if(onOpenSearch)onOpenSearch();else setSearchOpen(true);}}>
           <KnowMeIcon name="search" size={27} color="#fff"/>
         </Pressable>}
         <Pressable accessibilityRole="button" style={styles.headerButton}
