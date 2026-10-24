@@ -42,15 +42,17 @@ const labels: Record<SearchKind, string> = {
 };
 
 export function UniversalSearchExperience({
+  initialQuery = '',
   onOpenResult
 }: {
+  initialQuery?:string;
   onOpenResult?: (item: SearchItem) => void;
 }) {
   const { colors, visual } = useAppearance();
   const {locale}=useI18n();
   const en=locale==='en';
   const requestEpoch=useRef(0);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [activeKinds, setActiveKinds] = useState<SearchKind[]>(SEARCH_KINDS);
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [submittedKinds, setSubmittedKinds] = useState<SearchKind[]>(SEARCH_KINDS);
