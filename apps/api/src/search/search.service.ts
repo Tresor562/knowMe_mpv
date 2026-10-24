@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type UniversalSearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION' | 'PROFILE' | 'CHANNEL';
+export type UniversalSearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION';
 
 type SearchItem = {
   kind: UniversalSearchKind;
@@ -25,9 +25,7 @@ const SEARCH_KINDS: UniversalSearchKind[] = [
   'MESSAGE',
   'POST',
   'CHALLENGE',
-  'CONVERSATION',
-  'PROFILE',
-  'CHANNEL'
+  'CONVERSATION'
 ];
 
 @Injectable()
@@ -60,10 +58,8 @@ export class SearchService {
     const postBoundary = this.boundary('POST', 'updatedAt', cursor);
     const challengeBoundary = this.boundary('CHALLENGE', 'updatedAt', cursor);
     const conversationBoundary = this.boundary('CONVERSATION', 'updatedAt', cursor);
-    const profileBoundary = this.boundary('PROFILE', 'updatedAt', cursor);
-    const channelBoundary = this.boundary('CHANNEL', 'updatedAt', cursor);
 
-    const [messages, posts, challenges, conversations, profiles, channels] = await Promise.all([
+    const [messages, posts, challenges, conversations] = await Promise.all([
       this.prisma.message.findMany({
         where: {
           content: contains,
@@ -81,7 +77,7 @@ export class SearchService {
       }),
       this.prisma.post.findMany({
         where: {
-          // KnowMe posts are public (unlike private conversations/messages).
+          authorId: userId,
           content: contains,
           ...(postBoundary ? { AND: [postBoundary] } : {})
         },
@@ -112,34 +108,7 @@ export class SearchService {
           members: { some: { userId } },
           ...(conversationBoundary ? { AND: [conversationBoundary] } : {})
         },
-        select: { id: true, title: true, updatedAt: true, isGroup: true },
-        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
-        take
-      }),
-      this.prisma.user.findMany({
-        where: {
-          isSuspended: false,
-          OR: [{ username: contains }, { displayName: contains }],
-          ...(profileBoundary ? { AND: [profileBoundary] } : {})
-        },
-        select: { id: true, username: true, displayName: true, bio: true, updatedAt: true },
-        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
-        take
-      }),
-      this.prisma.channel.findMany({
-        where: {
-          AND: [
-            { OR: [{ name: contains }, { username: contains }, { description: contains }] },
-            // Discover public channels and only private channels one can access.
-            { OR: [
-              { visibility: 'PUBLIC' },
-              { ownerId: userId },
-              { subscriptions: { some: { userId } } }
-            ] },
-            ...(channelBoundary ? [channelBoundary] : [])
-          ]
-        },
-        select: { id: true, name: true, username: true, description: true, updatedAt: true },
+        select: { id: true, title: true, updatedAt: true },
         orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
         take
       })
@@ -175,25 +144,9 @@ export class SearchService {
         kind: 'CONVERSATION' as const,
         id: conversation.id,
         title: conversation.title,
-        snippet: conversation.isGroup ? 'Groupe · '+(conversation.title??'') : conversation.title ?? '',
+        snippet: conversation.title ?? '',
         route: `/messages/${conversation.id}`,
         updatedAt: conversation.updatedAt
-      })),
-      ...profiles.map(profile=>({
-        kind: 'PROFILE' as const,
-        id: profile.id,
-        title: profile.displayName,
-        snippet: '@'+profile.username+(profile.bio?' · '+this.snippet(profile.bio,query):''),
-        route: '/profile/'+encodeURIComponent(profile.username),
-        updatedAt: profile.updatedAt
-      })),
-      ...channels.map(channel=>({
-        kind: 'CHANNEL' as const,
-        id: channel.id,
-        title: channel.name,
-        snippet: (channel.username?'@'+channel.username+' · ':'')+this.snippet(channel.description??channel.name,query),
-        route: '/channels/'+encodeURIComponent(channel.id),
-        updatedAt: channel.updatedAt
       }))
     ]
       .filter((item) => allowedKinds.has(item.kind))
