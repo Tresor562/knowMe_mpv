@@ -1185,6 +1185,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
   const [searchInitialQuery,setSearchInitialQuery]=useState('');
+  const [searchReturnScreen,setSearchReturnScreen]=useState<Screen>('home');
   const [searchRevision,setSearchRevision]=useState(0);
   const [channelReturnScreen,setChannelReturnScreen]=useState<Screen>('social');
   const previousScreen = useRef<Screen>('home');
@@ -1408,6 +1409,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   }, [user?.id, pendingLink]);
 
   function openUniversalSearch(query='') {
+    setSearchReturnScreen(screen==='search'?'home':screen);
     setSearchInitialQuery(query);
     setSearchRevision(value=>value+1);
     setScreen('search');
@@ -1589,7 +1591,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen==='search'?(
           <UniversalSearchExperience key={'global-search:'+searchRevision}
-            initialQuery={searchInitialQuery} onOpenResult={openSearchResult}/>
+            initialQuery={searchInitialQuery} onOpenResult={openSearchResult}
+            onQueryChange={setSearchInitialQuery}
+            onBack={()=>setScreen(searchReturnScreen)}/>
         ):null}
 
         {screen === 'discover' ? (
