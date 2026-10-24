@@ -36,6 +36,7 @@ import { KnowMeFeedbackProvider } from './src/ui/KnowMeFeedback';
 import { ChallengeExperience } from './src/ChallengeExperience';
 import { FeedExperience } from './src/FeedExperience';
 import { ReelsExperience } from './src/ReelsExperience';
+import {UniversalSearchExperience,type UniversalSearchResult} from './src/UniversalSearchExperience';
 import { LinkedStickerExperience } from './src/LinkedStickerExperience';
 import { LinkedChannelExperience } from './src/LinkedChannelExperience';
 import { LinkedGiftExperience } from './src/LinkedGiftExperience';
@@ -66,6 +67,7 @@ import { VerificationExperience } from './src/VerificationExperience';
 type Screen =
   | 'home'
   | 'reels'
+  | 'search'
   | 'discover'
   | 'notifications'
   | 'marketplace'
@@ -1182,6 +1184,9 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MobileUser | null>(null);
   const [screen, setScreen] = useState<Screen>('home');
+  const [searchInitialQuery,setSearchInitialQuery]=useState('');
+  const [searchRevision,setSearchRevision]=useState(0);
+  const [channelReturnScreen,setChannelReturnScreen]=useState<Screen>('social');
   const previousScreen = useRef<Screen>('home');
   const screenHistory = useRef<Screen[]>([]);
   const applyingSystemBack = useRef(false);
@@ -1402,6 +1407,48 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     return () => { active = false; };
   }, [user?.id, pendingLink]);
 
+  function openUniversalSearch(query='') {
+    setSearchInitialQuery(query);
+    setSearchRevision(value=>value+1);
+    setScreen('search');
+  }
+
+  function openSearchResult(item:UniversalSearchResult){
+    if(item.kind==='PROFILE'){
+      const name=item.route.split('/profile/')[1];
+      if(name)openUserProfile(decodeURIComponent(name));
+      return;
+    }
+    if(item.kind==='CHANNEL'){
+      setChannelReturnScreen('search');
+      setLinkedChannel({channelId:item.id});
+      setScreen('linked-channel');
+      return;
+    }
+    if(item.kind==='POST'){
+      setLinkedPostId(item.id);
+      setLinkedCommentId(null);
+      setLinkRevision(value=>value+1);
+      setScreen('home');
+      return;
+    }
+    if(item.kind==='MESSAGE'||item.kind==='CONVERSATION'){
+      const match=/^\/messages\/([^?]+)/.exec(item.route);
+      if(!match?.[1])return;
+      setLinkedConversationId(match[1]);
+      setLinkedMessageId(item.kind==='MESSAGE'?item.id:null);
+      setLinkedMediaId(null);
+      setLinkRevision(value=>value+1);
+      setScreen('social');
+      return;
+    }
+    if(item.kind==='CHALLENGE'){
+      setLinkedChallengeId(item.id);
+      setLinkRevision(value=>value+1);
+      setScreen('challenges');
+    }
+  }
+
   function openUserProfile(username: string) {
     const normalized = username.trim().replace(/^@/, '');
     if (!normalized) return;
@@ -1466,7 +1513,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
     );
   }
 
-  const dockVisible = shouldShowDock({
+  const dockVisible = screen!=='search' && shouldShowDock({
     screen, keyboardVisible, createOpen, profileSubscreenActive,
     postDetailOpen, socialImmersive, scrollVisible: dockScrollVisible,
     autoHide: dockPreferences.autoHide
@@ -1523,6 +1570,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
               avatarUrl: user.avatarUrl
             }}
             onOpenDiscover={() => setScreen('discover')}
+            onOpenSearch={()=>openUniversalSearch()}
             onOpenReels={() => setScreen('reels')}
             onOpenProfile={openUserProfile}
             storyComposerRequest={storyComposerRequest}
@@ -1539,6 +1587,11 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
           />
         ) : null}
 
+        {screen==='search'?(
+          <UniversalSearchExperience key={'global-search:'+searchRevision}
+            initialQuery={searchInitialQuery} onOpenResult={openSearchResult}/>
+        ):null}
+
         {screen === 'discover' ? (
           <SocialHub
             key={'discover:' + user.id + ':' + linkRevision}
@@ -1554,6 +1607,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
         {screen === 'reels' ? (
           <ReelsExperience
             onBack={() => setScreen('home')}
+            onOpenSearch={openUniversalSearch}
             onOpenPost={(id) => {
               setLinkedPostId(id);
               setLinkedCommentId(null);
@@ -1605,7 +1659,7 @@ export function AppContent({ onExitAuth }: { onExitAuth?: () => void }) {
 
         {screen === 'linked-channel' && linkedChannel ? (
           <LinkedChannelExperience channelId={linkedChannel.channelId} postId={linkedChannel.postId}
-            onBack={() => setScreen('social')} />
+            onBack={() => setScreen(channelReturnScreen)} />
         ) : null}
 
         {screen === 'linked-sticker' && linkedSticker ? (
