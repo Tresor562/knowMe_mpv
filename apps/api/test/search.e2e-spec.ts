@@ -87,9 +87,7 @@ describe('KnowMe universal search authorization (e2e)', () => {
       'MESSAGE',
       'POST',
       'CHALLENGE',
-      'CONVERSATION',
-      'PROFILE',
-      'CHANNEL'
+      'CONVERSATION'
     ]);
     expect(result.body.items).toEqual(
       expect.arrayContaining([
@@ -116,7 +114,7 @@ describe('KnowMe universal search authorization (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .get('/search?q=nebula&kinds=UNKNOWN')
+      .get('/search?q=nebula&kinds=PROFILE')
       .set('Authorization', `Bearer ${alice.body.accessToken}`)
       .expect(400);
 
