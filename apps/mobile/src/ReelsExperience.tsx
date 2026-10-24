@@ -332,6 +332,13 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile,onOpenSearch}:{
 
 
   const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===active));
+  // Fetch the next page while at least eight clips remain, before the user
+  // reaches the end and would otherwise wait for another HTTP feed request.
+  useEffect(()=>{
+    if(!visibleClips.length||!hasMore||fetching.current||loading||more)return;
+    if(activeIndex>=visibleClips.length-8)void load(true);
+  },[activeIndex,visibleClips.length,hasMore,loading,more,load]);
+
   function renderClip({item,index}:{item:Clip;index:number}){
     const post=item.post;
     // A modal may pause the video, but must never deactivate/remount it:
