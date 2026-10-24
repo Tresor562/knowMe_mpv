@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useSession } from '../../lib/use-session';
 
-type SearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION';
+type SearchKind = 'MESSAGE' | 'POST' | 'CHALLENGE' | 'CONVERSATION' | 'PROFILE' | 'CHANNEL';
 
 type SearchItem = {
   kind: SearchKind;
@@ -23,12 +23,14 @@ type SearchResponse = {
   nextCursor: string | null;
 };
 
-const searchKinds: SearchKind[] = ['MESSAGE', 'POST', 'CHALLENGE', 'CONVERSATION'];
+const searchKinds: SearchKind[] = ['PROFILE','CHANNEL','POST','CONVERSATION','MESSAGE','CHALLENGE'];
 const labels: Record<SearchKind, string> = {
   MESSAGE: 'Messages',
   POST: 'Publications',
   CHALLENGE: 'Défis',
-  CONVERSATION: 'Conversations'
+  CONVERSATION: 'Groupes et discussions',
+  PROFILE: 'Profils',
+  CHANNEL: 'Chaînes'
 };
 
 export default function UniversalSearchPage() {
@@ -41,64 +43,82 @@ export default function UniversalSearchPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const requestEpoch=useRef(0);
 
-  function toggleKind(kind: SearchKind) {
-    setActiveKinds((current) => {
-      const selected = current.includes(kind);
-      if (selected && current.length === 1) return current;
-      const next = selected
-        ? current.filter((value) => value !== kind)
-        : searchKinds.filter((value) => current.includes(value) || value === kind);
-      setItems([]);
-      setNextCursor(null);
-      setSubmittedQuery('');
-      setMessage('');
-      return next;
+  useEffect(()=>{
+    const initial=new URLSearchParams(window.location.search).get('q');
+    if(initial)setQuery(initial.slice(0,120));
+  },[]);
+
+  function toggleKind(kind:SearchKind){
+    setActiveKinds(current=>{
+      if(current.includes(kind)&&current.length===1)return current;
+      return current.includes(kind)?current.filter(x=>x!==kind)
+        :searchKinds.filter(x=>current.includes(x)||x===kind);
     });
   }
 
-  async function runSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalized = query.trim();
-    if (normalized.length < 2) return;
+  useEffect(()=>{
+    requestEpoch.current++;
+    const normalized=query.trim();
+    if(normalized.length<2){
+      setItems([]);setNextCursor(null);setSubmittedQuery('');setMessage('');setBusy(false);
+      return;
+    }
+    const timer=setTimeout(()=>{void performSearch(normalized,activeKinds);},270);
+    return()=>{clearTimeout(timer);requestEpoch.current++;};
+  // Search requests are initiated by the debounced closure only.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[query,activeKinds]);
 
-    setBusy(true);
-    setMessage('');
-    try {
-      const kinds = activeKinds.join(',');
-      const result = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds)}`
+  async function performSearch(normalized=query.trim(),selected=activeKinds){
+    if(normalized.length<2)return;
+    const epoch=++requestEpoch.current;
+    setBusy(true);setMessage('');
+    try{
+      const result=await apiFetch<SearchResponse>(
+        `/search/discover?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(selected.join(','))}`
       );
+      if(epoch!==requestEpoch.current)return;
       setSubmittedQuery(result.query);
       setSubmittedKinds(result.kinds);
       setItems(result.items);
       setNextCursor(result.nextCursor);
-      setMessage(result.items.length ? '' : 'Aucun résultat accessible.');
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Recherche impossible.');
-    } finally {
-      setBusy(false);
+      setMessage(result.items.length?'':'Aucun résultat accessible.');
+    }catch(cause){
+      if(epoch===requestEpoch.current)
+        setMessage(cause instanceof Error?cause.message:'Recherche impossible.');
+    }finally{
+      if(epoch===requestEpoch.current)setBusy(false);
     }
+  }
+
+  function runSearch(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    void performSearch(query.trim(),activeKinds);
   }
 
   async function loadMore() {
     if (!nextCursor || !submittedQuery || busy) return;
+    const epoch=requestEpoch.current;
     setBusy(true);
     setMessage('');
     try {
       const kinds = submittedKinds.join(',');
       const result = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
+        `/search/discover?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
       );
+      if(epoch!==requestEpoch.current)return;
       setItems((current) => {
         const seen = new Set(current.map((item) => `${item.kind}:${item.id}`));
         return [...current, ...result.items.filter((item) => !seen.has(`${item.kind}:${item.id}`))];
       });
       setNextCursor(result.nextCursor);
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
+      if(epoch===requestEpoch.current)
+        setMessage(cause instanceof Error ? cause.message : 'Chargement impossible.');
     } finally {
-      setBusy(false);
+      if(epoch===requestEpoch.current)setBusy(false);
     }
   }
 
@@ -108,7 +128,7 @@ export default function UniversalSearchPage() {
     <main className="shell" style={{ maxWidth: 960, margin: '0 auto' }}>
       <header style={{ marginBottom: 22 }}>
         <small style={{ color: 'var(--mint)' }}>RECHERCHE UNIVERSELLE</small>
-        <h1 style={{ marginBottom: 8 }}>Retrouve ce qui t’appartient</h1>
+        <h1 style={{ marginBottom: 8 }}>Rechercher sur KnowMe</h1>
         <p style={{ color: 'var(--muted)', margin: 0 }}>
           KnowMe affiche uniquement les résultats que le serveur t’autorise déjà à consulter.
         </p>
@@ -124,11 +144,12 @@ export default function UniversalSearchPage() {
             className="input"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Message, conversation, publication ou défi…"
+            placeholder="Profils, groupes, chaînes, publications…"
             minLength={2}
             maxLength={120}
             required
             autoComplete="off"
+            autoFocus
             style={{ flex: 1, minWidth: 220 }}
           />
           <button className="btn btn-primary" disabled={busy || query.trim().length < 2}>
@@ -155,7 +176,7 @@ export default function UniversalSearchPage() {
             })}
           </div>
           <small style={{ display: 'block', color: 'var(--muted)', marginTop: 8 }}>
-            Au moins un type reste toujours actif. Changer les filtres réinitialise la pagination.
+            Les suggestions s’actualisent automatiquement pendant la saisie.
           </small>
         </fieldset>
       </form>
