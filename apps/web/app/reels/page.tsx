@@ -38,8 +38,6 @@ export default function ReelsPage() {
   const en = locale === 'en';
   const [posts,setPosts]=useState<Post[]>([]);
   const [feed,setFeed]=useState<'all'|'following'>('all');
-  const [searchOpen,setSearchOpen]=useState(false);
-  const [query,setQuery]=useState('');
   const [commentPost,setCommentPost]=useState<Post|null>(null);
   const [commentCounts,setCommentCounts]=useState<Record<string,number>>({});
   const [loading,setLoading]=useState(true);
@@ -184,11 +182,7 @@ export default function ReelsPage() {
     return()=>{active=false;};
   },[requestedVideo,user?.id,sessionLoading,loading,feed,posts]);
 
-  const visibleClips=useMemo(()=>{
-    const q=query.trim().toLocaleLowerCase();
-    return q?clips.filter(clip=>(clip.post.content+' '+clip.post.author.username)
-      .toLocaleLowerCase().includes(q)):clips;
-  },[clips,query]);
+  const visibleClips=clips;
   useEffect(()=>{
     if(!visibleClips.some(clip=>clip.id===activeId))
       setActiveId(visibleClips[0]?.id??null);
@@ -309,10 +303,9 @@ export default function ReelsPage() {
           className="km-reel-header-icon"><ReelIcon name="back" size={28}/></Link>
         <strong className="km-reel-header-title">KnowMe · Reels</strong>
         <div className="km-reel-header-actions">
-          <button type="button" className="km-reel-header-icon"
-            aria-expanded={searchOpen}
-            aria-label={en?'Search loaded Reels':'Rechercher parmi les Réels chargés'}
-            onClick={()=>setSearchOpen(value=>!value)}><ReelIcon name="search" size={28}/></button>
+          <Link href="/search" className="km-reel-header-icon"
+            aria-label={en?'Search KnowMe':'Rechercher sur KnowMe'}>
+            <ReelIcon name="search" size={28}/></Link>
           <Link href={'/profile/'+encodeURIComponent(user.username)}
             className="km-reel-header-icon" aria-label={en?'My profile':'Mon profil'}>
             <ReelIcon name="profile" size={29}/>
@@ -323,23 +316,15 @@ export default function ReelsPage() {
         aria-label={en?'Reels feed':'Fil Reels'}>
         <button type="button" role="tab" aria-selected={feed==='all'}
           className={feed==='all'?'km-reel-tab-active':''}
-          onClick={()=>{if(feed!=='all'){setQuery('');setActiveId(null);setPosts([]);setFeed('all');}}}>
+          onClick={()=>{if(feed!=='all'){setActiveId(null);setPosts([]);setFeed('all');}}}>
           {en?'For you':'Pour toi'}
         </button>
         <button type="button" role="tab" aria-selected={feed==='following'}
           className={feed==='following'?'km-reel-tab-active':''}
-          onClick={()=>{if(feed!=='following'){setQuery('');setActiveId(null);setPosts([]);setFeed('following');}}}>
+          onClick={()=>{if(feed!=='following'){setActiveId(null);setPosts([]);setFeed('following');}}}>
           {en?'Following':'Abonnements'}
         </button>
       </div>
-      {searchOpen&&<div className="km-reel-search-field">
-        <ReelIcon name="search" size={20}/>
-        <input value={query} onChange={event=>setQuery(event.currentTarget.value)}
-          aria-label={en?'Search loaded videos':'Rechercher parmi les vidéos chargées'}
-          placeholder={en?'Search loaded videos':'Rechercher parmi les vidéos chargées'}/>
-        <button type="button" onClick={()=>{setQuery('');setSearchOpen(false);}}
-          aria-label={en?'Close search':'Fermer la recherche'}>×</button>
-      </div>}
       {feedback&&<div role="status" className="km-reels-notice"
         onClick={()=>setFeedback('')}>{feedback}</div>}
       <div className="km-reels-viewport" ref={reelRoot}
@@ -352,8 +337,7 @@ export default function ReelsPage() {
         {loading&&<p className="km-reels-empty">{en?'Loading videos…':'Chargement des vidéos…'}</p>}
         {!loading&&!visibleClips.length&&
           <div className="km-reels-empty">
-            <h2>{query.trim()?(en?'No matching loaded videos':'Aucune vidéo chargée correspondante')
-              :feed==='following'?(en?'No videos from followed creators':'Aucune vidéo de tes abonnements')
+            <h2>{feed==='following'?(en?'No videos from followed creators':'Aucune vidéo de tes abonnements')
               :(en?'No videos on your feed yet':'Aucune vidéo dans ton fil pour le moment')}</h2>
             <p>{en?'Explore or publish a video from KnowMe.':'Découvre des publications ou publie une vidéo sur KnowMe.'}</p>
             <Link href="/feed">{en?'Return to feed':'Retour au fil'}</Link>
@@ -397,9 +381,7 @@ export default function ReelsPage() {
                 {Boolean(post.content.match(/#[\p{L}\p{N}_]+/gu)?.length)&&
                   <div className="km-reel-hashtags">
                     {[...new Set(post.content.match(/#[\p{L}\p{N}_]+/gu)??[])].slice(0,5).map(tag=>
-                      <button key={tag} type="button" onClick={()=>{
-                        setQuery(tag);setSearchOpen(true);
-                      }}>{tag}</button>)}
+                      <Link key={tag} href={'/search?q='+encodeURIComponent(tag)}>{tag}</Link>)}
                   </div>}
               </div>
               <div className="km-reel-actions">
