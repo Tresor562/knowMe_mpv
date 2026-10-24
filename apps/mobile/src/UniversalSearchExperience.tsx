@@ -96,7 +96,7 @@ export function UniversalSearchExperience({
     setError('');
     try {
       const response=await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds.join(','))}`
+        `/search/discover?q=${encodeURIComponent(normalized)}&limit=20&kinds=${encodeURIComponent(kinds.join(','))}`
       );
       if(epoch!==requestEpoch.current)return;
       setSubmittedQuery(response.query);
@@ -120,7 +120,7 @@ export function UniversalSearchExperience({
     try {
       const kinds = submittedKinds.join(',');
       const response = await apiFetch<SearchResponse>(
-        `/search?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
+        `/search/discover?q=${encodeURIComponent(submittedQuery)}&limit=20&kinds=${encodeURIComponent(kinds)}&cursor=${encodeURIComponent(nextCursor)}`
       );
       if(epoch!==requestEpoch.current)return;
       setItems((current) => {
