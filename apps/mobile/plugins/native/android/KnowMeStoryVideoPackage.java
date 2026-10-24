@@ -57,7 +57,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       view.player.setKeepScreenOn(!paused && view.ready);
       if (view.ready) {
         if (paused) view.player.pause();
-        else view.player.start();
+        else if (!view.completed) view.player.start();
       }
     }
 
@@ -98,6 +98,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     MediaController storyControls;
     boolean ready = false;
     boolean paused = false;
+    boolean completed = false;
     MediaPlayer preparedMedia;
     boolean coverMode = false;
     String currentUri = "";
@@ -173,7 +174,15 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     void applySeek() {
       if (!ready || seekToMs<0) return;
       int duration=player.getDuration();
-      if (duration>0) player.seekTo((int)Math.min(seekToMs, duration));
+      if (duration>0) {
+        int target=(int)Math.min(seekToMs, duration);
+        player.seekTo(target);
+        // Replay only after an explicit seek away from the end.
+        if(target<duration-250) {
+          completed=false;
+          if(!paused)player.start();
+        }
+      }
       seekToMs=-1;
       emitProgress();
     }
@@ -191,6 +200,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
       player.setMediaController(null);
       player.setOnPreparedListener(media -> {
         ready=true;
+        completed=false;
         preparedMedia=media;
         media.setLooping(false);
         updateVideoScale();
@@ -216,6 +226,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
         emitProgress();
       });
       player.setOnCompletionListener(media -> {
+        completed=true;
         player.setKeepScreenOn(false);
         final int completedDuration=Math.max(0,player.getDuration());
         // Android VideoView may clear its Surface at EOS. Keep the last decoded
@@ -253,6 +264,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     void setSourceUri(String uri) {
       if (uri == null || uri.equals(currentUri)) return;
       currentUri=uri;
+      completed=false;
       ready=false;
       preparedMedia=null;
       seekToMs=-1;
@@ -294,6 +306,7 @@ public final class KnowMeStoryVideoPackage implements ReactPackage {
     void release() {
       handler.removeCallbacks(ticker);
       ready=false;
+      completed=false;
       preparedMedia=null;
       player.setKeepScreenOn(false);
       player.stopPlayback();
