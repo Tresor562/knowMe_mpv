@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, StyleSheet,
+  ActivityIndicator, BackHandler, FlatList, Keyboard, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View
 } from 'react-native';
 import { API_URL, apiFetch } from './api';
@@ -40,10 +40,11 @@ type VideoPost={
 };
 type Clip={id:string;post:VideoPost;media:Media};
 
-export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
+export function ReelsExperience({onBack,onOpenPost,onOpenProfile,onOpenSearch}:{
   onBack:()=>void;
   onOpenPost:(id:string)=>void;
   onOpenProfile:(username:string)=>void;
+  onOpenSearch?:(initialQuery?:string)=>void;
 }){
   const {locale}=useI18n();
   const en=locale==='en';
@@ -53,10 +54,12 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const [viewer,setViewer]=useState<{username:string;displayName:string;avatarUrl?:string|null}|null>(null);
   const [searchOpen,setSearchOpen]=useState(false);
   const [filter,setFilter]=useState('');
+  const [keyboardVisible,setKeyboardVisible]=useState(false);
   const [following,setFollowing]=useState<Record<string,FollowState|null>>({});
   const [busyFollow,setBusyFollow]=useState<string|null>(null);
   const [offlineRequests,setOfflineRequests]=useState<Record<string,number>>({});
   const [offlineStatus,setOfflineStatus]=useState<Record<string,boolean>>({});
+  const [offlineProgress,setOfflineProgress]=useState<Record<string,{saving:boolean;percent:number;error:boolean}>>({});
   const [active,setActive]=useState<string|null>(null);
   const [loading,setLoading]=useState(true);
   const [more,setMore]=useState(false);
@@ -80,6 +83,22 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   const cursorRef=useRef<string|null>(null);
   const listRef=useRef<FlatList<Clip>|null>(null);
   const viewability=useRef({itemVisiblePercentThreshold:72}).current;
+
+  // Hardware Back exits search first instead of abandoning the entire Reel.
+  useEffect(()=>{
+    if(!searchOpen)return;
+    const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
+      Keyboard.dismiss();setFilter('');setSearchOpen(false);return true;
+    });
+    return()=>sub.remove();
+  },[searchOpen]);
+
+  // Keep paging geometry fixed when Android's IME changes the layout size.
+  useEffect(()=>{
+    const opened=Keyboard.addListener('keyboardDidShow',()=>setKeyboardVisible(true));
+    const closed=Keyboard.addListener('keyboardDidHide',()=>setKeyboardVisible(false));
+    return()=>{opened.remove();closed.remove();};
+  },[]);
 
   useEffect(()=>{
     let live=true;
@@ -195,11 +214,23 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     return()=>{alive=false;};
   },[initialSelection,loading,posts,feed]);
 
-  const visibleClips=useMemo(()=>{
+  // Searching must not recreate/reposition the active native VideoView.
+  const visibleClips=clips;
+  const searchMatches=useMemo(()=>{
     const q=filter.trim().toLocaleLowerCase();
     return q?clips.filter(clip=>(clip.post.author.username+' '+clip.post.content)
       .toLocaleLowerCase().includes(q)):clips;
   },[clips,filter]);
+
+  function openSearchResult(id:string){
+    const index=visibleClips.findIndex(item=>item.id===id);
+    if(index<0)return;
+    Keyboard.dismiss();
+    setSearchOpen(false);
+    setFilter('');
+    setActive(id);
+    listRef.current?.scrollToIndex({index,animated:false});
+  }
 
   useEffect(()=>{
     const selected=chooseVisibleReel(visibleClips.map(clip=>clip.id),active);
@@ -301,8 +332,17 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
 
   const activeIndex=Math.max(0,visibleClips.findIndex(clip=>clip.id===active));
+  // Fetch the next page while at least eight clips remain, before the user
+  // reaches the end and would otherwise wait for another HTTP feed request.
+  useEffect(()=>{
+    if(!visibleClips.length||!hasMore||fetching.current||loading||more)return;
+    if(activeIndex>=visibleClips.length-8)void load(true);
+  },[activeIndex,visibleClips.length,hasMore,loading,more,load]);
+
   function renderClip({item,index}:{item:Clip;index:number}){
     const post=item.post;
+    // A modal may pause the video, but must never deactivate/remount it:
+    // autoPlay false->true would reopen at 0 on dismiss.
     const shown=item.id===active&&!offlineLibraryOpen;
     const prepare=!offlineLibraryOpen&&index>=activeIndex-1&&index<=activeIndex+5;
     const like=likes[post.id];
@@ -310,16 +350,20 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
     const tags=(post.content.match(/#[\p{L}\p{N}_]+/gu)??[]).slice(0,4);
     return <View style={[styles.slide,{height:viewportHeight}]}>
       {prepare?<PublicPostVideo key={item.id} url={item.media.url}
-        autoPlay={shown} preloadPaused={!shown} externallyPaused={Boolean(captionClip)||Boolean(commentPost)||refreshing||searchOpen||Boolean(sharingClip)}
+        autoPlay={shown} preloadPaused={!shown} externallyPaused={Boolean(captionClip)||Boolean(commentPost)||refreshing||searchOpen||keyboardVisible||Boolean(sharingClip)}
         onDoubleTap={()=>{void ensureLike(post);}}
         offlineRequest={offlineRequests[item.id]??0}
         onOfflineStatus={saved=>setOfflineStatus(old=>
-          old[item.id]===saved?old:{...old,[item.id]:saved})}/>
+          old[item.id]===saved?old:{...old,[item.id]:saved})}
+        onOfflineProgress={progress=>setOfflineProgress(old=>
+          old[item.id]?.saving===progress.saving&&old[item.id]?.percent===progress.percent&&
+            old[item.id]?.error===progress.error
+            ?old:{...old,[item.id]:progress})}/>
         :<View style={styles.inactive} accessible={false}>
           <KnowMeIcon name="video-call" size={42} color="#b7d5da"/>
         </View>}
       <View pointerEvents="none" style={styles.bottomScrim}/>
-      <View style={styles.information} pointerEvents="box-none">
+      {!searchOpen&&!keyboardVisible&&<View style={styles.information} pointerEvents="box-none">
         <View style={styles.creatorLine}>
           <Pressable accessibilityRole="button" style={styles.creatorAvatar}
             accessibilityLabel={en?'View creator profile':'Voir le profil'}
@@ -348,12 +392,13 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           onExpand={()=>setCaptionClip(post)}/>
         {tags.length>0&&<View style={styles.hashtags}>
           {tags.map(tag=><Pressable key={tag} accessibilityRole="button"
-            onPress={()=>{setFilter(tag);setSearchOpen(true);}}>
+            onPress={()=>{if(onOpenSearch)onOpenSearch(tag);
+              else {setFilter(tag);setSearchOpen(true);}}}>
             <Text style={styles.hashtag}>{tag}</Text>
           </Pressable>)}
         </View>}
-      </View>
-      <View style={styles.actions} pointerEvents="box-none">
+      </View>}
+      {!searchOpen&&!keyboardVisible&&<View style={styles.actions} pointerEvents="box-none">
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Like video':'Aimer le réel'}
           accessibilityState={{selected:like?.liked??false,disabled:pending.current}}
           onPress={()=>void toggleLike(post)} style={styles.action}>
@@ -362,7 +407,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           <Text style={styles.actionCount}>{shortCount(like?.count??post._count.likes)}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={en?'Comments':'Commentaires'}
-          onPress={()=>onOpenPost(post.id)} style={styles.action}>
+          onPress={()=>setCommentPost(post)} style={styles.action}>
           <KnowMeIcon name="messages" size={32} color="#fff" strokeWidth={1.85}/>
           <Text style={styles.actionCount}>{shortCount(commentCounts[post.id]??post._count.comments)}</Text>
         </Pressable>
@@ -377,12 +422,18 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
           accessibilityState={{selected:Boolean(offlineStatus[item.id])}}
           onPress={()=>setOfflineRequests(old=>({...old,[item.id]:(old[item.id]??0)+1}))}
           onLongPress={()=>setOfflineLibraryOpen(true)} style={styles.action}>
-          <KnowMeIcon name={offlineStatus[item.id]?'check':'download'} size={29}
-            color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
-          <Text style={styles.actionCount}>{en?'Offline':'Hors ligne'}</Text>
+          <KnowMeIcon name={offlineStatus[item.id]?'check':offlineProgress[item.id]?.error?'refresh':'download'}
+            size={29} color={offlineStatus[item.id]?'#56f0dc':'#fff'} strokeWidth={1.85}/>
+          <Text style={styles.actionCount} numberOfLines={1}>
+            {offlineProgress[item.id]?.saving
+              ?(en?'Saving ':'En cours ')+offlineProgress[item.id]!.percent+' %'
+              :offlineStatus[item.id]?(en?'Saved':'Enregistrée')
+              :offlineProgress[item.id]?.error?(en?'Retry':'Réessayer')
+              :(en?'Offline':'Hors ligne')}
+          </Text>
         </Pressable>
-      </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={en?'Add comment':'Ajouter un commentaire'}
+      </View>}
+      {!searchOpen&&!keyboardVisible&&<Pressable accessibilityRole="button" accessibilityLabel={en?'Add comment':'Ajouter un commentaire'}
         style={styles.commentComposer} onPress={()=>setCommentPost(post)}>
         <Avatar name={viewer?.displayName??'KnowMe'} uri={avatarUri(viewer?.avatarUrl)} size={30}/>
         <Text style={styles.commentPlaceholder} numberOfLines={1}>
@@ -390,7 +441,7 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         </Text>
         <Text style={styles.mentionIcon}>@</Text>
         <KnowMeIcon name="smile" size={24} color="#fff"/>
-      </Pressable>
+      </Pressable>}
     </View>;
   }
 
@@ -398,19 +449,25 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
   // can warm their HTTP ranges without playing. Only nearby clips mount media.
   return <View style={styles.root} onLayout={event=>{
     const height=event.nativeEvent.layout.height;
-    if(height>0&&Math.abs(height-viewportHeight)>1)setViewportHeight(height);
+    if(!searchOpen&&!commentPost&&!keyboardVisible&&height>0&&Math.abs(height-viewportHeight)>1)
+      setViewportHeight(height);
   }}>
     <FlatList ref={listRef} data={visibleClips} keyExtractor={item=>item.id}
       renderItem={renderClip} style={styles.list}
       refreshing={refreshing} onRefresh={()=>void load(false,true)}
       progressViewOffset={58}
-      pagingEnabled decelerationRate="fast" showsVerticalScrollIndicator={false}
+      pagingEnabled scrollEnabled={!keyboardVisible&&!searchOpen&&!Boolean(commentPost)}
+      keyboardShouldPersistTaps="handled"
+      decelerationRate="fast" showsVerticalScrollIndicator={false}
       viewabilityConfig={viewability} onViewableItemsChanged={onViewableItemsChanged}
       onEndReached={()=>{
         if(clips.length>0&&!endReached.current){endReached.current=true;void load(true);}
       }} onMomentumScrollBegin={()=>{endReached.current=false;}}
       onEndReachedThreshold={0.4}
       getItemLayout={(_data,index)=>({length:viewportHeight,offset:index*viewportHeight,index})}
+      onScrollToIndexFailed={({index})=>listRef.current?.scrollToOffset({
+        offset:Math.max(0,index*viewportHeight),animated:false
+      })}
       initialNumToRender={7} windowSize={13} maxToRenderPerBatch={7}
       removeClippedSubviews={false}
       ListEmptyComponent={<View style={[styles.empty,{height:viewportHeight}]}>
@@ -440,23 +497,26 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
 
     <View style={styles.header} pointerEvents="box-none">
       <Pressable accessibilityRole="button" accessibilityLabel={en?'Back':'Retour'}
-        onPress={onBack} style={styles.headerButton}>
+        onPress={()=>{
+          if(searchOpen){Keyboard.dismiss();setFilter('');setSearchOpen(false);}
+          else onBack();
+        }} style={styles.headerButton}>
         <KnowMeIcon name="back" size={29} color="#fff"/>
       </Pressable>
       <Text style={styles.title} numberOfLines={1}>KnowMe · Reels</Text>
       <View style={styles.headerActions}>
-        <Pressable accessibilityRole="button" style={styles.headerButton}
+        {!searchOpen&&<Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'Search loaded Reels':'Rechercher dans les Réels chargés'}
-          onPress={()=>setSearchOpen(open=>!open)}>
+          onPress={()=>{if(onOpenSearch)onOpenSearch();else setSearchOpen(true);}}>
           <KnowMeIcon name="search" size={27} color="#fff"/>
-        </Pressable>
+        </Pressable>}
         <Pressable accessibilityRole="button" style={styles.headerButton}
           accessibilityLabel={en?'My profile':'Mon profil'} onPress={()=>void openOwnProfile()}>
           <KnowMeIcon name="profile" size={27} color="#fff"/>
         </Pressable>
       </View>
     </View>
-    <View style={styles.tabs} pointerEvents="box-none">
+    {!searchOpen&&<View style={styles.tabs} pointerEvents="box-none">
       <Pressable accessibilityRole="tab" accessibilityState={{selected:feed==='all'}}
         onPress={()=>{if(feed!=='all'){setFilter('');setFeed('all');}}}
         style={[styles.tab,feed==='all'&&styles.selectedTab]}>
@@ -473,17 +533,35 @@ export function ReelsExperience({onBack,onOpenPost,onOpenProfile}:{
         </Text>
         {feed==='following'&&<View style={styles.tabUnderline}/>}
       </Pressable>
-    </View>
-    {searchOpen&&<View style={styles.searchPanel}>
+    </View>}
+    {searchOpen&&<View style={styles.searchMode}>
+      <View style={styles.searchPanel}>
       <KnowMeIcon name="search" size={20} color="#e8fff9"/>
-      <TextInput style={styles.searchInput} value={filter} onChangeText={setFilter}
+      <TextInput style={styles.searchInput} value={filter} onChangeText={setFilter} autoFocus
         placeholder={en?'Search loaded videos':'Rechercher dans les vidéos chargées'}
         placeholderTextColor="#a8b9be" autoCapitalize="none" autoCorrect={false}
         accessibilityLabel={en?'Video search':'Rechercher un réel'}/>
       <Pressable accessibilityRole="button" accessibilityLabel={en?'Close search':'Fermer la recherche'}
-        onPress={()=>{setFilter('');setSearchOpen(false);}} style={styles.searchClose}>
+        onPress={()=>{Keyboard.dismiss();setFilter('');setSearchOpen(false);}} style={styles.searchClose}>
         <KnowMeIcon name="close" size={20} color="#fff"/>
       </Pressable>
+      </View>
+      <ScrollView style={styles.searchResults} keyboardShouldPersistTaps="handled">
+        {searchMatches.length===0?<Text style={styles.searchEmpty}>
+          {en?'No loaded Reel matches your search.':'Aucun Reel chargé ne correspond à ta recherche.'}
+        </Text>:searchMatches.slice(0,100).map(clip=><Pressable key={clip.id}
+          style={styles.searchResult} accessibilityRole="button"
+          accessibilityLabel={(en?'Open video by ':'Ouvrir le réel de ')+clip.post.author.username}
+          onPress={()=>openSearchResult(clip.id)}>
+          <Avatar name={clip.post.author.displayName}
+            uri={avatarUri(clip.post.author.avatarUrl)} size={38}/>
+          <View style={styles.searchResultBody}>
+            <Text style={styles.searchResultUser}>@{clip.post.author.username}</Text>
+            <Text numberOfLines={2} style={styles.searchResultCaption}>{clip.post.content}</Text>
+          </View>
+          <KnowMeIcon name="play" size={22} color="#89e7e0"/>
+        </Pressable>)}
+      </ScrollView>
     </View>}
     <OfflineVideosLibrary visible={offlineLibraryOpen}
       onClose={()=>setOfflineLibraryOpen(false)}/>
@@ -547,7 +625,7 @@ const styles=StyleSheet.create({
   inactive:{flex:1,width:'100%',alignItems:'center',justifyContent:'center'},
   bottomScrim:{position:'absolute',left:0,right:0,bottom:0,height:335,
     backgroundColor:'rgba(0,0,0,.17)'},
-  information:{position:'absolute',left:0,right:80,bottom:112,paddingHorizontal:14,
+  information:{position:'absolute',left:0,right:77,bottom:84,paddingHorizontal:14,
     gap:9,alignItems:'flex-start'},
   creatorLine:{flexDirection:'row',alignItems:'center',gap:7,maxWidth:'100%'},
   creatorAvatar:{width:51,height:51,borderWidth:2,borderColor:'transparent',borderRadius:26,
@@ -563,10 +641,10 @@ const styles=StyleSheet.create({
   moreText:{color:'#c9d8dc',fontSize:12},
   hashtags:{flexDirection:'row',flexWrap:'wrap',gap:11,maxWidth:'100%'},
   hashtag:{color:'#c9d5e2',fontSize:12,fontWeight:'500'},
-  actions:{position:'absolute',right:7,bottom:132,gap:9,alignItems:'center',width:70},
-  action:{width:64,minHeight:59,alignItems:'center',justifyContent:'center',gap:3},
-  redHeart:{fontSize:39,lineHeight:42,color:'#ff3b57',includeFontPadding:false},
-  actionCount:{color:'#fff',fontSize:12,fontWeight:'700',textShadowColor:'#000b',
+  actions:{position:'absolute',right:5,bottom:112,gap:12,alignItems:'center',width:68},
+  action:{width:62,minHeight:64,alignItems:'center',justifyContent:'center',gap:4},
+  redHeart:{fontSize:35,lineHeight:39,color:'#ff3b57',includeFontPadding:false},
+  actionCount:{color:'#fff',fontSize:11,fontWeight:'700',textShadowColor:'#000b',
     textShadowRadius:4},
   commentComposer:{position:'absolute',left:12,right:12,bottom:13,height:51,
     flexDirection:'row',alignItems:'center',gap:13,paddingHorizontal:9,
@@ -576,13 +654,14 @@ const styles=StyleSheet.create({
   mentionIcon:{color:'#fff',fontSize:28,fontWeight:'800',lineHeight:34},
   header:{position:'absolute',top:0,left:0,right:0,paddingHorizontal:10,
     height:56,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
-    backgroundColor:'rgba(0,0,0,.17)'},
+    backgroundColor:'rgba(0,0,0,.43)',zIndex:12},
   headerButton:{width:48,height:48,justifyContent:'center',alignItems:'center'},
   title:{position:'absolute',left:62,right:111,fontSize:20,textAlign:'center',
-    color:'#fff',fontWeight:'800'},
+    color:'#fff',fontWeight:'800',textShadowColor:'#000d',textShadowRadius:5},
   headerActions:{flexDirection:'row',alignItems:'center',gap:2},
-  tabs:{position:'absolute',top:59,left:0,right:0,flexDirection:'row',
-    justifyContent:'center',alignItems:'center',gap:18},
+  tabs:{position:'absolute',top:56,left:0,right:0,flexDirection:'row',
+    justifyContent:'center',alignItems:'center',gap:18,
+    backgroundColor:'rgba(0,0,0,.3)'},
   tab:{height:44,minWidth:0,paddingHorizontal:8,alignItems:'center',
     justifyContent:'center'},
   selectedTab:{},
@@ -590,9 +669,18 @@ const styles=StyleSheet.create({
   tabSelectedText:{color:'#fff',fontWeight:'800'},
   tabUnderline:{position:'absolute',bottom:0,width:34,height:3,borderRadius:3,
     backgroundColor:'#49ede2'},
-  searchPanel:{position:'absolute',top:110,left:14,right:14,height:52,borderRadius:22,
-    backgroundColor:'rgba(18,29,38,.95)',flexDirection:'row',alignItems:'center',
+  searchMode:{position:'absolute',top:56,bottom:0,left:0,right:0,
+    backgroundColor:'#080e13',zIndex:11},
+  searchPanel:{marginTop:14,marginHorizontal:14,height:52,borderRadius:22,
+    backgroundColor:'#182630',flexDirection:'row',alignItems:'center',
     paddingHorizontal:12,gap:8},
+  searchResults:{flex:1,marginTop:12,paddingHorizontal:14},
+  searchResult:{minHeight:69,flexDirection:'row',alignItems:'center',gap:12,
+    borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#35444b',paddingVertical:9},
+  searchResultBody:{flex:1,gap:3},
+  searchResultUser:{color:'#fff',fontSize:14,fontWeight:'700'},
+  searchResultCaption:{color:'#b9c8cf',fontSize:12},
+  searchEmpty:{paddingVertical:30,color:'#b9c8cf',textAlign:'center'},
   searchInput:{flex:1,height:47,color:'#fff',fontSize:14,paddingVertical:0},
   searchClose:{width:38,height:44,alignItems:'center',justifyContent:'center'},
   empty:{alignItems:'center',justifyContent:'center',paddingHorizontal:24},

@@ -97,7 +97,7 @@
 .km-reel-hashtags{
   display:flex;align-items:center;gap:9px;flex-wrap:wrap;pointer-events:auto
 }
-.km-reel-hashtags button{
+.km-reel-hashtags button,.km-reel-hashtags a{
   border:0;padding:1px 0;background:transparent;color:#d1d7df;
   font-size:12px;cursor:pointer;text-shadow:0 1px 4px #000c
 }
@@ -177,7 +177,7 @@
   color:#91eadd;font-size:13px;font-weight:750;cursor:pointer}
 .km-reel-header-icon:focus-visible,.km-reels-top-tabs button:focus-visible,
 .km-reel-compose:focus-visible,.km-reel-comment-sheet button:focus-visible,
-.km-reel-hashtags button:focus-visible,.km-reel-follow:focus-visible{
+.km-reel-hashtags button:focus-visible,.km-reel-hashtags a:focus-visible,.km-reel-follow:focus-visible{
   outline:2px solid #75ede1;outline-offset:2px
 }
 @media(max-width:660px){

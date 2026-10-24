@@ -480,7 +480,7 @@ export default function FeedPage() {
           <strong>KnowMe</strong>
         </Link>
         <div className="km-feed-reference-actions">
-          <Link className="km-feed-reference-icon" href="/discover"
+          <Link className="km-feed-reference-icon" href="/search"
             aria-label={en ? 'Search KnowMe' : 'Rechercher sur KnowMe'}>
             <svg viewBox="0 0 24 24" width="25" height="25" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"

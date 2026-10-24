@@ -1,8 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
-import {Alert,KeyboardAvoidingView,Modal,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,KeyboardAvoidingView,Modal,Platform,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import {API_URL} from './api';
 import {NativeStoryVideo} from './NativeStoryVideo';
+import {NativePublicVideoStill} from './NativePublicVideoStill';
 import {useAppearance} from './AppearanceProvider';
 import {useI18n} from './I18nProvider';
 import {KnowMeIcon} from './ui/KnowMeUI';
@@ -13,9 +14,10 @@ import {savedPublicVideo,downloadPublicVideoOffline,deleteSavedPublicVideo} from
 
 /** On-demand, HTTPS range-streamed public video. No full-file download. */
 export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=false,externallyPaused=false,
-  offlineRequest=0,onOfflineStatus}:{
+  offlineRequest=0,onOfflineStatus,onOfflineProgress}:{
   url:string;onDoubleTap?:()=>void;autoPlay?:boolean;preloadPaused?:boolean;externallyPaused?:boolean;
-  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void
+  offlineRequest?:number;onOfflineStatus?:(saved:boolean)=>void;
+  onOfflineProgress?:(progress:{saving:boolean;percent:number;error:boolean})=>void
 }){
   const {colors}=useAppearance();
   const {locale}=useI18n();
@@ -23,6 +25,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   const [local,setLocal]=useState<string|null>(null);
   const [paused,setPaused]=useState(false);
   const [ended,setEnded]=useState(false);
+  const endedRef=useRef(false);
   const [error,setError]=useState('');
   const [positionMs,setPositionMs]=useState(0);
   const [durationMs,setDurationMs]=useState(0);
@@ -39,6 +42,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   const [saving,setSaving]=useState(false);
   const [savePercent,setSavePercent]=useState(0);
   const [saveNotice,setSaveNotice]=useState('');
+  const [offlineError,setOfflineError]=useState(false);
   const activeDownload=useRef<FileSystem.DownloadResumable|null>(null);
   const alive=useRef(true);
   const singleTapTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -83,15 +87,17 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
             if(local===saved)setLocal(null);
             setSaved(null);
             setSaveNotice('Vidéo supprimée de cet appareil.');
-          })().catch(()=>{if(alive.current)setSaveNotice('Suppression impossible.');});}
+            setOfflineError(false);
+          })().catch(()=>{if(alive.current){setSaveNotice('Suppression impossible.');setOfflineError(true);}});}
         }]);
       return;
     }
     if(!publicPostVideoId(url)){
       setSaveNotice('Seules les vidéos publiques KnowMe peuvent être enregistrées.');
+      setOfflineError(true);
       return;
     }
-    setSaving(true);setSavePercent(0);setSaveNotice('');
+    setSaving(true);setSavePercent(0);setSaveNotice('');setOfflineError(false);
     try{
       const uri=await downloadPublicVideoOffline(url,fraction=>{
         if(alive.current)setSavePercent(Math.round(fraction*100));
@@ -101,8 +107,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
         setSaveNotice('Vidéo enregistrée. Elle reste disponible hors connexion.');
       }
     }catch(error){
-      if(alive.current)setSaveNotice(error instanceof Error?error.message:
-        'Téléchargement interrompu.');
+      if(alive.current){
+        setOfflineError(true);
+        setSaveNotice(error instanceof Error?error.message:'Téléchargement interrompu.');
+      }
     }finally{
       activeDownload.current=null;
       if(alive.current)setSaving(false);
@@ -120,6 +128,10 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // The state transition is authoritative; callback identity is not a trigger.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[saved]);
+  useEffect(()=>{onOfflineProgress?.({saving,percent:savePercent,error:offlineError});
+  // Update parent indicators only for actual download state changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[saving,savePercent,offlineError]);
 
   async function open(){
     // Do not copy an entire MP4 into cache. Android VideoView reads bounded
@@ -133,6 +145,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setError('');
     setPaused(false);
     setEnded(false);
+    endedRef.current=false;
     setPositionMs(0);
     setDurationMs(0);
     setSeekToMs(undefined);
@@ -159,8 +172,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
   // Autoplay only when the caller explicitly marks a single active Reel.
   // Feed previews and the offline-library thumbnail remain tap-to-play.
   useEffect(()=>{
-    if(autoPlay)void open();
-  },[autoPlay,url]);
+    // Promoting one of the five paused, prepared VideoViews must only resume
+    // that same native decoder. Reopening here resets the time and re-enters
+    // asynchronous file lookup, throwing away the prebuffered lead.
+    if(autoPlay&&!local&&!error)void open();
+  },[autoPlay,url,local,error]);
 
   function replayFromBeginning(){
     if(durationMs<=0)return;
@@ -222,6 +238,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setSeekToMs(bounded);
     setPositionMs(bounded);
     setEnded(false);
+    endedRef.current=false;
     setResumeMs(null);
     playback.current.positionMs=bounded;
     if(playback.current.durationMs>0)void savePublicVideoResume(url,bounded,playback.current.durationMs).catch(()=>undefined);
@@ -233,8 +250,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     setTimeDialogOpen(false);
     setTimeError(false);
   }
-  const progressMode=reelProgressMode(durationMs,paused||timeDialogOpen,
-    reelControlsVisible,scrubMs!==null);
+  // End screens only show Replay; an expanded timeline obscures the caption.
+  const progressMode=ended
+    ?(durationMs>=180_000?'thin':'hidden')
+    :reelProgressMode(durationMs,paused||timeDialogOpen,
+      reelControlsVisible,scrubMs!==null);
   const displayMs=scrubMs??positionMs;
   const displayPercent=durationMs>0?Math.min(100,100*displayMs/durationMs):0;
   function dragSeek(offsetX:number){
@@ -253,15 +273,20 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     pointerEvents={preloadPaused&&!autoPlay?'none':'auto'}
     importantForAccessibility={preloadPaused&&!autoPlay?'no-hide-descendants':'auto'}>
     {local?<View style={styles.playback}>
-      <NativeStoryVideo sourceUri={local} nativeControls={false} paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
+      <NativeStoryVideo sourceUri={local} nativeControls={false}
+        resizeMode={onDoubleTap?'cover':'contain'}
+        paused={paused||externallyPaused||scrubMs!==null||timeDialogOpen||(preloadPaused&&!autoPlay)} style={styles.video}
         onPlaybackError={event=>{
           setLocal(null);
           setError(event.nativeEvent.message||'Lecture de la vidéo impossible.');
         }}
         onPlaybackComplete={event=>{
           const completedDuration=event.nativeEvent.durationMs||durationMs;
-          setSeekToMs(undefined);
+          // Keep the final decoded frame on Android instead of a black VideoView.
+          // The last 250ms avoids seeking to the EOS sentinel frame.
+          setSeekToMs(Math.max(0,completedDuration-250));
           setPositionMs(completedDuration);
+          endedRef.current=true;
           setEnded(true);
           setPaused(true);
           setResumeMs(null);
@@ -270,7 +295,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
         }}
         seekToMs={seekToMs}
         onProgress={event=>{
-          if(preloadPaused&&!autoPlay)return; // No timeline writes from a passive buffer.
+          if(preloadPaused&&!autoPlay||endedRef.current)return; // No timeline writes from a passive buffer.
           const duration=event.nativeEvent.durationMs;
           const position=event.nativeEvent.positionMs;
           if(Number.isFinite(duration)&&duration>0)setDurationMs(duration);
@@ -323,11 +348,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
       </Pressable>}
       {(!onDoubleTap||progressMode==='expanded')&&
       <View style={[styles.seekControls,onDoubleTap?styles.reelSeek:null]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
+        {!onDoubleTap&&<Pressable accessibilityRole="button" accessibilityLabel="Reculer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,-10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>-10</Text>
-        </Pressable>
+        </Pressable>}
         <View style={styles.seekMiddle}>
           <View style={styles.timeRow}>
             <Text style={styles.timeLabel}>{videoTime(displayMs)} / {videoTime(durationMs)}{scrubMs!==null?' · déplacer':''}</Text>
@@ -362,11 +387,11 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
             <View pointerEvents="none" style={[styles.seekThumb,{left:`${displayPercent}%` as `${number}%`}]}/>
           </View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
+        {!onDoubleTap&&<Pressable accessibilityRole="button" accessibilityLabel="Avancer de dix secondes"
           onPress={()=>seek(clampVideoSeek(positionMs,durationMs,10000))} style={styles.skipButton}>
           <KnowMeIcon name="arrow" size={17} color="#fff"/>
           <Text style={styles.skipText}>+10</Text>
-        </Pressable>
+        </Pressable>}
       </View>}
       {Boolean(onDoubleTap)&&progressMode==='thin'&&
         <Pressable style={styles.reelThinTrack} accessibilityRole="button"
@@ -398,6 +423,8 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     </View>:<Pressable
       accessibilityRole="button" accessibilityLabel="Lire la vidéo"
       onPress={()=>void open()} style={[styles.open,{backgroundColor:colors.surface}]}>
+      {publicPostVideoId(url)&&<NativePublicVideoStill
+        sourceUri={API_URL+url} style={styles.feedStill}/>}
       <KnowMeIcon name="play" size={45} color={colors.text}/>
       <Text style={{color:colors.muted,fontSize:12,textAlign:'center'}}>
         {error||'Lire la vidéo'}
@@ -419,7 +446,7 @@ export function PublicPostVideo({url,onDoubleTap,autoPlay=false,preloadPaused=fa
     </View>}
     <Modal visible={timeDialogOpen} transparent animationType="fade"
       onRequestClose={()=>setTimeDialogOpen(false)} statusBarTranslucent>
-      <KeyboardAvoidingView behavior="padding" style={styles.timeModalFull}>
+      <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={styles.timeModalFull}>
         <Pressable style={StyleSheet.absoluteFillObject}
           accessibilityRole="button" accessibilityLabel={en?'Close time entry':'Fermer la saisie du temps'}
           onPress={()=>setTimeDialogOpen(false)}/>
@@ -464,8 +491,10 @@ const styles=StyleSheet.create({
     minHeight:50,paddingHorizontal:8,borderRadius:16,
     backgroundColor:'rgba(0,0,0,.68)',flexDirection:'row',
     alignItems:'center',gap:10},
-  reelSeek:{bottom:80,left:16,right:16,backgroundColor:'rgba(0,0,0,.47)'},
-  reelThinTrack:{position:'absolute',left:18,right:18,bottom:91,height:12,
+  // Timeline sits below the tabs and ABOVE media; never over author/caption.
+  reelSeek:{top:119,bottom:undefined,left:15,right:15,
+    backgroundColor:'rgba(0,0,0,.76)'},
+  reelThinTrack:{position:'absolute',left:18,right:18,top:112,height:12,
     borderRadius:6,backgroundColor:'rgba(255,255,255,.18)',justifyContent:'center'},
   reelThinFill:{height:3,backgroundColor:'#53ede1',borderRadius:2},
   reelCenterControls:{position:'absolute',top:'43%',left:0,right:0,alignItems:'center',
@@ -477,7 +506,7 @@ const styles=StyleSheet.create({
   reelSkipLabel:{fontSize:17,fontWeight:'700',color:'#fff'},
   resumeBox:{position:'absolute',bottom:71,alignSelf:'center',flexDirection:'row',
     backgroundColor:'rgba(4,20,24,.9)',borderRadius:16,padding:4,alignItems:'center',gap:4},
-  resumeReel:{bottom:262},
+  resumeReel:{top:189,bottom:undefined},
   resumeButton:{minHeight:44,flexDirection:'row',alignItems:'center',paddingHorizontal:12,
     gap:7,backgroundColor:'#83e9de',borderRadius:12},
   resumeLabel:{fontSize:12,color:'#08312c',fontWeight:'800'},
@@ -527,5 +556,6 @@ const styles=StyleSheet.create({
   timeCancel:{backgroundColor:'#324148'},timeConfirm:{backgroundColor:'#83e9de'},
   timeCancelText:{fontSize:14,fontWeight:'700',color:'#fff'},
   timeConfirmText:{fontSize:14,fontWeight:'800',color:'#082f2b'},
-  open:{flex:1,alignItems:'center',justifyContent:'center',gap:9}
+  open:{flex:1,alignItems:'center',justifyContent:'center',gap:9,overflow:'hidden'},
+  feedStill:{position:'absolute',top:0,bottom:0,left:0,right:0,width:'100%',height:'100%'}
 });

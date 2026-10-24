@@ -8,6 +8,7 @@ type Props={
   style?:object;
   paused?:boolean;
   nativeControls?:boolean;
+  resizeMode?:'contain'|'cover';
   seekToMs?:number;
   onProgress?:(event:NativeSyntheticEvent<VideoProgress>)=>void;
   onPlaybackError?:(event:NativeSyntheticEvent<{message:string}>)=>void;
@@ -15,7 +16,7 @@ type Props={
 };
 const AndroidPlayer=requireNativeComponent<Props>('KnowMeStoryVideoView');
 
-export function NativeStoryVideo({sourceUri,paused=false,nativeControls=true,style,seekToMs,onProgress,onPlaybackError,onPlaybackComplete}:Props){
+export function NativeStoryVideo({sourceUri,paused=false,nativeControls=true,resizeMode='contain',style,seekToMs,onProgress,onPlaybackError,onPlaybackComplete}:Props){
   const [appState,setAppState]=useState<string|null>(AppState.currentState);
   useEffect(()=>{
     if(Platform.OS!=='android')return;
@@ -27,6 +28,7 @@ export function NativeStoryVideo({sourceUri,paused=false,nativeControls=true,sty
   if(Platform.OS!=='android')return <View style={style}/>;
   return <AndroidPlayer sourceUri={sourceUri}
     paused={shouldSuspendVideo(paused,appState)} nativeControls={nativeControls}
+    resizeMode={resizeMode}
     style={style} seekToMs={seekToMs}
     onProgress={onProgress} onPlaybackError={onPlaybackError}
     onPlaybackComplete={onPlaybackComplete}/>;
